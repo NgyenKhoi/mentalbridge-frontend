@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import '../../login/auth.css';
+import './assessment.css';
 
 const PHQ9_QUESTIONS = [
   'Ít quan tâm hoặc không vui khi làm việc gì',
@@ -55,18 +55,18 @@ export default function AnonymousAssessment() {
 
   if (showResult) {
     return (
-      <div className="auth-container">
-        <div className="breathing-zone" style={{ opacity: 0.4 }}>
+      <main className="anonymous-assessment assessment-result-page">
+        <div className="assessment-breathing-zone" style={{ opacity: 0.4 }}>
           <div className="breathing-circle" />
         </div>
 
         <motion.div 
-          className="auth-box"
+          className="anonymous-assessment-card assessment-result-card"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{ maxWidth: '600px' }}
+          style={{ maxWidth: '1100px' }}
         >
-          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div className="assessment-result-header" style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <div className="eyebrow" style={{ color: 'var(--teal)' }}>KẾT QUẢ SÀNG LỌC</div>
             <h1 style={{ 
               fontFamily: 'var(--font-display)', 
@@ -117,6 +117,7 @@ export default function AnonymousAssessment() {
           )}
 
           <motion.div
+            className="assessment-result-signup"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
@@ -163,24 +164,24 @@ export default function AnonymousAssessment() {
               setAnswers(Array(9).fill(-1));
               setShowResult(false);
             }}
-            className="btn-ghost"
+            className="btn-ghost assessment-restart"
             style={{ width: '100%' }}
           >
             Làm lại bài kiểm tra
           </button>
         </motion.div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="auth-container">
-      <div className="breathing-zone" style={{ opacity: 0.3 }}>
+    <main className="anonymous-assessment">
+      <div className="assessment-breathing-zone" style={{ opacity: 0.3 }}>
         <div className="breathing-circle" />
       </div>
 
       <motion.div 
-        className="auth-box"
+        className="anonymous-assessment-card"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         style={{ maxWidth: '700px' }}
@@ -322,7 +323,6 @@ export default function AnonymousAssessment() {
           Bài kiểm tra này không thay thế chẩn đoán y khoa chuyên môn
         </div>
       </motion.div>
-    </div>
+    </main>
   );
 }
-

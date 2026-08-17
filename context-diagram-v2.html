@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Mental Bridge – Context Diagram v2</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#f0f2f5;
+    font-family:'Segoe UI',Arial,sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    padding:30px 20px 60px;
+  }
+  h1 { font-size:20px; font-weight:700; color:#1a1a2e; margin-bottom:4px; }
+  p.sub { font-size:12px; color:#666; margin-bottom:20px; }
+  svg {
+    background:#fff;
+    border:1px solid #d0d5dd;
+    border-radius:12px;
+    box-shadow:0 4px 28px rgba(0,0,0,0.10);
+  }
+</style>
+</head>
+<body>
+<h1>Mental Bridge — Context Diagram (Level 0 DFD)</h1>
+<p class="sub">Yourdon/DeMarco notation &nbsp;·&nbsp; One arrow = one data flow &nbsp;·&nbsp; Plain rectangles for all external entities</p>
+
+<svg viewBox="0 0 1400 960" width="1400" height="960" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0,8 3,0 6" fill="#2d3a4a"/>
+  </marker>
+  <!-- subtle drop shadow for labels -->
+  <filter id="lbl-shadow" x="-5%" y="-10%" width="110%" height="130%">
+    <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#00000018"/>
+  </filter>
+</defs>
+
+<!-- ══════════════════════════════════════
+     SYSTEM BOUNDARY
+══════════════════════════════════════ -->
+<ellipse cx="700" cy="480" rx="148" ry="148"
+         fill="none" stroke="#b0bcd4" stroke-width="1.5" stroke-dasharray="9 5"/>
+<text x="856" y="345" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="11" fill="#b0bcd4">System Boundary</text>
+
+<!-- ══════════════════════════════════════
+     SYSTEM PROCESS (centre circle)
+══════════════════════════════════════ -->
+<circle cx="700" cy="480" r="115" fill="#eef2ff" stroke="#1a1a2e" stroke-width="2.5"/>
+<text x="700" y="471" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="24" font-weight="800" fill="#1a1a2e" text-anchor="middle">Mental Bridge</text>
+<text x="700" y="494" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="13" fill="#555" text-anchor="middle">System</text>
+
+<!-- ══════════════════════════════════════
+     EXTERNAL ENTITIES
+══════════════════════════════════════ -->
+
+<!-- USER (top-centre) -->
+<rect x="594" y="30" width="212" height="52" rx="3"
+      fill="#fff" stroke="#1a1a2e" stroke-width="2"/>
+<text x="700" y="57" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="14" font-weight="700" fill="#1a1a2e" text-anchor="middle">User</text>
+
+<!-- SPECIALIST (right) -->
+<rect x="1140" y="424" width="212" height="52" rx="3"
+      fill="#fff" stroke="#1a1a2e" stroke-width="2"/>
+<text x="1246" y="451" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="14" font-weight="700" fill="#1a1a2e" text-anchor="middle">Specialist</text>
+
+<!-- ADMINISTRATOR (bottom-centre) -->
+<rect x="594" y="878" width="212" height="52" rx="3"
+      fill="#fff" stroke="#1a1a2e" stroke-width="2"/>
+<text x="700" y="905" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="14" font-weight="700" fill="#1a1a2e" text-anchor="middle">Administrator</text>
+
+<!-- EXTERNAL LLM / AI (left-top) -->
+<rect x="40" y="200" width="200" height="60" rx="3"
+      fill="#fff" stroke="#1a1a2e" stroke-width="2"/>
+<text x="140" y="224" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="13" font-weight="700" fill="#1a1a2e" text-anchor="middle">External LLM /</text>
+<text x="140" y="242" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="13" font-weight="700" fill="#1a1a2e" text-anchor="middle">AI Model Service</text>
+
+<!-- PAYMENT GATEWAY (left-bottom) -->
+<rect x="40" y="630" width="200" height="60" rx="3"
+      fill="#fff" stroke="#1a1a2e" stroke-width="2"/>
+<text x="140" y="654" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="13" font-weight="700" fill="#1a1a2e" text-anchor="middle">Payment Gateway</text>
+<text x="140" y="672" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="13" font-weight="700" fill="#1a1a2e" text-anchor="middle">(MoMo / PayOS)</text>
+
+
+<!-- ══════════════════════════════════════
+     HELPER: label box macro (drawn manually per flow)
+══════════════════════════════════════ -->
+
+<!-- ════════════════════════════════════════════════════════
+     DATA FLOWS — USER ↔ SYSTEM
+     5 outgoing (left of centre), 4 incoming (right of centre)
+════════════════════════════════════════════════════════ -->
+
+<!-- DF1  User → System : Account & Profile Data -->
+<path d="M 647 82 C 610 160 590 240 572 365"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="474" y="148" width="162" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="555" y="160" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Account &amp; Profile Data</text>
+
+<!-- DF2  User → System : Journal & Mood Data -->
+<path d="M 635 82 C 608 170 595 260 578 365"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="464" y="176" width="150" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="539" y="188" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Journal &amp; Mood Data</text>
+
+<!-- DF3  User → System : Assessment Submission -->
+<path d="M 650 82 C 625 175 612 268 600 365"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="508" y="208" width="152" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="584" y="220" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Assessment Submission</text>
+
+<!-- DF4  User → System : Specialist Search & Booking Request -->
+<path d="M 665 82 C 646 175 636 268 622 365"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="502" y="236" width="186" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="595" y="248" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Specialist Search &amp; Booking Request</text>
+
+<!-- DF5  User → System : Subscription & Payment Request -->
+<path d="M 680 82 C 666 175 658 268 645 365"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="504" y="264" width="184" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="596" y="276" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Subscription &amp; Payment Request</text>
+
+<!-- DF6  System → User : Assessment & Risk Results -->
+<path d="M 728 365 C 738 260 745 175 750 82"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="756" y="200" width="164" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="838" y="212" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Assessment &amp; Risk Results</text>
+
+<!-- DF7  System → User : Resources & Recommendations -->
+<path d="M 744 365 C 756 260 762 175 765 82"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="756" y="226" width="168" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="840" y="238" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Resources &amp; Recommendations</text>
+
+<!-- DF8  System → User : Appointment & Payment Status -->
+<path d="M 758 365 C 772 262 778 175 779 82"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="756" y="252" width="168" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="840" y="264" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Appointment &amp; Payment Status</text>
+
+<!-- DF9  System → User : Notifications & Analytics -->
+<path d="M 772 365 C 788 260 793 175 793 82"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="756" y="278" width="152" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="832" y="290" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Notifications &amp; Analytics</text>
+
+
+<!-- ════════════════════════════════════════════════════════
+     DATA FLOWS — LLM ↔ SYSTEM
+════════════════════════════════════════════════════════ -->
+
+<!-- DF10  System → LLM : Journal / Assessment Context -->
+<path d="M 586 440 C 480 390 360 330 240 268"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="340" y="326" width="176" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="428" y="338" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Journal / Assessment Context</text>
+
+<!-- DF11  System → LLM : Benchmark Evaluation Input -->
+<path d="M 586 458 C 476 418 354 362 240 282"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="335" y="350" width="172" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="421" y="362" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Benchmark Evaluation Input</text>
+
+<!-- DF12  LLM → System : Emotion Analysis Output -->
+<path d="M 240 296 C 356 376 476 438 586 476"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="330" y="378" width="160" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="410" y="390" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Emotion Analysis Output</text>
+
+<!-- DF13  LLM → System : Model Metrics & Comparison -->
+<path d="M 240 310 C 355 396 476 454 586 492"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="326" y="402" width="166" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="409" y="414" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Model Metrics &amp; Comparison</text>
+
+
+<!-- ════════════════════════════════════════════════════════
+     DATA FLOWS — SPECIALIST ↔ SYSTEM
+════════════════════════════════════════════════════════ -->
+
+<!-- DF14  Specialist → System : Profile & Availability Update -->
+<path d="M 1140 440 C 1040 430 940 430 815 450"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="900" y="408" width="196" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="998" y="420" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Profile &amp; Availability Update</text>
+
+<!-- DF15  Specialist → System : Appointment Decision -->
+<path d="M 1140 450 C 1036 448 936 450 815 462"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="906" y="430" width="164" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="988" y="442" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Appointment Decision</text>
+
+<!-- DF16  Specialist → System : Chat & Follow-up Actions -->
+<path d="M 1140 460 C 1034 466 932 468 815 474"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="904" y="452" width="168" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="988" y="464" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Chat &amp; Follow-up Actions</text>
+
+<!-- DF17  System → Specialist : Appointments & Permitted User Data -->
+<path d="M 815 488 C 936 492 1036 492 1140 482"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="872" y="478" width="218" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="981" y="490" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Appointments &amp; Permitted User Data</text>
+
+<!-- DF18  System → Specialist : Conversation Updates -->
+<path d="M 815 500 C 934 510 1034 506 1140 494"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="890" y="498" width="154" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="967" y="510" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Conversation Updates</text>
+
+<!-- DF19  System → Specialist : Earnings & Payout Status -->
+<path d="M 815 512 C 934 524 1034 520 1140 506"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="884" y="518" width="162" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="965" y="530" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Earnings &amp; Payout Status</text>
+
+
+<!-- ════════════════════════════════════════════════════════
+     DATA FLOWS — ADMIN ↔ SYSTEM
+════════════════════════════════════════════════════════ -->
+
+<!-- DF20  Admin → System : Account & Content Administration -->
+<path d="M 647 878 C 614 790 594 710 594 595"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="456" y="752" width="194" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="553" y="764" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Account &amp; Content Administration</text>
+
+<!-- DF21  Admin → System : Specialist Approval & Moderation -->
+<path d="M 658 878 C 630 790 616 710 610 595"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="450" y="778" width="198" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="549" y="790" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Specialist Approval &amp; Moderation</text>
+
+<!-- DF22  Admin → System : Payment & Payout Management -->
+<path d="M 668 878 C 648 792 636 712 626 595"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="456" y="804" width="186" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="549" y="816" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Payment &amp; Payout Management</text>
+
+<!-- DF23  Admin → System : Dataset & Policy Configuration -->
+<path d="M 678 878 C 664 792 654 712 642 595"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="462" y="830" width="184" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="554" y="842" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Dataset &amp; Policy Configuration</text>
+
+<!-- DF24  System → Admin : Platform Reports & Trends -->
+<path d="M 758 595 C 768 712 772 792 762 878"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="770" y="752" width="166" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="853" y="764" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Platform Reports &amp; Trends</text>
+
+<!-- DF25  System → Admin : User/Specialist/Payment Records -->
+<path d="M 772 595 C 784 712 788 792 778 878"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="770" y="778" width="192" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="866" y="790" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">User / Specialist / Payment Records</text>
+
+<!-- DF26  System → Admin : Benchmark Results & Audit Logs -->
+<path d="M 786 595 C 800 712 803 792 794 878"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="770" y="804" width="184" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="862" y="816" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Benchmark Results &amp; Audit Logs</text>
+
+
+<!-- ════════════════════════════════════════════════════════
+     DATA FLOWS — PAYMENT GATEWAY ↔ SYSTEM
+════════════════════════════════════════════════════════ -->
+
+<!-- DF27  System → Payment GW : Payment Request & Transaction Data -->
+<path d="M 592 528 C 500 570 380 610 240 648"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="326" y="566" width="210" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="431" y="578" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Payment Request &amp; Transaction Data</text>
+
+<!-- DF28  Payment GW → System : Payment Result & Transaction Status -->
+<path d="M 240 662 C 380 632 500 592 592 544"
+      fill="none" stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+<rect x="320" y="596" width="218" height="18" rx="3" fill="#fff" filter="url(#lbl-shadow)" opacity="0.92"/>
+<text x="429" y="608" font-family="'Segoe UI',Arial,sans-serif" font-size="10.5"
+      fill="#1a1a2e" text-anchor="middle">Payment Result &amp; Transaction Status</text>
+
+
+<!-- ══════════════════════════════════════
+     FLOW INDEX (top-right)
+══════════════════════════════════════ -->
+<rect x="1220" y="30" width="160" height="390" rx="6"
+      fill="#f8faff" stroke="#c8d0e0" stroke-width="1"/>
+<text x="1300" y="52" font-family="'Segoe UI',Arial,sans-serif"
+      font-size="12" font-weight="700" fill="#1a1a2e" text-anchor="middle">Data Flow Index</text>
+
+<text x="1230" y="72" font-family="'Segoe UI',Arial,sans-serif" font-size="10" fill="#1a1a2e" font-weight="700">User → System</text>
+<text x="1230" y="86"  font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF1  Account &amp; Profile Data</text>
+<text x="1230" y="98"  font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF2  Journal &amp; Mood Data</text>
+<text x="1230" y="110" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF3  Assessment Submission</text>
+<text x="1230" y="122" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF4  Specialist Search &amp; Booking</text>
+<text x="1230" y="134" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF5  Subscription &amp; Payment Req.</text>
+
+<text x="1230" y="150" font-family="'Segoe UI',Arial,sans-serif" font-size="10" fill="#1a1a2e" font-weight="700">System → User</text>
+<text x="1230" y="164" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF6  Assessment &amp; Risk Results</text>
+<text x="1230" y="176" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF7  Resources &amp; Recommendations</text>
+<text x="1230" y="188" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF8  Appointment &amp; Payment Status</text>
+<text x="1230" y="200" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF9  Notifications &amp; Analytics</text>
+
+<text x="1230" y="216" font-family="'Segoe UI',Arial,sans-serif" font-size="10" fill="#1a1a2e" font-weight="700">LLM / AI ↔ System</text>
+<text x="1230" y="230" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF10 Journal/Assessment Context</text>
+<text x="1230" y="242" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF11 Benchmark Evaluation Input</text>
+<text x="1230" y="254" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF12 Emotion Analysis Output</text>
+<text x="1230" y="266" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF13 Model Metrics &amp; Comparison</text>
+
+<text x="1230" y="282" font-family="'Segoe UI',Arial,sans-serif" font-size="10" fill="#1a1a2e" font-weight="700">Specialist ↔ System</text>
+<text x="1230" y="296" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF14 Profile &amp; Availability Update</text>
+<text x="1230" y="308" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF15 Appointment Decision</text>
+<text x="1230" y="320" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF16 Chat &amp; Follow-up Actions</text>
+<text x="1230" y="332" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF17 Appointments &amp; User Data</text>
+<text x="1230" y="344" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF18 Conversation Updates</text>
+<text x="1230" y="356" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF19 Earnings &amp; Payout Status</text>
+
+<text x="1230" y="372" font-family="'Segoe UI',Arial,sans-serif" font-size="10" fill="#1a1a2e" font-weight="700">Admin &amp; Payment ↔ System</text>
+<text x="1230" y="386" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF20-26  Admin flows (×7)</text>
+<text x="1230" y="398" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#444">DF27-28  Payment GW flows (×2)</text>
+<text x="1230" y="410" font-family="'Segoe UI',Arial,sans-serif" font-size="9.5" fill="#555" font-style="italic">Total: 28 data flows</text>
+
+
+<!-- ══════════════════════════════════════
+     LEGEND (bottom-right)
+══════════════════════════════════════ -->
+<g transform="translate(1050,880)">
+  <rect x="0" y="-56" width="220" height="82" rx="6"
+        fill="#f8faff" stroke="#c8d0e0" stroke-width="1"/>
+  <text x="10" y="-40" font-family="'Segoe UI',Arial,sans-serif"
+        font-size="11" font-weight="700" fill="#1a1a2e">Legend</text>
+
+  <rect x="10" y="-26" width="26" height="15" rx="2"
+        fill="#fff" stroke="#1a1a2e" stroke-width="2"/>
+  <text x="42" y="-16" font-family="'Segoe UI',Arial,sans-serif"
+        font-size="10.5" fill="#333">External Entity</text>
+
+  <circle cx="23" cy="6" r="10"
+          fill="#eef2ff" stroke="#1a1a2e" stroke-width="2"/>
+  <text x="42" y="9" font-family="'Segoe UI',Arial,sans-serif"
+        font-size="10.5" fill="#333">Process (System)</text>
+
+  <line x1="10" y1="24" x2="36" y2="24"
+        stroke="#2d3a4a" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="42" y="27" font-family="'Segoe UI',Arial,sans-serif"
+        font-size="10.5" fill="#333">Data Flow</text>
+</g>
+
+</svg>
+</body>
+</html>

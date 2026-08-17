@@ -1,0 +1,274 @@
+.anonymous-assessment {
+  position: relative;
+  min-height: 100vh;
+  padding: clamp(20px, 5vw, 64px) 20px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.anonymous-assessment-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: clamp(24px, 5vw, 48px);
+  border: 1px solid var(--line);
+  border-radius: clamp(20px, 3vw, 32px);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.assessment-breathing-zone {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.assessment-breathing-zone::before,
+.assessment-breathing-zone::after {
+  content: "";
+  position: absolute;
+  width: min(42vw, 520px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(70px);
+}
+
+.assessment-breathing-zone::before {
+  top: -12%;
+  right: -8%;
+  background: var(--teal-pale);
+}
+
+.assessment-breathing-zone::after {
+  bottom: -18%;
+  left: -8%;
+  background: var(--amber-soft);
+}
+
+/* Result layout: follows the supplied two-column reference while using MentalBridge tokens. */
+.assessment-result-page {
+  padding-block: clamp(36px, 7vw, 88px);
+}
+
+.assessment-result-card {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(300px, 5fr);
+  grid-template-rows: auto auto auto auto;
+  gap: 24px 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.assessment-result-header {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: end;
+  text-align: left !important;
+  margin: 0 0 8px !important;
+}
+
+.assessment-result-header .eyebrow {
+  justify-content: flex-start;
+}
+
+.assessment-result-header h1 {
+  max-width: 650px;
+  margin-top: 14px !important;
+  font-size: clamp(38px, 5vw, 60px) !important;
+  line-height: 1.08;
+  letter-spacing: -.035em;
+}
+
+.assessment-result-card > .risk-card {
+  position: relative;
+  grid-column: 1;
+  grid-row: 2 / 4;
+  min-height: 310px;
+  margin: 0 !important;
+  padding: clamp(28px, 4vw, 42px);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: center;
+  gap: 20px;
+  overflow: hidden;
+  box-shadow: 0 18px 50px -34px rgba(30, 74, 67, .45);
+}
+
+.assessment-result-card > .risk-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--teal), rgba(61, 122, 110, .12));
+}
+
+.assessment-result-card > .risk-card.terra::before {
+  background: linear-gradient(90deg, var(--terracotta), rgba(199, 123, 92, .12));
+}
+
+.assessment-result-card > .risk-card.amber::before {
+  background: linear-gradient(90deg, var(--amber), rgba(225, 166, 81, .12));
+}
+
+.assessment-result-card .risk-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 17px;
+  display: grid;
+  place-items: center;
+  color: var(--teal-deep);
+  background: var(--surface-soft);
+}
+
+.assessment-result-card .risk-level {
+  font-family: var(--font-fraunces), serif;
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.assessment-result-card .risk-score {
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-fraunces), serif;
+  font-size: clamp(26px, 3vw, 38px);
+  color: var(--teal-deep);
+}
+
+.assessment-result-card .risk-card p {
+  display: inline-flex;
+  margin: 14px 0 0 !important;
+  padding: 8px 13px;
+  border-radius: 12px;
+  color: #8a4a2e;
+  background: var(--terracotta-soft);
+  font-weight: 600;
+}
+
+.assessment-result-signup {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: end;
+  margin: 0 !important;
+  padding: 32px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius) !important;
+  background: rgba(255, 255, 255, .92) !important;
+  box-shadow: 0 18px 50px -36px rgba(30, 74, 67, .42);
+}
+
+.assessment-result-signup h3 {
+  font-size: 21px !important;
+  margin-bottom: 14px !important;
+}
+
+.assessment-result-signup > p {
+  color: var(--ink-soft);
+  opacity: 1 !important;
+  margin-bottom: 24px !important;
+}
+
+.assessment-result-signup > div {
+  flex-wrap: nowrap !important;
+}
+
+.assessment-result-signup .btn-primary,
+.assessment-result-signup .btn-outline {
+  flex: 1;
+  min-width: 0;
+}
+
+.assessment-result-card > .hotline {
+  grid-column: 2;
+  grid-row: 3;
+  margin: 0 !important;
+  padding: 22px 24px;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 16px;
+  border: 1px solid rgba(199, 123, 92, .2);
+}
+
+.assessment-result-card > .hotline .hotline-icon {
+  width: 48px;
+  height: 48px;
+}
+
+.assessment-result-card > .hotline strong {
+  display: block;
+  color: var(--ink);
+}
+
+.assessment-restart {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  justify-self: center;
+  width: auto !important;
+  margin-top: 10px;
+}
+
+.assessment-restart::before {
+  content: "↻";
+  font-size: 17px;
+}
+
+@media (max-width: 900px) {
+  .assessment-result-card {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    max-width: 680px !important;
+  }
+
+  .assessment-result-header,
+  .assessment-result-card > .risk-card,
+  .assessment-result-signup,
+  .assessment-result-card > .hotline,
+  .assessment-restart {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .assessment-result-signup {
+    align-self: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .anonymous-assessment {
+    padding: 12px;
+    place-items: start center;
+  }
+
+  .anonymous-assessment-card {
+    padding: 24px 18px;
+    border-radius: 20px;
+  }
+
+  .assessment-result-card {
+    padding: 0;
+  }
+
+  .assessment-result-header h1 {
+    font-size: 36px !important;
+  }
+
+  .assessment-result-card > .risk-card {
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .assessment-result-signup {
+    padding: 24px 20px !important;
+  }
+
+  .assessment-result-signup > div {
+    flex-direction: column;
+  }
+}
