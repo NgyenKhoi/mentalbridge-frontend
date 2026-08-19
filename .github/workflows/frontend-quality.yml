@@ -3,13 +3,13 @@ name: Frontend quality
 on:
   pull_request:
     paths:
-      - "mentalbridge/**"
-      - ".github/workflows/frontend-quality.yml"
+      - 'mentalbridge/**'
+      - '.github/workflows/frontend-quality.yml'
   push:
     branches: [main, dev]
     paths:
-      - "mentalbridge/**"
-      - ".github/workflows/frontend-quality.yml"
+      - 'mentalbridge/**'
+      - '.github/workflows/frontend-quality.yml'
 
 concurrency:
   group: frontend-quality-${{ github.ref }}
@@ -26,7 +26,7 @@ jobs:
       run:
         working-directory: mentalbridge
     env:
-      CI: "true"
+      CI: 'true'
       IDENTITY_API_BASE_URL: http://127.0.0.1:9
 
     steps:
@@ -36,7 +36,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
           cache: npm
           cache-dependency-path: mentalbridge/package-lock.json
 
