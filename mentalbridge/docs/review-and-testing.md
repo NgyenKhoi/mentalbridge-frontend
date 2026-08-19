@@ -14,6 +14,10 @@ npm run build
 npm run test:e2e
 ```
 
+`npm run typecheck` runs `next typegen` before TypeScript so generated App
+Router helpers such as `PageProps` are available in a clean CI checkout. Do not
+replace that command with a bare `tsc --noEmit` invocation.
+
 Install Chromium once with `npm run test:e2e:install`. Browser tests run against
 the production build and do not call Identity until a later story adds explicit
 mocking. Documentation-only changes still require format/lint/typecheck because
