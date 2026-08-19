@@ -14,12 +14,22 @@ npm run build
 npm run test:e2e
 ```
 
+`npm run typecheck` runs `next typegen` before TypeScript so generated App
+Router helpers such as `PageProps` are available in a clean CI checkout. Do not
+replace that command with a bare `tsc --noEmit` invocation.
+
 Install Chromium once with `npm run test:e2e:install`. Browser tests run against
 the production build and do not call Identity until a later story adds explicit
 mocking. Documentation-only changes still require format/lint/typecheck because
 rules and examples must remain consistent with the active application. If a
 build depends on an unavailable external resource, report the exact failure; do
 not claim it passed or weaken configuration.
+
+GitHub Actions pins `ubuntu-24.04` and sets
+`PLAYWRIGHT_BROWSER_CHANNEL=chrome` so browser smoke tests use the Google Chrome
+already included in that runner image. Keep local runs on Playwright's bundled
+Chromium; do not add `playwright install --with-deps` back to CI unless the
+runner strategy changes.
 
 ## Test ownership
 

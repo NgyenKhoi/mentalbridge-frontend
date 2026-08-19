@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --max-warnings=0",
-    "typecheck": "tsc --noEmit --incremental false",
+    "typecheck": "next typegen && tsc --noEmit --incremental false",
     "format": "prettier --config prettier.config.mjs --write \"app/providers.tsx\" \"lib/**/*.{ts,tsx}\" \"features/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\" \"scripts/**/*.mjs\" \"*.config.{ts,mts,mjs}\" \"package.json\" \"../.github/workflows/*.yml\"",
     "format:check": "prettier --config prettier.config.mjs --check \"app/providers.tsx\" \"lib/**/*.{ts,tsx}\" \"features/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\" \"scripts/**/*.mjs\" \"*.config.{ts,mts,mjs}\" \"package.json\" \"../.github/workflows/*.yml\"",
     "contracts:sync": "node scripts/identity-contract.mjs --sync",
