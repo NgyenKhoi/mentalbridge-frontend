@@ -1,0 +1,45 @@
+# Dependencies and framework output anywhere in this repository
+node_modules/
+.next/
+out/
+build/
+.turbo/
+.cache/
+
+# Test and browser output
+coverage/
+playwright-report/
+blob-report/
+test-results/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Hosting and compiler caches
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+.eslintcache
+.stylelintcache
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Operating system and editor-local files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+*.swp
+*.swo
+*~
