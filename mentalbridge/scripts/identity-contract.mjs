@@ -36,6 +36,10 @@ async function generate() {
   return COMMENT_HEADER + astToString(ast)
 }
 
+function normalizeLineEndings(value) {
+  return value.replace(/\r\n/g, '\n')
+}
+
 async function syncSnapshot() {
   const configuredSource = process.env.IDENTITY_OPENAPI_SOURCE
   const sourcePath = configuredSource
@@ -61,7 +65,7 @@ async function checkGeneratedContract(expected) {
   }
 
   const actual = await readFile(generatedPath, 'utf8')
-  if (actual !== expected) {
+  if (normalizeLineEndings(actual) !== normalizeLineEndings(expected)) {
     throw new Error(
       'Generated Identity types are stale. Run npm run contracts:generate.',
     )
