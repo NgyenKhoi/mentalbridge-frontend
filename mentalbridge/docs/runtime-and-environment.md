@@ -30,12 +30,15 @@ with non-secret development placeholders, is committed.
 
 | Variable | Visibility | Purpose |
 | --- | --- | --- |
-| `IDENTITY_API_BASE_URL` | Server only | Base URL used by the future Identity server client/BFF |
+| `IDENTITY_API_BASE_URL` | Server only | Validated Identity server/BFF upstream base URL |
+| `IDENTITY_API_TIMEOUT_MS` | Server only | Total Identity request timeout from 100 through 30000 milliseconds; defaults to 2000 |
 
-`IDENTITY_API_BASE_URL` must not be renamed to `NEXT_PUBLIC_*`. Browser requests
-use same-origin `/api/identity/*`; they do not need the upstream service address.
-Every new variable requires an `.env.example` entry, visibility/owner
-documentation, startup validation when first consumed, and deployment setup.
+Neither Identity variable may use the `NEXT_PUBLIC_*` prefix. Browser requests
+use only the bounded same-origin `/api/identity/*` handlers and never receive
+the upstream address. The server validates the URL and timeout before each
+Identity operation. Every new variable requires an `.env.example` entry,
+visibility/owner documentation, startup validation when first consumed, and
+deployment setup.
 
 `NEXT_PUBLIC_*` values are compiled into browser JavaScript at build time. Use
 that prefix only for reviewed, intentionally public, non-secret configuration.
@@ -50,9 +53,9 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000`. The current UI can run without Identity while it
-contains mock flows; integrated Identity behavior will require the server-only
-URL to be reachable.
+Open `http://localhost:3000`. Public UI can render while Identity is unavailable,
+but login, session checks, protected routes, refresh, and logout revocation use
+the configured server-only Identity URL.
 
 Quality and production commands:
 

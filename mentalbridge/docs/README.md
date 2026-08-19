@@ -24,7 +24,8 @@ documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
 | Next.js App Router, server-first components | Approved | MB-210 |
 | Feature-first package boundaries | Approved | MB-210 |
 | Identity-owned authentication and roles | Approved | MB-210 |
-| Same-origin BFF with HttpOnly session cookies | Approved design | MB-212 |
+| Same-origin BFF with HttpOnly session cookies | Implemented | MB-212 |
+| Identity login and authoritative role workspaces | Implemented | MB-213 |
 | Axios and TanStack Query client baseline | Implemented | MB-211 |
 | Unit/component/API mocking baseline | Implemented | MB-211 |
 | Playwright browser baseline | Implemented | MB-211 |
