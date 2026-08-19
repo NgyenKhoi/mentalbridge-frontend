@@ -65,8 +65,9 @@ backend source and snapshot are byte-for-byte equal.
 - Playwright Chromium: production-build browser smoke behavior.
 
 Representative tests cover the Query provider, Axios Problem Details
-normalization including unknown extensions, fallback HTTP errors, and public
-landing-to-login navigation.
+normalization including unknown extensions, fallback HTTP errors, authoritative
+workspace resolution, duplicate login/logout prevention, logout cookie semantics,
+and public/protected/login browser behavior.
 
 ```powershell
 npm run test:unit

@@ -1,9 +1,9 @@
 # MentalBridge web application
 
 MentalBridge is a Next.js App Router frontend for mental-health support
-experiences. The repository currently contains implemented UI screens and mock
-authentication flows; production Identity integration is delivered in Sprint 1
-Stories 211–216.
+experiences. The repository contains implemented UI screens, a same-origin
+Identity BFF, and role-based login/workspace access. The remaining Identity
+registration and delivery scenarios continue in Sprint 1 Stories 214–216.
 
 ## Runtime
 
@@ -62,10 +62,10 @@ not expose the upstream URL or session material with `NEXT_PUBLIC_*`.
 | User dashboard | `/dashboard`, `/journal`, `/assessments`, `/specialists`, `/appointments`, `/messages`, `/resources`, `/analytics`, `/subscription`, `/profile`, `/notifications` |
 | Role workspaces | `/specialist/*`, `/admin/*` |
 
-These routes currently demonstrate UI behavior. Until Stories 212–214 land,
-login/session/role guards are not production-ready. In particular, a visible
-admin page does not grant an admin account; privileged access must be confirmed
-by the backend.
+Identity login and these protected route trees now use the backend current
+account as the role source of truth. A visible link or manually entered URL does
+not grant a role; privileged operations must repeat backend-confirmed
+authorization close to the operation.
 
 ## Project guidance
 

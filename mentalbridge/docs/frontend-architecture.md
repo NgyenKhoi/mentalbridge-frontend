@@ -53,7 +53,7 @@ schemas, and UI state stay in the owning `features/<feature>` package.
 
 ## Approved Identity session design
 
-Story 212 must implement the following design:
+Story 212 implements the following design:
 
 - The browser sends credentials only to a same-origin login Route Handler.
 - The server exchanges credentials with Identity and stores the access and
@@ -67,6 +67,41 @@ Story 212 must implement the following design:
   secure checks call Identity/current-account close to protected operations.
 - Client-visible account state is a minimal DTO derived from the backend current
   account endpoint. The browser does not decode a token to decide permissions.
+
+The implemented BFF surface is deliberately bounded to
+`/api/identity/login`, `/api/identity/session`, `/api/identity/refresh`,
+`/api/identity/logout`, and `/api/identity/logout-all`. The server validates
+Identity responses before storing credentials, returns no access or refresh
+material to JavaScript, and maps dependency failures to sanitized Problem
+Details. Refresh commands share a short-lived process-local single flight and
+derive one stable opaque idempotency key from the high-entropy refresh
+credential across a bounded transient retry. Identity remains the authoritative
+replay and rotation coordinator across application instances.
+
+The root `proxy.ts` checks only access/refresh cookie presence for fast protected
+route redirects. Server-only data access calls Identity `/api/v1/account` for
+the secure account and role decision. Layout and proxy checks improve navigation
+but never authorize a Route Handler or future protected data operation.
+
+## Login and workspace routing
+
+Story 213 connects the login form to the bounded BFF and then loads the minimal
+current-account DTO before navigating. The browser cannot select or override a
+role. Workspace access is derived only from validated Identity roles, with a
+deterministic default order of `ADMIN`, `SPECIALIST`, then `USER`; multi-role
+accounts receive navigation only to the workspaces represented by those roles.
+Unknown, duplicate, or empty role sets fail closed.
+
+The user, specialist, and admin route trees repeat the authoritative role check
+in server-only data access. A forbidden route redirects to the account's primary
+confirmed workspace rather than trusting the requested URL. Accounts must remain
+`ACTIVE` and email-verified. Logout and logout-all call their BFF revocation
+operation before the browser redirects, while the BFF always clears local
+session cookies if revocation is unavailable or the session is already expired.
+
+The initial admin shell contains navigation and integration states only. It does
+not ship fabricated account, specialist, payment, audit, or health data. Future
+admin operations must add their own server-side authorization checks.
 
 Public self-registration is restricted to public backend actor types (`USER`
 and `SPECIALIST` when allowed by the reviewed contract). `ADMIN` is provisioned

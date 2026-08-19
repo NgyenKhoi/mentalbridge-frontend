@@ -11,10 +11,10 @@ only a repository-level sequence overview.
    and collaboration rules.
 2. **Story 211 — Establish frontend API, query, and test baseline — complete**
    Axios, TanStack Query, typed API/error boundaries, automated tests, and CI.
-3. **Story 212 — Implement secure Identity BFF session foundation**
+3. **Story 212 — Implement secure Identity BFF session foundation — complete**
    Server-only Identity client, HttpOnly cookies, refresh coordination, BFF
    handlers, and protected-route checks.
-4. **Story 213 — Integrate login and role-based frontend access**
+4. **Story 213 — Integrate login and role-based frontend access — complete**
    Replace mock login, load the current account, protect role workspaces, and
    implement logout/logout-all.
 5. **Story 214 — Integrate registration and email verification UI**
