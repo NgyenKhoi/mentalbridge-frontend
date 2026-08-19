@@ -10,20 +10,18 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    agreeToTerms: false
+    agreeToTerms: false,
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle registration logic here
-    console.log('Register:', formData)
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
     setFormData({
       ...formData,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
     })
   }
 
@@ -35,10 +33,20 @@ export default function RegisterPage() {
           <div className="auth-form-container">
             {/* Logo */}
             <Link href="/" className="auth-logo">
-              <svg className="mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 26C10 14 30 14 36 26" stroke="#1E4A43" strokeWidth="2.4" strokeLinecap="round"/>
-                <circle cx="8" cy="27" r="3" fill="#E1A651"/>
-                <circle cx="32" cy="27" r="3" fill="#3D7A6E"/>
+              <svg
+                className="mark"
+                viewBox="0 0 40 40"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M4 26C10 14 30 14 36 26"
+                  stroke="#1E4A43"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                />
+                <circle cx="8" cy="27" r="3" fill="#E1A651" />
+                <circle cx="32" cy="27" r="3" fill="#3D7A6E" />
               </svg>
               <span>MentalBridge</span>
             </Link>
@@ -46,7 +54,10 @@ export default function RegisterPage() {
             {/* Form Header */}
             <div className="auth-header">
               <h1>Bắt đầu hành trình</h1>
-              <p>Tạo tài khoản để lưu trữ và theo dõi tiến trình chăm sóc sức khỏe tâm thần của bạn</p>
+              <p>
+                Tạo tài khoản để lưu trữ và theo dõi tiến trình chăm sóc sức
+                khỏe tâm thần của bạn
+              </p>
             </div>
 
             {/* Register Form */}
@@ -128,12 +139,23 @@ export default function RegisterPage() {
                   />
                   <span className="checkbox-custom"></span>
                   <span className="checkbox-text">
-                    Tôi đồng ý với <Link href="/terms" className="terms-link">Điều khoản dịch vụ</Link> và <Link href="/privacy" className="terms-link">Chính sách bảo mật</Link>
+                    Tôi đồng ý với{' '}
+                    <Link href="/terms" className="terms-link">
+                      Điều khoản dịch vụ
+                    </Link>{' '}
+                    và{' '}
+                    <Link href="/privacy" className="terms-link">
+                      Chính sách bảo mật
+                    </Link>
                   </span>
                 </label>
               </div>
 
-              <button type="submit" className="btn btn-primary auth-submit" disabled={!formData.agreeToTerms}>
+              <button
+                type="submit"
+                className="btn btn-primary auth-submit"
+                disabled={!formData.agreeToTerms}
+              >
                 Tạo tài khoản
               </button>
             </form>
@@ -143,9 +165,18 @@ export default function RegisterPage() {
               <div className="divider">
                 <span>hoặc</span>
               </div>
-              <Link href="/assessment/anonymous" className="btn btn-outline anonymous-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M9 11l2 2 4-4M20 7v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7l4-4h8l4 4Z"/>
+              <Link
+                href="/assessment/anonymous"
+                className="btn btn-outline anonymous-btn"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <path d="M9 11l2 2 4-4M20 7v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7l4-4h8l4 4Z" />
                 </svg>
                 Thử bài đánh giá ẩn danh trước
               </Link>
@@ -157,8 +188,10 @@ export default function RegisterPage() {
             {/* Login Link */}
             <div className="auth-switch">
               <p>
-                Đã có tài khoản? 
-                <Link href="/login" className="switch-link">Đăng nhập ngay</Link>
+                Đã có tài khoản?
+                <Link href="/login" className="switch-link">
+                  Đăng nhập ngay
+                </Link>
               </p>
             </div>
           </div>
@@ -185,9 +218,15 @@ export default function RegisterPage() {
             {/* Float Cards */}
             <div className="auth-float-card fc-1">
               <div className="float-inner">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M4 5.5C4 4.7 4.7 4 5.5 4H16l4 4v10.5c0 .8-.7 1.5-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"/>
-                  <path d="M8 10h8M8 14h5"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <path d="M4 5.5C4 4.7 4.7 4 5.5 4H16l4 4v10.5c0 .8-.7 1.5-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z" />
+                  <path d="M8 10h8M8 14h5" />
                 </svg>
                 <div>
                   <div className="fc-title">Nhật ký cá nhân</div>
@@ -198,8 +237,14 @@ export default function RegisterPage() {
 
             <div className="auth-float-card fc-2">
               <div className="float-inner">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 17l5-5 4 4 8-9M20 7h-6M20 7v6"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <path d="M3 17l5-5 4 4 8-9M20 7h-6M20 7v6" />
                 </svg>
                 <div>
                   <div className="fc-title">Theo dõi tiến độ</div>
