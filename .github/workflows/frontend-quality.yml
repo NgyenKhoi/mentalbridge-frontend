@@ -6,7 +6,7 @@ on:
       - "mentalbridge/**"
       - ".github/workflows/frontend-quality.yml"
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - "mentalbridge/**"
       - ".github/workflows/frontend-quality.yml"
