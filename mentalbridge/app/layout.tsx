@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Fraunces, Be_Vietnam_Pro } from 'next/font/google'
+import { Providers } from './providers'
 import './globals.css'
 
 const fraunces = Fraunces({
@@ -35,7 +36,7 @@ export default function RootLayout({
           <div className="ambient-blob b2"></div>
           <div className="ambient-blob b3"></div>
         </div>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   )
