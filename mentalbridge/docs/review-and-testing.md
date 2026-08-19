@@ -25,6 +25,12 @@ rules and examples must remain consistent with the active application. If a
 build depends on an unavailable external resource, report the exact failure; do
 not claim it passed or weaken configuration.
 
+GitHub Actions pins `ubuntu-24.04` and sets
+`PLAYWRIGHT_BROWSER_CHANNEL=chrome` so browser smoke tests use the Google Chrome
+already included in that runner image. Keep local runs on Playwright's bundled
+Chromium; do not add `playwright install --with-deps` back to CI unless the
+runner strategy changes.
+
 ## Test ownership
 
 - Unit tests: schema/error mapping, pure feature logic, and session utilities.

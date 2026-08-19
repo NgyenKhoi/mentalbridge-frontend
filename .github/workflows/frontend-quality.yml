@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
       run:
@@ -28,6 +28,7 @@ jobs:
     env:
       CI: 'true'
       IDENTITY_API_BASE_URL: http://127.0.0.1:9
+      PLAYWRIGHT_BROWSER_CHANNEL: chrome
 
     steps:
       - name: Check out repository
@@ -60,9 +61,6 @@ jobs:
 
       - name: Build production application
         run: npm run build
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
 
       - name: Run browser smoke tests
         run: npm run test:e2e
