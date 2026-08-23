@@ -188,7 +188,7 @@ mentalbridge/
 - Tags: `.risk-tag` (teal/amber/terra)
 - Animations: `.reveal`, `.breathing-circle`, `.shimmer`, `.chart-bar`
 
-**Xem chi tiết**: [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)
+**Xem chi tiết**: [docs/DESIGN_SYSTEM.md](./docs/DESIGN_SYSTEM.md)
 
 ---
 
@@ -299,15 +299,27 @@ npm run lint     # ESLint check
 - [ ] Email notifications
 - [ ] Video call feature
 
-**Xem chi tiết**: [NEXT_STEPS.md](./NEXT_STEPS.md)
+**Xem chi tiết**: [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md)
 
 ---
 
 ## 📝 Documentation
 
-- **[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)** - CSS variables, colors, typography, components
-- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - Technical architecture & patterns
-- **[NEXT_STEPS.md](./NEXT_STEPS.md)** - Roadmap, tasks, recommended libraries
+**Tất cả tài liệu đã được di chuyển vào folder [docs/](./docs/)**
+
+### 📚 Tài liệu chính:
+- **[docs/DESIGN_SYSTEM.md](./docs/DESIGN_SYSTEM.md)** - CSS variables, colors, typography, components
+- **[docs/IMPLEMENTATION_SUMMARY.md](./docs/IMPLEMENTATION_SUMMARY.md)** - Technical architecture & patterns
+- **[docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md)** - Roadmap, tasks, recommended libraries
+- **[docs/QUICKSTART.md](./docs/QUICKSTART.md)** - Quick start guide
+- **[docs/ANIMATION_SUMMARY.md](./docs/ANIMATION_SUMMARY.md)** - Animation implementations
+
+### 🐛 Bug Fixes:
+- **[docs/FILTER_FIX_SUMMARY.md](./docs/FILTER_FIX_SUMMARY.md)** - Filter buttons fix
+- **[docs/FOOTER_FIX.md](./docs/FOOTER_FIX.md)** - Footer visibility fix
+- **[docs/SCROLL_OVERLAY_FIX.md](./docs/SCROLL_OVERLAY_FIX.md)** - Scroll overlay fix
+
+**Xem tất cả**: [docs/README.md](./docs/README.md)
 
 ---
 
@@ -408,7 +420,7 @@ Contributions welcome! Please:
 ## 📞 Support
 
 - **Email**: support@mentalbridge.com (planned)
-- **Docs**: [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md), [NEXT_STEPS.md](./NEXT_STEPS.md)
+- **Docs**: [docs/](./docs/) - Xem tất cả tài liệu
 - **Issues**: GitHub Issues
 
 ---

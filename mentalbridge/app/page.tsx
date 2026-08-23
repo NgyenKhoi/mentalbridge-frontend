@@ -8,13 +8,17 @@ import RiskLevels from '@/components/RiskLevels'
 import Hotline from '@/components/Hotline'
 import Cta from '@/components/Cta'
 import Footer from '@/components/Footer'
-import ScrollReveal from '@/components/ScrollReveal'
+import ScrollReveal from '../components/ScrollReveal'
+import Preloader from '@/components/Preloader'
 
 export default function Home() {
   return (
     <>
+      <Preloader />
+      <a className="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
       <Header />
-      <main id="top">
+      <main id="main-content" className="marketing-page">
+        <span id="top" className="page-anchor" aria-hidden="true" />
         <Hero />
         <Showcase />
         <Barriers />

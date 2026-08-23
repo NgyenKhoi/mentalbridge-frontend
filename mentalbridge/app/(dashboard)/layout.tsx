@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import './dashboard.css'
 import './subscription/subscription.css'
+import './resources/resources.css'
 import './dashboard-shell.css'
 
 const Svg=({children}:{children:React.ReactNode})=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>

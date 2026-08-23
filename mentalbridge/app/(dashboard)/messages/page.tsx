@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import './messages.css';
 
 const CONVERSATIONS = [
   {
@@ -70,7 +71,7 @@ export default function MessagesPage() {
   const [message, setMessage] = useState('');
 
   return (
-    <div style={{ 
+    <div className="messages-page" style={{
       display: 'grid',
       gridTemplateColumns: '320px 1fr',
       gap: '1.5rem',
@@ -78,7 +79,7 @@ export default function MessagesPage() {
       maxHeight: '800px'
     }}>
       {/* Conversations List */}
-      <div className="feature-card" style={{ 
+      <div className="feature-card messages-list-panel" style={{
         padding: '1rem',
         display: 'flex',
         flexDirection: 'column',
@@ -102,6 +103,7 @@ export default function MessagesPage() {
         }}>
           {CONVERSATIONS.map((conv) => (
             <motion.button
+              className={`message-conversation${selectedConv === conv.id ? ' is-selected' : ''}`}
               key={conv.id}
               onClick={() => setSelectedConv(conv.id)}
               whileHover={{ x: 4 }}
@@ -133,14 +135,14 @@ export default function MessagesPage() {
                     {conv.avatar}
                   </div>
                   {conv.online && (
-                    <div style={{
+                    <div className="message-online-dot" style={{
                       position: 'absolute',
                       bottom: 0,
                       right: 0,
                       width: '12px',
                       height: '12px',
                       borderRadius: '50%',
-                      background: '#10b981',
+                      background: 'var(--terracotta)',
                       border: '2px solid var(--bg)'
                     }} />
                   )}
@@ -153,13 +155,13 @@ export default function MessagesPage() {
                     alignItems: 'baseline',
                     marginBottom: '0.25rem'
                   }}>
-                    <div style={{ 
+                    <div className="message-conversation-name" style={{
                       fontWeight: 600,
                       fontSize: '0.95rem'
                     }}>
                       {conv.name}
                     </div>
-                    <div style={{ 
+                    <div className="message-conversation-time" style={{
                       fontSize: '0.75rem',
                       opacity: 0.6
                     }}>
@@ -167,7 +169,7 @@ export default function MessagesPage() {
                     </div>
                   </div>
 
-                  <div style={{ 
+                  <div className="message-conversation-preview" style={{
                     fontSize: '0.85rem',
                     opacity: 0.7,
                     whiteSpace: 'nowrap',
@@ -201,14 +203,14 @@ export default function MessagesPage() {
       </div>
 
       {/* Chat Area */}
-      <div className="feature-card" style={{ 
+      <div className="feature-card messages-chat-panel" style={{
         padding: 0,
         display: 'flex',
         flexDirection: 'column',
         maxHeight: '100%'
       }}>
         {/* Chat Header */}
-        <div style={{ 
+        <div className="messages-chat-header" style={{
           padding: '1.25rem 1.5rem',
           borderBottom: '1px solid var(--line)',
           display: 'flex',
@@ -235,7 +237,7 @@ export default function MessagesPage() {
             }}>
               TS. Nguyễn Thị Lan
             </h3>
-            <div style={{ 
+            <div className="messages-online-label" style={{
               fontSize: '0.85rem',
               opacity: 0.6,
               display: 'flex',
@@ -246,7 +248,7 @@ export default function MessagesPage() {
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                background: '#10b981'
+                background: 'var(--terracotta)'
               }} />
               Đang hoạt động
             </div>
@@ -283,7 +285,7 @@ export default function MessagesPage() {
                 >
                   {msg.content}
                 </div>
-                <div style={{ 
+                <div className="message-time" style={{
                   fontSize: '0.75rem',
                   opacity: 0.5,
                   textAlign: msg.sender === 'user' ? 'right' : 'left',
@@ -298,7 +300,7 @@ export default function MessagesPage() {
         </div>
 
         {/* Input */}
-        <div style={{ 
+        <div className="messages-composer" style={{
           padding: '1.25rem 1.5rem',
           borderTop: '1px solid var(--line)',
           background: 'var(--surface-glass)'

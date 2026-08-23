@@ -2,19 +2,19 @@ import Link from 'next/link'
 
 export default function Footer() {
   return (
-    <footer>
+    <footer className="marketing-footer">
       <div className="wrap">
         <div className="footer-top">
           <div>
             <div className="footer-logo">
               <svg className="mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 26C10 14 30 14 36 26" stroke="#1E4A43" strokeWidth="2.4" strokeLinecap="round"/>
-                <circle cx="8" cy="27" r="3" fill="#E1A651"/>
-                <circle cx="32" cy="27" r="3" fill="#3D7A6E"/>
+                <path d="M4 26C10 14 30 14 36 26" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"/>
+                <circle cx="8" cy="27" r="3" fill="currentColor"/>
+                <circle cx="32" cy="27" r="3" fill="currentColor" opacity=".55"/>
               </svg>
               MentalBridge
             </div>
-            <p>Cây cầu giữa bạn và sự hỗ trợ bạn xứng đáng có được — nhẹ nhàng, kín đáo, và luôn ở đó.</p>
+            <p>Cây cầu giữa bạn và sự hỗ trợ bạn xứng đáng có được, nhẹ nhàng, kín đáo và luôn ở đó.</p>
           </div>
           <div className="footer-col">
             <h4>Sản phẩm</h4>

@@ -221,12 +221,14 @@ export default function AnonymousAssessment() {
           }}>
             <motion.div
               style={{ 
+                width: '100%',
                 height: '100%',
                 background: 'var(--teal)',
-                borderRadius: '999px'
+                borderRadius: '999px',
+                transformOrigin: 'left center'
               }}
-              initial={{ width: 0 }}
-              animate={{ width: `${((step + 1) / 9) * 100}%` }}
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: (step + 1) / 9 }}
               transition={{ duration: 0.3 }}
             />
           </div>

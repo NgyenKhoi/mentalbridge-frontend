@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import LightSelect from '@/components/LightSelect'
 import './auth.css'
 
 export default function LoginPage() {
@@ -71,11 +72,7 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="auth-form">
               <div className="form-group">
                 <label htmlFor="role" className="form-label">Vai trò truy cập</label>
-                <select id="role" name="role" value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})} className="form-input">
-                  <option value="user">Người dùng</option>
-                  <option value="specialist">Chuyên gia</option>
-                  <option value="admin">Quản trị viên</option>
-                </select>
+                <LightSelect id="role" name="role" value={formData.role} onChange={role => setFormData({...formData, role})} options={[{value: 'user', label: 'Người dùng'}, {value: 'specialist', label: 'Chuyên gia'}, {value: 'admin', label: 'Quản trị viên'}]} />
               </div>
 
               <div className="form-group">
@@ -120,10 +117,10 @@ export default function LoginPage() {
                 <div style={{
                   padding: '12px 16px',
                   borderRadius: '10px',
-                  background: '#fff0f0',
-                  color: '#c0392b',
+                  background: 'var(--terracotta-soft)',
+                  color: 'var(--terracotta)',
                   fontSize: '14px',
-                  border: '1px solid #fcc'
+                  border: '1px solid rgba(199,123,92,.3)'
                 }}>
                   {error}
                 </div>
