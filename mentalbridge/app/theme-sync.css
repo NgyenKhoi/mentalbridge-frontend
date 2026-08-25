@@ -1,0 +1,1346 @@
+/*
+ * Shared MentalBridge application palette.
+ * The marketing page already owns this visual language; these rules map the
+ * product, auth, assessment and policy surfaces onto the same tokens.
+ */
+
+:is(.auth-layout,.anonymous-assessment,.policy-page,.assessment-intro,.ref-shell,.role-shell){
+  color:var(--ink);
+  background:
+    radial-gradient(780px 520px at 86% -8%,rgba(169,147,236,.12),transparent 67%),
+    radial-gradient(620px 460px at -8% 86%,rgba(232,174,191,.07),transparent 70%),
+    var(--bg)!important;
+}
+
+:is(.auth-layout,.anonymous-assessment,.policy-page,.assessment-intro,.ref-shell,.role-shell)
+  :is(h1,h2,h3,h4,strong){color:var(--ink)}
+
+/* Product surfaces */
+.ref-sidebar,.role-sidebar{
+  background:linear-gradient(180deg,rgba(20,14,28,.98),rgba(13,9,20,.96))!important;
+  border-color:var(--line)!important;
+  box-shadow:18px 0 60px -48px rgba(3,1,7,.9)!important;
+}
+.ref-main,.role-main{background:transparent!important}
+.ref-topbar,.role-topbar{
+  background:rgba(13,9,20,.84)!important;
+  border-color:var(--line)!important;
+  backdrop-filter:blur(18px)!important;
+}
+.ref-topbar>label,.role-collapse{
+  background:rgba(32,24,41,.86)!important;
+  border-color:var(--line)!important;
+}
+
+.ref-shell :is(
+  .ref-card,
+  [class$="-card"],
+  [class*="-card "],
+  [class*="-panel"],
+  [class*="-composer"],
+  [class*="-table-wrap"],
+  [class*="-preferences"],
+  [class*="-summary"]
+),
+.role-shell :is(.role-panel,.role-stat,.specialist-pulse,.specialist-mini-card,.specialist-activity-panel,.role-drawer,.role-modal){
+  background:rgba(23,17,31,.9)!important;
+  border-color:var(--line)!important;
+  box-shadow:0 24px 62px -48px rgba(3,1,7,.94)!important;
+}
+.ref-shell :is(.settings-modal,.subscription-modal),
+.role-shell :is(.role-drawer,.role-modal){background:#17111f!important}
+
+.ref-shell :is(.ref-mood,.ref-result,.ref-appointment,.ref-quick>div>a,.journal-month article,.specialist-empty),
+.role-shell :is(.role-user,.specialist-calm-note,.role-disclaimer){
+  background:rgba(32,24,41,.78)!important;
+  border-color:var(--line)!important;
+}
+
+.ref-shell :is(.ref-card,.journal-entry-card,.journal-insights>section,.assessment-card,.analytics-stat,.analytics-chart-card,.subscription-plan,.specialist-card):hover,
+.role-shell :is(.role-stat,.specialist-pulse,.specialist-mini-card):hover{
+  border-color:rgba(232,174,191,.24)!important;
+  box-shadow:0 28px 72px -48px rgba(232,174,191,.24)!important;
+}
+
+/* Primary actions and selected navigation */
+.ref-hero{
+  background:
+    radial-gradient(circle at 82% 18%,rgba(169,147,236,.2),transparent 37%),
+    linear-gradient(135deg,#21162b,#17101f)!important;
+  border-color:rgba(232,174,191,.14)!important;
+  box-shadow:0 28px 70px -48px #000!important;
+}
+.ref-hero :is(h1,p,span,strong,small),.ref-quick .primary :is(b,span,strong){color:inherit}
+.ref-hero p,.ref-hero>div>span,.ref-streak small{color:#c9b9c8!important}
+
+:is(
+  .btn-primary,
+  .ref-brand>a,
+  .ref-sidebar nav a.active,
+  .ref-sidebar-foot>a.active,
+  .ref-quick>div>a.primary,
+  .action-card.primary,
+  .assessment-start,
+  .subscription-select,
+  .settings-toast,
+  .specialist-filters button.active,
+  .specialist-book,
+  .journal-new,
+  .journal-node.deep,
+  .journal-mood.deep,
+  .journal-prompt button,
+  .role-brand-mark,
+  .role-user>span:first-child,
+  .role-toast
+){
+  background:linear-gradient(135deg,var(--primary),var(--primary-strong))!important;
+  border-color:rgba(232,174,191,.25)!important;
+  color:var(--primary-foreground)!important;
+  box-shadow:0 14px 30px -20px rgba(232,174,191,.44)!important;
+}
+:is(.ref-quick>div>a.primary,.action-card.primary,.assessment-start,.subscription-select,.specialist-book,.journal-new):hover{
+  background:linear-gradient(110deg,#dba4ba,#eabd8d)!important;
+  color:#281923!important;
+}
+.role-active-pill{
+  background:linear-gradient(100deg,rgba(89,60,104,.92),rgba(50,35,63,.84))!important;
+  border-color:rgba(232,174,191,.2)!important;
+  box-shadow:inset 3px 0 #e8aebf!important;
+}
+.role-sidebar nav a.active{color:#f8edf3!important}
+
+/* Inputs and controls */
+:is(.auth-layout,.anonymous-assessment,.ref-shell,.role-shell)
+  :is(input,select,textarea){
+  background:#120d19!important;
+  border-color:var(--line)!important;
+  color:var(--ink)!important;
+  color-scheme:dark;
+}
+:is(.auth-layout,.anonymous-assessment,.ref-shell,.role-shell)
+  :is(input,select,textarea):focus{
+  background:#17111f!important;
+  border-color:#aa98e8!important;
+  box-shadow:0 0 0 3px rgba(169,147,236,.15)!important;
+}
+:is(.auth-layout,.anonymous-assessment,.ref-shell,.role-shell) ::placeholder{color:var(--ink-faint)!important}
+.settings-switch input:checked+span,.checkbox-input:checked+.checkbox-custom{background:var(--primary)!important;border-color:#e8aebf!important}
+.settings-switch span::before{background:#f6eaf0!important}
+
+/* Auth uses the same dark orbit visual as the home hero. */
+.auth-container{
+  background:rgba(23,17,31,.94)!important;
+  border-color:var(--line)!important;
+  box-shadow:0 34px 100px -48px #000!important;
+}
+.auth-visual-side{
+  background:
+    radial-gradient(circle at 52% 44%,rgba(111,74,120,.46),transparent 34%),
+    linear-gradient(145deg,#17101f,#0d0914)!important;
+}
+.auth-visual-side::before{border-color:rgba(232,174,191,.1)!important}
+.auth-breathe-stage .breathe-blob{
+  background:radial-gradient(circle at 35% 30%,#775181,#2a1935 72%)!important;
+  box-shadow:0 20px 52px -18px rgba(169,147,236,.38)!important;
+}
+.auth-float-card .float-inner{background:rgba(23,17,31,.86)!important;border:1px solid var(--line)}
+.auth-logo path{stroke:#e8aebf!important}.auth-logo circle:first-of-type{fill:#efc096!important}.auth-logo circle:last-of-type{fill:#aa98e8!important}
+.divider span{background:var(--surface)!important}
+
+/* Assessment and policy */
+.anonymous-assessment-card,.policy-wrap,.assessment-intro-card{
+  background:rgba(23,17,31,.9)!important;
+  border-color:var(--line)!important;
+  box-shadow:0 34px 90px -50px #000!important;
+}
+.assessment-result-signup{background:rgba(32,24,41,.82)!important}
+.assessment-breathing-zone::before{background:rgba(169,147,236,.2)!important}
+.assessment-breathing-zone::after{background:rgba(232,174,191,.14)!important}
+
+/* Old green/cream utility surfaces remapped to violet and rose. */
+.ref-shell :is(.ref-user,.assessment-note,.journal-prompt,.specialist-banner),
+.role-shell :is(.role-user,.role-disclaimer,.specialist-calm-note){
+  background:linear-gradient(135deg,rgba(50,35,63,.9),rgba(37,25,47,.82))!important;
+}
+.ref-shell :is(.assessment-table th,.assessment-table tbody tr:hover td),
+.role-shell :is(.role-row:hover,.specialist-activity-row:hover){background:#201829!important}
+.danger,.specialist-busy,.specialist-tags span,.settings-danger strong{color:#efb7c7!important}
+.settings-modal-backdrop,.subscription-backdrop,.role-drawer-backdrop,.role-overlay,.ref-overlay{
+  background:rgba(7,3,12,.68)!important;
+}
+
+/* Subscription needs explicit contrast: its legacy cards used translucent white. */
+.subscription-balance{
+  background:linear-gradient(100deg,rgba(50,35,63,.88),rgba(32,24,41,.78))!important;
+  border-color:rgba(169,147,236,.22)!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.035)!important;
+}
+.subscription-balance :is(strong,button){color:#f5f1f3!important}
+.subscription-balance span{color:#cdb9ef!important}
+.subscription-balance small{color:#a79dad!important}
+
+.subscription-node>span{
+  background:#17111f!important;
+  border-color:#665973!important;
+}
+.subscription-node.current>span{
+  background:#aa98e8!important;
+  border-color:#d7c9f2!important;
+  box-shadow:0 0 0 6px rgba(169,147,236,.17)!important;
+}
+.subscription-node.current>span::after{background:#fff8fb!important}
+.subscription-node :is(strong,small){color:#b9b1c1!important}
+.subscription-node.current :is(strong,small){color:#f5f1f3!important}
+.subscription-node.featured>span{border-color:#efc096!important}
+.subscription-node.featured small{color:#efc096!important}
+
+.subscription-plan{
+  background:linear-gradient(160deg,rgba(28,20,37,.98),rgba(20,14,28,.98))!important;
+  border-color:rgba(255,255,255,.1)!important;
+  box-shadow:0 26px 64px -48px #000!important;
+}
+.subscription-plan.featured{
+  background:
+    radial-gradient(circle at 82% 4%,rgba(169,147,236,.16),transparent 34%),
+    linear-gradient(160deg,#251a30,#17111f)!important;
+  border-color:rgba(169,147,236,.34)!important;
+  box-shadow:0 32px 80px -48px rgba(169,147,236,.34)!important;
+}
+.subscription-plan.premium{
+  background:
+    radial-gradient(circle at 88% 6%,rgba(239,192,150,.12),transparent 36%),
+    linear-gradient(160deg,#251a25,#17111f)!important;
+  border-color:rgba(239,192,150,.3)!important;
+}
+.subscription-plan:hover{border-color:rgba(232,174,191,.28)!important}
+.subscription-plan h2,.subscription-plan.featured h2{color:#f5f1f3!important}
+.subscription-plan.premium h2{color:#efc096!important}
+.subscription-price strong,.subscription-plan.featured .subscription-price strong{color:#fff8fb!important}
+.subscription-plan.premium .subscription-price strong{color:#efc096!important}
+.subscription-price span,.subscription-plan>p{color:#9f95a7!important}
+.subscription-plan li{color:#c0b6c5!important}
+.subscription-plan li>span{color:#b9a9ed!important}
+.subscription-plan.premium li>span{color:#efc096!important}
+
+.subscription-plan-badge.free{
+  background:#292139!important;
+  color:#d9cbf2!important;
+}
+.subscription-plan-badge.plus{
+  background:#efc096!important;
+  color:#281923!important;
+}
+.subscription-plan-badge.premium{color:#efc096!important}
+.subscription-current{
+  background:rgba(255,255,255,.025)!important;
+  border-color:rgba(255,255,255,.1)!important;
+  color:#9f95a7!important;
+}
+.subscription-select{
+  background:linear-gradient(110deg,#dda9bd,#efc18f)!important;
+  color:#281923!important;
+  box-shadow:0 14px 30px -20px rgba(232,174,191,.44)!important;
+}
+.subscription-select:hover{filter:brightness(1.06);color:#281923!important}
+.subscription-select.accent{
+  background:transparent!important;
+  border-color:#efc096!important;
+  color:#efc096!important;
+  box-shadow:none!important;
+}
+.subscription-select.accent:hover{background:#efc096!important;color:#281923!important}
+
+.subscription-compare-toggle button{color:#c7bbca!important}
+.subscription-compare table{
+  background:#17111f!important;
+  border-color:var(--line)!important;
+}
+.subscription-compare th{background:#201829!important;color:#aaa0b0!important}
+.subscription-compare td{color:#c7bdca!important;border-color:var(--line)!important}
+.subscription-compare td:first-child{color:#eee7ec!important}
+.subscription-faq article{border-color:var(--line)!important}
+.subscription-faq article>button{color:#eee7ec!important}
+.subscription-faq article>div p{color:#aaa0b0!important}
+
+.subscription-modal{
+  background:#17111f!important;
+  border:1px solid var(--line)!important;
+  color:var(--ink)!important;
+}
+.subscription-order{background:#201829!important}
+.subscription-modal>label{background:#120d19!important;border-color:var(--line)!important}
+.subscription-modal>label.selected{background:#292139!important;border-color:#aa98e8!important}
+.subscription-modal>label input{accent-color:#aa98e8!important}
+
+/* Readable product typography — legacy values were mostly 8–11px. */
+.subscription-hero>span{font-size:12px!important}
+.subscription-hero p{max-width:62ch;font-size:16px!important;line-height:1.7!important}
+.subscription-balance span{font-size:12px!important}
+.subscription-balance strong{font-size:24px!important;line-height:1.25!important}
+.subscription-balance small{font-size:12px!important;line-height:1.5!important}
+.subscription-balance button{font-size:14px!important;line-height:1.4!important}
+
+.subscription-node strong{font-size:14px!important;line-height:1.35!important}
+.subscription-node small{font-size:11px!important;line-height:1.4!important;margin-top:4px!important}
+.subscription-plan{padding:30px 28px!important}
+.subscription-plan.featured{padding:36px 32px!important}
+.subscription-plan-badge{font-size:11px!important;line-height:1.3!important;padding:7px 12px!important;margin-bottom:20px!important}
+.subscription-plan h2,.subscription-plan.featured h2{font-size:clamp(26px,2vw,30px)!important;line-height:1.15!important;margin-bottom:16px!important}
+.subscription-price{gap:8px!important}
+.subscription-price strong{font-size:clamp(38px,3vw,44px)!important;line-height:1!important}
+.subscription-plan.featured .subscription-price strong{font-size:clamp(44px,3.5vw,52px)!important}
+.subscription-price span{font-size:13px!important;line-height:1.5!important}
+.subscription-plan>p{font-size:14px!important;line-height:1.65!important;margin:14px 0 24px!important}
+.subscription-plan ul{gap:13px!important}
+.subscription-plan li{gap:10px!important;font-size:14px!important;line-height:1.55!important}
+.subscription-plan li>span{font-size:16px!important;line-height:1.35!important}
+.subscription-current,.subscription-select{min-height:48px!important;padding:13px 16px!important;font-size:14px!important;line-height:1.35!important}
+
+.subscription-compare-toggle{margin-top:30px!important}
+.subscription-compare-toggle button{font-size:14px!important;line-height:1.4!important;padding:11px 4px!important}
+.subscription-compare th,.subscription-compare td{padding:16px 18px!important;font-size:13px!important;line-height:1.5!important}
+.subscription-faq{margin-top:64px!important}
+.subscription-faq>h2{font-size:clamp(28px,3vw,36px)!important;margin-bottom:18px!important}
+.subscription-faq article>button{padding:20px 2px!important;font-size:15px!important;line-height:1.5!important}
+.subscription-faq article>div p{max-width:72ch;font-size:14px!important;line-height:1.75!important}
+
+.subscription-modal-head small{font-size:11px!important}
+.subscription-modal-head h2{font-size:28px!important}
+.subscription-order{font-size:14px!important;line-height:1.5!important}
+.subscription-method-label{font-size:13px!important;margin-bottom:10px!important}
+.subscription-modal>label{padding:14px!important}
+.subscription-modal>label strong{font-size:14px!important}
+.subscription-modal>label small{font-size:12px!important;line-height:1.5!important}
+.subscription-secure{font-size:11px!important;line-height:1.55!important}
+.subscription-success p{font-size:14px!important;line-height:1.65!important}
+
+:is(.auth-layout,.anonymous-assessment,.ref-shell,.role-shell)
+  :is(input,select,textarea){font-size:14px!important;line-height:1.5!important}
+
+@media(max-width:640px){
+  .subscription-plan,.subscription-plan.featured{padding:26px 22px!important}
+  .subscription-price strong,.subscription-plan.featured .subscription-price strong{font-size:38px!important}
+  .subscription-plan li{font-size:13.5px!important}
+}
+
+/* Specialist directory: remove pale filter chips and raise metadata contrast. */
+.specialist-filters button{
+  background:#17111f!important;
+  border-color:rgba(255,255,255,.12)!important;
+  color:#c7bdca!important;
+  font-size:14px!important;
+  line-height:1.35!important;
+  padding:10px 18px!important;
+}
+.specialist-filters button:hover{background:#201829!important;border-color:#aa98e8!important;color:#f5f1f3!important}
+.specialist-filters button.active{
+  background:linear-gradient(135deg,var(--primary),var(--primary-strong))!important;
+  border-color:rgba(232,174,191,.32)!important;
+  color:#fff7fa!important;
+}
+.specialists-hero>span{font-size:12px!important}.specialists-hero p{font-size:16px!important;line-height:1.7!important}
+.specialist-card{background:#17111f!important;border-color:var(--line)!important}
+.specialist-card.unavailable{opacity:.84!important}
+.specialist-card h2{color:#f5f1f3!important;font-size:22px!important;line-height:1.3!important}
+.specialist-role{color:#aaa0b0!important;font-size:14px!important;line-height:1.5!important}
+.specialist-tags span{background:#38232f!important;color:#efb7c7!important;font-size:12px!important;padding:6px 11px!important}
+.specialist-tags span.alt{background:#292139!important;color:#d3c3ef!important}
+.specialist-stats small,.specialist-footer small{color:#9f95a7!important;font-size:12px!important}
+.specialist-stats strong{color:#eee7ec!important;font-size:14px!important}
+.specialist-footer>div strong{font-size:16px!important}
+.specialist-book,.specialist-footer>button{min-height:44px!important;font-size:13px!important;padding:11px 16px!important}
+.specialist-footer>button{background:#201829!important;color:#9f95a7!important}
+.specialist-avatar{border-color:#f4edf1!important;color:#fff7fa!important}
+.specialist-avatar.sage{background:linear-gradient(145deg,#49365a,#21182a)!important}
+.specialist-avatar.amber{background:linear-gradient(145deg,#6b4d3e,#251b24)!important}
+.specialist-avatar.lavender{background:linear-gradient(145deg,#58466e,#21182b)!important}
+.specialist-avatar.terra{background:linear-gradient(145deg,#633a4b,#251821)!important}
+.specialist-online{border-color:#17111f!important;background:#aa98e8!important}
+.specialist-busy{background:#38232f!important;color:#efb7c7!important;font-size:11px!important}
+
+/* Journal insights: the sidebar still carried white cards from the old theme. */
+.journal-insights>section{
+  background:linear-gradient(155deg,rgba(28,20,37,.98),rgba(20,14,28,.98))!important;
+  border-color:var(--line)!important;
+  box-shadow:0 24px 58px -46px #000!important;
+}
+.journal-month article{
+  background:#201829!important;
+  border-color:rgba(255,255,255,.08)!important;
+}
+.journal-period{background:#201829!important;border-color:var(--line)!important;color:#b9b1c1!important;font-size:12px!important}
+.journal-eyebrow,.journal-section-head>div>span,.journal-month header>span,.journal-topics header>span{font-size:12px!important}
+.journal-month h2,.journal-topics h2{color:#f5f1f3!important;font-size:23px!important}
+.journal-month article small{color:#aaa0b0!important;font-size:11px!important;line-height:1.4!important}
+.journal-month article strong{color:#f5f1f3!important;font-size:28px!important}
+.journal-month article strong em,.journal-month article strong.mood em{color:#b9b1c1!important;font-size:12px!important}
+.journal-month article>span{color:#9f95a7!important;font-size:10px!important}
+.journal-topics>div>span,.journal-topics button{background:#201829!important;color:#c7bdca!important;font-size:12px!important;padding:8px 10px!important}
+.journal-topics>div>span b,.journal-topics button span{color:#9f95a7!important}
+.journal-entry-card h3{font-size:18px!important}.journal-entry-card header p{font-size:12px!important}
+.journal-copy{color:#c1b7c5!important;font-size:14px!important;line-height:1.75!important}
+.journal-mood{font-size:11px!important;padding:6px 10px!important}
+.journal-entry-card footer span{font-size:11px!important}
+.journal-prompt{background:linear-gradient(145deg,#2b1d2b,#201829)!important}
+.journal-prompt small{font-size:11px!important}.journal-prompt p{color:#c1b7c5!important;font-size:14px!important;line-height:1.65!important}
+
+/* Dashboard readability: reserve the display serif for the greeting and use
+   the sturdier sans face for data, controls and supporting copy. */
+.ref-dashboard{
+  color:#f5f1f3!important;
+  font-family:var(--font-be-vietnam),sans-serif!important;
+  font-size:15px!important;
+}
+.ref-dashboard :is(p,span,small,strong,a,button){
+  font-family:var(--font-be-vietnam),sans-serif;
+}
+.ref-hero p{color:#d8cfd7!important;font-size:14px!important;line-height:1.5!important}
+.ref-hero h1{
+  color:#fff8fb!important;
+  font-family:var(--font-fraunces),serif!important;
+  font-size:clamp(32px,3vw,44px)!important;
+  font-weight:600!important;
+  line-height:1.15!important;
+}
+.ref-hero>div>span{color:#c8bdc8!important;font-size:16px!important;line-height:1.65!important}
+.ref-streak b{color:#fff8fb!important;font-size:20px!important;line-height:1.2!important}
+.ref-streak small{color:#c0b5c1!important;font-size:13px!important;line-height:1.45!important}
+
+.ref-card h2{
+  color:#f5f1f3!important;
+  font-family:var(--font-be-vietnam),sans-serif!important;
+  font-size:19px!important;
+  font-weight:650!important;
+  line-height:1.35!important;
+}
+.ref-mood header p,.ref-result>p{color:#bdb2c0!important;font-size:14px!important;line-height:1.55!important}
+.ref-mood button{background:#201829!important;color:#fff8fb!important}
+.ref-mood button:hover,.ref-mood button.active{background:#30263d!important;border-color:#aa98e8!important}
+.ref-mood footer{color:#c7bdca!important;font-size:14px!important;line-height:1.55!important}
+.ref-mood footer b,.ref-mood footer a{color:#f5f1f3!important;font-weight:650!important}
+.ref-result>strong{color:#fff8fb!important;font-size:32px!important;line-height:1.2!important}
+.ref-result>span{
+  background:#292139!important;
+  color:#d9cbf2!important;
+  font-size:13px!important;
+  line-height:1.4!important;
+}
+.ref-trend footer{color:#bdb2c0!important;font-size:13px!important;line-height:1.45!important}
+
+.ref-appointment header a{color:#dbcdf0!important;font-size:14px!important;line-height:1.4!important}
+.ref-appointment-item{background:#201829!important}
+.ref-appointment-item strong{color:#f5f1f3!important;font-size:15px!important;line-height:1.45!important}
+.ref-appointment-item small{color:#b8adba!important;font-size:13px!important;line-height:1.5!important}
+.ref-appointment-item>span{font-size:11.5px!important;line-height:1.35!important}
+.ref-appointment footer{color:#aaa0b0!important;font-size:13px!important;line-height:1.5!important}
+.ref-tasks header>span{background:#292139!important;color:#d9cbf2!important;font-size:12px!important}
+.ref-tasks button{color:#d5cbd6!important;font-size:14px!important;line-height:1.55!important}
+.ref-tasks button span{border-color:rgba(255,255,255,.22)!important}
+.ref-tasks button.completed{color:#948a98!important}
+
+.ref-quick header h2{
+  color:var(--ink)!important;
+  font-family:var(--font-fraunces),serif!important;
+  font-size:26px!important;
+  font-weight:600!important;
+}
+.ref-quick header>span{color:#b8adba!important;font-size:14px!important;line-height:1.5!important}
+.ref-quick-link{background:#17111f!important;border-color:var(--line)!important}
+.ref-quick-link:hover{background:#201829!important;border-color:rgba(170,152,232,.45)!important}
+.ref-quick-link>span:first-child{color:#f5f1f3!important;font-size:15px!important;line-height:1.45!important}
+.ref-quick-link>span:first-child small{color:#aaa0b0!important;font-size:13px!important;line-height:1.5!important}
+.ref-quick-link.primary>span:first-child{font-size:16px!important}
+.ref-quick-link.primary>span:first-child small{font-size:14px!important}
+.ref-journal-streak{background:linear-gradient(145deg,#2b1d2b,#201829)!important;border-color:var(--line)!important}
+.ref-journal-streak>div:first-child>span{font-size:24px!important}
+.ref-journal-streak>div:nth-child(2) strong{color:#f5f1f3!important;font-size:15px!important;line-height:1.45!important}
+.ref-journal-streak>div:nth-child(2) span{color:#b8adba!important;font-size:14px!important;line-height:1.55!important}
+.ref-journal-streak>strong{color:#efc096!important;font-size:14px!important;line-height:1.4!important}
+
+/* Shared dashboard chrome also used undersized legacy labels. */
+.ref-context span{color:#9f95a7!important;font-size:11px!important;line-height:1.35!important}
+.ref-context strong{color:#f5f1f3!important;font-size:16px!important;line-height:1.35!important}
+.ref-topbar input{color:#eee7ec!important;font-size:14px!important}
+.ref-topbar input::placeholder{color:#8f8595!important;opacity:1!important}
+.ref-sidebar nav h2{color:#8f8595!important;font-size:11px!important;letter-spacing:.02em!important}
+.ref-sidebar nav a{color:#c2b8c6!important;font-size:14px!important;line-height:1.45!important}
+.ref-sidebar nav a.active,.ref-sidebar nav a:hover{color:#fff8fb!important}
+.ref-brand>div b{font-size:16px!important;line-height:1.35!important}
+.ref-brand>div span{font-size:11.5px!important;line-height:1.4!important}
+
+@media(max-width:640px){
+  .ref-hero h1{font-size:31px!important}
+  .ref-card h2{font-size:18px!important}
+  .ref-quick header h2{font-size:24px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  :is(.auth-layout,.anonymous-assessment,.policy-page,.assessment-intro,.ref-shell,.role-shell){background:var(--bg)!important}
+}
+
+/* -------------------------------------------------------------------------
+ * Healing auth palette
+ *
+ * The rules above are legacy dark-theme overrides.  Keep them for the
+ * dashboard surfaces that still need them, but explicitly map auth screens
+ * back to the same calm cream / sage / teal language as the public site.
+ * ---------------------------------------------------------------------- */
+.auth-layout{
+  background:
+    radial-gradient(760px 520px at 86% -8%,rgba(61,122,110,.12),transparent 67%),
+    radial-gradient(620px 460px at -8% 86%,rgba(225,166,81,.12),transparent 70%),
+    var(--bg)!important;
+}
+
+:is(.anonymous-assessment,.policy-page,.assessment-intro,.ref-shell,.role-shell){
+  background:
+    radial-gradient(760px 520px at 86% -8%,rgba(61,122,110,.1),transparent 67%),
+    radial-gradient(620px 460px at -8% 86%,rgba(225,166,81,.1),transparent 70%),
+    var(--bg)!important;
+}
+
+.auth-container{
+  background:rgba(255,255,255,.94)!important;
+  border-color:var(--line)!important;
+  box-shadow:var(--shadow)!important;
+}
+
+.auth-visual-side{
+  color:var(--teal-deep)!important;
+  background:
+    radial-gradient(circle at 52% 44%,rgba(61,122,110,.24),transparent 36%),
+    radial-gradient(circle at 18% 20%,rgba(225,166,81,.14),transparent 32%),
+    linear-gradient(145deg,var(--bg-deep),var(--teal-pale))!important;
+}
+.auth-visual-side::before{border-color:rgba(61,122,110,.18)!important}
+.auth-breathe-stage .breathe-ring{border-color:rgba(30,74,67,.24)!important}
+.auth-breathe-stage .breathe-blob{
+  background:radial-gradient(circle at 35% 30%,#a8cfc0,var(--teal) 72%)!important;
+  box-shadow:0 20px 52px -18px rgba(30,74,67,.34)!important;
+}
+.auth-float-card .float-inner{
+  background:rgba(255,255,255,.88)!important;
+  border-color:rgba(61,122,110,.2)!important;
+  box-shadow:0 18px 44px -30px rgba(30,74,67,.42)!important;
+}
+.auth-quote{color:var(--teal-deep)!important}
+.auth-quote cite{color:var(--ink-soft)!important}
+.auth-logo path{stroke:var(--teal-deep)!important}
+.auth-logo circle:first-of-type{fill:var(--amber)!important}
+.auth-logo circle:last-of-type{fill:var(--teal)!important}
+
+:is(.auth-layout,.anonymous-assessment) :is(input,select,textarea){
+  background:var(--surface)!important;
+  border-color:var(--line)!important;
+  color:var(--ink)!important;
+  color-scheme:light;
+}
+:is(.auth-layout,.anonymous-assessment) :is(input,select,textarea):focus{
+  background:var(--surface)!important;
+  border-color:var(--teal)!important;
+  box-shadow:0 0 0 3px rgba(207,227,216,.82)!important;
+}
+.auth-layout :is(.form-input,.form-select)::placeholder{color:var(--ink-faint)!important}
+.auth-layout .divider span{background:var(--surface)!important;color:var(--ink-faint)!important}
+.auth-layout .anonymous-btn{
+  background:var(--surface)!important;
+  border-color:rgba(61,122,110,.25)!important;
+  color:var(--teal-deep)!important;
+}
+.auth-layout .anonymous-btn:hover{background:var(--surface-soft)!important;border-color:var(--teal)!important}
+.auth-layout .auth-submit{
+  background:linear-gradient(135deg,var(--teal),var(--teal-deep))!important;
+  border-color:rgba(30,74,67,.18)!important;
+  box-shadow:0 14px 30px -20px rgba(30,74,67,.48)!important;
+}
+
+.anonymous-assessment-card,.policy-wrap,.assessment-intro-card{
+  background:rgba(255,255,255,.92)!important;
+  border-color:var(--line)!important;
+  box-shadow:0 34px 90px -50px rgba(30,74,67,.28)!important;
+}
+.assessment-result-signup{background:var(--surface-soft)!important}
+.assessment-breathing-zone::before{background:rgba(61,122,110,.14)!important}
+.assessment-breathing-zone::after{background:rgba(225,166,81,.12)!important}
+
+/* Shared product chrome follows the same palette as auth and marketing. */
+.ref-sidebar,.role-sidebar{
+  background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(231,237,225,.94))!important;
+  border-color:var(--line)!important;
+  box-shadow:18px 0 60px -48px rgba(30,74,67,.25)!important;
+}
+.ref-topbar,.role-topbar{
+  background:rgba(255,255,255,.86)!important;
+  border-color:var(--line)!important;
+  color:var(--ink)!important;
+}
+.ref-topbar>label,.role-collapse{
+  background:rgba(255,255,255,.78)!important;
+  border-color:var(--line)!important;
+}
+.ref-shell,.role-shell{color:var(--ink)!important}
+.ref-dashboard{color:var(--ink)!important}
+.ref-shell :is(
+  .ref-card,[class$="-card"],[class*="-card "],[class*="-panel"],[class*="-composer"],
+  [class*="-table-wrap"],[class*="-preferences"],[class*="-summary"]
+),
+.role-shell :is(.role-panel,.role-stat,.specialist-pulse,.specialist-mini-card,
+  .specialist-activity-panel,.role-drawer,.role-modal){
+  background:rgba(255,255,255,.9)!important;
+  border-color:var(--line)!important;
+  box-shadow:0 24px 62px -48px rgba(30,74,67,.25)!important;
+}
+.ref-shell :is(.settings-modal,.subscription-modal),
+.role-shell :is(.role-drawer,.role-modal){background:var(--surface)!important}
+.ref-shell :is(.ref-mood,.ref-result,.ref-appointment,.ref-quick>div>a,
+  .journal-month article,.specialist-empty),
+.role-shell :is(.role-user,.specialist-calm-note,.role-disclaimer){
+  background:var(--surface-soft)!important;
+  border-color:var(--line)!important;
+}
+.ref-shell :is(h1,h2,h3,h4,strong),.role-shell :is(h1,h2,h3,h4,strong){color:var(--ink)!important}
+.ref-shell :is(p,span,small),.role-shell :is(p,span,small){color:var(--ink-soft)!important}
+.ref-sidebar nav h2{color:var(--ink-faint)!important}
+.ref-sidebar nav a,.role-sidebar nav a{color:var(--ink-soft)!important}
+.ref-sidebar nav a.active,.ref-sidebar nav a:hover,
+.role-sidebar nav a.active,.role-sidebar nav a:hover{color:var(--teal-deep)!important}
+.ref-sidebar nav a.active,.ref-sidebar-foot>a.active{color:#fff!important}
+.ref-brand>div b,.ref-brand>div span{color:var(--teal-deep)!important}
+.ref-topbar input{background:transparent!important;color:var(--ink)!important;color-scheme:light;-webkit-appearance:none}
+.ref-topbar input::placeholder{color:var(--ink-faint)!important}
+.ref-mood>div button{background:var(--surface-soft)!important;color:var(--ink)!important;border-color:transparent!important}
+.ref-mood>div button:hover{background:#e2eadc!important;border-color:rgba(61,122,110,.28)!important}
+.ref-mood>div button.active{background:var(--teal-pale)!important;color:var(--ink)!important;border-color:var(--teal)!important}
+
+.ref-hero{
+  background:
+    radial-gradient(circle at 82% 18%,rgba(61,122,110,.16),transparent 37%),
+    linear-gradient(135deg,var(--surface),var(--bg-deep))!important;
+  border-color:rgba(61,122,110,.16)!important;
+  box-shadow:0 28px 70px -48px rgba(30,74,67,.28)!important;
+}
+.ref-hero :is(h1,p,span,strong,small),.ref-quick .primary :is(b,span,strong){color:var(--ink)!important}
+.ref-hero p,.ref-hero>div>span,.ref-streak small{color:var(--ink-soft)!important}
+.ref-quick>div>a.primary :is(b,span,strong){color:var(--primary-foreground)!important}
+.ref-shell :is(.ref-card,.journal-entry-card,.journal-insights>section,
+  .assessment-card,.analytics-stat,.analytics-chart-card,.subscription-plan,
+  .specialist-card):hover,
+.role-shell :is(.role-stat,.specialist-pulse,.specialist-mini-card):hover{
+  border-color:rgba(61,122,110,.34)!important;
+  box-shadow:0 28px 72px -48px rgba(61,122,110,.3)!important;
+}
+
+/* Data cards, specialists and journal widgets inherit readable light text. */
+.specialist-filters button,.specialist-card,.ref-quick-link,.ref-appointment-item,
+.ref-journal-streak,.journal-month article,.journal-period,.journal-prompt,
+.journal-topics>div>span,.journal-topics button{
+  background:var(--surface)!important;
+  border-color:var(--line)!important;
+  color:var(--ink)!important;
+}
+.specialist-filters button:hover,.specialist-filters button.active,
+.ref-quick-link:hover{background:var(--surface-soft)!important;border-color:var(--teal)!important;color:var(--teal-deep)!important}
+.specialist-card h2,.journal-month h2,.journal-topics h2,.ref-quick-link>span:first-child,
+.ref-appointment-item strong,.ref-journal-streak>div:nth-child(2) strong,
+.ref-context strong{color:var(--ink)!important}
+.specialist-role,.specialist-stats small,.specialist-footer small,.journal-copy,
+.journal-prompt p,.ref-mood header p,.ref-result>p,.ref-mood footer,
+.ref-appointment-item small,.ref-appointment footer,.ref-quick-link>span:first-child small,
+.ref-journal-streak>div:nth-child(2) span,.ref-context span{color:var(--ink-soft)!important}
+.specialist-tags span,.specialist-busy,.ref-result>span,.ref-tasks header>span{
+  background:var(--teal-pale)!important;color:var(--teal-deep)!important
+}
+.specialist-tags span.alt{background:var(--amber-soft)!important;color:var(--amber-deep)!important}
+.specialist-avatar.sage{background:linear-gradient(145deg,#a8cfc0,#5d9989)!important}
+.specialist-avatar.amber{background:linear-gradient(145deg,#f0c979,#bd8740)!important}
+.specialist-avatar.lavender{background:linear-gradient(145deg,#d8cde2,#9a8cae)!important}
+.specialist-avatar.terra{background:linear-gradient(145deg,#e4b69f,#bd6e50)!important}
+.specialist-online{border-color:var(--surface)!important;background:var(--teal)!important}
+.journal-insights>section{background:linear-gradient(155deg,var(--surface),var(--bg-deep))!important;box-shadow:0 24px 58px -46px rgba(30,74,67,.25)!important}
+.journal-prompt{background:linear-gradient(145deg,var(--teal-pale),var(--surface-soft))!important}
+.ref-streak b,.ref-mood button,.ref-mood footer b,.ref-mood footer a,
+.ref-tasks button,.ref-appointment header a{color:var(--teal-deep)!important}
+.ref-mood button:hover,.ref-mood button.active{background:var(--teal-pale)!important;border-color:var(--teal)!important}
+.role-active-pill{background:var(--teal-pale)!important;border-color:rgba(61,122,110,.28)!important;box-shadow:inset 3px 0 var(--amber)!important}
+.role-sidebar nav a.active{background:var(--teal-pale)!important;color:var(--teal-deep)!important}
+
+/* Keep primary actions green-teal; reserve amber for emphasis and progress. */
+:is(.btn-primary,.ref-brand>a,.ref-sidebar nav a.active,.ref-sidebar-foot>a.active,
+  .ref-quick>div>a.primary,.action-card.primary,.assessment-start,
+  .subscription-select,.settings-toast,.specialist-filters button.active,
+  .specialist-book,.journal-new,.journal-node.deep,.journal-mood.deep,
+  .journal-prompt button,.role-brand-mark,.role-user>span:first-child,.role-toast){
+  background:linear-gradient(135deg,var(--teal),var(--teal-deep))!important;
+  border-color:rgba(30,74,67,.18)!important;
+  color:var(--primary-foreground)!important;
+  box-shadow:0 14px 30px -20px rgba(30,74,67,.42)!important;
+}
+
+@media(max-width:980px){
+  .ref-sidebar,.role-sidebar{background:var(--surface)!important}
+}
+
+/* Active navigation labels must stay readable when the parent gets a filled state. */
+.ref-sidebar nav a.active,
+.ref-sidebar nav a.active span,
+.ref-sidebar nav a.active i,
+.ref-sidebar-foot>a.active,
+.ref-sidebar-foot>a.active span,
+.ref-sidebar-foot>a.active i{color:#fff!important}
+.role-sidebar nav a.active,
+.role-sidebar nav a.active span,
+.role-sidebar nav a.active i{color:var(--teal-deep)!important}
+
+/* Final light product-surface pass: legacy dark rules above must not leak into user pages. */
+:is(.ref-shell,.role-shell) :is(input,select,textarea){
+  background:var(--surface)!important;
+  color:var(--ink)!important;
+  color-scheme:light;
+}
+:is(.ref-shell,.role-shell) :is(input,select,textarea)::placeholder{color:var(--ink-faint)!important;opacity:1}
+.ref-shell .journal-field textarea{background:rgba(241,244,235,.62)!important}
+.ref-shell .ref-user{background:linear-gradient(135deg,rgba(231,238,228,.94),rgba(207,227,216,.64))!important;color:var(--ink)!important}
+.ref-shell .ref-user strong,.ref-shell .ref-user button{color:var(--teal-deep)!important}
+.ref-shell .ref-user button{background:transparent!important}
+
+/* Account page readability: global fallback so route CSS order cannot hide the scale. */
+.ref-shell .settings-page .settings-group-label{font-size:14px!important;line-height:1.4!important}
+.ref-shell .settings-page .settings-accordion-head strong,
+.ref-shell .settings-page .settings-verified-row strong,
+.ref-shell .settings-page .settings-preferences strong,
+.ref-shell .settings-page .settings-safe strong,
+.ref-shell .settings-page .settings-danger strong{font-size:18px!important;line-height:1.4!important}
+.ref-shell .settings-page .settings-accordion-head small,
+.ref-shell .settings-page .settings-verified-row small,
+.ref-shell .settings-page .settings-preferences small,
+.ref-shell .settings-page .settings-safe p,
+.ref-shell .settings-page .settings-danger p{font-size:15px!important;line-height:1.55!important}
+.ref-shell .settings-page .settings-consent-note strong{font-size:18px!important}
+.ref-shell .settings-page .settings-consent-note p{font-size:15px!important;line-height:1.55!important}
+.ref-shell .settings-page .settings-consent article strong{font-size:18px!important}
+.ref-shell .settings-page .settings-consent article small{font-size:14px!important;line-height:1.5!important}
+.ref-shell .settings-page .settings-security>label{font-size:17px!important}
+.ref-shell .settings-page .settings-security>label input{font-size:17px!important}
+.ref-shell .settings-page .settings-toggle-row strong{font-size:18px!important}
+.ref-shell .settings-page .settings-toggle-row small{font-size:14px!important}
+.ref-shell .settings-page .settings-preferences em{font-size:15px!important}
+.ref-shell .settings-page .settings-safe>h2,
+.ref-shell .settings-page .settings-danger>h2{font-size:14px!important}
+.ref-shell .settings-page .settings-safe article>button,
+.ref-shell .settings-page .settings-danger button{font-size:15px!important}
+.messages-page .messages-list-panel,.messages-page .messages-chat-panel{background:var(--surface)!important;border-color:var(--line)!important;color:var(--ink)!important}
+.messages-page .message-conversation{background:var(--surface-soft)!important;color:var(--ink)!important;border-color:var(--line)!important}
+.messages-page .message-conversation.active,.messages-page .message-conversation:hover{background:var(--teal-pale)!important;border-color:rgba(61,122,110,.3)!important}
+.messages-page .chat-bubble.bot{background:var(--teal-pale)!important;color:var(--teal-deep)!important}
+.messages-page .messages-composer textarea{background:var(--surface)!important;color:var(--ink)!important}
+
+/* Softer contrast for long user sessions: avoid pure-white cards and purple legacy surfaces. */
+.ref-shell,.role-shell{background:#e7ede4!important}
+.ref-shell .ref-main,.role-shell .role-main{background:transparent!important}
+.ref-sidebar,.role-sidebar{background:linear-gradient(180deg,#edf2eb,#e2eae1)!important}
+.ref-topbar,.role-topbar{background:rgba(237,242,235,.94)!important}
+.ref-shell :is(.ref-card,.journal-entry-card,.journal-composer,.journal-insights>section,.settings-group,.settings-summary,.subscription-plan,.specialist-card,.feature-card),
+.role-shell :is(.role-panel,.role-stat,.specialist-pulse,.specialist-mini-card,.specialist-activity-panel){background:rgba(248,250,245,.92)!important}
+.ref-shell .journal-prompt{background:linear-gradient(145deg,#dce9df,#d2e3d8)!important;color:var(--teal-deep)!important}
+.ref-shell .journal-prompt small,.ref-shell .journal-prompt p{color:var(--teal-deep)!important}
+.ref-shell .journal-prompt button{background:var(--teal)!important;color:#fff!important}
+.ref-shell .ref-hero{background:linear-gradient(135deg,#eef2e9,#dce9df)!important}
+
+/* Numeric values need stronger contrast than metadata labels. */
+.ref-shell .journal-month article strong{color:var(--teal-deep)!important}
+.ref-shell .journal-month article strong em{color:var(--ink-soft)!important}
+.ref-shell .journal-month article>span{color:var(--ink-soft)!important}
+.ref-shell .journal-month article small{color:var(--ink-faint)!important}
+.ref-shell .journal-topics>div>span b{color:var(--teal-deep)!important;font-weight:800}
+.ref-shell .ref-result>strong,.ref-shell .ref-streak b{color:var(--teal-deep)!important}
+.ref-shell .ref-result>span{color:var(--teal-deep)!important}
+.ref-shell .subscription-price strong,.ref-shell .subscription-balance strong{color:var(--teal-deep)!important}
+.ref-shell .subscription-plan.premium .subscription-price strong{color:var(--amber-deep)!important}
+
+/* Assessment tables and notices must stay in the light product palette. */
+.ref-shell .assessment-table-wrap{
+  background:var(--surface)!important;
+  border-color:var(--line)!important;
+}
+.ref-shell .assessment-table th{
+  background:var(--surface-soft)!important;
+  color:var(--ink-faint)!important;
+}
+.ref-shell .assessment-table td,
+.ref-shell .assessment-table td small,
+.ref-shell .assessment-table td strong{
+  color:var(--ink-soft)!important;
+}
+.ref-shell .assessment-table td:first-child strong,
+.ref-shell .assessment-test-name{color:var(--ink)!important}
+.ref-shell .assessment-table tbody tr:hover td{
+  background:#e2eadc!important;
+  color:var(--ink)!important;
+}
+.ref-shell .assessment-score{color:var(--teal-deep)!important}
+.ref-shell .assessment-note{
+  background:linear-gradient(135deg,#dce9df,#d2e3d8)!important;
+  border-color:rgba(61,122,110,.2)!important;
+  color:var(--ink)!important;
+}
+.ref-shell .assessment-note>span{background:var(--teal-pale)!important;color:var(--teal-deep)!important}
+.ref-shell .assessment-note strong{color:var(--teal-deep)!important}
+.ref-shell .assessment-note p{color:var(--ink-soft)!important}
+
+/* Reference assessment treatment: keep the reminder intentionally lavender. */
+.ref-shell .assessment-note{
+  background:#f0edfc!important;
+  border-color:#ddd7f4!important;
+}
+.ref-shell .assessment-note>span{background:#8e84c9!important;color:#fff!important}
+.ref-shell .assessment-card>p{color:#8a6c61!important}
+.ref-shell .assessment-duration{color:#899487!important}
+.ref-shell .assessment-icon.pulse{background:#e3efdf!important;color:#5f9571!important}
+.ref-shell .assessment-icon.wave{background:#eeeafd!important;color:#8175c2!important}
+.ref-shell .assessment-icon.moon{background:#dcebe3!important;color:#2f665d!important}
+.ref-shell .assessment-question-count{background:#f8f6ef!important;color:#696f64!important}
+.ref-shell .assessment-card-grid,
+.ref-shell .assessment-card-top,
+.ref-shell .assessment-card-footer{
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+
+/* Subscription: restore readable contrast on the light product surface. */
+.ref-shell .subscription-balance{
+  background:linear-gradient(100deg,#dce9df,#e9f0e5)!important;
+  border-color:rgba(42,91,81,.2)!important;
+  box-shadow:0 14px 30px -24px rgba(30,74,67,.28)!important;
+}
+.ref-shell .subscription-balance :is(strong,button){color:var(--teal-deep)!important}
+.ref-shell .subscription-balance span{color:var(--teal-deep)!important}
+.ref-shell .subscription-balance small{color:var(--ink-soft)!important}
+.ref-shell .subscription-node>span{background:var(--surface)!important;border-color:var(--line)!important}
+.ref-shell .subscription-node :is(strong,small){color:var(--ink-soft)!important}
+.ref-shell .subscription-node.current :is(strong,small){color:var(--teal-deep)!important}
+.ref-shell .subscription-plan,
+.ref-shell .subscription-plan.featured,
+.ref-shell .subscription-plan.premium{
+  background:rgba(248,250,245,.96)!important;
+  border-color:var(--line)!important;
+  box-shadow:0 22px 48px -38px rgba(30,74,67,.3)!important;
+}
+.ref-shell .subscription-plan h2,
+.ref-shell .subscription-plan.featured h2{color:var(--ink)!important}
+.ref-shell .subscription-plan.premium h2{color:var(--amber-deep)!important}
+.ref-shell .subscription-price strong,
+.ref-shell .subscription-plan.featured .subscription-price strong{color:var(--teal-deep)!important}
+.ref-shell .subscription-plan.premium .subscription-price strong{color:var(--amber-deep)!important}
+.ref-shell .subscription-price span,
+.ref-shell .subscription-plan>p{color:var(--ink-soft)!important}
+.ref-shell .subscription-plan li{color:var(--ink-soft)!important}
+.ref-shell .subscription-plan li>span{color:var(--teal)!important}
+.ref-shell .subscription-plan.premium li>span{color:var(--amber-deep)!important}
+.ref-shell .subscription-plan-badge.free{background:var(--teal-pale)!important;color:var(--teal-deep)!important}
+.ref-shell .subscription-plan-badge.plus{background:var(--amber)!important;color:#3d2818!important}
+.ref-shell .subscription-plan-badge.premium{color:var(--amber-deep)!important}
+.ref-shell .subscription-current{background:transparent!important;border-color:var(--line)!important;color:var(--ink-soft)!important}
+.ref-shell .subscription-select{background:var(--teal-deep)!important;color:#fff!important}
+.ref-shell .subscription-select.accent{background:var(--teal-deep)!important;border-color:var(--teal-deep)!important;color:#fff!important}
+.ref-shell .subscription-compare-toggle button{color:var(--teal-deep)!important}
+.ref-shell .subscription-faq article>button{color:var(--ink)!important}
+.ref-shell .subscription-faq article>div p{color:var(--ink-soft)!important}
+
+/* Subscription checkout modal: keep every payment state readable in light mode. */
+.ref-shell .subscription-modal{
+  background:var(--surface)!important;
+  border-color:var(--line)!important;
+  color:var(--ink)!important;
+}
+.ref-shell .subscription-modal-head small{color:var(--teal-deep)!important}
+.ref-shell .subscription-modal-head h2{color:var(--ink)!important}
+.ref-shell .subscription-modal-head>button{color:var(--ink-faint)!important}
+.ref-shell .subscription-order{
+  background:var(--surface-soft)!important;
+  color:var(--ink-soft)!important;
+}
+.ref-shell .subscription-order strong{color:var(--teal-deep)!important}
+.ref-shell .subscription-method-label{color:var(--ink-soft)!important}
+.ref-shell .subscription-modal>label{
+  background:var(--surface)!important;
+  border-color:var(--line)!important;
+  color:var(--ink)!important;
+}
+.ref-shell .subscription-modal>label.selected{
+  background:var(--teal-pale)!important;
+  border-color:var(--teal)!important;
+}
+.ref-shell .subscription-modal>label strong{color:var(--ink)!important}
+.ref-shell .subscription-modal>label small{color:var(--ink-soft)!important}
+.ref-shell .subscription-secure{color:var(--ink-faint)!important}
+
+/* Refined checkout presentation: clear hierarchy, tactile choices and a calmer overlay. */
+.ref-shell .subscription-backdrop{
+  background:rgba(25,43,37,.58)!important;
+  backdrop-filter:blur(12px) saturate(.86)!important;
+}
+.ref-shell .subscription-modal{
+  width:min(500px,calc(100% - 28px))!important;
+  padding:34px!important;
+  border:1px solid rgba(61,122,110,.18)!important;
+  border-radius:24px!important;
+  box-shadow:0 30px 80px -34px rgba(17,46,39,.56),0 2px 0 rgba(255,255,255,.8) inset!important;
+  overflow:hidden!important;
+}
+.ref-shell .subscription-modal::before{
+  content:"";
+  position:absolute;
+  inset:0 0 auto;
+  height:4px;
+  background:linear-gradient(90deg,var(--teal),#8cbfa8,var(--amber));
+}
+.ref-shell .subscription-modal-head{margin-bottom:24px!important}
+.ref-shell .subscription-modal-head small{
+  display:block!important;
+  margin-bottom:8px!important;
+  font-size:11px!important;
+  font-weight:800!important;
+  letter-spacing:.14em!important;
+}
+.ref-shell .subscription-modal-head h2{
+  font-size:32px!important;
+  line-height:1.05!important;
+  letter-spacing:-.025em!important;
+}
+.ref-shell .subscription-modal-head>button{
+  width:36px!important;
+  height:36px!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid var(--line)!important;
+  border-radius:50%!important;
+  font-size:20px!important;
+  line-height:1!important;
+  transition:background .2s ease,color .2s ease,transform .2s ease!important;
+}
+.ref-shell .subscription-modal-head>button:hover{
+  background:var(--surface-soft)!important;
+  color:var(--teal-deep)!important;
+  transform:rotate(6deg)!important;
+}
+.ref-shell .subscription-order{
+  position:relative!important;
+  min-height:68px!important;
+  align-items:center!important;
+  padding:16px 18px 16px 22px!important;
+  margin-bottom:25px!important;
+  border:1px solid rgba(61,122,110,.13)!important;
+  border-radius:16px!important;
+  font-size:13px!important;
+}
+.ref-shell .subscription-order::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:14px;
+  bottom:14px;
+  width:3px;
+  border-radius:3px;
+  background:var(--teal);
+}
+.ref-shell .subscription-order span{font-weight:600!important;color:var(--ink-soft)!important}
+.ref-shell .subscription-order strong{font-size:18px!important;font-variant-numeric:tabular-nums!important}
+.ref-shell .subscription-method-label{
+  margin-bottom:11px!important;
+  font-size:12px!important;
+  letter-spacing:.02em!important;
+}
+.ref-shell .subscription-modal>label{
+  position:relative!important;
+  min-height:72px!important;
+  gap:13px!important;
+  padding:14px 16px!important;
+  margin-bottom:10px!important;
+  border-radius:16px!important;
+  transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,background .22s ease!important;
+}
+.ref-shell .subscription-modal>label:hover{
+  transform:translateY(-2px)!important;
+  border-color:rgba(61,122,110,.48)!important;
+  box-shadow:0 12px 22px -18px rgba(30,74,67,.5)!important;
+}
+.ref-shell .subscription-modal>label input{
+  width:17px!important;
+  height:17px!important;
+  margin:0 2px 0 0!important;
+  accent-color:var(--teal-deep)!important;
+}
+.ref-shell .subscription-modal>label>span{
+  width:40px!important;
+  height:40px!important;
+  border-radius:12px!important;
+  font-size:16px!important;
+  box-shadow:0 4px 10px -7px rgba(0,0,0,.4)!important;
+}
+.ref-shell .subscription-modal>label>div{gap:3px!important}
+.ref-shell .subscription-modal>label strong{font-size:15px!important;line-height:1.2!important}
+.ref-shell .subscription-modal>label small{font-size:11px!important;line-height:1.35!important}
+.ref-shell .subscription-modal-actions{
+  align-items:center!important;
+  gap:13px!important;
+  margin-top:22px!important;
+}
+.ref-shell .subscription-modal-actions .btn-ghost{
+  min-height:48px!important;
+  padding:12px 14px!important;
+  color:var(--ink-soft)!important;
+  border-radius:12px!important;
+  transition:background .2s ease,color .2s ease!important;
+}
+.ref-shell .subscription-modal-actions .btn-ghost:hover{
+  background:var(--surface-soft)!important;
+  color:var(--teal-deep)!important;
+}
+.ref-shell .subscription-modal-actions .btn-primary{
+  min-height:48px!important;
+  padding:12px 22px!important;
+  border-radius:13px!important;
+  font-size:14px!important;
+  box-shadow:0 12px 22px -16px rgba(30,74,67,.75)!important;
+}
+.ref-shell .subscription-secure{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:6px!important;
+  margin:17px 0 0!important;
+  font-size:10px!important;
+  line-height:1.5!important;
+}
+.ref-shell .subscription-secure::before{content:"⌾";font-size:13px;color:var(--teal)!important}
+@media(max-width:640px){
+  .ref-shell .subscription-modal{padding:27px 20px!important;border-radius:20px!important}
+  .ref-shell .subscription-modal-head h2{font-size:28px!important}
+  .ref-shell .subscription-modal-actions{flex-direction:column-reverse!important;align-items:stretch!important}
+  .ref-shell .subscription-modal-actions button{width:100%!important}
+}
+
+/* Complete payment flow: methods, QR, card details and bank transfer. */
+.ref-shell .subscription-modal-expanded{
+  width:min(860px,calc(100% - 32px))!important;
+  max-height:calc(100dvh - 32px)!important;
+  overflow-y:auto!important;
+  scrollbar-width:thin;
+  scrollbar-color:var(--teal-pale) transparent;
+}
+.ref-shell .subscription-modal-expanded .subscription-modal-head h2{font-size:34px!important}
+.ref-shell .subscription-modal-expanded .subscription-order span{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:3px!important;
+}
+.ref-shell .subscription-modal-expanded .subscription-order span b{color:var(--ink)!important;font-size:14px!important}
+.ref-shell .subscription-modal-expanded .subscription-order span small{color:var(--ink-faint)!important;font-size:10px!important}
+.ref-shell .subscription-payment-layout{
+  display:grid!important;
+  grid-template-columns:minmax(245px,.82fr) minmax(340px,1.18fr)!important;
+  gap:20px!important;
+  align-items:stretch!important;
+}
+.ref-shell .subscription-methods,
+.ref-shell .subscription-payment-detail{
+  min-width:0!important;
+}
+.ref-shell .subscription-method-grid{display:grid!important;gap:9px!important}
+.ref-shell .subscription-method-grid>label{
+  position:relative!important;
+  min-height:65px!important;
+  display:grid!important;
+  grid-template-columns:18px 38px minmax(0,1fr) 20px!important;
+  align-items:center!important;
+  gap:11px!important;
+  padding:11px 12px!important;
+  border:1px solid var(--line)!important;
+  border-radius:14px!important;
+  background:var(--surface)!important;
+  cursor:pointer!important;
+  transition:transform .2s ease,border-color .2s ease,background .2s ease,box-shadow .2s ease!important;
+}
+.ref-shell .subscription-method-grid>label:hover{
+  transform:translateY(-1px)!important;
+  border-color:rgba(61,122,110,.45)!important;
+  box-shadow:0 10px 22px -18px rgba(30,74,67,.55)!important;
+}
+.ref-shell .subscription-method-grid>label.selected{
+  background:var(--teal-pale)!important;
+  border-color:var(--teal)!important;
+  box-shadow:0 0 0 2px rgba(61,122,110,.08)!important;
+}
+.ref-shell .subscription-method-grid input{
+  width:16px!important;
+  height:16px!important;
+  margin:0!important;
+  accent-color:var(--teal-deep)!important;
+}
+.ref-shell .subscription-method-grid label>span{
+  width:38px!important;
+  height:38px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:11px!important;
+  background:var(--surface-soft)!important;
+  color:var(--teal-deep)!important;
+  font-family:var(--font-sans)!important;
+  font-size:12px!important;
+  font-weight:800!important;
+}
+.ref-shell .subscription-method-grid label.momo>span{background:#f5e2e3!important;color:#a33b58!important}
+.ref-shell .subscription-method-grid label.card>span{background:#e9e4f6!important;color:#6c5ba9!important;font-size:17px!important}
+.ref-shell .subscription-method-grid label.bank>span{background:#f7ead7!important;color:#946020!important}
+.ref-shell .subscription-method-grid label>div{display:flex!important;min-width:0!important;flex-direction:column!important;gap:2px!important}
+.ref-shell .subscription-method-grid label strong{color:var(--ink)!important;font-size:13px!important;line-height:1.25!important}
+.ref-shell .subscription-method-grid label small{color:var(--ink-faint)!important;font-size:9.5px!important;line-height:1.35!important}
+.ref-shell .subscription-method-grid label>i{
+  width:19px!important;
+  height:19px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:50%!important;
+  background:var(--teal-deep)!important;
+  color:#fff!important;
+  font-size:10px!important;
+  font-style:normal!important;
+  opacity:0!important;
+  transform:scale(.7)!important;
+  transition:opacity .2s ease,transform .2s ease!important;
+}
+.ref-shell .subscription-method-grid label.selected>i{opacity:1!important;transform:scale(1)!important}
+.ref-shell .subscription-payment-detail{
+  min-height:289px!important;
+  display:flex!important;
+  align-items:stretch!important;
+  padding:18px!important;
+  border:1px solid rgba(61,122,110,.16)!important;
+  border-radius:18px!important;
+  background:linear-gradient(145deg,#f3f7f0,#e8f0e8)!important;
+}
+.ref-shell .subscription-payment-detail>div{width:100%!important}
+.ref-shell .subscription-qr-panel{
+  display:grid!important;
+  grid-template-columns:174px minmax(0,1fr)!important;
+  gap:20px!important;
+  align-items:center!important;
+}
+.ref-shell .subscription-qr-frame{
+  position:relative!important;
+  padding:13px 13px 31px!important;
+  border:1px solid rgba(61,122,110,.2)!important;
+  border-radius:17px!important;
+  background:#fff!important;
+  box-shadow:0 14px 30px -24px rgba(30,74,67,.4)!important;
+}
+.ref-shell .subscription-qr-code{display:block!important;width:100%!important;height:auto!important}
+.ref-shell .subscription-qr-frame>span{
+  position:absolute!important;
+  inset:auto 0 8px!important;
+  text-align:center!important;
+  color:var(--teal-deep)!important;
+  font-family:var(--font-sans)!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  letter-spacing:.16em!important;
+  text-transform:uppercase!important;
+}
+.ref-shell .subscription-detail-kicker{
+  color:var(--teal-deep)!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  letter-spacing:.1em!important;
+  text-transform:uppercase!important;
+}
+.ref-shell .subscription-qr-panel h3,
+.ref-shell .subscription-wallet-panel h3{
+  margin:8px 0 10px!important;
+  color:var(--ink)!important;
+  font-size:25px!important;
+  line-height:1.12!important;
+}
+.ref-shell .subscription-qr-panel p,
+.ref-shell .subscription-wallet-panel p{
+  color:var(--ink-soft)!important;
+  font-size:11px!important;
+  line-height:1.6!important;
+}
+.ref-shell .subscription-qr-panel small{
+  display:inline-flex!important;
+  margin-top:13px!important;
+  padding:6px 8px!important;
+  border-radius:7px!important;
+  background:rgba(255,255,255,.7)!important;
+  color:var(--ink-faint)!important;
+  font-size:9px!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.ref-shell .subscription-wallet-panel{
+  display:flex!important;
+  align-items:center!important;
+  gap:18px!important;
+  padding:8px!important;
+}
+.ref-shell .subscription-wallet-logo{
+  width:72px!important;
+  height:72px!important;
+  flex:0 0 auto!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:20px!important;
+  background:#a93b62!important;
+  color:#fff!important;
+  font-size:28px!important;
+  font-weight:800!important;
+  box-shadow:0 16px 28px -20px rgba(131,34,72,.65)!important;
+}
+.ref-shell .subscription-card-form{display:grid!important;gap:12px!important}
+.ref-shell .subscription-card-form>div{display:grid!important;grid-template-columns:1fr 1fr!important;gap:11px!important}
+.ref-shell .subscription-card-form label{display:grid!important;gap:6px!important}
+.ref-shell .subscription-card-form label>span{color:var(--ink-soft)!important;font-size:10px!important;font-weight:700!important}
+.ref-shell .subscription-card-form input{
+  width:100%!important;
+  min-height:44px!important;
+  padding:10px 12px!important;
+  border:1px solid var(--line)!important;
+  border-radius:11px!important;
+  background:rgba(255,255,255,.86)!important;
+  color:var(--ink)!important;
+  font:600 12px/1.4 var(--font-sans)!important;
+  outline:none!important;
+  transition:border-color .2s ease,box-shadow .2s ease!important;
+}
+.ref-shell .subscription-card-form input:focus{border-color:var(--teal)!important;box-shadow:0 0 0 3px rgba(61,122,110,.12)!important}
+.ref-shell .subscription-card-form input::placeholder{color:#9aa397!important}
+.ref-shell .subscription-card-form>small{color:var(--ink-faint)!important;font-size:9.5px!important;line-height:1.5!important}
+.ref-shell .subscription-bank-panel{
+  display:grid!important;
+  grid-template-columns:58px 1fr!important;
+  gap:12px 16px!important;
+  align-content:center!important;
+}
+.ref-shell .subscription-bank-icon{
+  grid-row:1/4!important;
+  width:58px!important;
+  height:58px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:16px!important;
+  background:var(--teal-deep)!important;
+  color:#fff!important;
+  font-size:14px!important;
+  font-weight:800!important;
+}
+.ref-shell .subscription-bank-panel>div{display:flex!important;justify-content:space-between!important;gap:14px!important;padding-bottom:8px!important;border-bottom:1px solid rgba(61,122,110,.12)!important}
+.ref-shell .subscription-bank-panel>div span{color:var(--ink-faint)!important;font-size:10px!important}
+.ref-shell .subscription-bank-panel>div strong{color:var(--ink)!important;font-size:11px!important;text-align:right!important}
+.ref-shell .subscription-bank-panel>p{grid-column:1/-1!important;color:var(--ink-soft)!important;font-size:10px!important;line-height:1.5!important}
+
+/* Larger payment-method typography for comfortable scanning. */
+.ref-shell .subscription-payment-layout .subscription-method-label{
+  font-size:15px!important;
+  line-height:1.4!important;
+  margin-bottom:13px!important;
+}
+.ref-shell .subscription-method-grid label strong{
+  font-size:18px!important;
+  line-height:1.25!important;
+}
+.ref-shell .subscription-method-grid label small{
+  font-size:13px!important;
+  line-height:1.4!important;
+}
+.ref-shell .subscription-method-grid>label{
+  min-height:80px!important;
+  padding:15px 16px!important;
+}
+@media(max-width:760px){
+  .ref-shell .subscription-modal-expanded{width:min(560px,calc(100% - 20px))!important}
+  .ref-shell .subscription-payment-layout{grid-template-columns:1fr!important}
+  .ref-shell .subscription-method-grid{grid-template-columns:1fr 1fr!important}
+  .ref-shell .subscription-method-grid>label{grid-template-columns:16px 34px minmax(0,1fr)!important}
+  .ref-shell .subscription-method-grid label>i{display:none!important}
+}
+@media(max-width:520px){
+  .ref-shell .subscription-modal-expanded{max-height:calc(100dvh - 12px)!important;padding:24px 16px!important}
+  .ref-shell .subscription-method-grid{grid-template-columns:1fr!important}
+  .ref-shell .subscription-payment-detail{min-height:0!important;padding:14px!important}
+  .ref-shell .subscription-qr-panel{grid-template-columns:132px minmax(0,1fr)!important;gap:14px!important}
+  .ref-shell .subscription-qr-panel h3{font-size:20px!important}
+  .ref-shell .subscription-qr-panel p{font-size:10px!important}
+  .ref-shell .subscription-order{align-items:flex-start!important;gap:10px!important}
+}
+
+/* Messages: bring all text back to the readable light-product palette. */
+.messages-page .messages-list-panel,
+.messages-page .messages-chat-panel{
+  background:rgba(248,250,245,.96)!important;
+  border-color:var(--line)!important;
+  color:var(--ink)!important;
+}
+.messages-page .message-conversation{
+  background:var(--surface)!important;
+  border-color:var(--line)!important;
+  color:var(--ink)!important;
+}
+.messages-page .message-conversation:hover,
+.messages-page .message-conversation.is-selected{
+  background:var(--teal-pale)!important;
+  border-color:rgba(61,122,110,.45)!important;
+}
+.messages-page .message-conversation.is-selected{box-shadow:inset 3px 0 var(--teal)!important}
+.messages-page .message-conversation-name{color:var(--ink)!important;font-size:16px!important}
+.messages-page .message-conversation-time{color:var(--ink-faint)!important;font-size:12px!important}
+.messages-page .message-conversation-preview{color:var(--ink-soft)!important;font-size:13px!important}
+.messages-page .messages-chat-header h3{color:var(--ink)!important;font-size:21px!important}
+.messages-page .messages-online-label{color:var(--ink-soft)!important;font-size:13px!important}
+.messages-page .chat-bubble.bot{background:var(--teal-deep)!important;color:#fff!important}
+.messages-page .chat-bubble.user{background:linear-gradient(110deg,#ead4db,#f2d6ad)!important;color:#3d2e2b!important}
+.messages-page .message-time{color:var(--ink-faint)!important;font-size:12px!important}
+.messages-page .messages-composer{background:rgba(248,250,245,.98)!important;border-color:var(--line)!important}
+.messages-page .messages-composer textarea{background:var(--surface)!important;color:var(--ink)!important;font-size:14px!important}
+.messages-page .messages-composer textarea::placeholder{color:var(--ink-faint)!important}
+
+/* Final light-mode normalization.
+ * The legacy theme above still contains dark form-control rules. Keep the
+ * product surfaces light and make native select popups follow the same mode.
+ */
+:root,
+html{color-scheme:light}
+
+:is(.auth-layout,.anonymous-assessment,.policy-page,.assessment-intro,.ref-shell,.role-shell)
+  :is(input,select,textarea){
+  background-color:var(--surface)!important;
+  color:var(--ink)!important;
+  color-scheme:light!important;
+}
+
+:is(.auth-layout,.anonymous-assessment,.policy-page,.assessment-intro,.ref-shell,.role-shell)
+  select option{
+  background-color:var(--surface)!important;
+  color:var(--ink)!important;
+}
+
+/* Legacy dashboard widgets that were still pinned to the old dark palette. */
+.ref-shell .ref-dashboard{color:var(--ink)!important}
+.ref-shell :is(
+  .journal-month article,
+  .journal-period,
+  .journal-topics>div>span,
+  .journal-topics button,
+  .subscription-compare th,
+  .subscription-compare td
+){
+  background:var(--surface)!important;
+  border-color:var(--line)!important;
+  color:var(--ink-soft)!important;
+}
+.ref-shell .journal-month article :is(strong,h3){color:var(--teal-deep)!important}
+.ref-shell .journal-month article :is(small,span){color:var(--ink-soft)!important}
+.ref-shell .journal-period{color:var(--ink-soft)!important}
+.ref-shell .journal-topics>div>span b,
+.ref-shell .journal-topics button span{color:var(--teal-deep)!important}
+.ref-shell .subscription-compare th{color:var(--ink-faint)!important}
+.ref-shell .subscription-compare td:first-child{color:var(--ink)!important}

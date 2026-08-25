@@ -1,0 +1,42 @@
+.messages-page{color:var(--ink)}
+.messages-list-panel,.messages-chat-panel{background:var(--surface)!important;border-color:var(--line)!important;color:var(--ink)!important}
+.message-conversation{
+  color:var(--ink)!important;
+  background:var(--surface)!important;
+  border-color:var(--line)!important;
+}
+.message-conversation:hover{background:var(--surface-soft)!important;border-color:rgba(61,122,110,.32)!important}
+.message-conversation.is-selected{
+  background:var(--teal-pale)!important;
+  border-color:var(--teal)!important;
+  box-shadow:inset 3px 0 var(--teal);
+}
+.message-conversation-name{color:var(--ink)!important;font-size:15px!important;line-height:1.35!important}
+.message-conversation-time{color:var(--ink-faint)!important;font-size:12px!important;opacity:1!important}
+.message-conversation-preview{color:var(--ink-soft)!important;font-size:13px!important;line-height:1.5!important;opacity:1!important}
+.messages-chat-header h3{color:var(--ink)!important;font-size:20px!important}
+.messages-online-label{color:var(--ink-soft)!important;font-size:13px!important;opacity:1!important}
+.messages-page .chat-bubble{
+  padding:13px 16px!important;
+  font-size:14px!important;
+  line-height:1.55!important;
+  box-shadow:0 12px 28px -24px #000;
+}
+.messages-page .chat-bubble.bot{background:var(--teal-pale)!important;color:var(--teal-deep)!important}
+.messages-page .chat-bubble.user{
+  background:linear-gradient(110deg,#dda9bd,#efc18f)!important;
+  color:#281923!important;
+}
+.message-time{color:var(--ink-faint)!important;font-size:12px!important;opacity:1!important}
+.messages-composer{background:var(--surface-soft)!important}
+.messages-composer textarea{min-height:46px!important;color:var(--ink)!important;background:var(--surface)!important;font-size:14px!important;line-height:1.5!important}
+.messages-composer .btn-primary{min-height:46px;font-size:14px!important}
+
+@media(max-width:900px){
+  .messages-page{grid-template-columns:280px minmax(0,1fr)!important}
+}
+@media(max-width:720px){
+  .messages-page{display:flex!important;flex-direction:column;height:auto!important;max-height:none!important}
+  .messages-list-panel{max-height:340px!important;min-height:280px}
+  .messages-chat-panel{min-height:620px;max-height:75dvh!important}
+}
