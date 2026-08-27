@@ -81,3 +81,89 @@
 .settings-page .settings-group-label{font-size:16px!important}
 .settings-page .settings-safe article>button,
 .settings-page .settings-danger button{font-size:17px!important}
+/* Password Info Section - NEW VERSION */
+.settings-security-v2 {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+  padding: 3px 24px 23px !important;
+}
+
+.settings-password-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  background: var(--surface-soft);
+  border-radius: 14px;
+  gap: 20px;
+}
+
+.settings-password-info > div {
+  flex: 1;
+}
+
+.settings-password-info strong {
+  display: block;
+  font-size: 17px !important;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+  line-height: 1.4 !important;
+}
+
+.settings-password-info small {
+  display: block;
+  font-size: 14px !important;
+  color: var(--ink-soft);
+  line-height: 1.5 !important;
+}
+
+.settings-password-info .btn-outline {
+  flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  .settings-password-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-password-info .btn-outline {
+    width: 100%;
+  }
+}
+.settings-password-info > div {
+  flex: 1;
+}
+
+.settings-password-info strong {
+  display: block;
+  font-size: 17px !important;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+  line-height: 1.4 !important;
+}
+
+.settings-password-info small {
+  display: block;
+  font-size: 14px !important;
+  color: var(--ink-soft);
+  line-height: 1.5 !important;
+}
+
+.settings-password-info .btn-outline {
+  flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  .settings-password-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-password-info .btn-outline {
+    width: 100%;
+  }
+}

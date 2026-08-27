@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import AssessmentHistoryModal from '@/components/AssessmentHistoryModal'
 import AssessmentResultModal from '@/components/AssessmentResultModal'
+import AssessmentProgressModal from '@/components/AssessmentProgressModal'
 import './assessments.css'
 
 const assessments = [
@@ -48,6 +49,7 @@ function AssessmentIcon({ type }: { type: string }) {
 
 export default function AssessmentsPage() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [isProgressOpen, setIsProgressOpen] = useState(false)
   const [selectedResult, setSelectedResult] = useState<AssessmentResult | null>(null)
   const [isResultOpen, setIsResultOpen] = useState(false)
 
@@ -97,9 +99,8 @@ export default function AssessmentsPage() {
   return <>
     <div className="assessment-page">
     <header className="assessment-page-header">
-      <span className="assessment-kicker">Theo dõi sức khỏe tinh thần</span>
-      <h1>Bài đánh giá</h1>
-      <p>Việc kiểm tra định kỳ giúp bạn hiểu rõ tiến trình và nhận được hỗ trợ phù hợp. Chọn một bài đánh giá để bắt đầu.</p>
+      <div className="assessment-page-title"><span className="assessment-kicker">Theo dõi sức khỏe tinh thần</span><h1>Bài đánh giá</h1><p>Việc kiểm tra định kỳ giúp bạn hiểu rõ tiến trình và nhận được hỗ trợ phù hợp. Chọn một bài đánh giá để bắt đầu.</p></div>
+      <button className="assessment-progress-trigger" onClick={() => setIsProgressOpen(true)}><span>↗</span><div><strong>Theo dõi tiến trình</strong><small>Biểu đồ và các mốc đánh giá</small></div></button>
     </header>
 
     <section aria-labelledby="available-assessments">
@@ -151,6 +152,11 @@ export default function AssessmentsPage() {
     isOpen={isResultOpen}
     onClose={() => setIsResultOpen(false)}
     result={selectedResult}
+  />
+
+  <AssessmentProgressModal
+    isOpen={isProgressOpen}
+    onClose={() => setIsProgressOpen(false)}
   />
   </>
 }

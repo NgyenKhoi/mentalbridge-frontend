@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import './LightSelect.css'
 
 export type LightSelectOption = { value: string; label: string }
 

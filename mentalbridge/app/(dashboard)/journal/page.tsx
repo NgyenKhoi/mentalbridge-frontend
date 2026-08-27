@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import JournalDetailModal, { type JournalEntry } from '../../../components/JournalDetailModal'
 import './journal.css'
 
 const MOODS=[
@@ -18,20 +19,39 @@ const PSYCHOLOGY_QUESTIONS = [
  { id: 'thought', label: 'Bạn đang nghĩ gì lúc này?', placeholder: 'Chia sẻ những suy nghĩ đang lặp đi lặp lại trong đầu bạn...' },
  { id: 'need', label: 'Điều bạn cần lúc này là gì?', placeholder: 'Ví dụ: Được lắng nghe, thời gian một mình, một cái ôm...' },
 ]
-const ENTRIES=[
- {id:1,date:'2026-08-13',time:'20:30',mood:4,content:'Hôm nay làm việc hiệu quả, hoàn thành được 3 task quan trọng. Buổi tối đi bộ 30 phút, cảm thấy thoải mái hơn.',tags:['work','exercise']},
+const ENTRIES: JournalEntry[]=[
+ {id:1,date:'2026-08-13',time:'20:30',mood:4,content:'Hôm nay làm việc hiệu quả, hoàn thành được 3 task quan trọng. Buổi tối đi bộ 30 phút, cảm thấy thoải mái hơn.',tags:['work','exercise'],psychologyAnswers:{trigger:'Hoàn thành những việc đã trì hoãn trong tuần.',physical:'Vai nhẹ hơn, nhịp thở đều sau khi đi bộ.',need:'Một buổi tối yên tĩnh để nghỉ ngơi.'}},
  {id:2,date:'2026-08-12',time:'21:15',mood:3,content:'Ngày bình thường, có chút áp lực deadline nhưng vẫn kiểm soát được. Ngủ trưa 20 phút giúp tỉnh táo hơn.',tags:['work','sleep']},
  {id:3,date:'2026-08-11',time:'19:45',mood:5,content:'Gặp bạn bè sau một thời gian dài, cười rất nhiều. Cảm giác được kết nối lại thật tuyệt vời!',tags:['social','happy']},
 ]
 const topicCounts=[['work',8],['exercise',5],['sleep',4],['social',3],['happy',3]]
 
 export default function JournalPage(){
+ const [entries,setEntries]=useState<JournalEntry[]>(ENTRIES)
+ const [selectedEntry,setSelectedEntry]=useState<JournalEntry|null>(null)
  const [showModal,setShowModal]=useState(false)
  const [selectedMood,setSelectedMood]=useState<number|null>(null)
  const [content,setContent]=useState('')
  const [psychologyAnswers, setPsychologyAnswers] = useState<Record<string, string>>({})
  const [isSaving, setIsSaving] = useState(false)
  const [toast, setToast] = useState<string | null>(null)
+
+ const showToast = (message: string) => {
+   setToast(message)
+   setTimeout(() => setToast(null), 3000)
+ }
+
+ const handleUpdateEntry = (updatedEntry: JournalEntry) => {
+   setEntries(current => current.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry))
+   setSelectedEntry(updatedEntry)
+   showToast('Nhật ký đã được cập nhật.')
+ }
+
+ const handleDeleteEntry = (entryId: number) => {
+   setEntries(current => current.filter(entry => entry.id !== entryId))
+   setSelectedEntry(null)
+   showToast('Nhật ký đã được xóa.')
+ }
 
  useEffect(() => {
    if (!showModal) return
@@ -187,6 +207,15 @@ export default function JournalPage(){
     )}
   </AnimatePresence>
 
+  {selectedEntry && <JournalDetailModal
+    key={selectedEntry.id}
+    isOpen
+    entry={selectedEntry}
+    onClose={() => setSelectedEntry(null)}
+    onUpdate={handleUpdateEntry}
+    onDelete={handleDeleteEntry}
+  />}
+
   {/* Toast Notification */}
   <AnimatePresence>
     {toast && (
@@ -203,8 +232,9 @@ export default function JournalPage(){
 
   <div className="journal-layout">
    <section className="journal-stream" aria-label="Các nhật ký gần đây"><div className="journal-section-head"><div><span>Dòng thời gian</span><h2>Những ngày gần đây</h2></div><span className="journal-period">Tháng 8</span></div><div className="journal-timeline">
-    {ENTRIES.map((entry,index)=>{const mood=MOODS.find(item=>item.value===entry.mood)!;return <motion.article className="journal-entry" key={entry.id} initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:index*.08}}>
-     <div className={`journal-node ${mood.tone}`}><span>{mood.emoji}</span></div><div className="journal-entry-card"><header><div><h3>{new Date(`${entry.date}T12:00:00`).toLocaleDateString('vi-VN',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</h3><p><span>◷</span>{entry.time}</p></div><span className={`journal-mood ${mood.tone}`}>{mood.label}</span></header><p className="journal-copy">{entry.content}</p><footer>{entry.tags.map(tag=><span key={tag}>#{tag}</span>)}</footer></div>
+    {entries.length === 0 && <div className="journal-empty"><span aria-hidden="true">✦</span><h3>Trang nhật ký đang chờ bạn</h3><p>Viết một dòng về cảm xúc hôm nay để bắt đầu lại dòng thời gian.</p><button onClick={()=>setShowModal(true)}>Viết nhật ký mới</button></div>}
+    {entries.map((entry,index)=>{const mood=MOODS.find(item=>item.value===entry.mood)!;return <motion.article className="journal-entry" key={entry.id} initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:index*.08}}>
+     <div className={`journal-node ${mood.tone}`}><span>{mood.emoji}</span></div><div className="journal-entry-card" role="button" tabIndex={0} aria-label={`Xem chi tiết nhật ký ${entry.date}`} onClick={()=>setSelectedEntry(entry)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();setSelectedEntry(entry)}}}><header><div><h3>{new Date(`${entry.date}T12:00:00`).toLocaleDateString('vi-VN',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</h3><p><span>◷</span>{entry.time}</p></div><span className={`journal-mood ${mood.tone}`}>{mood.label}</span></header><p className="journal-copy">{entry.content}</p><footer>{entry.tags.map(tag=><span key={tag}>#{tag}</span>)}<span className="journal-view-cue">Xem chi tiết <b>→</b></span></footer></div>
     </motion.article>})}
    </div></section>
    <aside className="journal-insights">

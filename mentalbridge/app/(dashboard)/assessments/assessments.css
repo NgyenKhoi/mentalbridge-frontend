@@ -7,11 +7,17 @@
 
 .assessment-page-header{
   position:static;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:32px;
   margin:0 0 36px;
   padding:4px 0 0;
   background:transparent;
   box-shadow:none;
 }
+.assessment-page-title{min-width:0}.assessment-page-title>p{max-width:68ch}
+.assessment-progress-trigger{display:flex;min-width:220px;align-items:center;gap:12px;padding:13px 15px;border:1px solid rgba(61,122,110,.18);border-radius:14px;background:rgba(229,237,224,.55);color:var(--teal-deep);text-align:left;transition:transform .24s ease,border-color .24s ease,background .24s ease,box-shadow .24s ease}.assessment-progress-trigger>span{display:grid;width:36px;height:36px;flex:0 0 36px;place-items:center;border-radius:11px;background:var(--teal-deep);color:#fff;font-size:18px}.assessment-progress-trigger>div{display:flex;flex-direction:column}.assessment-progress-trigger strong{font-size:13px}.assessment-progress-trigger small{margin-top:2px;color:var(--ink-faint);font-size:10px}.assessment-progress-trigger:hover{transform:translateY(-2px);border-color:rgba(61,122,110,.36);background:var(--teal-pale);box-shadow:0 16px 30px -25px rgba(30,74,67,.65)}.assessment-progress-trigger:focus-visible{outline:3px solid rgba(61,122,110,.25);outline-offset:3px}
 .assessment-kicker{
   display:block;
   margin-bottom:10px;
@@ -268,6 +274,8 @@
   .assessment-card:last-child{grid-column:span 2}
 }
 @media(max-width:700px){
+  .assessment-page-header{align-items:flex-start;flex-direction:column;gap:18px}
+  .assessment-progress-trigger{width:100%}
   .assessment-page-header h1{font-size:40px}
   .assessment-page-header p{font-size:15px}
   .assessment-card-grid{grid-template-columns:1fr}
