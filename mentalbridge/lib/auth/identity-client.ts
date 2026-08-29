@@ -4,12 +4,21 @@ import { ApiError } from '@/lib/api/api-error'
 import { isProblemDetails } from '@/lib/api/problem-details'
 import type {
   AccountDetail,
+  AccountSummary,
+  ChallengeRequest,
   LoginRequest,
+  RegistrationRequest,
+  RegistrationResponse,
   TokenPair,
 } from '@/features/auth/api/identity-contract'
 import { readIdentityServerConfig } from '@/lib/config/server'
 
-import { parseAccountDetail, parseTokenPair } from './identity-validation'
+import {
+  parseAccountDetail,
+  parseAccountSummary,
+  parseRegistrationResponse,
+  parseTokenPair,
+} from './identity-validation'
 
 type RequestOptions<T> = Readonly<{
   method: 'GET' | 'POST'
@@ -163,6 +172,31 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
 }
 
 export const identityClient = {
+  register(
+    request: RegistrationRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return identityRequest<RegistrationResponse>({
+      method: 'POST',
+      path: '/api/v1/auth/registrations',
+      correlationId,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parseRegistrationResponse,
+    })
+  },
+
+  verifyEmail(request: ChallengeRequest, correlationId: string) {
+    return identityRequest<AccountSummary>({
+      method: 'POST',
+      path: '/api/v1/auth/email-verifications',
+      correlationId,
+      body: request,
+      parseSuccess: parseAccountSummary,
+    })
+  },
+
   login(request: LoginRequest, correlationId: string) {
     return identityRequest<TokenPair>({
       method: 'POST',

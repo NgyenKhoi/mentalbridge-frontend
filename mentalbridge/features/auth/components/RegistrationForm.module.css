@@ -1,0 +1,132 @@
+.actorFieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 16px;
+}
+
+.actorLegend {
+  margin-bottom: 8px;
+}
+
+.actorOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.actorOption {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition:
+    border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.actorOption[data-selected='true'] {
+  border-color: var(--teal);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.actorOption:focus-within {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.actorOption input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--teal-deep);
+}
+
+.actorCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.actorCopy strong {
+  font-size: 14px;
+}
+
+.actorCopy small,
+.fieldHint {
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.fieldHint {
+  display: block;
+  margin-top: 6px;
+}
+
+.fieldError {
+  display: block;
+  margin-top: 6px;
+  color: #8a4a2e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pending {
+  padding: 24px;
+  border: 1px solid var(--teal-pale);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  text-align: center;
+}
+
+.pendingIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  border-radius: 999px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.pending h2 {
+  margin-bottom: 8px;
+  font-size: 24px;
+}
+
+.pending p {
+  margin-bottom: 16px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.pending strong {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.deliveryNote {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--amber-soft);
+  color: #8a5a1f;
+}
+
+@media (max-width: 640px) {
+  .actorOptions {
+    grid-template-columns: 1fr;
+  }
+}

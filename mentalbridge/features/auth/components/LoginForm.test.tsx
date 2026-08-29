@@ -28,6 +28,9 @@ describe('LoginForm', () => {
     render(<LoginForm />)
 
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /quên mật khẩu/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('prevents duplicate submission and routes from the resolved session', async () => {

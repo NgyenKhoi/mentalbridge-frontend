@@ -1,10 +1,15 @@
 import Link from 'next/link'
 
-import RegistrationForm from '@/features/auth/components/RegistrationForm'
+import EmailVerification from '@/features/auth/components/EmailVerification'
 
 import '../login/auth.css'
 
-export default function RegisterPage() {
+export default async function VerifyEmailPage(
+  props: PageProps<'/verify-email'>,
+) {
+  const { challenge } = await props.searchParams
+  const verificationChallenge = typeof challenge === 'string' ? challenge : null
+
   return (
     <div className="auth-layout">
       <div className="auth-container">
@@ -30,49 +35,7 @@ export default function RegisterPage() {
               <span>MentalBridge</span>
             </Link>
 
-            <div className="auth-header">
-              <h1>Bắt đầu hành trình</h1>
-              <p>
-                Tạo tài khoản để tiếp tục hành trình chăm sóc sức khỏe tinh thần
-                với vai trò phù hợp của bạn.
-              </p>
-            </div>
-
-            <RegistrationForm />
-
-            <div className="anonymous-cta">
-              <div className="divider">
-                <span>hoặc</span>
-              </div>
-              <Link
-                href="/assessment/anonymous"
-                className="btn btn-outline anonymous-btn"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  aria-hidden="true"
-                >
-                  <path d="M9 11l2 2 4-4M20 7v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7l4-4h8l4 4Z" />
-                </svg>
-                Thử bài đánh giá ẩn danh trước
-              </Link>
-              <p className="anonymous-note">
-                Làm bài đánh giá sức khỏe tâm thần không cần tạo tài khoản.
-              </p>
-            </div>
-
-            <div className="auth-switch">
-              <p>
-                Đã có tài khoản?
-                <Link href="/login" className="switch-link">
-                  Đăng nhập ngay
-                </Link>
-              </p>
-            </div>
+            <EmailVerification challenge={verificationChallenge} />
           </div>
         </div>
 
@@ -88,7 +51,7 @@ export default function RegisterPage() {
               <div className="breathe-ring r1" />
               <div className="breathe-ring r2" />
               <div className="breathe-blob">
-                <span className="breathe-label">Thở ra...</span>
+                <span className="breathe-label">An tâm...</span>
               </div>
             </div>
 
@@ -102,14 +65,11 @@ export default function RegisterPage() {
                   strokeLinecap="round"
                   aria-hidden="true"
                 >
-                  <path d="M4 5.5C4 4.7 4.7 4 5.5 4H16l4 4v10.5c0 .8-.7 1.5-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z" />
-                  <path d="M8 10h8M8 14h5" />
+                  <path d="M9 11l2 2 4-4M20 7v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7l4-4h8l4 4Z" />
                 </svg>
                 <div>
-                  <div className="fc-title">Quyền riêng tư rõ ràng</div>
-                  <div className="fc-value">
-                    Identity chỉ giữ dữ liệu tài khoản
-                  </div>
+                  <div className="fc-title">Liên kết một lần</div>
+                  <div className="fc-value">Không lưu trong trình duyệt</div>
                 </div>
               </div>
             </div>
@@ -124,18 +84,19 @@ export default function RegisterPage() {
                   strokeLinecap="round"
                   aria-hidden="true"
                 >
-                  <path d="M3 17l5-5 4 4 8-9M20 7h-6M20 7v6" />
+                  <path d="M12 3 4 7v5c0 4.8 3.1 7.5 8 9 4.9-1.5 8-4.2 8-9V7l-8-4Z" />
                 </svg>
                 <div>
-                  <div className="fc-title">Xác minh an toàn</div>
-                  <div className="fc-value">Liên kết email dùng một lần</div>
+                  <div className="fc-title">Kích hoạt an toàn</div>
+                  <div className="fc-value">Identity xác nhận trạng thái</div>
                 </div>
               </div>
             </div>
 
             <div className="auth-quote">
               <blockquote>
-                &ldquo;Hành trình ngàn dặm bắt đầu từ một bước chân.&rdquo;
+                &ldquo;Mỗi bước an toàn giúp hành trình trở nên nhẹ nhàng
+                hơn.&rdquo;
               </blockquote>
               <cite>— MentalBridge</cite>
             </div>

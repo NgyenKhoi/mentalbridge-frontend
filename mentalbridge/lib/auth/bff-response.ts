@@ -113,8 +113,12 @@ function safeTitle(code: string, status: number) {
   return 'Identity request failed.'
 }
 
-export function successResponse<T>(body: T, correlationId: string) {
-  const response = NextResponse.json(body)
+export function successResponse<T>(
+  body: T,
+  correlationId: string,
+  status = 200,
+) {
+  const response = NextResponse.json(body, { status })
   response.headers.set(CORRELATION_HEADER, correlationId)
   response.headers.set('Cache-Control', 'no-store')
   return response

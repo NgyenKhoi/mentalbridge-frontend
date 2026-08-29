@@ -55,17 +55,23 @@ not expose the upstream URL or session material with `NEXT_PUBLIC_*`.
 
 ## Current routes
 
-| Area | Routes |
-| --- | --- |
-| Public | `/`, `/login`, `/register`, `/reset-password`, `/privacy`, `/terms` |
-| Assessment | `/assessment/anonymous`, `/assessment/[type]` |
-| User dashboard | `/dashboard`, `/journal`, `/assessments`, `/specialists`, `/appointments`, `/messages`, `/resources`, `/analytics`, `/subscription`, `/profile`, `/notifications` |
-| Role workspaces | `/specialist/*`, `/admin/*` |
+| Area            | Routes                                                                                                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public          | `/`, `/login`, `/register`, `/verify-email`, `/reset-password`, `/privacy`, `/terms`                                                                              |
+| Assessment      | `/assessment/anonymous`, `/assessment/[type]`                                                                                                                     |
+| User dashboard  | `/dashboard`, `/journal`, `/assessments`, `/specialists`, `/appointments`, `/messages`, `/resources`, `/analytics`, `/subscription`, `/profile`, `/notifications` |
+| Role workspaces | `/specialist/*`, `/admin/*`                                                                                                                                       |
 
 Identity login and these protected route trees now use the backend current
 account as the role source of truth. A visible link or manually entered URL does
 not grant a role; privileged operations must repeat backend-confirmed
 authorization close to the operation.
+
+Registration accepts only `USER` and `SPECIALIST`, uses a per-submission
+idempotency key, and enters a verification-pending state after Identity accepts
+the request. `/verify-email` consumes the one-time challenge through the BFF and
+removes it from browser history. Resend and password recovery are explicitly
+unavailable until their backend contracts are implemented.
 
 ## Project guidance
 
