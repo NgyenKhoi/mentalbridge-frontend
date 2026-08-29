@@ -1,46 +1,51 @@
-## Jira story
+## Tóm tắt thay đổi
 
-- Key/link:
-- Acceptance criteria covered:
+- Loại thay đổi: `feat` | `fix` | `refactor` | `chore` | `docs` | `test`
+- Module/owner:
+- Hành vi hoặc vấn đề được giải quyết:
+- Lý do cần thay đổi:
 
-## What changed
+## Implementation contract
 
--
+- Issue/TODO liên quan: `Closes #...` | `Refs #...` | `Không có issue`
+- Contract active/proposal:
+- ADR/domain rule liên quan:
+- Migration và data dictionary:
+- Thư mục được phép thay đổi:
+- Ngoài phạm vi:
+- Ví dụ acceptance/edge case:
+
+## Ảnh hưởng và tương thích
+
+- REST/Kafka/WebSocket compatibility:
+- Data/rollback hoặc forward-migration plan:
+- Authorization, privacy và dữ liệu nhạy cảm:
+- Configuration/operations:
+- Caller/consumer đã kiểm tra:
 
 ## Verification
 
-- [ ] `npm run format:check`
-- [ ] `npm run lint`
-- [ ] `npm run typecheck`
-- [ ] `npm run contracts:check`
-- [ ] `npm run test:unit`
-- [ ] `npm run build`
-- [ ] `npm run test:e2e`
-- [ ] Manual states/flows checked
+| Command | Environment | Result |
+| --- | --- | --- |
+| `...` | local/CI | pass/fail và số test |
 
-Commands and results:
+Nêu rõ command không chạy được, lỗi đầu tiên, nguyên nhân và ảnh hưởng. Không đánh dấu hoàn tất khi gate bắt buộc đang fail.
 
-```text
+## Đồng bộ base
 
-```
+- [ ] Đã `git fetch origin` và kiểm tra divergence với `origin/dev` trước khi code.
+- [ ] Đã fetch/đồng bộ lại ngay trước commit/push/PR.
+- [ ] Đã review toàn bộ `origin/dev...HEAD` và không đưa file ngoài phạm vi vào PR.
 
-## API and security review
+## Checklist trước merge
 
-- [ ] No secrets or tokens are exposed to the browser, logs, or repository
-- [ ] Backend OpenAPI contract and role rules were checked, or API is unaffected
-- [ ] Authentication and authorization are enforced at the correct boundary, or
-      authentication is unaffected
-- [ ] Environment variable changes are documented in `.env.example`
-
-## UI review
-
-- [ ] Loading, empty, error, and unauthorized states are covered where relevant
-- [ ] Keyboard, labels, focus, contrast, responsive layout, and reduced motion
-      were reviewed
-- [ ] Screenshots are attached for visible changes, or UI is unaffected
-
-## Scope and release notes
-
-- [ ] Diff contains no unrelated or generated files
-- Risks/follow-ups:
-- Rollback notes:
+- [ ] Tiêu đề theo Conventional Commits: `type(scope): lowercase short description` và thêm `(#issue)` chỉ khi có issue thật.
+- [ ] Owner, source of truth, contract status và out-of-scope đã rõ.
+- [ ] Controller/gateway thay đổi cùng OpenAPI và provider boundary tests.
+- [ ] Event/WebSocket thay đổi cùng versioned schema và producer/consumer tests.
+- [ ] Migration thay đổi cùng data dictionary và constraint/mapping tests.
+- [ ] Configuration thay đổi cùng `.env.example`, README và configuration tests khi semantics thay đổi.
+- [ ] Đã kiểm tra validation, authorization, conflict/concurrency, duplicate/retry và dependency failure phù hợp phạm vi.
+- [ ] Không log/event/error token, password, raw journal/chat, assessment answer, private URL hoặc provider payload nhạy cảm.
+- [ ] Không thêm layer/interface/shared abstraction nếu chưa có boundary hoặc hành vi cụ thể.
+- [ ] Required GitHub quality gate đã pass.

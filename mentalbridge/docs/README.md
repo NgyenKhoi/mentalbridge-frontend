@@ -19,17 +19,18 @@ documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
 
 ## Decision status
 
-| Decision | Status | Delivery story |
-| --- | --- | --- |
-| Next.js App Router, server-first components | Approved | MB-210 |
-| Feature-first package boundaries | Approved | MB-210 |
-| Identity-owned authentication and roles | Approved | MB-210 |
-| Same-origin BFF with HttpOnly session cookies | Implemented | MB-212 |
-| Identity login and authoritative role workspaces | Implemented | MB-213 |
-| Axios and TanStack Query client baseline | Implemented | MB-211 |
-| Unit/component/API mocking baseline | Implemented | MB-211 |
-| Playwright browser baseline | Implemented | MB-211 |
-| Complete Identity integration scenarios | Planned | MB-216 |
+| Decision                                         | Status      | Delivery story |
+| ------------------------------------------------ | ----------- | -------------- |
+| Next.js App Router, server-first components      | Approved    | MB-210         |
+| Feature-first package boundaries                 | Approved    | MB-210         |
+| Identity-owned authentication and roles          | Approved    | MB-210         |
+| Same-origin BFF with HttpOnly session cookies    | Implemented | MB-212         |
+| Identity login and authoritative role workspaces | Implemented | MB-213         |
+| Identity registration and email verification UI  | Implemented | MB-214         |
+| Axios and TanStack Query client baseline         | Implemented | MB-211         |
+| Unit/component/API mocking baseline              | Implemented | MB-211         |
+| Playwright browser baseline                      | Implemented | MB-211         |
+| Complete Identity integration scenarios          | Planned     | MB-216         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

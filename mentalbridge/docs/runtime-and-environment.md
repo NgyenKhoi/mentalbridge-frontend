@@ -28,9 +28,9 @@ Copy-Item .env.example .env.local
 `.env.local` and every real `.env*` file stay untracked. Only `.env.example`,
 with non-secret development placeholders, is committed.
 
-| Variable | Visibility | Purpose |
-| --- | --- | --- |
-| `IDENTITY_API_BASE_URL` | Server only | Validated Identity server/BFF upstream base URL |
+| Variable                  | Visibility  | Purpose                                                                              |
+| ------------------------- | ----------- | ------------------------------------------------------------------------------------ |
+| `IDENTITY_API_BASE_URL`   | Server only | Validated Identity server/BFF upstream base URL                                      |
 | `IDENTITY_API_TIMEOUT_MS` | Server only | Total Identity request timeout from 100 through 30000 milliseconds; defaults to 2000 |
 
 Neither Identity variable may use the `NEXT_PUBLIC_*` prefix. Browser requests
@@ -54,8 +54,11 @@ npm run dev
 ```
 
 Open `http://localhost:3000`. Public UI can render while Identity is unavailable,
-but login, session checks, protected routes, refresh, and logout revocation use
-the configured server-only Identity URL.
+but registration, verification, login, session checks, protected routes,
+refresh, and logout revocation use the configured server-only Identity URL. The
+Identity delivery configuration must generate frontend links in the form
+`http://localhost:3000/verify-email?challenge=...` for local development; the
+challenge is removed from browser history when the page consumes it.
 
 Quality and production commands:
 

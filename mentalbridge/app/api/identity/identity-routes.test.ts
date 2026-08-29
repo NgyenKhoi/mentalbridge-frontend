@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 import { POST as login } from './login/route'
+import { POST as register } from './register/route'
+import { POST as verifyEmail } from './email-verification/route'
 import { POST as logoutAll } from './logout-all/route'
 import { POST as logout } from './logout/route'
 import { POST as refresh } from './refresh/route'
@@ -36,6 +38,24 @@ function accountDetail() {
   }
 }
 
+function registrationResponse() {
+  return {
+    accountId: '94464b2b-a7fd-46fd-9310-64ef4eac7de7',
+    status: 'PENDING_EMAIL_VERIFICATION',
+    verificationRequired: true,
+    createdAt: '2026-08-20T00:00:00Z',
+  }
+}
+
+function accountSummary() {
+  return {
+    accountId: '94464b2b-a7fd-46fd-9310-64ef4eac7de7',
+    status: 'ACTIVE',
+    roles: ['USER'],
+    emailVerified: true,
+  }
+}
+
 function jsonResponse(
   body: unknown,
   status = 200,
@@ -53,6 +73,7 @@ function request(
     method?: string
     body?: unknown
     cookies?: Record<string, string>
+    headers?: Record<string, string>
   }> = {},
 ) {
   const headers = new Headers({ 'X-Correlation-Id': correlationId })
@@ -60,6 +81,9 @@ function request(
   if (options.body !== undefined) {
     headers.set('Content-Type', 'application/json')
   }
+  Object.entries(options.headers ?? {}).forEach(([name, value]) => {
+    headers.set(name, value)
+  })
   if (options.cookies) {
     headers.set(
       'Cookie',
@@ -94,6 +118,172 @@ afterEach(() => {
 })
 
 describe('Identity BFF route handlers', () => {
+  it('registers a public actor with idempotency and returns a minimal pending response', async () => {
+    const upstream = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(registrationResponse(), 201))
+    vi.stubGlobal('fetch', upstream)
+
+    const response = await register(
+      request('/api/identity/register', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': 'registration-key-0001' },
+        body: {
+          email: 'member@example.com',
+          password: 'correct horse battery staple',
+          actorType: 'USER',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(201)
+    await expect(response.json()).resolves.toEqual({
+      registrationPending: true,
+    })
+    expect(upstream).toHaveBeenCalledOnce()
+    expect(String(upstream.mock.calls[0]?.[0])).toBe(
+      'http://identity.test/api/v1/auth/registrations',
+    )
+    const init = upstream.mock.calls[0]?.[1]
+    const upstreamHeaders = new Headers(init?.headers)
+    expect(upstreamHeaders.get('Idempotency-Key')).toBe('registration-key-0001')
+    expect(init?.body).toBe(
+      JSON.stringify({
+        email: 'member@example.com',
+        password: 'correct horse battery staple',
+        actorType: 'USER',
+      }),
+    )
+  })
+
+  it.each([
+    {
+      name: 'missing idempotency key',
+      headers: {} as Record<string, string>,
+      body: {
+        email: 'member@example.com',
+        password: 'correct horse battery staple',
+        actorType: 'USER',
+      },
+    },
+    {
+      name: 'an administrator actor',
+      headers: { 'Idempotency-Key': 'registration-key-0002' },
+      body: {
+        email: 'member@example.com',
+        password: 'correct horse battery staple',
+        actorType: 'ADMIN',
+      },
+    },
+    {
+      name: 'mass-assigned profile data',
+      headers: { 'Idempotency-Key': 'registration-key-0003' },
+      body: {
+        email: 'member@example.com',
+        password: 'correct horse battery staple',
+        actorType: 'SPECIALIST',
+        fullName: 'Unexpected profile field',
+      },
+    },
+    {
+      name: 'a UTF-8 password above 72 bytes',
+      headers: { 'Idempotency-Key': 'registration-key-0004' },
+      body: {
+        email: 'member@example.com',
+        password: '🙂'.repeat(19),
+        actorType: 'USER',
+      },
+    },
+  ])(
+    'rejects $name before registration reaches Identity',
+    async ({ headers, body }) => {
+      const upstream = vi.fn()
+      vi.stubGlobal('fetch', upstream)
+
+      const response = await register(
+        request('/api/identity/register', { method: 'POST', headers, body }),
+      )
+
+      expect(response.status).toBe(400)
+      await expect(response.json()).resolves.toMatchObject({
+        code: 'VALIDATION_FAILED',
+      })
+      expect(upstream).not.toHaveBeenCalled()
+    },
+  )
+
+  it('consumes a verification challenge without returning it to the browser', async () => {
+    const upstream = vi.fn().mockResolvedValue(jsonResponse(accountSummary()))
+    vi.stubGlobal('fetch', upstream)
+    const challenge = 'v'.repeat(32)
+
+    const response = await verifyEmail(
+      request('/api/identity/email-verification', {
+        method: 'POST',
+        body: { challenge },
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    const text = await response.text()
+    expect(text).toBe('{"verified":true}')
+    expect(text).not.toContain(challenge)
+    expect(String(upstream.mock.calls[0]?.[0])).toBe(
+      'http://identity.test/api/v1/auth/email-verifications',
+    )
+    expect(upstream.mock.calls[0]?.[1]?.body).toBe(
+      JSON.stringify({ challenge }),
+    )
+  })
+
+  it('rejects a malformed verification challenge locally', async () => {
+    const upstream = vi.fn()
+    vi.stubGlobal('fetch', upstream)
+
+    const response = await verifyEmail(
+      request('/api/identity/email-verification', {
+        method: 'POST',
+        body: { challenge: 'short' },
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    expect(upstream).not.toHaveBeenCalled()
+  })
+
+  it('sanitizes an invalid verification challenge response', async () => {
+    const challenge = 'sensitive-challenge-value'.repeat(2)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse(
+          {
+            type: `/problems/invalid-challenge?challenge=${challenge}`,
+            title: challenge,
+            detail: challenge,
+            status: 400,
+            code: 'INVALID_CHALLENGE',
+            correlationId,
+          },
+          400,
+          'application/problem+json',
+        ),
+      ),
+    )
+
+    const response = await verifyEmail(
+      request('/api/identity/email-verification', {
+        method: 'POST',
+        body: { challenge },
+      }),
+    )
+    const text = await response.text()
+
+    expect(response.status).toBe(400)
+    expect(text).toContain('INVALID_CHALLENGE')
+    expect(text).not.toContain(challenge)
+  })
+
   it('logs in without returning credentials to browser JavaScript', async () => {
     const upstream = vi.fn().mockResolvedValue(jsonResponse(tokenPair()))
     vi.stubGlobal('fetch', upstream)

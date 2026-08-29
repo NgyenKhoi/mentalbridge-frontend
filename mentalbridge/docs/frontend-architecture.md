@@ -69,6 +69,7 @@ Story 212 implements the following design:
   account endpoint. The browser does not decode a token to decide permissions.
 
 The implemented BFF surface is deliberately bounded to
+`/api/identity/register`, `/api/identity/email-verification`,
 `/api/identity/login`, `/api/identity/session`, `/api/identity/refresh`,
 `/api/identity/logout`, and `/api/identity/logout-all`. The server validates
 Identity responses before storing credentials, returns no access or refresh
@@ -108,6 +109,32 @@ and `SPECIALIST` when allowed by the reviewed contract). `ADMIN` is provisioned
 only through a protected backend workflow. The `/admin` UI may be developed
 independently, but after Identity integration both page access and every
 privileged operation require backend-confirmed authorization.
+
+## Registration and email verification
+
+Story 214 connects `/register` to the Identity registration contract through a
+same-origin BFF. The request contains only `email`, `password`, and the reviewed
+public `actorType`; profile fields and `ADMIN` are rejected at the server edge.
+Passwords are validated as 12 through 128 Unicode code points and no more than
+72 UTF-8 bytes, matching the committed OpenAPI contract.
+
+Each logical browser submission receives a printable opaque idempotency key.
+An unchanged retry reuses that key so a lost response cannot create a second
+registration. Editing email, password, or actor type starts a new logical
+submission and therefore a new key. The browser receives only
+`registrationPending`, never the backend account record.
+
+The backend email link targets `/verify-email?challenge=...`. Its page passes
+the challenge to a small Client Component, which removes the query string from
+browser history before calling the bounded verification BFF. The challenge is
+not persisted, rendered, logged, or returned in the browser response. Invalid,
+expired, and otherwise ineligible challenges intentionally share one safe UI
+state because the backend exposes the single `INVALID_CHALLENGE` code.
+
+Verification resend and password recovery remain planned contract operations.
+The UI does not invent these calls: the registration result explains the
+delivery limitation, login has no recovery action, and `/reset-password` states
+that recovery is unavailable instead of simulating OTP behavior.
 
 ## Error and dependency behavior
 

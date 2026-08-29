@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 
@@ -71,12 +70,6 @@ export default function LoginForm() {
           autoComplete="current-password"
           required
         />
-      </div>
-
-      <div className="form-actions">
-        <Link href="/reset-password" className="forgot-link">
-          Quên mật khẩu?
-        </Link>
       </div>
 
       {error ? (
