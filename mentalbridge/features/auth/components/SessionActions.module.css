@@ -1,0 +1,34 @@
+.actions {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.actions button {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: var(--terracotta);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  transition:
+    background 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.actions button:hover:not(:disabled) {
+  background: var(--terracotta-soft);
+}
+
+.actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.actions[data-compact] button {
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

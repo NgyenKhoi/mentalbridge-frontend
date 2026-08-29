@@ -96,7 +96,7 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
       setTimeout(() => {
         handleClose()
       }, 2000)
-    } catch (error) {
+    } catch {
       setErrors({ submit: 'Mật khẩu hiện tại không đúng. Vui lòng thử lại.' })
     } finally {
       setLoading(false)

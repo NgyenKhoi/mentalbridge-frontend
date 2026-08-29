@@ -15,10 +15,9 @@ export default function Home() {
   return (
     <>
       <Preloader />
-      <a className="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
+      <a className="skip-link" href="#top">Bỏ qua đến nội dung chính</a>
       <Header />
-      <main id="main-content" className="marketing-page">
-        <span id="top" className="page-anchor" aria-hidden="true" />
+      <main id="top" className="marketing-page">
         <Hero />
         <Showcase />
         <Barriers />

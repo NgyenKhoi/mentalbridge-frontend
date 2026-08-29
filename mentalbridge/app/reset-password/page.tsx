@@ -220,7 +220,9 @@ export default function ResetPasswordPage() {
                     {code.map((digit, index) => (
                       <input
                         key={index}
-                        ref={el => codeInputs.current[index] = el}
+                        ref={(element) => {
+                          codeInputs.current[index] = element
+                        }}
                         type="text"
                         inputMode="numeric"
                         maxLength={1}
@@ -388,7 +390,7 @@ export default function ResetPasswordPage() {
               <div className="breathe-blob"><span className="breathe-label">An tâm…</span></div>
             </div>
             <div className="auth-quote">
-              <blockquote>"Bạn luôn có thể bắt đầu lại, thật nhẹ nhàng."</blockquote>
+              <blockquote>“Bạn luôn có thể bắt đầu lại, thật nhẹ nhàng.”</blockquote>
               <cite>— MentalBridge</cite>
             </div>
           </div>

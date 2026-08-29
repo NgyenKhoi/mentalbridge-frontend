@@ -1,66 +1,36 @@
-# 📚 MentalBridge Documentation
+# Frontend engineering guide
 
-Tài liệu hướng dẫn và ghi chú phát triển cho dự án MentalBridge.
+This directory is the source of truth for MentalBridge frontend engineering
+decisions. Product/design documents describe intent; these documents describe
+how the executable Next.js application is organized and delivered.
 
-## 📖 Danh mục
+## Reading order
 
-### 🎨 Animation & Design
-- [ANIMATION_SUMMARY.md](./ANIMATION_SUMMARY.md) - Tổng quan về animations đã implement
-- [ANIMATION_IMPROVEMENTS.md](./ANIMATION_IMPROVEMENTS.md) - Chi tiết cải thiện animations
-- [ANIMATION_CHANGELOG.md](./ANIMATION_CHANGELOG.md) - Lịch sử thay đổi animations
-- [ANIMATIONS_README.md](./ANIMATIONS_README.md) - Hướng dẫn sử dụng animations
-- [GSAP_PROMPT.md](./GSAP_PROMPT.md) - Guidelines cho GSAP animations
-- [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) - Hệ thống thiết kế
+1. [Agent workflow](agent-workflow.md)
+2. [Frontend architecture](frontend-architecture.md)
+3. [Package structure](package-structure.md)
+4. [API, query, contract, and test baseline](api-query-and-testing.md)
+5. [Runtime and environment](runtime-and-environment.md)
+6. [Review and testing](review-and-testing.md)
 
-### 🐛 Bug Fixes & Improvements
-- [FILTER_FIX_SUMMARY.md](./FILTER_FIX_SUMMARY.md) - Fix filter buttons trong history modal
-- [FOOTER_FIX.md](./FOOTER_FIX.md) - Fix footer visibility issue
-- [MODAL_LAYOUT_FIX.md](./MODAL_LAYOUT_FIX.md) - Fix modal layout và height
-- [SCROLL_OVERLAY_FIX.md](./SCROLL_OVERLAY_FIX.md) - Fix scroll overlay problem
-- [DEBUG_ANIMATIONS.md](./DEBUG_ANIMATIONS.md) - Debug guide cho animations
+Repository-wide Git, Jira, and pull-request rules are in
+[`../../CONTRIBUTING.md`](../../CONTRIBUTING.md). The current design language is
+documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
 
-### 📦 Components
-- [HISTORY_MODAL_README.md](./HISTORY_MODAL_README.md) - Assessment History Modal documentation
-- [AGENTS.md](./AGENTS.md) - AI Agents documentation
+## Decision status
 
-### 🚀 Development
-- [QUICKSTART.md](./QUICKSTART.md) - Quick start guide
-- [NEXT_STEPS.md](./NEXT_STEPS.md) - Roadmap và các bước tiếp theo
-- [MIGRATION_NOTES.md](./MIGRATION_NOTES.md) - Migration notes
-- [BUILD_SUCCESS.md](./BUILD_SUCCESS.md) - Build configuration
+| Decision | Status | Delivery story |
+| --- | --- | --- |
+| Next.js App Router, server-first components | Approved | MB-210 |
+| Feature-first package boundaries | Approved | MB-210 |
+| Identity-owned authentication and roles | Approved | MB-210 |
+| Same-origin BFF with HttpOnly session cookies | Implemented | MB-212 |
+| Identity login and authoritative role workspaces | Implemented | MB-213 |
+| Axios and TanStack Query client baseline | Implemented | MB-211 |
+| Unit/component/API mocking baseline | Implemented | MB-211 |
+| Playwright browser baseline | Implemented | MB-211 |
+| Complete Identity integration scenarios | Planned | MB-216 |
 
-### 🧪 Testing
-- [TESTING_ANIMATIONS.md](./TESTING_ANIMATIONS.md) - Animation testing guide
-- [QUICK_TEST_GUIDE.md](./QUICK_TEST_GUIDE.md) - Quick testing checklist
-
-### 📝 Project Info
-- [SUMMARY.md](./SUMMARY.md) - Project summary
-- [COMPLETED_IMPROVEMENTS.md](./COMPLETED_IMPROVEMENTS.md) - Completed features
-- [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) - Implementation details
-- [CLAUDE.md](./CLAUDE.md) - Claude AI notes
-
----
-
-## 🔍 Quick Links
-
-### Getting Started
-1. Read [QUICKSTART.md](./QUICKSTART.md)
-2. Check [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)
-3. Review [ANIMATION_SUMMARY.md](./ANIMATION_SUMMARY.md)
-
-### Development
-1. [NEXT_STEPS.md](./NEXT_STEPS.md) - What to build next
-2. [GSAP_PROMPT.md](./GSAP_PROMPT.md) - Animation guidelines
-3. [TESTING_ANIMATIONS.md](./TESTING_ANIMATIONS.md) - Test your changes
-
-### Bug Fixes
-1. [FILTER_FIX_SUMMARY.md](./FILTER_FIX_SUMMARY.md)
-2. [FOOTER_FIX.md](./FOOTER_FIX.md)
-3. [SCROLL_OVERLAY_FIX.md](./SCROLL_OVERLAY_FIX.md)
-
----
-
-**Last Updated**: August 22, 2026
-**Project**: MentalBridge Frontend
-**Tech Stack**: Next.js 16, React 19, GSAP 3.15, TypeScript 5
-
+When implementation and a document disagree, do not silently choose one. Check
+the installed Next.js documentation and the backend OpenAPI contract, then
+update the relevant decision and code in the same authorized story.

@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import AvailabilityModal from './AvailabilityModal'
+import SessionActions from '@/features/auth/components/SessionActions'
+import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
+import type { Workspace } from '@/features/auth/model/workspace'
 import SpecialistProfileManager from './SpecialistProfileManager'
 import SpecialistAvailabilityManager from './SpecialistAvailabilityManager'
 import SpecialistAppointmentsManager from './SpecialistAppointmentsManager'
@@ -151,8 +152,15 @@ function SpecialistDashboard({ rows, onSelect, setShowModal }: { rows: Row[]; on
   </div>
 }
 
-export default function RoleWorkspace({ role, sectionKey }: { role: Role; sectionKey: string }) {
-  const router = useRouter()
+export default function RoleWorkspace({
+  role,
+  sectionKey,
+  workspaces,
+}: {
+  role: Role
+  sectionKey: string
+  workspaces: readonly Workspace[]
+}) {
   const sections = role === 'specialist' ? specialistSections : adminSections
   const section = sections[sectionKey] || sections.dashboard
   const [query, setQuery] = useState('')
@@ -237,12 +245,6 @@ export default function RoleWorkspace({ role, sectionKey }: { role: Role; sectio
     })
   }
   
-  const logout = () => {
-    localStorage.removeItem('mentalbridge_session')
-    sessionStorage.removeItem('mentalbridge_session')
-    router.replace('/login')
-  }
-
   return <div className={`role-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     <motion.aside className={`role-sidebar ${mobileOpen ? 'open' : ''}`} layout initial={false} transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <Link href="/" className="role-brand"><motion.span className="role-brand-mark" whileHover={{ rotate: -6, scale: 1.06 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>M</motion.span><span className="role-brand-copy"><strong>MentalBridge</strong><small>{role === 'admin' ? 'Admin Console' : 'Specialist Workspace'}</small></span></Link>
@@ -250,8 +252,9 @@ export default function RoleWorkspace({ role, sectionKey }: { role: Role; sectio
       <nav aria-label={`Điều hướng ${role}`}>
         {navByRole[role].map(([key,label]) => <div key={key} className="role-nav-item"><Link href={`/${role}/${key}`} className={key === sectionKey ? 'active' : ''} onClick={() => setMobileOpen(false)} title={sidebarCollapsed ? label : undefined}>{key === sectionKey && <motion.span layoutId={`role-active-${role}`} className="role-active-pill" transition={{ type: 'spring', stiffness: 380, damping: 32 }} />}<span className="role-nav-icon" aria-hidden="true">{navIcons[key] || '·'}</span><span className="role-nav-label">{label}</span>{key === 'notifications' && <span className="role-nav-badge">3</span>}</Link></div>)}
       </nav>
+      <WorkspaceSwitcher workspaces={workspaces} currentRole={role === 'admin' ? 'ADMIN' : 'SPECIALIST'} />
       <motion.div className="role-user" whileHover={{ y: -2 }}><span>{role === 'admin' ? 'AD' : 'TH'}</span><div className="role-user-copy"><strong>{role === 'admin' ? 'Quản trị viên' : 'Nguyễn Thu Hà'}</strong><small>{role === 'admin' ? 'System admin' : 'Chuyên gia tâm lý'}</small></div><span className="role-online" /></motion.div>
-      <button className="role-logout" onClick={logout} title={sidebarCollapsed ? 'Đăng xuất' : undefined}><span>↪</span><span className="role-logout-label">Đăng xuất</span></button>
+      <SessionActions compact={sidebarCollapsed} />
     </motion.aside>
     <motion.main className="role-main" layout="position" transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div><Link href={`/${role}/notifications`} className="role-bell" aria-label="Thông báo">○<b>3</b></Link></header>
@@ -296,7 +299,6 @@ export default function RoleWorkspace({ role, sectionKey }: { role: Role; sectio
     {confirmAction && <div className="role-modal-wrap"><button className="role-drawer-backdrop" aria-label="Đóng xác nhận" onClick={() => setConfirmAction(null)} /><div className="role-modal"><span className="role-modal-icon">!</span><h2>{confirmAction}</h2><p>Thao tác này có thể ảnh hưởng đến dữ liệu hoặc quyền truy cập. Vui lòng kiểm tra kỹ trước khi tiếp tục.</p><div><button className="btn-ghost" onClick={() => setConfirmAction(null)}>Quay lại</button><button className="btn-primary" onClick={finishAction}>Xác nhận</button></div></div></div>}
     {showAppointmentModal && <div className="role-modal-wrap availability-modal-wrap appointment-modal-wrap"><button className="role-drawer-backdrop" aria-label="Đóng" onClick={() => setShowAppointmentModal(false)} /><div className="availability-modal appointment-modal"><div className="availability-modal-header"><div><span className="availability-modal-eyebrow">TẠO LỊCH HẸN</span><h2>Đặt một phiên tư vấn</h2><p>Chọn khách hàng và thời gian cụ thể cho cuộc hẹn đã được thống nhất.</p></div><button onClick={() => setShowAppointmentModal(false)} aria-label="Đóng" className="availability-modal-close">×</button></div><div className="availability-modal-content"><div className="availability-form-grid"><div className="availability-form-field"><label htmlFor="appointment-client">Khách hàng</label><select id="appointment-client" value={appointmentForm.client} onChange={e => setAppointmentForm({...appointmentForm, client: e.target.value})}><option value="">Chọn khách hàng</option><option value="Nguyễn Minh Anh">Nguyễn Minh Anh</option><option value="Trần Gia Hân">Trần Gia Hân</option><option value="Lê Hoàng Nam">Lê Hoàng Nam</option></select></div><div className="availability-form-row"><div className="availability-form-field"><label htmlFor="appointment-date">Ngày hẹn</label><input type="date" id="appointment-date" value={appointmentForm.date} onChange={e => setAppointmentForm({...appointmentForm, date: e.target.value})} min={new Date().toISOString().split('T')[0]} /></div><div className="availability-form-field"><label htmlFor="appointment-start">Giờ bắt đầu</label><input type="time" id="appointment-start" value={appointmentForm.startTime} onChange={e => setAppointmentForm({...appointmentForm, startTime: e.target.value})} /></div></div><div className="availability-form-row"><div className="availability-form-field"><label htmlFor="appointment-duration">Thời lượng</label><select id="appointment-duration" value={appointmentForm.duration} onChange={e => setAppointmentForm({...appointmentForm, duration: e.target.value})}><option value="30">30 phút</option><option value="45">45 phút</option><option value="60">60 phút</option><option value="90">90 phút</option></select></div><div className="availability-form-field"><label htmlFor="appointment-format">Hình thức tư vấn</label><select id="appointment-format" value={appointmentForm.format} onChange={e => setAppointmentForm({...appointmentForm, format: e.target.value})}><option value="Video call">Video call</option><option value="Tại phòng tư vấn">Tại phòng tư vấn</option><option value="Điện thoại">Điện thoại</option></select></div></div><div className="availability-form-field"><label htmlFor="appointment-notes">Ghi chú (tùy chọn)</label><textarea id="appointment-notes" value={appointmentForm.notes} onChange={e => setAppointmentForm({...appointmentForm, notes: e.target.value})} placeholder="Thêm ghi chú chuẩn bị cho phiên tư vấn..." rows={3} /></div></div><div className="availability-info-box appointment-info-box"><span className="availability-info-icon">ⓘ</span><div><strong>Cuộc hẹn sẽ được thêm vào lịch làm việc</strong><p>Khách hàng có thể nhận thông báo sau khi cuộc hẹn được xác nhận.</p></div></div><div className="availability-summary"><h3>Tóm tắt cuộc hẹn</h3><div className="availability-summary-grid"><div className="availability-summary-item"><small>Khách hàng</small><strong>{appointmentForm.client || 'Chưa chọn'}</strong></div><div className="availability-summary-item"><small>Thời gian</small><strong>{appointmentForm.startTime ? `${appointmentForm.startTime} · ${appointmentForm.duration} phút` : 'Chưa chọn'}</strong></div></div></div></div><div className="availability-modal-footer"><button className="btn-ghost" onClick={() => setShowAppointmentModal(false)}>Hủy</button><button className="btn-primary" onClick={handleCreateAppointment} disabled={!appointmentForm.client || !appointmentForm.date || !appointmentForm.startTime}>Tạo lịch hẹn</button></div></div></div>}
     {showAvailabilityModal && <div className="role-modal-wrap availability-modal-wrap"><button className="role-drawer-backdrop" aria-label="Đóng" onClick={() => setShowAvailabilityModal(false)} /><div className="availability-modal"><div className="availability-modal-header"><div><span className="availability-modal-eyebrow">TẠO LỊCH TRỐNG</span><h2>2 yêu cầu đặt lịch</h2><p>Xác định phạm vi nhận tư vấn - chỉ bạn có quyền xem và cập nhật.</p></div><button onClick={() => setShowAvailabilityModal(false)} aria-label="Đóng" className="availability-modal-close">×</button></div><div className="availability-modal-content"><div className="availability-form-grid"><div className="availability-form-field"><label htmlFor="availability-date">Ngày khả dụng</label><input type="date" id="availability-date" value={availabilityForm.date} onChange={e => setAvailabilityForm({...availabilityForm, date: e.target.value})} min={new Date().toISOString().split('T')[0]} /></div><div className="availability-form-row"><div className="availability-form-field"><label htmlFor="availability-start">Giờ bắt đầu</label><input type="time" id="availability-start" value={availabilityForm.startTime} onChange={e => setAvailabilityForm({...availabilityForm, startTime: e.target.value})} /></div><div className="availability-form-field"><label htmlFor="availability-end">Giờ kết thúc</label><input type="time" id="availability-end" value={availabilityForm.endTime} onChange={e => setAvailabilityForm({...availabilityForm, endTime: e.target.value})} /></div></div><div className="availability-form-field"><label htmlFor="availability-duration">Thời lượng mỗi phiên (phút)</label><select id="availability-duration" value={availabilityForm.duration} onChange={e => setAvailabilityForm({...availabilityForm, duration: e.target.value})}><option value="30">30 phút</option><option value="45">45 phút</option><option value="60">60 phút</option><option value="90">90 phút</option></select></div><div className="availability-form-field"><label htmlFor="availability-notes">Ghi chú (tùy chọn)</label><textarea id="availability-notes" value={availabilityForm.notes} onChange={e => setAvailabilityForm({...availabilityForm, notes: e.target.value})} placeholder="Ghi chú nội bộ về khung giờ này..." rows={3} /></div></div><div className="availability-info-box"><span className="availability-info-icon">ⓘ</span><div><strong>4 check-in mới</strong><p>Có 2 phản hồi mới từ kế hoạch theo dõi của bạn - hãy xem lại.</p></div></div><div className="availability-summary"><h3>Mốt ngày càn bàng</h3><div className="availability-summary-grid"><div className="availability-summary-item"><small>Khung giờ</small><strong>{availabilityForm.startTime && availabilityForm.endTime ? `${availabilityForm.startTime} - ${availabilityForm.endTime}` : 'Chưa chọn'}</strong></div><div className="availability-summary-item"><small>Số phiên có thể tạo</small><strong>{availabilityForm.startTime && availabilityForm.endTime && availabilityForm.duration ? Math.floor((parseInt(availabilityForm.endTime.split(':')[0]) * 60 + parseInt(availabilityForm.endTime.split(':')[1]) - parseInt(availabilityForm.startTime.split(':')[0]) * 60 - parseInt(availabilityForm.startTime.split(':')[1])) / parseInt(availabilityForm.duration)) : '0'} phiên</strong></div></div></div></div><div className="availability-modal-footer"><button className="btn-ghost" onClick={() => setShowAvailabilityModal(false)}>Hủy</button><button className="btn-primary" onClick={handleCreateAvailability} disabled={!availabilityForm.date || !availabilityForm.startTime || !availabilityForm.endTime}>Tạo lịch trống</button></div></div></div>}
-    <AvailabilityModal open={showAvailabilityModal} form={availabilityForm} onChange={patch => setAvailabilityForm(current => ({...current, ...patch}))} onClose={() => setShowAvailabilityModal(false)} onSubmit={handleCreateAvailability} />
     {toast && <div className="role-toast"><span>✓</span>{toast}</div>}
   </div>
 }

@@ -1,231 +1,134 @@
-'use client'
-
-import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import LightSelect from '@/components/LightSelect'
+
+import LoginForm from '@/features/auth/components/LoginForm'
+
 import './auth.css'
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    role: 'user'
-  })
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    try {
-      // TODO: thay bằng API call thực khi có backend
-      // Tạm thời mock: bất kỳ email/password đều vào được dashboard
-      if (!formData.email || !formData.password) {
-        setError('Vui lòng nhập đầy đủ email và mật khẩu.')
-        return
-      }
-      // Giả lập delay API
-      await new Promise(res => setTimeout(res, 600))
-      const destinations = { user: '/dashboard', specialist: '/specialist/dashboard', admin: '/admin/dashboard' }
-      router.push(destinations[formData.role as keyof typeof destinations])
-    } catch {
-      setError('Đăng nhập thất bại. Vui lòng thử lại.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
-  }
-
   return (
     <div className="auth-layout">
       <div className="auth-container">
-        {/* Left side - Form */}
         <div className="auth-form-side">
           <div className="auth-form-container">
-            {/* Logo */}
             <Link href="/" className="auth-logo">
-              <svg className="mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 26C10 14 30 14 36 26" stroke="#1E4A43" strokeWidth="2.4" strokeLinecap="round"/>
-                <circle cx="8" cy="27" r="3" fill="#E1A651"/>
-                <circle cx="32" cy="27" r="3" fill="#3D7A6E"/>
+              <svg
+                className="mark"
+                viewBox="0 0 40 40"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M4 26C10 14 30 14 36 26"
+                  stroke="#1E4A43"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                />
+                <circle cx="8" cy="27" r="3" fill="#E1A651" />
+                <circle cx="32" cy="27" r="3" fill="#3D7A6E" />
               </svg>
               <span>MentalBridge</span>
             </Link>
 
-            {/* Form Header */}
             <div className="auth-header">
               <h1>Chào mừng trở lại</h1>
-              <p>Đăng nhập để tiếp tục hành trình của bạn</p>
+              <p>
+                Đăng nhập để tiếp tục hành trình chăm sóc sức khỏe tinh thần của
+                bạn.
+              </p>
             </div>
 
-            {/* Login Form */}
-            <form onSubmit={handleSubmit} className="auth-form">
-              <div className="form-group">
-                <label htmlFor="role" className="form-label">Vai trò truy cập</label>
-                <LightSelect id="role" name="role" value={formData.role} onChange={role => setFormData({...formData, role})} options={[{value: 'user', label: 'Người dùng'}, {value: 'specialist', label: 'Chuyên gia'}, {value: 'admin', label: 'Quản trị viên'}]} />
-              </div>
+            <LoginForm />
 
-              <div className="form-group">
-                <label htmlFor="email" className="form-label">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="form-input"
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="password" className="form-label">
-                  Mật khẩu
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="form-input"
-                  placeholder="Nhập mật khẩu"
-                  required
-                />
-              </div>
-
-              <div className="form-actions">
-                <Link href="/reset-password" className="forgot-link">
-                  Quên mật khẩu?
-                </Link>
-              </div>
-
-              {error && (
-                <div style={{
-                  padding: '12px 16px',
-                  borderRadius: '10px',
-                  background: 'var(--terracotta-soft)',
-                  color: 'var(--terracotta)',
-                  fontSize: '14px',
-                  border: '1px solid rgba(199,123,92,.3)',
-                  marginBottom: '20px'
-                }}>
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="btn btn-primary auth-submit"
-                disabled={loading}
-                style={{ opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
-              >
-                {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-              </button>
-
-              {/* Social Login - Inside Form */}
+            <div className="anonymous-cta">
               <div className="divider">
                 <span>hoặc</span>
               </div>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  setLoading(true)
-                  setError('')
-                  try {
-                    // TODO: Thay bằng Google OAuth flow thực tế
-                    await new Promise(res => setTimeout(res, 800))
-                    const destinations = { user: '/dashboard', specialist: '/specialist/dashboard', admin: '/admin/dashboard' }
-                    router.push(destinations[formData.role as keyof typeof destinations])
-                  } catch {
-                    setError('Đăng nhập Google thất bại. Vui lòng thử lại.')
-                  } finally {
-                    setLoading(false)
-                  }
-                }}
-                className="btn-google"
-                disabled={loading}
+              <Link
+                href="/assessment/anonymous"
+                className="btn btn-outline anonymous-btn"
               >
-                <svg className="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M9 11l2 2 4-4M20 7v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7l4-4h8l4 4Z" />
                 </svg>
-                Đăng nhập với Google
-              </button>
-            </form>
+                Tiếp tục ẩn danh với bài đánh giá
+              </Link>
+              <p className="anonymous-note">
+                Làm bài đánh giá sức khỏe tinh thần không cần đăng ký.
+              </p>
+            </div>
 
-            {/* Login Link */}
             <div className="auth-switch">
               <p>
-                Chưa có tài khoản? 
-                <Link href="/register" className="switch-link">Đăng ký</Link>
-                <span className="auth-divider-dot">•</span>
-                <Link href="/assessment/anonymous" className="switch-link">Dùng thử ẩn danh</Link>
+                Chưa có tài khoản?
+                <Link href="/register" className="switch-link">
+                  Đăng ký ngay
+                </Link>
               </p>
             </div>
           </div>
         </div>
 
-        {/* Right side - Visual */}
         <div className="auth-visual-side">
           <div className="auth-visual-container">
-            {/* Breathing Circle (smaller version of hero) */}
             <div className="auth-breathe-stage">
               <div className="orbit orbit-1" aria-hidden="true">
-                <span className="orbit-dot amber-dot"></span>
+                <span className="orbit-dot amber-dot" />
               </div>
               <div className="orbit orbit-2" aria-hidden="true">
-                <span className="orbit-dot teal-dot"></span>
+                <span className="orbit-dot teal-dot" />
               </div>
-              <div className="breathe-ring r1"></div>
-              <div className="breathe-ring r2"></div>
+              <div className="breathe-ring r1" />
+              <div className="breathe-ring r2" />
               <div className="breathe-blob">
                 <span className="breathe-label">Hít vào...</span>
               </div>
             </div>
 
-            {/* Float Cards */}
             <div className="auth-float-card fc-1">
               <div className="float-inner">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M12 3c3 3 5 6 5 9a5 5 0 0 1-10 0c0-3 2-6 5-9Z"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M9 11l2 2 4-4M20 7v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7l4-4h8l4 4Z" />
                 </svg>
                 <div>
-                  <div className="fc-title">An toàn & bảo mật</div>
-                  <div className="fc-value">100% riêng tư</div>
+                  <div className="fc-title">An toàn và bảo mật</div>
+                  <div className="fc-value">Phiên đăng nhập riêng tư</div>
                 </div>
               </div>
             </div>
 
             <div className="auth-float-card fc-2">
               <div className="float-inner">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M20 21c0-4-3.6-6-8-6s-8 2-8 6M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M20 21c0-4-3.6-6-8-6s-8 2-8 6M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
                 </svg>
                 <div>
-                  <div className="fc-title">Chuyên gia</div>
-                  <div className="fc-value">Luôn đồng hành</div>
+                  <div className="fc-title">Không gian phù hợp</div>
+                  <div className="fc-value">Theo quyền tài khoản</div>
                 </div>
               </div>
             </div>
 
-            {/* Quote */}
             <div className="auth-quote">
               <blockquote>
                 “Bước đầu tiên không cần phải lớn, chỉ cần bạn dám bắt đầu.”
