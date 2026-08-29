@@ -1,49 +1,156 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import NewAppointmentModal, { type NewAppointment } from '@/components/NewAppointmentModal';
+import AppointmentDetailModal, { type AppointmentDetail } from '@/components/AppointmentDetailModal';
+import CancelAppointmentModal from '@/components/CancelAppointmentModal';
+import RescheduleAppointmentModal, { type RescheduleUpdate } from '@/components/RescheduleAppointmentModal';
+import VideoCallModal from '@/components/VideoCallModal';
+import RateSpecialistModal, { type SpecialistReview } from '@/components/RateSpecialistModal';
+import './appointments.css';
 
-const UPCOMING = [
+type Appointment = AppointmentDetail;
+
+const INITIAL_UPCOMING: Appointment[] = [
   {
     id: 1,
+    specialistId: 1,
     specialist: 'TS. Nguyễn Thị Lan',
     avatar: '👩‍⚕️',
     date: '2026-08-15',
     time: '10:00 - 11:00',
     type: 'Video call',
-    status: 'confirmed'
+    status: 'confirmed',
+    price: '500.000đ',
+    notes: 'Tôi muốn trao đổi về tình trạng lo âu và khó ngủ trong vài tuần gần đây.',
+    code: 'MB-0815-01'
   },
   {
     id: 2,
+    specialistId: 2,
     specialist: 'ThS. Trần Văn Minh',
     avatar: '👨‍⚕️',
     date: '2026-08-20',
     time: '14:30 - 15:30',
     type: 'Tại phòng khám',
-    status: 'pending'
+    status: 'pending',
+    price: '400.000đ',
+    notes: 'Áp lực công việc đang ảnh hưởng đến khả năng tập trung của tôi.',
+    code: 'MB-0820-02'
   }
 ];
 
-const PAST = [
+const INITIAL_PAST: Appointment[] = [
   {
     id: 3,
+    specialistId: 1,
     specialist: 'TS. Nguyễn Thị Lan',
     avatar: '👩‍⚕️',
     date: '2026-08-08',
     time: '10:00 - 11:00',
     type: 'Video call',
-    status: 'completed'
+    status: 'completed',
+    price: '500.000đ',
+    notes: 'Theo dõi tiến triển sau hai tuần thực hành bài tập thở.',
+    code: 'MB-0808-03'
   },
   {
     id: 4,
+    specialistId: 2,
     specialist: 'ThS. Trần Văn Minh',
     avatar: '👨‍⚕️',
     date: '2026-08-01',
     time: '14:00 - 15:00',
     type: 'Video call',
-    status: 'completed'
+    status: 'completed',
+    price: '400.000đ',
+    notes: '',
+    code: 'MB-0801-04'
   }
 ];
 
 export default function AppointmentsPage() {
+  const [upcoming, setUpcoming] = useState<Appointment[]>(INITIAL_UPCOMING);
+  const [past, setPast] = useState<Appointment[]>(INITIAL_PAST);
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [initialSpecialistId, setInitialSpecialistId] = useState<number | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
+  const [appointmentToReschedule, setAppointmentToReschedule] = useState<Appointment | null>(null);
+  const [activeVideoCall, setActiveVideoCall] = useState<Appointment | null>(null);
+  const [appointmentToRate, setAppointmentToRate] = useState<Appointment | null>(null);
+  const [ratedAppointments, setRatedAppointments] = useState<Record<number, number>>({});
+  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    const specialistId = Number(new URLSearchParams(window.location.search).get('specialist'));
+    if (!specialistId) return;
+    const timer = window.setTimeout(() => {
+      setInitialSpecialistId(specialistId);
+      setBookingOpen(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const openBooking = () => {
+    setInitialSpecialistId(null);
+    setBookingOpen(true);
+  };
+
+  const handleBooked = (appointment: NewAppointment) => {
+    setUpcoming(current => [{ ...appointment, id: Date.now(), status: 'pending', code: `MB-${String(Date.now()).slice(-8)}` }, ...current]);
+    setBookingOpen(false);
+    setToast('Yêu cầu đặt lịch đã được gửi.');
+    window.setTimeout(() => setToast(''), 3200);
+  };
+
+  const openReschedule = (appointment: Appointment) => {
+    setSelectedAppointment(null);
+    if (appointment.status === 'completed' || appointment.status === 'cancelled') {
+      setInitialSpecialistId(appointment.specialistId);
+      setBookingOpen(true);
+      return;
+    }
+    setAppointmentToReschedule(appointment);
+  };
+
+  const handleRescheduled = (update: RescheduleUpdate) => {
+    if (!appointmentToReschedule) return;
+    setUpcoming(current => current.map(item => item.id === appointmentToReschedule.id
+      ? { ...item, ...update, status: 'pending' }
+      : item));
+    setAppointmentToReschedule(null);
+    setToast('Yêu cầu đổi lịch đã được gửi và đang chờ chuyên gia xác nhận.');
+    window.setTimeout(() => setToast(''), 3200);
+  };
+
+  const openCancellation = (appointment: Appointment) => {
+    setSelectedAppointment(null);
+    setAppointmentToCancel(appointment);
+  };
+
+  const handleCancelled = (reason: string, note: string) => {
+    if (!appointmentToCancel) return;
+    const cancelledAppointment: Appointment = {
+      ...appointmentToCancel,
+      status: 'cancelled',
+      notes: note ? `Lý do hủy: ${reason}. Ghi chú: ${note}` : `Lý do hủy: ${reason}`,
+    };
+    setUpcoming(current => current.filter(item => item.id !== appointmentToCancel.id));
+    setPast(current => [cancelledAppointment, ...current]);
+    setAppointmentToCancel(null);
+    setToast('Lịch hẹn đã được hủy và chuyển vào lịch sử.');
+    window.setTimeout(() => setToast(''), 3200);
+  };
+
+  const handleRated = (review: SpecialistReview) => {
+    if (!appointmentToRate) return;
+    setRatedAppointments(current => ({ ...current, [appointmentToRate.id]: review.rating }));
+    setAppointmentToRate(null);
+    setToast('Cảm ơn bạn. Đánh giá đã được ghi nhận.');
+    window.setTimeout(() => setToast(''), 3200);
+  };
+
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
       <div style={{ 
@@ -65,7 +172,7 @@ export default function AppointmentsPage() {
           <p style={{ opacity: 0.7 }}>Quản lý các buổi tư vấn của bạn</p>
         </div>
 
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={openBooking}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M12 5v14M5 12h14"/>
           </svg>
@@ -97,7 +204,7 @@ export default function AppointmentsPage() {
           }} />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {UPCOMING.map((apt, index) => (
+            {upcoming.map((apt, index) => (
               <motion.div
                 key={apt.id}
                 className="feature-card"
@@ -205,14 +312,17 @@ export default function AppointmentsPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                      <button className="btn-primary">
-                        Tham gia
+                    <div className="appointment-card-actions">
+                      <button className="btn-primary appointment-join-call" disabled={apt.type !== 'Video call' || apt.status !== 'confirmed'} onClick={() => setActiveVideoCall(apt)}>
+                        {apt.type !== 'Video call' ? 'Không trực tuyến' : apt.status !== 'confirmed' ? 'Chờ xác nhận' : 'Tham gia'}
                       </button>
-                      <button className="btn-outline">
+                      <button className="btn-outline" onClick={() => openReschedule(apt)}>
                         Đổi lịch
                       </button>
-                      <button className="btn-ghost">
+                      <button className="btn-ghost appointment-view-detail" onClick={() => setSelectedAppointment(apt)}>
+                        Chi tiết
+                      </button>
+                      <button className="btn-ghost appointment-cancel-trigger" onClick={() => openCancellation(apt)}>
                         Hủy
                       </button>
                     </div>
@@ -235,7 +345,7 @@ export default function AppointmentsPage() {
         </h2>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {PAST.map((apt, index) => (
+          {past.map((apt, index) => (
             <motion.div
               key={apt.id}
               className="feature-card"
@@ -278,13 +388,25 @@ export default function AppointmentsPage() {
                 </div>
               </div>
 
-              <div className="risk-tag teal">
-                Hoàn thành
+              <div className="appointment-history-actions">
+                <div className={`risk-tag ${apt.status === 'cancelled' ? 'appointment-cancelled-tag' : 'teal'}`}>{apt.status === 'cancelled' ? 'Đã hủy' : 'Hoàn thành'}</div>
+                {apt.status === 'completed' && (ratedAppointments[apt.id]
+                  ? <span className="appointment-rated"><b>{ratedAppointments[apt.id]}</b> ★ · Đã đánh giá</span>
+                  : <button className="appointment-rate-trigger" onClick={() => setAppointmentToRate(apt)}><span>★</span> Đánh giá chuyên gia</button>)}
+                <button onClick={() => setSelectedAppointment(apt)}>Xem chi tiết <span>→</span></button>
               </div>
             </motion.div>
           ))}
         </div>
       </div>
+
+      {bookingOpen && <NewAppointmentModal initialSpecialistId={initialSpecialistId} onClose={() => setBookingOpen(false)} onBooked={handleBooked} />}
+      {selectedAppointment && <AppointmentDetailModal appointment={selectedAppointment} onClose={() => setSelectedAppointment(null)} onReschedule={openReschedule} onCancel={openCancellation} />}
+      {appointmentToCancel && <CancelAppointmentModal appointment={appointmentToCancel} onClose={() => setAppointmentToCancel(null)} onConfirm={handleCancelled} />}
+      {appointmentToReschedule && <RescheduleAppointmentModal appointment={appointmentToReschedule} onClose={() => setAppointmentToReschedule(null)} onConfirm={handleRescheduled} />}
+      {activeVideoCall && <VideoCallModal appointment={activeVideoCall} onClose={() => setActiveVideoCall(null)} />}
+      {appointmentToRate && <RateSpecialistModal appointment={appointmentToRate} onClose={() => setAppointmentToRate(null)} onSubmit={handleRated} />}
+      {toast && <motion.div className="appointment-booking-toast" role="status" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}>✓ {toast}</motion.div>}
     </div>
   );
 }

@@ -11,7 +11,7 @@ export default function Hotline() {
             </div>
             <div>
               <h3>Nếu bạn đang gặp khủng hoảng, đừng chờ đợi.</h3>
-              <p>MentalBridge luôn hiển thị đường dây nóng ở nơi bạn dễ thấy nhất — bạn không cần đăng nhập để tìm đến sự giúp đỡ.</p>
+              <p>MentalBridge luôn hiển thị đường dây nóng ở nơi bạn dễ thấy nhất. Bạn không cần đăng nhập để tìm đến sự giúp đỡ.</p>
             </div>
           </div>
           <div className="hotline-numbers">

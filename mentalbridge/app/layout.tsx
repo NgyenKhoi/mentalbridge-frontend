@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import { Fraunces, Be_Vietnam_Pro } from 'next/font/google'
+import MotionPreferences from '../components/motion/MotionPreferences'
+import SmoothScroll from '../components/SmoothScroll'
 import { Providers } from './providers'
 import './globals.css'
+import './theme-sync.css'
 
 const fraunces = Fraunces({
   subsets: ['latin', 'vietnamese'],
@@ -36,7 +39,10 @@ export default function RootLayout({
           <div className="ambient-blob b2"></div>
           <div className="ambient-blob b3"></div>
         </div>
-        <Providers>{children}</Providers>
+        <MotionPreferences>
+          <Providers>{children}</Providers>
+        </MotionPreferences>
+        <SmoothScroll />
       </body>
     </html>
   )

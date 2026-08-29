@@ -1,0 +1,123 @@
+.light-select {
+  position: relative;
+  width: 100%;
+}
+
+.light-select-trigger {
+  width: 100%;
+  height: 50px;
+  padding: 0 15px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-be-vietnam), sans-serif;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.light-select-trigger:hover {
+  background: #fff;
+  border-color: var(--ink-faint);
+}
+
+.light-select-trigger:focus {
+  outline: none;
+  border-color: var(--teal);
+  background: #fff;
+  box-shadow: 0 0 0 3px var(--teal-pale);
+}
+
+.light-select-trigger[aria-expanded="true"] {
+  border-color: var(--teal);
+  background: #fff;
+}
+
+.light-select-chevron {
+  color: var(--ink-soft);
+  font-size: 18px;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.light-select-trigger[aria-expanded="true"] .light-select-chevron {
+  transform: rotate(180deg);
+}
+
+.light-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  box-shadow: 0 8px 24px -4px rgba(30, 74, 67, 0.2);
+  overflow: hidden;
+  z-index: 100;
+  max-height: 240px;
+  overflow-y: auto;
+  animation: light-select-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes light-select-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.light-select-option {
+  width: 100%;
+  padding: 12px 15px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-be-vietnam), sans-serif;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid var(--line);
+}
+
+.light-select-option:last-child {
+  border-bottom: none;
+}
+
+.light-select-option:hover {
+  background: var(--surface-soft);
+}
+
+.light-select-option[aria-selected="true"] {
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-weight: 600;
+}
+
+.light-select-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.light-select-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.light-select-menu::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}
+
+.light-select-menu::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+}

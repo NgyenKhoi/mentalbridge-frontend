@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import LightSelect from '@/components/LightSelect'
+import ChangePasswordModal from '@/components/ChangePasswordModal'
 import './profile.css'
 
 type Panel = 'personal' | 'security' | 'privacy' | null
@@ -11,6 +13,8 @@ export default function ProfilePage() {
   const [twoFactor, setTwoFactor] = useState(false)
   const [confirm, setConfirm] = useState<string | null>(null)
   const [toast, setToast] = useState('')
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [gender, setGender] = useState('male')
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2800) }
 
   return <div className="settings-page">
@@ -23,9 +27,9 @@ export default function ProfilePage() {
 
     <div className="settings-grid">
       <section className="settings-group"><p className="settings-group-label">Tài khoản & quyền riêng tư</p>
-        <div className={`settings-accordion ${openPanel === 'personal' ? 'open' : ''}`}><button className="settings-accordion-head" onClick={() => setOpenPanel(openPanel === 'personal' ? null : 'personal')} aria-expanded={openPanel === 'personal'}><span className="settings-row-icon teal">N</span><span><strong>Thông tin cá nhân</strong><small>Tên, email, số điện thoại và ngày sinh</small></span><b>›</b></button><div className="settings-accordion-body"><form onSubmit={e => { e.preventDefault(); notify('Đã lưu thông tin cá nhân.') }}><div className="settings-fields"><label className="full">Họ và tên<input defaultValue="Nguyễn Văn A" /></label><label className="full">Email<input type="email" defaultValue="user@example.com" /></label><label>Số điện thoại<input type="tel" defaultValue="0901234567" /></label><label>Ngày sinh<input type="date" defaultValue="1995-05-15" /></label><label>Giới tính<select defaultValue="male"><option value="male">Nam</option><option value="female">Nữ</option><option value="other">Khác</option></select></label></div><div className="settings-form-actions"><button className="btn-primary">Lưu thay đổi</button><button type="button" className="btn-ghost" onClick={() => setOpenPanel(null)}>Hủy</button></div></form></div></div>
+        <div className={`settings-accordion ${openPanel === 'personal' ? 'open' : ''}`}><button className="settings-accordion-head" onClick={() => setOpenPanel(openPanel === 'personal' ? null : 'personal')} aria-expanded={openPanel === 'personal'}><span className="settings-row-icon teal">N</span><span><strong>Thông tin cá nhân</strong><small>Tên, email, số điện thoại và ngày sinh</small></span><b>›</b></button><div className="settings-accordion-body"><form onSubmit={e => { e.preventDefault(); notify('Đã lưu thông tin cá nhân.') }}><div className="settings-fields"><label className="full">Họ và tên<input defaultValue="Nguyễn Văn A" /></label><label className="full">Email<input type="email" defaultValue="user@example.com" /></label><label>Số điện thoại<input type="tel" defaultValue="0901234567" /></label><label>Ngày sinh<input type="date" defaultValue="1995-05-15" /></label><label>Giới tính<LightSelect id="profile-gender" name="gender" value={gender} onChange={setGender} options={[{value: 'male', label: 'Nam'}, {value: 'female', label: 'Nữ'}, {value: 'other', label: 'Khác'}]} /></label></div><div className="settings-form-actions"><button className="btn-primary">Lưu thay đổi</button><button type="button" className="btn-ghost" onClick={() => setOpenPanel(null)}>Hủy</button></div></form></div></div>
 
-        <div className={`settings-accordion ${openPanel === 'security' ? 'open' : ''}`}><button className="settings-accordion-head" onClick={() => setOpenPanel(openPanel === 'security' ? null : 'security')} aria-expanded={openPanel === 'security'}><span className="settings-row-icon amber">⌾</span><span><strong>Bảo mật</strong><small>Mật khẩu và xác thực hai lớp</small></span><b>›</b></button><div className="settings-accordion-body"><div className="settings-security"><label>Mật khẩu hiện tại<input type="password" defaultValue="mentalbridge" /></label><div className="settings-toggle-row"><div><strong>Xác thực hai lớp</strong><small>Yêu cầu mã xác nhận trên thiết bị mới</small></div><label className="settings-switch"><input type="checkbox" checked={twoFactor} onChange={e => setTwoFactor(e.target.checked)} /><span /></label></div><button className="btn-primary" onClick={() => notify('Yêu cầu đổi mật khẩu đã được ghi nhận.')}>Đổi mật khẩu</button></div></div></div>
+        <div className={`settings-accordion ${openPanel === 'security' ? 'open' : ''}`}><button className="settings-accordion-head" onClick={() => setOpenPanel(openPanel === 'security' ? null : 'security')} aria-expanded={openPanel === 'security'}><span className="settings-row-icon amber">⌾</span><span><strong>Bảo mật</strong><small>Mật khẩu và xác thực hai lớp</small></span><b>›</b></button><div className="settings-accordion-body"><div className="settings-security settings-security-v2"><div className="settings-password-info"><div><strong>Mật khẩu</strong><small>Cập nhật lần cuối: 15 tháng 7, 2026</small></div><button className="btn-outline" onClick={() => setShowChangePassword(true)}>Đổi mật khẩu</button></div><div className="settings-toggle-row"><div><strong>Xác thực hai lớp</strong><small>Yêu cầu mã xác nhận trên thiết bị mới</small></div><label className="settings-switch"><input type="checkbox" checked={twoFactor} onChange={e => setTwoFactor(e.target.checked)} /><span /></label></div></div></div></div>
 
         <div className={`settings-accordion ${openPanel === 'privacy' ? 'open' : ''}`}><button className="settings-accordion-head" onClick={() => setOpenPanel(openPanel === 'privacy' ? null : 'privacy')} aria-expanded={openPanel === 'privacy'}><span className="settings-row-icon lavender">◉</span><span><strong>Quyền riêng tư & consent</strong><small>Kiểm soát specialist đang được xem dữ liệu nào</small></span><b>›</b></button><div className="settings-accordion-body"><div className="settings-consent"><div className="settings-consent-note"><strong>Bạn luôn kiểm soát dữ liệu của mình</strong><p>Specialist chỉ thấy đúng phạm vi bạn đã đồng ý và quyền có thể được thu hồi bất kỳ lúc nào.</p></div><article><div className="settings-consent-avatar">TH</div><div><strong>ThS. Nguyễn Thu Hà</strong><small>Access granted by user · Assessment và xu hướng cảm xúc</small></div><button onClick={() => setConfirm('Thu hồi quyền truy cập của ThS. Nguyễn Thu Hà?')}>Thu hồi</button></article><article><div className="settings-consent-avatar">MD</div><div><strong>TS. Trần Minh Đức</strong><small>Access granted by user · Follow-up plan</small></div><button onClick={() => setConfirm('Thu hồi quyền truy cập của TS. Trần Minh Đức?')}>Thu hồi</button></article></div></div></div>
 
@@ -43,5 +47,10 @@ export default function ProfilePage() {
 
     {confirm && <div className="settings-modal-wrap"><button className="settings-modal-backdrop" onClick={() => setConfirm(null)} aria-label="Đóng"/><div className="settings-modal"><span>!</span><h2>{confirm}</h2><p>Hãy kiểm tra kỹ. Thao tác này ảnh hưởng đến quyền truy cập hoặc dữ liệu của bạn.</p><div><button className="btn-ghost" onClick={() => setConfirm(null)}>Quay lại</button><button className="btn-primary" onClick={() => { setConfirm(null); notify('Yêu cầu đã được ghi nhận.') }}>Xác nhận</button></div></div></div>}
     {toast && <div className="settings-toast">✓ {toast}</div>}
+    
+    <ChangePasswordModal 
+      isOpen={showChangePassword} 
+      onClose={() => setShowChangePassword(false)} 
+    />
   </div>
 }

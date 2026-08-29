@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import MagneticButton from '@/components/motion/MagneticButton'
 
 export default function Header() {
   const headerRef = useRef<HTMLElement>(null)
@@ -10,13 +11,16 @@ export default function Header() {
   useEffect(() => {
     const header = headerRef.current
     if (!header) return
+    const topAnchor = document.getElementById('top')
+    if (!topAnchor) return
 
-    const handleScroll = () => {
-      header.classList.toggle('scrolled', window.scrollY > 12)
-    }
+    const observer = new IntersectionObserver(
+      ([entry]) => header.classList.toggle('scrolled', !entry.isIntersecting),
+      { rootMargin: '-12px 0px 0px' },
+    )
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+    observer.observe(topAnchor)
+    return () => observer.disconnect()
   }, [])
 
   useEffect(() => {
@@ -25,14 +29,14 @@ export default function Header() {
   }, [menuOpen])
 
   return (
-    <header id="site-header" ref={headerRef}>
+    <header id="site-header" className="marketing-header" ref={headerRef}>
       <div className="wrap">
         <nav aria-label="Điều hướng chính">
           <a href="#top" className="logo">
             <svg className="mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 26C10 14 30 14 36 26" stroke="#1E4A43" strokeWidth="2.4" strokeLinecap="round"/>
-              <circle cx="8" cy="27" r="3" fill="#E1A651"/>
-              <circle cx="32" cy="27" r="3" fill="#3D7A6E"/>
+              <path d="M4 26C10 14 30 14 36 26" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"/>
+              <circle cx="8" cy="27" r="3" fill="currentColor"/>
+              <circle cx="32" cy="27" r="3" fill="currentColor" opacity=".55"/>
             </svg>
             MentalBridge
           </a>
@@ -44,7 +48,9 @@ export default function Header() {
           </ul>
           <div className="nav-cta">
             <Link href="/login" className="btn-ghost">Đăng nhập</Link>
-            <Link href="/register" className="btn btn-primary">Bắt đầu miễn phí</Link>
+            <MagneticButton>
+              <Link href="/register" className="btn btn-primary" data-cursor="action">Bắt đầu miễn phí</Link>
+            </MagneticButton>
           </div>
           <button
             className="nav-menu-btn"

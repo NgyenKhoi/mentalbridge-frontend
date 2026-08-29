@@ -1,35 +1,4 @@
-'use client'
-
-import { useEffect, useRef } from 'react'
-
 export default function Journey() {
-  const journeyFillRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const journeySteps = document.querySelectorAll('.journey-step')
-    const journeyFill = journeyFillRef.current
-    if (!journeyFill || journeySteps.length === 0) return
-
-    const journeyIO = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          const step = parseInt((e.target as HTMLElement).dataset.step || '1', 10)
-          e.target.classList.add('on')
-          const pct = ((step - 1) / 4) * 100
-          if (parseFloat(journeyFill.style.width || '0') < pct) {
-            journeyFill.style.width = pct + '%'
-          }
-        }
-      })
-    }, { threshold: 0.6 })
-
-    journeySteps.forEach(el => journeyIO.observe(el))
-
-    return () => {
-      journeySteps.forEach(el => journeyIO.unobserve(el))
-    }
-  }, [])
-
   return (
     <section className="section" id="journey">
       <div className="wrap">
@@ -39,16 +8,15 @@ export default function Journey() {
             <div className="section-head" style={{marginBottom:'12px'}}>
               <div className="eyebrow">Hành trình của bạn trên MentalBridge</div>
               <h2>Năm bước, một cây cầu.</h2>
-              <p>Từ những dòng nhật ký đầu tiên đến sự đồng hành lâu dài — mỗi bước đều được thiết kế nhẹ nhàng, kín đáo và đúng lúc.</p>
+              <p>Từ những dòng nhật ký đầu tiên đến sự đồng hành lâu dài, mỗi bước đều được thiết kế nhẹ nhàng, kín đáo và đúng lúc.</p>
             </div>
             <div className="journey-path" id="journeyPath">
               <svg className="journey-arc" viewBox="0 0 1000 70" preserveAspectRatio="none" aria-hidden="true">
                 <path d="M0,60 C 250,-10 750,-10 1000,60" stroke="rgba(255,255,255,.16)" strokeWidth="2" fill="none" strokeDasharray="6 10"/>
               </svg>
               <div className="journey-line">
-                <div className="journey-line-fill" id="journeyFill" ref={journeyFillRef}>
-                  <span className="journey-traveler"></span>
-                </div>
+                <div className="journey-line-fill" id="journeyFill"></div>
+                <span className="journey-traveler" id="journeyTraveler"></span>
               </div>
               <div className="journey-step" data-step="1">
                 <div className="journey-dot">1</div>
@@ -73,7 +41,7 @@ export default function Journey() {
               <div className="journey-step" data-step="5">
                 <div className="journey-dot">5</div>
                 <h4>Đồng hành</h4>
-                <p>Theo dõi thay đổi theo thời gian — MentalBridge luôn ở đó, kể cả khi mọi thứ đã ổn.</p>
+                <p>Theo dõi thay đổi theo thời gian. MentalBridge luôn ở đó, kể cả khi mọi thứ đã ổn.</p>
               </div>
             </div>
           </div>

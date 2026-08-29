@@ -1,66 +1,120 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import ScreeningIllustration from '@/components/ScreeningIllustration'
+
+const services = [
+  { number: '01', title: 'Nhật ký cảm xúc', description: 'Viết ra điều bạn đang trải qua mỗi ngày, riêng tư và không cần chỉnh sửa cho hoàn hảo.', note: 'Một khoảng riêng để lắng nghe chính mình' },
+  { number: '02', title: 'Sàng lọc PHQ-9 / GAD-7', description: 'Bộ câu hỏi đánh giá trầm cảm và lo âu theo chuẩn lâm sàng, kết quả rõ ràng và dễ hiểu.', note: 'Hiểu tín hiệu trước khi chọn bước tiếp theo' },
+  { number: '03', title: 'Kết nối chuyên gia', description: 'Được ghép nối với chuyên gia phù hợp dựa trên mức độ, chủ đề và sự đồng cảm.', note: 'Đúng người, đúng nhu cầu, đúng thời điểm' },
+  { number: '04', title: 'Trò chuyện thời gian thực', description: 'Nhắn tin trực tiếp với chuyên gia đã được xác nhận, an toàn và bảo mật.', note: 'Không gian trò chuyện kín đáo và an toàn' },
+  { number: '05', title: 'Tài nguyên tự chăm sóc', description: 'Bài tập thở, thiền và nội dung hướng dẫn nhẹ nhàng cho những ngày cần chậm lại.', note: 'Những thực hành nhỏ có thể dùng mỗi ngày' },
+  { number: '06', title: 'Theo dõi tiến triển', description: 'Biểu đồ cảm xúc và điểm số theo thời gian, để bạn thấy rõ hành trình của chính mình.', note: 'Nhìn thấy thay đổi theo cách không phán xét' },
+] as const
+
 export default function Features() {
+  const [hovered, setHovered] = useState<number | null>(null)
+  const previewRef = useRef<HTMLDivElement>(null)
+  const reduceMotion = useReducedMotion()
+  // Hover is the only desktop selection state; leaving a row returns to the
+  // first item instead of keeping a previously clicked item selected.
+  const selectedIndex = hovered ?? 0
+  const selected = services[selectedIndex]
+
+  // Do not keep a decorative preview video decoding while it is off-screen.
+  useEffect(() => {
+    const preview = previewRef.current
+    const video = preview?.querySelector<HTMLVideoElement>(`[data-service-scene="${selected.number}"] .service-preview-video`)
+    if (!preview || !video || typeof IntersectionObserver === 'undefined') return
+    if (reduceMotion !== false) {
+      video.pause()
+      return
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) {
+        void video.play().catch(() => undefined)
+      } else {
+        video.pause()
+      }
+    }, { threshold: 0.08 })
+    observer.observe(preview)
+
+    return () => observer.disconnect()
+  }, [reduceMotion, selected.number])
+
+  const selectedImage = selected.number === '01' ? '/images/emotional-journal.png' : undefined
+  const selectedIllustration = selected.number === '02'
+
   return (
-    <section className="section" id="features">
+    <section className="section services-interactive" id="features">
       <div className="wrap">
         <div className="section-head reveal">
           <div className="eyebrow">Bên trong MentalBridge</div>
           <h2>Mọi công cụ bạn cần, ở một nơi yên tĩnh.</h2>
         </div>
-        <div className="feature-grid">
-          <div className="feature-card reveal reveal-d1">
-            <div className="feature-icon fi-teal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 5.5C4 4.7 4.7 4 5.5 4H16l4 4v10.5c0 .8-.7 1.5-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"/>
-                <path d="M8 10h8M8 14h5"/>
-              </svg>
-            </div>
-            <h3>Nhật ký cảm xúc</h3>
-            <p>Viết ra điều bạn đang trải qua mỗi ngày — riêng tư, không cần chỉnh sửa cho hoàn hảo.</p>
+
+        <div className="services-stage">
+          <div className="services-list" aria-label="Các công cụ MentalBridge" onPointerLeave={() => setHovered(null)}>
+            {services.map((service, index) => (
+              <button
+                className={`service-row${selectedIndex === index ? ' is-active' : ''}${hovered === index ? ' is-hovered' : ''}`}
+                key={service.number}
+                type="button"
+                aria-pressed={selectedIndex === index}
+                onPointerEnter={(event) => {
+                  if (event.pointerType !== 'touch') setHovered(index)
+                }}
+                onFocus={() => setHovered(index)}
+                onBlur={() => setHovered(null)}
+                onClick={() => setHovered(index)}
+              >
+                <span className="service-number">{service.number}</span>
+                <span className="service-row-copy">
+                  <strong>{service.title}</strong>
+                  <span>{service.description}</span>
+                </span>
+                <span className="service-arrow" aria-hidden="true">↗</span>
+              </button>
+            ))}
           </div>
-          <div className="feature-card reveal reveal-d2">
-            <div className="feature-icon fi-amber">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 11l2 2 4-4M20 7v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7l4-4h8l4 4Z"/>
-              </svg>
-            </div>
-            <h3>Sàng lọc PHQ-9 / GAD-7</h3>
-            <p>Bộ câu hỏi đánh giá trầm cảm và lo âu theo chuẩn lâm sàng, kết quả rõ ràng và dễ hiểu.</p>
-          </div>
-          <div className="feature-card reveal reveal-d3">
-            <div className="feature-icon fi-terra">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM21 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-            </div>
-            <h3>Kết nối chuyên gia</h3>
-            <p>Được ghép nối với chuyên gia phù hợp dựa trên mức độ, chủ đề và sự đồng cảm.</p>
-          </div>
-          <div className="feature-card reveal reveal-d4">
-            <div className="feature-icon fi-lav">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.6 8.6 0 0 1-3.1-.6L3 21l1.7-4.9A8.4 8.4 0 1 1 21 11.5Z"/>
-              </svg>
-            </div>
-            <h3>Trò chuyện thời gian thực</h3>
-            <p>Nhắn tin trực tiếp với chuyên gia đã được xác nhận, an toàn và bảo mật.</p>
-          </div>
-          <div className="feature-card reveal reveal-d5">
-            <div className="feature-icon fi-teal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3c3 3 5 6 5 9a5 5 0 0 1-10 0c0-3 2-6 5-9Z"/>
-              </svg>
-            </div>
-            <h3>Tài nguyên tự chăm sóc</h3>
-            <p>Bài tập thở, thiền, và nội dung hướng dẫn nhẹ nhàng cho những ngày cần chậm lại.</p>
-          </div>
-          <div className="feature-card reveal">
-            <div className="feature-icon fi-amber">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 17l5-5 4 4 8-9M20 7h-6M20 7v6"/>
-              </svg>
-            </div>
-            <h3>Theo dõi tiến triển</h3>
-            <p>Biểu đồ cảm xúc và điểm số theo thời gian, để bạn thấy rõ hành trình của chính mình.</p>
+
+          <div className={`service-preview${selectedIllustration ? ' service-preview--screening' : ''}`} ref={previewRef} aria-live="polite">
+            <AnimatePresence initial={false} mode="sync">
+              <motion.div
+                className="service-preview-scene"
+                data-service-scene={selected.number}
+                key={selected.number}
+                initial={{ opacity: 0, scale: 1.025 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: .985 }}
+                transition={{ duration: .48, ease: [.16, 1, .3, 1] }}
+              >
+                {selectedImage ? (
+                  <Image
+                    className="service-preview-image"
+                    src={selectedImage}
+                    alt="Minh họa viết nhật ký cảm xúc"
+                    fill
+                    sizes="(max-width: 900px) 100vw, 42vw"
+                    priority={selectedIndex === 0}
+                  />
+                ) : selectedIllustration ? (
+                  <ScreeningIllustration className="service-preview-illustration" />
+                ) : (
+                  <video className="service-preview-video" src="/videos/openhero/cloud-forest-sanctuaries.mp4" muted loop playsInline preload="metadata" aria-hidden="true" />
+                )}
+                <div className="service-preview-shade" aria-hidden="true" />
+                <div className="service-preview-index" aria-hidden="true">{selected.number}</div>
+                <div className="service-preview-copy">
+                  <span>{selected.title}</span>
+                  <h3>{selected.note}</h3>
+                  <p>{selected.description}</p>
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>

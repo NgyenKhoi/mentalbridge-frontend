@@ -4,6 +4,7 @@ import { requireCurrentAccount } from '@/lib/auth/dal'
 
 import './dashboard.css'
 import './subscription/subscription.css'
+import './resources/resources.css'
 import './dashboard-shell.css'
 
 export default async function DashboardLayout({

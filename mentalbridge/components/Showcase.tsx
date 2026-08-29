@@ -1,26 +1,51 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useReducedMotion } from 'framer-motion'
 
 export default function Showcase() {
   const phoneRef = useRef<HTMLDivElement>(null)
+  const reduceMotion = useReducedMotion()
 
   useEffect(() => {
     if (!phoneRef.current) return
     const phoneSlides = phoneRef.current.querySelectorAll('.phone-slide')
     if (phoneSlides.length === 0) return
 
+    phoneSlides.forEach(slide => slide.classList.remove('active'))
     phoneSlides[0].classList.add('active')
-    let slideIdx = 0
+    if (reduceMotion) return
 
-    const interval = setInterval(() => {
+    let slideIdx = 0
+    let interval: number | undefined
+    const advance = () => {
       phoneSlides[slideIdx].classList.remove('active')
       slideIdx = (slideIdx + 1) % phoneSlides.length
       phoneSlides[slideIdx].classList.add('active')
-    }, 3600)
+    }
+    const start = () => {
+      if (interval === undefined) interval = window.setInterval(advance, 2600)
+    }
+    const stop = () => {
+      if (interval !== undefined) window.clearInterval(interval)
+      interval = undefined
+    }
 
-    return () => clearInterval(interval)
-  }, [])
+    const observer = typeof IntersectionObserver === 'undefined'
+      ? null
+      : new IntersectionObserver(([entry]) => {
+          if (entry?.isIntersecting) start()
+          else stop()
+        }, { threshold: .08 })
+
+    if (observer && phoneRef.current) observer.observe(phoneRef.current)
+    else start()
+
+    return () => {
+      stop()
+      observer?.disconnect()
+    }
+  }, [reduceMotion])
 
   return (
     <section className="section" style={{paddingTop:0}}>
@@ -28,7 +53,7 @@ export default function Showcase() {
         <div className="section-head center reveal" style={{maxWidth:'620px'}}>
           <div className="eyebrow">Bạn sẽ trải nghiệm điều gì</div>
           <h2>Web này giúp bạn hiểu và chăm sóc chính mình ra sao?</h2>
-          <p>Không phải một bảng câu hỏi lạnh lùng. MentalBridge trò chuyện, lắng nghe nhật ký của bạn, và âm thầm theo dõi để đúng lúc đưa ra gợi ý phù hợp — từ một bài tập thở nhỏ đến một chuyên gia thật sự.</p>
+          <p>Không phải một bảng câu hỏi lạnh lùng. MentalBridge trò chuyện, lắng nghe nhật ký của bạn, và âm thầm theo dõi để đúng lúc đưa ra gợi ý phù hợp, từ một bài tập thở nhỏ đến một chuyên gia thật sự.</p>
         </div>
 
         <div className="showcase-card reveal">
@@ -57,6 +82,11 @@ export default function Showcase() {
                 <div className="chat-bubble user">Mình khá mệt, ngủ không ngon mấy ngày nay.</div>
                 <div className="chat-bubble bot">Cảm ơn bạn đã chia sẻ. Mình gợi ý một bài tập thở 3 phút trước khi ngủ nhé?</div>
                 <div className="typing-dots"><span></span><span></span><span></span></div>
+                <div className="phone-insight phone-insight--symptoms">
+                  <span className="phone-insight-label">Tín hiệu đang được nhận diện</span>
+                  <div className="signal-pills"><span>Mất ngủ</span><span>Căng thẳng</span></div>
+                  <div className="solution-card"><span className="solution-mark">✦</span><div><small>Gợi ý nhẹ nhàng</small><strong>Bài thở 3 phút trước khi ngủ</strong></div></div>
+                </div>
               </div>
               <div className="phone-slide" data-slide="2">
                 <div className="phone-slide-label">Nhật ký cảm xúc</div>
@@ -67,6 +97,11 @@ export default function Showcase() {
                 <div className="journal-line w70"></div>
                 <div className="journal-line w50"></div>
                 <div className="streak-chip">🔥 Chuỗi 7 ngày viết nhật ký</div>
+                <div className="phone-insight phone-insight--journal">
+                  <span className="phone-insight-label">Nhìn thấy thay đổi nhỏ</span>
+                  <div className="mood-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                  <div className="solution-card"><span className="solution-mark">↗</span><div><small>Thói quen phù hợp</small><strong>Ghi 2 dòng, hiểu mình hơn</strong></div></div>
+                </div>
               </div>
               <div className="phone-slide" data-slide="3">
                 <div className="phone-slide-label">Kết quả sàng lọc</div>
@@ -79,6 +114,10 @@ export default function Showcase() {
                   <div className="chart-bar" style={{height:'22%'}}></div>
                 </div>
                 <div className="score-chip"><span className="sc-label">Mức PHQ-9 hiện tại</span><span className="sc-num">Nhẹ</span></div>
+                <div className="phone-insight phone-insight--screening">
+                  <span className="phone-insight-label">Bước tiếp theo</span>
+                  <div className="solution-card"><span className="solution-mark">→</span><div><small>Mức độ hiện tại</small><strong>Tiếp tục theo dõi cùng MentalBridge</strong></div></div>
+                </div>
               </div>
             </div>
           </div>
@@ -95,7 +134,7 @@ export default function Showcase() {
           </div>
           <div className="value-item reveal reveal-d3">
             <div className="value-icon fi-terra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM21 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-            <div><h4>Đúng người, đúng lúc</h4><p>Khi cần, bạn được ghép nối với chuyên gia phù hợp — không phải chờ đợi mơ hồ.</p></div>
+            <div><h4>Đúng người, đúng lúc</h4><p>Khi cần, bạn được ghép nối với chuyên gia phù hợp mà không phải chờ đợi mơ hồ.</p></div>
           </div>
         </div>
       </div>
