@@ -13,6 +13,10 @@ how the executable Next.js application is organized and delivered.
 5. [Runtime and environment](runtime-and-environment.md)
 6. [Review and testing](review-and-testing.md)
 
+Story-specific delivery evidence:
+
+- [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
+
 Repository-wide Git, Jira, and pull-request rules are in
 [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md). The current design language is
 documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
@@ -30,7 +34,7 @@ documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
 | Axios and TanStack Query client baseline         | Implemented | MB-211         |
 | Unit/component/API mocking baseline              | Implemented | MB-211         |
 | Playwright browser baseline                      | Implemented | MB-211         |
-| Complete Identity integration scenarios          | Planned     | MB-216         |
+| Complete Identity integration scenarios          | Implemented | MB-216/MB-139  |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

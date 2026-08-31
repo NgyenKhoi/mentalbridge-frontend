@@ -68,10 +68,13 @@ Representative tests cover the Query provider, Axios Problem Details
 normalization including unknown extensions, fallback HTTP errors, authoritative
 workspace resolution, duplicate login/logout prevention, logout cookie semantics,
 registration idempotency, public actor restrictions, verification challenge
-cleanup, and public/protected/authentication browser behavior. Registration and
-verification browser tests mock only the same-origin BFF; Route Handler tests
-separately verify the exact Identity paths, minimal responses, contract limits,
-and sensitive-data sanitization.
+cleanup, successful USER and SPECIALIST role routing, access-token refresh,
+logout, logout-all, and public/protected/authentication browser behavior.
+Registration and verification browser tests mock only the same-origin BFF.
+Session lifecycle browser tests run the real BFF and server data-access boundary
+against a synthetic local Identity fixture; they never call a live environment.
+Route Handler tests separately verify the exact Identity paths, minimal
+responses, contract limits, and sensitive-data sanitization.
 
 ```powershell
 npm run test:unit

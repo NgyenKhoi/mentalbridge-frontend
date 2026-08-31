@@ -2,8 +2,8 @@
 
 MentalBridge is a Next.js App Router frontend for mental-health support
 experiences. The repository contains implemented UI screens, a same-origin
-Identity BFF, and role-based login/workspace access. The remaining Identity
-registration and delivery scenarios continue in Sprint 1 Stories 214–216.
+Identity BFF, role-based login/workspace access, public registration, email
+verification, and controlled Identity delivery evidence through Story 216.
 
 ## Runtime
 
@@ -85,6 +85,8 @@ unavailable until their backend contracts are implemented.
 - [`docs/runtime-and-environment.md`](docs/runtime-and-environment.md): versions,
   commands, and environment policy
 - [`docs/review-and-testing.md`](docs/review-and-testing.md): delivery gates
+- [`docs/identity-delivery-evidence.md`](docs/identity-delivery-evidence.md):
+  MB-139 acceptance and verification evidence
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md): current visual language
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md): Git, Jira, PR, and review workflow
 
