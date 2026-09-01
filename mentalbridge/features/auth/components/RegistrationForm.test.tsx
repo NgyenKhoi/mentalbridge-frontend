@@ -54,7 +54,7 @@ describe('RegistrationForm', () => {
     await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('button', { name: 'Tạo tài khoản' }))
 
-    expect(screen.getByText(/ít nhất 12 ký tự/i)).toBeVisible()
+    expect(screen.getByText('Mật khẩu phải có ít nhất 12 ký tự.')).toBeVisible()
     expect(mocks.register).not.toHaveBeenCalled()
 
     await user.clear(screen.getByLabelText('Mật khẩu'))
