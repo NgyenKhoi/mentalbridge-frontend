@@ -8,7 +8,7 @@ export default function Journey() {
             <div className="section-head" style={{marginBottom:'12px'}}>
               <div className="eyebrow">Hành trình của bạn trên MentalBridge</div>
               <h2>Năm bước, một cây cầu.</h2>
-              <p>Từ những dòng nhật ký đầu tiên đến sự đồng hành lâu dài, mỗi bước đều được thiết kế nhẹ nhàng, kín đáo và đúng lúc.</p>
+              <p>Luồng PHQ-9 đi từ nội dung đã công bố đến kết quả do Care service tính, không chèn dữ liệu mẫu thay thế.</p>
             </div>
             <div className="journey-path" id="journeyPath">
               <svg className="journey-arc" viewBox="0 0 1000 70" preserveAspectRatio="none" aria-hidden="true">
@@ -20,28 +20,28 @@ export default function Journey() {
               </div>
               <div className="journey-step" data-step="1">
                 <div className="journey-dot">1</div>
-                <h4>Ghi nhận</h4>
-                <p>Khảo sát PHQ-9, GAD-7 và nhật ký cảm xúc hằng ngày, chỉ mất vài phút.</p>
+                <h4>Tải phiên bản</h4>
+                <p>Ứng dụng lấy bộ câu hỏi PHQ-9 tiếng Việt đang được Care công bố.</p>
               </div>
               <div className="journey-step" data-step="2">
                 <div className="journey-dot">2</div>
-                <h4>Thấu hiểu</h4>
-                <p>AI phân tích ngôn ngữ tự nhiên để nhận ra điều bạn thực sự đang cảm thấy.</p>
+                <h4>Trả lời</h4>
+                <p>Bạn chọn đủ chín mức tần suất cho trải nghiệm trong 14 ngày gần đây.</p>
               </div>
               <div className="journey-step" data-step="3">
                 <div className="journey-dot">3</div>
-                <h4>Đánh giá</h4>
-                <p>Phân loại mức độ: nhẹ, cần chú ý, hay cần hỗ trợ khẩn cấp.</p>
+                <h4>Care tính điểm</h4>
+                <p>Trình duyệt chỉ gửi mã câu hỏi và lựa chọn; Care sở hữu cách tính điểm.</p>
               </div>
               <div className="journey-step" data-step="4">
                 <div className="journey-dot">4</div>
-                <h4>Hỗ trợ</h4>
-                <p>Gợi ý tự chăm sóc, ghép nối chuyên gia phù hợp, hoặc kích hoạt cảnh báo khi cần.</p>
+                <h4>Xem kết quả</h4>
+                <p>Dải triệu chứng và trạng thái mục 9 được hiển thị độc lập, kèm giới hạn sử dụng.</p>
               </div>
               <div className="journey-step" data-step="5">
                 <div className="journey-dot">5</div>
-                <h4>Đồng hành</h4>
-                <p>Theo dõi thay đổi theo thời gian. MentalBridge luôn ở đó, kể cả khi mọi thứ đã ổn.</p>
+                <h4>Chọn bước tiếp</h4>
+                <p>Tính năng chưa có policy hoặc contract sẽ được ghi rõ là chưa khả dụng.</p>
               </div>
             </div>
           </div>

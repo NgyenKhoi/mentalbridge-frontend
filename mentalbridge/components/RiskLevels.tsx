@@ -5,38 +5,38 @@ export default function RiskLevels() {
     <section className="section" id="risk">
       <div className="wrap">
         <div className="section-head reveal">
-          <div className="eyebrow">Không có một câu trả lời chung</div>
-          <h2>Mức hỗ trợ luôn tương xứng với điều bạn đang trải qua.</h2>
+          <div className="eyebrow">Đọc kết quả đúng phạm vi</div>
+          <h2>Ba điều cần biết sau khi hoàn thành PHQ-9.</h2>
         </div>
         <div className="risk-grid">
           <TiltCard wrapperClassName="motion-tilt-shell risk-tilt reveal reveal-d1" dataGroup="risk" className="risk-card low">
-            <span className="risk-tag">Mức nhẹ</span>
-            <h3>Tự chăm sóc</h3>
-            <p>Cảm xúc tiêu cực ngắn hạn, chưa có dấu hiệu nghiêm trọng, như áp lực công việc hay mất động lực tạm thời.</p>
+            <span className="risk-tag">Điểm số</span>
+            <h3>Sàng lọc triệu chứng</h3>
+            <p>Care cộng chín câu trả lời và đối chiếu dải điểm theo đúng phiên bản bộ câu hỏi.</p>
             <ul>
-              <li>Bài tập thở & thiền hướng dẫn</li>
-              <li>Nhật ký cảm xúc định kỳ</li>
-              <li>Theo dõi mood trend nhẹ nhàng</li>
+              <li>Khoảng điểm từ 0 đến 27</li>
+              <li>Không nhận điểm do trình duyệt tự tính</li>
+              <li>Không phải chẩn đoán y khoa</li>
             </ul>
           </TiltCard>
           <TiltCard wrapperClassName="motion-tilt-shell risk-tilt risk-tilt--offset reveal reveal-d2" dataGroup="risk" className="risk-card mid">
-            <span className="risk-tag">Cần chú ý</span>
-            <h3>Ghép chuyên gia</h3>
-            <p>Dấu hiệu lo âu hoặc trầm cảm kéo dài, giảm tương tác xã hội, tâm trạng tiêu cực thường xuyên hơn.</p>
+            <span className="risk-tag">Mục an toàn</span>
+            <h3>Độc lập với tổng điểm</h3>
+            <p>Câu 9 được Care đánh giá bằng một trạng thái riêng và không tự nâng dải điểm PHQ-9.</p>
             <ul>
-              <li>Ghép nối chuyên gia phù hợp</li>
-              <li>Hỗ trợ từ cộng đồng đồng cảm</li>
-              <li>Theo dõi sát hơn theo tuần</li>
+              <li>Không suy diễn ý định hoặc mức khẩn cấp</li>
+              <li>Không tự động liên hệ bên thứ ba</li>
+              <li>Lưu cùng phiên bản policy đã dùng</li>
             </ul>
           </TiltCard>
           <TiltCard wrapperClassName="motion-tilt-shell risk-tilt reveal reveal-d3" dataGroup="risk" className="risk-card high">
-            <span className="risk-tag">Khẩn cấp</span>
-            <h3>Cảnh báo & ưu tiên</h3>
-            <p>Khi hệ thống nhận thấy dấu hiệu nguy cơ cao, MentalBridge phản hồi ngay lập tức và ưu tiên tuyệt đối.</p>
+            <span className="risk-tag">Giới hạn</span>
+            <h3>Hiển thị trung thực</h3>
+            <p>Nội dung hỗ trợ chưa có contract đã duyệt sẽ được ghi rõ là chưa khả dụng.</p>
             <ul>
-              <li>Thông báo khẩn đến người hỗ trợ</li>
-              <li>Kết nối đường dây nóng ngay</li>
-              <li>Ưu tiên xử lý & theo dõi liên tục</li>
+              <li>Không bịa khuyến nghị hoặc tài nguyên</li>
+              <li>Không hứa ứng cứu hay giám sát 24/7</li>
+              <li>Không khóa kết quả sau gói trả phí</li>
             </ul>
           </TiltCard>
         </div>

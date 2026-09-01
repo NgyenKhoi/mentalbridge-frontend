@@ -341,8 +341,8 @@ export default function Hero() {
         </div>
 
         <div className="hero-trust" aria-label="Thông tin nền tảng">
-          <div className="trust-item"><span className="trust-num">PHQ-9</span><span className="trust-label">và GAD-7 chuẩn lâm sàng</span></div>
-          <div className="trust-item"><span className="trust-num">24/7</span><span className="trust-label">đồng hành cùng bạn</span></div>
+          <div className="trust-item"><span className="trust-num">PHQ-9</span><span className="trust-label">chấm điểm bởi Care service</span></div>
+          <div className="trust-item"><span className="trust-num">Tự chủ</span><span className="trust-label">truy cập theo nhu cầu</span></div>
           <div className="trust-item"><span className="trust-num">Ẩn danh</span><span className="trust-label">khi bạn cần riêng tư</span></div>
         </div>
       </div>

@@ -134,20 +134,6 @@ export default function ScrollReveal() {
         }
       }
 
-      const hotline = document.querySelector<HTMLElement>('.hotline')
-      if (hotline) {
-        consumed.add(hotline)
-        gsap.from(hotline, {
-          y: 52,
-          opacity: 0,
-          scale: 0.96,
-          duration: GSAP_DURATION.slow,
-          ease: GSAP_EASE.emphasis,
-          clearProps: 'transform,opacity',
-          scrollTrigger: { trigger: hotline, start: 'top 86%', once: true },
-        })
-      }
-
       const servicePreview = document.querySelector<HTMLElement>('.service-preview')
       if (servicePreview) {
         consumed.add(servicePreview)

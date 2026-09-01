@@ -7,7 +7,7 @@ import ScreeningIllustration from '@/components/ScreeningIllustration'
 
 const services = [
   { number: '01', title: 'Nhật ký cảm xúc', description: 'Viết ra điều bạn đang trải qua mỗi ngày, riêng tư và không cần chỉnh sửa cho hoàn hảo.', note: 'Một khoảng riêng để lắng nghe chính mình' },
-  { number: '02', title: 'Sàng lọc PHQ-9 / GAD-7', description: 'Bộ câu hỏi đánh giá trầm cảm và lo âu theo chuẩn lâm sàng, kết quả rõ ràng và dễ hiểu.', note: 'Hiểu tín hiệu trước khi chọn bước tiếp theo' },
+  { number: '02', title: 'Sàng lọc PHQ-9', description: 'Bộ câu hỏi tiếng Việt được Care quản lý theo phiên bản và chấm điểm ở backend; GAD-7 hiện chưa khả dụng.', note: 'Hiểu tín hiệu trước khi chọn bước tiếp theo' },
   { number: '03', title: 'Kết nối chuyên gia', description: 'Được ghép nối với chuyên gia phù hợp dựa trên mức độ, chủ đề và sự đồng cảm.', note: 'Đúng người, đúng nhu cầu, đúng thời điểm' },
   { number: '04', title: 'Trò chuyện thời gian thực', description: 'Nhắn tin trực tiếp với chuyên gia đã được xác nhận, an toàn và bảo mật.', note: 'Không gian trò chuyện kín đáo và an toàn' },
   { number: '05', title: 'Tài nguyên tự chăm sóc', description: 'Bài tập thở, thiền và nội dung hướng dẫn nhẹ nhàng cho những ngày cần chậm lại.', note: 'Những thực hành nhỏ có thể dùng mỗi ngày' },

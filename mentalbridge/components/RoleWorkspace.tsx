@@ -83,7 +83,7 @@ const adminSections: Record<string, Section> = {
     { id: 'sp2', title: 'BS. Nguyễn Thu Hà', meta: 'Tâm thần học · 8 năm kinh nghiệm', status: 'Đã duyệt', detail: 'Hồ sơ đang hoạt động trên nền tảng.' },
   ], tabs: ['Tất cả', 'Chờ duyệt', 'Đang hoạt động', 'Tạm khóa'] },
   assessments: { label: 'Quản lý bài đánh giá', description: 'Quản lý bộ câu hỏi, phiên bản và trạng thái phát hành.', rows: [
-    { id: 'as1', title: 'PHQ-9 · phiên bản 2.1', meta: '9 câu hỏi · Đang hiển thị', status: 'Đã xuất bản', detail: 'Bộ câu hỏi sàng lọc được quản lý theo phiên bản và quy trình rà soát chuyên môn.' },
+    { id: 'as1', title: 'PHQ-9 · phq9-vi-vn-capstone-v1', meta: '9 câu hỏi · Đang hiển thị', status: 'Đã xuất bản', detail: 'Bộ câu hỏi sàng lọc được Care quản lý theo phiên bản, nguồn và quy trình publication gate.' },
     { id: 'as2', title: 'DASS-21 · phiên bản 0.9', meta: '21 câu hỏi · Chưa công khai', status: 'Bản nháp', detail: 'Bản nháp chưa hiển thị với người dùng và cần hoàn thành kiểm tra an toàn trước khi phát hành.' },
   ], tabs: ['Tất cả', 'Đã xuất bản', 'Bản nháp', 'Đang rà soát'] },
   payments: { label: 'Subscriptions & Payments', description: 'Giám sát gói dịch vụ và giao dịch, không chỉnh sửa payment.', rows: [
@@ -98,10 +98,9 @@ const adminSections: Record<string, Section> = {
     { id: 'ap1', title: 'APT-20841', meta: 'Nguyễn Minh Anh ↔ Nguyễn Thu Hà · 10:30', status: 'Đã xác nhận', detail: 'Phiên video 45 phút · Đã sử dụng 1 consultation credit.' },
     { id: 'ap2', title: 'APT-20822', meta: 'Trần Gia Hân ↔ Lê Minh Phương · 09:00', status: 'Hoàn thành', detail: 'Phiên đã hoàn thành và ghi nhận earnings tự động.' },
   ]},
-  content: { label: 'Tài nguyên & đường dây hỗ trợ', description: 'Quản lý nội dung tự chăm sóc và thông tin hỗ trợ khẩn cấp.', rows: [
+  content: { label: 'Tài nguyên tự chăm sóc', description: 'Quản lý nội dung đã được rà soát trước khi công bố.', rows: [
     { id: 'ct1', title: 'Bài tập thở 4–7–8', meta: 'Danh mục: Thở · Cập nhật 12/08', status: 'Đã xuất bản', detail: 'Nội dung tự chăm sóc, không thay thế tư vấn hoặc điều trị chuyên môn.' },
-    { id: 'ct2', title: 'Đường dây nóng Ngày Mai', meta: '096 306 1414 · 24/7', status: 'Đang hoạt động', detail: 'Thông tin được hiển thị trong các luồng hỗ trợ nguy cơ cao.' },
-  ], tabs: ['Tài nguyên', 'Đường dây hỗ trợ'] },
+  ], tabs: ['Tài nguyên'] },
   moderation: { label: 'Kiểm duyệt báo cáo', description: 'Xem đủ ngữ cảnh cần thiết, tránh phơi bày dữ liệu ngoài phạm vi.', rows: [
     { id: 'mo1', title: 'Review #RV-2841', meta: 'Báo cáo: nội dung không phù hợp', status: 'Chờ xem xét', detail: 'Chỉ đoạn review bị báo cáo và metadata liên quan được hiển thị.' },
     { id: 'mo2', title: 'Message #MSG-9812', meta: 'Báo cáo: ngôn từ gây tổn thương', status: 'Đã ẩn tạm thời', detail: 'Nội dung đang được ẩn trong thời gian kiểm duyệt.' },

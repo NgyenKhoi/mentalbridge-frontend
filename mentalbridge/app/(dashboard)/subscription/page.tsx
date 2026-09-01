@@ -3,8 +3,8 @@
 import { useState } from 'react'
 
 const plans = [
-  { id: 'free', name: 'Miễn phí', price: '0đ', per: '/mãi mãi', description: 'Dùng thử các công cụ cơ bản', badge: 'Đang dùng', features: ['Bài sàng lọc PHQ-9 & GAD-7','Nhật ký cảm xúc cơ bản','Tài nguyên tự chăm sóc giới hạn','Hỗ trợ qua email'] },
-  { id: 'plus', name: 'Plus', price: '199.000đ', per: '/tháng', description: 'Cho hành trình chăm sóc đều đặn', badge: 'Phổ biến nhất', featured: true, features: ['Tất cả tính năng Miễn phí','Không giới hạn bài đánh giá','Phân tích xu hướng chi tiết','Chat AI hỗ trợ 24/7','Tài nguyên tự chăm sóc đầy đủ','1 consultation credit/tháng'] },
+  { id: 'free', name: 'Miễn phí', price: '0đ', per: '/mãi mãi', description: 'Dùng thử các công cụ cơ bản', badge: 'Đang dùng', features: ['Bài sàng lọc PHQ-9','Nhật ký cảm xúc cơ bản','Tài nguyên tự chăm sóc giới hạn','Hỗ trợ qua email'] },
+  { id: 'plus', name: 'Plus', price: '199.000đ', per: '/tháng', description: 'Cho hành trình chăm sóc đều đặn', badge: 'Phổ biến nhất', featured: true, features: ['Tất cả tính năng Miễn phí','Không giới hạn bài đánh giá','Phân tích xu hướng chi tiết','Chat AI theo nhu cầu','Tài nguyên tự chăm sóc đầy đủ','1 consultation credit/tháng'] },
   { id: 'premium', name: 'Premium', price: '499.000đ', per: '/tháng', description: 'Đồng hành sát sao cùng chuyên gia', badge: 'Toàn diện nhất', premium: true, features: ['Tất cả tính năng Plus','Đặt lịch ưu tiên','Chuyên gia ưu tiên','Tư vấn nhóm miễn phí','Tài liệu chuyên sâu','Hỗ trợ qua điện thoại'] },
 ]
 
@@ -66,7 +66,7 @@ export default function SubscriptionPage() {
     </section>
 
     <div className="subscription-compare-toggle"><button className={compare ? 'open' : ''} onClick={() => setCompare(!compare)}>So sánh chi tiết các gói <span>⌄</span></button></div>
-    <div className={`subscription-compare ${compare ? 'open' : ''}`}><div><table><thead><tr><th>Tính năng</th><th>Miễn phí</th><th>Plus</th><th>Premium</th></tr></thead><tbody><tr><td>PHQ-9 & GAD-7</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>Nhật ký cảm xúc</td><td>Cơ bản</td><td>Đầy đủ</td><td>Đầy đủ</td></tr><tr><td>Phân tích xu hướng</td><td>Giới hạn</td><td>Chi tiết</td><td>Chi tiết</td></tr><tr><td>Chat AI hỗ trợ</td><td>—</td><td>24/7</td><td>24/7</td></tr><tr><td>Consultation credit</td><td>—</td><td>1/tháng</td><td>Ưu tiên</td></tr><tr><td>Hỗ trợ</td><td>Email</td><td>Email + Chat</td><td>Điện thoại</td></tr></tbody></table></div></div>
+    <div className={`subscription-compare ${compare ? 'open' : ''}`}><div><table><thead><tr><th>Tính năng</th><th>Miễn phí</th><th>Plus</th><th>Premium</th></tr></thead><tbody><tr><td>PHQ-9</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>Nhật ký cảm xúc</td><td>Cơ bản</td><td>Đầy đủ</td><td>Đầy đủ</td></tr><tr><td>Phân tích xu hướng</td><td>Giới hạn</td><td>Chi tiết</td><td>Chi tiết</td></tr><tr><td>Chat AI hỗ trợ</td><td>—</td><td>Theo nhu cầu</td><td>Theo nhu cầu</td></tr><tr><td>Consultation credit</td><td>—</td><td>1/tháng</td><td>Ưu tiên</td></tr><tr><td>Hỗ trợ</td><td>Email</td><td>Email + Chat</td><td>Điện thoại</td></tr></tbody></table></div></div>
 
     <section className="subscription-faq"><h2>Câu hỏi thường gặp</h2>{faqs.map(([question,answer],index) => <article className={faq === index ? 'open' : ''} key={question}><button onClick={() => setFaq(faq === index ? -1 : index)} aria-expanded={faq === index}>{question}<span>+</span></button><div><p>{answer}</p></div></article>)}</section>
 
