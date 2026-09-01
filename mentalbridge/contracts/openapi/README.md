@@ -1,9 +1,10 @@
-# Identity OpenAPI snapshot
+# OpenAPI snapshots
 
-`identity-service-v1.yaml` is an exact, reviewable snapshot of the backend
-contract at `mentalbridge-backend/contracts/openapi/identity-service-v1.yaml`.
-It is committed so frontend generation and CI do not require network access or
-credentials for another repository.
+`identity-service-v1.yaml` and `care-service-v1.yaml` are exact, reviewable
+snapshots of the canonical backend contracts under
+`mentalbridge-backend/contracts/openapi/`. They are committed so frontend
+generation and CI do not require network access or credentials for another
+repository.
 
 With the backend and frontend repositories checked out as siblings, run:
 
@@ -11,11 +12,12 @@ With the backend and frontend repositories checked out as siblings, run:
 npm run contracts:sync
 ```
 
-For another checkout layout, set `IDENTITY_OPENAPI_SOURCE` to a path resolved
-from this application directory. Synchronization also regenerates
-`contracts/identity.generated.ts`.
+For another checkout layout, set `IDENTITY_OPENAPI_SOURCE` and/or
+`CARE_OPENAPI_SOURCE` to paths resolved from this application directory.
+Synchronization also regenerates `contracts/identity.generated.ts` and
+`contracts/care.generated.ts`.
 
-CI runs `npm run contracts:check`, which validates the OpenAPI document and
-fails when generated types are stale. When `IDENTITY_OPENAPI_SOURCE` is set, the
+CI runs `npm run contracts:check`, which validates both OpenAPI documents and
+fails when generated types are stale. When either source override is set, the
 same command also fails if the backend source and committed snapshot differ.
-Never edit the generated TypeScript file by hand.
+Never edit a generated TypeScript file by hand.

@@ -28,15 +28,18 @@ Copy-Item .env.example .env.local
 `.env.local` and every real `.env*` file stay untracked. Only `.env.example`,
 with non-secret development placeholders, is committed.
 
-| Variable                  | Visibility  | Purpose                                                                              |
-| ------------------------- | ----------- | ------------------------------------------------------------------------------------ |
-| `IDENTITY_API_BASE_URL`   | Server only | Validated Identity server/BFF upstream base URL                                      |
-| `IDENTITY_API_TIMEOUT_MS` | Server only | Total Identity request timeout from 100 through 30000 milliseconds; defaults to 2000 |
+| Variable                    | Visibility  | Purpose                                                                              |
+| --------------------------- | ----------- | ------------------------------------------------------------------------------------ |
+| `IDENTITY_API_BASE_URL`     | Server only | Validated Identity server/BFF upstream base URL                                      |
+| `IDENTITY_API_TIMEOUT_MS`   | Server only | Total Identity request timeout from 100 through 30000 milliseconds; defaults to 2000 |
+| `CARE_API_BASE_URL`         | Server only | Validated Care server/BFF upstream base URL                                          |
+| `CARE_API_TIMEOUT_MS`       | Server only | Total Care request timeout from 100 through 30000 milliseconds; defaults to 3000     |
+| `CARE_QUESTIONNAIRE_LOCALE` | Server only | Reviewed questionnaire locale requested from Care; defaults to `vi-VN`               |
 
-Neither Identity variable may use the `NEXT_PUBLIC_*` prefix. Browser requests
-use only the bounded same-origin `/api/identity/*` handlers and never receive
-the upstream address. The server validates the URL and timeout before each
-Identity operation. Every new variable requires an `.env.example` entry,
+Identity and Care variables must not use the `NEXT_PUBLIC_*` prefix. Browser
+requests use only the bounded same-origin `/api/identity/*` and `/api/care/*`
+handlers and never receive either upstream address. The server validates URLs,
+timeouts, and the Care locale before their operations. Every new variable requires an `.env.example` entry,
 visibility/owner documentation, startup validation when first consumed, and
 deployment setup.
 
@@ -59,6 +62,14 @@ refresh, and logout revocation use the configured server-only Identity URL. The
 Identity delivery configuration must generate frontend links in the form
 `http://localhost:3000/verify-email?challenge=...` for local development; the
 challenge is removed from browser history when the page consumes it.
+
+PHQ-9 pages use the configured server-only Care URL. The anonymous Care bearer
+credential is consumed by the BFF and retained only in `HttpOnly`, `SameSite`
+cookies; it is never returned in a browser JSON body. With the default
+`CARE_QUESTIONNAIRE_LOCALE=vi-VN`, Care currently returns an explicit unavailable
+state until reviewed Vietnamese questionnaire wording is published. Do not
+switch to an unreviewed translation or hardcoded browser questionnaire to bypass
+that state.
 
 Quality and production commands:
 
