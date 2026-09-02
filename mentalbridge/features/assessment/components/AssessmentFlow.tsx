@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import ResourcesList from '@/components/ResourcesList'
 
 import type {
   AssessmentResult,
@@ -114,6 +115,12 @@ function ResultPanel({
           </div>
         </dl>
       </details>
+
+      <ResourcesList 
+        category="ARTICLE"
+        limit={6}
+        className="care-resources"
+      />
 
       {mode === 'anonymous' && (
         <aside className="care-anonymous-note">
