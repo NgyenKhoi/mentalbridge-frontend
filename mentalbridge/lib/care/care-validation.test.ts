@@ -50,16 +50,22 @@ describe('Care runtime validation', () => {
     expect(
       parseSubmission({
         questionnaireDefinitionId: definitionId,
+        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 3 }],
       }),
     ).toEqual({
       questionnaireDefinitionId: definitionId,
+      privacyPolicyVersion: 'privacy-capstone-v1',
+      privacyDisclosureAcknowledged: true,
       answers: [{ questionId, value: 3 }],
     })
 
     expect(
       parseSubmission({
         questionnaireDefinitionId: definitionId,
+        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 3 }],
         totalScore: 3,
         screeningLevel: 'MINIMAL',
@@ -74,6 +80,7 @@ describe('Care runtime validation', () => {
         questionnaireDefinitionId: definitionId,
         instrument: 'PHQ9',
         questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v1',
         submittedAt: '2026-09-01T00:00:00Z',
         voidedAt: null,
         expiresAt: '2026-09-01T00:30:00Z',

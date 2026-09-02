@@ -6,6 +6,12 @@ import type {
   Assessment,
   AssessmentSubmissionRequest,
   Questionnaire,
+  PrivacyDisclosure,
+  ConsentCollection,
+  ConsentDecision,
+  CareProfile,
+  CareProfileUpdate,
+  AssessmentHistoryPage,
 } from './care-contract'
 
 export type AssessmentMode = 'anonymous' | 'authenticated'
@@ -16,6 +22,56 @@ export async function getCurrentPhq9() {
     '/care/questionnaires/phq9',
   )
   return response.data
+}
+
+export async function getPrivacyDisclosure() {
+  return (
+    await browserApiClient.get<PrivacyDisclosure>('/care/privacy-disclosure')
+  ).data
+}
+
+export async function getCareProfile() {
+  return (await browserApiClient.get<CareProfile>('/care/profile')).data
+}
+
+export async function saveCareProfile(
+  update: CareProfileUpdate,
+  version?: number,
+) {
+  return (
+    await browserApiClient.put<CareProfile>('/care/profile', update, {
+      headers: version === undefined ? {} : { 'If-Match': `"${version}"` },
+    })
+  ).data
+}
+
+export async function getCurrentConsents() {
+  return (await browserApiClient.get<ConsentCollection>('/care/consents')).data
+}
+
+export async function recordPrivacyDecision(granted: boolean, version: string) {
+  return (
+    await browserApiClient.post<ConsentDecision>(
+      '/care/consent-decisions',
+      {
+        consentType: 'PRIVACY_POLICY',
+        policyVersion: version,
+        granted,
+      },
+      { headers: { 'Idempotency-Key': crypto.randomUUID() } },
+    )
+  ).data
+}
+
+export async function getAssessmentHistory(cursor?: string) {
+  return (
+    await browserApiClient.get<AssessmentHistoryPage>(
+      '/care/assessments/history',
+      {
+        params: { limit: 10, ...(cursor ? { cursor } : {}) },
+      },
+    )
+  ).data
 }
 
 export async function startAnonymousAssessmentSession() {
@@ -46,11 +102,16 @@ export async function submitAssessment(
   return response.data
 }
 
-export async function reopenAssessment(mode: AssessmentMode) {
+export async function reopenAssessment(
+  mode: AssessmentMode,
+  assessmentId?: string,
+) {
   const endpoint =
-    mode === 'anonymous'
-      ? '/care/anonymous-assessments/current'
-      : '/care/assessments/current'
+    mode === 'authenticated' && assessmentId
+      ? `/care/assessments/by-id/${encodeURIComponent(assessmentId)}`
+      : mode === 'anonymous'
+        ? '/care/anonymous-assessments/current'
+        : '/care/assessments/current'
   const response = await browserApiClient.get<AssessmentView>(endpoint)
   return response.data
 }
@@ -79,6 +140,12 @@ export function assessmentErrorMessage(error: unknown) {
     }
     if (error.code === 'FORBIDDEN') {
       return 'Tài khoản hiện tại không có quyền thực hiện bài đánh giá này.'
+    }
+    if (error.code === 'PROFILE_NOT_FOUND') {
+      return 'Bạn cần tạo hồ sơ Care trước khi thực hiện bài sàng lọc có lưu lịch sử.'
+    }
+    if (error.code === 'PRIVACY_DISCLOSURE_REQUIRED') {
+      return 'Bạn cần đọc và xác nhận thông báo xử lý dữ liệu hiện hành trước khi gửi bài.'
     }
     if (error.status === 409) {
       return 'Lần gửi này xung đột với một yêu cầu trước đó. Vui lòng bắt đầu lại bài đánh giá.'

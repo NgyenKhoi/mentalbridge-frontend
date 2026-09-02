@@ -48,6 +48,8 @@ const refreshSessions = new Map()
 const anonymousCareSessions = new Map()
 const anonymousAssessments = new Map()
 const authenticatedAssessments = new Map()
+const careProfiles = new Map()
+const careConsents = new Map()
 const careAccessToken = 'synthetic-care-e2e-access'
 const careActor = actors.get('care-e2e@example.com')
 accessSessions.set(careAccessToken, careActor)
@@ -66,6 +68,17 @@ function reset() {
   accessSessions.clear()
   refreshSessions.clear()
   accessSessions.set(careAccessToken, careActor)
+  careProfiles.set(careActor.accountId, {
+    accountId: careActor.accountId,
+    displayName: 'Care E2E User',
+    dateOfBirth: '2000-01-01',
+    gender: null,
+    locale: 'vi-VN',
+    timezone: 'Asia/Ho_Chi_Minh',
+    reminderEnabled: false,
+    ...timestamps,
+    version: 0,
+  })
   Object.keys(state).forEach((key) => {
     state[key] = 0
   })
@@ -188,6 +201,7 @@ function careAssessment(assessmentId, body, expiresAt) {
     questionnaireDefinitionId: careDefinitionId,
     instrument: 'PHQ9',
     questionnaireVersion: careQuestionnaire.version,
+    privacyPolicyVersion: 'privacy-capstone-v1',
     submittedAt: '2026-09-01T00:00:00Z',
     voidedAt: null,
     result: {
@@ -229,6 +243,55 @@ const server = createServer(async (request, response) => {
         ).length,
         activeRefreshSessionCount: refreshSessions.size,
       })
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/privacy-disclosures/current'
+    ) {
+      json(response, 200, {
+        consentType: 'PRIVACY_POLICY',
+        version: 'privacy-capstone-v1',
+        locale: 'vi-VN',
+        title: 'Thông báo xử lý dữ liệu cho bản Capstone',
+        content:
+          'MentalBridge lưu hồ sơ Care, câu trả lời PHQ-9 và kết quả do backend tính cho controlled test/demo. Đây không phải chẩn đoán và không cho phép AI, nghiên cứu, marketing hoặc chia sẻ specialist.',
+        capstoneOnly: true,
+      })
+      return
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/v1/consents') {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      const decision = careConsents.get(actor.accountId)
+      json(response, 200, { decisions: decision ? [decision] : [] })
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/consent-decisions'
+    ) {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      const body = await readBody(request)
+      const decision = {
+        decisionId: crypto.randomUUID(),
+        consentType: 'PRIVACY_POLICY',
+        policyVersion: 'privacy-capstone-v1',
+        granted: body.granted === true,
+        decidedAt: new Date().toISOString(),
+      }
+      careConsents.set(actor.accountId, decision)
+      json(response, 201, decision)
       return
     }
 
@@ -278,6 +341,8 @@ const server = createServer(async (request, response) => {
       const body = await readBody(request)
       if (
         body.questionnaireDefinitionId !== careDefinitionId ||
+        body.privacyPolicyVersion !== 'privacy-capstone-v1' ||
+        body.privacyDisclosureAcknowledged !== true ||
         Object.hasOwn(body, 'totalScore')
       ) {
         problem(response, 400, 'VALIDATION_FAILED', 'Invalid submission')
@@ -323,6 +388,19 @@ const server = createServer(async (request, response) => {
         return
       }
       const body = await readBody(request)
+      if (
+        body.privacyPolicyVersion !== 'privacy-capstone-v1' ||
+        body.privacyDisclosureAcknowledged !== true ||
+        careConsents.get(actor.accountId)?.granted !== true
+      ) {
+        problem(
+          response,
+          409,
+          'PRIVACY_DISCLOSURE_REQUIRED',
+          'Privacy disclosure required',
+        )
+        return
+      }
       const assessmentId = crypto.randomUUID()
       const assessment = careAssessment(assessmentId, body)
       authenticatedAssessments.set(
@@ -331,6 +409,51 @@ const server = createServer(async (request, response) => {
       )
       state.authenticatedAssessmentCount += 1
       json(response, 201, assessment)
+      return
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/v1/assessments') {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || actor.expired || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      const items = [...authenticatedAssessments.entries()]
+        .filter(([key]) => key.startsWith(`${actor.accountId}:`))
+        .map(([, assessment]) => assessment)
+      json(response, 200, { items, nextCursor: null, hasMore: false })
+      return
+    }
+
+    if (
+      url.pathname === '/api/v1/profile' &&
+      (request.method === 'GET' || request.method === 'PUT')
+    ) {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      if (request.method === 'GET') {
+        const profile = careProfiles.get(actor.accountId)
+        if (!profile) {
+          problem(response, 404, 'PROFILE_NOT_FOUND', 'Profile not found')
+          return
+        }
+        json(response, 200, profile)
+        return
+      }
+      const body = await readBody(request)
+      const existing = careProfiles.get(actor.accountId)
+      const profile = {
+        accountId: actor.accountId,
+        ...body,
+        createdAt: existing?.createdAt ?? new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        version: (existing?.version ?? -1) + 1,
+      }
+      careProfiles.set(actor.accountId, profile)
+      json(response, existing ? 200 : 201, profile)
       return
     }
 
@@ -450,4 +573,5 @@ const server = createServer(async (request, response) => {
   }
 })
 
+reset()
 server.listen(port, host)

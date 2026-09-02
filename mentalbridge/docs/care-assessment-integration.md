@@ -1,11 +1,13 @@
-# MB-177 Care-backed PHQ-9 integration
+# MB-177/MB-178 Care-backed screening, profile, and history integration
 
 ## Delivered flow
 
 The public `/assessment/anonymous` page and authenticated
 `/assessment/phq9` page use the same contract-driven assessment component.
-Both retrieve the current published PHQ-9 questionnaire from Care and submit
-only its `questionnaireDefinitionId` plus exact `questionId`/`value` answers.
+Both retrieve the current published PHQ-9 questionnaire and the backend-owned
+`privacy-capstone-v1` disclosure from Care. A submission contains the exact
+disclosure version/acknowledgement plus its `questionnaireDefinitionId` and
+exact `questionId`/`value` answers.
 Care remains authoritative for total score, screening level, item-9 safety
 status, scoring version, and safety-policy version.
 
@@ -26,6 +28,8 @@ unavailable rather than invented.
   rendered HTML, URL, local storage, or session storage.
 - The most recent assessment identifier is an `HttpOnly` navigation hint. Care
   still enforces ownership using the JWT or anonymous bearer credential.
+- Authenticated profile, consent, owned history, and exact-result reads use the
+  same session-resolving BFF boundary. React never supplies an account ID.
 - Idempotency keys are generated per browser attempt and forwarded by the BFF.
   Repeated submission with a conflicting body remains a Care-owned `409`.
 
@@ -48,12 +52,32 @@ message and does not infer urgency, promise monitoring, notify a third party,
 or display a hotline. It also states explicitly that MentalBridge does not
 provide emergency response or continuous human monitoring.
 
+## MB-178 profile, consent, history, and reassessment
+
+- `/profile` reads and replaces the JWT owner's Care profile using the returned
+  optimistic version. A stale update fails explicitly and is never presented as
+  saved.
+- The privacy section renders title, content, and version received from Care.
+  It exposes only `PRIVACY_POLICY`; grant and revoke append new decisions.
+- Revoking the current policy blocks new authenticated assessment processing
+  but does not claim to delete historical data. The separate deletion workflow
+  is visibly unavailable.
+- `/assessments` renders cursor-paginated, owner-scoped summaries from Care.
+  It has no mock history and does not expose raw answers.
+- “Xem lại” opens the exact immutable owned assessment. “Làm bài mới” creates a
+  new submission and never overwrites the earlier result.
+- Anonymous sessions use Care's 30-minute sliding inactivity deadline with a
+  two-hour absolute maximum. Their result is never attached to registration.
+- Registered history is controlled-Capstone/test/demo behavior only; the UI
+  makes no production retention or deletion-SLA claim.
+
 ## Verification
 
 - contract snapshot generation and drift check for Care and Identity;
 - runtime parsers reject malformed questionnaires/results;
 - BFF tests reject client-owned score/band fields and protect anonymous
   credentials;
-- component tests cover Care-owned results and the unavailable-content state;
+- component tests cover Care-owned results, profile/consent, history/reopen
+  links, and unavailable-content states;
 - Playwright covers completion and result reopening for anonymous and
   authenticated USER flows, including cookie/client-storage checks.

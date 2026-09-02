@@ -1,7 +1,23 @@
+'use client'
+
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+
+import type {
+  AssessmentSummary,
+  ScreeningLevel,
+} from '@/features/assessment/api/care-contract'
+import { getAssessmentHistory } from '@/features/assessment/api/browser-care'
 
 import './assessments.css'
 
+const levelLabels: Record<ScreeningLevel, string> = {
+  MINIMAL: 'Tối thiểu',
+  MILD: 'Nhẹ',
+  MODERATE: 'Trung bình',
+  MODERATELY_SEVERE: 'Khá nặng',
+  SEVERE: 'Nặng',
+}
 const assessments = [
   {
     id: 'phq9',
@@ -17,7 +33,7 @@ const assessments = [
     id: 'gad7',
     name: 'GAD-7',
     fullName: 'Generalized Anxiety Disorder-7',
-    description: 'Contract và nội dung đã duyệt hiện chưa khả dụng.',
+    description: 'Runtime và nội dung đã duyệt hiện chưa khả dụng.',
     duration: 'Chưa khả dụng',
     questions: 7,
     available: false,
@@ -50,6 +66,29 @@ function AssessmentIcon() {
 }
 
 export default function AssessmentsPage() {
+  const [items, setItems] = useState<AssessmentSummary[]>([])
+  const [cursor, setCursor] = useState<string | undefined>()
+  const [hasMore, setHasMore] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const load = async (next?: string) => {
+    setLoading(true)
+    setError(false)
+    try {
+      const page = await getAssessmentHistory(next)
+      setItems((current) => (next ? [...current, ...page.items] : page.items))
+      setCursor(page.nextCursor ?? undefined)
+      setHasMore(page.hasMore)
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0)
+    return () => window.clearTimeout(timer)
+  }, [])
   return (
     <div className="assessment-page">
       <header className="assessment-page-header">
@@ -57,12 +96,11 @@ export default function AssessmentsPage() {
           <span className="assessment-kicker">Theo dõi sức khỏe tinh thần</span>
           <h1>Bài đánh giá</h1>
           <p>
-            Câu hỏi và kết quả được lấy trực tiếp qua Care service. Trình duyệt
-            không tự tính điểm hoặc suy diễn mức độ.
+            Câu hỏi, lịch sử và kết quả được lấy trực tiếp qua Care service.
+            Trình duyệt không tự tính điểm hoặc suy diễn mức độ.
           </p>
         </div>
       </header>
-
       <section aria-labelledby="available-assessments">
         <h2 id="available-assessments" className="sr-only">
           Bài đánh giá khả dụng
@@ -101,7 +139,6 @@ export default function AssessmentsPage() {
           ))}
         </div>
       </section>
-
       <section
         className="assessment-history"
         aria-labelledby="assessment-history-title"
@@ -111,18 +148,78 @@ export default function AssessmentsPage() {
             <span>Lịch sử</span>
             <h2 id="assessment-history-title">Các lần đánh giá gần đây</h2>
           </div>
-          <p>Điểm số giúp theo dõi xu hướng, không phải chẩn đoán.</p>
+          <p>Chỉ hiển thị các assessment thuộc tài khoản hiện tại.</p>
         </div>
-        <div className="assessment-history-unavailable">
-          <strong>Lịch sử đánh giá hiện chưa khả dụng</strong>
-          <p>
-            Care contract hiện chỉ hỗ trợ mở lại kết quả gần nhất trong phiên,
-            chưa cung cấp danh sách lịch sử. MentalBridge không hiển thị dữ liệu
-            mẫu thay thế.
+        {error ? (
+          <div className="assessment-history-unavailable" role="alert">
+            <strong>Không thể tải lịch sử</strong>
+            <p>
+              Care chưa xác nhận dữ liệu. Không có bản ghi mẫu được hiển thị
+              thay thế.
+            </p>
+            <button className="assessment-start" onClick={() => void load()}>
+              Thử lại
+            </button>
+          </div>
+        ) : items.length === 0 && !loading ? (
+          <div className="assessment-history-unavailable">
+            <strong>Chưa có lịch sử đánh giá</strong>
+            <p>
+              Mỗi lần làm lại sẽ tạo một assessment mới, không ghi đè kết quả
+              cũ.
+            </p>
+          </div>
+        ) : (
+          <div className="assessment-table-wrap">
+            <table className="assessment-table">
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th>Bộ câu hỏi</th>
+                  <th>Kết quả sàng lọc</th>
+                  <th>Điểm</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.assessmentId}>
+                    <td>
+                      {new Date(item.submittedAt).toLocaleString('vi-VN')}
+                    </td>
+                    <td>
+                      {item.instrument} · {item.questionnaireVersion}
+                    </td>
+                    <td>{levelLabels[item.result.screeningLevel]}</td>
+                    <td>{item.result.totalScore}/27</td>
+                    <td>
+                      <Link
+                        className="assessment-row-action"
+                        href={`/assessment/phq9?assessmentId=${encodeURIComponent(item.assessmentId)}`}
+                      >
+                        Xem lại
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {loading && (
+          <p className="assessment-history-loading" aria-live="polite">
+            Đang tải lịch sử từ Care…
           </p>
-        </div>
+        )}
+        {hasMore && !loading && (
+          <button
+            className="assessment-progress-trigger"
+            onClick={() => void load(cursor)}
+          >
+            Tải thêm
+          </button>
+        )}
       </section>
-
       <aside className="assessment-note">
         <span>i</span>
         <div>

@@ -145,6 +145,40 @@
   font-size: 12px;
   text-align: center;
 }
+.care-disclosure {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+.care-disclosure > strong {
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces);
+  font-size: 18px;
+}
+.care-disclosure > p {
+  margin: 8px 0 16px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+.care-disclosure > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.care-disclosure input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--teal-deep);
+}
 .care-submit-error {
   margin-top: 18px;
   padding: 14px 16px;

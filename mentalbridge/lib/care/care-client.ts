@@ -8,6 +8,13 @@ import type {
   Assessment,
   AssessmentSubmissionRequest,
   Questionnaire,
+  CareProfile,
+  CareProfileUpdate,
+  ConsentCollection,
+  ConsentDecision,
+  ConsentDecisionRequest,
+  PrivacyDisclosure,
+  AssessmentHistoryPage,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
 
@@ -16,15 +23,20 @@ import {
   parseAnonymousSession,
   parseAssessment,
   parseQuestionnaire,
+  parseProfile,
+  parsePrivacyDisclosure,
+  parseConsentCollection,
+  parseAssessmentHistory,
 } from './care-validation'
 
 type RequestOptions<T> = Readonly<{
-  method: 'GET' | 'POST'
+  method: 'GET' | 'POST' | 'PUT'
   path: string
   correlationId: string
   authorization?: string
   anonymousSessionToken?: string
   idempotencyKey?: string
+  ifMatch?: number
   body?: unknown
   parseSuccess: (value: unknown) => T | null
 }>
@@ -98,6 +110,9 @@ async function careRequest<T>(options: RequestOptions<T>): Promise<T> {
         ...(options.idempotencyKey === undefined
           ? {}
           : { 'Idempotency-Key': options.idempotencyKey }),
+        ...(options.ifMatch === undefined
+          ? {}
+          : { 'If-Match': `"${options.ifMatch}"` }),
       },
       ...(options.body === undefined
         ? {}
@@ -143,6 +158,91 @@ async function careRequest<T>(options: RequestOptions<T>): Promise<T> {
 }
 
 export const careClient = {
+  currentPrivacyDisclosure(correlationId: string): Promise<PrivacyDisclosure> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/privacy-disclosures/current?locale=vi-VN',
+      correlationId,
+      parseSuccess: parsePrivacyDisclosure,
+    })
+  },
+
+  getProfile(accessToken: string, correlationId: string): Promise<CareProfile> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/profile',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseProfile,
+    })
+  },
+
+  putProfile(
+    accessToken: string,
+    request: CareProfileUpdate,
+    version: number | undefined,
+    correlationId: string,
+  ): Promise<CareProfile> {
+    return careRequest({
+      method: 'PUT',
+      path: '/api/v1/profile',
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      body: request,
+      parseSuccess: parseProfile,
+    })
+  },
+
+  getConsents(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<ConsentCollection> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/consents',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseConsentCollection,
+    })
+  },
+
+  recordConsent(
+    accessToken: string,
+    request: ConsentDecisionRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<ConsentDecision> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v1/consent-decisions',
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: (value) => {
+        const parsed = parseConsentCollection({ decisions: [value] })
+        return parsed?.decisions[0] ?? null
+      },
+    })
+  },
+
+  history(
+    accessToken: string,
+    cursor: string | undefined,
+    limit: number,
+    correlationId: string,
+  ): Promise<AssessmentHistoryPage> {
+    const query = new URLSearchParams({ limit: String(limit) })
+    if (cursor) query.set('cursor', cursor)
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/assessments?${query}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAssessmentHistory,
+    })
+  },
   currentPhq9(correlationId: string): Promise<Questionnaire> {
     const { questionnaireLocale } = readCareServerConfig()
     return careRequest({
