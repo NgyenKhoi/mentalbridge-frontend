@@ -8,6 +8,12 @@ import type {
   Questionnaire,
   SafetyStatus,
   ScreeningLevel,
+  CareProfile,
+  CareProfileUpdate,
+  ConsentCollection,
+  ConsentDecisionRequest,
+  PrivacyDisclosure,
+  AssessmentHistoryPage,
 } from '@/features/assessment/api/care-contract'
 
 const UUID_PATTERN =
@@ -34,6 +40,113 @@ export function isUuid(value: unknown): value is string {
 
 function isDateTime(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(Date.parse(value))
+}
+
+function isOptionalString(value: unknown): value is string | null | undefined {
+  return value === undefined || value === null || typeof value === 'string'
+}
+
+export function parseProfile(value: unknown): CareProfile | null {
+  if (
+    !isRecord(value) ||
+    !isUuid(value.accountId) ||
+    typeof value.displayName !== 'string' ||
+    !isOptionalString(value.dateOfBirth) ||
+    !isOptionalString(value.gender) ||
+    typeof value.locale !== 'string' ||
+    typeof value.timezone !== 'string' ||
+    typeof value.reminderEnabled !== 'boolean' ||
+    !isDateTime(value.createdAt) ||
+    !isDateTime(value.updatedAt) ||
+    !Number.isInteger(value.version) ||
+    Number(value.version) < 0
+  )
+    return null
+  return value as CareProfile
+}
+
+export function parseProfileUpdate(value: unknown): CareProfileUpdate | null {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some(
+      (key) =>
+        ![
+          'displayName',
+          'dateOfBirth',
+          'gender',
+          'locale',
+          'timezone',
+          'reminderEnabled',
+        ].includes(key),
+    ) ||
+    typeof value.displayName !== 'string' ||
+    value.displayName.trim().length < 1 ||
+    value.displayName.length > 120 ||
+    !isOptionalString(value.dateOfBirth) ||
+    !isOptionalString(value.gender) ||
+    typeof value.locale !== 'string' ||
+    typeof value.timezone !== 'string' ||
+    typeof value.reminderEnabled !== 'boolean'
+  )
+    return null
+  return value as CareProfileUpdate
+}
+
+export function parsePrivacyDisclosure(
+  value: unknown,
+): PrivacyDisclosure | null {
+  if (
+    !isRecord(value) ||
+    value.consentType !== 'PRIVACY_POLICY' ||
+    value.version !== 'privacy-capstone-v1' ||
+    value.locale !== 'vi-VN' ||
+    typeof value.title !== 'string' ||
+    typeof value.content !== 'string' ||
+    value.capstoneOnly !== true
+  )
+    return null
+  return value as PrivacyDisclosure
+}
+
+function parseConsentDecision(value: unknown) {
+  if (
+    !isRecord(value) ||
+    !isUuid(value.decisionId) ||
+    value.consentType !== 'PRIVACY_POLICY' ||
+    typeof value.policyVersion !== 'string' ||
+    typeof value.granted !== 'boolean' ||
+    !isDateTime(value.decidedAt)
+  )
+    return null
+  return value
+}
+
+export function parseConsentCollection(
+  value: unknown,
+): ConsentCollection | null {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.decisions) ||
+    value.decisions.some((item) => !parseConsentDecision(item))
+  )
+    return null
+  return value as ConsentCollection
+}
+
+export function parseConsentRequest(
+  value: unknown,
+): ConsentDecisionRequest | null {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some(
+      (key) => !['consentType', 'policyVersion', 'granted'].includes(key),
+    ) ||
+    value.consentType !== 'PRIVACY_POLICY' ||
+    value.policyVersion !== 'privacy-capstone-v1' ||
+    typeof value.granted !== 'boolean'
+  )
+    return null
+  return value as ConsentDecisionRequest
 }
 
 function isInstrument(value: unknown): value is Instrument {
@@ -169,6 +282,7 @@ function parseAssessmentBase(value: unknown) {
     !isUuid(value.questionnaireDefinitionId) ||
     !isInstrument(value.instrument) ||
     typeof value.questionnaireVersion !== 'string' ||
+    typeof value.privacyPolicyVersion !== 'string' ||
     !isDateTime(value.submittedAt) ||
     (value.voidedAt !== undefined &&
       value.voidedAt !== null &&
@@ -183,6 +297,7 @@ function parseAssessmentBase(value: unknown) {
     questionnaireDefinitionId: value.questionnaireDefinitionId,
     instrument: value.instrument,
     questionnaireVersion: value.questionnaireVersion,
+    privacyPolicyVersion: value.privacyPolicyVersion,
     submittedAt: value.submittedAt,
     ...(value.voidedAt === undefined ? {} : { voidedAt: value.voidedAt }),
     result,
@@ -204,10 +319,24 @@ export function parseAnonymousAssessment(
 export function parseSubmission(
   value: unknown,
 ): AssessmentSubmissionRequest | null {
-  if (!isRecord(value) || !isUuid(value.questionnaireDefinitionId)) return null
+  if (
+    !isRecord(value) ||
+    !isUuid(value.questionnaireDefinitionId) ||
+    value.privacyPolicyVersion !== 'privacy-capstone-v1' ||
+    value.privacyDisclosureAcknowledged !== true
+  )
+    return null
   const keys = Object.keys(value)
   if (
-    keys.some((key) => !['questionnaireDefinitionId', 'answers'].includes(key))
+    keys.some(
+      (key) =>
+        ![
+          'questionnaireDefinitionId',
+          'privacyPolicyVersion',
+          'privacyDisclosureAcknowledged',
+          'answers',
+        ].includes(key),
+    )
   ) {
     return null
   }
@@ -244,7 +373,30 @@ export function parseSubmission(
 
   return {
     questionnaireDefinitionId: value.questionnaireDefinitionId,
+    privacyPolicyVersion: 'privacy-capstone-v1',
+    privacyDisclosureAcknowledged: true,
     answers: answers as AssessmentSubmissionRequest['answers'],
+  }
+}
+
+export function parseAssessmentHistory(
+  value: unknown,
+): AssessmentHistoryPage | null {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.items) ||
+    typeof value.hasMore !== 'boolean' ||
+    (value.nextCursor !== undefined &&
+      value.nextCursor !== null &&
+      typeof value.nextCursor !== 'string')
+  )
+    return null
+  const items = value.items.map(parseAssessment)
+  if (items.some((item) => item === null)) return null
+  return {
+    items: items as AssessmentHistoryPage['items'],
+    nextCursor: value.nextCursor as string | null | undefined,
+    hasMore: value.hasMore,
   }
 }
 

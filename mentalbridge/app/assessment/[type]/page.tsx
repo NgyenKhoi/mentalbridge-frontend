@@ -8,8 +8,10 @@ import '../anonymous/assessment.css'
 
 export default async function AssessmentPage({
   params,
+  searchParams,
 }: PageProps<'/assessment/[type]'>) {
   const { type } = await params
+  const { assessmentId } = await searchParams
   if (type !== 'phq9') notFound()
   await requireCurrentAccount(['USER'])
 
@@ -19,7 +21,12 @@ export default async function AssessmentPage({
       <Link href="/assessments" className="assessment-flow-back">
         ← Tất cả bài đánh giá
       </Link>
-      <AssessmentFlow mode="authenticated" />
+      <AssessmentFlow
+        mode="authenticated"
+        initialAssessmentId={
+          typeof assessmentId === 'string' ? assessmentId : undefined
+        }
+      />
     </main>
   )
 }

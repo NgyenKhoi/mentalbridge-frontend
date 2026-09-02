@@ -19,6 +19,7 @@ async function answerPublishedQuestionnaire(page: Page) {
       await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
     }
   }
+  await page.getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i }).check()
   await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
   await expect(
     page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
@@ -84,9 +85,27 @@ test.describe('Care-backed PHQ-9 screening', () => {
       },
     ])
 
+    await page.goto('/profile')
+    await expect(
+      page.getByRole('heading', { name: 'Hồ sơ Care' }),
+    ).toBeVisible()
+    await expect(page.getByLabel('Tên hiển thị')).toHaveValue('Care E2E User')
+    await expect(
+      page.getByText(/phiên bản backend: privacy-capstone-v1/i),
+    ).toBeVisible()
+
     await page.goto('/assessment/phq9')
     await answerPublishedQuestionnaire(page)
     await page.reload()
+    await expect(
+      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Làm bài mới' }).click()
+    await answerPublishedQuestionnaire(page)
+    await page.goto('/assessments')
+    await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(2)
+    await page.getByRole('link', { name: 'Xem lại' }).first().click()
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
     ).toBeVisible()

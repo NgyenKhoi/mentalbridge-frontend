@@ -27,6 +27,14 @@ const questionnaire = {
   ],
   questions: [{ questionId, itemNumber: 1, prompt: 'Câu hỏi từ Care' }],
 }
+const disclosure = {
+  consentType: 'PRIVACY_POLICY',
+  version: 'privacy-capstone-v1',
+  locale: 'vi-VN',
+  title: 'Thông báo xử lý dữ liệu',
+  content: 'Nội dung do Care cung cấp.',
+  capstoneOnly: true,
+}
 
 function problem(status: number, code: string) {
   return HttpResponse.json(
@@ -51,6 +59,9 @@ describe('AssessmentFlow', () => {
       http.get('http://localhost/api/care/questionnaires/phq9', () =>
         HttpResponse.json(questionnaire),
       ),
+      http.get('http://localhost/api/care/privacy-disclosure', () =>
+        HttpResponse.json(disclosure),
+      ),
       http.post('http://localhost/api/care/anonymous-session', () =>
         HttpResponse.json(
           { expiresAt: '2099-01-01T00:30:00Z' },
@@ -70,6 +81,7 @@ describe('AssessmentFlow', () => {
               questionnaireDefinitionId: definitionId,
               instrument: 'PHQ9',
               questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+              privacyPolicyVersion: 'privacy-capstone-v1',
               submittedAt: '2026-09-01T00:00:00Z',
               voidedAt: null,
               expiresAt: '2099-01-01T00:30:00Z',
@@ -93,6 +105,9 @@ describe('AssessmentFlow', () => {
 
     await userEvent.click(screen.getByRole('radio', { name: 'Vài ngày' }))
     await userEvent.click(
+      screen.getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i }),
+    )
+    await userEvent.click(
       screen.getByRole('button', { name: 'Gửi cho Care chấm điểm' }),
     )
 
@@ -104,6 +119,8 @@ describe('AssessmentFlow', () => {
     expect(received).toHaveBeenCalledWith({
       body: {
         questionnaireDefinitionId: definitionId,
+        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 1 }],
       },
       idempotencyKey: expect.stringMatching(/^[\x20-\x7E]{16,128}$/),
@@ -120,6 +137,9 @@ describe('AssessmentFlow', () => {
       ),
       http.get('http://localhost/api/care/questionnaires/phq9', () =>
         problem(404, 'QUESTIONNAIRE_NOT_FOUND'),
+      ),
+      http.get('http://localhost/api/care/privacy-disclosure', () =>
+        HttpResponse.json(disclosure),
       ),
     )
 

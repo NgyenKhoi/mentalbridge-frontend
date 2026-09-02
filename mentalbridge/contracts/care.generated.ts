@@ -70,6 +70,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/privacy-disclosures/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the backend-owned disclosure required for Care assessment processing
+         * @description Returns the exact controlled-Capstone Vietnamese text and version. Clients
+         *     render this response and must not keep an independent disclosure copy.
+         */
+        get: operations["getCurrentPrivacyDisclosure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/questionnaires/{instrument}/current": {
         parameters: {
             query?: never;
@@ -97,7 +118,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List non-voided assessment summaries owned by the authenticated caller
+         * @description Results are ordered by submittedAt descending and assessmentId descending.
+         *     The opaque cursor identifies the last item of the previous page. Raw answers
+         *     and other users' data are never returned.
+         */
+        get: operations["listOwnAssessments"];
         put?: never;
         /**
          * Submit and score a complete authenticated PHQ-9 assessment
@@ -226,11 +253,14 @@ export interface components {
             version: number;
         };
         /** @enum {string} */
-        ConsentType: "PRIVACY_POLICY" | "AI_PROCESSING" | "RESEARCH_DATA" | "MARKETING_NOTIFICATION";
+        ConsentType: "PRIVACY_POLICY";
         ConsentDecisionRequest: {
             consentType: components["schemas"]["ConsentType"];
-            /** @description Exact approved text or policy version shown to the user */
-            policyVersion: string;
+            /**
+             * @description Exact approved text or policy version shown to the user
+             * @constant
+             */
+            policyVersion: "privacy-capstone-v1";
             granted: boolean;
         };
         ConsentDecision: {
@@ -244,6 +274,18 @@ export interface components {
         };
         ConsentCollection: {
             decisions: components["schemas"]["ConsentDecision"][];
+        };
+        PrivacyDisclosure: {
+            /** @constant */
+            consentType: "PRIVACY_POLICY";
+            /** @constant */
+            version: "privacy-capstone-v1";
+            /** @constant */
+            locale: "vi-VN";
+            title: string;
+            content: string;
+            /** @constant */
+            capstoneOnly: true;
         };
         /** @enum {string} */
         Instrument: "PHQ9" | "GAD7";
@@ -271,6 +313,10 @@ export interface components {
         AssessmentSubmissionRequest: {
             /** Format: uuid */
             questionnaireDefinitionId: string;
+            /** @constant */
+            privacyPolicyVersion: "privacy-capstone-v1";
+            /** @constant */
+            privacyDisclosureAcknowledged: true;
             /** @description Exactly one answer for every question in the referenced definition; order is not authoritative */
             answers: components["schemas"]["AssessmentAnswer"][];
         };
@@ -286,6 +332,7 @@ export interface components {
             questionnaireDefinitionId: string;
             instrument: components["schemas"]["Instrument"];
             questionnaireVersion: string;
+            privacyPolicyVersion: string;
             /** Format: date-time */
             submittedAt: string;
             /** Format: date-time */
@@ -299,6 +346,7 @@ export interface components {
             questionnaireDefinitionId: string;
             instrument: components["schemas"]["Instrument"];
             questionnaireVersion: string;
+            privacyPolicyVersion: string;
             /** Format: date-time */
             submittedAt: string;
             /** Format: date-time */
@@ -306,6 +354,23 @@ export interface components {
             result: components["schemas"]["AssessmentResult"];
             /** Format: date-time */
             expiresAt: string;
+        };
+        AssessmentSummary: {
+            /** Format: uuid */
+            assessmentId: string;
+            /** Format: uuid */
+            questionnaireDefinitionId: string;
+            instrument: components["schemas"]["Instrument"];
+            questionnaireVersion: string;
+            privacyPolicyVersion: string;
+            /** Format: date-time */
+            submittedAt: string;
+            result: components["schemas"]["AssessmentResult"];
+        };
+        AssessmentHistoryPage: {
+            items: components["schemas"]["AssessmentSummary"][];
+            nextCursor?: string | null;
+            hasMore: boolean;
         };
         AssessmentResult: {
             /** @description Server-computed sum of the validated answer values */
@@ -490,6 +555,9 @@ export interface components {
         IdempotencyKey: string;
         /** @example "3" */
         OptionalIfMatch: string;
+        /** @description Opaque cursor returned as nextCursor by the preceding page */
+        AssessmentCursor: string;
+        PageLimit: number;
     };
     requestBodies: never;
     headers: never;
@@ -642,6 +710,32 @@ export interface operations {
             409: components["responses"]["IdempotencyConflictProblem"];
         };
     };
+    getCurrentPrivacyDisclosure: {
+        parameters: {
+            query?: {
+                locale?: components["parameters"]["Locale"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current disclosure returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivacyDisclosure"];
+                };
+            };
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
     getCurrentQuestionnaire: {
         parameters: {
             query?: {
@@ -669,6 +763,36 @@ export interface operations {
             };
             404: components["responses"]["NotFoundProblem"];
             429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    listOwnAssessments: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned as nextCursor by the preceding page */
+                cursor?: components["parameters"]["AssessmentCursor"];
+                limit?: components["parameters"]["PageLimit"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned assessment summaries returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentHistoryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     submitAuthenticatedAssessment: {

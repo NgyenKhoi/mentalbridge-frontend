@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type {
   AssessmentResult,
+  PrivacyDisclosure,
   Questionnaire,
   ScreeningLevel,
 } from '@/features/assessment/api/care-contract'
@@ -13,6 +14,9 @@ import {
   clearAnonymousAssessmentSession,
   createAssessmentIdempotencyKey,
   getCurrentPhq9,
+  getPrivacyDisclosure,
+  getCurrentConsents,
+  recordPrivacyDecision,
   isMissingCurrentAssessment,
   reopenAssessment,
   startAnonymousAssessmentSession,
@@ -141,7 +145,13 @@ function ResultPanel({
   )
 }
 
-export default function AssessmentFlow({ mode }: { mode: AssessmentMode }) {
+export default function AssessmentFlow({
+  mode,
+  initialAssessmentId,
+}: {
+  mode: AssessmentMode
+  initialAssessmentId?: string
+}) {
   const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null)
   const [assessment, setAssessment] = useState<AssessmentView | null>(null)
   const [answers, setAnswers] = useState<Record<string, number>>({})
@@ -149,30 +159,53 @@ export default function AssessmentFlow({ mode }: { mode: AssessmentMode }) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [disclosure, setDisclosure] = useState<PrivacyDisclosure | null>(null)
+  const [disclosureAcknowledged, setDisclosureAcknowledged] = useState(false)
+  const [privacyGranted, setPrivacyGranted] = useState(false)
   const idempotencyKey = useRef(createAssessmentIdempotencyKey())
 
-  const initialize = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const initialize = useCallback(
+    async (reopenExisting = true) => {
+      setLoading(true)
+      setError(null)
 
-    try {
       try {
-        const current = await reopenAssessment(mode)
-        setAssessment(current)
-        return
-      } catch (currentError) {
-        if (!isMissingCurrentAssessment(currentError)) throw currentError
-      }
+        if (reopenExisting) {
+          try {
+            const current = await reopenAssessment(mode, initialAssessmentId)
+            setAssessment(current)
+            return
+          } catch (currentError) {
+            if (!isMissingCurrentAssessment(currentError)) throw currentError
+          }
+        }
 
-      const currentQuestionnaire = await getCurrentPhq9()
-      if (mode === 'anonymous') await startAnonymousAssessmentSession()
-      setQuestionnaire(currentQuestionnaire)
-    } catch (initializationError) {
-      setError(assessmentErrorMessage(initializationError))
-    } finally {
-      setLoading(false)
-    }
-  }, [mode])
+        const [currentQuestionnaire, currentDisclosure, currentConsents] =
+          await Promise.all([
+            getCurrentPhq9(),
+            getPrivacyDisclosure(),
+            mode === 'authenticated'
+              ? getCurrentConsents()
+              : Promise.resolve(null),
+          ])
+        if (mode === 'anonymous') await startAnonymousAssessmentSession()
+        setQuestionnaire(currentQuestionnaire)
+        setDisclosure(currentDisclosure)
+        setPrivacyGranted(
+          currentConsents?.decisions.some(
+            (decision) =>
+              decision.policyVersion === currentDisclosure.version &&
+              decision.granted,
+          ) ?? false,
+        )
+      } catch (initializationError) {
+        setError(assessmentErrorMessage(initializationError))
+      } finally {
+        setLoading(false)
+      }
+    },
+    [initialAssessmentId, mode],
+  )
 
   useEffect(() => {
     const timer = window.setTimeout(() => void initialize(), 0)
@@ -200,19 +233,34 @@ export default function AssessmentFlow({ mode }: { mode: AssessmentMode }) {
     setQuestionnaire(null)
     setAnswers({})
     setStep(0)
-    await initialize()
+    setDisclosureAcknowledged(false)
+    if (initialAssessmentId)
+      window.history.replaceState(null, '', '/assessment/phq9')
+    await initialize(false)
   }
 
   const submit = async () => {
-    if (!questionnaire || answeredCount !== questions.length) return
+    if (
+      !questionnaire ||
+      !disclosure ||
+      !disclosureAcknowledged ||
+      answeredCount !== questions.length
+    )
+      return
     setSubmitting(true)
     setError(null)
 
     try {
+      if (mode === 'authenticated' && !privacyGranted) {
+        await recordPrivacyDecision(true, disclosure.version)
+        setPrivacyGranted(true)
+      }
       const completed = await submitAssessment(
         mode,
         {
           questionnaireDefinitionId: questionnaire.definitionId,
+          privacyPolicyVersion: disclosure.version,
+          privacyDisclosureAcknowledged: true,
           answers: questions.map((question) => ({
             questionId: question.questionId,
             value: answers[question.questionId],
@@ -332,6 +380,26 @@ export default function AssessmentFlow({ mode }: { mode: AssessmentMode }) {
         </div>
       </fieldset>
 
+      {isLast && disclosure && (
+        <aside className="care-disclosure">
+          <strong>{disclosure.title}</strong>
+          <p>{disclosure.content}</p>
+          <label>
+            <input
+              type="checkbox"
+              checked={disclosureAcknowledged}
+              onChange={(event) =>
+                setDisclosureAcknowledged(event.target.checked)
+              }
+            />
+            <span>
+              Tôi đã đọc và xác nhận thông báo xử lý dữ liệu phiên bản{' '}
+              {disclosure.version}.
+            </span>
+          </label>
+        </aside>
+      )}
+
       {error && (
         <p className="care-submit-error" role="alert">
           {error}
@@ -351,7 +419,11 @@ export default function AssessmentFlow({ mode }: { mode: AssessmentMode }) {
           <button
             className="btn btn-primary"
             type="button"
-            disabled={answeredCount !== questions.length || submitting}
+            disabled={
+              answeredCount !== questions.length ||
+              !disclosureAcknowledged ||
+              submitting
+            }
             onClick={() => void submit()}
           >
             {submitting ? 'Đang gửi…' : 'Gửi cho Care chấm điểm'}
