@@ -1,5 +1,4 @@
 import AssessmentFlow from '@/features/assessment/components/AssessmentFlow'
-
 import './assessment.css'
 
 export default function AnonymousAssessment() {
