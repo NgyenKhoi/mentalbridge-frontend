@@ -233,25 +233,11 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Change account state with optimistic concurrency */
+        /**
+         * Change a non-admin account state with optimistic concurrency
+         * @description The dedicated ADMIN account is provisioned and managed operationally and cannot be targeted.
+         */
         put: operations["changeAccountState"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/accounts/{accountId}/roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Replace account roles with optimistic concurrency */
-        put: operations["replaceAccountRoles"];
         post?: never;
         delete?: never;
         options?: never;
@@ -325,6 +311,7 @@ export interface components {
             /** Format: uuid */
             accountId: string;
             status: components["schemas"]["AccountStatus"];
+            /** @description Exactly one immutable actor role; the array shape is retained for v1 token and response compatibility */
             roles: components["schemas"]["RoleCode"][];
             emailVerified: boolean;
         };
@@ -334,6 +321,7 @@ export interface components {
             /** Format: email */
             email: string;
             status: components["schemas"]["AccountStatus"];
+            /** @description Exactly one immutable actor role; the array shape is retained for v1 token and response compatibility */
             roles: components["schemas"]["RoleCode"][];
             emailVerified: boolean;
             /** Format: date-time */
@@ -350,10 +338,6 @@ export interface components {
         };
         AccountStateChangeRequest: {
             status: components["schemas"]["AccountStatus"];
-            reasonCode: string;
-        };
-        RoleReplacementRequest: {
-            roles: components["schemas"]["RoleCode"][];
             reasonCode: string;
         };
         Problem: {
@@ -923,43 +907,6 @@ export interface operations {
         };
         responses: {
             /** @description State changed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AccountDetail"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            404: components["responses"]["NotFoundProblem"];
-            409: components["responses"]["ConflictProblem"];
-            412: components["responses"]["VersionProblem"];
-        };
-    };
-    replaceAccountRoles: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @example "3" */
-                "If-Match": components["parameters"]["IfMatch"];
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path: {
-                accountId: components["parameters"]["AccountId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RoleReplacementRequest"];
-            };
-        };
-        responses: {
-            /** @description Roles replaced */
             200: {
                 headers: {
                     [name: string]: unknown;

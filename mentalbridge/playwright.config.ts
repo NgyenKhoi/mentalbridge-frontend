@@ -48,6 +48,8 @@ export default defineConfig({
           env: {
             ...inheritedEnvironment,
             IDENTITY_API_BASE_URL: identityFixtureURL,
+            CARE_API_BASE_URL: identityFixtureURL,
+            CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
           },
           reuseExistingServer: false,
           timeout: 120_000,

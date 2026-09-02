@@ -21,7 +21,7 @@ function tokenPair(refreshToken = 'r'.repeat(43)) {
     tokenType: 'Bearer',
     expiresIn: 900,
     refreshToken,
-    refreshExpiresAt: '2026-09-01T00:00:00Z',
+    refreshExpiresAt: '2099-09-01T00:00:00Z',
   }
 }
 

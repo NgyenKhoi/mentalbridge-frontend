@@ -5,7 +5,6 @@ import Barriers from '@/components/Barriers'
 import Journey from '@/components/Journey'
 import Features from '@/components/Features'
 import RiskLevels from '@/components/RiskLevels'
-import Hotline from '@/components/Hotline'
 import Cta from '@/components/Cta'
 import Footer from '@/components/Footer'
 import ScrollReveal from '../components/ScrollReveal'
@@ -15,7 +14,9 @@ export default function Home() {
   return (
     <>
       <Preloader />
-      <a className="skip-link" href="#top">Bỏ qua đến nội dung chính</a>
+      <a className="skip-link" href="#top">
+        Bỏ qua đến nội dung chính
+      </a>
       <Header />
       <main id="top" className="marketing-page">
         <Hero />
@@ -24,7 +25,6 @@ export default function Home() {
         <Journey />
         <Features />
         <RiskLevels />
-        <Hotline />
         <Cta />
       </main>
       <Footer />

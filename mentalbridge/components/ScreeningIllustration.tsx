@@ -2,14 +2,14 @@ type ScreeningIllustrationProps = {
   className?: string
 }
 
-/** A small, dependency-free infographic for the PHQ-9 / GAD-7 service preview. */
+/** A small, dependency-free infographic for the Care-backed PHQ-9 preview. */
 export default function ScreeningIllustration({ className = '' }: ScreeningIllustrationProps) {
   return (
     <svg
       className={className}
       viewBox="0 0 620 820"
       role="img"
-      aria-label="Minh họa quy trình sàng lọc PHQ-9 và GAD-7"
+      aria-label="Minh họa quy trình sàng lọc PHQ-9 do Care chấm điểm"
       preserveAspectRatio="xMidYMid slice"
     >
       <defs>
@@ -25,7 +25,7 @@ export default function ScreeningIllustration({ className = '' }: ScreeningIllus
       <path d="M0 182C125 140 210 200 310 158s200-22 310 28v182H0Z" fill="#deeee6" opacity=".75" />
 
       <text x="310" y="52" textAnchor="middle" fill="#1e4a43" fontFamily="Georgia, serif" fontSize="24" fontWeight="700">
-        Sàng lọc PHQ-9 / GAD-7
+        Sàng lọc PHQ-9
       </text>
       <text x="310" y="78" textAnchor="middle" fill="#55746c" fontFamily="Arial, sans-serif" fontSize="11" letterSpacing="2">
         HIỂU TÍN HIỆU TRƯỚC KHI CHỌN BƯỚC TIẾP THEO
@@ -35,8 +35,8 @@ export default function ScreeningIllustration({ className = '' }: ScreeningIllus
         <rect x="34" y="118" width="222" height="244" rx="14" fill="url(#screening-paper)" stroke="#9bbcaf" strokeWidth="2" />
         <rect x="34" y="118" width="222" height="38" rx="14" fill="#3d7a6e" />
         <rect x="34" y="143" width="222" height="13" fill="#3d7a6e" />
-        <text x="145" y="143" textAnchor="middle" fill="#f8fcf8" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700">PHQ-9 · TRẦM CẢM</text>
-        <text x="52" y="178" fill="#526b63" fontFamily="Arial, sans-serif" fontSize="10">Trong 2 tuần qua, bạn thường...</text>
+        <text x="145" y="143" textAnchor="middle" fill="#f8fcf8" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700">PHQ-9 · VI-VN</text>
+        <text x="52" y="178" fill="#526b63" fontFamily="Arial, sans-serif" fontSize="10">Phiên bản đã công bố từ Care</text>
         {[0, 1, 2, 3, 4, 5].map((row) => (
           <g key={`phq-row-${row}`} transform={`translate(52 ${198 + row * 23})`}>
             <rect width="12" height="12" rx="3" fill="none" stroke="#7fa797" strokeWidth="1.5" />
@@ -50,10 +50,10 @@ export default function ScreeningIllustration({ className = '' }: ScreeningIllus
         <rect x="214" y="118" width="222" height="244" rx="14" fill="#fbfdfb" stroke="#a6c4b6" strokeWidth="2" />
         <rect x="214" y="118" width="222" height="38" rx="14" fill="#4f8b7e" />
         <rect x="214" y="143" width="222" height="13" fill="#4f8b7e" />
-        <text x="325" y="143" textAnchor="middle" fill="#f8fcf8" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700">GAD-7 · LO ÂU</text>
-        <text x="232" y="178" fill="#526b63" fontFamily="Arial, sans-serif" fontSize="10">Trong 2 tuần qua, bạn thường...</text>
+        <text x="325" y="143" textAnchor="middle" fill="#f8fcf8" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700">CARE SERVICE</text>
+        <text x="232" y="178" fill="#526b63" fontFamily="Arial, sans-serif" fontSize="10">Chấm điểm phía máy chủ</text>
         {[0, 1, 2, 3, 4, 5].map((row) => (
-          <g key={`gad-row-${row}`} transform={`translate(232 ${198 + row * 23})`}>
+          <g key={`care-row-${row}`} transform={`translate(232 ${198 + row * 23})`}>
             <rect width="12" height="12" rx="3" fill="none" stroke="#7fa797" strokeWidth="1.5" />
             <path d="M20 6h142" stroke="#a6c4b6" strokeWidth="2" strokeLinecap="round" />
             <path d="M174 6h27" stroke="#d2e2d9" strokeWidth="2" strokeLinecap="round" />
@@ -89,17 +89,17 @@ export default function ScreeningIllustration({ className = '' }: ScreeningIllus
       <g transform="translate(72 720)">
         <circle cx="20" cy="20" r="20" fill="#3d7a6e" />
         <path d="M11 20h18M20 11v18" stroke="#f8fcf8" strokeWidth="3" strokeLinecap="round" />
-        <text x="52" y="25" fill="#1e4a43" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700">Tự chăm sóc</text>
+        <text x="52" y="25" fill="#1e4a43" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700">Sàng lọc</text>
       </g>
       <g transform="translate(264 720)">
         <circle cx="20" cy="20" r="20" fill="#9a8cae" />
         <path d="M13 20c0-8 14-8 14 0 0 7-5 11-7 11s-7-4-7-11Z" fill="#f8fcf8" />
-        <text x="52" y="25" fill="#1e4a43" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700">Trị liệu</text>
+        <text x="52" y="25" fill="#1e4a43" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700">Không chẩn đoán</text>
       </g>
       <g transform="translate(438 720)">
         <circle cx="20" cy="20" r="20" fill="#c99842" />
         <path d="M20 10v20M10 20h20" stroke="#fffaf0" strokeWidth="4" strokeLinecap="round" />
-        <text x="52" y="25" fill="#1e4a43" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700">Hỗ trợ</text>
+        <text x="52" y="25" fill="#1e4a43" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="700">Có phiên bản</text>
       </g>
     </svg>
   )
