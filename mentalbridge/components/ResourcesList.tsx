@@ -176,7 +176,6 @@ export default function ResourcesList({
     const labels: Record<Resource['category'], string> = {
       ARTICLE: 'Bài viết',
       VIDEO: 'Video',
-      HOTLINE: 'Đường dây nóng',
       GUIDE: 'Hướng dẫn',
       SUPPORT_GROUP: 'Nhóm hỗ trợ',
     };
@@ -220,7 +219,7 @@ export default function ResourcesList({
         {resources.map((resource, index) => (
           <motion.a
             key={resource.id}
-            href={resource.contentUrl}
+            href={resource.externalUrl}
             target="_blank"
             rel="noopener noreferrer"
             initial={{ opacity: 0, y: 20 }}
@@ -282,7 +281,7 @@ export default function ResourcesList({
               {resource.title}
             </h4>
 
-            {resource.description && (
+            {resource.summary && (
               <p style={{
                 fontSize: '0.9rem',
                 opacity: 0.7,
@@ -292,17 +291,7 @@ export default function ResourcesList({
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden'
               }}>
-                {resource.description}
-              </p>
-            )}
-
-            {resource.author && (
-              <p style={{
-                fontSize: '0.85rem',
-                opacity: 0.5,
-                marginTop: '0.75rem'
-              }}>
-                {resource.author}
+                {resource.summary}
               </p>
             )}
           </motion.a>

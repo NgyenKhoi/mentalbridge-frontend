@@ -4,11 +4,11 @@ import { NextRequest, NextResponse } from 'next/server';
 export interface Resource {
   id: string;
   title: string;
-  description: string | null;
-  category: 'ARTICLE' | 'VIDEO' | 'HOTLINE' | 'GUIDE' | 'SUPPORT_GROUP';
-  contentUrl: string;
+  summary: string | null;
+  category: 'ARTICLE' | 'VIDEO' | 'GUIDE' | 'SUPPORT_GROUP';
+  externalUrl: string;
   thumbnailUrl: string | null;
-  author: string | null;
+  locale: string;
   status: 'PUBLISHED';
   reviewedBy: string;
   reviewedAt: string;
@@ -17,6 +17,16 @@ export interface Resource {
   createdAt: string;
 }
 
+// Backend actual response
+interface BackendResourcesResponse {
+  data: Resource[];
+  count: number;
+  nextCursor?: string;
+  fallback?: boolean;
+  message?: string;
+}
+
+// Frontend normalized response
 export interface ResourcesResponse {
   items: Resource[];
   hasMore: boolean;
@@ -30,7 +40,7 @@ interface ErrorResponse {
   detail?: string;
 }
 
-const CONTENT_SERVICE_BASE_URL = process.env.CONTENT_SERVICE_URL || 'http://localhost:8082';
+const CONTENT_SERVICE_BASE_URL = process.env.CONTENT_SERVICE_URL || 'http://localhost:3003';
 const REQUEST_TIMEOUT_MS = 5000;
 
 /**
@@ -83,10 +93,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const data: ResourcesResponse = await response.json();
+    const backendData: BackendResourcesResponse = await response.json();
     
-    // Validate response structure
-    if (!Array.isArray(data.items) || typeof data.hasMore !== 'boolean') {
+    // Validate backend response structure
+    if (!Array.isArray(backendData.data) || typeof backendData.count !== 'number') {
       return NextResponse.json(
         {
           type: 'about:blank',
@@ -98,7 +108,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data);
+    // Filter out non-PUBLISHED resources (backend should do this, but double-check)
+    const publishedResources = backendData.data.filter(
+      resource => resource.status === 'PUBLISHED'
+    );
+
+    // Normalize to frontend contract
+    const normalizedResponse: ResourcesResponse = {
+      items: publishedResources,
+      hasMore: !!backendData.nextCursor,
+      nextCursor: backendData.nextCursor,
+    };
+
+    return NextResponse.json(normalizedResponse);
 
   } catch (error) {
     // Handle timeout
@@ -114,15 +136,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Handle network errors → neutral fallback
+    // Handle network errors → return error to allow frontend to show unavailable state
     console.error('[BFF] Resource fetch failed:', error);
     
     return NextResponse.json(
       {
-        items: [],
-        hasMore: false,
-      } as ResourcesResponse,
-      { status: 200 }
+        type: 'about:blank',
+        title: 'Network Error',
+        status: 503,
+        detail: 'Could not connect to Content service',
+      } as ErrorResponse,
+      { status: 503 }
     );
   }
 }
