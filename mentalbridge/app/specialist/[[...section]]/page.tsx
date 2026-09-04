@@ -4,7 +4,9 @@ import { requireCurrentAccount } from '@/lib/auth/dal'
 
 export default async function SpecialistWorkspace({
   params,
-}: PageProps<'/specialist/[[...section]]'>) {
+}: {
+  params: Promise<{ section?: string[] }>
+}) {
   const account = await requireCurrentAccount(['SPECIALIST'])
   const { section } = await params
   return (

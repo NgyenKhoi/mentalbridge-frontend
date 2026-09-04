@@ -4,9 +4,9 @@ import EmailVerification from '@/features/auth/components/EmailVerification'
 
 import '../login/auth.css'
 
-export default async function VerifyEmailPage(
-  props: PageProps<'/verify-email'>,
-) {
+export default async function VerifyEmailPage(props: {
+  searchParams: Promise<{ challenge?: string }>
+}) {
   const { challenge } = await props.searchParams
   const verificationChallenge = typeof challenge === 'string' ? challenge : null
 

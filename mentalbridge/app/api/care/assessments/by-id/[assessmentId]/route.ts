@@ -16,7 +16,7 @@ import { isUuid } from '@/lib/care/care-validation'
 
 export async function GET(
   request: NextRequest,
-  { params }: RouteContext<'/api/care/assessments/by-id/[assessmentId]'>,
+  { params }: { params: Promise<{ assessmentId: string }> },
 ) {
   const correlationId = correlationIdFrom(request)
   const { assessmentId } = await params

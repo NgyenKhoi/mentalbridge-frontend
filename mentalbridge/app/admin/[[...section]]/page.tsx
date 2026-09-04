@@ -8,7 +8,9 @@ import { requireCurrentAccount } from '@/lib/auth/dal'
 
 export default async function AdminWorkspace({
   params,
-}: PageProps<'/admin/[[...section]]'>) {
+}: {
+  params: Promise<{ section?: string[] }>
+}) {
   const account = await requireCurrentAccount(['ADMIN'])
   const { section } = await params
   const sectionKey = section?.[0] || 'dashboard'

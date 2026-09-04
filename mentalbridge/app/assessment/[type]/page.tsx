@@ -9,7 +9,10 @@ import '../anonymous/assessment.css'
 export default async function AssessmentPage({
   params,
   searchParams,
-}: PageProps<'/assessment/[type]'>) {
+}: {
+  params: Promise<{ type: string }>
+  searchParams: Promise<{ assessmentId?: string }>
+}) {
   const { type } = await params
   const { assessmentId } = await searchParams
   if (type !== 'phq9') notFound()
