@@ -151,4 +151,3 @@ describe('GET /api/resources', () => {
     expect(upstreamUrl.searchParams.get('limit')).toBe('5')
   })
 })
-
