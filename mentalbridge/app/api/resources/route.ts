@@ -1,36 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { components } from '@/contracts/care.generated'
 
-// Type definitions matching backend contract
-export interface Resource {
-  id: string
-  title: string
-  summary: string | null
-  category: 'ARTICLE' | 'VIDEO' | 'GUIDE' | 'SUPPORT_GROUP'
-  externalUrl: string
-  thumbnailUrl: string | null
-  locale: string
-  status: 'PUBLISHED'
-  reviewedBy: string
-  reviewedAt: string
-  effectiveAt: string | null
-  expiresAt: string | null
-  createdAt: string
-}
+// Use generated types from OpenAPI contract
+type ResourceSummary = components['schemas']['ResourceSummary']
+type ResourceCategory = components['schemas']['ResourceCategory']
 
 // Backend actual response
 interface BackendResourcesResponse {
-  data: Resource[]
+  data: ResourceSummary[]
   count: number
   nextCursor?: string
-  fallback?: boolean
+  fallback?: 'unavailable'
   message?: string
 }
 
 // Frontend normalized response
 export interface ResourcesResponse {
-  items: Resource[]
+  items: ResourceSummary[]
   hasMore: boolean
   nextCursor?: string
+  unavailable?: boolean
+  message?: string
 }
 
 interface ErrorResponse {
@@ -57,8 +47,13 @@ export async function GET(request: NextRequest) {
   const limit = searchParams.get('limit')
   const cursor = searchParams.get('cursor')
 
+  // Get locale from Accept-Language header or default to vi-VN
+  const acceptLanguage = request.headers.get('accept-language')
+  const locale = acceptLanguage?.split(',')[0]?.split('-')[0] === 'en' ? 'en-US' : 'vi-VN'
+
   // Build upstream URL
   const upstreamUrl = new URL(`${CONTENT_SERVICE_BASE_URL}/api/v1/resources`)
+  upstreamUrl.searchParams.set('locale', locale)
   if (category) upstreamUrl.searchParams.set('category', category)
   if (limit) upstreamUrl.searchParams.set('limit', limit)
   if (cursor) upstreamUrl.searchParams.set('cursor', cursor)
@@ -98,6 +93,17 @@ export async function GET(request: NextRequest) {
 
     const backendData: BackendResourcesResponse = await response.json()
 
+    // Check if backend returned unavailable state
+    if (backendData.fallback === 'unavailable') {
+      const normalizedResponse: ResourcesResponse = {
+        items: [],
+        hasMore: false,
+        unavailable: true,
+        message: backendData.message,
+      }
+      return NextResponse.json(normalizedResponse)
+    }
+
     // Validate backend response structure
     if (
       !Array.isArray(backendData.data) ||
@@ -114,14 +120,37 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Filter out non-PUBLISHED resources (backend should do this, but double-check)
-    const publishedResources = backendData.data.filter(
-      (resource) => resource.status === 'PUBLISHED',
-    )
+    // Validate each resource row at runtime before accepting
+    function isValidResourceSummary(resource: any): resource is ResourceSummary {
+      return (
+        typeof resource === 'object' &&
+        resource !== null &&
+        typeof resource.id === 'string' &&
+        typeof resource.title === 'string' &&
+        typeof resource.summary === 'string' &&
+        ['BREATHING', 'MEDITATION', 'ARTICLE', 'VIDEO', 'JOURNALING', 'COMMUNITY'].includes(resource.category) &&
+        typeof resource.locale === 'string' &&
+        (resource.externalUrl === null || typeof resource.externalUrl === 'string') &&
+        resource.status === 'PUBLISHED' &&
+        (resource.reviewedBy === null || typeof resource.reviewedBy === 'string') &&
+        (resource.reviewedAt === null || typeof resource.reviewedAt === 'string') &&
+        typeof resource.createdAt === 'string' &&
+        typeof resource.updatedAt === 'string'
+      )
+    }
+
+    // Filter and validate each resource row
+    const validResources = backendData.data.filter((resource): resource is ResourceSummary => {
+      const isValid = isValidResourceSummary(resource)
+      if (!isValid) {
+        console.warn('[BFF] Invalid resource row:', resource)
+      }
+      return isValid && resource.status === 'PUBLISHED'
+    })
 
     // Normalize to frontend contract
     const normalizedResponse: ResourcesResponse = {
-      items: publishedResources,
+      items: validResources,
       hasMore: !!backendData.nextCursor,
       nextCursor: backendData.nextCursor,
     }

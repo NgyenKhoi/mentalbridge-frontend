@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import type { Resource, ResourcesResponse } from '@/app/api/resources/route'
+import type { ResourcesResponse } from '@/app/api/resources/route'
+import type { components } from '@/contracts/care.generated'
+
+type ResourceSummary = components['schemas']['ResourceSummary']
 
 interface ResourcesListProps {
   category?: string
@@ -18,7 +21,7 @@ export default function ResourcesList({
   limit = 6,
   className = '',
 }: ResourcesListProps) {
-  const [resources, setResources] = useState<Resource[]>([])
+  const [resources, setResources] = useState<ResourceSummary[]>([])
   const [loadingState, setLoadingState] = useState<LoadingState>('loading')
   const [errorMessage, setErrorMessage] = useState<string>('')
 
@@ -55,6 +58,13 @@ export default function ResourcesList({
         }
 
         const data: ResourcesResponse = await response.json()
+
+        // Check if backend returned unavailable state
+        if (data.unavailable) {
+          setLoadingState('unavailable')
+          setErrorMessage(data.message || 'Tài nguyên tạm thời không khả dụng')
+          return
+        }
 
         if (data.items.length === 0) {
           setLoadingState('empty')
@@ -185,12 +195,14 @@ export default function ResourcesList({
   }
 
   // Success state
-  const getCategoryLabel = (cat: Resource['category']) => {
-    const labels: Record<Resource['category'], string> = {
+  const getCategoryLabel = (cat: ResourceSummary['category']) => {
+    const labels: Record<ResourceSummary['category'], string> = {
       ARTICLE: 'Bài viết',
       VIDEO: 'Video',
-      GUIDE: 'Hướng dẫn',
-      SUPPORT_GROUP: 'Nhóm hỗ trợ',
+      BREATHING: 'Hơi thở',
+      MEDITATION: 'Thiền',
+      JOURNALING: 'Nhật ký',
+      COMMUNITY: 'Cộng đồng',
     }
     return labels[cat] || cat
   }
@@ -241,7 +253,7 @@ export default function ResourcesList({
         {resources.map((resource, index) => (
           <motion.a
             key={resource.id}
-            href={resource.externalUrl}
+            href={resource.externalUrl || '#'}
             target="_blank"
             rel="noopener noreferrer"
             initial={{ opacity: 0, y: 20 }}
