@@ -1429,10 +1429,9 @@
 }
 .role-shell .scm-emotion-log > div > button {
   display: grid;
-  grid-template-columns: 66px 35px minmax(110px, 0.8fr) 48px minmax(
-      130px,
-      1fr
-    ) auto;
+  grid-template-columns:
+    66px 35px minmax(110px, 0.8fr) 48px minmax(130px, 1fr)
+    auto;
   align-items: center;
   gap: 10px;
   min-height: 54px;
@@ -2068,10 +2067,9 @@
   font-size: 11px !important;
 }
 .role-shell .role-content .scm-emotion-log > div > button {
-  grid-template-columns: 78px 42px minmax(125px, 0.8fr) 58px minmax(
-      145px,
-      1fr
-    ) auto;
+  grid-template-columns:
+    78px 42px minmax(125px, 0.8fr) 58px minmax(145px, 1fr)
+    auto;
   min-height: 70px;
   padding: 11px 20px !important;
   border-color: #d4dfd7 !important;
