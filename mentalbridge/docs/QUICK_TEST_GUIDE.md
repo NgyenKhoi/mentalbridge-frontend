@@ -9,12 +9,14 @@
 ## 🔄 Nếu không thấy thay đổi
 
 ### Bước 1: Hard Refresh
+
 ```
 Windows: Ctrl + Shift + R
 hoặc: Ctrl + F5
 ```
 
 ### Bước 2: Clear Cache
+
 ```
 1. Mở DevTools (F12)
 2. Right-click nút Refresh
@@ -22,6 +24,7 @@ hoặc: Ctrl + F5
 ```
 
 ### Bước 3: Restart Server
+
 ```bash
 # Stop server: Ctrl + C trong terminal
 # Hoặc chạy lệnh:
@@ -35,11 +38,13 @@ npm run dev
 ### 1. Hero Orbit Topics ⭐⭐⭐
 
 #### Trước:
+
 - Click topic → Content đổi đột ngột
 - Không có animation đặc biệt
 - Hover đơn giản
 
 #### Sau:
+
 - ✨ Multi-stage animation khi click:
   1. Content fade out với stagger
   2. Halo xoay và phóng to
@@ -67,14 +72,17 @@ npm run dev
 ### 3. Cards 📇
 
 #### Feature Cards:
+
 - ✨ 3D rotation entrance (rotationX: -5deg)
 - ✨ Hover: lift + rotate icon + glow underneath
 
 #### Barrier Cards:
+
 - ✨ Slide from left với 3D perspective
 - ✨ Hover: lift + scale + shadow
 
 #### Risk Cards:
+
 - ✨ Colored shadows theo risk level
 - ✨ Border glow khi hover
 
@@ -96,9 +104,10 @@ npm run dev
 ## 🧪 Test Steps
 
 ### Test 1: Hero Orbit Topics
+
 ```
 1. Mở http://localhost:3000
-2. Click vào "Lo âu" 
+2. Click vào "Lo âu"
 3. Quan sát animation sequence (~ 1 giây)
 4. Click các topics khác
 5. Hover qua từng topic
@@ -106,12 +115,14 @@ npm run dev
 ```
 
 **Mong đợi:**
+
 - Smooth transition giữa topics
 - Glow effect khi chọn
 - Content fade out → fade in
 - Halo xoay nhẹ
 
 ### Test 2: Scroll Animations
+
 ```
 1. Scroll chậm xuống trang
 2. Quan sát cards fade in
@@ -122,11 +133,13 @@ npm run dev
 ```
 
 **Mong đợi:**
+
 - Cards xuất hiện từng cái với stagger
 - Journey line fill theo scroll
 - Smooth reveals
 
 ### Test 3: Hover Effects
+
 ```
 1. Hover qua feature cards
    → Icon rotate + glow underneath
@@ -139,6 +152,7 @@ npm run dev
 ```
 
 **Mong đợi:**
+
 - Mọi hover mượt mà
 - Icons rotate đẹp
 - Shadows xuất hiện
@@ -178,6 +192,7 @@ typeof Lenis
 ## 📊 Performance Check
 
 ### Mở DevTools Performance:
+
 ```
 1. F12 → Performance tab
 2. Click Record (●)
@@ -191,17 +206,17 @@ typeof Lenis
 
 ## 🎨 Visual Checklist
 
-| Element | Animation | Working? |
-|---------|-----------|----------|
-| Orbit Topics Click | Multi-stage | ☐ |
-| Orbit Topics Hover | Scale + glow | ☐ |
-| Halo | Breathing | ☐ |
-| Feature Cards | 3D entrance | ☐ |
-| Feature Icons | Rotate | ☐ |
-| Barrier Cards | Slide left | ☐ |
-| Risk Cards | Colored shadows | ☐ |
-| Journey Line | Scroll fill | ☐ |
-| Buttons | Bounce + shimmer | ☐ |
+| Element            | Animation        | Working? |
+| ------------------ | ---------------- | -------- |
+| Orbit Topics Click | Multi-stage      | ☐        |
+| Orbit Topics Hover | Scale + glow     | ☐        |
+| Halo               | Breathing        | ☐        |
+| Feature Cards      | 3D entrance      | ☐        |
+| Feature Icons      | Rotate           | ☐        |
+| Barrier Cards      | Slide left       | ☐        |
+| Risk Cards         | Colored shadows  | ☐        |
+| Journey Line       | Scroll fill      | ☐        |
+| Buttons            | Bounce + shimmer | ☐        |
 
 ---
 
@@ -210,6 +225,7 @@ typeof Lenis
 ### Issue: "Không thấy gì thay đổi cả"
 
 **Solution 1: Clear Everything**
+
 ```bash
 # Stop server (Ctrl+C)
 cd mentalbridge
@@ -218,6 +234,7 @@ npm run dev
 ```
 
 **Solution 2: Check File Changes**
+
 ```bash
 # Verify files were modified
 git status
@@ -228,11 +245,13 @@ git diff app/globals.css
 ### Issue: "Animations giật lag"
 
 **Causes:**
+
 - Too many tabs open
 - CPU heavy processes
 - Old browser version
 
 **Solutions:**
+
 - Close other tabs
 - Update browser
 - Check CPU usage
@@ -240,6 +259,7 @@ git diff app/globals.css
 ### Issue: "Console có lỗi GSAP"
 
 **Fix:**
+
 ```bash
 # Reinstall GSAP
 npm install gsap@^3.15.0
@@ -251,13 +271,15 @@ npm install lenis@^1.3.26
 ## 📸 Screenshots to Compare
 
 ### Before:
+
 - Topics đổi đột ngột
 - Không có hover effects
 - Cards xuất hiện cứng
 
 ### After:
+
 - Smooth transitions
-- Beautiful hover effects  
+- Beautiful hover effects
 - Elegant reveals
 
 ---
@@ -287,12 +309,14 @@ npm install lenis@^1.3.26
 ## 🎯 Expected Results
 
 ### Timeline:
+
 - Topic click → 1 second total animation
 - Card reveal → 0.8 seconds
 - Button hover → 0.35 seconds
 - Smooth 60 FPS
 
 ### Visual Quality:
+
 - No jank or stutter
 - Smooth easing curves
 - Beautiful glow effects
@@ -303,11 +327,13 @@ npm install lenis@^1.3.26
 ## 📞 Need Help?
 
 ### Check these files:
+
 1. `components/Hero.tsx` - Orbit animation logic
 2. `components/ScrollReveal.tsx` - Scroll animations
 3. `app/globals.css` - Animation styles
 
 ### Verify GSAP working:
+
 ```javascript
 // In browser console:
 console.log(typeof gsap) // Should be "object"

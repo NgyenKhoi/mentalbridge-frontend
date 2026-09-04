@@ -17,15 +17,17 @@ Frontend implementation cho MB-180 backend resources provider. Hiển thị revi
 - Forwards Problem Details từ upstream
 
 **Environment:**
+
 ```env
 CONTENT_SERVICE_URL=http://localhost:8082
 ```
 
 **Response Handling:**
+
 - ✅ 200 OK: Returns `{ items: Resource[], hasMore: boolean, nextCursor?: string }`
 - ⚠️ 400/4xx: Forwards Problem Details
 - ⚠️ 502: Malformed response → Problem Details
-- ⚠️ 504: Timeout → Problem Details  
+- ⚠️ 504: Timeout → Problem Details
 - ✅ 5xx/Network error: Neutral fallback `{ items: [], hasMore: false }`
 
 ### 2. ResourcesList Component
@@ -35,6 +37,7 @@ CONTENT_SERVICE_URL=http://localhost:8082
 Client-side React component với loading states:
 
 **States:**
+
 - `loading`: Skeleton placeholders
 - `success`: Grid hiển thị resources với animation
 - `empty`: Neutral empty state
@@ -43,6 +46,7 @@ Client-side React component với loading states:
 - `unavailable`: Service unavailable message
 
 **Features:**
+
 - Category filtering
 - Limit control
 - External links (target="_blank")
@@ -56,17 +60,14 @@ Client-side React component với loading states:
 Integrated `ResourcesList` component vào anonymous assessment result page:
 
 ```tsx
-<ResourcesList 
-  category="ARTICLE"
-  limit={6}
-  className="assessment-resources"
-/>
+<ResourcesList category="ARTICLE" limit={6} className="assessment-resources" />
 ```
 
 Hiển thị sau risk card và hotline, trước restart button.
 
 **Authenticated Journey:**
 Authenticated result pages (trong dashboard) có thể integrate tương tự:
+
 ```tsx
 <ResourcesList category="ARTICLE" limit={6} />
 ```
@@ -85,6 +86,7 @@ Authenticated result pages (trong dashboard) có thể integrate tương tự:
 6. Passes category/limit filters to upstream
 
 **Run tests:**
+
 ```bash
 npm test
 ```
@@ -94,12 +96,14 @@ npm test
 **Start development servers:**
 
 Backend (Content service):
+
 ```bash
 cd mentalbridge-backend/content-notification-service
 ./mvnw spring-boot:run
 ```
 
 Frontend:
+
 ```bash
 cd mentalbridge-frontend/mentalbridge
 npm run dev
@@ -126,12 +130,12 @@ npm run dev
 
 ## Quality Gate
 
-| Check | Command | Status |
-|-------|---------|--------|
-| TypeScript | `npm run build` | ✅ Pass |
-| Lint | `npm run lint` | ✅ Pass |
-| Unit tests | `npm test` | ✅ 6/6 pass |
-| Build | `npm run build` | ✅ Success |
+| Check      | Command         | Status      |
+| ---------- | --------------- | ----------- |
+| TypeScript | `npm run build` | ✅ Pass     |
+| Lint       | `npm run lint`  | ✅ Pass     |
+| Unit tests | `npm test`      | ✅ 6/6 pass |
+| Build      | `npm run build` | ✅ Success  |
 
 ## Accessibility
 

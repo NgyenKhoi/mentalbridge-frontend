@@ -7,6 +7,7 @@ Modal chi tiết hiển thị kết quả đầy đủ của một assessment đ
 ## ✨ Tính năng
 
 ### 🎨 Design Features
+
 - ✅ **Header đẹp mắt** - Gradient background với badge icon
 - ✅ **Score card nổi bật** - Large score với gradient background
 - ✅ **Comparison** - So sánh với lần đánh giá trước
@@ -16,6 +17,7 @@ Modal chi tiết hiển thị kết quả đầy đủ của một assessment đ
 - ✅ **Responsive design** - Mobile friendly
 
 ### 🎬 Animations
+
 - ✅ **Entrance animation** - Scale + fade với back.out easing
 - ✅ **Section stagger** - Sections xuất hiện lần lượt
 - ✅ **Hover effects** - Recommendations và questions
@@ -25,6 +27,7 @@ Modal chi tiết hiển thị kết quả đầy đủ của một assessment đ
 ### 🎯 Components
 
 #### 1. **AssessmentResultModal.tsx**
+
 ```tsx
 interface Props {
   isOpen: boolean
@@ -36,21 +39,23 @@ interface AssessmentResult {
   id: number
   date: string
   day: string
-  assessment: string        // PHQ-9, GAD-7, PSQI
-  assessmentFull: string    // Full name
+  assessment: string // PHQ-9, GAD-7, PSQI
+  assessmentFull: string // Full name
   score: number
   maxScore: number
-  level: string             // Nhẹ, Tối thiểu, Trung bình
+  level: string // Nhẹ, Tối thiểu, Trung bình
   tone: 'positive' | 'neutral' | 'warning'
   description: string
   recommendations: string[]
   questions: Question[]
-  previousScore?: number    // For comparison
+  previousScore?: number // For comparison
 }
 ```
 
 #### 2. **AssessmentResultModal.css**
+
 **Sections:**
+
 - Modal container & overlay
 - Header với badge và close button
 - Score card với gradient
@@ -65,6 +70,7 @@ interface AssessmentResult {
 ## 📊 Data Structure
 
 ### Assessment Result:
+
 ```tsx
 {
   id: 1,
@@ -97,6 +103,7 @@ interface AssessmentResult {
 ## 🎨 Design System
 
 ### Colors by Tone
+
 ```tsx
 // Positive
 background: rgba(100, 180, 130, 0.15)
@@ -112,12 +119,14 @@ color: #8a5a1f
 ```
 
 ### Typography
+
 - **Score**: Fraunces 56px, weight 700
 - **Headers**: Be Vietnam 16-24px, weight 600
 - **Body**: Be Vietnam 13-14px
 - **Badge**: Be Vietnam 12px, weight 800, uppercase
 
 ### Spacing
+
 - Container: max-width 800px
 - Header padding: 28px 32px
 - Body padding: 32px
@@ -148,7 +157,7 @@ export default function AssessmentsPage() {
       questions: [...],
       previousScore: 10
     }
-    
+
     setSelectedResult(detailedResult)
     setIsResultOpen(true)
   }
@@ -171,31 +180,37 @@ export default function AssessmentsPage() {
 ## 🎯 Interactive Elements
 
 ### 1. Header
+
 - **Badge icon**: Checkmark icon với teal background
 - **Close button**: X icon với rotate animation on hover
 - **Date display**: Date and day of week
 
 ### 2. Score Card
+
 - **Large score**: 56px number với gradient background
 - **Level badge**: Dynamic color based on tone
 - **Test name**: Full name display
 
 ### 3. Comparison
+
 - **Icon**: Trend line icon
 - **Text**: Show increase/decrease from previous
 
 ### 4. Recommendations
+
 - **List items**: Checkmark icon + text
 - **Hover**: Slide right + background change
 - **Border**: Changes to teal on hover
 
 ### 5. Questions
+
 - **Number badge**: Circular badge với teal background
 - **Question text**: Full question display
 - **Answer**: Score badge + text description
 - **Hover**: Border highlight
 
 ### 6. Actions
+
 - **Close button**: Secondary style
 - **Download PDF**: Primary style với icon
 - **Hover**: Lift effect
@@ -203,6 +218,7 @@ export default function AssessmentsPage() {
 ## 🎬 Animation Timeline
 
 ### Entrance:
+
 ```
 0ms   - Overlay fade in (300ms)
 0ms   - Content scale + fade (400ms)
@@ -210,6 +226,7 @@ export default function AssessmentsPage() {
 ```
 
 ### Exit:
+
 ```
 0ms   - Content scale down + fade (250ms)
 0ms   - Overlay fade out (300ms)
@@ -219,12 +236,14 @@ export default function AssessmentsPage() {
 ## 📱 Responsive Design
 
 ### Desktop (> 768px)
+
 - Max width: 800px
 - Full padding: 32px
 - Large score: 56px
 - Side-by-side buttons
 
 ### Mobile (≤ 768px)
+
 - Max width: 100%
 - Reduced padding: 20px
 - Smaller score: 48px
@@ -234,21 +253,25 @@ export default function AssessmentsPage() {
 ## 🎨 Styling Details
 
 ### Modal
+
 - Border radius: 24px
 - Max height: 90vh
 - Shadow: 0 30px 70px rgba(30, 74, 67, 0.4)
 - Overflow: hidden
 
 ### Header
+
 - Gradient: 135deg from teal-pale to surface
 - Border bottom: 1px solid line
 
 ### Score Card
+
 - Gradient: 135deg from teal-pale to white
 - Border: 2px solid teal
 - Padding: 28px
 
 ### Scrollbar
+
 - Width: 8px
 - Track: transparent
 - Thumb: teal với 2px border
@@ -257,6 +280,7 @@ export default function AssessmentsPage() {
 ## 🔧 Mock Data
 
 ### Questions Generator:
+
 ```tsx
 const generateQuestions = (type: string, score: number) => {
   if (type === 'PHQ-9') {
@@ -264,7 +288,7 @@ const generateQuestions = (type: string, score: number) => {
       {
         question: 'Ít hứng thú hoặc vui thích khi làm việc',
         answer: 1,
-        answerText: 'Vài ngày'
+        answerText: 'Vài ngày',
       },
       // ... 9 questions total
     ]
@@ -274,12 +298,16 @@ const generateQuestions = (type: string, score: number) => {
 ```
 
 ### Level Colors:
+
 ```tsx
 const getLevelColor = (tone: string) => {
   switch (tone) {
-    case 'positive': return '#2d7a4d'
-    case 'warning': return '#8a5a1f'
-    default: return '#1E4A43'
+    case 'positive':
+      return '#2d7a4d'
+    case 'warning':
+      return '#8a5a1f'
+    default:
+      return '#1E4A43'
   }
 }
 ```
@@ -287,6 +315,7 @@ const getLevelColor = (tone: string) => {
 ## ✅ Features Implemented
 
 ### Display:
+
 - [x] Header với badge và date
 - [x] Large score display
 - [x] Level badge với dynamic color
@@ -297,6 +326,7 @@ const getLevelColor = (tone: string) => {
 - [x] Action buttons
 
 ### Interactions:
+
 - [x] Click arrow to open modal
 - [x] Click close button to close
 - [x] Click overlay to close
@@ -305,6 +335,7 @@ const getLevelColor = (tone: string) => {
 - [x] Scrollable content
 
 ### Animations:
+
 - [x] Entrance animation
 - [x] Section stagger
 - [x] Exit animation
@@ -314,6 +345,7 @@ const getLevelColor = (tone: string) => {
 ## 🎯 Future Enhancements
 
 ### Planned Features:
+
 - [ ] PDF export functionality
 - [ ] Share result via email
 - [ ] Print result
@@ -324,6 +356,7 @@ const getLevelColor = (tone: string) => {
 - [ ] Schedule follow-up
 
 ### Animation Improvements:
+
 - [ ] Score counter animation
 - [ ] Progress bars for questions
 - [ ] Chart animations
@@ -332,21 +365,28 @@ const getLevelColor = (tone: string) => {
 ## 🌐 Integration Points
 
 ### From Assessment History Table:
+
 ```tsx
 // In history table row
 <button onClick={() => handleViewResult(item)}>→</button>
 ```
 
 ### From History Modal:
+
 ```tsx
 // In AssessmentHistoryModal
-<button onClick={() => {
-  onViewResult(item)
-  handleClose()  // Close history modal first
-}}>→</button>
+<button
+  onClick={() => {
+    onViewResult(item)
+    handleClose() // Close history modal first
+  }}
+>
+  →
+</button>
 ```
 
 ### Data Flow:
+
 ```
 User clicks arrow
     ↓
@@ -403,4 +443,3 @@ Display full result
 **Features**: Score, level, description, recommendations, questions
 **Interactions**: Close, download PDF (planned)
 **Animations**: Entrance, stagger, hover effects
-

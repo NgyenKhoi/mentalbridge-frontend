@@ -23,7 +23,8 @@ const beVietnamPro = Be_Vietnam_Pro({
 
 export const metadata: Metadata = {
   title: 'MentalBridge — Cây cầu đến sự an yên',
-  description: 'Nền tảng sàng lọc sức khỏe tâm thần, đồng hành riêng tư và thấu cảm.',
+  description:
+    'Nền tảng sàng lọc sức khỏe tâm thần, đồng hành riêng tư và thấu cảm.',
 }
 
 export default function RootLayout({

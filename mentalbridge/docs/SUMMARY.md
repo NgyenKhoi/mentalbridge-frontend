@@ -45,28 +45,33 @@ mentalbridge/
 ## 🎯 Các tính năng đã implement
 
 ### 1. ✅ Scroll Reveal (IntersectionObserver)
+
 - Component: `ScrollReveal.tsx`
 - Threshold: 0.15
 - Auto unobserve sau khi visible
 - Delay classes: `.reveal-d1` → `.reveal-d5`
 
 ### 2. ✅ Header Scroll State
+
 - Component: `Header.tsx`
 - Class `scrolled` khi scroll > 12px
 - Backdrop blur + shadow
 
 ### 3. ✅ Journey Progress Bar
+
 - Component: `Journey.tsx`
 - IntersectionObserver theo dõi 5 steps
 - Thanh amber fill theo %
 - Dot traveler animation
 
 ### 4. ✅ Breathing Label Animation
+
 - Component: `Hero.tsx`
 - Đổi text mỗi 4 giây
 - "Hít vào..." ↔ "Thở ra..."
 
 ### 5. ✅ Hero Mouse Parallax
+
 - Component: `Hero.tsx`
 - Glow follows cursor
 - Float cards tilt theo mouse
@@ -74,6 +79,7 @@ mentalbridge/
 - Tắt khi `prefers-reduced-motion`
 
 ### 6. ✅ Phone Slide Cycling
+
 - Component: `Showcase.tsx`
 - 3 slides auto-cycle
 - Interval: 3.6 giây
@@ -91,6 +97,7 @@ mentalbridge/
 - ✅ SVG animations
 
 ### Keyframes được giữ nguyên:
+
 - `driftA`, `driftB`, `driftC` (ambient blobs)
 - `dot-pulse` (logo dots)
 - `particle-rise` (hero particles)
@@ -108,11 +115,13 @@ mentalbridge/
 ## 🌐 Fonts
 
 ### Fraunces (serif - cho headings)
+
 - Weights: 300, 400, 500, 600, 700
 - Styles: normal, italic
 - Subsets: latin, vietnamese
 
 ### Be Vietnam Pro (sans-serif - cho body)
+
 - Weights: 300, 400, 500, 600, 700, 800
 - Subsets: latin, vietnamese
 
@@ -123,6 +132,7 @@ mentalbridge/
 Giữ nguyên 100% responsive behavior gốc:
 
 **Desktop (> 980px)**
+
 - Hero: 2 columns (1.05fr .95fr)
 - Features: 3 columns
 - Barriers: 3 columns
@@ -130,6 +140,7 @@ Giữ nguyên 100% responsive behavior gốc:
 - Journey: 5 columns horizontal
 
 **Tablet (640px - 980px)**
+
 - Hero: 1 column
 - Features: 2 columns
 - Barriers: 1 column
@@ -138,6 +149,7 @@ Giữ nguyên 100% responsive behavior gốc:
 - Nav links: hidden
 
 **Mobile (< 640px)**
+
 - Features: 1 column
 - Padding giảm xuống
 - Hero actions: stack vertical
@@ -196,7 +208,8 @@ Dự án đã được chuyển đổi thành công từ **HTML tĩnh** sang **N
 - ✅ Type safety với TypeScript
 - ✅ Production ready
 
-**Next steps**: 
+**Next steps**:
+
 - Run `npm run dev` để xem kết quả
 - Deploy lên Vercel với 1 click
 - Thêm các pages khác nếu cần

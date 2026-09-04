@@ -3,19 +3,21 @@
 ## 🐛 Vấn đề
 
 **Triệu chứng:**
+
 - ❌ Footer với pagination buttons bị mất
 - ❌ Không thể thấy "Hiển thị X kết quả"
 - ❌ Không thể chuyển trang
 
 **Nguyên nhân:**
+
 ```css
 /* Trước */
 .history-modal-content {
-  overflow: hidden;  /* ← Che mất footer */
+  overflow: hidden; /* ← Che mất footer */
 }
 
 .history-modal-table-wrap {
-  max-height: 400px;  /* ← Chiếm hết không gian */
+  max-height: 400px; /* ← Chiếm hết không gian */
 }
 ```
 
@@ -24,6 +26,7 @@ Modal content có `overflow: hidden` và table-wrap có `max-height` cố địn
 ## ✅ Giải pháp
 
 ### 1. **Bỏ overflow hidden**
+
 ```css
 .history-modal-content {
   display: flex;
@@ -33,16 +36,18 @@ Modal content có `overflow: hidden` và table-wrap có `max-height` cố địn
 ```
 
 ### 2. **Giữ chiều cao linh hoạt**
+
 ```css
 .history-modal-table-wrap {
-  flex: 1;              /* Chiếm không gian còn lại */
-  overflow-y: auto;      /* Scroll nội dung */
-  min-height: 350px;     /* Minimum cho UX */
+  flex: 1; /* Chiếm không gian còn lại */
+  overflow-y: auto; /* Scroll nội dung */
+  min-height: 350px; /* Minimum cho UX */
   /* Removed: max-height: 400px */
 }
 ```
 
 ### 3. **Footer luôn hiển thị**
+
 ```css
 .history-modal-footer {
   /* Tự động nằm cuối modal */
@@ -78,6 +83,7 @@ Modal content có `overflow: hidden` và table-wrap có `max-height` cố địn
 ## 📐 Height Calculation
 
 ### Desktop:
+
 ```
 Modal max-height: 90vh
 ├─ Header: ~100px
@@ -91,6 +97,7 @@ Table gets: 90vh - 332px
 ```
 
 ### Mobile:
+
 ```
 Modal max-height: 95vh
 ├─ Header: ~80px
@@ -108,44 +115,49 @@ Table gets: 95vh - 420px
 ### AssessmentHistoryModal.css
 
 **Before:**
+
 ```css
 .history-modal-content {
-  overflow: hidden;  /* ❌ Giấu footer */
+  overflow: hidden; /* ❌ Giấu footer */
 }
 
 .history-modal-table-wrap {
-  max-height: 400px;  /* ❌ Cứng nhắc */
+  max-height: 400px; /* ❌ Cứng nhắc */
 }
 ```
 
 **After:**
+
 ```css
 .history-modal-content {
   /* ✅ Không có overflow hidden */
 }
 
 .history-modal-table-wrap {
-  flex: 1;            /* ✅ Linh hoạt */
-  min-height: 350px;  /* ✅ Minimum UX */
-  overflow-y: auto;   /* ✅ Scroll riêng */
+  flex: 1; /* ✅ Linh hoạt */
+  min-height: 350px; /* ✅ Minimum UX */
+  overflow-y: auto; /* ✅ Scroll riêng */
 }
 ```
 
 ## 🎬 Behavior
 
 ### Với nhiều data (8+ rows):
+
 1. Header, filters, stats hiển thị đầy đủ
 2. Table scrollable với 8 rows
 3. Footer luôn nhìn thấy ở cuối
 4. User có thể scroll table và click pagination
 
 ### Với ít data (1-4 rows):
+
 1. Header, filters, stats hiển thị đầy đủ
 2. Table hiển thị rows với min-height 350px
 3. Footer luôn nhìn thấy ở cuối
 4. Không gian trống trong table (nhưng footer visible)
 
 ### Empty state:
+
 1. Header, filters, stats hiển thị đầy đủ
 2. Empty message centered trong 350px
 3. Footer luôn nhìn thấy ở cuối
@@ -153,6 +165,7 @@ Table gets: 95vh - 420px
 ## ✅ Testing Checklist
 
 Footer Visibility:
+
 - [x] Footer hiển thị với 8 results
 - [x] Footer hiển thị với 4 results
 - [x] Footer hiển thị với 1 result
@@ -161,12 +174,14 @@ Footer Visibility:
 - [x] Counter text visible
 
 Scrolling:
+
 - [x] Table scroll riêng không ảnh hưởng footer
 - [x] Header không scroll
 - [x] Footer không scroll
 - [x] Smooth scrolling
 
 Layout:
+
 - [x] Không bị overflow ngang
 - [x] Modal vừa khít màn hình
 - [x] Responsive trên mobile
@@ -175,6 +190,7 @@ Layout:
 ## 📱 Mobile Behavior
 
 ### Portrait:
+
 ```
 ┌─────────────┐
 │ Header      │ ← 80px
@@ -193,6 +209,7 @@ Layout:
 ```
 
 ### Landscape:
+
 - Similar layout
 - More height for table
 - Footer always visible
@@ -207,6 +224,7 @@ Layout:
 ## 📊 Before vs After
 
 ### Before:
+
 ```
 ┌──────────────┐
 │ Header       │
@@ -222,6 +240,7 @@ Layout:
 ```
 
 ### After:
+
 ```
 ┌──────────────┐
 │ Header       │
@@ -240,11 +259,13 @@ Layout:
 ## 🎨 Visual Indicators
 
 ### When scrollable:
+
 - Custom scrollbar visible
 - Scroll shadow (optional enhancement)
 - Footer separator line clear
 
 ### When not scrollable:
+
 - No scrollbar
 - Clean layout
 - Footer still separated
@@ -262,8 +283,8 @@ Layout:
 **Result**: Footer always visible, better UX
 
 **Key Changes**:
+
 1. Removed `overflow: hidden` from modal content
 2. Changed `max-height` to `min-height` for table
 3. Used `flex: 1` for flexible table height
 4. Footer naturally sits at bottom
-

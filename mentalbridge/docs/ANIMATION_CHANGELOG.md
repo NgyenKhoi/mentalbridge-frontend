@@ -11,6 +11,7 @@
 ### Hero Section
 
 #### Orbit Topics
+
 - ✅ **NEW**: Multi-stage transition animation khi click
   - Fade out content: 280ms với stagger 20ms
   - Halo rotation + scale: 450ms
@@ -18,7 +19,7 @@
   - Selected topic pop: 320ms với back.out(2.5)
   - Glow effect: box-shadow + filter brightness
   - Content fade in: 720ms với stagger 55ms
-  
+
 - ✅ **NEW**: Enhanced hover effects
   - Scale 1.08x với bounce easing
   - Brightness +15%
@@ -31,6 +32,7 @@
   - Color: #efbdc9 (pink amber)
 
 #### Halo
+
 - ✅ **NEW**: Breathing animation
   - Outer ring: 6s cycle, scale 1 → 1.03
   - Inner ring: 6s cycle reverse, scale 1 → 1.03
@@ -48,6 +50,7 @@
 ### Cards
 
 #### Feature Cards (6 cards)
+
 - ✅ **NEW**: 3D entrance animation
   - rotationX: -5deg → 0
   - Scale: 0.91 → 1
@@ -66,6 +69,7 @@
   - Easing: cubic-bezier(.34,1.56,.64,1)
 
 #### Barrier Cards (3 cards)
+
 - ✅ **NEW**: Slide entrance animation
   - X-offset: -48px → 0
   - Y-offset: 24px → 0
@@ -82,6 +86,7 @@
   - Duration: 400ms
 
 #### Risk Cards (3 cards)
+
 - ✅ **NEW**: Vertical entrance
   - Y-offset: 54px → 0
   - Opacity: 0 → 1
@@ -105,6 +110,7 @@
 ### Journey Section
 
 #### Progress Line
+
 - ✅ **NEW**: Scrubbed animation
   - ScaleX: 0 → 1
   - Synced with scroll position
@@ -113,6 +119,7 @@
   - Transform origin: left center
 
 #### Traveler Dot
+
 - ✅ **NEW**: Bounce entrance
   - Scale: 0 → 1
   - Easing: back.out(2)
@@ -120,6 +127,7 @@
   - Scrub: 0.5
 
 #### Journey Steps (5 steps)
+
 - ✅ **NEW**: Entrance animation
   - Y-offset: 42px → 0
   - Scale: 0.96 → 1
@@ -138,6 +146,7 @@
 ### Buttons & Links
 
 #### Primary Buttons
+
 - ✅ **IMPROVED**: Hover animation
   - Lift: translateY(-3px)
   - Scale: 1.02x
@@ -153,12 +162,14 @@
   - Bounce back
 
 #### Ghost Buttons
+
 - ✅ **NEW**: Slide animation
   - TranslateX: +3px
   - Color shift
   - Duration: 300ms
 
 #### Outline Buttons
+
 - ✅ **NEW**: Enhanced hover
   - Lift + scale
   - Border color shift
@@ -166,6 +177,7 @@
   - Duration: 300ms
 
 #### Text Links
+
 - ✅ **NEW**: Arrow animation
   - Link slide: translateX(3px)
   - Arrow slide: translateX(7px total)
@@ -178,6 +190,7 @@
 ### Special Sections
 
 #### Hotline Banner
+
 - ✅ **NEW**: Entrance animation
   - Y-offset: 52px → 0
   - Scale: 0.96 → 1
@@ -193,6 +206,7 @@
   - Infinite loop with yoyo
 
 #### CTA Section
+
 - ✅ **NEW**: Elastic entrance
   - Y-offset: 32px → 0
   - Scale: 0.97 → 1
@@ -201,6 +215,7 @@
   - Easing: back.out(1.2)
 
 #### Showcase Card
+
 - ✅ **EXISTING**: Parallax scroll
   - Y-offset: 68px → 0
   - Scale: 0.93 → 1
@@ -213,6 +228,7 @@
 ## 🔧 Technical Improvements
 
 ### Performance
+
 - ✅ **NEW**: will-change hints
   - Added to all animated elements
   - Enables GPU acceleration
@@ -229,6 +245,7 @@
   - Composite layer optimizations
 
 ### Accessibility
+
 - ✅ **NEW**: Reduced motion support
   - All GSAP animations disabled
   - CSS animations disabled
@@ -242,6 +259,7 @@
   - No animation blocking
 
 ### Code Quality
+
 - ✅ **NEW**: Cleanup functions
   - ScrollTrigger.getAll().forEach(t => t.kill())
   - GSAP context.revert()
@@ -259,17 +277,20 @@
 ## 📊 Metrics
 
 ### Animation Count
+
 - **Before**: ~5 animations
 - **After**: 20+ animations
 - **Increase**: +300%
 
 ### Performance
+
 - **FPS**: 60 (consistent)
 - **CPU Usage**: < 20% during animations
 - **Memory**: No leaks detected
 - **Jank**: 0 (smooth 16.67ms frames)
 
 ### Code Changes
+
 - **Files Modified**: 3
   - Hero.tsx
   - ScrollReveal.tsx
@@ -278,20 +299,22 @@
 - **Lines Modified**: ~200
 
 ### Timing Distribution
-| Tier | Count | Percentage |
-|------|-------|------------|
-| Fast (200-300ms) | 8 | 40% |
-| Medium (400-600ms) | 9 | 45% |
-| Slow (800-1100ms) | 3 | 15% |
+
+| Tier               | Count | Percentage |
+| ------------------ | ----- | ---------- |
+| Fast (200-300ms)   | 8     | 40%        |
+| Medium (400-600ms) | 9     | 45%        |
+| Slow (800-1100ms)  | 3     | 15%        |
 
 ---
 
 ## 🐛 Bug Fixes
 
 ### Fixed Issues
+
 - ✅ Orbit topic transitions were abrupt
   - **Fix**: Added multi-stage GSAP timeline
-  
+
 - ✅ Cards appeared suddenly
   - **Fix**: Added scroll-triggered reveals with stagger
 
@@ -309,6 +332,7 @@
 ## 📝 Breaking Changes
 
 ### None
+
 - All changes are additive
 - No existing functionality removed
 - Backward compatible
@@ -327,6 +351,7 @@ No migration needed. All changes are automatic:
 4. ✅ CSS already enhanced
 
 Just run:
+
 ```bash
 npm run dev
 ```

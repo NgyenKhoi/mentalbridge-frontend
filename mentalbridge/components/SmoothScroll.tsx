@@ -29,5 +29,7 @@ export default function SmoothScroll() {
 
   if (!smoothScrollEnabled) return null
 
-  return <div className="motion-progress" ref={progressRef} aria-hidden="true" />
+  return (
+    <div className="motion-progress" ref={progressRef} aria-hidden="true" />
+  )
 }

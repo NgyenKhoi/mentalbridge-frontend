@@ -41,15 +41,15 @@ are not architecture.
 
 ## Placement rules
 
-| Concern | Owner | Do not place it in |
-| --- | --- | --- |
-| URL, layout, metadata, route composition | `app/` | feature API modules |
-| Generic button/input/dialog primitives | `components/ui` | a page file |
-| Feature-specific UI and behavior | `features/<feature>` | global `components/` |
-| Browser-neutral API transport/error model | `lib/api` | React components |
-| Cookies and authenticated Identity calls | `lib/auth` server modules | client hooks/localStorage |
-| Query client defaults/provider | `lib/query` | root page or every feature |
-| Backend contract representations | `contracts` or generated output | duplicated page interfaces |
+| Concern                                   | Owner                           | Do not place it in         |
+| ----------------------------------------- | ------------------------------- | -------------------------- |
+| URL, layout, metadata, route composition  | `app/`                          | feature API modules        |
+| Generic button/input/dialog primitives    | `components/ui`                 | a page file                |
+| Feature-specific UI and behavior          | `features/<feature>`            | global `components/`       |
+| Browser-neutral API transport/error model | `lib/api`                       | React components           |
+| Cookies and authenticated Identity calls  | `lib/auth` server modules       | client hooks/localStorage  |
+| Query client defaults/provider            | `lib/query`                     | root page or every feature |
+| Backend contract representations          | `contracts` or generated output | duplicated page interfaces |
 
 An abstraction becomes shared only when it is domain-neutral and has at least
 two real consumers. Avoid `utils`, `helpers`, `common`, or `shared` dumping

@@ -58,7 +58,7 @@ export function useLenis({ enabled, onScroll, refreshKey }: UseLenisOptions) {
 
       const lenis = new LenisConstructor({
         ...LENIS_OPTIONS,
-        prevent: node => node.hasAttribute('data-lenis-prevent'),
+        prevent: (node) => node.hasAttribute('data-lenis-prevent'),
       })
       lenisRef.current = lenis
 

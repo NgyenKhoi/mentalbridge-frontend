@@ -9,6 +9,7 @@ Tất cả file tài liệu (.md) đã được di chuyển vào folder `docs/` 
 Tổng cộng **23 files** đã được di chuyển:
 
 ### 🎨 Animation & Design (7 files)
+
 - ✅ ANIMATION_SUMMARY.md
 - ✅ ANIMATION_IMPROVEMENTS.md
 - ✅ ANIMATION_CHANGELOG.md
@@ -18,16 +19,19 @@ Tổng cộng **23 files** đã được di chuyển:
 - ✅ DEBUG_ANIMATIONS.md
 
 ### 🐛 Bug Fixes (4 files)
+
 - ✅ FILTER_FIX_SUMMARY.md
 - ✅ FOOTER_FIX.md
 - ✅ MODAL_LAYOUT_FIX.md
 - ✅ SCROLL_OVERLAY_FIX.md
 
 ### 📦 Components (2 files)
+
 - ✅ HISTORY_MODAL_README.md
 - ✅ AGENTS.md
 
 ### 🚀 Development (5 files)
+
 - ✅ QUICKSTART.md
 - ✅ NEXT_STEPS.md
 - ✅ MIGRATION_NOTES.md
@@ -35,10 +39,12 @@ Tổng cộng **23 files** đã được di chuyển:
 - ✅ CLAUDE.md
 
 ### 🧪 Testing (2 files)
+
 - ✅ TESTING_ANIMATIONS.md
 - ✅ QUICK_TEST_GUIDE.md
 
 ### 📝 Project Info (3 files)
+
 - ✅ SUMMARY.md
 - ✅ COMPLETED_IMPROVEMENTS.md
 - ✅ IMPLEMENTATION_SUMMARY.md
@@ -63,31 +69,36 @@ mentalbridge/
 ## 🔗 Updated Links
 
 ### Main README.md
+
 - ✅ Updated all documentation links to point to `docs/`
 - ✅ Added new "Documentation" section with categories
 - ✅ Added link to `docs/README.md` for full list
 
 ### Example:
+
 ```markdown
 Before: [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)
-After:  [docs/DESIGN_SYSTEM.md](./docs/DESIGN_SYSTEM.md)
+After: [docs/DESIGN_SYSTEM.md](./docs/DESIGN_SYSTEM.md)
 ```
 
 ## 📖 How to Navigate
 
 ### 1. Start with main README
+
 ```bash
 cat README.md
 # Scroll to "📝 Documentation" section
 ```
 
 ### 2. Browse docs folder
+
 ```bash
 cd docs
 cat README.md  # See organized list with categories
 ```
 
 ### 3. Read specific docs
+
 ```bash
 # Animation guides
 docs/ANIMATION_SUMMARY.md
@@ -104,6 +115,7 @@ docs/NEXT_STEPS.md
 ## 🎯 Benefits
 
 ### Before (❌ Cluttered)
+
 ```
 mentalbridge/
 ├── README.md
@@ -119,6 +131,7 @@ mentalbridge/
 ```
 
 ### After (✅ Organized)
+
 ```
 mentalbridge/
 ├── README.md
@@ -153,11 +166,13 @@ ls docs/*.md
 ## 🔍 Quick Access
 
 ### From VS Code:
+
 1. Open Explorer
 2. Navigate to `docs/`
 3. See all documentation organized
 
 ### From Terminal:
+
 ```bash
 # List all docs
 ls docs/
@@ -172,16 +187,19 @@ cat docs/QUICKSTART.md
 ## 🚀 Next Steps
 
 ### For New Developers:
+
 1. Read `README.md` in root
 2. Check `docs/QUICKSTART.md`
 3. Review `docs/DESIGN_SYSTEM.md`
 4. See `docs/ANIMATION_SUMMARY.md` for animations
 
 ### For Bug Fixes:
+
 1. Check relevant `*_FIX.md` files in docs
 2. Examples: `FILTER_FIX_SUMMARY.md`, `FOOTER_FIX.md`
 
 ### For New Features:
+
 1. Review `docs/NEXT_STEPS.md`
 2. Check `docs/IMPLEMENTATION_SUMMARY.md`
 3. Follow `docs/DESIGN_SYSTEM.md` guidelines
@@ -191,4 +209,3 @@ cat docs/QUICKSTART.md
 **Migration Date**: August 22, 2026
 **Status**: ✅ Complete
 **Files Organized**: 23 + 1 new README
-

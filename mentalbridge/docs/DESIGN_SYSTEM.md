@@ -3,43 +3,43 @@
 ## 📊 CSS Variables (`:root`)
 
 ### Colors - Palette chính
+
 ```css
 /* Background */
---bg: #F1F4EB              /* Sage background chính */
---bg-deep: #E7EDE1         /* Sage đậm hơn */
---surface: #FFFFFF         /* White cho cards */
---surface-soft: #E9EFE3    /* White nhẹ hơn */
-
-/* Text */
---ink: #1B2A22             /* Text chính (đậm) */
---ink-soft: #52604F        /* Text secondary */
---ink-faint: #8A9585       /* Text mờ nhất */
-
-/* Teal (Primary brand color) */
---teal-deep: #1E4A43       /* Teal đậm - headings, buttons */
---teal: #3D7A6E            /* Teal medium */
---teal-pale: #CFE3D8       /* Teal nhạt - backgrounds */
-
-/* Accent colors */
---amber: #E1A651           /* Amber - CTA, highlights */
---amber-soft: #F5E6C6      /* Amber nhạt */
---terracotta: #C77B5C      /* Terracotta - warnings */
---terracotta-soft: #F0DACC /* Terracotta nhạt */
---lavender: #9A8CAE        /* Lavender - accents */
-
-/* Utilities */
---line: rgba(27,42,34,.12) /* Border color */
---shadow: 0 20px 50px -20px rgba(30,74,67,.25)
---radius: 22px
---wrap: 1180px             /* Max content width */
+--bg: #f1f4eb /* Sage background chính */ --bg-deep: #e7ede1 /* Sage đậm hơn */
+  --surface: #ffffff /* White cho cards */ --surface-soft: #e9efe3
+  /* White nhẹ hơn */ /* Text */ --ink: #1b2a22 /* Text chính (đậm) */
+  --ink-soft: #52604f /* Text secondary */ --ink-faint: #8a9585
+  /* Text mờ nhất */ /* Teal (Primary brand color) */ --teal-deep: #1e4a43
+  /* Teal đậm - headings, buttons */ --teal: #3d7a6e /* Teal medium */
+  --teal-pale: #cfe3d8 /* Teal nhạt - backgrounds */ /* Accent colors */
+  --amber: #e1a651 /* Amber - CTA, highlights */ --amber-soft: #f5e6c6
+  /* Amber nhạt */ --terracotta: #c77b5c /* Terracotta - warnings */
+  --terracotta-soft: #f0dacc /* Terracotta nhạt */ --lavender: #9a8cae
+  /* Lavender - accents */ /* Utilities */ --line: rgba(27, 42, 34, 0.12)
+  /* Border color */ --shadow: 0 20px 50px -20px rgba(30, 74, 67, 0.25)
+  --radius: 22px --wrap: 1180px /* Max content width */;
 ```
 
 ### Icon color classes (đã có)
+
 ```css
-.fi-teal { background: var(--teal-pale); color: var(--teal-deep); }
-.fi-amber { background: var(--amber-soft); color: #8a5a1f; }
-.fi-terra { background: var(--terracotta-soft); color: #8a4a2e; }
-.fi-lav { background: #E7E1EE; color: var(--lavender); }
+.fi-teal {
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+.fi-amber {
+  background: var(--amber-soft);
+  color: #8a5a1f;
+}
+.fi-terra {
+  background: var(--terracotta-soft);
+  color: #8a4a2e;
+}
+.fi-lav {
+  background: #e7e1ee;
+  color: var(--lavender);
+}
 ```
 
 ---
@@ -47,6 +47,7 @@
 ## 🔤 Typography
 
 ### Fonts
+
 ```tsx
 // Fraunces - Serif (Headings)
 font-family: var(--font-fraunces), serif
@@ -59,11 +60,15 @@ weights: 300, 400, 500, 600, 700, 800
 ```
 
 ### Heading styles
+
 ```css
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-fraunces), serif;
   font-weight: 500;
-  letter-spacing: -.01em;
+  letter-spacing: -0.01em;
   color: var(--teal-deep);
 }
 ```
@@ -73,12 +78,13 @@ h1, h2, h3, h4 {
 ## 🎯 Component Patterns
 
 ### Buttons
+
 ```css
 /* Primary Button */
 .btn-primary {
   background: var(--teal-deep);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(30,74,67,.55);
+  box-shadow: 0 10px 24px -10px rgba(30, 74, 67, 0.55);
   /* Shimmer effect on hover */
 }
 
@@ -106,14 +112,16 @@ h1, h2, h3, h4 {
   border-radius: 999px;
   font-weight: 600;
   font-size: 15px;
-  transition: transform .3s cubic-bezier(.16,1,.3,1),
-              box-shadow .3s ease,
-              background .3s ease;
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.3s ease,
+    background 0.3s ease;
   white-space: nowrap;
 }
 ```
 
 ### Cards
+
 ```css
 /* Feature Card */
 .feature-card {
@@ -121,9 +129,10 @@ h1, h2, h3, h4 {
   border-radius: 20px;
   padding: 36px 30px;
   border: 1px solid var(--line);
-  transition: transform .4s cubic-bezier(.16,1,.3,1),
-              box-shadow .4s ease,
-              border-color .4s ease;
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s ease,
+    border-color 0.4s ease;
 }
 .feature-card:hover {
   transform: translateY(-6px);
@@ -137,15 +146,17 @@ h1, h2, h3, h4 {
   padding: 38px 32px;
   border: 1px solid var(--line);
   background: var(--surface);
-  transition: transform .4s cubic-bezier(.16,1,.3,1);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.risk-card:hover { transform: translateY(-6px); }
+.risk-card:hover {
+  transform: translateY(-6px);
+}
 
 /* Float Card (với animation) */
 .float-card {
   position: absolute;
   border-radius: 16px;
-  transition: transform .18s linear;
+  transition: transform 0.18s linear;
 }
 .float-inner {
   background: var(--surface);
@@ -158,11 +169,12 @@ h1, h2, h3, h4 {
 ```
 
 ### Section Headers
+
 ```css
 .eyebrow {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: .14em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--teal);
   display: flex;
@@ -170,7 +182,7 @@ h1, h2, h3, h4 {
   gap: 10px;
 }
 .eyebrow::before {
-  content: "";
+  content: '';
   width: 22px;
   height: 1px;
   background: var(--teal);
@@ -188,6 +200,7 @@ h1, h2, h3, h4 {
 ```
 
 ### Showcase Components (từ phone mockup)
+
 ```css
 /* Chat Bubbles */
 .chat-bubble.bot {
@@ -262,12 +275,13 @@ h1, h2, h3, h4 {
 ```
 
 ### Risk Tags (3 levels)
+
 ```css
 .risk-tag {
   display: inline-block;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 6px 14px;
   border-radius: 999px;
@@ -298,6 +312,7 @@ h1, h2, h3, h4 {
 ## ✨ Animations & Keyframes
 
 ### Timing & Easing
+
 ```css
 /* Primary easing curve - dùng cho mọi transition mượt */
 cubic-bezier(.16, 1, .3, 1)
@@ -309,12 +324,14 @@ cubic-bezier(.16, 1, .3, 1)
 ```
 
 ### Scroll Reveal
+
 ```css
 .reveal {
   opacity: 0;
   transform: translateY(28px);
-  transition: opacity .8s cubic-bezier(.16,1,.3,1),
-              transform .8s cubic-bezier(.16,1,.3,1);
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .reveal.visible {
   opacity: 1;
@@ -322,53 +339,107 @@ cubic-bezier(.16, 1, .3, 1)
 }
 
 /* Staggered delays */
-.reveal-d1 { transition-delay: .08s; }
-.reveal-d2 { transition-delay: .16s; }
-.reveal-d3 { transition-delay: .24s; }
-.reveal-d4 { transition-delay: .32s; }
-.reveal-d5 { transition-delay: .4s; }
+.reveal-d1 {
+  transition-delay: 0.08s;
+}
+.reveal-d2 {
+  transition-delay: 0.16s;
+}
+.reveal-d3 {
+  transition-delay: 0.24s;
+}
+.reveal-d4 {
+  transition-delay: 0.32s;
+}
+.reveal-d5 {
+  transition-delay: 0.4s;
+}
 ```
 
 ### Keyframe Animations
+
 ```css
 /* Ambient drifting (blobs) */
 @keyframes driftA {
-  0%, 100% { transform: translate(0,0) scale(1); }
-  50% { transform: translate(70px,90px) scale(1.15); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(70px, 90px) scale(1.15);
+  }
 }
 
 /* Breathing (pulsing circle) */
 @keyframes breathe {
-  0%, 100% { transform: scale(.82); }
-  50% { transform: scale(1.05); }
+  0%,
+  100% {
+    transform: scale(0.82);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 /* Float (cards) */
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
 }
 
 /* Dot pulse (logo) */
 @keyframes dot-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: .55; transform: scale(1.25); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.25);
+  }
 }
 
 /* Spin (orbits) */
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes spin-rev { to { transform: rotate(-360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes spin-rev {
+  to {
+    transform: rotate(-360deg);
+  }
+}
 
 /* Bar grow (charts) */
 @keyframes bar-grow {
-  0%, 100% { transform: scaleY(.55); }
-  50% { transform: scaleY(1); }
+  0%,
+  100% {
+    transform: scaleY(0.55);
+  }
+  50% {
+    transform: scaleY(1);
+  }
 }
 
 /* Dot bounce (typing) */
 @keyframes dot-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: .5; }
-  30% { transform: translateY(-4px); opacity: 1; }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
 ```
 
@@ -399,9 +470,9 @@ cubic-bezier(.16, 1, .3, 1)
 ```css
 @media (prefers-reduced-motion: reduce) {
   * {
-    animation-duration: .001ms !important;
+    animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: .001ms !important;
+    transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
 }
@@ -446,8 +517,12 @@ cubic-bezier(.16, 1, .3, 1)
 
 /* Responsive padding */
 @media (max-width: 640px) {
-  .wrap { padding: 0 20px; }
-  .section { padding: 80px 0; }
+  .wrap {
+    padding: 0 20px;
+  }
+  .section {
+    padding: 80px 0;
+  }
 }
 ```
 

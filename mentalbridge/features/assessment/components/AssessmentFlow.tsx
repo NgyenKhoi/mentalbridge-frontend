@@ -116,11 +116,7 @@ function ResultPanel({
         </dl>
       </details>
 
-      <ResourcesList 
-        category="ARTICLE"
-        limit={6}
-        className="care-resources"
-      />
+      <ResourcesList category="ARTICLE" limit={6} className="care-resources" />
 
       {mode === 'anonymous' && (
         <aside className="care-anonymous-note">

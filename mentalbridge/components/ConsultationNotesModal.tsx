@@ -1,33 +1,35 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import './ConsultationNotesModal.css';
+'use client'
+import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import './ConsultationNotesModal.css'
 
 export interface ConsultationNote {
-  id: string;
-  appointmentId: string;
-  clientName: string;
-  date: string;
-  time: string;
-  sessionSummary: string;
-  keyObservations: string;
-  recommendations: string;
-  nextSteps: string;
-  riskLevel: 'low' | 'medium' | 'high';
-  followUpDate?: string;
-  confidentialNotes: string;
-  createdAt: string;
-  updatedAt?: string;
+  id: string
+  appointmentId: string
+  clientName: string
+  date: string
+  time: string
+  sessionSummary: string
+  keyObservations: string
+  recommendations: string
+  nextSteps: string
+  riskLevel: 'low' | 'medium' | 'high'
+  followUpDate?: string
+  confidentialNotes: string
+  createdAt: string
+  updatedAt?: string
 }
 
 interface ConsultationNotesModalProps {
-  appointmentId: string;
-  clientName: string;
-  date: string;
-  time: string;
-  existingNotes?: ConsultationNote;
-  onClose: () => void;
-  onSave: (notes: Omit<ConsultationNote, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  appointmentId: string
+  clientName: string
+  date: string
+  time: string
+  existingNotes?: ConsultationNote
+  onClose: () => void
+  onSave: (
+    notes: Omit<ConsultationNote, 'id' | 'createdAt' | 'updatedAt'>,
+  ) => void
 }
 
 export default function ConsultationNotesModal({
@@ -37,66 +39,66 @@ export default function ConsultationNotesModal({
   time,
   existingNotes,
   onClose,
-  onSave
+  onSave,
 }: ConsultationNotesModalProps) {
   const [formData, setFormData] = useState({
     sessionSummary: existingNotes?.sessionSummary || '',
     keyObservations: existingNotes?.keyObservations || '',
     recommendations: existingNotes?.recommendations || '',
     nextSteps: existingNotes?.nextSteps || '',
-    riskLevel: existingNotes?.riskLevel || 'low' as const,
+    riskLevel: existingNotes?.riskLevel || ('low' as const),
     followUpDate: existingNotes?.followUpDate || '',
-    confidentialNotes: existingNotes?.confidentialNotes || ''
-  });
+    confidentialNotes: existingNotes?.confidentialNotes || '',
+  })
 
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden'
     return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, []);
+      document.body.style.overflow = 'unset'
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
+    e.preventDefault()
+    setIsSaving(true)
 
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
     const noteData = {
       appointmentId,
       clientName,
       date,
       time,
-      ...formData
-    };
+      ...formData,
+    }
 
-    onSave(noteData);
-    setIsSaving(false);
-  };
+    onSave(noteData)
+    setIsSaving(false)
+  }
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
-    }));
-  };
+      [field]: value,
+    }))
+  }
 
-  const isEditing = !!existingNotes;
+  const isEditing = !!existingNotes
 
   return (
     <>
-      <motion.div 
+      <motion.div
         className="consultation-notes-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         onClick={onClose}
       />
-      
+
       <div className="consultation-notes-container">
-        <motion.div 
+        <motion.div
           className="consultation-notes-modal"
           initial={{ opacity: 0, y: 20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -108,9 +110,11 @@ export default function ConsultationNotesModal({
                 {isEditing ? 'CHỈNH SỬA GHI CHÚ' : 'THÊM GHI CHÚ TƯ VẤN'}
               </div>
               <h2>{clientName}</h2>
-              <p>{date} • {time}</p>
+              <p>
+                {date} • {time}
+              </p>
             </div>
-            <button 
+            <button
               className="consultation-notes-close"
               onClick={onClose}
               disabled={isSaving}
@@ -129,7 +133,9 @@ export default function ConsultationNotesModal({
                     rows={4}
                     placeholder="Mô tả tổng quan về phiên tư vấn, chủ đề chính được thảo luận..."
                     value={formData.sessionSummary}
-                    onChange={(e) => handleChange('sessionSummary', e.target.value)}
+                    onChange={(e) =>
+                      handleChange('sessionSummary', e.target.value)
+                    }
                     required
                   />
                 </label>
@@ -143,7 +149,9 @@ export default function ConsultationNotesModal({
                     rows={4}
                     placeholder="Ghi chú về tình trạng tâm lý, hành vi, cảm xúc của khách hàng..."
                     value={formData.keyObservations}
-                    onChange={(e) => handleChange('keyObservations', e.target.value)}
+                    onChange={(e) =>
+                      handleChange('keyObservations', e.target.value)
+                    }
                     required
                   />
                 </label>
@@ -157,7 +165,9 @@ export default function ConsultationNotesModal({
                     rows={3}
                     placeholder="Các phương pháp can thiệp, bài tập, kỹ thuật được đề xuất..."
                     value={formData.recommendations}
-                    onChange={(e) => handleChange('recommendations', e.target.value)}
+                    onChange={(e) =>
+                      handleChange('recommendations', e.target.value)
+                    }
                   />
                 </label>
               </div>
@@ -182,7 +192,9 @@ export default function ConsultationNotesModal({
                     <select
                       className="consultation-notes-select"
                       value={formData.riskLevel}
-                      onChange={(e) => handleChange('riskLevel', e.target.value)}
+                      onChange={(e) =>
+                        handleChange('riskLevel', e.target.value)
+                      }
                     >
                       <option value="low">Thấp - Ổn định</option>
                       <option value="medium">Trung bình - Cần theo dõi</option>
@@ -198,7 +210,9 @@ export default function ConsultationNotesModal({
                       type="date"
                       className="consultation-notes-input"
                       value={formData.followUpDate}
-                      onChange={(e) => handleChange('followUpDate', e.target.value)}
+                      onChange={(e) =>
+                        handleChange('followUpDate', e.target.value)
+                      }
                       min={new Date().toISOString().split('T')[0]}
                     />
                   </label>
@@ -213,7 +227,9 @@ export default function ConsultationNotesModal({
                     rows={2}
                     placeholder="Thông tin nhạy cảm, chi tiết cá nhân chỉ dành cho chuyên gia..."
                     value={formData.confidentialNotes}
-                    onChange={(e) => handleChange('confidentialNotes', e.target.value)}
+                    onChange={(e) =>
+                      handleChange('confidentialNotes', e.target.value)
+                    }
                   />
                 </label>
               </div>
@@ -221,14 +237,21 @@ export default function ConsultationNotesModal({
 
             <footer className="consultation-notes-footer">
               <div className="consultation-notes-privacy">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <circle cx="12" cy="16" r="1"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <circle cx="12" cy="16" r="1" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
                 <span>Ghi chú này được mã hóa và chỉ bạn có thể truy cập</span>
               </div>
-              
+
               <div className="consultation-notes-actions">
                 <button
                   type="button"
@@ -261,5 +284,5 @@ export default function ConsultationNotesModal({
         </motion.div>
       </div>
     </>
-  );
+  )
 }

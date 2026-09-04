@@ -35,10 +35,10 @@ const STAR_PARALLAX_X = 84
 const STAR_PARALLAX_Y = 62
 
 /** Canvas starfield sized to its parent rather than the viewport. */
-const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>(function StarfieldBackground(
-  { className = '' },
-  forwardedRef,
-) {
+const StarfieldBackground = forwardRef<
+  HTMLDivElement,
+  StarfieldBackgroundProps
+>(function StarfieldBackground({ className = '' }, forwardedRef) {
   const rootRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -57,7 +57,9 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
     let pointerY = 0
     let targetPointerX = 0
     let targetPointerY = 0
-    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const motionPreference = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    )
     let reduceMotion = motionPreference.matches
     const speed = 1
 
@@ -78,7 +80,10 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
       const density = compact ? 11000 : 9000
       const minimum = compact ? 36 : 64
       const maximum = compact ? 90 : 180
-      const count = Math.max(minimum, Math.min(maximum, Math.floor((width * height) / density)))
+      const count = Math.max(
+        minimum,
+        Math.min(maximum, Math.floor((width * height) / density)),
+      )
       stars = Array.from({ length: count }, () => {
         const glow = Math.random() < 0.08
         return {
@@ -86,7 +91,8 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
           y: Math.random() * height,
           radius: glow ? Math.random() * 1.6 + 1.6 : Math.random() * 1.1 + 0.4,
           baseAlpha: Math.random() * 0.32 + 0.18,
-          twinkleSpeed: (Math.random() * 0.03 + 0.015) * STAR_SPEED_MULTIPLIER * speed,
+          twinkleSpeed:
+            (Math.random() * 0.03 + 0.015) * STAR_SPEED_MULTIPLIER * speed,
           phase: Math.random() * Math.PI * 2,
           driftX: (Math.random() - 0.5) * 0.18 * STAR_SPEED_MULTIPLIER * speed,
           driftY: (Math.random() - 0.5) * 0.18 * STAR_SPEED_MULTIPLIER * speed,
@@ -100,8 +106,11 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
       if (reduceMotion) return
       if (event.pointerType === 'touch') return
       const bounds = root.getBoundingClientRect()
-      const inside = event.clientX >= bounds.left && event.clientX <= bounds.right
-        && event.clientY >= bounds.top && event.clientY <= bounds.bottom
+      const inside =
+        event.clientX >= bounds.left &&
+        event.clientX <= bounds.right &&
+        event.clientY >= bounds.top &&
+        event.clientY <= bounds.bottom
       if (!inside) {
         targetPointerX = 0
         targetPointerY = 0
@@ -120,7 +129,10 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
     const updatePointerListener = (enabled: boolean) => {
       if (enabled === pointerListening) return
       pointerListening = enabled
-      if (enabled) window.addEventListener('pointermove', handlePointerMove, { passive: true })
+      if (enabled)
+        window.addEventListener('pointermove', handlePointerMove, {
+          passive: true,
+        })
       else window.removeEventListener('pointermove', handlePointerMove)
     }
 
@@ -152,7 +164,8 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
           const dx = firstX - secondX
           const dy = firstY - secondY
           const distanceSquared = dx * dx + dy * dy
-          if (distanceSquared >= STAR_LINK_DISTANCE * STAR_LINK_DISTANCE) continue
+          if (distanceSquared >= STAR_LINK_DISTANCE * STAR_LINK_DISTANCE)
+            continue
           const distance = Math.sqrt(distanceSquared)
           context.strokeStyle = `rgba(30,74,67,${(1 - distance / STAR_LINK_DISTANCE) * STAR_LINK_ALPHA})`
           context.beginPath()
@@ -164,7 +177,10 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
 
       for (const star of stars) {
         star.phase += star.twinkleSpeed
-        const alpha = Math.max(0, Math.min(1, star.baseAlpha + Math.sin(star.phase) * 0.35))
+        const alpha = Math.max(
+          0,
+          Math.min(1, star.baseAlpha + Math.sin(star.phase) * 0.35),
+        )
         star.x += star.driftX
         star.y += star.driftY
         if (star.x < -5) star.x = width + 5
@@ -175,7 +191,14 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
         if (star.glow) {
           const drawX = star.x + pointerX * STAR_PARALLAX_X * star.depth
           const drawY = star.y + pointerY * STAR_PARALLAX_Y * star.depth
-          const glow = context.createRadialGradient(drawX, drawY, 0, drawX, drawY, star.radius * 5)
+          const glow = context.createRadialGradient(
+            drawX,
+            drawY,
+            0,
+            drawX,
+            drawY,
+            star.radius * 5,
+          )
           glow.addColorStop(0, `rgba(61,122,110,${alpha * 0.45})`)
           glow.addColorStop(1, 'rgba(61,122,110,0)')
           context.fillStyle = glow
@@ -195,20 +218,27 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
       if (!reduceMotion) frame = window.requestAnimationFrame(draw)
     }
 
-    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null
-    const visibilityObserver = typeof IntersectionObserver !== 'undefined'
-      ? new IntersectionObserver(([entry]) => {
-        inView = Boolean(entry?.isIntersecting)
-        if (!reduceMotion && inView && documentVisible && !frame) frame = window.requestAnimationFrame(draw)
-        if (!inView && frame) {
-          window.cancelAnimationFrame(frame)
-          frame = 0
-        }
-      }, { threshold: 0.01 })
-      : null
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null
+    const visibilityObserver =
+      typeof IntersectionObserver !== 'undefined'
+        ? new IntersectionObserver(
+            ([entry]) => {
+              inView = Boolean(entry?.isIntersecting)
+              if (!reduceMotion && inView && documentVisible && !frame)
+                frame = window.requestAnimationFrame(draw)
+              if (!inView && frame) {
+                window.cancelAnimationFrame(frame)
+                frame = 0
+              }
+            },
+            { threshold: 0.01 },
+          )
+        : null
     const handleDocumentVisibility = () => {
       documentVisible = document.visibilityState === 'visible'
-      if (!reduceMotion && inView && documentVisible && !frame) frame = window.requestAnimationFrame(draw)
+      if (!reduceMotion && inView && documentVisible && !frame)
+        frame = window.requestAnimationFrame(draw)
       if (!documentVisible && frame) {
         window.cancelAnimationFrame(frame)
         frame = 0
@@ -253,7 +283,7 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
 
   return (
     <div
-      ref={node => {
+      ref={(node) => {
         rootRef.current = node
         if (typeof forwardedRef === 'function') forwardedRef(node)
         else if (forwardedRef) forwardedRef.current = node
@@ -263,7 +293,7 @@ const StarfieldBackground = forwardRef<HTMLDivElement, StarfieldBackgroundProps>
     >
       <canvas ref={canvasRef} className="starfield-background__canvas" />
       <div className="starfield-background__glow" />
-      {particles.map(particle => (
+      {particles.map((particle) => (
         <span
           key={`${particle.top}-${particle.left}`}
           className="starfield-background__particle"

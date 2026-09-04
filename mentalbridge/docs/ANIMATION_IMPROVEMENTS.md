@@ -3,6 +3,7 @@
 ## Tổng quan
 
 Đã nâng cấp toàn bộ hệ thống animations cho MentalBridge sử dụng:
+
 - **GSAP 3.15** - Animation engine chính
 - **Lenis 1.3** - Smooth scrolling
 - **ScrollTrigger** - Scroll-based animations
@@ -14,6 +15,7 @@
 ### 1. Hero Orbit Topics (Trạng thái chủ đề)
 
 #### Animations khi chọn topic:
+
 - ✅ **Smooth transition** với timeline phức tạp
 - ✅ **Glow effect** - Hiệu ứng phát sáng khi được chọn
 - ✅ **Scale bounce** - Phóng to với hiệu ứng nảy (back.out easing)
@@ -21,6 +23,7 @@
 - ✅ **Content fade** - Fade out/in mượt mà với stagger
 
 #### Hover effects:
+
 - ✅ **Scale transform** - Phóng to 1.08x khi hover
 - ✅ **Brightness filter** - Tăng độ sáng 15%
 - ✅ **Dot pulse animation** - Chấm tròn nhấp nháy với glow effect
@@ -43,6 +46,7 @@
 ### 2. Hero Halo (Vòng tròn trung tâm)
 
 #### Breathing animation:
+
 - ✅ **Halo rings** - 2 vòng tròn thở nhẹ nhàng (6s cycle)
 - ✅ **Outer ring** - Scale 1 → 1.03
 - ✅ **Inner ring** - Scale 1 → 1.03 (reverse direction)
@@ -50,8 +54,15 @@
 
 ```css
 @keyframes haloBreath {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.03); opacity: .92; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.92;
+  }
 }
 ```
 
@@ -60,6 +71,7 @@
 ### 3. Buttons (Nút bấm)
 
 #### Enhanced interactions:
+
 - ✅ **Bounce effect** - cubic-bezier(.34,1.56,.64,1)
 - ✅ **Scale on hover** - translateY(-3px) scale(1.02)
 - ✅ **Active state** - Scale down 0.98 khi click
@@ -69,7 +81,7 @@
 ```css
 .btn-primary:hover {
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 18px 36px -10px rgba(30,74,67,.65);
+  box-shadow: 0 18px 36px -10px rgba(30, 74, 67, 0.65);
   filter: brightness(1.08);
 }
 ```
@@ -79,11 +91,13 @@
 ### 4. Feature Cards
 
 #### Scroll reveal:
+
 - ✅ **3D rotation** - rotationX: -5deg
 - ✅ **Scale entrance** - scale: 0.91 → 1
 - ✅ **Stagger timing** - 85ms giữa các cards
 
 #### Hover effects:
+
 - ✅ **Lift up** - translateY(-8px) scale(1.02)
 - ✅ **Glow underneath** - Radial gradient glow effect
 - ✅ **Icon rotation** - Rotate -10deg và scale 1.16
@@ -99,7 +113,7 @@
 
 .feature-card:hover .feature-icon {
   transform: rotate(-10deg) scale(1.16);
-  box-shadow: 0 8px 20px -8px rgba(0,0,0,.25);
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.25);
 }
 ```
 
@@ -108,11 +122,13 @@
 ### 5. Barrier Cards
 
 #### Scroll reveal:
+
 - ✅ **Slide from left** - x: -48px
 - ✅ **3D perspective** - rotationY: 6deg
 - ✅ **Scale entrance** - scale: 0.94 → 1
 
 #### Hover effects:
+
 - ✅ **Lift and scale** - translateY(-5px) scale(1.02)
 - ✅ **Shadow depth** - Box-shadow tăng
 - ✅ **Background shift** - Màu nền thay đổi
@@ -120,7 +136,7 @@
 ```css
 .barrier-card:hover {
   transform: translateY(-5px) scale(1.02);
-  box-shadow: 0 20px 40px -20px rgba(30,74,67,.32);
+  box-shadow: 0 20px 40px -20px rgba(30, 74, 67, 0.32);
 }
 ```
 
@@ -129,11 +145,13 @@
 ### 6. Journey Steps
 
 #### Scroll reveal:
+
 - ✅ **Scale entrance** - scale: 0.96 → 1
 - ✅ **Stagger timing** - 110ms giữa các steps
 - ✅ **Progress line** - Scrubbed animation với scroll
 
 #### Hover effects:
+
 - ✅ **Lift up** - translateY(-4px)
 - ✅ **Dot scale** - Scale 1.12 với glow ring
 - ✅ **Pulse effect** - Box-shadow ring mở rộng
@@ -141,11 +159,12 @@
 ```css
 .journey-step:hover .journey-dot {
   transform: scale(1.12);
-  box-shadow: 0 0 0 8px rgba(225,166,81,.2);
+  box-shadow: 0 0 0 8px rgba(225, 166, 81, 0.2);
 }
 ```
 
 #### Journey line animation:
+
 - ✅ **Scrubbed fill** - Fills as you scroll
 - ✅ **Traveler dot** - Bounces in with back.out easing
 - ✅ **Smooth scrubbing** - Perfectly synced with scroll
@@ -155,10 +174,12 @@
 ### 7. Risk Level Cards
 
 #### Scroll reveal:
+
 - ✅ **Vertical entrance** - y: 54px → 0
 - ✅ **Stagger timing** - 110ms delay
 
 #### Hover effects:
+
 - ✅ **Lift and scale** - translateY(-7px) scale(1.02)
 - ✅ **Colored shadows** - Shadow màu theo risk level:
   - **Low (Teal)**: rgba(61,122,110,.5)
@@ -168,7 +189,7 @@
 
 ```css
 .risk-card.low:hover {
-  box-shadow: 0 24px 50px -22px rgba(61,122,110,.5);
+  box-shadow: 0 24px 50px -22px rgba(61, 122, 110, 0.5);
   border-color: var(--teal);
 }
 ```
@@ -178,17 +199,20 @@
 ### 8. Hotline Banner
 
 #### Scroll reveal:
+
 - ✅ **Clip-path animation** - Opens from center
 - ✅ **Scale entrance** - scale: 0.96 → 1
 - ✅ **Expo easing** - Smooth deceleration
 
 #### Continuous animation:
+
 - ✅ **Glow pulse** - Box-shadow nhấp nháy nhẹ (2s cycle)
 - ✅ **Amber accent** - Glow màu amber
 
 ```javascript
 gsap.to(hotline, {
-  boxShadow: '0 8px 32px rgba(225, 166, 81, 0.15), 0 0 80px rgba(225, 166, 81, 0.08)',
+  boxShadow:
+    '0 8px 32px rgba(225, 166, 81, 0.15), 0 0 80px rgba(225, 166, 81, 0.08)',
   duration: 2,
   ease: 'sine.inOut',
   repeat: -1,
@@ -201,6 +225,7 @@ gsap.to(hotline, {
 ### 9. CTA Section
 
 #### Scroll reveal:
+
 - ✅ **Back.out easing** - Elastic bounce entrance
 - ✅ **Scale entrance** - scale: 0.97 → 1
 - ✅ **Stagger children** - 130ms giữa các elements
@@ -210,6 +235,7 @@ gsap.to(hotline, {
 ## 🎯 Performance Optimizations
 
 ### Will-change properties:
+
 ```css
 .orbit-topic,
 .btn,
@@ -223,17 +249,29 @@ gsap.to(hotline, {
 ```
 
 ### Hardware acceleration:
+
 - ✅ Sử dụng `transform` thay vì `top/left`
 - ✅ Sử dụng `opacity` cho fade effects
 - ✅ GSAP tự động enable GPU acceleration
 
 ### Reduced motion support:
+
 ```css
 @media (prefers-reduced-motion: reduce) {
-  .hero-orbit-content { animation: none; }
-  .hero-orbit-halo, .orbit-topic { transform: none!important; }
-  .halo-ring-outer, .halo-ring-inner { animation: none!important; }
-  .orbit-topic > span { animation: none!important; }
+  .hero-orbit-content {
+    animation: none;
+  }
+  .hero-orbit-halo,
+  .orbit-topic {
+    transform: none !important;
+  }
+  .halo-ring-outer,
+  .halo-ring-inner {
+    animation: none !important;
+  }
+  .orbit-topic > span {
+    animation: none !important;
+  }
 }
 ```
 
@@ -266,6 +304,7 @@ gsap.to(hotline, {
 ## 🚀 How to Test
 
 ### Dev server:
+
 ```bash
 cd mentalbridge
 npm run dev
@@ -297,18 +336,21 @@ npm run dev
 ## 📝 Notes
 
 ### Browser compatibility:
+
 - ✅ Chrome 90+
 - ✅ Firefox 88+
 - ✅ Safari 14+
 - ✅ Edge 90+
 
 ### Performance:
+
 - 60 FPS trên desktop
 - 30-60 FPS trên mobile (depending on device)
 - Smooth scrolling với Lenis
 - Hardware accelerated transforms
 
 ### Accessibility:
+
 - Respects `prefers-reduced-motion`
 - All animations can be disabled
 - Keyboard navigation preserved
@@ -327,11 +369,13 @@ npm run dev
 5. **Performant** - Sử dụng GPU acceleration
 
 **Timing:**
+
 - **Fast**: 200-300ms - Microinteractions, hovers
 - **Medium**: 400-600ms - Card reveals, transitions
 - **Slow**: 800-1100ms - Section entrances, important reveals
 
 **Easing:**
+
 - **In**: Quick start, slow end (rarely used)
 - **Out**: Slow start, quick end (most common)
 - **InOut**: Smooth both ends (for loops)

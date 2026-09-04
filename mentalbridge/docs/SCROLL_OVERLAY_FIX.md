@@ -3,12 +3,14 @@
 ## 🐛 Vấn đề
 
 **Triệu chứng:**
+
 - ❌ Một lớp trắng hình chữ nhật đè lên table
 - ❌ Scrollbar xanh ở mép phải nhưng không tương tác đúng
 - ❌ Content bị che khuất bởi scroll container
 - ❌ Có vẻ như có 2 layers chồng lên nhau
 
 **Nguyên nhân:**
+
 ```
 Modal Container (fixed)
 ├─ Overlay (blur backdrop)
@@ -18,6 +20,7 @@ Modal Container (fixed)
 ```
 
 Vấn đề xảy ra vì:
+
 1. Z-index không được quản lý đúng
 2. Scroll container tạo stacking context mới
 3. Overlay và content không có pointer-events đúng
@@ -26,57 +29,61 @@ Vấn đề xảy ra vì:
 ## ✅ Giải pháp
 
 ### 1. **Fix Pointer Events**
+
 ```css
 .history-modal-container {
-  pointer-events: none;  /* Container không chặn clicks */
+  pointer-events: none; /* Container không chặn clicks */
 }
 
 .history-modal-container > * {
-  pointer-events: auto;  /* Children nhận clicks */
+  pointer-events: auto; /* Children nhận clicks */
 }
 ```
 
 **Lý do**: Container chỉ để layout, không cần nhận events. Chỉ có overlay và content cần nhận clicks.
 
 ### 2. **Fix Z-Index Stack**
+
 ```css
 .history-modal-overlay {
-  z-index: -1;  /* Đẩy xuống dưới content */
+  z-index: -1; /* Đẩy xuống dưới content */
 }
 
 .history-modal-content {
-  z-index: 1;   /* Lên trên overlay */
-  overflow: hidden;  /* Clip children */
+  z-index: 1; /* Lên trên overlay */
+  overflow: hidden; /* Clip children */
 }
 ```
 
 **Lý do**: Overlay phải ở dưới, content ở trên. `overflow: hidden` ngăn content tràn ra ngoài border-radius.
 
 ### 3. **Fix Table Stacking**
+
 ```css
 .history-modal-table-wrap {
-  position: relative;  /* Tạo positioning context */
-  overflow-x: hidden;  /* Ngăn scroll ngang */
+  position: relative; /* Tạo positioning context */
+  overflow-x: hidden; /* Ngăn scroll ngang */
 }
 
 .history-modal-table {
   position: relative;
-  z-index: 1;  /* Đảm bảo table ở trên */
+  z-index: 1; /* Đảm bảo table ở trên */
 }
 ```
 
 **Lý do**: Table cần có z-index để không bị scroll container che.
 
 ### 4. **Fix Scrollbar Styling**
+
 ```css
 .history-modal-table-wrap::-webkit-scrollbar-track {
-  background: transparent;  /* ✅ Không có background */
+  background: transparent; /* ✅ Không có background */
   border-radius: 4px;
 }
 
 .history-modal-table-wrap::-webkit-scrollbar-thumb {
   background: var(--teal);
-  border: 2px solid var(--surface);  /* Border để tạo padding */
+  border: 2px solid var(--surface); /* Border để tạo padding */
 }
 ```
 
@@ -108,6 +115,7 @@ Scrollbar Position:
 ## 💻 Code Changes
 
 ### Before (Problematic):
+
 ```css
 /* ❌ Container blocks clicks */
 .history-modal-container {
@@ -132,6 +140,7 @@ Scrollbar Position:
 ```
 
 ### After (Fixed):
+
 ```css
 /* ✅ Container for layout only */
 .history-modal-container {
@@ -172,6 +181,7 @@ Scrollbar Position:
 ## 🎯 How It Works
 
 ### Pointer Events Flow:
+
 ```
 User Click
     ↓
@@ -183,6 +193,7 @@ Children (pointer-events: auto) → Receive
 ```
 
 ### Z-Index Layering:
+
 ```
 Top (highest z-index)
     ↓
@@ -198,6 +209,7 @@ Bottom (lowest z-index)
 ```
 
 ### Scroll Container:
+
 ```
 Table Wrap
 ├─ position: relative (context)
@@ -211,18 +223,20 @@ Table Wrap
 ## 🔍 Debugging Tips
 
 ### Check Z-Index:
+
 ```css
 /* Add temporarily to debug */
 .history-modal-overlay {
-  background: red !important;  /* Should be behind */
+  background: red !important; /* Should be behind */
 }
 
 .history-modal-content {
-  background: blue !important;  /* Should be on top */
+  background: blue !important; /* Should be on top */
 }
 ```
 
 ### Check Pointer Events:
+
 ```js
 // In browser console
 document.querySelector('.history-modal-container').style.pointerEvents
@@ -233,22 +247,25 @@ document.querySelector('.history-modal-content').style.pointerEvents
 ```
 
 ### Check Scroll:
+
 ```css
 /* Add temporarily */
 .history-modal-table-wrap::-webkit-scrollbar-track {
-  background: red !important;  /* Should NOT see red layer */
+  background: red !important; /* Should NOT see red layer */
 }
 ```
 
 ## ✅ Testing Checklist
 
 Visual:
+
 - [x] No white rectangle overlay
 - [x] Content fully visible
 - [x] Scrollbar visible (teal)
 - [x] No double layers
 
 Interaction:
+
 - [x] Can click on table rows
 - [x] Can click buttons in table
 - [x] Can scroll table
@@ -256,6 +273,7 @@ Interaction:
 - [x] Click overlay closes modal
 
 Layout:
+
 - [x] Content doesn't overflow border-radius
 - [x] No horizontal scrollbar
 - [x] Footer always visible
@@ -264,6 +282,7 @@ Layout:
 ## 🎨 Scrollbar Design
 
 ### Desktop:
+
 ```
 Width: 8px
 Track: transparent (no background)
@@ -273,6 +292,7 @@ Hover: teal-deep (#1E4A43)
 ```
 
 ### Visual:
+
 ```
 ┌──────────────────┬─┐
 │ Content          │ │ ← Track (transparent)
@@ -285,11 +305,13 @@ Hover: teal-deep (#1E4A43)
 ## 📱 Responsive
 
 ### Mobile:
+
 - Same fixes apply
 - Scrollbar may be hidden (OS dependent)
 - Touch scrolling works
 
 ### Browser Support:
+
 - ✅ Chrome/Edge: Full support
 - ✅ Firefox: Uses default scrollbar
 - ✅ Safari: Custom scrollbar supported
@@ -298,11 +320,13 @@ Hover: teal-deep (#1E4A43)
 ## 🚀 Performance
 
 Before fix:
+
 - ❌ Double rendering (overlay + table)
 - ❌ Z-fighting issues
 - ❌ Pointer event conflicts
 
 After fix:
+
 - ✅ Clean stacking context
 - ✅ No render conflicts
 - ✅ Efficient pointer routing
@@ -311,6 +335,7 @@ After fix:
 ## 📊 Visual Comparison
 
 ### Before:
+
 ```
 ┌─────────────────────────┐
 │ Header                  │
@@ -322,6 +347,7 @@ After fix:
 ```
 
 ### After:
+
 ```
 ┌─────────────────────────┐
 │ Header                  │
@@ -342,11 +368,11 @@ After fix:
 
 **Problem**: Scroll container creating opaque overlay
 **Root Cause**: Z-index stack + scrollbar track background
-**Solution**: 
+**Solution**:
+
 1. Fix pointer-events routing
-2. Establish clear z-index hierarchy  
+2. Establish clear z-index hierarchy
 3. Make scrollbar track transparent
 4. Add overflow control
 
 **Result**: Clean, transparent scroll with no overlays
-

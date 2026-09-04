@@ -145,12 +145,16 @@ export default function CursorFollower({
       scaleTarget.set(0)
     }
 
-    const handlePointerOver = (event: PointerEvent) => updateInteractiveTarget(event.target)
-    const handlePointerOut = (event: PointerEvent) => updateInteractiveTarget(event.relatedTarget)
+    const handlePointerOver = (event: PointerEvent) =>
+      updateInteractiveTarget(event.target)
+    const handlePointerOut = (event: PointerEvent) =>
+      updateInteractiveTarget(event.relatedTarget)
 
     const root = document.documentElement
     window.addEventListener('pointermove', handlePointerMove, { passive: true })
-    document.addEventListener('pointerover', handlePointerOver, { passive: true })
+    document.addEventListener('pointerover', handlePointerOver, {
+      passive: true,
+    })
     document.addEventListener('pointerout', handlePointerOut, { passive: true })
     root.addEventListener('pointerleave', hide, { passive: true })
     window.addEventListener('blur', hide)
@@ -165,7 +169,17 @@ export default function CursorFollower({
       opacity.set(0)
       scaleTarget.set(0)
     }
-  }, [enabled, interactiveScale, interactiveSelector, lerp, opacity, scaleTarget, size, x, y])
+  }, [
+    enabled,
+    interactiveScale,
+    interactiveSelector,
+    lerp,
+    opacity,
+    scaleTarget,
+    size,
+    x,
+    y,
+  ])
 
   if (!enabled) return null
 

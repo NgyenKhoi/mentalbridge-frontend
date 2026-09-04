@@ -6,7 +6,7 @@ Hệ thống animation đã được nâng cấp toàn diện với GSAP 3.15, L
 
 ### 📖 Các file tài liệu:
 
-1. **[ANIMATION_IMPROVEMENTS.md](./ANIMATION_IMPROVEMENTS.md)** 
+1. **[ANIMATION_IMPROVEMENTS.md](./ANIMATION_IMPROVEMENTS.md)**
    - Chi tiết đầy đủ về tất cả animations
    - Cấu trúc code và implementation
    - Performance optimizations
@@ -50,21 +50,25 @@ http://localhost:3000
 ### Animations mới:
 
 #### 🎯 Hero Section
+
 - **Orbit Topics**: Multi-stage animation với glow effects
 - **Halo Breathing**: 6s cycle breathing animation
 - **Parallax**: Mouse-based parallax với GSAP quickTo
 
 #### 🎴 Cards
+
 - **Feature Cards**: 3D rotation entrance + lift hover
 - **Barrier Cards**: Slide from left + 3D perspective
 - **Risk Cards**: Colored shadows theo risk level
 
 #### 🛤️ Journey
+
 - **Progress Line**: Scrubbed animation theo scroll
 - **Traveler Dot**: Bounce entrance effect
 - **Steps**: Hover lift với glow ring
 
 #### 🎯 Buttons
+
 - **Primary**: Bounce + shimmer + scale effects
 - **Text Links**: Arrow animation với elastic easing
 
@@ -72,14 +76,14 @@ http://localhost:3000
 
 ## 📊 Animation Stats
 
-| Metric | Value |
-|--------|-------|
-| Total Animations | 20+ |
-| Easing Curves | 6 types |
-| Libraries | GSAP 3.15 + Lenis 1.3 |
-| Performance | 60 FPS desktop |
-| Files Modified | 3 files |
-| Lines of Code | ~500 lines |
+| Metric           | Value                 |
+| ---------------- | --------------------- |
+| Total Animations | 20+                   |
+| Easing Curves    | 6 types               |
+| Libraries        | GSAP 3.15 + Lenis 1.3 |
+| Performance      | 60 FPS desktop        |
+| Files Modified   | 3 files               |
+| Lines of Code    | ~500 lines            |
 
 ---
 
@@ -155,25 +159,30 @@ mentalbridge/
 ## 🎯 Key Features
 
 ### 1. Purposeful Animations
+
 Mỗi animation có mục đích rõ ràng:
+
 - **Entrance**: Cho biết element mới xuất hiện
 - **Hover**: Feedback khi user tương tác
 - **Transition**: Smooth chuyển đổi giữa states
 - **Continuous**: Subtle life cho static elements
 
 ### 2. Performance Optimized
+
 - GPU acceleration cho all transforms
 - Will-change hints cho browser
 - 60 FPS trên desktop
 - Smooth scrolling với Lenis
 
 ### 3. Accessible
+
 - Respects `prefers-reduced-motion`
 - Keyboard navigation preserved
 - Focus states visible
 - Screen reader friendly
 
 ### 4. Responsive
+
 - Works on all screen sizes
 - Touch-friendly trên mobile
 - Adaptive animations
@@ -185,21 +194,21 @@ Mỗi animation có mục đích rõ ràng:
 
 ### Timing Tiers:
 
-| Tier | Duration | Use Case | Example |
-|------|----------|----------|---------|
-| Fast | 200-300ms | Microinteractions | Hover, click feedback |
-| Medium | 400-600ms | Card reveals | Scroll animations |
-| Slow | 800-1100ms | Section entrances | Hero, CTA |
+| Tier   | Duration   | Use Case          | Example               |
+| ------ | ---------- | ----------------- | --------------------- |
+| Fast   | 200-300ms  | Microinteractions | Hover, click feedback |
+| Medium | 400-600ms  | Card reveals      | Scroll animations     |
+| Slow   | 800-1100ms | Section entrances | Hero, CTA             |
 
 ### Easing Curves:
 
-| Curve | Feel | Use Case |
-|-------|------|----------|
-| `cubic-bezier(.34,1.56,.64,1)` | Bounce | Buttons, emphasis |
-| `cubic-bezier(.16,1,.3,1)` | Smooth | General animations |
-| `power4.out` | Strong ease | Important reveals |
-| `expo.out` | Exponential | Dramatic entrances |
-| `back.out` | Elastic | Playful interactions |
+| Curve                          | Feel        | Use Case             |
+| ------------------------------ | ----------- | -------------------- |
+| `cubic-bezier(.34,1.56,.64,1)` | Bounce      | Buttons, emphasis    |
+| `cubic-bezier(.16,1,.3,1)`     | Smooth      | General animations   |
+| `power4.out`                   | Strong ease | Important reveals    |
+| `expo.out`                     | Exponential | Dramatic entrances   |
+| `back.out`                     | Elastic     | Playful interactions |
 
 ---
 
@@ -214,35 +223,37 @@ const timeline = gsap.timeline()
 timeline.to(content.children, {
   opacity: 0,
   y: -12,
-  duration: .28,
-  stagger: .02,
-  ease: 'power2.in'
+  duration: 0.28,
+  stagger: 0.02,
+  ease: 'power2.in',
 })
 
 // Pulse selected topic
-timeline.fromTo(selected, 
+timeline.fromTo(
+  selected,
   { scale: 0.92 },
   {
     scale: 1.24,
     opacity: 1,
-    duration: .32,
+    duration: 0.32,
     ease: 'back.out(2.5)',
     boxShadow: '0 0 30px rgba(225, 166, 81, 0.6)',
-    filter: 'brightness(1.3)'
-  }
+    filter: 'brightness(1.3)',
+  },
 )
 
 // Fade in new content
-timeline.fromTo(content.children,
+timeline.fromTo(
+  content.children,
   { opacity: 0, y: 18, scale: 0.96 },
   {
     opacity: 1,
     y: 0,
     scale: 1,
-    duration: .72,
-    stagger: .055,
-    ease: 'back.out(1.4)'
-  }
+    duration: 0.72,
+    stagger: 0.055,
+    ease: 'back.out(1.4)',
+  },
 )
 ```
 
@@ -250,9 +261,10 @@ timeline.fromTo(content.children,
 
 ```css
 .feature-card {
-  transition: transform .45s cubic-bezier(.34,1.56,.64,1),
-              box-shadow .45s ease,
-              filter .35s ease;
+  transition:
+    transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.45s ease,
+    filter 0.35s ease;
 }
 
 .feature-card:hover {
@@ -263,7 +275,7 @@ timeline.fromTo(content.children,
 
 .feature-card:hover .feature-icon {
   transform: rotate(-10deg) scale(1.16);
-  box-shadow: 0 8px 20px -8px rgba(0,0,0,.25);
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.25);
 }
 ```
 
@@ -273,18 +285,19 @@ timeline.fromTo(content.children,
 ScrollTrigger.batch(elements, {
   start: 'top 88%',
   once: true,
-  onEnter: batch => {
-    gsap.fromTo(batch,
+  onEnter: (batch) => {
+    gsap.fromTo(
+      batch,
       { y: 30, opacity: 0 },
       {
         y: 0,
         opacity: 1,
-        duration: .82,
-        stagger: .07,
-        ease: 'power3.out'
-      }
+        duration: 0.82,
+        stagger: 0.07,
+        ease: 'power3.out',
+      },
     )
-  }
+  },
 })
 ```
 
@@ -295,19 +308,25 @@ ScrollTrigger.batch(elements, {
 ### Common Issues:
 
 #### Issue: Animations không smooth
+
 **Solution:**
+
 - Check will-change properties
 - Enable GPU acceleration
 - Reduce number of simultaneous animations
 
 #### Issue: Scroll lag
+
 **Solution:**
+
 - Check Lenis configuration
 - Adjust lerp value (0.075 default)
 - Reduce ScrollTrigger scrub value
 
 #### Issue: Hover delay
+
 **Solution:**
+
 - Reduce transition duration
 - Check for conflicting animations
 - Use GSAP quickTo for instant response
@@ -329,23 +348,25 @@ ScrollTrigger.batch(elements, {
 
 ## 🎯 Browser Support
 
-| Browser | Version | Status |
-|---------|---------|--------|
-| Chrome | 90+ | ✅ Full support |
-| Firefox | 88+ | ✅ Full support |
-| Safari | 14+ | ✅ Full support |
-| Edge | 90+ | ✅ Full support |
+| Browser | Version | Status          |
+| ------- | ------- | --------------- |
+| Chrome  | 90+     | ✅ Full support |
+| Firefox | 88+     | ✅ Full support |
+| Safari  | 14+     | ✅ Full support |
+| Edge    | 90+     | ✅ Full support |
 
 ---
 
 ## 📝 Credits
 
 **Libraries:**
+
 - [GSAP](https://greensock.com/gsap/) - GreenSock Animation Platform
 - [Lenis](https://github.com/studio-freight/lenis) - Smooth Scrolling
 - [ScrollTrigger](https://greensock.com/scrolltrigger/) - Scroll Animations
 
 **Design:**
+
 - Animation principles by Material Design & Apple HIG
 - Timing curves inspired by iOS animations
 - Easing functions from easings.net
@@ -386,6 +407,7 @@ ScrollTrigger.batch(elements, {
 ## 📧 Support
 
 Need help?
+
 - Check [TESTING_ANIMATIONS.md](./TESTING_ANIMATIONS.md) for debug tips
 - Review [ANIMATION_IMPROVEMENTS.md](./ANIMATION_IMPROVEMENTS.md) for technical details
 - See [ANIMATION_SUMMARY.md](./ANIMATION_SUMMARY.md) for quick reference
@@ -403,14 +425,14 @@ Need help?
 
 ### Before vs After
 
-| Aspect | Before | After |
-|--------|--------|-------|
+| Aspect       | Before      | After                      |
+| ------------ | ----------- | -------------------------- |
 | Orbit Topics | Simple fade | Multi-stage glow animation |
-| Buttons | Basic hover | Bounce + shimmer + scale |
-| Cards | Fade in | 3D rotation + lift hover |
-| Journey | Static | Scrubbed line + bounce dot |
-| Performance | Good | Excellent (60 FPS) |
-| Polish | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| Buttons      | Basic hover | Bounce + shimmer + scale   |
+| Cards        | Fade in     | 3D rotation + lift hover   |
+| Journey      | Static      | Scrubbed line + bounce dot |
+| Performance  | Good        | Excellent (60 FPS)         |
+| Polish       | ⭐⭐⭐      | ⭐⭐⭐⭐⭐                 |
 
 ---
 

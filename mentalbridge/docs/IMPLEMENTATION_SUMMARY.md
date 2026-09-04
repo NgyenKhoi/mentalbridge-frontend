@@ -7,12 +7,14 @@
 Tất cả màn hình mới đều tuân thủ nghiêm ngặt design system đã có:
 
 #### CSS Variables từ globals.css
+
 - **Colors**: `--teal-deep`, `--teal`, `--amber`, `--terracotta`, `--lavender` và các biến phụ
 - **Typography**: Fraunces (display/headings) + Be Vietnam Pro (body)
 - **Spacing**: `--radius` (14px), `--nav-height` (72px)
 - **Effects**: `--shadow`, `--surface-glass`, animation timing `cubic-bezier(.16,1,.3,1)`
 
 #### Components tái sử dụng
+
 - `.btn-primary`, `.btn-outline`, `.btn-ghost` - Buttons với shimmer effect
 - `.feature-card`, `.feature-grid` - Card layouts
 - `.risk-card`, `.risk-tag` - Risk level indicators (teal/amber/terra)
@@ -54,6 +56,7 @@ app/
 ## 🎯 Các màn hình đã xây dựng
 
 ### 1. Authentication (`/login`, `/register`)
+
 - **Layout**: 2 columns (form + visual với breathing circle)
 - **Features**:
   - Login: Email/password, "Quên mật khẩu", link Anonymous Assessment
@@ -61,16 +64,19 @@ app/
 - **Animations**: Framer Motion fade-in, shimmer buttons
 
 ### 2. Anonymous Assessment (`/assessment/anonymous`)
+
 - **Flow**: PHQ-9 (9 câu hỏi), progress bar, animated transitions
 - **Result**: Risk card (3 levels) + hotline banner + CTA đăng ký
 - **No login required**: Standalone experience
 
 ### 3. Dashboard Layout (`/(dashboard)/layout.tsx`)
+
 - **Sidebar**: 9 nav items (Dashboard, Journal, Assessments, Specialists, Appointments, Messages, Resources, Analytics, Subscription)
 - **Topbar**: Logo, search, notifications badge, profile dropdown
 - **Responsive**: Sidebar collapses < 980px (sẵn sàng cho bottom nav mobile)
 
 ### 4. Dashboard Home (`/(dashboard)/page.tsx`)
+
 - **Cards Grid**:
   - Mood status (mood-dot component)
   - Assessment results (score-chip + chart-bar)
@@ -81,48 +87,58 @@ app/
 - **Quick Actions**: 3 primary buttons (Viết nhật ký, Làm assessment, Tìm chuyên gia)
 
 ### 5. Journal (`/journal`)
+
 - **Form**: Mood selector (5 emojis with colors), textarea
 - **Timeline**: Vertical line + mood dots + content cards
 - **Animation**: Timeline reveal with stagger
 
 ### 6. Assessments (`/assessments`)
+
 - **Available Tests**: 3 feature-cards (PHQ-9, GAD-7, PSQI) với duration + questions count
 - **History Table**: Grid layout với risk-tags
 
 ### 7. Specialists (`/specialists`)
+
 - **Filters**: Specialty tags (Trầm cảm, Lo âu, Stress...)
 - **Grid**: Cards với avatar, rating, experience, price, "Đặt lịch" button
 - **Status**: Available/Busy indicator
 
 ### 8. Appointments (`/appointments`)
+
 - **Upcoming**: Timeline với status dots (confirmed/pending), action buttons
 - **Past**: Simplified list với completed tags
 
 ### 9. Messages (`/messages`)
+
 - **2-column**: Conversation list + chat area
 - **Chat UI**: Reuses `.chat-bubble.bot/.user` từ Showcase mockup
 - **Online status**: Green dot indicator
 
 ### 10. Resources (`/resources`)
+
 - **Categories**: Thở, Thiền, Ngủ, Vận động, Tư duy tích cực
 - **Grid**: Feature-cards với icon, duration, category tag
 
 ### 11. Analytics (`/analytics`)
+
 - **Stats Grid**: 4 cards (Streak, Assessments, Sessions, Avg Mood)
 - **Mood Chart**: Animated bar chart với `.chart-bar` pattern
 - **Insights**: Gradient card với bullet points
 
 ### 12. Subscription (`/subscription`)
+
 - **3 Plans**: Free, Plus (popular), Premium
 - **Comparison**: Feature lists với checkmarks
 - **FAQ**: Collapsible Q&A
 
 ### 13. Profile (`/profile`)
+
 - **2-column**: Avatar/stats sidebar + form
 - **Stats**: 2x2 grid với activity metrics
 - **Settings**: Account management buttons
 
 ### 14. Notifications (`/notifications`)
+
 - **List**: Cards với type icons (reminder/message/appointment/system)
 - **Unread**: Badge count + visual indicators
 - **Read/Unread**: Different background colors
@@ -132,18 +148,21 @@ app/
 ## 🎭 Animations & Interactions
 
 ### Framer Motion Usage
+
 - **Page transitions**: Staggered reveals với delay increments
 - **Hover effects**: `whileHover={{ x: 4 }}` cho cards/buttons
 - **AnimatePresence**: Modal/form show-hide
 - **Chart animations**: Height transitions với cubic-bezier easing
 
 ### CSS Animations (từ globals.css)
+
 - `@keyframes breathing`: Breathing circle
 - `@keyframes float`: Float-card hover
 - `@keyframes shimmer`: Button shimmer effect
 - `@keyframes pulse`: Notification dots
 
 ### Scroll Reveal
+
 - `.reveal` class + IntersectionObserver (đã có từ landing page)
 - Tất cả feature-cards đều có reveal animation
 
@@ -152,14 +171,20 @@ app/
 ## 📱 Responsive Design
 
 ### Breakpoints (đồng bộ với landing page)
+
 - **980px**: Sidebar collapses, grid adjusts
 - **640px**: Single column layouts, reduced padding
 
 ### Mobile-First CSS
+
 ```css
 @media (max-width: 980px) {
-  .dashboard-sidebar { transform: translateX(-100%); }
-  .dashboard-main { margin-left: 0; }
+  .dashboard-sidebar {
+    transform: translateX(-100%);
+  }
+  .dashboard-main {
+    margin-left: 0;
+  }
 }
 ```
 
@@ -168,15 +193,26 @@ app/
 ## 🎨 Color Consistency
 
 ### Risk Levels (3 màu chính)
+
 - **Teal** (`--teal`): Low risk, positive, confirmed
 - **Amber** (`--amber`): Medium risk, pending, warnings
 - **Terracotta** (`--terracotta`): High risk, critical, errors
 
 ### Usage Examples
+
 ```css
-.risk-tag.teal { background: var(--teal-pale); color: var(--teal-deep); }
-.risk-tag.amber { background: var(--amber-pale); color: var(--amber-deep); }
-.risk-tag.terra { background: var(--terra-pale); color: var(--terracotta); }
+.risk-tag.teal {
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+.risk-tag.amber {
+  background: var(--amber-pale);
+  color: var(--amber-deep);
+}
+.risk-tag.terra {
+  background: var(--terra-pale);
+  color: var(--terracotta);
+}
 ```
 
 ---
@@ -234,6 +270,7 @@ Total: 17 routes ✓
 ## 🎯 Cảm nhận "cùng một sản phẩm"
 
 Tất cả màn hình được thiết kế để:
+
 1. **Nhận diện ngay**: Palette sage/teal + amber/terracotta, Fraunces headings
 2. **Chuyển tiếp mượt**: Cùng animation timing, hover effects
 3. **Tái sử dụng patterns**: Feature-cards cho mọi nội dung, risk-cards cho assessments
@@ -250,6 +287,7 @@ npm run dev
 ```
 
 ### Test các routes:
+
 - Landing: `/`
 - Login: `/login`
 - Register: `/register`
@@ -261,12 +299,14 @@ npm run dev
 ## 📝 Ghi chú Implementation
 
 ### Đã tránh:
+
 - ❌ Tạo màu mới ngoài palette
 - ❌ Dùng Tailwind (CSS thuần như yêu cầu)
 - ❌ CSS trùng lặp (tái sử dụng classes)
 - ❌ Font/spacing khác với landing page
 
 ### Đã thực hiện:
+
 - ✅ Import dashboard.css vào layout
 - ✅ Tất cả animations dùng Framer Motion
 - ✅ Tái sử dụng chat-bubble từ Showcase mockup
@@ -279,6 +319,7 @@ npm run dev
 ## 🎉 Kết luận
 
 **Hoàn thành 100%** yêu cầu:
+
 - 17 màn hình responsive
 - Design system consistency
 - Framer Motion animations

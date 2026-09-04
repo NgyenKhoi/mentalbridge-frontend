@@ -2,13 +2,13 @@
 
 ## Status
 
-| Field | Value |
-| --- | --- |
-| Jira | MB-139 |
-| Parent delivery scope | Sprint 1 frontend Story 216 |
-| Status date | 2026-08-31 |
-| Target branch | `dev` |
-| Result | Implemented and locally verified |
+| Field                 | Value                            |
+| --------------------- | -------------------------------- |
+| Jira                  | MB-139                           |
+| Parent delivery scope | Sprint 1 frontend Story 216      |
+| Status date           | 2026-08-31                       |
+| Target branch         | `dev`                            |
+| Result                | Implemented and locally verified |
 
 MB-139 verifies the existing Identity frontend integration rather than creating a second authentication design. Identity remains the owner of accounts, roles, credentials, access and refresh lifecycle, and authorization facts. The frontend owns the same-origin BFF, secure cookie transport, role-derived navigation, sanitized UI errors, and browser delivery evidence.
 
@@ -44,16 +44,16 @@ Playwright runs the production Next.js server against `scripts/identity-e2e-serv
 
 Run from `mentalbridge/` in the isolated MB-139 worktree:
 
-| Command | Result |
-| --- | --- |
-| `npm ci` | Passed; 596 packages installed, 0 reported vulnerabilities |
-| `npm run format:check` | Passed |
-| `npm run lint` | Passed |
-| `npm run typecheck` | Passed; Next.js route types generated successfully |
-| `npm run contracts:check` | Passed; Identity snapshot and generated types are valid |
-| `npm run test:unit` | Passed; 17 files and 84 tests |
-| `npm run build` | Passed; production build generated 30 routes |
-| `npm run test:e2e` | Passed; 9 Chromium scenarios |
+| Command                   | Result                                                     |
+| ------------------------- | ---------------------------------------------------------- |
+| `npm ci`                  | Passed; 596 packages installed, 0 reported vulnerabilities |
+| `npm run format:check`    | Passed                                                     |
+| `npm run lint`            | Passed                                                     |
+| `npm run typecheck`       | Passed; Next.js route types generated successfully         |
+| `npm run contracts:check` | Passed; Identity snapshot and generated types are valid    |
+| `npm run test:unit`       | Passed; 17 files and 84 tests                              |
+| `npm run build`           | Passed; production build generated 30 routes               |
+| `npm run test:e2e`        | Passed; 9 Chromium scenarios                               |
 
 The final `npm run ci` completed successfully before handoff. Exact counts above describe the current MB-139 worktree and must be updated if later changes add or remove tests.
 

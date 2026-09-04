@@ -7,6 +7,7 @@ File `mentalbridge-trangchu.html` đã được chuyển đổi 100% sang Next.j
 ## Chi tiết chuyển đổi
 
 ### 1. CSS (app/globals.css)
+
 - ✅ Copy toàn bộ `<style>` tag từ HTML gốc
 - ✅ Thay thế font-family references:
   - `'Fraunces',serif` → `var(--font-fraunces),serif`
@@ -21,12 +22,14 @@ File `mentalbridge-trangchu.html` đã được chuyển đổi 100% sang Next.j
 ### 2. HTML → JSX Components
 
 #### Header.tsx
+
 - ✅ `<header>` structure giữ nguyên
 - ✅ `useEffect` cho scroll listener
 - ✅ `headerRef` thay cho `document.getElementById`
 - ✅ SVG attributes: `stroke-width` → `strokeWidth`
 
 #### Hero.tsx
+
 - ✅ Structure giữ nguyên đầy đủ
 - ✅ 3 useEffect riêng biệt cho:
   1. Breathing label (4s interval)
@@ -40,6 +43,7 @@ File `mentalbridge-trangchu.html` đã được chuyển đổi 100% sang Next.j
 - ✅ Refs: `heroVisualRef`, `heroGlowRef`, `breatheStageRef`, `breatheLabelRef`
 
 #### Showcase.tsx
+
 - ✅ Phone mockup structure giữ nguyên
 - ✅ 3 slides: AI chat, Journal, Chart
 - ✅ `useEffect` cho slide cycling (3.6s)
@@ -47,6 +51,7 @@ File `mentalbridge-trangchu.html` đã được chuyển đổi 100% sang Next.j
 - ✅ First slide active on mount
 
 #### Journey.tsx
+
 - ✅ Journey path với 5 steps
 - ✅ IntersectionObserver cho progress bar
 - ✅ `data-step` attributes giữ nguyên
@@ -54,12 +59,14 @@ File `mentalbridge-trangchu.html` đã được chuyển đổi 100% sang Next.j
 - ✅ `journeyFillRef` cho progress bar width
 
 #### Các components khác (Barriers, Features, RiskLevels, Hotline, Cta, Footer)
+
 - ✅ Pure presentational components
 - ✅ HTML structure giữ nguyên 100%
 - ✅ SVG inline với JSX syntax
 - ✅ Escape quotes: `"` → `&quot;`
 
 #### ScrollReveal.tsx
+
 - ✅ Client component riêng cho reveal animation
 - ✅ IntersectionObserver (threshold: 0.15)
 - ✅ Auto unobserve sau khi visible
@@ -70,13 +77,19 @@ File `mentalbridge-trangchu.html` đã được chuyển đổi 100% sang Next.j
 #### Original JS → React mapping:
 
 **1. Header scroll (line 958-961)**
+
 ```js
 // Original
-const header = document.getElementById('site-header');
-window.addEventListener('scroll', () => {
-  header.classList.toggle('scrolled', window.scrollY > 12);
-}, {passive:true});
+const header = document.getElementById('site-header')
+window.addEventListener(
+  'scroll',
+  () => {
+    header.classList.toggle('scrolled', window.scrollY > 12)
+  },
+  { passive: true },
+)
 ```
+
 ```tsx
 // React
 const headerRef = useRef<HTMLElement>(null)
@@ -90,18 +103,23 @@ useEffect(() => {
 ```
 
 **2. Scroll reveal (line 963-971)**
+
 ```js
 // Original
-const revealEls = document.querySelectorAll('.reveal');
-const io = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      e.target.classList.add('visible');
-      io.unobserve(e.target);
-    }
-  });
-}, {threshold:0.15});
+const revealEls = document.querySelectorAll('.reveal')
+const io = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible')
+        io.unobserve(e.target)
+      }
+    })
+  },
+  { threshold: 0.15 },
+)
 ```
+
 ```tsx
 // React
 useEffect(() => {
@@ -113,22 +131,27 @@ useEffect(() => {
 ```
 
 **3. Journey progress (line 973-984)**
+
 ```js
 // Original
-const journeyFill = document.getElementById('journeyFill');
-const journeyIO = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      const step = parseInt(e.target.dataset.step, 10);
-      e.target.classList.add('on');
-      const pct = ((step - 1) / 4) * 100;
-      if (parseFloat(journeyFill.style.width || '0') < pct) {
-        journeyFill.style.width = pct + '%';
+const journeyFill = document.getElementById('journeyFill')
+const journeyIO = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        const step = parseInt(e.target.dataset.step, 10)
+        e.target.classList.add('on')
+        const pct = ((step - 1) / 4) * 100
+        if (parseFloat(journeyFill.style.width || '0') < pct) {
+          journeyFill.style.width = pct + '%'
+        }
       }
-    }
-  });
-}, {threshold:0.6});
+    })
+  },
+  { threshold: 0.6 },
+)
 ```
+
 ```tsx
 // React
 const journeyFillRef = useRef<HTMLDivElement>(null)
@@ -142,15 +165,17 @@ useEffect(() => {
 ```
 
 **4. Breathing label (line 986-991)**
+
 ```js
 // Original
-const label = document.getElementById('breatheLabel');
-let breatheIn = true;
+const label = document.getElementById('breatheLabel')
+let breatheIn = true
 setInterval(() => {
-  breatheIn = !breatheIn;
-  label.textContent = breatheIn ? 'Hít vào...' : 'Thở ra...';
-}, 4000);
+  breatheIn = !breatheIn
+  label.textContent = breatheIn ? 'Hít vào...' : 'Thở ra...'
+}, 4000)
 ```
+
 ```tsx
 // React
 const breatheLabelRef = useRef<HTMLSpanElement>(null)
@@ -166,6 +191,7 @@ useEffect(() => {
 ```
 
 **5. Hero parallax (line 993-1023)**
+
 ```js
 // Original
 const heroVisual = document.getElementById('heroVisual');
@@ -179,6 +205,7 @@ if (heroVisual && !reduceMotion) {
   heroVisual.addEventListener('mouseleave', () => { ... });
 }
 ```
+
 ```tsx
 // React
 const heroVisualRef = useRef<HTMLDivElement>(null)
@@ -190,10 +217,10 @@ useEffect(() => {
   // ... same logic with refs
   const handleMouseMove = (e: MouseEvent) => { ... }
   const handleMouseLeave = () => { ... }
-  
+
   heroVisual?.addEventListener('mousemove', handleMouseMove)
   heroVisual?.addEventListener('mouseleave', handleMouseLeave)
-  
+
   return () => {
     heroVisual?.removeEventListener('mousemove', handleMouseMove)
     heroVisual?.removeEventListener('mouseleave', handleMouseLeave)
@@ -202,34 +229,36 @@ useEffect(() => {
 ```
 
 **6. Phone slides (line 1025-1032)**
+
 ```js
 // Original
-const phoneSlides = document.querySelectorAll('.phone-slide');
+const phoneSlides = document.querySelectorAll('.phone-slide')
 if (phoneSlides.length) {
-  let slideIdx = 0;
+  let slideIdx = 0
   setInterval(() => {
-    phoneSlides[slideIdx].classList.remove('active');
-    slideIdx = (slideIdx + 1) % phoneSlides.length;
-    phoneSlides[slideIdx].classList.add('active');
-  }, 3600);
+    phoneSlides[slideIdx].classList.remove('active')
+    slideIdx = (slideIdx + 1) % phoneSlides.length
+    phoneSlides[slideIdx].classList.add('active')
+  }, 3600)
 }
 ```
+
 ```tsx
 // React
 const phoneRef = useRef<HTMLDivElement>(null)
 useEffect(() => {
   const phoneSlides = phoneRef.current?.querySelectorAll('.phone-slide')
   if (!phoneSlides?.length) return
-  
+
   phoneSlides[0].classList.add('active')
   let slideIdx = 0
-  
+
   const interval = setInterval(() => {
     phoneSlides[slideIdx].classList.remove('active')
     slideIdx = (slideIdx + 1) % phoneSlides.length
     phoneSlides[slideIdx].classList.add('active')
   }, 3600)
-  
+
   return () => clearInterval(interval)
 }, [])
 ```

@@ -51,10 +51,12 @@ export default function ScrollReveal() {
     if (typeof window === 'undefined') return
 
     // Respect prefers-reduced-motion
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reduceMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches
     if (reduceMotion) {
       // Make all reveal elements visible immediately without animation
-      document.querySelectorAll('.reveal').forEach(el => {
+      document.querySelectorAll('.reveal').forEach((el) => {
         ;(el as HTMLElement).style.opacity = '1'
         ;(el as HTMLElement).style.transform = 'none'
       })
@@ -69,7 +71,7 @@ export default function ScrollReveal() {
 
     // Group by parent to create sibling staggers
     const groups = new Map<Element, HTMLElement[]>()
-    revealEls.forEach(el => {
+    revealEls.forEach((el) => {
       const parent = el.parentElement!
       if (!groups.has(parent)) groups.set(parent, [])
       groups.get(parent)!.push(el)
@@ -84,10 +86,11 @@ export default function ScrollReveal() {
 
       // Determine direction hint from data attribute or class
       const fromVars = (el: HTMLElement) => {
-        if (el.classList.contains('reveal-left'))  return { x: -48, opacity: 0 }
-        if (el.classList.contains('reveal-right')) return { x:  48, opacity: 0 }
-        if (el.classList.contains('reveal-scale')) return { scale: 0.88, opacity: 0 }
-        return { y: 36, opacity: 0 }  // default: rise up
+        if (el.classList.contains('reveal-left')) return { x: -48, opacity: 0 }
+        if (el.classList.contains('reveal-right')) return { x: 48, opacity: 0 }
+        if (el.classList.contains('reveal-scale'))
+          return { scale: 0.88, opacity: 0 }
+        return { y: 36, opacity: 0 } // default: rise up
       }
 
       gsap.set(els, (i: number) => fromVars(els[i]))
@@ -98,7 +101,10 @@ export default function ScrollReveal() {
         once: true,
         onEnter: () => {
           gsap.to(els, {
-            x: 0, y: 0, scale: 1, opacity: 1,
+            x: 0,
+            y: 0,
+            scale: 1,
+            opacity: 1,
             duration: 0.9,
             ease: 'power4.out',
             stagger: 0.09,
@@ -121,16 +127,16 @@ export default function ScrollReveal() {
           scrollTrigger: {
             trigger: journeyPath,
             start: 'top 75%',
-            end:   'bottom 40%',
+            end: 'bottom 40%',
             scrub: 1.2,
           },
-        }
+        },
       )
     }
 
     // ── 3. Section headings — split-line reveal ──────────────────
     const sectionHeads = gsap.utils.toArray<HTMLElement>('.section-head h2')
-    sectionHeads.forEach(heading => {
+    sectionHeads.forEach((heading) => {
       gsap.from(heading, {
         y: 32,
         opacity: 0,
@@ -249,7 +255,7 @@ export default function ScrollReveal() {
     }
 
     // ── 10. Eyebrow labels — slide right ─────────────────────────
-    gsap.utils.toArray<HTMLElement>('.eyebrow').forEach(el => {
+    gsap.utils.toArray<HTMLElement>('.eyebrow').forEach((el) => {
       gsap.from(el, {
         x: -20,
         opacity: 0,
@@ -264,7 +270,7 @@ export default function ScrollReveal() {
     })
 
     return () => {
-      ScrollTrigger.getAll().forEach(t => t.kill())
+      ScrollTrigger.getAll().forEach((t) => t.kill())
     }
   }, [])
 
@@ -281,13 +287,32 @@ The CSS class-based fade is now replaced by GSAP.
 
 ```css
 /* ---------- reveal-on-scroll ---------- */
-.reveal{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);}
-.reveal.visible{opacity:1;transform:translateY(0);}
-.reveal-d1{transition-delay:.08s;}
-.reveal-d2{transition-delay:.16s;}
-.reveal-d3{transition-delay:.24s;}
-.reveal-d4{transition-delay:.32s;}
-.reveal-d5{transition-delay:.4s;}
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-d1 {
+  transition-delay: 0.08s;
+}
+.reveal-d2 {
+  transition-delay: 0.16s;
+}
+.reveal-d3 {
+  transition-delay: 0.24s;
+}
+.reveal-d4 {
+  transition-delay: 0.32s;
+}
+.reveal-d5 {
+  transition-delay: 0.4s;
+}
 ```
 
 **Replace with only the reduced-motion safety net:**
@@ -296,7 +321,10 @@ The CSS class-based fade is now replaced by GSAP.
 /* ---------- reveal — GSAP sets initial opacity/transform via JS ---------- */
 /* Fallback: if JS fails, elements should still be visible */
 @media (prefers-reduced-motion: reduce) {
-  .reveal { opacity: 1 !important; transform: none !important; }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 ```
 
@@ -311,29 +339,51 @@ The current hero uses `el.style.transform` directly in `mousemove`.
 useEffect(() => {
   if (typeof window === 'undefined') return
   const heroVisual = heroVisualRef.current
-  const heroGlow   = heroGlowRef.current
+  const heroGlow = heroGlowRef.current
   const breatheStage = breatheStageRef.current
   if (!heroVisual || !heroGlow || !breatheStage) return
 
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reduceMotion = window.matchMedia(
+    '(prefers-reduced-motion: reduce)',
+  ).matches
   if (reduceMotion) return
 
   // Lazy import to keep SSR safe
   import('gsap').then(({ default: gsap }) => {
-    const cards = Array.from(heroVisual.querySelectorAll<HTMLElement>('.float-card'))
+    const cards = Array.from(
+      heroVisual.querySelectorAll<HTMLElement>('.float-card'),
+    )
 
     // quickTo for 60fps lerp tracking
-    const glowX = gsap.quickTo(heroGlow, 'left', { duration: 0.6, ease: 'power3.out' })
-    const glowY = gsap.quickTo(heroGlow, 'top',  { duration: 0.6, ease: 'power3.out' })
+    const glowX = gsap.quickTo(heroGlow, 'left', {
+      duration: 0.6,
+      ease: 'power3.out',
+    })
+    const glowY = gsap.quickTo(heroGlow, 'top', {
+      duration: 0.6,
+      ease: 'power3.out',
+    })
 
-    const stageX = gsap.quickTo(breatheStage, 'x', { duration: 0.8, ease: 'power2.out' })
-    const stageY = gsap.quickTo(breatheStage, 'y', { duration: 0.8, ease: 'power2.out' })
+    const stageX = gsap.quickTo(breatheStage, 'x', {
+      duration: 0.8,
+      ease: 'power2.out',
+    })
+    const stageY = gsap.quickTo(breatheStage, 'y', {
+      duration: 0.8,
+      ease: 'power2.out',
+    })
 
-    const cardTrackers = cards.map(card => {
+    const cardTrackers = cards.map((card) => {
       const depth = parseInt(card.dataset.depth || '30', 10)
       return {
-        x: gsap.quickTo(card, 'x', { duration: 0.7 + depth * 0.005, ease: 'power2.out' }),
-        y: gsap.quickTo(card, 'y', { duration: 0.7 + depth * 0.005, ease: 'power2.out' }),
+        x: gsap.quickTo(card, 'x', {
+          duration: 0.7 + depth * 0.005,
+          ease: 'power2.out',
+        }),
+        y: gsap.quickTo(card, 'y', {
+          duration: 0.7 + depth * 0.005,
+          ease: 'power2.out',
+        }),
         depth,
       }
     })
@@ -342,24 +392,30 @@ useEffect(() => {
       const rect = heroVisual.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
-      const cx = x - rect.width  / 2
+      const cx = x - rect.width / 2
       const cy = y - rect.height / 2
 
-      glowX(x); glowY(y)
+      glowX(x)
+      glowY(y)
       gsap.to(heroGlow, { opacity: 1, duration: 0.3 })
 
-      stageX(cx * 0.02); stageY(cy * 0.02)
+      stageX(cx * 0.02)
+      stageY(cy * 0.02)
 
       cardTrackers.forEach(({ x: cX, y: cY, depth }) => {
-        cX((cx / rect.width)  * depth)
+        cX((cx / rect.width) * depth)
         cY((cy / rect.height) * depth)
       })
     }
 
     const handleMouseLeave = () => {
       gsap.to(heroGlow, { opacity: 0, duration: 0.4 })
-      stageX(0); stageY(0)
-      cardTrackers.forEach(({ x: cX, y: cY }) => { cX(0); cY(0) })
+      stageX(0)
+      stageY(0)
+      cardTrackers.forEach(({ x: cX, y: cY }) => {
+        cX(0)
+        cY(0)
+      })
     }
 
     heroVisual.addEventListener('mousemove', handleMouseMove)
@@ -391,12 +447,14 @@ The journey step `.on` class toggle and `journeyFill` width animation are now
 controlled by GSAP in `ScrollReveal.tsx` (item #2 in the ScrollReveal code above).
 
 **In `Journey.tsx`:**
+
 - Remove the entire `useEffect` block and the `journeyFillRef` ref
 - Remove `import { useEffect, useRef } from 'react'` — no longer needed; convert to server component
 - Remove `ref={journeyFillRef}` from the `journey-line-fill` div
 - Keep the `id="journeyFill"` and `id="journeyPath"` attributes — GSAP targets them by id
 
 The component signature becomes:
+
 ```tsx
 // Remove 'use client' directive
 export default function Journey() { ... }
@@ -418,17 +476,17 @@ export default function Journey() { ... }
 
 ## Expected result after implementation
 
-| Section | Animation |
-|---|---|
-| All `.reveal` elements | Rise 36px → 0, fade in, stagger 90ms between siblings |
-| Section `<h2>` headings | Rise 32px → 0, expo.out |
-| `.eyebrow` labels | Slide right 20px → 0 |
-| `.barrier-card` ×3 | Fan in from left, slight rotateY, stagger 130ms |
-| `.feature-card` ×6 | Scale 0.94 + rise, stagger across full grid 500ms total |
-| `.risk-card` ×3 | Rise 60px, stagger 120ms |
-| `.showcase-card` | Scale 0.96 + rise 60px, expo.out |
-| `.hotline` banner | Rise 48px + scale 0.97, expo.out |
-| `.cta` block | Scale 0.95 + fade, power4.out |
-| Journey progress line | Scrubbed with scroll, start 75% – end 40% |
-| Hero float cards | GSAP quickTo parallax (depth-based lag), 60fps |
-| Hero glow | GSAP quickTo opacity + position tracking |
+| Section                 | Animation                                               |
+| ----------------------- | ------------------------------------------------------- |
+| All `.reveal` elements  | Rise 36px → 0, fade in, stagger 90ms between siblings   |
+| Section `<h2>` headings | Rise 32px → 0, expo.out                                 |
+| `.eyebrow` labels       | Slide right 20px → 0                                    |
+| `.barrier-card` ×3      | Fan in from left, slight rotateY, stagger 130ms         |
+| `.feature-card` ×6      | Scale 0.94 + rise, stagger across full grid 500ms total |
+| `.risk-card` ×3         | Rise 60px, stagger 120ms                                |
+| `.showcase-card`        | Scale 0.96 + rise 60px, expo.out                        |
+| `.hotline` banner       | Rise 48px + scale 0.97, expo.out                        |
+| `.cta` block            | Scale 0.95 + fade, power4.out                           |
+| Journey progress line   | Scrubbed with scroll, start 75% – end 40%               |
+| Hero float cards        | GSAP quickTo parallax (depth-based lag), 60fps          |
+| Hero glow               | GSAP quickTo opacity + position tracking                |

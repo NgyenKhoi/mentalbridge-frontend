@@ -18,19 +18,21 @@ Mở browser tại: `http://localhost:3000`
 ### 🎯 Hero Section - Orbit Topics
 
 #### Test 1: Click Animations
+
 - [ ] Click vào topic "Lo âu"
   - Content fade out mượt mà
   - Halo xoay và phóng to nhẹ
   - Topic được chọn pulse với glow effect
   - Các topic khác dim down
   - Content mới fade in với bounce effect
-  
+
 - [ ] Click lần lượt qua 6 topics
   - Mỗi transition mất ~1 giây
   - Không bị giật lag
   - Text thay đổi đúng
 
 #### Test 2: Hover Effects
+
 - [ ] Hover qua từng orbit topic
   - Topic scale lên 1.08x
   - Màu chuyển sang trắng (#f1cad6)
@@ -44,6 +46,7 @@ Mở browser tại: `http://localhost:3000`
   - Glow màu hồng (#efbdc9)
 
 #### Test 3: Halo Animation
+
 - [ ] Quan sát halo breathing
   - Outer ring scale 1 → 1.03 (6s)
   - Inner ring scale 1 → 1.03 reverse (6s)
@@ -60,6 +63,7 @@ Mở browser tại: `http://localhost:3000`
 ### 🎴 Cards Animations
 
 #### Test 4: Feature Cards
+
 - [ ] Scroll down đến Features section
   - Cards fade in lần lượt
   - 3D rotation (rotationX: -5deg)
@@ -74,6 +78,7 @@ Mở browser tại: `http://localhost:3000`
   - Duration ~450ms
 
 #### Test 5: Barrier Cards
+
 - [ ] Scroll đến Barriers section
   - Cards slide từ bên trái (x: -48px)
   - 3D perspective (rotationY: 6deg)
@@ -87,12 +92,13 @@ Mở browser tại: `http://localhost:3000`
   - Smooth transition
 
 #### Test 6: Risk Cards
+
 - [ ] Scroll đến Risk Levels
   - Cards rise từ dưới (y: 54px)
   - Stagger 110ms
 
 - [ ] Hover qua từng risk card
-  - **Low (Teal)**: 
+  - **Low (Teal)**:
     - Shadow màu teal
     - Border glow teal
   - **Mid (Amber)**:
@@ -108,6 +114,7 @@ Mở browser tại: `http://localhost:3000`
 ### 🛤️ Journey Section
 
 #### Test 7: Journey Line Animation
+
 - [ ] Scroll slowly qua Journey section
   - Progress line fill từ trái sang phải
   - Sync perfect với scroll position
@@ -116,6 +123,7 @@ Mở browser tại: `http://localhost:3000`
   - Back.out easing for dot
 
 #### Test 8: Journey Steps
+
 - [ ] Scroll đến steps
   - Steps fade in với stagger
   - Scale 0.96 → 1
@@ -131,6 +139,7 @@ Mở browser tại: `http://localhost:3000`
 ### 🎯 Buttons & Links
 
 #### Test 9: Primary Buttons
+
 - [ ] Hover "Bắt đầu sàng lọc miễn phí"
   - Lift -3px + scale 1.02
   - Shadow tăng intensity
@@ -144,6 +153,7 @@ Mở browser tại: `http://localhost:3000`
   - Bounce back
 
 #### Test 10: Text Links
+
 - [ ] Hover "Xem cách hoạt động →"
   - Text slide right 3px
   - Arrow slide right thêm 4px (total 7px)
@@ -155,6 +165,7 @@ Mở browser tại: `http://localhost:3000`
 ### 🎪 Special Sections
 
 #### Test 11: Hotline Banner
+
 - [ ] Scroll đến hotline
   - Clip-path animation open
   - Lift from bottom (y: 52px)
@@ -167,6 +178,7 @@ Mở browser tại: `http://localhost:3000`
   - Subtle breathing effect
 
 #### Test 12: CTA Section
+
 - [ ] Scroll đến CTA (cuối trang)
   - Elements fade in với stagger
   - Scale 0.97 → 1
@@ -178,6 +190,7 @@ Mở browser tại: `http://localhost:3000`
 ## 🎨 Visual Checks
 
 ### Animation Quality Checklist:
+
 - [ ] Không có animation nào giật lag
 - [ ] 60 FPS smooth trên desktop
 - [ ] Transitions mượt mà, không đột ngột
@@ -186,11 +199,13 @@ Mở browser tại: `http://localhost:3000`
 - [ ] Scale/rotate không bị distortion
 
 ### Timing Checks:
+
 - [ ] Fast actions (hover): 200-350ms ✓
 - [ ] Medium reveals (cards): 400-600ms ✓
 - [ ] Slow entrances (sections): 800-1100ms ✓
 
 ### Easing Checks:
+
 - [ ] Bounce effects có overshoot ✓
 - [ ] Expo easings smooth deceleration ✓
 - [ ] Power easings natural motion ✓
@@ -202,6 +217,7 @@ Mở browser tại: `http://localhost:3000`
 ### Browser DevTools
 
 #### 1. Check FPS:
+
 ```
 Chrome DevTools → Performance → Record
 Scroll and interact, then stop recording
@@ -210,19 +226,22 @@ Red/yellow = performance issues
 ```
 
 #### 2. Check GSAP Animations:
+
 ```javascript
 // In browser console:
-gsap.globalTimeline.getChildren()  // See all active animations
-ScrollTrigger.getAll()  // See all ScrollTriggers
+gsap.globalTimeline.getChildren() // See all active animations
+ScrollTrigger.getAll() // See all ScrollTriggers
 ```
 
 #### 3. Slow Down Animations:
+
 ```javascript
 // In browser console:
-gsap.globalTimeline.timeScale(0.3)  // Slow to 30%
+gsap.globalTimeline.timeScale(0.3) // Slow to 30%
 ```
 
 #### 4. Check Will-Change:
+
 ```
 Chrome DevTools → Elements → Computed
 Search for "will-change"
@@ -234,28 +253,36 @@ Should see "transform" on animated elements
 ## 🐛 Common Issues
 
 ### Issue 1: Animations không chạy
+
 **Check:**
+
 - Dev server đang chạy?
 - Console có errors?
 - GSAP đã import đúng?
 
 ### Issue 2: Lag/Jank
+
 **Solutions:**
+
 - Check CPU usage
 - Close other tabs
 - Try in Incognito mode
 - Check will-change properties
 
 ### Issue 3: Hover không hoạt động
+
 **Check:**
+
 - CSS selector đúng?
 - Hover media query có conflict?
 - Z-index issues?
 
 ### Issue 4: Scroll animations trigger sai
+
 **Debug:**
+
 ```javascript
-ScrollTrigger.getAll().forEach(st => {
+ScrollTrigger.getAll().forEach((st) => {
   console.log(st.trigger, st.start, st.end)
 })
 ```
@@ -265,12 +292,14 @@ ScrollTrigger.getAll().forEach(st => {
 ## 📊 Performance Metrics
 
 ### Target Metrics:
+
 - **FPS**: 60 on desktop, 30+ on mobile
 - **First animation**: < 100ms after scroll
 - **Hover response**: < 50ms
 - **Scroll smoothness**: No jank, steady frame rate
 
 ### Monitor in DevTools:
+
 1. Performance tab
 2. Record while scrolling
 3. Check:
@@ -283,6 +312,7 @@ ScrollTrigger.getAll().forEach(st => {
 ## ✅ Acceptance Criteria
 
 ### Animation must:
+
 - [ ] Run at 60 FPS on desktop
 - [ ] Work in Chrome, Firefox, Safari, Edge
 - [ ] Respect `prefers-reduced-motion`
@@ -290,6 +320,7 @@ ScrollTrigger.getAll().forEach(st => {
 - [ ] Degrade gracefully on slow devices
 
 ### Interactions must:
+
 - [ ] Feel responsive (< 100ms)
 - [ ] Provide clear feedback
 - [ ] Complete smoothly
@@ -300,6 +331,7 @@ ScrollTrigger.getAll().forEach(st => {
 ## 🎬 Demo Scenarios
 
 ### Scenario 1: New User First Visit
+
 1. Page loads → Hero breathes
 2. Click first topic → Smooth transition
 3. Scroll down → Cards reveal beautifully
@@ -307,12 +339,14 @@ ScrollTrigger.getAll().forEach(st => {
 5. Reach CTA → Strong call to action
 
 ### Scenario 2: Mobile Experience
+
 1. Touch interactions work
 2. Hover states skip on mobile
 3. Scroll animations smooth on 60Hz screen
 4. No lag on mid-range phones
 
 ### Scenario 3: Accessibility Mode
+
 1. Enable "Reduce Motion" in OS
 2. Page loads without animations
 3. All content visible immediately
@@ -334,11 +368,13 @@ ScrollTrigger.getAll().forEach(st => {
 ## Test Results
 
 ### Hero Animations: ✅ PASS
+
 - Orbit topics: Working perfectly
 - Halo breathing: Smooth
 - Parallax: Responsive
 
 ### Card Animations: ✅ PASS
+
 - Feature cards: Excellent
 - Barrier cards: Smooth
 - Risk cards: Good shadows
@@ -348,6 +384,7 @@ ScrollTrigger.getAll().forEach(st => {
 ### Performance: 60 FPS
 
 ### Notes:
+
 - Everything working as expected
 - Animations feel polished
 - No lag detected

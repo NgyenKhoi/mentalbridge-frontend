@@ -30,7 +30,9 @@ export default function LightSelect({
   const [open, setOpen] = useState(false)
   const [internalValue, setInternalValue] = useState(defaultValue)
   const selectedValue = value ?? internalValue
-  const selectedOption = options.find(option => option.value === selectedValue)
+  const selectedOption = options.find(
+    (option) => option.value === selectedValue,
+  )
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -55,17 +57,19 @@ export default function LightSelect({
         className="light-select-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen(current => !current)}
-        onKeyDown={event => {
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
           if (event.key === 'Escape') setOpen(false)
         }}
       >
         <span>{selectedOption?.label ?? placeholder}</span>
-        <span className="light-select-chevron" aria-hidden="true">⌄</span>
+        <span className="light-select-chevron" aria-hidden="true">
+          ⌄
+        </span>
       </button>
       {open && (
         <div className="light-select-menu" role="listbox" aria-labelledby={id}>
-          {options.map(option => (
+          {options.map((option) => (
             <button
               key={option.value}
               type="button"

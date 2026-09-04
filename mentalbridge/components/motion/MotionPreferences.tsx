@@ -8,6 +8,8 @@ export type MotionPreferencesProps = {
 }
 
 /** Applies the operating system motion preference to all nested Motion elements. */
-export default function MotionPreferences({ children }: MotionPreferencesProps) {
+export default function MotionPreferences({
+  children,
+}: MotionPreferencesProps) {
   return <MotionConfig reducedMotion="user">{children}</MotionConfig>
 }
