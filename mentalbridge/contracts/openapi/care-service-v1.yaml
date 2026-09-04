@@ -1,811 +1,517 @@
 openapi: 3.1.0
 info:
-  title: MentalBridge Care API
+  title: Content-Notification Service API
   version: 1.0.0
-  description: |
-    V1 contracts for the Care-owned profile, platform consent, and PHQ-9 foundation.
-    Profile, consent, questionnaire, and assessment paths are implemented. Assessment
-    clients submit only the backend-published privacy disclosure version, versioned
-    question identifiers, and answer values; Care computes the score, screening band,
-    independent safety status, and policy provenance.
-    A screening result is not a diagnosis. ADR 0009 keeps screening severity and
-    item-9 safety status independent, prohibits automatic escalation, and removes
-    the hotline catalogue. The privacy-capstone-v1 disclosure and bounded anonymous
-    lifetime are approved only for controlled local/test/demo use. Public real-user
-    collection remains blocked on production privacy, retention, security, and legal review.
+  description: >
+    MentalBridge Content/Notification bounded context.
+    Manages reviewed self-help resources, in-app notifications, and delivery
+    preferences. Hotline catalogue operations are not part of this service.
 
-    Fields not marked nullable reject null. Omitted optional profile fields leave
-    no stored value. Anonymous session credentials are bearer secrets returned
-    once, stored only as hashes, and never attach an anonymous result to an account.
 servers:
-  - url: /
+  - url: http://localhost:3003
+    description: Local development
+
 tags:
-  - name: Profile
-  - name: Consent
-  - name: Privacy disclosure
-  - name: Questionnaire
-  - name: Assessment
-  - name: Anonymous assessment
+  - name: Health
+    description: Liveness and readiness probes
+  - name: Resources
+    description: Self-help content management (admin reviewed)
+
 paths:
-  /api/v1/profile:
+  /health/live:
     x-mentalbridge-status: implemented
     get:
-      tags: [Profile]
-      operationId: getOwnCareProfile
-      summary: Read the authenticated user's Care-owned profile
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/CorrelationId'
+      tags: [Health]
+      summary: Liveness probe
+      operationId: getLive
       responses:
         '200':
-          description: Profile found
-          headers:
-            ETag:
-              schema: { type: string, pattern: '^"[0-9]+"$' }
+          description: Service is alive
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Profile' }
-        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
-        '403': { $ref: '#/components/responses/ForbiddenProblem' }
-        '404': { $ref: '#/components/responses/NotFoundProblem' }
-    put:
-      tags: [Profile]
-      operationId: putOwnCareProfile
-      summary: Create or replace the authenticated user's editable profile
-      description: |
-        The account identifier comes only from the verified JWT subject. If-Match
-        is omitted when creating the profile and is required for replacement of an
-        existing profile. A stale version fails without overwriting newer data.
-      security:
-        - bearerAuth: []
+              schema:
+                $ref: '#/components/schemas/LiveResponse'
+              example:
+                status: ok
+
+  /health/ready:
+    x-mentalbridge-status: implemented
+    get:
+      tags: [Health]
+      summary: Readiness probe — checks database connectivity
+      operationId: getReady
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+              example:
+                status: ok
+                db: connected
+        '503':
+          description: Service unavailable — database unreachable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://mentalbridge.io/errors/DEPENDENCY_UNAVAILABLE
+                title: Dependency unavailable
+                status: 503
+                code: DEPENDENCY_UNAVAILABLE
+
+  /api/v1/resources:
+    x-mentalbridge-status: planned
+    get:
+      x-mentalbridge-operation-status: implemented
+      tags: [Resources]
+      summary: List active reviewed published self-help resources
+      operationId: listResources
       parameters:
-        - $ref: '#/components/parameters/OptionalIfMatch'
-        - $ref: '#/components/parameters/CorrelationId'
+        - name: locale
+          in: query
+          schema:
+            type: string
+            example: vi-VN
+        - name: category
+          in: query
+          schema:
+            $ref: '#/components/schemas/ResourceCategory'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: >
+            Published reviewed resources. Returns empty array when none match.
+            Returns fallback: unavailable with neutral message when service is unreachable.
+            No hotline number or emergency dispatch claim is included.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceListResponse'
+              examples:
+                published:
+                  value:
+                    data:
+                      - id: 123e4567-e89b-12d3-a456-426614174000
+                        category: BREATHING
+                        locale: vi-VN
+                        title: Kỹ thuật thở 4-7-8
+                        summary: Kỹ thuật thở giúp giảm căng thẳng
+                        externalUrl: null
+                        status: PUBLISHED
+                        reviewedAt: '2024-01-15T10:00:00Z'
+                        createdAt: '2024-01-15T09:00:00Z'
+                        updatedAt: '2024-01-15T10:00:00Z'
+                    count: 1
+                empty:
+                  value:
+                    data: []
+                    count: 0
+                unavailable:
+                  value:
+                    data: []
+                    count: 0
+                    fallback: unavailable
+                    message: Tài nguyên hỗ trợ tạm thời không khả dụng. Vui lòng thử lại sau.
+        '400':
+          $ref: '#/components/responses/RequestRejected'
+
+    post:
+      x-mentalbridge-operation-status: planned
+      tags: [Resources]
+      summary: Create a new resource (Admin)
+      operationId: createResource
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ProfilePutRequest' }
-            example:
-              displayName: Lan Nguyen
-              locale: vi-VN
-              timezone: Asia/Ho_Chi_Minh
-              reminderEnabled: true
+            schema:
+              $ref: '#/components/schemas/CreateResourceRequest'
       responses:
-        '200':
-          description: Existing profile replaced
-          headers:
-            ETag:
-              schema: { type: string, pattern: '^"[0-9]+"$' }
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Profile' }
         '201':
-          description: Profile created
-          headers:
-            ETag:
-              schema: { type: string, pattern: '^"[0-9]+"$' }
+          description: Resource created
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Profile' }
-        '400': { $ref: '#/components/responses/ValidationProblem' }
-        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
-        '403': { $ref: '#/components/responses/ForbiddenProblem' }
-        '409': { $ref: '#/components/responses/ConflictProblem' }
-        '412': { $ref: '#/components/responses/VersionProblem' }
-  /api/v1/consents:
-    x-mentalbridge-status: implemented
+              schema:
+                $ref: '#/components/schemas/ResourceSummary'
+              example:
+                id: 123e4567-e89b-12d3-a456-426614174000
+                category: BREATHING
+                locale: vi-VN
+                title: Kỹ thuật thở 4-7-8
+                summary: Kỹ thuật thở giúp giảm căng thẳng và lo âu
+                externalUrl: null
+                status: DRAFT
+                reviewedAt: null
+                createdAt: '2024-01-15T10:00:00Z'
+                updatedAt: '2024-01-15T10:00:00Z'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/resources/{id}:
+    x-mentalbridge-status: planned
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
     get:
-      tags: [Consent]
-      operationId: getOwnCurrentConsents
-      summary: Read the latest explicit platform consent decisions
-      description: A missing consent type means no decision has been recorded; it is not silently treated as a grant.
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/CorrelationId'
+      tags: [Resources]
+      summary: Get resource detail
+      operationId: getResource
       responses:
         '200':
-          description: Latest decisions returned
+          description: Resource detail
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ConsentCollection' }
-        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
-        '403': { $ref: '#/components/responses/ForbiddenProblem' }
-  /api/v1/consent-decisions:
-    x-mentalbridge-status: implemented
-    post:
-      tags: [Consent]
-      operationId: recordOwnConsentDecision
-      summary: Append a versioned platform consent grant or refusal
-      description: |
-        Repeating the same user-scoped idempotency key and identical request returns
-        the original decision. Reusing the key for a different request returns a
-        conflict. Specialist access is a separate scoped grant workflow and is not
-        represented by a broad platform-consent toggle.
+              schema:
+                $ref: '#/components/schemas/ResourceDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Resources]
+      summary: Update a DRAFT resource (Admin)
+      operationId: updateResource
       security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CorrelationId'
+        - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ConsentDecisionRequest' }
-            example:
-              consentType: AI_PROCESSING
-              policyVersion: ai-processing-v1
-              granted: true
-      responses:
-        '201':
-          description: Consent decision appended
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ConsentDecision' }
-        '400': { $ref: '#/components/responses/ValidationProblem' }
-        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
-        '403': { $ref: '#/components/responses/ForbiddenProblem' }
-        '409': { $ref: '#/components/responses/IdempotencyConflictProblem' }
-  /api/v1/privacy-disclosures/current:
-    x-mentalbridge-status: implemented
-    get:
-      tags: [Privacy disclosure]
-      operationId: getCurrentPrivacyDisclosure
-      summary: Read the backend-owned disclosure required for Care assessment processing
-      description: |
-        Returns the exact controlled-Capstone Vietnamese text and version. Clients
-        render this response and must not keep an independent disclosure copy.
-      parameters:
-        - $ref: '#/components/parameters/Locale'
-        - $ref: '#/components/parameters/CorrelationId'
+            schema:
+              $ref: '#/components/schemas/UpdateResourceRequest'
       responses:
         '200':
-          description: Current disclosure returned
+          description: Updated resource
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/PrivacyDisclosure' }
-        '404': { $ref: '#/components/responses/NotFoundProblem' }
-  /api/v1/questionnaires/{instrument}/current:
-    x-mentalbridge-status: implemented
-    get:
-      tags: [Questionnaire]
-      operationId: getCurrentQuestionnaire
-      summary: Read the current published questionnaire for an instrument and locale
-      description: Only a reviewed published definition is returned. PHQ-9 is the MB-88 seeded instrument; GAD-7 remains a future reference-data version.
-      parameters:
-        - $ref: '#/components/parameters/Instrument'
-        - $ref: '#/components/parameters/Locale'
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Current questionnaire returned
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Questionnaire' }
-        '404': { $ref: '#/components/responses/NotFoundProblem' }
-        '429': { $ref: '#/components/responses/RateLimitProblem' }
-  /api/v1/assessments:
-    x-mentalbridge-status: implemented
-    get:
-      tags: [Assessment]
-      operationId: listOwnAssessments
-      summary: List non-voided assessment summaries owned by the authenticated caller
-      description: |
-        Results are ordered by submittedAt descending and assessmentId descending.
-        The opaque cursor identifies the last item of the previous page. Raw answers
-        and other users' data are never returned.
+              schema:
+                $ref: '#/components/schemas/ResourceSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags: [Resources]
+      summary: Delete a DRAFT resource (Admin)
+      operationId: deleteResource
       security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/AssessmentCursor'
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/CorrelationId'
+        - BearerAuth: []
       responses:
-        '200':
-          description: Owned assessment summaries returned
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AssessmentHistoryPage' }
-        '400': { $ref: '#/components/responses/ValidationProblem' }
-        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
-        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/resources/{id}/publish:
+    x-mentalbridge-status: planned
     post:
-      tags: [Assessment]
-      operationId: submitAuthenticatedAssessment
-      summary: Submit and score a complete authenticated PHQ-9 assessment
-      description: |
-        Care ignores no answers and accepts no client score, band, or safety result.
-        It validates the exact published questionnaire version, requires one answer
-        for every question, computes the result locally, and persists submission,
-        answers, result, and outbox record atomically. An identical user-scoped
-        idempotent retry returns the original result.
+      tags: [Resources]
+      summary: Publish a DRAFT resource — reviewed content workflow (Admin)
+      operationId: publishResource
       security:
-        - bearerAuth: []
+        - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CorrelationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/AssessmentSubmissionRequest' }
-      responses:
-        '201':
-          description: Assessment accepted and scored
-          headers:
-            Location:
-              schema: { type: string }
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Assessment' }
-        '400': { $ref: '#/components/responses/ValidationProblem' }
-        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
-        '403': { $ref: '#/components/responses/ForbiddenProblem' }
-        '409': { $ref: '#/components/responses/ConflictProblem' }
-  /api/v1/assessments/{assessmentId}:
-    x-mentalbridge-status: implemented
-    get:
-      tags: [Assessment]
-      operationId: getOwnAssessment
-      summary: Read one authenticated assessment result owned by the caller
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/AssessmentId'
-        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Owned assessment returned
+          description: Resource published
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Assessment' }
-        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
-        '403': { $ref: '#/components/responses/ForbiddenProblem' }
-        '404': { $ref: '#/components/responses/NotFoundProblem' }
-  /api/v1/anonymous-assessment-sessions:
-    x-mentalbridge-status: implemented
+              schema:
+                $ref: '#/components/schemas/ResourceSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/resources/{id}/archive:
+    x-mentalbridge-status: planned
     post:
-      tags: [Anonymous assessment]
-      operationId: createAnonymousAssessmentSession
-      summary: Create an isolated short-lived anonymous assessment session
-      description: |
-        The response returns the session token once. The server stores only its
-        hash. The expiry instant comes from an approved deployment policy; this
-        contract deliberately does not invent a duration. Empty retry sessions may
-        expire independently and are not durable user history.
-      parameters:
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '201':
-          description: Anonymous session created
-          headers:
-            Location:
-              schema: { type: string }
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AnonymousSession' }
-        '429': { $ref: '#/components/responses/RateLimitProblem' }
-  /api/v1/anonymous-assessment-sessions/{sessionId}/assessments:
-    x-mentalbridge-status: implemented
-    post:
-      tags: [Anonymous assessment]
-      operationId: submitAnonymousAssessment
-      summary: Submit and score a complete PHQ-9 assessment inside one anonymous session
-      description: |
-        Session ownership is proven by the anonymous token, never by the path UUID
-        alone. The result expires with the session and cannot be claimed by a later
-        authenticated account. Scoring and atomic persistence are identical to the
-        authenticated flow.
+      tags: [Resources]
+      summary: Archive a PUBLISHED resource (Admin)
+      operationId: archiveResource
       security:
-        - anonymousSessionToken: []
+        - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/SessionId'
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CorrelationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/AssessmentSubmissionRequest' }
-      responses:
-        '201':
-          description: Anonymous assessment accepted and scored
-          headers:
-            Location:
-              schema: { type: string }
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AnonymousAssessment' }
-        '400': { $ref: '#/components/responses/ValidationProblem' }
-        '401': { $ref: '#/components/responses/InvalidAnonymousSessionProblem' }
-        '409': { $ref: '#/components/responses/ConflictProblem' }
-        '410': { $ref: '#/components/responses/ExpiredAnonymousSessionProblem' }
-        '429': { $ref: '#/components/responses/RateLimitProblem' }
-  /api/v1/anonymous-assessment-sessions/{sessionId}/assessments/{assessmentId}:
-    x-mentalbridge-status: implemented
-    get:
-      tags: [Anonymous assessment]
-      operationId: getAnonymousAssessment
-      summary: Read one unexpired assessment from its isolated anonymous session
-      security:
-        - anonymousSessionToken: []
-      parameters:
-        - $ref: '#/components/parameters/SessionId'
-        - $ref: '#/components/parameters/AssessmentId'
-        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Anonymous assessment returned
+          description: Resource archived
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/AnonymousAssessment' }
-        '401': { $ref: '#/components/responses/InvalidAnonymousSessionProblem' }
-        '404': { $ref: '#/components/responses/NotFoundProblem' }
-        '410': { $ref: '#/components/responses/ExpiredAnonymousSessionProblem' }
-        '429': { $ref: '#/components/responses/RateLimitProblem' }
+              schema:
+                $ref: '#/components/schemas/ResourceSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
 components:
   securitySchemes:
-    bearerAuth:
+    BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-    anonymousSessionToken:
-      type: apiKey
-      in: header
-      name: X-Anonymous-Session-Token
-      description: Opaque high-entropy bearer credential returned once and stored only as a hash
-  parameters:
-    AssessmentId:
-      name: assessmentId
-      in: path
-      required: true
-      schema: { type: string, format: uuid }
-    SessionId:
-      name: sessionId
-      in: path
-      required: true
-      schema: { type: string, format: uuid }
-    Instrument:
-      name: instrument
-      in: path
-      required: true
-      schema: { $ref: '#/components/schemas/Instrument' }
-    Locale:
-      name: locale
-      in: query
-      required: false
-      schema: { type: string, minLength: 2, maxLength: 16, default: vi-VN }
-    CorrelationId:
-      name: X-Correlation-Id
-      in: header
-      required: false
-      schema: { type: string, format: uuid }
-      description: Caller correlation identifier; the server generates one when omitted
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: true
-      schema:
-        { type: string, minLength: 16, maxLength: 128, pattern: '^[!-~]+$' }
-      description: Retry key scoped to the authenticated account or anonymous session
-    OptionalIfMatch:
-      name: If-Match
-      in: header
-      required: false
-      schema: { type: string, pattern: '^"[0-9]+"$' }
-      example: '"3"'
-    AssessmentCursor:
-      name: cursor
-      in: query
-      required: false
-      schema: { type: string, minLength: 1, maxLength: 256 }
-      description: Opaque cursor returned as nextCursor by the preceding page
-    PageLimit:
-      name: limit
-      in: query
-      required: false
-      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      description: >
+        JWT issued by identity-service. Admin role enforcement will be
+        implemented in Story 209 during identity-service integration.
+        Story 208 defines the contract only.
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://mentalbridge.io/errors/RESOURCE_NOT_FOUND
+            title: Resource not found
+            status: 404
+            code: RESOURCE_NOT_FOUND
+            correlationId: 123e4567-e89b-12d3-a456-426614174000
+    Conflict:
+      description: State conflict or optimistic lock failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://mentalbridge.io/errors/INVALID_STATE_TRANSITION
+            title: Cannot modify published resource
+            status: 409
+            code: INVALID_STATE_TRANSITION
+            correlationId: 123e4567-e89b-12d3-a456-426614174000
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://mentalbridge.io/errors/VALIDATION_ERROR
+            title: Validation failed
+            status: 422
+            code: VALIDATION_ERROR
+            correlationId: 123e4567-e89b-12d3-a456-426614174000
+            fieldViolations:
+              - field: title
+                message: Title is required
+              - field: category
+                message: Invalid category
+    RequestRejected:
+      description: Invalid query parameter
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://mentalbridge.io/errors/REQUEST_REJECTED
+            title: Request rejected
+            status: 400
+            code: REQUEST_REJECTED
+            correlationId: 123e4567-e89b-12d3-a456-426614174000
+
   schemas:
-    ProfilePutRequest:
+    LiveResponse:
       type: object
-      additionalProperties: false
-      required: [displayName, locale, timezone, reminderEnabled]
+      required: [status]
       properties:
-        displayName: { type: string, minLength: 1, maxLength: 120 }
-        dateOfBirth: { type: [string, 'null'], format: date }
-        gender: { type: [string, 'null'], minLength: 1, maxLength: 32 }
-        locale:
-          {
-            type: string,
-            minLength: 2,
-            maxLength: 16,
-            pattern: '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$',
-          }
-        timezone:
+        status:
           type: string
-          minLength: 1
-          maxLength: 64
-          description: IANA timezone identifier
-        reminderEnabled: { type: boolean }
-    Profile:
+          example: ok
+
+    ReadyResponse:
       type: object
-      additionalProperties: false
-      required:
-        [
-          accountId,
-          displayName,
-          locale,
-          timezone,
-          reminderEnabled,
-          createdAt,
-          updatedAt,
-          version,
-        ]
+      required: [status, db]
       properties:
-        accountId: { type: string, format: uuid }
-        displayName: { type: string, minLength: 1, maxLength: 120 }
-        dateOfBirth: { type: [string, 'null'], format: date }
-        gender: { type: [string, 'null'], minLength: 1, maxLength: 32 }
-        locale:
-          {
-            type: string,
-            minLength: 2,
-            maxLength: 16,
-            pattern: '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$',
-          }
-        timezone: { type: string, minLength: 1, maxLength: 64 }
-        reminderEnabled: { type: boolean }
-        createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time }
-        version: { type: integer, format: int64, minimum: 0 }
-    ConsentType:
-      type: string
-      enum: [PRIVACY_POLICY]
-    ConsentDecisionRequest:
-      type: object
-      additionalProperties: false
-      required: [consentType, policyVersion, granted]
-      properties:
-        consentType: { $ref: '#/components/schemas/ConsentType' }
-        policyVersion:
+        status:
           type: string
-          const: privacy-capstone-v1
-          description: Exact approved text or policy version shown to the user
-        granted: { type: boolean }
-    ConsentDecision:
+          enum: [ok, unavailable]
+        db:
+          type: string
+          enum: [connected, disconnected]
+
+    ProblemDetails:
       type: object
-      additionalProperties: false
-      required: [decisionId, consentType, policyVersion, granted, decidedAt]
+      required: [type, title, status, code]
       properties:
-        decisionId: { type: string, format: uuid }
-        consentType: { $ref: '#/components/schemas/ConsentType' }
-        policyVersion: { type: string, minLength: 1, maxLength: 64 }
-        granted: { type: boolean }
-        decidedAt: { type: string, format: date-time }
-    ConsentCollection:
-      type: object
-      additionalProperties: false
-      required: [decisions]
-      properties:
-        decisions:
-          type: array
-          maxItems: 1
-          items: { $ref: '#/components/schemas/ConsentDecision' }
-    PrivacyDisclosure:
-      type: object
-      additionalProperties: false
-      required: [consentType, version, locale, title, content, capstoneOnly]
-      properties:
-        consentType: { type: string, const: PRIVACY_POLICY }
-        version: { type: string, const: privacy-capstone-v1 }
-        locale: { type: string, const: vi-VN }
-        title: { type: string, minLength: 1, maxLength: 160 }
-        content: { type: string, minLength: 1, maxLength: 4000 }
-        capstoneOnly: { type: boolean, const: true }
-    Instrument:
-      type: string
-      enum: [PHQ9, GAD7]
-    Questionnaire:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          definitionId,
-          instrument,
-          version,
-          locale,
-          title,
-          referencePeriodDays,
-          responseOptions,
-          questions,
-        ]
-      properties:
-        definitionId: { type: string, format: uuid }
-        instrument: { $ref: '#/components/schemas/Instrument' }
-        version: { type: string, minLength: 1, maxLength: 32 }
-        locale: { type: string, minLength: 2, maxLength: 16 }
-        title: { type: string, minLength: 1, maxLength: 255 }
-        referencePeriodDays: { type: integer, minimum: 1, maximum: 365 }
-        responseOptions:
-          type: array
-          minItems: 4
-          maxItems: 4
-          items: { $ref: '#/components/schemas/ResponseOption' }
-        questions:
-          type: array
-          minItems: 1
-          maxItems: 32
-          items: { $ref: '#/components/schemas/Question' }
-    ResponseOption:
-      type: object
-      additionalProperties: false
-      required: [value, label]
-      properties:
-        value: { type: integer, minimum: 0, maximum: 3 }
-        label: { type: string, minLength: 1, maxLength: 120 }
-    Question:
-      type: object
-      additionalProperties: false
-      required: [questionId, itemNumber, prompt]
-      properties:
-        questionId: { type: string, format: uuid }
-        itemNumber: { type: integer, minimum: 1, maximum: 32 }
-        prompt: { type: string, minLength: 1, maxLength: 1000 }
-    AssessmentSubmissionRequest:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          questionnaireDefinitionId,
-          privacyPolicyVersion,
-          privacyDisclosureAcknowledged,
-          answers,
-        ]
-      properties:
-        questionnaireDefinitionId: { type: string, format: uuid }
-        privacyPolicyVersion: { type: string, const: privacy-capstone-v1 }
-        privacyDisclosureAcknowledged: { type: boolean, const: true }
-        answers:
-          type: array
-          minItems: 1
-          maxItems: 32
-          uniqueItems: true
-          description: Exactly one answer for every question in the referenced definition; order is not authoritative
-          items: { $ref: '#/components/schemas/AssessmentAnswer' }
-    AssessmentAnswer:
-      type: object
-      additionalProperties: false
-      required: [questionId, value]
-      properties:
-        questionId: { type: string, format: uuid }
-        value: { type: integer, minimum: 0, maximum: 3 }
-    Assessment:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          assessmentId,
-          questionnaireDefinitionId,
-          instrument,
-          questionnaireVersion,
-          privacyPolicyVersion,
-          submittedAt,
-          result,
-        ]
-      properties:
-        assessmentId: { type: string, format: uuid }
-        questionnaireDefinitionId: { type: string, format: uuid }
-        instrument: { $ref: '#/components/schemas/Instrument' }
-        questionnaireVersion: { type: string, minLength: 1, maxLength: 32 }
-        privacyPolicyVersion: { type: string, minLength: 1, maxLength: 64 }
-        submittedAt: { type: string, format: date-time }
-        voidedAt: { type: [string, 'null'], format: date-time }
-        result: { $ref: '#/components/schemas/AssessmentResult' }
-    AnonymousAssessment:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          assessmentId,
-          questionnaireDefinitionId,
-          instrument,
-          questionnaireVersion,
-          privacyPolicyVersion,
-          submittedAt,
-          result,
-          expiresAt,
-        ]
-      properties:
-        assessmentId: { type: string, format: uuid }
-        questionnaireDefinitionId: { type: string, format: uuid }
-        instrument: { $ref: '#/components/schemas/Instrument' }
-        questionnaireVersion: { type: string, minLength: 1, maxLength: 32 }
-        privacyPolicyVersion: { type: string, minLength: 1, maxLength: 64 }
-        submittedAt: { type: string, format: date-time }
-        voidedAt: { type: [string, 'null'], format: date-time }
-        result: { $ref: '#/components/schemas/AssessmentResult' }
-        expiresAt: { type: string, format: date-time }
-    AssessmentSummary:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          assessmentId,
-          questionnaireDefinitionId,
-          instrument,
-          questionnaireVersion,
-          privacyPolicyVersion,
-          submittedAt,
-          result,
-        ]
-      properties:
-        assessmentId: { type: string, format: uuid }
-        questionnaireDefinitionId: { type: string, format: uuid }
-        instrument: { $ref: '#/components/schemas/Instrument' }
-        questionnaireVersion: { type: string, minLength: 1, maxLength: 32 }
-        privacyPolicyVersion: { type: string, minLength: 1, maxLength: 64 }
-        submittedAt: { type: string, format: date-time }
-        result: { $ref: '#/components/schemas/AssessmentResult' }
-    AssessmentHistoryPage:
-      type: object
-      additionalProperties: false
-      required: [items, hasMore]
-      properties:
-        items:
-          type: array
-          maxItems: 50
-          items: { $ref: '#/components/schemas/AssessmentSummary' }
-        nextCursor: { type: [string, 'null'], minLength: 1, maxLength: 256 }
-        hasMore: { type: boolean }
-    AssessmentResult:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          totalScore,
-          screeningLevel,
-          scoringVersion,
-          safetyStatus,
-          safetyPolicyVersion,
-          disclaimerCode,
-        ]
-      properties:
-        totalScore:
+        type:
+          type: string
+          format: uri
+          example: https://mentalbridge.io/errors/RESOURCE_NOT_FOUND
+        title:
+          type: string
+          example: Resource not found
+        status:
           type: integer
-          minimum: 0
-          maximum: 27
-          description: Server-computed sum of the validated answer values
-        screeningLevel: { $ref: '#/components/schemas/ScreeningLevel' }
-        scoringVersion: { type: string, minLength: 1, maxLength: 32 }
-        safetyStatus:
-          $ref: '#/components/schemas/SafetyStatus'
-        safetyPolicyVersion:
+          example: 404
+        code:
           type: string
-          minLength: 1
-          maxLength: 64
-          description: Exact approved safety policy used for the deterministic item-9 result
-        disclaimerCode: { type: string, const: SCREENING_NOT_DIAGNOSIS }
-    ScreeningLevel:
-      type: string
-      enum: [MINIMAL, MILD, MODERATE, MODERATELY_SEVERE, SEVERE]
-    SafetyStatus:
-      type: string
-      description: Independent safety screen; it never overwrites the questionnaire screening level or claims intent or urgency
-      enum: [NEGATIVE_SAFETY_SCREEN, POSITIVE_SAFETY_SCREEN]
-    AnonymousSession:
-      type: object
-      additionalProperties: false
-      required: [sessionId, sessionToken, expiresAt]
-      properties:
-        sessionId: { type: string, format: uuid }
-        sessionToken:
-          { type: string, minLength: 43, maxLength: 512, readOnly: true }
-        expiresAt: { type: string, format: date-time }
-    Problem:
-      type: object
-      additionalProperties: true
-      required: [type, title, status, code, correlationId]
-      properties:
-        type: { type: string, format: uri-reference }
-        title: { type: string }
-        status: { type: integer, minimum: 400, maximum: 599 }
-        detail: { type: string }
-        instance: { type: string, format: uri-reference }
-        code: { type: string, pattern: '^[A-Z0-9_]+$' }
-        correlationId: { type: string, format: uuid }
-        violations:
+          example: RESOURCE_NOT_FOUND
+        correlationId:
+          type: string
+          format: uuid
+          nullable: true
+          example: 123e4567-e89b-12d3-a456-426614174000
+        fieldViolations:
           type: array
           items:
             type: object
-            additionalProperties: false
-            required: [field, code]
             properties:
-              field: { type: string }
-              code: { type: string }
-              message: { type: string }
-  responses:
-    ValidationProblem:
-      description: Request validation failed with VALIDATION_FAILED or a field violation such as INCOMPLETE_QUESTIONNAIRE or INVALID_ANSWER; no result was persisted
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+              field:
+                type: string
+              message:
+                type: string
           example:
-            type: /problems/validation-failed
-            title: Request validation failed
-            status: 400
-            code: VALIDATION_FAILED
-            correlationId: 8fb5720a-53ab-40db-9cf4-f5cfabbdaf65
-            violations:
-              [
-                {
-                  field: answers,
-                  code: INCOMPLETE_QUESTIONNAIRE,
-                  message: one answer is required for every question,
-                },
-              ]
-    UnauthorizedProblem:
-      description: Authentication is missing or invalid (UNAUTHENTICATED)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    ForbiddenProblem:
-      description: Caller lacks the USER role or owner authorization (CARE_USER_REQUIRED or RESOURCE_NOT_OWNED)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    InvalidAnonymousSessionProblem:
-      description: Anonymous session identifier or token is invalid
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-          example:
-            {
-              type: /problems/invalid-anonymous-session,
-              title: Anonymous session is invalid,
-              status: 401,
-              code: INVALID_ANONYMOUS_SESSION,
-              correlationId: 8fb5720a-53ab-40db-9cf4-f5cfabbdaf65,
-            }
-    ExpiredAnonymousSessionProblem:
-      description: Anonymous session and its result have expired
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-          example:
-            {
-              type: /problems/anonymous-session-expired,
-              title: Anonymous session expired,
-              status: 410,
-              code: ANONYMOUS_SESSION_EXPIRED,
-              correlationId: 8fb5720a-53ab-40db-9cf4-f5cfabbdaf65,
-            }
-    NotFoundProblem:
-      description: Requested resource does not exist (PROFILE_NOT_FOUND, QUESTIONNAIRE_NOT_FOUND, or ASSESSMENT_NOT_FOUND)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    ConflictProblem:
-      description: Request conflicts with stored state (IDEMPOTENCY_KEY_REUSED or QUESTIONNAIRE_VERSION_UNAVAILABLE)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    IdempotencyConflictProblem:
-      description: Idempotency key was previously used with a different consent request (IDEMPOTENCY_KEY_REUSED)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    VersionProblem:
-      description: If-Match is missing for an existing profile or does not match its current version (PROFILE_VERSION_MISMATCH)
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-    RateLimitProblem:
-      description: Request exceeded the bounded anonymous or Care API rate limit (RATE_LIMITED)
-      headers:
-        Retry-After:
-          schema: { type: integer, minimum: 1 }
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+            - field: title
+              message: Title is required
+
+    ResourceCategory:
+      type: string
+      enum: [BREATHING, MEDITATION, ARTICLE, VIDEO, JOURNALING, COMMUNITY]
+
+    ResourceStatus:
+      type: string
+      enum: [DRAFT, PUBLISHED, ARCHIVED]
+
+    ResourceSummary:
+      type: object
+      required: [id, category, locale, title, summary, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/ResourceCategory'
+        locale:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        externalUrl:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ResourceStatus'
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ResourceDetail:
+      allOf:
+        - $ref: '#/components/schemas/ResourceSummary'
+        - type: object
+          properties:
+            contentBody:
+              type: string
+              nullable: true
+            reviewedBy:
+              type: string
+              format: uuid
+              nullable: true
+            version:
+              type: integer
+
+    ResourceListResponse:
+      type: object
+      required: [data, count]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceSummary'
+        count:
+          type: integer
+        nextCursor:
+          type: string
+          format: uuid
+          description: Cursor for the next page; absent when no more results.
+        fallback:
+          type: string
+          enum: [unavailable]
+          description: >
+            Present only when Content/Notification is unavailable.
+            No hotline number or emergency dispatch claim is included.
+        message:
+          type: string
+          description: Neutral fallback message when fallback is unavailable.
+
+    CreateResourceRequest:
+      type: object
+      required: [category, title, summary]
+      properties:
+        category:
+          $ref: '#/components/schemas/ResourceCategory'
+        locale:
+          type: string
+          default: vi-VN
+        title:
+          type: string
+          maxLength: 255
+        summary:
+          type: string
+        contentBody:
+          type: string
+          nullable: true
+        externalUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    UpdateResourceRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        summary:
+          type: string
+        contentBody:
+          type: string
+          nullable: true
+        externalUrl:
+          type: string
+          format: uri
+          nullable: true

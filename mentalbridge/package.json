@@ -9,9 +9,9 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "contracts:check": "echo 'Contract validation skipped in CI'",
+    "contracts:check": "node scripts/validate-contracts.mjs",
     "test": "vitest --run",
-    "test:unit": "echo 'Unit tests skipped - MSW setup required'",
+    "test:unit": "vitest --run",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
   },
