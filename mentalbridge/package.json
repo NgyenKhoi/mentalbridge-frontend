@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "contracts:check": "node scripts/validate-contracts.mjs",

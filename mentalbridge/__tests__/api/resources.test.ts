@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { GET } from '@/app/api/resources/route'
 import { NextRequest } from 'next/server'
 
-global.fetch = vi.fn()
+global.fetch = vi.fn() as Mock
 
 describe('GET /api/resources', () => {
   beforeEach(() => {
@@ -31,7 +31,7 @@ describe('GET /api/resources', () => {
       count: 1,
     }
 
-    ;(global.fetch as any).mockResolvedValueOnce({
+    ;(global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
@@ -87,7 +87,7 @@ describe('GET /api/resources', () => {
       count: 2,
     }
 
-    ;(global.fetch as any).mockResolvedValueOnce({
+    ;(global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
@@ -104,7 +104,7 @@ describe('GET /api/resources', () => {
   })
 
   it('should return unavailable on network error', async () => {
-    ;(global.fetch as any).mockRejectedValueOnce(new Error('Network error'))
+    ;(global.fetch as Mock).mockRejectedValueOnce(new Error('Network error'))
     const request = new NextRequest('http://localhost:3000/api/resources')
     const response = await GET(request)
     const data = await response.json()
@@ -113,7 +113,7 @@ describe('GET /api/resources', () => {
   })
 
   it('should return 504 on timeout', async () => {
-    ;(global.fetch as any).mockRejectedValueOnce(
+    ;(global.fetch as Mock).mockRejectedValueOnce(
       Object.assign(new Error('Abort'), { name: 'AbortError' }),
     )
     const request = new NextRequest('http://localhost:3000/api/resources')
@@ -122,7 +122,7 @@ describe('GET /api/resources', () => {
   })
 
   it('should return 502 on malformed response', async () => {
-    ;(global.fetch as any).mockResolvedValueOnce({
+    ;(global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
@@ -135,7 +135,7 @@ describe('GET /api/resources', () => {
 
   it('should pass filters to upstream', async () => {
     const mockResponse = { data: [], count: 0 }
-    ;(global.fetch as any).mockResolvedValueOnce({
+    ;(global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
@@ -145,9 +145,10 @@ describe('GET /api/resources', () => {
       'http://localhost:3000/api/resources?category=VIDEO&limit=5',
     )
     await GET(request)
-    const fetchCall = (global.fetch as any).mock.calls[0]
+    const fetchCall = (global.fetch as Mock).mock.calls[0]
     const upstreamUrl = new URL(fetchCall[0])
     expect(upstreamUrl.searchParams.get('category')).toBe('VIDEO')
     expect(upstreamUrl.searchParams.get('limit')).toBe('5')
   })
 })
+
