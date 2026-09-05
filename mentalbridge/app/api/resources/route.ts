@@ -37,7 +37,7 @@ interface ErrorResponse {
 export async function GET(request: NextRequest) {
   // Lazy load config to allow test environment setup
   const contentConfig = readContentServerConfig()
-  
+
   const { searchParams } = request.url
     ? new URL(request.url)
     : { searchParams: new URLSearchParams() }

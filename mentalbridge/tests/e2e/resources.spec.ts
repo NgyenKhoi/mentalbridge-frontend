@@ -406,13 +406,10 @@ test.describe('Resources Journey', () => {
     ).toBeVisible()
 
     // Should show error state when fetch fails
-    await expect(
-      page.getByText(/không thể kết nối đến dịch vụ/i),
-    ).toBeVisible()
+    await expect(page.getByText(/không thể kết nối đến dịch vụ/i)).toBeVisible()
 
     // Resources section should still be present but showing error
     const resourcesSection = page.locator('.resources-list')
     await expect(resourcesSection).toBeVisible()
   })
 })
-

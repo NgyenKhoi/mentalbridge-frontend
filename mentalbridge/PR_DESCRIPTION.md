@@ -3,6 +3,7 @@
 ## Related PRs
 
 **⚠️ This PR depends on backend PR:**
+
 - **Backend PR:** [mentalbridge-backend #feature/mb-180-reviewed-resources-safe-fallback](https://github.com/NgyenKhoi/mentalbridge-backend/tree/feature/mb-180-reviewed-resources-safe-fallback)
 - Backend provides `GET /api/v1/resources` endpoint
 - Both PRs should be reviewed and merged together
@@ -31,6 +32,7 @@
 - Forwards Problem Details từ upstream on validation errors
 
 **Security:**
+
 - ✅ Upstream URL only on server-side
 - ✅ No credentials exposed to browser
 - ✅ Same-origin requests only
@@ -42,6 +44,7 @@
 Client-side component với comprehensive state handling:
 
 **States:**
+
 - `loading`: Skeleton placeholders animation
 - `success`: Animated grid với resources
 - `empty`: Neutral "Hiện chưa có tài liệu" state
@@ -50,6 +53,7 @@ Client-side component với comprehensive state handling:
 - `error`: Generic error fallback
 
 **Features:**
+
 - Category filtering support
 - External link indication (icon + target="_blank")
 - Framer Motion animations
@@ -63,14 +67,11 @@ Client-side component với comprehensive state handling:
 Integrated resources sau risk assessment results:
 
 ```tsx
-<ResourcesList 
-  category="ARTICLE"
-  limit={6}
-  className="assessment-resources"
-/>
+<ResourcesList category="ARTICLE" limit={6} className="assessment-resources" />
 ```
 
 **User journey:**
+
 1. User completes PHQ-9 assessment
 2. Result page shows risk level + score
 3. Resources section loads below (async)
@@ -99,6 +100,7 @@ npm test
 ```
 
 Coverage:
+
 - ✅ Returns resources từ upstream
 - ✅ Neutral fallback on network error
 - ✅ 504 on timeout
@@ -108,20 +110,22 @@ Coverage:
 
 ### Quality Gate
 
-| Check | Command | Result |
-|-------|---------|--------|
-| TypeScript | `npm run build` | ✅ Pass |
-| Lint | `npm run lint` | ✅ Pass |
-| Tests | `npm test` | ✅ 6/6 pass |
-| Build | `npm run build` | ✅ Success |
+| Check      | Command         | Result      |
+| ---------- | --------------- | ----------- |
+| TypeScript | `npm run build` | ✅ Pass     |
+| Lint       | `npm run lint`  | ✅ Pass     |
+| Tests      | `npm test`      | ✅ 6/6 pass |
+| Build      | `npm run build` | ✅ Success  |
 
 ### Local Testing
 
 **Prerequisites:**
+
 1. Backend Content service running: `http://localhost:8082`
 2. PostgreSQL với seeded resources
 
 **Commands:**
+
 ```bash
 # Frontend
 npm run dev
@@ -131,6 +135,7 @@ http://localhost:3000/assessment/anonymous
 ```
 
 **Test scenarios:**
+
 - ✅ Complete assessment → see resources
 - ✅ Empty database → neutral empty state
 - ✅ Stop backend → unavailable state
@@ -216,6 +221,7 @@ http://localhost:3000/assessment/anonymous
 ✅ **Completed:** All quality gates pass
 
 **Next steps:**
+
 1. Review và merge backend PR first
 2. Review và merge frontend PR
 3. Deploy backend Content service
@@ -227,18 +233,21 @@ http://localhost:3000/assessment/anonymous
 ## Testing Locally
 
 1. **Start backend:**
+
    ```bash
    cd mentalbridge-backend/content-notification-service
    ./mvnw spring-boot:run
    ```
 
 2. **Create `.env.local`:**
+
    ```bash
    cd mentalbridge-frontend/mentalbridge
    cp .env.local.example .env.local
    ```
 
 3. **Start frontend:**
+
    ```bash
    npm run dev
    ```
