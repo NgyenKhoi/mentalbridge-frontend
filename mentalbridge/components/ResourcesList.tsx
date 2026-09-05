@@ -289,7 +289,6 @@ export default function ResourcesList({
           const ComponentElement = isExternalLink ? motion.a : motion.div
 
           const commonProps = {
-            key: resource.id,
             initial: { opacity: 0, y: 20 },
             animate: { opacity: 1, y: 0 },
             transition: { delay: index * 0.1 },
@@ -322,7 +321,7 @@ export default function ResourcesList({
             : {}
 
           return (
-            <ComponentElement {...commonProps} {...linkProps}>
+            <ComponentElement key={resource.id} {...commonProps} {...linkProps}>
               <div
                 style={{
                   display: 'flex',
