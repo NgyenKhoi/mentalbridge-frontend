@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { components } from '@/contracts/care.generated'
+import type { components } from '@/contracts/content.generated'
 
 // Use generated types from OpenAPI contract
 type ResourceSummary = components['schemas']['ResourceSummary']
-type ResourceCategory = components['schemas']['ResourceCategory']
 
 // Backend actual response
 interface BackendResourcesResponse {
@@ -121,21 +120,26 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate each resource row at runtime before accepting
-    function isValidResourceSummary(resource: any): resource is ResourceSummary {
+    function isValidResourceSummary(resource: unknown): resource is ResourceSummary {
       return (
         typeof resource === 'object' &&
         resource !== null &&
-        typeof resource.id === 'string' &&
-        typeof resource.title === 'string' &&
-        typeof resource.summary === 'string' &&
-        ['BREATHING', 'MEDITATION', 'ARTICLE', 'VIDEO', 'JOURNALING', 'COMMUNITY'].includes(resource.category) &&
-        typeof resource.locale === 'string' &&
-        (resource.externalUrl === null || typeof resource.externalUrl === 'string') &&
-        resource.status === 'PUBLISHED' &&
-        (resource.reviewedBy === null || typeof resource.reviewedBy === 'string') &&
-        (resource.reviewedAt === null || typeof resource.reviewedAt === 'string') &&
-        typeof resource.createdAt === 'string' &&
-        typeof resource.updatedAt === 'string'
+        typeof (resource as Record<string, unknown>).id === 'string' &&
+        typeof (resource as Record<string, unknown>).title === 'string' &&
+        typeof (resource as Record<string, unknown>).summary === 'string' &&
+        ['BREATHING', 'MEDITATION', 'ARTICLE', 'VIDEO', 'JOURNALING', 'COMMUNITY'].includes(
+          (resource as Record<string, unknown>).category as string
+        ) &&
+        typeof (resource as Record<string, unknown>).locale === 'string' &&
+        ((resource as Record<string, unknown>).externalUrl === null || 
+         typeof (resource as Record<string, unknown>).externalUrl === 'string') &&
+        (resource as Record<string, unknown>).status === 'PUBLISHED' &&
+        ((resource as Record<string, unknown>).reviewedBy === null || 
+         typeof (resource as Record<string, unknown>).reviewedBy === 'string') &&
+        ((resource as Record<string, unknown>).reviewedAt === null || 
+         typeof (resource as Record<string, unknown>).reviewedAt === 'string') &&
+        typeof (resource as Record<string, unknown>).createdAt === 'string' &&
+        typeof (resource as Record<string, unknown>).updatedAt === 'string'
       )
     }
 

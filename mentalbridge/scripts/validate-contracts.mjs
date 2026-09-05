@@ -33,6 +33,9 @@ try {
   console.log('Validating Identity contract...')
   await runScript('identity-contract.mjs')
 
+  console.log('Validating Content contract...')
+  await runScript('content-contract.mjs')
+
   console.log('✓ All contracts are valid')
 } catch (error) {
   console.error('✗ Contract validation failed:', error.message)

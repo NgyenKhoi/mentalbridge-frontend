@@ -1,12 +1,22 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { GET } from '@/app/api/resources/route'
 import { NextRequest } from 'next/server'
+import { mockServer } from '@/tests/mocks/server'
 
-global.fetch = vi.fn() as Mock
+// Mock fetch globally
+const mockFetch = vi.fn()
+global.fetch = mockFetch
 
 describe('GET /api/resources', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    mockFetch.mockReset()
+    // Stop MSW server for these tests since we're mocking fetch directly
+    mockServer.close()
+  })
+
+  afterEach(() => {
+    // Restart MSW server for other tests
+    mockServer.listen({ onUnhandledRequest: 'error' })
   })
 
   it('should return published resources from upstream', async () => {
@@ -26,12 +36,13 @@ describe('GET /api/resources', () => {
           effectiveAt: null,
           expiresAt: null,
           createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-01T00:00:00Z',
         },
       ],
       count: 1,
     }
 
-    ;(global.fetch as Mock).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
@@ -67,6 +78,7 @@ describe('GET /api/resources', () => {
           effectiveAt: null,
           expiresAt: null,
           createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-01T00:00:00Z',
         },
         {
           id: '456',
@@ -82,12 +94,13 @@ describe('GET /api/resources', () => {
           effectiveAt: null,
           expiresAt: null,
           createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-01T00:00:00Z',
         },
       ],
       count: 2,
     }
 
-    ;(global.fetch as Mock).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
@@ -104,7 +117,7 @@ describe('GET /api/resources', () => {
   })
 
   it('should return unavailable on network error', async () => {
-    ;(global.fetch as Mock).mockRejectedValueOnce(new Error('Network error'))
+    mockFetch.mockRejectedValueOnce(new Error('Network error'))
     const request = new NextRequest('http://localhost:3000/api/resources')
     const response = await GET(request)
     const data = await response.json()
@@ -113,7 +126,7 @@ describe('GET /api/resources', () => {
   })
 
   it('should return 504 on timeout', async () => {
-    ;(global.fetch as Mock).mockRejectedValueOnce(
+    mockFetch.mockRejectedValueOnce(
       Object.assign(new Error('Abort'), { name: 'AbortError' }),
     )
     const request = new NextRequest('http://localhost:3000/api/resources')
@@ -122,7 +135,7 @@ describe('GET /api/resources', () => {
   })
 
   it('should return 502 on malformed response', async () => {
-    ;(global.fetch as Mock).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
@@ -135,7 +148,7 @@ describe('GET /api/resources', () => {
 
   it('should pass filters to upstream', async () => {
     const mockResponse = { data: [], count: 0 }
-    ;(global.fetch as Mock).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
@@ -145,7 +158,7 @@ describe('GET /api/resources', () => {
       'http://localhost:3000/api/resources?category=VIDEO&limit=5',
     )
     await GET(request)
-    const fetchCall = (global.fetch as Mock).mock.calls[0]
+    const fetchCall = mockFetch.mock.calls[0]
     const upstreamUrl = new URL(fetchCall[0])
     expect(upstreamUrl.searchParams.get('category')).toBe('VIDEO')
     expect(upstreamUrl.searchParams.get('limit')).toBe('5')

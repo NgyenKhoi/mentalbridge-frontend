@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import type { ResourcesResponse } from '@/app/api/resources/route'
-import type { components } from '@/contracts/care.generated'
+import type { components } from '@/contracts/content.generated'
 
 type ResourceSummary = components['schemas']['ResourceSummary']
 
