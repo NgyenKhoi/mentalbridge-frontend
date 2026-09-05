@@ -6,7 +6,9 @@ test.describe('Resources Journey', () => {
     'Controlled fixtures are available only with the managed local server.',
   )
 
-  test('displays published resources in assessment result', async ({ page }) => {
+  test('displays published resources in assessment result', async ({
+    page,
+  }) => {
     // Navigate to anonymous assessment flow
     await page.goto('/assessment/anonymous')
 
@@ -31,9 +33,7 @@ test.describe('Resources Journey', () => {
     await page
       .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
       .check()
-    await page
-      .getByRole('button', { name: 'Gửi cho Care chấm điểm' })
-      .click()
+    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
 
     // Wait for results page
     await expect(
@@ -82,9 +82,7 @@ test.describe('Resources Journey', () => {
     await page
       .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
       .check()
-    await page
-      .getByRole('button', { name: 'Gửi cho Care chấm điểm' })
-      .click()
+    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
 
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
@@ -130,9 +128,7 @@ test.describe('Resources Journey', () => {
     await page
       .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
       .check()
-    await page
-      .getByRole('button', { name: 'Gửi cho Care chấm điểm' })
-      .click()
+    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
 
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
@@ -198,9 +194,7 @@ test.describe('Resources Journey', () => {
     await page
       .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
       .check()
-    await page
-      .getByRole('button', { name: 'Gửi cho Care chấm điểm' })
-      .click()
+    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
 
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
@@ -271,9 +265,7 @@ test.describe('Resources Journey', () => {
     await page
       .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
       .check()
-    await page
-      .getByRole('button', { name: 'Gửi cho Care chấm điểm' })
-      .click()
+    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
 
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),

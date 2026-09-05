@@ -18,7 +18,7 @@ describe('ResourcesList', () => {
     )
 
     render(<ResourcesList category="ARTICLE" limit={6} />)
-    
+
     expect(screen.getByText('Đang tải...')).toBeInTheDocument()
   })
 
@@ -355,7 +355,7 @@ describe('ResourcesList', () => {
       expect(screen.getByText('Bài viết')).toBeInTheDocument()
       expect(screen.getByText('Hơi thở')).toBeInTheDocument()
     })
-    
+
     // Check for Video label using getAllByText since it appears both as category and title
     const videoElements = screen.getAllByText('Video')
     expect(videoElements.length).toBeGreaterThan(0)

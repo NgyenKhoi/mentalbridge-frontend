@@ -4,949 +4,950 @@
  */
 
 export interface paths {
-    "/api/v1/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read the authenticated user's Care-owned profile */
-        get: operations["getOwnCareProfile"];
-        /**
-         * Create or replace the authenticated user's editable profile
-         * @description The account identifier comes only from the verified JWT subject. If-Match
-         *     is omitted when creating the profile and is required for replacement of an
-         *     existing profile. A stale version fails without overwriting newer data.
-         */
-        put: operations["putOwnCareProfile"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/consents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read the latest explicit platform consent decisions
-         * @description A missing consent type means no decision has been recorded; it is not silently treated as a grant.
-         */
-        get: operations["getOwnCurrentConsents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/consent-decisions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Append a versioned platform consent grant or refusal
-         * @description Repeating the same user-scoped idempotency key and identical request returns
-         *     the original decision. Reusing the key for a different request returns a
-         *     conflict. Specialist access is a separate scoped grant workflow and is not
-         *     represented by a broad platform-consent toggle.
-         */
-        post: operations["recordOwnConsentDecision"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/privacy-disclosures/current": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read the backend-owned disclosure required for Care assessment processing
-         * @description Returns the exact controlled-Capstone Vietnamese text and version. Clients
-         *     render this response and must not keep an independent disclosure copy.
-         */
-        get: operations["getCurrentPrivacyDisclosure"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/questionnaires/{instrument}/current": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read the current published questionnaire for an instrument and locale
-         * @description Only a reviewed published definition is returned. PHQ-9 is the MB-88 seeded instrument; GAD-7 remains a future reference-data version.
-         */
-        get: operations["getCurrentQuestionnaire"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/assessments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List non-voided assessment summaries owned by the authenticated caller
-         * @description Results are ordered by submittedAt descending and assessmentId descending.
-         *     The opaque cursor identifies the last item of the previous page. Raw answers
-         *     and other users' data are never returned.
-         */
-        get: operations["listOwnAssessments"];
-        put?: never;
-        /**
-         * Submit and score a complete authenticated PHQ-9 assessment
-         * @description Care ignores no answers and accepts no client score, band, or safety result.
-         *     It validates the exact published questionnaire version, requires one answer
-         *     for every question, computes the result locally, and persists submission,
-         *     answers, result, and outbox record atomically. An identical user-scoped
-         *     idempotent retry returns the original result.
-         */
-        post: operations["submitAuthenticatedAssessment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/assessments/{assessmentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read one authenticated assessment result owned by the caller */
-        get: operations["getOwnAssessment"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/anonymous-assessment-sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create an isolated short-lived anonymous assessment session
-         * @description The response returns the session token once. The server stores only its
-         *     hash. The expiry instant comes from an approved deployment policy; this
-         *     contract deliberately does not invent a duration. Empty retry sessions may
-         *     expire independently and are not durable user history.
-         */
-        post: operations["createAnonymousAssessmentSession"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/anonymous-assessment-sessions/{sessionId}/assessments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Submit and score a complete PHQ-9 assessment inside one anonymous session
-         * @description Session ownership is proven by the anonymous token, never by the path UUID
-         *     alone. The result expires with the session and cannot be claimed by a later
-         *     authenticated account. Scoring and atomic persistence are identical to the
-         *     authenticated flow.
-         */
-        post: operations["submitAnonymousAssessment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/anonymous-assessment-sessions/{sessionId}/assessments/{assessmentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read one unexpired assessment from its isolated anonymous session */
-        get: operations["getAnonymousAssessment"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-}
-export type webhooks = Record<string, never>;
-export interface components {
-    schemas: {
-        ProfilePutRequest: {
-            displayName: string;
-            /** Format: date */
-            dateOfBirth?: string | null;
-            gender?: string | null;
-            locale: string;
-            /** @description IANA timezone identifier */
-            timezone: string;
-            reminderEnabled: boolean;
-        };
-        Profile: {
-            /** Format: uuid */
-            accountId: string;
-            displayName: string;
-            /** Format: date */
-            dateOfBirth?: string | null;
-            gender?: string | null;
-            locale: string;
-            timezone: string;
-            reminderEnabled: boolean;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-            /** Format: int64 */
-            version: number;
-        };
-        /** @enum {string} */
-        ConsentType: "PRIVACY_POLICY";
-        ConsentDecisionRequest: {
-            consentType: components["schemas"]["ConsentType"];
-            /**
-             * @description Exact approved text or policy version shown to the user
-             * @constant
-             */
-            policyVersion: "privacy-capstone-v1";
-            granted: boolean;
-        };
-        ConsentDecision: {
-            /** Format: uuid */
-            decisionId: string;
-            consentType: components["schemas"]["ConsentType"];
-            policyVersion: string;
-            granted: boolean;
-            /** Format: date-time */
-            decidedAt: string;
-        };
-        ConsentCollection: {
-            decisions: components["schemas"]["ConsentDecision"][];
-        };
-        PrivacyDisclosure: {
-            /** @constant */
-            consentType: "PRIVACY_POLICY";
-            /** @constant */
-            version: "privacy-capstone-v1";
-            /** @constant */
-            locale: "vi-VN";
-            title: string;
-            content: string;
-            /** @constant */
-            capstoneOnly: true;
-        };
-        /** @enum {string} */
-        Instrument: "PHQ9" | "GAD7";
-        Questionnaire: {
-            /** Format: uuid */
-            definitionId: string;
-            instrument: components["schemas"]["Instrument"];
-            version: string;
-            locale: string;
-            title: string;
-            referencePeriodDays: number;
-            responseOptions: components["schemas"]["ResponseOption"][];
-            questions: components["schemas"]["Question"][];
-        };
-        ResponseOption: {
-            value: number;
-            label: string;
-        };
-        Question: {
-            /** Format: uuid */
-            questionId: string;
-            itemNumber: number;
-            prompt: string;
-        };
-        AssessmentSubmissionRequest: {
-            /** Format: uuid */
-            questionnaireDefinitionId: string;
-            /** @constant */
-            privacyPolicyVersion: "privacy-capstone-v1";
-            /** @constant */
-            privacyDisclosureAcknowledged: true;
-            /** @description Exactly one answer for every question in the referenced definition; order is not authoritative */
-            answers: components["schemas"]["AssessmentAnswer"][];
-        };
-        AssessmentAnswer: {
-            /** Format: uuid */
-            questionId: string;
-            value: number;
-        };
-        Assessment: {
-            /** Format: uuid */
-            assessmentId: string;
-            /** Format: uuid */
-            questionnaireDefinitionId: string;
-            instrument: components["schemas"]["Instrument"];
-            questionnaireVersion: string;
-            privacyPolicyVersion: string;
-            /** Format: date-time */
-            submittedAt: string;
-            /** Format: date-time */
-            voidedAt?: string | null;
-            result: components["schemas"]["AssessmentResult"];
-        };
-        AnonymousAssessment: {
-            /** Format: uuid */
-            assessmentId: string;
-            /** Format: uuid */
-            questionnaireDefinitionId: string;
-            instrument: components["schemas"]["Instrument"];
-            questionnaireVersion: string;
-            privacyPolicyVersion: string;
-            /** Format: date-time */
-            submittedAt: string;
-            /** Format: date-time */
-            voidedAt?: string | null;
-            result: components["schemas"]["AssessmentResult"];
-            /** Format: date-time */
-            expiresAt: string;
-        };
-        AssessmentSummary: {
-            /** Format: uuid */
-            assessmentId: string;
-            /** Format: uuid */
-            questionnaireDefinitionId: string;
-            instrument: components["schemas"]["Instrument"];
-            questionnaireVersion: string;
-            privacyPolicyVersion: string;
-            /** Format: date-time */
-            submittedAt: string;
-            result: components["schemas"]["AssessmentResult"];
-        };
-        AssessmentHistoryPage: {
-            items: components["schemas"]["AssessmentSummary"][];
-            nextCursor?: string | null;
-            hasMore: boolean;
-        };
-        AssessmentResult: {
-            /** @description Server-computed sum of the validated answer values */
-            totalScore: number;
-            screeningLevel: components["schemas"]["ScreeningLevel"];
-            scoringVersion: string;
-            safetyStatus: components["schemas"]["SafetyStatus"];
-            /** @description Exact approved safety policy used for the deterministic item-9 result */
-            safetyPolicyVersion: string;
-            /** @constant */
-            disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
-        };
-        /** @enum {string} */
-        ScreeningLevel: "MINIMAL" | "MILD" | "MODERATE" | "MODERATELY_SEVERE" | "SEVERE";
-        /**
-         * @description Independent safety screen; it never overwrites the questionnaire screening level or claims intent or urgency
-         * @enum {string}
-         */
-        SafetyStatus: "NEGATIVE_SAFETY_SCREEN" | "POSITIVE_SAFETY_SCREEN";
-        AnonymousSession: {
-            /** Format: uuid */
-            sessionId: string;
-            readonly sessionToken: string;
-            /** Format: date-time */
-            expiresAt: string;
-        };
-        Problem: {
-            /** Format: uri-reference */
-            type: string;
-            title: string;
-            status: number;
-            detail?: string;
-            /** Format: uri-reference */
-            instance?: string;
-            code: string;
-            /** Format: uuid */
-            correlationId: string;
-            violations?: {
-                field: string;
-                code: string;
-                message?: string;
-            }[];
-        } & {
-            [key: string]: unknown;
-        };
-    };
-    responses: {
-        /** @description Request validation failed with VALIDATION_FAILED or a field violation such as INCOMPLETE_QUESTIONNAIRE or INVALID_ANSWER; no result was persisted */
-        ValidationProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                /**
-                 * @example {
-                 *       "type": "/problems/validation-failed",
-                 *       "title": "Request validation failed",
-                 *       "status": 400,
-                 *       "code": "VALIDATION_FAILED",
-                 *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65",
-                 *       "violations": [
-                 *         {
-                 *           "field": "answers",
-                 *           "code": "INCOMPLETE_QUESTIONNAIRE",
-                 *           "message": "one answer is required for every question"
-                 *         }
-                 *       ]
-                 *     }
-                 */
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Authentication is missing or invalid (UNAUTHENTICATED) */
-        UnauthorizedProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Caller lacks the USER role or owner authorization (CARE_USER_REQUIRED or RESOURCE_NOT_OWNED) */
-        ForbiddenProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Anonymous session identifier or token is invalid */
-        InvalidAnonymousSessionProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                /**
-                 * @example {
-                 *       "type": "/problems/invalid-anonymous-session",
-                 *       "title": "Anonymous session is invalid",
-                 *       "status": 401,
-                 *       "code": "INVALID_ANONYMOUS_SESSION",
-                 *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
-                 *     }
-                 */
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Anonymous session and its result have expired */
-        ExpiredAnonymousSessionProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                /**
-                 * @example {
-                 *       "type": "/problems/anonymous-session-expired",
-                 *       "title": "Anonymous session expired",
-                 *       "status": 410,
-                 *       "code": "ANONYMOUS_SESSION_EXPIRED",
-                 *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
-                 *     }
-                 */
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Requested resource does not exist (PROFILE_NOT_FOUND, QUESTIONNAIRE_NOT_FOUND, or ASSESSMENT_NOT_FOUND) */
-        NotFoundProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Request conflicts with stored state (IDEMPOTENCY_KEY_REUSED or QUESTIONNAIRE_VERSION_UNAVAILABLE) */
-        ConflictProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Idempotency key was previously used with a different consent request (IDEMPOTENCY_KEY_REUSED) */
-        IdempotencyConflictProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description If-Match is missing for an existing profile or does not match its current version (PROFILE_VERSION_MISMATCH) */
-        VersionProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Request exceeded the bounded anonymous or Care API rate limit (RATE_LIMITED) */
-        RateLimitProblem: {
-            headers: {
-                "Retry-After"?: number;
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-    };
+  '/api/v1/profile': {
     parameters: {
-        AssessmentId: string;
-        SessionId: string;
-        Instrument: components["schemas"]["Instrument"];
-        Locale: string;
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        CorrelationId: string;
-        /** @description Retry key scoped to the authenticated account or anonymous session */
-        IdempotencyKey: string;
-        /** @example "3" */
-        OptionalIfMatch: string;
-        /** @description Opaque cursor returned as nextCursor by the preceding page */
-        AssessmentCursor: string;
-        PageLimit: number;
-    };
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Read the authenticated user's Care-owned profile */
+    get: operations['getOwnCareProfile']
+    /**
+     * Create or replace the authenticated user's editable profile
+     * @description The account identifier comes only from the verified JWT subject. If-Match
+     *     is omitted when creating the profile and is required for replacement of an
+     *     existing profile. A stale version fails without overwriting newer data.
+     */
+    put: operations['putOwnCareProfile']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/consents': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Read the latest explicit platform consent decisions
+     * @description A missing consent type means no decision has been recorded; it is not silently treated as a grant.
+     */
+    get: operations['getOwnCurrentConsents']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/consent-decisions': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Append a versioned platform consent grant or refusal
+     * @description Repeating the same user-scoped idempotency key and identical request returns
+     *     the original decision. Reusing the key for a different request returns a
+     *     conflict. Specialist access is a separate scoped grant workflow and is not
+     *     represented by a broad platform-consent toggle.
+     */
+    post: operations['recordOwnConsentDecision']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/privacy-disclosures/current': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Read the backend-owned disclosure required for Care assessment processing
+     * @description Returns the exact controlled-Capstone Vietnamese text and version. Clients
+     *     render this response and must not keep an independent disclosure copy.
+     */
+    get: operations['getCurrentPrivacyDisclosure']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/questionnaires/{instrument}/current': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Read the current published questionnaire for an instrument and locale
+     * @description Only a reviewed published definition is returned. PHQ-9 is the MB-88 seeded instrument; GAD-7 remains a future reference-data version.
+     */
+    get: operations['getCurrentQuestionnaire']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/assessments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List non-voided assessment summaries owned by the authenticated caller
+     * @description Results are ordered by submittedAt descending and assessmentId descending.
+     *     The opaque cursor identifies the last item of the previous page. Raw answers
+     *     and other users' data are never returned.
+     */
+    get: operations['listOwnAssessments']
+    put?: never
+    /**
+     * Submit and score a complete authenticated PHQ-9 assessment
+     * @description Care ignores no answers and accepts no client score, band, or safety result.
+     *     It validates the exact published questionnaire version, requires one answer
+     *     for every question, computes the result locally, and persists submission,
+     *     answers, result, and outbox record atomically. An identical user-scoped
+     *     idempotent retry returns the original result.
+     */
+    post: operations['submitAuthenticatedAssessment']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/assessments/{assessmentId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Read one authenticated assessment result owned by the caller */
+    get: operations['getOwnAssessment']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/anonymous-assessment-sessions': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Create an isolated short-lived anonymous assessment session
+     * @description The response returns the session token once. The server stores only its
+     *     hash. The expiry instant comes from an approved deployment policy; this
+     *     contract deliberately does not invent a duration. Empty retry sessions may
+     *     expire independently and are not durable user history.
+     */
+    post: operations['createAnonymousAssessmentSession']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/anonymous-assessment-sessions/{sessionId}/assessments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Submit and score a complete PHQ-9 assessment inside one anonymous session
+     * @description Session ownership is proven by the anonymous token, never by the path UUID
+     *     alone. The result expires with the session and cannot be claimed by a later
+     *     authenticated account. Scoring and atomic persistence are identical to the
+     *     authenticated flow.
+     */
+    post: operations['submitAnonymousAssessment']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/anonymous-assessment-sessions/{sessionId}/assessments/{assessmentId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Read one unexpired assessment from its isolated anonymous session */
+    get: operations['getAnonymousAssessment']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
-export type $defs = Record<string, never>;
+export type webhooks = Record<string, never>
+export interface components {
+  schemas: {
+    ProfilePutRequest: {
+      displayName: string
+      /** Format: date */
+      dateOfBirth?: string | null
+      gender?: string | null
+      locale: string
+      /** @description IANA timezone identifier */
+      timezone: string
+      reminderEnabled: boolean
+    }
+    Profile: {
+      /** Format: uuid */
+      accountId: string
+      displayName: string
+      /** Format: date */
+      dateOfBirth?: string | null
+      gender?: string | null
+      locale: string
+      timezone: string
+      reminderEnabled: boolean
+      /** Format: date-time */
+      createdAt: string
+      /** Format: date-time */
+      updatedAt: string
+      /** Format: int64 */
+      version: number
+    }
+    /** @enum {string} */
+    ConsentType: 'PRIVACY_POLICY'
+    ConsentDecisionRequest: {
+      consentType: components['schemas']['ConsentType']
+      /**
+       * @description Exact approved text or policy version shown to the user
+       * @constant
+       */
+      policyVersion: 'privacy-capstone-v1'
+      granted: boolean
+    }
+    ConsentDecision: {
+      /** Format: uuid */
+      decisionId: string
+      consentType: components['schemas']['ConsentType']
+      policyVersion: string
+      granted: boolean
+      /** Format: date-time */
+      decidedAt: string
+    }
+    ConsentCollection: {
+      decisions: components['schemas']['ConsentDecision'][]
+    }
+    PrivacyDisclosure: {
+      /** @constant */
+      consentType: 'PRIVACY_POLICY'
+      /** @constant */
+      version: 'privacy-capstone-v1'
+      /** @constant */
+      locale: 'vi-VN'
+      title: string
+      content: string
+      /** @constant */
+      capstoneOnly: true
+    }
+    /** @enum {string} */
+    Instrument: 'PHQ9' | 'GAD7'
+    Questionnaire: {
+      /** Format: uuid */
+      definitionId: string
+      instrument: components['schemas']['Instrument']
+      version: string
+      locale: string
+      title: string
+      referencePeriodDays: number
+      responseOptions: components['schemas']['ResponseOption'][]
+      questions: components['schemas']['Question'][]
+    }
+    ResponseOption: {
+      value: number
+      label: string
+    }
+    Question: {
+      /** Format: uuid */
+      questionId: string
+      itemNumber: number
+      prompt: string
+    }
+    AssessmentSubmissionRequest: {
+      /** Format: uuid */
+      questionnaireDefinitionId: string
+      /** @constant */
+      privacyPolicyVersion: 'privacy-capstone-v1'
+      /** @constant */
+      privacyDisclosureAcknowledged: true
+      /** @description Exactly one answer for every question in the referenced definition; order is not authoritative */
+      answers: components['schemas']['AssessmentAnswer'][]
+    }
+    AssessmentAnswer: {
+      /** Format: uuid */
+      questionId: string
+      value: number
+    }
+    Assessment: {
+      /** Format: uuid */
+      assessmentId: string
+      /** Format: uuid */
+      questionnaireDefinitionId: string
+      instrument: components['schemas']['Instrument']
+      questionnaireVersion: string
+      privacyPolicyVersion: string
+      /** Format: date-time */
+      submittedAt: string
+      /** Format: date-time */
+      voidedAt?: string | null
+      result: components['schemas']['AssessmentResult']
+    }
+    AnonymousAssessment: {
+      /** Format: uuid */
+      assessmentId: string
+      /** Format: uuid */
+      questionnaireDefinitionId: string
+      instrument: components['schemas']['Instrument']
+      questionnaireVersion: string
+      privacyPolicyVersion: string
+      /** Format: date-time */
+      submittedAt: string
+      /** Format: date-time */
+      voidedAt?: string | null
+      result: components['schemas']['AssessmentResult']
+      /** Format: date-time */
+      expiresAt: string
+    }
+    AssessmentSummary: {
+      /** Format: uuid */
+      assessmentId: string
+      /** Format: uuid */
+      questionnaireDefinitionId: string
+      instrument: components['schemas']['Instrument']
+      questionnaireVersion: string
+      privacyPolicyVersion: string
+      /** Format: date-time */
+      submittedAt: string
+      result: components['schemas']['AssessmentResult']
+    }
+    AssessmentHistoryPage: {
+      items: components['schemas']['AssessmentSummary'][]
+      nextCursor?: string | null
+      hasMore: boolean
+    }
+    AssessmentResult: {
+      /** @description Server-computed sum of the validated answer values */
+      totalScore: number
+      screeningLevel: components['schemas']['ScreeningLevel']
+      scoringVersion: string
+      safetyStatus: components['schemas']['SafetyStatus']
+      /** @description Exact approved safety policy used for the deterministic item-9 result */
+      safetyPolicyVersion: string
+      /** @constant */
+      disclaimerCode: 'SCREENING_NOT_DIAGNOSIS'
+    }
+    /** @enum {string} */
+    ScreeningLevel:
+      'MINIMAL' | 'MILD' | 'MODERATE' | 'MODERATELY_SEVERE' | 'SEVERE'
+    /**
+     * @description Independent safety screen; it never overwrites the questionnaire screening level or claims intent or urgency
+     * @enum {string}
+     */
+    SafetyStatus: 'NEGATIVE_SAFETY_SCREEN' | 'POSITIVE_SAFETY_SCREEN'
+    AnonymousSession: {
+      /** Format: uuid */
+      sessionId: string
+      readonly sessionToken: string
+      /** Format: date-time */
+      expiresAt: string
+    }
+    Problem: {
+      /** Format: uri-reference */
+      type: string
+      title: string
+      status: number
+      detail?: string
+      /** Format: uri-reference */
+      instance?: string
+      code: string
+      /** Format: uuid */
+      correlationId: string
+      violations?: {
+        field: string
+        code: string
+        message?: string
+      }[]
+    } & {
+      [key: string]: unknown
+    }
+  }
+  responses: {
+    /** @description Request validation failed with VALIDATION_FAILED or a field violation such as INCOMPLETE_QUESTIONNAIRE or INVALID_ANSWER; no result was persisted */
+    ValidationProblem: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "/problems/validation-failed",
+         *       "title": "Request validation failed",
+         *       "status": 400,
+         *       "code": "VALIDATION_FAILED",
+         *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65",
+         *       "violations": [
+         *         {
+         *           "field": "answers",
+         *           "code": "INCOMPLETE_QUESTIONNAIRE",
+         *           "message": "one answer is required for every question"
+         *         }
+         *       ]
+         *     }
+         */
+        'application/problem+json': components['schemas']['Problem']
+      }
+    }
+    /** @description Authentication is missing or invalid (UNAUTHENTICATED) */
+    UnauthorizedProblem: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        'application/problem+json': components['schemas']['Problem']
+      }
+    }
+    /** @description Caller lacks the USER role or owner authorization (CARE_USER_REQUIRED or RESOURCE_NOT_OWNED) */
+    ForbiddenProblem: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        'application/problem+json': components['schemas']['Problem']
+      }
+    }
+    /** @description Anonymous session identifier or token is invalid */
+    InvalidAnonymousSessionProblem: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "/problems/invalid-anonymous-session",
+         *       "title": "Anonymous session is invalid",
+         *       "status": 401,
+         *       "code": "INVALID_ANONYMOUS_SESSION",
+         *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
+         *     }
+         */
+        'application/problem+json': components['schemas']['Problem']
+      }
+    }
+    /** @description Anonymous session and its result have expired */
+    ExpiredAnonymousSessionProblem: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "/problems/anonymous-session-expired",
+         *       "title": "Anonymous session expired",
+         *       "status": 410,
+         *       "code": "ANONYMOUS_SESSION_EXPIRED",
+         *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
+         *     }
+         */
+        'application/problem+json': components['schemas']['Problem']
+      }
+    }
+    /** @description Requested resource does not exist (PROFILE_NOT_FOUND, QUESTIONNAIRE_NOT_FOUND, or ASSESSMENT_NOT_FOUND) */
+    NotFoundProblem: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        'application/problem+json': components['schemas']['Problem']
+      }
+    }
+    /** @description Request conflicts with stored state (IDEMPOTENCY_KEY_REUSED or QUESTIONNAIRE_VERSION_UNAVAILABLE) */
+    ConflictProblem: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        'application/problem+json': components['schemas']['Problem']
+      }
+    }
+    /** @description Idempotency key was previously used with a different consent request (IDEMPOTENCY_KEY_REUSED) */
+    IdempotencyConflictProblem: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        'application/problem+json': components['schemas']['Problem']
+      }
+    }
+    /** @description If-Match is missing for an existing profile or does not match its current version (PROFILE_VERSION_MISMATCH) */
+    VersionProblem: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        'application/problem+json': components['schemas']['Problem']
+      }
+    }
+    /** @description Request exceeded the bounded anonymous or Care API rate limit (RATE_LIMITED) */
+    RateLimitProblem: {
+      headers: {
+        'Retry-After'?: number
+        [name: string]: unknown
+      }
+      content: {
+        'application/problem+json': components['schemas']['Problem']
+      }
+    }
+  }
+  parameters: {
+    AssessmentId: string
+    SessionId: string
+    Instrument: components['schemas']['Instrument']
+    Locale: string
+    /** @description Caller correlation identifier; the server generates one when omitted */
+    CorrelationId: string
+    /** @description Retry key scoped to the authenticated account or anonymous session */
+    IdempotencyKey: string
+    /** @example "3" */
+    OptionalIfMatch: string
+    /** @description Opaque cursor returned as nextCursor by the preceding page */
+    AssessmentCursor: string
+    PageLimit: number
+  }
+  requestBodies: never
+  headers: never
+  pathItems: never
+}
+export type $defs = Record<string, never>
 export interface operations {
-    getOwnCareProfile: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Profile found */
-            200: {
-                headers: {
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Profile"];
-                };
-            };
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            404: components["responses"]["NotFoundProblem"];
-        };
-    };
-    putOwnCareProfile: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @example "3" */
-                "If-Match"?: components["parameters"]["OptionalIfMatch"];
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                /**
-                 * @example {
-                 *       "displayName": "Lan Nguyen",
-                 *       "locale": "vi-VN",
-                 *       "timezone": "Asia/Ho_Chi_Minh",
-                 *       "reminderEnabled": true
-                 *     }
-                 */
-                "application/json": components["schemas"]["ProfilePutRequest"];
-            };
-        };
-        responses: {
-            /** @description Existing profile replaced */
-            200: {
-                headers: {
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Profile"];
-                };
-            };
-            /** @description Profile created */
-            201: {
-                headers: {
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Profile"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            409: components["responses"]["ConflictProblem"];
-            412: components["responses"]["VersionProblem"];
-        };
-    };
-    getOwnCurrentConsents: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Latest decisions returned */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConsentCollection"];
-                };
-            };
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-        };
-    };
-    recordOwnConsentDecision: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Retry key scoped to the authenticated account or anonymous session */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                /**
-                 * @example {
-                 *       "consentType": "AI_PROCESSING",
-                 *       "policyVersion": "ai-processing-v1",
-                 *       "granted": true
-                 *     }
-                 */
-                "application/json": components["schemas"]["ConsentDecisionRequest"];
-            };
-        };
-        responses: {
-            /** @description Consent decision appended */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConsentDecision"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            409: components["responses"]["IdempotencyConflictProblem"];
-        };
-    };
-    getCurrentPrivacyDisclosure: {
-        parameters: {
-            query?: {
-                locale?: components["parameters"]["Locale"];
-            };
-            header?: {
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Current disclosure returned */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PrivacyDisclosure"];
-                };
-            };
-            404: components["responses"]["NotFoundProblem"];
-        };
-    };
-    getCurrentQuestionnaire: {
-        parameters: {
-            query?: {
-                locale?: components["parameters"]["Locale"];
-            };
-            header?: {
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path: {
-                instrument: components["parameters"]["Instrument"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Current questionnaire returned */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Questionnaire"];
-                };
-            };
-            404: components["responses"]["NotFoundProblem"];
-            429: components["responses"]["RateLimitProblem"];
-        };
-    };
-    listOwnAssessments: {
-        parameters: {
-            query?: {
-                /** @description Opaque cursor returned as nextCursor by the preceding page */
-                cursor?: components["parameters"]["AssessmentCursor"];
-                limit?: components["parameters"]["PageLimit"];
-            };
-            header?: {
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Owned assessment summaries returned */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssessmentHistoryPage"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-        };
-    };
-    submitAuthenticatedAssessment: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Retry key scoped to the authenticated account or anonymous session */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssessmentSubmissionRequest"];
-            };
-        };
-        responses: {
-            /** @description Assessment accepted and scored */
-            201: {
-                headers: {
-                    Location?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Assessment"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            409: components["responses"]["ConflictProblem"];
-        };
-    };
-    getOwnAssessment: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path: {
-                assessmentId: components["parameters"]["AssessmentId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Owned assessment returned */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Assessment"];
-                };
-            };
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            404: components["responses"]["NotFoundProblem"];
-        };
-    };
-    createAnonymousAssessmentSession: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Anonymous session created */
-            201: {
-                headers: {
-                    Location?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnonymousSession"];
-                };
-            };
-            429: components["responses"]["RateLimitProblem"];
-        };
-    };
-    submitAnonymousAssessment: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Retry key scoped to the authenticated account or anonymous session */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssessmentSubmissionRequest"];
-            };
-        };
-        responses: {
-            /** @description Anonymous assessment accepted and scored */
-            201: {
-                headers: {
-                    Location?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnonymousAssessment"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            401: components["responses"]["InvalidAnonymousSessionProblem"];
-            409: components["responses"]["ConflictProblem"];
-            410: components["responses"]["ExpiredAnonymousSessionProblem"];
-            429: components["responses"]["RateLimitProblem"];
-        };
-    };
-    getAnonymousAssessment: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Caller correlation identifier; the server generates one when omitted */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-            };
-            path: {
-                sessionId: components["parameters"]["SessionId"];
-                assessmentId: components["parameters"]["AssessmentId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Anonymous assessment returned */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnonymousAssessment"];
-                };
-            };
-            401: components["responses"]["InvalidAnonymousSessionProblem"];
-            404: components["responses"]["NotFoundProblem"];
-            410: components["responses"]["ExpiredAnonymousSessionProblem"];
-            429: components["responses"]["RateLimitProblem"];
-        };
-    };
+  getOwnCareProfile: {
+    parameters: {
+      query?: never
+      header?: {
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Profile found */
+      200: {
+        headers: {
+          ETag?: string
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Profile']
+        }
+      }
+      401: components['responses']['UnauthorizedProblem']
+      403: components['responses']['ForbiddenProblem']
+      404: components['responses']['NotFoundProblem']
+    }
+  }
+  putOwnCareProfile: {
+    parameters: {
+      query?: never
+      header?: {
+        /** @example "3" */
+        'If-Match'?: components['parameters']['OptionalIfMatch']
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "displayName": "Lan Nguyen",
+         *       "locale": "vi-VN",
+         *       "timezone": "Asia/Ho_Chi_Minh",
+         *       "reminderEnabled": true
+         *     }
+         */
+        'application/json': components['schemas']['ProfilePutRequest']
+      }
+    }
+    responses: {
+      /** @description Existing profile replaced */
+      200: {
+        headers: {
+          ETag?: string
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Profile']
+        }
+      }
+      /** @description Profile created */
+      201: {
+        headers: {
+          ETag?: string
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Profile']
+        }
+      }
+      400: components['responses']['ValidationProblem']
+      401: components['responses']['UnauthorizedProblem']
+      403: components['responses']['ForbiddenProblem']
+      409: components['responses']['ConflictProblem']
+      412: components['responses']['VersionProblem']
+    }
+  }
+  getOwnCurrentConsents: {
+    parameters: {
+      query?: never
+      header?: {
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Latest decisions returned */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConsentCollection']
+        }
+      }
+      401: components['responses']['UnauthorizedProblem']
+      403: components['responses']['ForbiddenProblem']
+    }
+  }
+  recordOwnConsentDecision: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Retry key scoped to the authenticated account or anonymous session */
+        'Idempotency-Key': components['parameters']['IdempotencyKey']
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "consentType": "AI_PROCESSING",
+         *       "policyVersion": "ai-processing-v1",
+         *       "granted": true
+         *     }
+         */
+        'application/json': components['schemas']['ConsentDecisionRequest']
+      }
+    }
+    responses: {
+      /** @description Consent decision appended */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConsentDecision']
+        }
+      }
+      400: components['responses']['ValidationProblem']
+      401: components['responses']['UnauthorizedProblem']
+      403: components['responses']['ForbiddenProblem']
+      409: components['responses']['IdempotencyConflictProblem']
+    }
+  }
+  getCurrentPrivacyDisclosure: {
+    parameters: {
+      query?: {
+        locale?: components['parameters']['Locale']
+      }
+      header?: {
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Current disclosure returned */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PrivacyDisclosure']
+        }
+      }
+      404: components['responses']['NotFoundProblem']
+    }
+  }
+  getCurrentQuestionnaire: {
+    parameters: {
+      query?: {
+        locale?: components['parameters']['Locale']
+      }
+      header?: {
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path: {
+        instrument: components['parameters']['Instrument']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Current questionnaire returned */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Questionnaire']
+        }
+      }
+      404: components['responses']['NotFoundProblem']
+      429: components['responses']['RateLimitProblem']
+    }
+  }
+  listOwnAssessments: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned as nextCursor by the preceding page */
+        cursor?: components['parameters']['AssessmentCursor']
+        limit?: components['parameters']['PageLimit']
+      }
+      header?: {
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Owned assessment summaries returned */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AssessmentHistoryPage']
+        }
+      }
+      400: components['responses']['ValidationProblem']
+      401: components['responses']['UnauthorizedProblem']
+      403: components['responses']['ForbiddenProblem']
+    }
+  }
+  submitAuthenticatedAssessment: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Retry key scoped to the authenticated account or anonymous session */
+        'Idempotency-Key': components['parameters']['IdempotencyKey']
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AssessmentSubmissionRequest']
+      }
+    }
+    responses: {
+      /** @description Assessment accepted and scored */
+      201: {
+        headers: {
+          Location?: string
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Assessment']
+        }
+      }
+      400: components['responses']['ValidationProblem']
+      401: components['responses']['UnauthorizedProblem']
+      403: components['responses']['ForbiddenProblem']
+      409: components['responses']['ConflictProblem']
+    }
+  }
+  getOwnAssessment: {
+    parameters: {
+      query?: never
+      header?: {
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path: {
+        assessmentId: components['parameters']['AssessmentId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Owned assessment returned */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Assessment']
+        }
+      }
+      401: components['responses']['UnauthorizedProblem']
+      403: components['responses']['ForbiddenProblem']
+      404: components['responses']['NotFoundProblem']
+    }
+  }
+  createAnonymousAssessmentSession: {
+    parameters: {
+      query?: never
+      header?: {
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Anonymous session created */
+      201: {
+        headers: {
+          Location?: string
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AnonymousSession']
+        }
+      }
+      429: components['responses']['RateLimitProblem']
+    }
+  }
+  submitAnonymousAssessment: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Retry key scoped to the authenticated account or anonymous session */
+        'Idempotency-Key': components['parameters']['IdempotencyKey']
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path: {
+        sessionId: components['parameters']['SessionId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AssessmentSubmissionRequest']
+      }
+    }
+    responses: {
+      /** @description Anonymous assessment accepted and scored */
+      201: {
+        headers: {
+          Location?: string
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AnonymousAssessment']
+        }
+      }
+      400: components['responses']['ValidationProblem']
+      401: components['responses']['InvalidAnonymousSessionProblem']
+      409: components['responses']['ConflictProblem']
+      410: components['responses']['ExpiredAnonymousSessionProblem']
+      429: components['responses']['RateLimitProblem']
+    }
+  }
+  getAnonymousAssessment: {
+    parameters: {
+      query?: never
+      header?: {
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        'X-Correlation-Id'?: components['parameters']['CorrelationId']
+      }
+      path: {
+        sessionId: components['parameters']['SessionId']
+        assessmentId: components['parameters']['AssessmentId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Anonymous assessment returned */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AnonymousAssessment']
+        }
+      }
+      401: components['responses']['InvalidAnonymousSessionProblem']
+      404: components['responses']['NotFoundProblem']
+      410: components['responses']['ExpiredAnonymousSessionProblem']
+      429: components['responses']['RateLimitProblem']
+    }
+  }
 }

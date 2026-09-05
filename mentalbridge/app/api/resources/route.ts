@@ -48,7 +48,8 @@ export async function GET(request: NextRequest) {
 
   // Get locale from Accept-Language header or default to vi-VN
   const acceptLanguage = request.headers.get('accept-language')
-  const locale = acceptLanguage?.split(',')[0]?.split('-')[0] === 'en' ? 'en-US' : 'vi-VN'
+  const locale =
+    acceptLanguage?.split(',')[0]?.split('-')[0] === 'en' ? 'en-US' : 'vi-VN'
 
   // Build upstream URL
   const upstreamUrl = new URL(`${CONTENT_SERVICE_BASE_URL}/api/v1/resources`)
@@ -120,37 +121,49 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate each resource row at runtime before accepting
-    function isValidResourceSummary(resource: unknown): resource is ResourceSummary {
+    function isValidResourceSummary(
+      resource: unknown,
+    ): resource is ResourceSummary {
       return (
         typeof resource === 'object' &&
         resource !== null &&
         typeof (resource as Record<string, unknown>).id === 'string' &&
         typeof (resource as Record<string, unknown>).title === 'string' &&
         typeof (resource as Record<string, unknown>).summary === 'string' &&
-        ['BREATHING', 'MEDITATION', 'ARTICLE', 'VIDEO', 'JOURNALING', 'COMMUNITY'].includes(
-          (resource as Record<string, unknown>).category as string
-        ) &&
+        [
+          'BREATHING',
+          'MEDITATION',
+          'ARTICLE',
+          'VIDEO',
+          'JOURNALING',
+          'COMMUNITY',
+        ].includes((resource as Record<string, unknown>).category as string) &&
         typeof (resource as Record<string, unknown>).locale === 'string' &&
-        ((resource as Record<string, unknown>).externalUrl === null || 
-         typeof (resource as Record<string, unknown>).externalUrl === 'string') &&
+        ((resource as Record<string, unknown>).externalUrl === null ||
+          typeof (resource as Record<string, unknown>).externalUrl ===
+            'string') &&
         (resource as Record<string, unknown>).status === 'PUBLISHED' &&
-        ((resource as Record<string, unknown>).reviewedBy === null || 
-         typeof (resource as Record<string, unknown>).reviewedBy === 'string') &&
-        ((resource as Record<string, unknown>).reviewedAt === null || 
-         typeof (resource as Record<string, unknown>).reviewedAt === 'string') &&
+        ((resource as Record<string, unknown>).reviewedBy === null ||
+          typeof (resource as Record<string, unknown>).reviewedBy ===
+            'string') &&
+        ((resource as Record<string, unknown>).reviewedAt === null ||
+          typeof (resource as Record<string, unknown>).reviewedAt ===
+            'string') &&
         typeof (resource as Record<string, unknown>).createdAt === 'string' &&
         typeof (resource as Record<string, unknown>).updatedAt === 'string'
       )
     }
 
     // Filter and validate each resource row
-    const validResources = backendData.data.filter((resource): resource is ResourceSummary => {
-      const isValid = isValidResourceSummary(resource)
-      if (!isValid) {
-        console.warn('[BFF] Invalid resource row:', resource)
-      }
-      return isValid && resource.status === 'PUBLISHED'
-    })
+    const validResources = backendData.data.filter(
+      (resource): resource is ResourceSummary => {
+        const isValid = isValidResourceSummary(resource)
+        if (!isValid) {
+          console.warn('[BFF] Invalid resource row:', resource)
+        }
+        return isValid && resource.status === 'PUBLISHED'
+      },
+    )
 
     // Normalize to frontend contract
     const normalizedResponse: ResourcesResponse = {
