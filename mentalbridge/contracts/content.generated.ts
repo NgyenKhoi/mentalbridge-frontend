@@ -4,566 +4,560 @@
  */
 
 export interface paths {
-  '/health/live': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** Liveness probe */
-    get: operations['getLive']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/health/ready': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** Readiness probe — checks database connectivity */
-    get: operations['getReady']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/resources': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** List active reviewed published self-help resources */
-    get: operations['listResources']
-    put?: never
-    /** Create a new resource (Admin) */
-    post: operations['createResource']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/resources/{id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    /** Get resource detail */
-    get: operations['getResource']
-    put?: never
-    post?: never
-    /** Delete a DRAFT resource (Admin) */
-    delete: operations['deleteResource']
-    options?: never
-    head?: never
-    /** Update a DRAFT resource (Admin) */
-    patch: operations['updateResource']
-    trace?: never
-  }
-  '/api/v1/resources/{id}/publish': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Publish a DRAFT resource — reviewed content workflow (Admin) */
-    post: operations['publishResource']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/resources/{id}/archive': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Archive a PUBLISHED resource (Admin) */
-    post: operations['archiveResource']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
+    "/health/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liveness probe */
+        get: operations["getLive"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Readiness probe — checks database connectivity */
+        get: operations["getReady"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List active reviewed published self-help resources */
+        get: operations["listResources"];
+        put?: never;
+        /** Create a new resource (Admin) */
+        post: operations["createResource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resources/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Get resource detail */
+        get: operations["getResource"];
+        put?: never;
+        post?: never;
+        /** Delete a DRAFT resource (Admin) */
+        delete: operations["deleteResource"];
+        options?: never;
+        head?: never;
+        /** Update a DRAFT resource (Admin) */
+        patch: operations["updateResource"];
+        trace?: never;
+    };
+    "/api/v1/resources/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish a DRAFT resource — reviewed content workflow (Admin) */
+        post: operations["publishResource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resources/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive a PUBLISHED resource (Admin) */
+        post: operations["archiveResource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-export type webhooks = Record<string, never>
+export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    LiveResponse: {
-      /** @example ok */
-      status: string
-    }
-    ReadyResponse: {
-      /** @enum {string} */
-      status: 'ok' | 'unavailable'
-      /** @enum {string} */
-      db: 'connected' | 'disconnected'
-    }
-    ProblemDetails: {
-      /**
-       * Format: uri
-       * @example https://mentalbridge.io/errors/RESOURCE_NOT_FOUND
-       */
-      type: string
-      /** @example Resource not found */
-      title: string
-      /** @example 404 */
-      status: number
-      /** @example RESOURCE_NOT_FOUND */
-      code: string
-      /**
-       * Format: uuid
-       * @example 123e4567-e89b-12d3-a456-426614174000
-       */
-      correlationId?: string | null
-      /**
-       * @example [
-       *       {
-       *         "field": "title",
-       *         "message": "Title is required"
-       *       }
-       *     ]
-       */
-      fieldViolations?: {
-        field?: string
-        message?: string
-      }[]
-    }
-    /** @enum {string} */
-    ResourceCategory:
-      | 'BREATHING'
-      | 'MEDITATION'
-      | 'ARTICLE'
-      | 'VIDEO'
-      | 'JOURNALING'
-      | 'COMMUNITY'
-    /** @enum {string} */
-    ResourceStatus: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
-    ResourceSummary: {
-      /** Format: uuid */
-      id: string
-      category: components['schemas']['ResourceCategory']
-      locale: string
-      title: string
-      summary: string
-      externalUrl?: string | null
-      status: components['schemas']['ResourceStatus']
-      /** Format: date-time */
-      reviewedAt?: string | null
-      /** Format: date-time */
-      createdAt: string
-      /** Format: date-time */
-      updatedAt?: string
-    }
-    ResourceDetail: components['schemas']['ResourceSummary'] & {
-      contentBody?: string | null
-      /** Format: uuid */
-      reviewedBy?: string | null
-      version?: number
-    }
-    ResourceListResponse: {
-      data: components['schemas']['ResourceSummary'][]
-      count: number
-      /**
-       * Format: uuid
-       * @description Cursor for the next page; absent when no more results.
-       */
-      nextCursor?: string
-      /**
-       * @description Present only when Content/Notification is unavailable. No hotline number or emergency dispatch claim is included.
-       * @enum {string}
-       */
-      fallback?: 'unavailable'
-      /** @description Neutral fallback message when fallback is unavailable. */
-      message?: string
-    }
-    CreateResourceRequest: {
-      category: components['schemas']['ResourceCategory']
-      /** @default vi-VN */
-      locale: string
-      title: string
-      summary: string
-      contentBody?: string | null
-      /** Format: uri */
-      externalUrl?: string | null
-    }
-    UpdateResourceRequest: {
-      title?: string
-      summary?: string
-      contentBody?: string | null
-      /** Format: uri */
-      externalUrl?: string | null
-    }
-  }
-  responses: {
-    /** @description Resource not found */
-    NotFound: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        /**
-         * @example {
-         *       "type": "https://mentalbridge.io/errors/RESOURCE_NOT_FOUND",
-         *       "title": "Resource not found",
-         *       "status": 404,
-         *       "code": "RESOURCE_NOT_FOUND",
-         *       "correlationId": "123e4567-e89b-12d3-a456-426614174000"
-         *     }
-         */
-        'application/json': components['schemas']['ProblemDetails']
-      }
-    }
-    /** @description State conflict or optimistic lock failure */
-    Conflict: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        /**
-         * @example {
-         *       "type": "https://mentalbridge.io/errors/INVALID_STATE_TRANSITION",
-         *       "title": "Cannot modify published resource",
-         *       "status": 409,
-         *       "code": "INVALID_STATE_TRANSITION",
-         *       "correlationId": "123e4567-e89b-12d3-a456-426614174000"
-         *     }
-         */
-        'application/json': components['schemas']['ProblemDetails']
-      }
-    }
-    /** @description Validation failed */
-    ValidationError: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        /**
-         * @example {
-         *       "type": "https://mentalbridge.io/errors/VALIDATION_ERROR",
-         *       "title": "Validation failed",
-         *       "status": 422,
-         *       "code": "VALIDATION_ERROR",
-         *       "correlationId": "123e4567-e89b-12d3-a456-426614174000",
-         *       "fieldViolations": [
-         *         {
-         *           "field": "title",
-         *           "message": "Title is required"
-         *         },
-         *         {
-         *           "field": "category",
-         *           "message": "Invalid category"
-         *         }
-         *       ]
-         *     }
-         */
-        'application/json': components['schemas']['ProblemDetails']
-      }
-    }
-    /** @description Invalid query parameter */
-    RequestRejected: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        /**
-         * @example {
-         *       "type": "https://mentalbridge.io/errors/REQUEST_REJECTED",
-         *       "title": "Request rejected",
-         *       "status": 400,
-         *       "code": "REQUEST_REJECTED",
-         *       "correlationId": "123e4567-e89b-12d3-a456-426614174000"
-         *     }
-         */
-        'application/problem+json': components['schemas']['ProblemDetails']
-      }
-    }
-  }
-  parameters: never
-  requestBodies: never
-  headers: never
-  pathItems: never
+    schemas: {
+        LiveResponse: {
+            /** @example ok */
+            status: string;
+        };
+        ReadyResponse: {
+            /** @enum {string} */
+            status: "ok" | "unavailable";
+            /** @enum {string} */
+            db: "connected" | "disconnected";
+        };
+        ProblemDetails: {
+            /**
+             * Format: uri
+             * @example https://mentalbridge.io/errors/RESOURCE_NOT_FOUND
+             */
+            type: string;
+            /** @example Resource not found */
+            title: string;
+            /** @example 404 */
+            status: number;
+            /** @example RESOURCE_NOT_FOUND */
+            code: string;
+            /**
+             * Format: uuid
+             * @example 123e4567-e89b-12d3-a456-426614174000
+             */
+            correlationId?: string | null;
+            /**
+             * @example [
+             *       {
+             *         "field": "title",
+             *         "message": "Title is required"
+             *       }
+             *     ]
+             */
+            fieldViolations?: {
+                field?: string;
+                message?: string;
+            }[];
+        };
+        /** @enum {string} */
+        ResourceCategory: "BREATHING" | "MEDITATION" | "ARTICLE" | "VIDEO" | "JOURNALING" | "COMMUNITY";
+        /** @enum {string} */
+        ResourceStatus: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+        ResourceSummary: {
+            /** Format: uuid */
+            id: string;
+            category: components["schemas"]["ResourceCategory"];
+            locale: string;
+            title: string;
+            summary: string;
+            externalUrl?: string | null;
+            status: components["schemas"]["ResourceStatus"];
+            /** Format: date-time */
+            reviewedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ResourceDetail: components["schemas"]["ResourceSummary"] & {
+            contentBody?: string | null;
+            /** Format: uuid */
+            reviewedBy?: string | null;
+            version?: number;
+        };
+        ResourceListResponse: {
+            data: components["schemas"]["ResourceSummary"][];
+            count: number;
+            /**
+             * Format: uuid
+             * @description Cursor for the next page; absent when no more results.
+             */
+            nextCursor?: string;
+            /**
+             * @description Present only when Content/Notification is unavailable. No hotline number or emergency dispatch claim is included.
+             * @enum {string}
+             */
+            fallback?: "unavailable";
+            /** @description Neutral fallback message when fallback is unavailable. */
+            message?: string;
+        };
+        CreateResourceRequest: {
+            category: components["schemas"]["ResourceCategory"];
+            /** @default vi-VN */
+            locale: string;
+            title: string;
+            summary: string;
+            contentBody?: string | null;
+            /** Format: uri */
+            externalUrl?: string | null;
+        };
+        UpdateResourceRequest: {
+            title?: string;
+            summary?: string;
+            contentBody?: string | null;
+            /** Format: uri */
+            externalUrl?: string | null;
+        };
+    };
+    responses: {
+        /** @description Resource not found */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "https://mentalbridge.io/errors/RESOURCE_NOT_FOUND",
+                 *       "title": "Resource not found",
+                 *       "status": 404,
+                 *       "code": "RESOURCE_NOT_FOUND",
+                 *       "correlationId": "123e4567-e89b-12d3-a456-426614174000"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description State conflict or optimistic lock failure */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "https://mentalbridge.io/errors/INVALID_STATE_TRANSITION",
+                 *       "title": "Cannot modify published resource",
+                 *       "status": 409,
+                 *       "code": "INVALID_STATE_TRANSITION",
+                 *       "correlationId": "123e4567-e89b-12d3-a456-426614174000"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Validation failed */
+        ValidationError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "https://mentalbridge.io/errors/VALIDATION_ERROR",
+                 *       "title": "Validation failed",
+                 *       "status": 422,
+                 *       "code": "VALIDATION_ERROR",
+                 *       "correlationId": "123e4567-e89b-12d3-a456-426614174000",
+                 *       "fieldViolations": [
+                 *         {
+                 *           "field": "title",
+                 *           "message": "Title is required"
+                 *         },
+                 *         {
+                 *           "field": "category",
+                 *           "message": "Invalid category"
+                 *         }
+                 *       ]
+                 *     }
+                 */
+                "application/json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Invalid query parameter */
+        RequestRejected: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "https://mentalbridge.io/errors/REQUEST_REJECTED",
+                 *       "title": "Request rejected",
+                 *       "status": 400,
+                 *       "code": "REQUEST_REJECTED",
+                 *       "correlationId": "123e4567-e89b-12d3-a456-426614174000"
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+    };
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-export type $defs = Record<string, never>
+export type $defs = Record<string, never>;
 export interface operations {
-  getLive: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Service is alive */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "status": "ok"
-           *     }
-           */
-          'application/json': components['schemas']['LiveResponse']
-        }
-      }
-    }
-  }
-  getReady: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Service is ready */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "status": "ok",
-           *       "db": "connected"
-           *     }
-           */
-          'application/json': components['schemas']['ReadyResponse']
-        }
-      }
-      /** @description Service unavailable — database unreachable */
-      503: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "type": "https://mentalbridge.io/errors/DEPENDENCY_UNAVAILABLE",
-           *       "title": "Dependency unavailable",
-           *       "status": 503,
-           *       "code": "DEPENDENCY_UNAVAILABLE"
-           *     }
-           */
-          'application/problem+json': components['schemas']['ProblemDetails']
-        }
-      }
-    }
-  }
-  listResources: {
-    parameters: {
-      query?: {
-        locale?: string
-        category?: components['schemas']['ResourceCategory']
-        limit?: number
-        cursor?: string
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Published reviewed resources. Returns empty array when none match. Returns fallback: unavailable with neutral message when service is unreachable. No hotline number or emergency dispatch claim is included. */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ResourceListResponse']
-        }
-      }
-      400: components['responses']['RequestRejected']
-    }
-  }
-  createResource: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateResourceRequest']
-      }
-    }
-    responses: {
-      /** @description Resource created */
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          /**
-           * @example {
-           *       "id": "123e4567-e89b-12d3-a456-426614174000",
-           *       "category": "BREATHING",
-           *       "locale": "vi-VN",
-           *       "title": "Kỹ thuật thở 4-7-8",
-           *       "summary": "Kỹ thuật thở giúp giảm căng thẳng và lo âu",
-           *       "externalUrl": null,
-           *       "status": "DRAFT",
-           *       "reviewedAt": null,
-           *       "createdAt": "2024-01-15T10:00:00Z",
-           *       "updatedAt": "2024-01-15T10:00:00Z"
-           *     }
-           */
-          'application/json': components['schemas']['ResourceSummary']
-        }
-      }
-      422: components['responses']['ValidationError']
-    }
-  }
-  getResource: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Resource detail */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ResourceDetail']
-        }
-      }
-      404: components['responses']['NotFound']
-    }
-  }
-  deleteResource: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Deleted */
-      204: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-      404: components['responses']['NotFound']
-      409: components['responses']['Conflict']
-    }
-  }
-  updateResource: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateResourceRequest']
-      }
-    }
-    responses: {
-      /** @description Updated resource */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ResourceSummary']
-        }
-      }
-      404: components['responses']['NotFound']
-      409: components['responses']['Conflict']
-    }
-  }
-  publishResource: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Resource published */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ResourceSummary']
-        }
-      }
-      404: components['responses']['NotFound']
-      409: components['responses']['Conflict']
-    }
-  }
-  archiveResource: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Resource archived */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ResourceSummary']
-        }
-      }
-      404: components['responses']['NotFound']
-      409: components['responses']['Conflict']
-    }
-  }
+    getLive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service is alive */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "status": "ok"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["LiveResponse"];
+                };
+            };
+        };
+    };
+    getReady: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service is ready */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "status": "ok",
+                     *       "db": "connected"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ReadyResponse"];
+                };
+            };
+            /** @description Service unavailable — database unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/DEPENDENCY_UNAVAILABLE",
+                     *       "title": "Dependency unavailable",
+                     *       "status": 503,
+                     *       "code": "DEPENDENCY_UNAVAILABLE"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listResources: {
+        parameters: {
+            query?: {
+                locale?: string;
+                category?: components["schemas"]["ResourceCategory"];
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published reviewed resources. Returns empty array when none match. Returns fallback: unavailable with neutral message when service is unreachable. No hotline number or emergency dispatch claim is included. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceListResponse"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+        };
+    };
+    createResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateResourceRequest"];
+            };
+        };
+        responses: {
+            /** @description Resource created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "id": "123e4567-e89b-12d3-a456-426614174000",
+                     *       "category": "BREATHING",
+                     *       "locale": "vi-VN",
+                     *       "title": "Kỹ thuật thở 4-7-8",
+                     *       "summary": "Kỹ thuật thở giúp giảm căng thẳng và lo âu",
+                     *       "externalUrl": null,
+                     *       "status": "DRAFT",
+                     *       "reviewedAt": null,
+                     *       "createdAt": "2024-01-15T10:00:00Z",
+                     *       "updatedAt": "2024-01-15T10:00:00Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ResourceSummary"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceDetail"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateResourceRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceSummary"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    publishResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource published */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceSummary"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    archiveResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource archived */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceSummary"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
 }
