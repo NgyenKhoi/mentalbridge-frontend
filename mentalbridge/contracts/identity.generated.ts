@@ -4,928 +4,923 @@
  */
 
 export interface paths {
-  '/api/v1/auth/registrations': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Register a user or specialist account */
-    post: operations['registerAccount']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/email-verifications': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Consume a one-time email verification challenge */
-    post: operations['verifyEmail']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/email-verification-requests': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Request another verification delivery */
-    post: operations['requestEmailVerification']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/login': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Authenticate an active verified account */
-    post: operations['login']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/refresh': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Rotate a refresh credential and issue a new token pair */
-    post: operations['refreshSession']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/logout': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Idempotently revoke the current refresh-session family */
-    post: operations['logout']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/logout-all': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Idempotently revoke every refresh session for the account */
-    post: operations['logoutAll']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/password-recovery-requests': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Request a password-recovery delivery without account enumeration */
-    post: operations['requestPasswordRecovery']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/password-resets': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Consume a recovery challenge and revoke all refresh sessions */
-    post: operations['resetPassword']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/account': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** Read the authenticated account's Identity-owned facts */
-    get: operations['getOwnAccount']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/account/password': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    /** Change the authenticated account password and revoke all sessions */
-    put: operations['changePassword']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/accounts': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** Search bounded Identity account facts */
-    get: operations['searchAccounts']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/accounts/{accountId}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** Read one account for authorized administration */
-    get: operations['getAccountById']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/accounts/{accountId}/state': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    /**
-     * Change a non-admin account state with optimistic concurrency
-     * @description The dedicated ADMIN account is provisioned and managed operationally and cannot be targeted.
-     */
-    put: operations['changeAccountState']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
+    "/api/v1/auth/registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a user or specialist account */
+        post: operations["registerAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/email-verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Consume a one-time email verification challenge */
+        post: operations["verifyEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/email-verification-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request another verification delivery */
+        post: operations["requestEmailVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Authenticate an active verified account */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate a refresh credential and issue a new token pair */
+        post: operations["refreshSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Idempotently revoke the current refresh-session family */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Idempotently revoke every refresh session for the account */
+        post: operations["logoutAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-recovery-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a password-recovery delivery without account enumeration */
+        post: operations["requestPasswordRecovery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-resets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Consume a recovery challenge and revoke all refresh sessions */
+        post: operations["resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the authenticated account's Identity-owned facts */
+        get: operations["getOwnAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change the authenticated account password and revoke all sessions */
+        put: operations["changePassword"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search bounded Identity account facts */
+        get: operations["searchAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/accounts/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one account for authorized administration */
+        get: operations["getAccountById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/accounts/{accountId}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change a non-admin account state with optimistic concurrency
+         * @description The dedicated ADMIN account is provisioned and managed operationally and cannot be targeted.
+         */
+        put: operations["changeAccountState"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-export type webhooks = Record<string, never>
+export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    RegistrationRequest: {
-      /** Format: email */
-      email: string
-      password: components['schemas']['NewPassword']
-      /** @enum {string} */
-      actorType: 'USER' | 'SPECIALIST'
-      deviceLabel?: string
-    }
-    RegistrationResponse: {
-      /** Format: uuid */
-      accountId: string
-      /** @constant */
-      status: 'PENDING_EMAIL_VERIFICATION'
-      /** @constant */
-      verificationRequired: true
-      /** Format: date-time */
-      createdAt: string
-    }
-    EmailRequest: {
-      /** Format: email */
-      email: string
-    }
-    ChallengeRequest: {
-      challenge: string
-    }
-    LoginRequest: {
-      /** Format: email */
-      email: string
-      password: string
-      deviceLabel?: string
-    }
-    RefreshRequest: {
-      refreshToken: string
-    }
-    PasswordResetRequest: {
-      challenge: string
-      newPassword: components['schemas']['NewPassword']
-    }
-    PasswordChangeRequest: {
-      currentPassword: string
-      newPassword: components['schemas']['NewPassword']
-    }
-    /** @description Unicode password of at most 72 UTF-8 bytes; the server neither normalizes nor silently truncates it */
-    NewPassword: string
-    TokenPair: {
-      accessToken: string
-      /** @constant */
-      tokenType: 'Bearer'
-      /** @constant */
-      expiresIn: 900
-      refreshToken: string
-      /** Format: date-time */
-      refreshExpiresAt: string
-    }
-    /** @enum {string} */
-    AccountStatus:
-      | 'PENDING_EMAIL_VERIFICATION'
-      | 'ACTIVE'
-      | 'DISABLED'
-      | 'DELETION_PENDING'
-      | 'DELETED'
-    /** @enum {string} */
-    RoleCode: 'USER' | 'SPECIALIST' | 'ADMIN'
-    AccountSummary: {
-      /** Format: uuid */
-      accountId: string
-      status: components['schemas']['AccountStatus']
-      /** @description Exactly one immutable actor role; the array shape is retained for v1 token and response compatibility */
-      roles: components['schemas']['RoleCode'][]
-      emailVerified: boolean
-    }
-    AccountDetail: {
-      /** Format: uuid */
-      accountId: string
-      /** Format: email */
-      email: string
-      status: components['schemas']['AccountStatus']
-      /** @description Exactly one immutable actor role; the array shape is retained for v1 token and response compatibility */
-      roles: components['schemas']['RoleCode'][]
-      emailVerified: boolean
-      /** Format: date-time */
-      createdAt: string
-      /** Format: date-time */
-      updatedAt: string
-      /** Format: int64 */
-      version: number
-    }
-    AccountPage: {
-      items: components['schemas']['AccountDetail'][]
-      /** @description Null means there is no next page */
-      nextCursor?: string | null
-    }
-    AccountStateChangeRequest: {
-      status: components['schemas']['AccountStatus']
-      reasonCode: string
-    }
-    Problem: {
-      /** Format: uri-reference */
-      type: string
-      title: string
-      status: number
-      detail?: string
-      /** Format: uri-reference */
-      instance?: string
-      code: string
-      /** Format: uuid */
-      correlationId: string
-      violations?: {
-        field: string
-        code: string
-        message?: string
-      }[]
-    } & {
-      [key: string]: unknown
-    }
-  }
-  responses: {
-    /** @description Request accepted whether or not an eligible account exists */
-    GenericAccepted: {
-      headers: {
-        [name: string]: unknown
-      }
-      content?: never
-    }
-    /** @description Request validation failed */
-    ValidationProblem: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        /**
-         * @example {
-         *       "type": "/problems/validation-failed",
-         *       "title": "Request validation failed",
-         *       "status": 400,
-         *       "code": "VALIDATION_FAILED",
-         *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65",
-         *       "violations": [
-         *         {
-         *           "field": "email",
-         *           "code": "INVALID_FORMAT",
-         *           "message": "must be a valid email address"
-         *         }
-         *       ]
-         *     }
-         */
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-    /** @description Challenge is invalid, expired, consumed, or ineligible */
-    InvalidChallengeProblem: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        /**
-         * @example {
-         *       "type": "/problems/invalid-challenge",
-         *       "title": "Challenge is invalid",
-         *       "status": 400,
-         *       "code": "INVALID_CHALLENGE",
-         *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
-         *     }
-         */
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-    /** @description Credentials are invalid or the account cannot authenticate */
-    InvalidCredentialsProblem: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        /**
-         * @example {
-         *       "type": "/problems/invalid-credentials",
-         *       "title": "Credentials are invalid",
-         *       "status": 401,
-         *       "code": "INVALID_CREDENTIALS",
-         *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
-         *     }
-         */
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-    /** @description Refresh session is invalid, expired, revoked, or replayed */
-    InvalidSessionProblem: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        /**
-         * @example {
-         *       "type": "/problems/invalid-session",
-         *       "title": "Session is invalid",
-         *       "status": 401,
-         *       "code": "INVALID_SESSION",
-         *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
-         *     }
-         */
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-    /** @description Authentication is missing or invalid */
-    UnauthorizedProblem: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-    /** @description Caller lacks the required role or owner authorization */
-    ForbiddenProblem: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-    /** @description Requested account does not exist */
-    NotFoundProblem: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-    /** @description State or uniqueness conflict */
-    ConflictProblem: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-    /** @description Idempotency key was previously used with a different request */
-    IdempotencyConflictProblem: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-    /** @description If-Match does not match the current account version */
-    VersionProblem: {
-      headers: {
-        [name: string]: unknown
-      }
-      content: {
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-    /** @description Request exceeded a bounded security rate limit */
-    RateLimitProblem: {
-      headers: {
-        'Retry-After'?: number
-        [name: string]: unknown
-      }
-      content: {
-        'application/problem+json': components['schemas']['Problem']
-      }
-    }
-  }
-  parameters: {
-    AccountId: string
-    /** @description Caller correlation identifier; the server generates one when omitted */
-    CorrelationId: string
-    IdempotencyKey: string
-    /** @example "3" */
-    IfMatch: string
-  }
-  requestBodies: never
-  headers: never
-  pathItems: never
-}
-export type $defs = Record<string, never>
-export interface operations {
-  registerAccount: {
-    parameters: {
-      query?: never
-      header: {
-        'Idempotency-Key': components['parameters']['IdempotencyKey']
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        /**
-         * @example {
-         *       "email": "lan.nguyen@example.com",
-         *       "password": "correct-horse-battery-staple",
-         *       "actorType": "USER"
-         *     }
-         */
-        'application/json': components['schemas']['RegistrationRequest']
-      }
-    }
+    schemas: {
+        RegistrationRequest: {
+            /** Format: email */
+            email: string;
+            password: components["schemas"]["NewPassword"];
+            /** @enum {string} */
+            actorType: "USER" | "SPECIALIST";
+            deviceLabel?: string;
+        };
+        RegistrationResponse: {
+            /** Format: uuid */
+            accountId: string;
+            /** @constant */
+            status: "PENDING_EMAIL_VERIFICATION";
+            /** @constant */
+            verificationRequired: true;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        EmailRequest: {
+            /** Format: email */
+            email: string;
+        };
+        ChallengeRequest: {
+            challenge: string;
+        };
+        LoginRequest: {
+            /** Format: email */
+            email: string;
+            password: string;
+            deviceLabel?: string;
+        };
+        RefreshRequest: {
+            refreshToken: string;
+        };
+        PasswordResetRequest: {
+            challenge: string;
+            newPassword: components["schemas"]["NewPassword"];
+        };
+        PasswordChangeRequest: {
+            currentPassword: string;
+            newPassword: components["schemas"]["NewPassword"];
+        };
+        /** @description Unicode password of at most 72 UTF-8 bytes; the server neither normalizes nor silently truncates it */
+        NewPassword: string;
+        TokenPair: {
+            accessToken: string;
+            /** @constant */
+            tokenType: "Bearer";
+            /** @constant */
+            expiresIn: 900;
+            refreshToken: string;
+            /** Format: date-time */
+            refreshExpiresAt: string;
+        };
+        /** @enum {string} */
+        AccountStatus: "PENDING_EMAIL_VERIFICATION" | "ACTIVE" | "DISABLED" | "DELETION_PENDING" | "DELETED";
+        /** @enum {string} */
+        RoleCode: "USER" | "SPECIALIST" | "ADMIN";
+        AccountSummary: {
+            /** Format: uuid */
+            accountId: string;
+            status: components["schemas"]["AccountStatus"];
+            /** @description Exactly one immutable actor role; the array shape is retained for v1 token and response compatibility */
+            roles: components["schemas"]["RoleCode"][];
+            emailVerified: boolean;
+        };
+        AccountDetail: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: email */
+            email: string;
+            status: components["schemas"]["AccountStatus"];
+            /** @description Exactly one immutable actor role; the array shape is retained for v1 token and response compatibility */
+            roles: components["schemas"]["RoleCode"][];
+            emailVerified: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        AccountPage: {
+            items: components["schemas"]["AccountDetail"][];
+            /** @description Null means there is no next page */
+            nextCursor?: string | null;
+        };
+        AccountStateChangeRequest: {
+            status: components["schemas"]["AccountStatus"];
+            reasonCode: string;
+        };
+        Problem: {
+            /** Format: uri-reference */
+            type: string;
+            title: string;
+            status: number;
+            detail?: string;
+            /** Format: uri-reference */
+            instance?: string;
+            code: string;
+            /** Format: uuid */
+            correlationId: string;
+            violations?: {
+                field: string;
+                code: string;
+                message?: string;
+            }[];
+        } & {
+            [key: string]: unknown;
+        };
+    };
     responses: {
-      /** @description Account created pending email verification */
-      201: {
-        headers: {
-          Location?: string
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['RegistrationResponse']
-        }
-      }
-      400: components['responses']['ValidationProblem']
-      409: components['responses']['ConflictProblem']
-      429: components['responses']['RateLimitProblem']
-    }
-  }
-  verifyEmail: {
+        /** @description Request accepted whether or not an eligible account exists */
+        GenericAccepted: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content?: never;
+        };
+        /** @description Request validation failed */
+        ValidationProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "/problems/validation-failed",
+                 *       "title": "Request validation failed",
+                 *       "status": 400,
+                 *       "code": "VALIDATION_FAILED",
+                 *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65",
+                 *       "violations": [
+                 *         {
+                 *           "field": "email",
+                 *           "code": "INVALID_FORMAT",
+                 *           "message": "must be a valid email address"
+                 *         }
+                 *       ]
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Challenge is invalid, expired, consumed, or ineligible */
+        InvalidChallengeProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "/problems/invalid-challenge",
+                 *       "title": "Challenge is invalid",
+                 *       "status": 400,
+                 *       "code": "INVALID_CHALLENGE",
+                 *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Credentials are invalid or the account cannot authenticate */
+        InvalidCredentialsProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "/problems/invalid-credentials",
+                 *       "title": "Credentials are invalid",
+                 *       "status": 401,
+                 *       "code": "INVALID_CREDENTIALS",
+                 *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Refresh session is invalid, expired, revoked, or replayed */
+        InvalidSessionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "/problems/invalid-session",
+                 *       "title": "Session is invalid",
+                 *       "status": 401,
+                 *       "code": "INVALID_SESSION",
+                 *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Authentication is missing or invalid */
+        UnauthorizedProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Caller lacks the required role or owner authorization */
+        ForbiddenProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Requested account does not exist */
+        NotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description State or uniqueness conflict */
+        ConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Idempotency key was previously used with a different request */
+        IdempotencyConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description If-Match does not match the current account version */
+        VersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Request exceeded a bounded security rate limit */
+        RateLimitProblem: {
+            headers: {
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+    };
     parameters: {
-      query?: never
-      header?: {
+        AccountId: string;
         /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ChallengeRequest']
-      }
-    }
-    responses: {
-      /** @description Email is verified; repeating a consumed successful challenge is idempotent */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['AccountSummary']
-        }
-      }
-      400: components['responses']['InvalidChallengeProblem']
-      429: components['responses']['RateLimitProblem']
-    }
-  }
-  requestEmailVerification: {
-    parameters: {
-      query?: never
-      header?: {
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['EmailRequest']
-      }
-    }
-    responses: {
-      202: components['responses']['GenericAccepted']
-      400: components['responses']['ValidationProblem']
-      429: components['responses']['RateLimitProblem']
-    }
-  }
-  login: {
-    parameters: {
-      query?: never
-      header?: {
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['LoginRequest']
-      }
-    }
-    responses: {
-      /** @description Access and refresh credentials issued */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['TokenPair']
-        }
-      }
-      400: components['responses']['ValidationProblem']
-      401: components['responses']['InvalidCredentialsProblem']
-      429: components['responses']['RateLimitProblem']
-    }
-  }
-  refreshSession: {
-    parameters: {
-      query?: never
-      header: {
-        'Idempotency-Key': components['parameters']['IdempotencyKey']
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RefreshRequest']
-      }
-    }
-    responses: {
-      /** @description Refresh credential rotated exactly once */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['TokenPair']
-        }
-      }
-      400: components['responses']['ValidationProblem']
-      401: components['responses']['InvalidSessionProblem']
-      409: components['responses']['IdempotencyConflictProblem']
-      429: components['responses']['RateLimitProblem']
-    }
-  }
-  logout: {
-    parameters: {
-      query?: never
-      header?: {
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RefreshRequest']
-      }
-    }
-    responses: {
-      /** @description Session family is revoked or was already revoked */
-      204: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-      400: components['responses']['ValidationProblem']
-      401: components['responses']['UnauthorizedProblem']
-    }
-  }
-  logoutAll: {
-    parameters: {
-      query?: never
-      header?: {
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description All sessions are revoked or were already revoked */
-      204: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-      401: components['responses']['UnauthorizedProblem']
-    }
-  }
-  requestPasswordRecovery: {
-    parameters: {
-      query?: never
-      header?: {
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['EmailRequest']
-      }
-    }
-    responses: {
-      202: components['responses']['GenericAccepted']
-      400: components['responses']['ValidationProblem']
-      429: components['responses']['RateLimitProblem']
-    }
-  }
-  resetPassword: {
-    parameters: {
-      query?: never
-      header?: {
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['PasswordResetRequest']
-      }
-    }
-    responses: {
-      /** @description Password changed and all refresh sessions revoked */
-      204: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-      400: components['responses']['InvalidChallengeProblem']
-      429: components['responses']['RateLimitProblem']
-    }
-  }
-  getOwnAccount: {
-    parameters: {
-      query?: never
-      header?: {
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Account found */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['AccountDetail']
-        }
-      }
-      401: components['responses']['UnauthorizedProblem']
-    }
-  }
-  changePassword: {
-    parameters: {
-      query?: never
-      header?: {
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['PasswordChangeRequest']
-      }
-    }
-    responses: {
-      /** @description Password changed and all refresh sessions revoked */
-      204: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-      400: components['responses']['ValidationProblem']
-      401: components['responses']['InvalidCredentialsProblem']
-    }
-  }
-  searchAccounts: {
-    parameters: {
-      query?: {
-        status?: components['schemas']['AccountStatus']
-        role?: components['schemas']['RoleCode']
-        /** @description Exact normalized email filter; omitted means no email filter */
-        email?: string
-        cursor?: string
-        limit?: number
-      }
-      header?: {
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Bounded account page ordered by creation instant and identifier */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['AccountPage']
-        }
-      }
-      400: components['responses']['ValidationProblem']
-      401: components['responses']['UnauthorizedProblem']
-      403: components['responses']['ForbiddenProblem']
-    }
-  }
-  getAccountById: {
-    parameters: {
-      query?: never
-      header?: {
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path: {
-        accountId: components['parameters']['AccountId']
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Account found */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['AccountDetail']
-        }
-      }
-      401: components['responses']['UnauthorizedProblem']
-      403: components['responses']['ForbiddenProblem']
-      404: components['responses']['NotFoundProblem']
-    }
-  }
-  changeAccountState: {
-    parameters: {
-      query?: never
-      header: {
+        CorrelationId: string;
+        IdempotencyKey: string;
         /** @example "3" */
-        'If-Match': components['parameters']['IfMatch']
-        /** @description Caller correlation identifier; the server generates one when omitted */
-        'X-Correlation-Id'?: components['parameters']['CorrelationId']
-      }
-      path: {
-        accountId: components['parameters']['AccountId']
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['AccountStateChangeRequest']
-      }
-    }
-    responses: {
-      /** @description State changed */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['AccountDetail']
-        }
-      }
-      400: components['responses']['ValidationProblem']
-      401: components['responses']['UnauthorizedProblem']
-      403: components['responses']['ForbiddenProblem']
-      404: components['responses']['NotFoundProblem']
-      409: components['responses']['ConflictProblem']
-      412: components['responses']['VersionProblem']
-    }
-  }
+        IfMatch: string;
+    };
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
+}
+export type $defs = Record<string, never>;
+export interface operations {
+    registerAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "email": "lan.nguyen@example.com",
+                 *       "password": "correct-horse-battery-staple",
+                 *       "actorType": "USER"
+                 *     }
+                 */
+                "application/json": components["schemas"]["RegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Account created pending email verification */
+            201: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationResponse"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            409: components["responses"]["ConflictProblem"];
+            429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    verifyEmail: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChallengeRequest"];
+            };
+        };
+        responses: {
+            /** @description Email is verified; repeating a consumed successful challenge is idempotent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountSummary"];
+                };
+            };
+            400: components["responses"]["InvalidChallengeProblem"];
+            429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    requestEmailVerification: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRequest"];
+            };
+        };
+        responses: {
+            202: components["responses"]["GenericAccepted"];
+            400: components["responses"]["ValidationProblem"];
+            429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Access and refresh credentials issued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPair"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["InvalidCredentialsProblem"];
+            429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    refreshSession: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Refresh credential rotated exactly once */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPair"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["InvalidSessionProblem"];
+            409: components["responses"]["IdempotencyConflictProblem"];
+            429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Session family is revoked or was already revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+        };
+    };
+    logoutAll: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All sessions are revoked or were already revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+        };
+    };
+    requestPasswordRecovery: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRequest"];
+            };
+        };
+        responses: {
+            202: components["responses"]["GenericAccepted"];
+            400: components["responses"]["ValidationProblem"];
+            429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Password changed and all refresh sessions revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["InvalidChallengeProblem"];
+            429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    getOwnAccount: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDetail"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Password changed and all refresh sessions revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["InvalidCredentialsProblem"];
+        };
+    };
+    searchAccounts: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["AccountStatus"];
+                role?: components["schemas"]["RoleCode"];
+                /** @description Exact normalized email filter; omitted means no email filter */
+                email?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded account page ordered by creation instant and identifier */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getAccountById: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDetail"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    changeAccountState: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["IfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountStateChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description State changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDetail"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+        };
+    };
 }

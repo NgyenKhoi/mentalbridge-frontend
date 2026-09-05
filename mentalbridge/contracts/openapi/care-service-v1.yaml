@@ -387,8 +387,7 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      schema:
-        { type: string, minLength: 16, maxLength: 128, pattern: '^[!-~]+$' }
+      schema: { type: string, minLength: 16, maxLength: 128, pattern: '^[!-~]+$' }
       description: Retry key scoped to the authenticated account or anonymous session
     OptionalIfMatch:
       name: If-Match
@@ -416,13 +415,7 @@ components:
         displayName: { type: string, minLength: 1, maxLength: 120 }
         dateOfBirth: { type: [string, 'null'], format: date }
         gender: { type: [string, 'null'], minLength: 1, maxLength: 32 }
-        locale:
-          {
-            type: string,
-            minLength: 2,
-            maxLength: 16,
-            pattern: '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$',
-          }
+        locale: { type: string, minLength: 2, maxLength: 16, pattern: '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$' }
         timezone:
           type: string
           minLength: 1
@@ -432,29 +425,13 @@ components:
     Profile:
       type: object
       additionalProperties: false
-      required:
-        [
-          accountId,
-          displayName,
-          locale,
-          timezone,
-          reminderEnabled,
-          createdAt,
-          updatedAt,
-          version,
-        ]
+      required: [accountId, displayName, locale, timezone, reminderEnabled, createdAt, updatedAt, version]
       properties:
         accountId: { type: string, format: uuid }
         displayName: { type: string, minLength: 1, maxLength: 120 }
         dateOfBirth: { type: [string, 'null'], format: date }
         gender: { type: [string, 'null'], minLength: 1, maxLength: 32 }
-        locale:
-          {
-            type: string,
-            minLength: 2,
-            maxLength: 16,
-            pattern: '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$',
-          }
+        locale: { type: string, minLength: 2, maxLength: 16, pattern: '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$' }
         timezone: { type: string, minLength: 1, maxLength: 64 }
         reminderEnabled: { type: boolean }
         createdAt: { type: string, format: date-time }
@@ -510,17 +487,7 @@ components:
     Questionnaire:
       type: object
       additionalProperties: false
-      required:
-        [
-          definitionId,
-          instrument,
-          version,
-          locale,
-          title,
-          referencePeriodDays,
-          responseOptions,
-          questions,
-        ]
+      required: [definitionId, instrument, version, locale, title, referencePeriodDays, responseOptions, questions]
       properties:
         definitionId: { type: string, format: uuid }
         instrument: { $ref: '#/components/schemas/Instrument' }
@@ -556,13 +523,7 @@ components:
     AssessmentSubmissionRequest:
       type: object
       additionalProperties: false
-      required:
-        [
-          questionnaireDefinitionId,
-          privacyPolicyVersion,
-          privacyDisclosureAcknowledged,
-          answers,
-        ]
+      required: [questionnaireDefinitionId, privacyPolicyVersion, privacyDisclosureAcknowledged, answers]
       properties:
         questionnaireDefinitionId: { type: string, format: uuid }
         privacyPolicyVersion: { type: string, const: privacy-capstone-v1 }
@@ -584,16 +545,7 @@ components:
     Assessment:
       type: object
       additionalProperties: false
-      required:
-        [
-          assessmentId,
-          questionnaireDefinitionId,
-          instrument,
-          questionnaireVersion,
-          privacyPolicyVersion,
-          submittedAt,
-          result,
-        ]
+      required: [assessmentId, questionnaireDefinitionId, instrument, questionnaireVersion, privacyPolicyVersion, submittedAt, result]
       properties:
         assessmentId: { type: string, format: uuid }
         questionnaireDefinitionId: { type: string, format: uuid }
@@ -606,17 +558,7 @@ components:
     AnonymousAssessment:
       type: object
       additionalProperties: false
-      required:
-        [
-          assessmentId,
-          questionnaireDefinitionId,
-          instrument,
-          questionnaireVersion,
-          privacyPolicyVersion,
-          submittedAt,
-          result,
-          expiresAt,
-        ]
+      required: [assessmentId, questionnaireDefinitionId, instrument, questionnaireVersion, privacyPolicyVersion, submittedAt, result, expiresAt]
       properties:
         assessmentId: { type: string, format: uuid }
         questionnaireDefinitionId: { type: string, format: uuid }
@@ -630,16 +572,7 @@ components:
     AssessmentSummary:
       type: object
       additionalProperties: false
-      required:
-        [
-          assessmentId,
-          questionnaireDefinitionId,
-          instrument,
-          questionnaireVersion,
-          privacyPolicyVersion,
-          submittedAt,
-          result,
-        ]
+      required: [assessmentId, questionnaireDefinitionId, instrument, questionnaireVersion, privacyPolicyVersion, submittedAt, result]
       properties:
         assessmentId: { type: string, format: uuid }
         questionnaireDefinitionId: { type: string, format: uuid }
@@ -662,15 +595,7 @@ components:
     AssessmentResult:
       type: object
       additionalProperties: false
-      required:
-        [
-          totalScore,
-          screeningLevel,
-          scoringVersion,
-          safetyStatus,
-          safetyPolicyVersion,
-          disclaimerCode,
-        ]
+      required: [totalScore, screeningLevel, scoringVersion, safetyStatus, safetyPolicyVersion, disclaimerCode]
       properties:
         totalScore:
           type: integer
@@ -700,8 +625,7 @@ components:
       required: [sessionId, sessionToken, expiresAt]
       properties:
         sessionId: { type: string, format: uuid }
-        sessionToken:
-          { type: string, minLength: 43, maxLength: 512, readOnly: true }
+        sessionToken: { type: string, minLength: 43, maxLength: 512, readOnly: true }
         expiresAt: { type: string, format: date-time }
     Problem:
       type: object
@@ -737,14 +661,7 @@ components:
             status: 400
             code: VALIDATION_FAILED
             correlationId: 8fb5720a-53ab-40db-9cf4-f5cfabbdaf65
-            violations:
-              [
-                {
-                  field: answers,
-                  code: INCOMPLETE_QUESTIONNAIRE,
-                  message: one answer is required for every question,
-                },
-              ]
+            violations: [{ field: answers, code: INCOMPLETE_QUESTIONNAIRE, message: one answer is required for every question }]
     UnauthorizedProblem:
       description: Authentication is missing or invalid (UNAUTHENTICATED)
       content:
@@ -760,27 +677,13 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
-          example:
-            {
-              type: /problems/invalid-anonymous-session,
-              title: Anonymous session is invalid,
-              status: 401,
-              code: INVALID_ANONYMOUS_SESSION,
-              correlationId: 8fb5720a-53ab-40db-9cf4-f5cfabbdaf65,
-            }
+          example: { type: /problems/invalid-anonymous-session, title: Anonymous session is invalid, status: 401, code: INVALID_ANONYMOUS_SESSION, correlationId: 8fb5720a-53ab-40db-9cf4-f5cfabbdaf65 }
     ExpiredAnonymousSessionProblem:
       description: Anonymous session and its result have expired
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
-          example:
-            {
-              type: /problems/anonymous-session-expired,
-              title: Anonymous session expired,
-              status: 410,
-              code: ANONYMOUS_SESSION_EXPIRED,
-              correlationId: 8fb5720a-53ab-40db-9cf4-f5cfabbdaf65,
-            }
+          example: { type: /problems/anonymous-session-expired, title: Anonymous session expired, status: 410, code: ANONYMOUS_SESSION_EXPIRED, correlationId: 8fb5720a-53ab-40db-9cf4-f5cfabbdaf65 }
     NotFoundProblem:
       description: Requested resource does not exist (PROFILE_NOT_FOUND, QUESTIONNAIRE_NOT_FOUND, or ASSESSMENT_NOT_FOUND)
       content:
