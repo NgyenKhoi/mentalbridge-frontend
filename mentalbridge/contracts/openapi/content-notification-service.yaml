@@ -1,0 +1,517 @@
+openapi: 3.1.0
+info:
+  title: Content-Notification Service API
+  version: 1.0.0
+  description: >
+    MentalBridge Content/Notification bounded context.
+    Manages reviewed self-help resources, in-app notifications, and delivery
+    preferences. Hotline catalogue operations are not part of this service.
+
+servers:
+  - url: http://localhost:3003
+    description: Local development
+
+tags:
+  - name: Health
+    description: Liveness and readiness probes
+  - name: Resources
+    description: Self-help content management (admin reviewed)
+
+paths:
+  /health/live:
+    x-mentalbridge-status: implemented
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      operationId: getLive
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveResponse'
+              example:
+                status: ok
+
+  /health/ready:
+    x-mentalbridge-status: implemented
+    get:
+      tags: [Health]
+      summary: Readiness probe — checks database connectivity
+      operationId: getReady
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+              example:
+                status: ok
+                db: connected
+        '503':
+          description: Service unavailable — database unreachable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://mentalbridge.io/errors/DEPENDENCY_UNAVAILABLE
+                title: Dependency unavailable
+                status: 503
+                code: DEPENDENCY_UNAVAILABLE
+
+  /api/v1/resources:
+    x-mentalbridge-status: planned
+    get:
+      x-mentalbridge-operation-status: implemented
+      tags: [Resources]
+      summary: List active reviewed published self-help resources
+      operationId: listResources
+      parameters:
+        - name: locale
+          in: query
+          schema:
+            type: string
+            example: vi-VN
+        - name: category
+          in: query
+          schema:
+            $ref: '#/components/schemas/ResourceCategory'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: >
+            Published reviewed resources. Returns empty array when none match.
+            Returns fallback: unavailable with neutral message when service is unreachable.
+            No hotline number or emergency dispatch claim is included.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceListResponse'
+              examples:
+                published:
+                  value:
+                    data:
+                      - id: 123e4567-e89b-12d3-a456-426614174000
+                        category: BREATHING
+                        locale: vi-VN
+                        title: Kỹ thuật thở 4-7-8
+                        summary: Kỹ thuật thở giúp giảm căng thẳng
+                        externalUrl: null
+                        status: PUBLISHED
+                        reviewedAt: '2024-01-15T10:00:00Z'
+                        createdAt: '2024-01-15T09:00:00Z'
+                        updatedAt: '2024-01-15T10:00:00Z'
+                    count: 1
+                empty:
+                  value:
+                    data: []
+                    count: 0
+                unavailable:
+                  value:
+                    data: []
+                    count: 0
+                    fallback: unavailable
+                    message: Tài nguyên hỗ trợ tạm thời không khả dụng. Vui lòng thử lại sau.
+        '400':
+          $ref: '#/components/responses/RequestRejected'
+
+    post:
+      x-mentalbridge-operation-status: planned
+      tags: [Resources]
+      summary: Create a new resource (Admin)
+      operationId: createResource
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResourceRequest'
+      responses:
+        '201':
+          description: Resource created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceSummary'
+              example:
+                id: 123e4567-e89b-12d3-a456-426614174000
+                category: BREATHING
+                locale: vi-VN
+                title: Kỹ thuật thở 4-7-8
+                summary: Kỹ thuật thở giúp giảm căng thẳng và lo âu
+                externalUrl: null
+                status: DRAFT
+                reviewedAt: null
+                createdAt: '2024-01-15T10:00:00Z'
+                updatedAt: '2024-01-15T10:00:00Z'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/resources/{id}:
+    x-mentalbridge-status: planned
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags: [Resources]
+      summary: Get resource detail
+      operationId: getResource
+      responses:
+        '200':
+          description: Resource detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Resources]
+      summary: Update a DRAFT resource (Admin)
+      operationId: updateResource
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResourceRequest'
+      responses:
+        '200':
+          description: Updated resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags: [Resources]
+      summary: Delete a DRAFT resource (Admin)
+      operationId: deleteResource
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/resources/{id}/publish:
+    x-mentalbridge-status: planned
+    post:
+      tags: [Resources]
+      summary: Publish a DRAFT resource — reviewed content workflow (Admin)
+      operationId: publishResource
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Resource published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/resources/{id}/archive:
+    x-mentalbridge-status: planned
+    post:
+      tags: [Resources]
+      summary: Archive a PUBLISHED resource (Admin)
+      operationId: archiveResource
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Resource archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        JWT issued by identity-service. Admin role enforcement will be
+        implemented in Story 209 during identity-service integration.
+        Story 208 defines the contract only.
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://mentalbridge.io/errors/RESOURCE_NOT_FOUND
+            title: Resource not found
+            status: 404
+            code: RESOURCE_NOT_FOUND
+            correlationId: 123e4567-e89b-12d3-a456-426614174000
+    Conflict:
+      description: State conflict or optimistic lock failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://mentalbridge.io/errors/INVALID_STATE_TRANSITION
+            title: Cannot modify published resource
+            status: 409
+            code: INVALID_STATE_TRANSITION
+            correlationId: 123e4567-e89b-12d3-a456-426614174000
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://mentalbridge.io/errors/VALIDATION_ERROR
+            title: Validation failed
+            status: 422
+            code: VALIDATION_ERROR
+            correlationId: 123e4567-e89b-12d3-a456-426614174000
+            fieldViolations:
+              - field: title
+                message: Title is required
+              - field: category
+                message: Invalid category
+    RequestRejected:
+      description: Invalid query parameter
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: https://mentalbridge.io/errors/REQUEST_REJECTED
+            title: Request rejected
+            status: 400
+            code: REQUEST_REJECTED
+            correlationId: 123e4567-e89b-12d3-a456-426614174000
+
+  schemas:
+    LiveResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ReadyResponse:
+      type: object
+      required: [status, db]
+      properties:
+        status:
+          type: string
+          enum: [ok, unavailable]
+        db:
+          type: string
+          enum: [connected, disconnected]
+
+    ProblemDetails:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri
+          example: https://mentalbridge.io/errors/RESOURCE_NOT_FOUND
+        title:
+          type: string
+          example: Resource not found
+        status:
+          type: integer
+          example: 404
+        code:
+          type: string
+          example: RESOURCE_NOT_FOUND
+        correlationId:
+          type: string
+          format: uuid
+          nullable: true
+          example: 123e4567-e89b-12d3-a456-426614174000
+        fieldViolations:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+          example:
+            - field: title
+              message: Title is required
+
+    ResourceCategory:
+      type: string
+      enum: [BREATHING, MEDITATION, ARTICLE, VIDEO, JOURNALING, COMMUNITY]
+
+    ResourceStatus:
+      type: string
+      enum: [DRAFT, PUBLISHED, ARCHIVED]
+
+    ResourceSummary:
+      type: object
+      required: [id, category, locale, title, summary, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/ResourceCategory'
+        locale:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        externalUrl:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ResourceStatus'
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ResourceDetail:
+      allOf:
+        - $ref: '#/components/schemas/ResourceSummary'
+        - type: object
+          properties:
+            contentBody:
+              type: string
+              nullable: true
+            reviewedBy:
+              type: string
+              format: uuid
+              nullable: true
+            version:
+              type: integer
+
+    ResourceListResponse:
+      type: object
+      required: [data, count]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceSummary'
+        count:
+          type: integer
+        nextCursor:
+          type: string
+          format: uuid
+          description: Cursor for the next page; absent when no more results.
+        fallback:
+          type: string
+          enum: [unavailable]
+          description: >
+            Present only when Content/Notification is unavailable.
+            No hotline number or emergency dispatch claim is included.
+        message:
+          type: string
+          description: Neutral fallback message when fallback is unavailable.
+
+    CreateResourceRequest:
+      type: object
+      required: [category, title, summary]
+      properties:
+        category:
+          $ref: '#/components/schemas/ResourceCategory'
+        locale:
+          type: string
+          default: vi-VN
+        title:
+          type: string
+          maxLength: 255
+        summary:
+          type: string
+        contentBody:
+          type: string
+          nullable: true
+        externalUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    UpdateResourceRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        summary:
+          type: string
+        contentBody:
+          type: string
+          nullable: true
+        externalUrl:
+          type: string
+          format: uri
+          nullable: true
