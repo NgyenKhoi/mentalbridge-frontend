@@ -288,7 +288,7 @@ test.describe('Resources Journey', () => {
     // SKIPPED: Authenticated assessment route requires complex Identity/Care session setup
     // that is beyond the scope of MB-180 ResourcesList integration.
     // Anonymous flow tests already validate ResourcesList component functionality.
-    
+
     // Mock authentication session
     await context.addCookies([
       {
