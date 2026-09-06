@@ -6,12 +6,9 @@ const applicationDirectory = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '..',
 )
-const backendDirectory = resolve(
-  applicationDirectory,
-  '..',
-  '..',
-  'mentalbridge-backend',
-)
+const backendDirectory = process.env.CARE_BACKEND_DIRECTORY
+  ? resolve(process.env.CARE_BACKEND_DIRECTORY)
+  : resolve(applicationDirectory, '..', '..', 'mentalbridge-backend')
 const careDirectory = resolve(backendDirectory, 'care-service')
 const carePom = resolve(careDirectory, 'pom.xml')
 const wrapper = resolve(

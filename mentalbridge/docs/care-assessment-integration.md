@@ -126,6 +126,12 @@ advance a mutable UTC clock and inject one-shot timeout, 503 and malformed
 progress responses. The same journey covers insufficient, incompatible,
 voided, forged/cross-owner and authoritative-result visibility behavior.
 
+The frontend quality workflow checks out the immutable compatible Care revision
+from backend PR #33 into `CARE_BACKEND_DIRECTORY`, sets up Java 21 and runs this
+same real-service journey. The pinned revision keeps cross-repository CI
+reproducible while the provider and consumer PRs are reviewed independently;
+advance it deliberately when the Care progress contract changes.
+
 Successful comparison evidence is stored in
 [`evidence/mb-205-progress-desktop.png`](evidence/mb-205-progress-desktop.png)
 and [`evidence/mb-205-progress-mobile.png`](evidence/mb-205-progress-mobile.png).
