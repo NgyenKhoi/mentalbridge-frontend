@@ -36,6 +36,9 @@ function safeTitle(code: string, status: number) {
   if (code === 'CARE_MALFORMED_RESPONSE') {
     return 'Care returned an invalid response.'
   }
+  if (code === 'INSUFFICIENT_COMPARABLE_DATA') {
+    return 'Comparable assessment data is unavailable.'
+  }
   if (status === 429) return 'Too many requests.'
   if (status === 409) return 'Request conflict.'
   if (status >= 400 && status < 500) return 'Care request was rejected.'

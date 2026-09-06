@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
 import { mockServer } from '@/tests/mocks/server'
@@ -33,6 +34,32 @@ describe('Assessment history page', () => {
           hasMore: false,
         }),
       ),
+      http.get(
+        `http://localhost/api/care/assessments/by-id/${assessmentId}/progress`,
+        () =>
+          HttpResponse.json({
+            instrument: 'PHQ9',
+            scoringVersion: 'phq9-standard-bands-v1',
+            previous: {
+              assessmentId: '10000000-0000-4000-8000-000000000002',
+              questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+              submittedAt: '2026-08-30T00:00:00Z',
+              totalScore: 2,
+              screeningLevel: 'MINIMAL',
+            },
+            current: {
+              assessmentId,
+              questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+              submittedAt: '2026-09-02T00:00:00Z',
+              totalScore: 8,
+              screeningLevel: 'MILD',
+            },
+            rawDelta: 6,
+            scoreDirection: 'INCREASED',
+            bandTransition: { previous: 'MINIMAL', current: 'MILD' },
+            elapsedDuration: 'PT72H',
+          }),
+      ),
     )
     render(<AssessmentsPage />)
     expect(await screen.findByText('8/27')).toBeVisible()
@@ -41,5 +68,11 @@ describe('Assessment history page', () => {
       'href',
       `/assessment/phq9?assessmentId=${assessmentId}`,
     )
+    await userEvent.click(screen.getByRole('button', { name: 'So sánh' }))
+    expect(await screen.findByText('Điểm đã tăng 6 điểm.')).toBeVisible()
+    expect(screen.getByText('3 ngày')).toBeVisible()
+    expect(
+      screen.queryByText(/hồi phục|cải thiện|xấu đi/i),
+    ).not.toBeInTheDocument()
   })
 })

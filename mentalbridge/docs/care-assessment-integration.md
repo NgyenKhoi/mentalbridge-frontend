@@ -1,4 +1,4 @@
-# MB-177/MB-178 Care-backed screening, profile, and history integration
+# MB-177/MB-178/MB-205 Care-backed screening, history, and progress integration
 
 ## Delivered flow
 
@@ -71,13 +71,63 @@ provide emergency response or continuous human monitoring.
 - Registered history is controlled-Capstone/test/demo behavior only; the UI
   makes no production retention or deletion-SLA claim.
 
+## MB-205 descriptive assessment progress
+
+- An authenticated USER selects one owned history result and requests progress
+  through the same-origin BFF. The browser never supplies an account ID or sees
+  the Identity access token.
+- Care chooses the immediately preceding non-voided result with the same
+  instrument and identical scoring version using deterministic submission-time
+  and assessment-ID ordering.
+- The response contains previous/current identifiers, questionnaire versions,
+  timestamps, scores and screening levels plus raw signed delta, arithmetic
+  direction, band transition and ISO 8601 elapsed duration.
+- The UI says only that the score increased, decreased or did not change. It
+  does not claim recovery, clinical improvement/worsening, treatment response,
+  causation, diagnosis or resolved safety risk.
+- Insufficient compatible evidence, unauthorized/missing ownership, malformed
+  requests, timeout, invalid upstream data and Care unavailability are distinct
+  accessible states. A progress failure does not hide or mutate an assessment
+  result and causes no AI, Kafka, notification, specialist, billing or follow-up
+  behavior.
+- Anonymous sessions have no progress BFF route or longitudinal UI.
+
 ## Verification
 
 - contract snapshot generation and drift check for Care and Identity;
 - runtime parsers reject malformed questionnaires/results;
 - BFF tests reject client-owned score/band fields and protect anonymous
   credentials;
-- component tests cover Care-owned results, profile/consent, history/reopen
-  links, and unavailable-content states;
+- component tests cover Care-owned results, profile/consent, history/reopen,
+  descriptive progress and every explicit progress failure state;
 - Playwright covers completion and result reopening for anonymous and
-  authenticated USER flows, including cookie/client-storage checks.
+  authenticated USER flows, including authenticated progress and
+  cookie/client-storage checks.
+
+### Managed local MB-205 journey
+
+Prerequisites are Java 21 or newer, Node/npm, Docker Desktop and the sibling
+checkout layout `mentalbridge-backend` plus `mentalbridge-frontend/mentalbridge`.
+No `.env`, webhook, cloud account, public tunnel, production credential or
+external API is required. From the frontend application directory run:
+
+```powershell
+npm run contracts:sync
+npm run build
+npx playwright test tests/e2e/care-assessment.spec.ts --workers=1
+```
+
+Playwright starts the deterministic Identity session fixture, Care's
+`TestCareServiceApplication`, a disposable PostgreSQL Testcontainer and the
+production Next server on loopback-only ports. The Care test application seeds
+only synthetic profiles and consent; the browser creates the assessments
+through the real published questionnaire/submission APIs. Test-only controls
+advance a mutable UTC clock and inject one-shot timeout, 503 and malformed
+progress responses. The same journey covers insufficient, incompatible,
+voided, forged/cross-owner and authoritative-result visibility behavior.
+
+Successful comparison evidence is stored in
+[`evidence/mb-205-progress-desktop.png`](evidence/mb-205-progress-desktop.png)
+and [`evidence/mb-205-progress-mobile.png`](evidence/mb-205-progress-mobile.png).
+The screenshots contain synthetic score/version/timestamp facts only; bearer
+tokens and raw answer payloads are never rendered.

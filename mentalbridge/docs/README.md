@@ -16,7 +16,7 @@ how the executable Next.js application is organized and delivered.
 Story-specific delivery evidence:
 
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
-- [MB-177/MB-178 Care-backed screening, profile, consent, and history integration](care-assessment-integration.md)
+- [MB-177/MB-178/MB-205 Care-backed screening, profile, consent, history, and progress integration](care-assessment-integration.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
 [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md). The current design language is
@@ -38,6 +38,7 @@ documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
 | Complete Identity integration scenarios          | Implemented | MB-216/MB-139  |
 | Care-backed anonymous and USER PHQ-9 screening   | Implemented | MB-177         |
 | Care profile, privacy consent, history, reassessment | Implemented | MB-178      |
+| Authenticated descriptive assessment progress       | Implemented | MB-205      |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

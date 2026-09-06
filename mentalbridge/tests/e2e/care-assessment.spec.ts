@@ -1,4 +1,13 @@
-import { expect, test, type Page } from '@playwright/test'
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from '@playwright/test'
+
+const careServiceUrl = 'http://127.0.0.1:3202'
+const careAccessToken = 'synthetic-care-e2e-access'
+const otherCareAccessToken = 'synthetic-care-e2e-other-access'
 
 const anonymousCookieNames = new Set([
   'mentalbridge_care_anonymous_id',
@@ -30,16 +39,105 @@ async function answerPublishedQuestionnaire(page: Page) {
   await expect(page.getByText(/hotline/i)).toHaveCount(0)
 }
 
+async function careControl(
+  request: APIRequestContext,
+  path: string,
+  token = careAccessToken,
+) {
+  const response = await request.post(`${careServiceUrl}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  expect(response.ok()).toBe(true)
+}
+
+async function selectedAssessmentId(page: Page, index = 0) {
+  const href = await page
+    .getByRole('link', { name: 'Xem lại' })
+    .nth(index)
+    .getAttribute('href')
+  const assessmentId = new URL(href ?? '', 'http://127.0.0.1').searchParams.get(
+    'assessmentId',
+  )
+  expect(assessmentId).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  )
+  return assessmentId as string
+}
+
+async function expectProgressFailure(
+  page: Page,
+  title: string,
+  expectedHistoryCount: number,
+) {
+  await page.getByRole('button', { name: 'So sánh' }).first().click()
+  await expect(page.getByText(title, { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(
+    expectedHistoryCount,
+  )
+  await page.getByRole('button', { name: 'Đóng so sánh' }).click()
+}
+
+async function submitOwnedAssessment(
+  request: APIRequestContext,
+  token: string,
+  idempotencyKey: string,
+) {
+  const questionnaireResponse = await request.get(
+    `${careServiceUrl}/api/v1/questionnaires/PHQ9/current?locale=vi-VN`,
+  )
+  expect(questionnaireResponse.ok()).toBe(true)
+  const questionnaire = (await questionnaireResponse.json()) as {
+    definitionId: string
+    questions: Array<{ questionId: string }>
+  }
+  const response = await request.post(`${careServiceUrl}/api/v1/assessments`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Idempotency-Key': idempotencyKey,
+    },
+    data: {
+      questionnaireDefinitionId: questionnaire.definitionId,
+      privacyPolicyVersion: 'privacy-capstone-v1',
+      privacyDisclosureAcknowledged: true,
+      answers: questionnaire.questions.map(({ questionId }) => ({
+        questionId,
+        value: 0,
+      })),
+    },
+  })
+  expect(response.status()).toBe(201)
+  return (await response.json()) as { assessmentId: string }
+}
+
 test.describe('Care-backed PHQ-9 screening', () => {
   test.skip(
     Boolean(process.env.PLAYWRIGHT_BASE_URL),
     'Controlled Care fixtures are available only with the managed local server.',
   )
+  test.describe.configure({ mode: 'serial' })
 
   test('completes and reopens an anonymous result without exposing its bearer credential', async ({
     context,
     page,
   }) => {
+    for (const { label, response } of [
+      {
+        label: 'questionnaire',
+        response: await page.request.get('/api/care/questionnaires/phq9'),
+      },
+      {
+        label: 'privacy disclosure',
+        response: await page.request.get('/api/care/privacy-disclosure'),
+      },
+      {
+        label: 'anonymous session',
+        response: await page.request.post('/api/care/anonymous-session'),
+      },
+    ]) {
+      const body = await response.text()
+      expect(response.ok(), `${label}: ${body}`).toBe(true)
+    }
+
     await page.goto('/assessment/anonymous')
     await answerPublishedQuestionnaire(page)
 
@@ -73,7 +171,10 @@ test.describe('Care-backed PHQ-9 screening', () => {
   test('completes and reopens the authenticated USER flow through Identity and Care BFFs', async ({
     context,
     page,
+    request,
   }) => {
+    test.setTimeout(120_000)
+
     await context.addCookies([
       {
         name: 'mentalbridge_access',
@@ -101,10 +202,90 @@ test.describe('Care-backed PHQ-9 screening', () => {
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
     ).toBeVisible()
 
+    await page.goto('/assessments')
+    await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(1)
+    await expectProgressFailure(page, 'Chưa đủ dữ liệu tương thích', 1)
+
+    await careControl(request, '/__test/care/clock/advance?duration=PT1H')
+
+    await page.goto('/assessment/phq9')
+    await expect(
+      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
+    ).toBeVisible()
     await page.getByRole('button', { name: 'Làm bài mới' }).click()
     await answerPublishedQuestionnaire(page)
     await page.goto('/assessments')
     await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(2)
+
+    await selectedAssessmentId(page)
+    const previousAssessmentId = await selectedAssessmentId(page, 1)
+    await page.getByRole('button', { name: 'So sánh' }).first().click()
+    await expect(page.getByText('Điểm không thay đổi.')).toBeVisible()
+    await expect(page.getByText('Phiên bản chấm điểm')).toBeVisible()
+    await expect(page.getByText('1 giờ')).toBeVisible()
+    await page.screenshot({
+      path: 'docs/evidence/mb-205-progress-desktop.png',
+      fullPage: true,
+    })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.screenshot({
+      path: 'docs/evidence/mb-205-progress-mobile.png',
+      fullPage: true,
+    })
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.getByRole('button', { name: 'Đóng so sánh' }).click()
+
+    await careControl(
+      request,
+      `/__test/care/assessments/${previousAssessmentId}/scoring-version?value=phq9-incompatible-e2e-v1`,
+    )
+    await expectProgressFailure(page, 'Chưa đủ dữ liệu tương thích', 2)
+    await careControl(
+      request,
+      `/__test/care/assessments/${previousAssessmentId}/scoring-version?value=phq9-standard-bands-v1`,
+    )
+
+    await careControl(
+      request,
+      `/__test/care/assessments/${previousAssessmentId}/void`,
+    )
+    await expectProgressFailure(page, 'Chưa đủ dữ liệu tương thích', 2)
+    await careControl(
+      request,
+      `/__test/care/assessments/${previousAssessmentId}/restore`,
+    )
+
+    for (const [mode, title] of [
+      ['TIMEOUT', 'Care phản hồi quá thời gian'],
+      ['UNAVAILABLE', 'Care tạm thời không khả dụng'],
+      ['MALFORMED', 'Care trả về dữ liệu không hợp lệ'],
+    ] as const) {
+      await careControl(request, `/__test/care/progress-fault?mode=${mode}`)
+      await expectProgressFailure(page, title, 2)
+    }
+
+    const otherAssessment = await submitOwnedAssessment(
+      request,
+      otherCareAccessToken,
+      'other-user-assessment-e2e',
+    )
+    for (const inaccessibleAssessmentId of [
+      otherAssessment.assessmentId,
+      'ffffffff-ffff-4fff-8fff-ffffffffffff',
+    ]) {
+      const response = await page.request.get(
+        `/api/care/assessments/by-id/${inaccessibleAssessmentId}/progress`,
+      )
+      expect(response.status()).toBe(404)
+      await expect(response.json()).resolves.toMatchObject({
+        code: 'ASSESSMENT_NOT_FOUND',
+      })
+    }
+
+    await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(2)
+    await expect(page.locator('body')).not.toContainText(careAccessToken)
+    await expect(page.locator('body')).not.toContainText(careServiceUrl)
+
     await page.getByRole('link', { name: 'Xem lại' }).first().click()
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),

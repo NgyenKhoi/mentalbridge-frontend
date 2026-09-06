@@ -14,10 +14,13 @@ import type {
   ConsentDecisionRequest,
   PrivacyDisclosure,
   AssessmentHistoryPage,
+  AssessmentProgress,
+  AssessmentProgressPoint,
+  ScoreDirection,
 } from '@/features/assessment/api/care-contract'
 
 const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const SCREENING_LEVELS = new Set<ScreeningLevel>([
   'MINIMAL',
   'MILD',
@@ -29,6 +32,23 @@ const SAFETY_STATUSES = new Set<SafetyStatus>([
   'NEGATIVE_SAFETY_SCREEN',
   'POSITIVE_SAFETY_SCREEN',
 ])
+const SCORE_DIRECTIONS = new Set<ScoreDirection>([
+  'INCREASED',
+  'DECREASED',
+  'UNCHANGED',
+])
+
+const FORBIDDEN_PROGRESS_FIELDS = new Set([
+  'answers',
+  'rawAnswers',
+  'safetyItemPositive',
+  'safetyStatus',
+  'safetyPolicyVersion',
+  'consent',
+  'profile',
+])
+const DURATION_PATTERN =
+  /^PT(?=\d)(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d{1,9})?)S)?$/
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -397,6 +417,91 @@ export function parseAssessmentHistory(
     items: items as AssessmentHistoryPage['items'],
     nextCursor: value.nextCursor as string | null | undefined,
     hasMore: value.hasMore,
+  }
+}
+
+function parseProgressPoint(value: unknown): AssessmentProgressPoint | null {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some((key) => FORBIDDEN_PROGRESS_FIELDS.has(key)) ||
+    !isUuid(value.assessmentId) ||
+    typeof value.questionnaireVersion !== 'string' ||
+    value.questionnaireVersion.length < 1 ||
+    value.questionnaireVersion.length > 32 ||
+    !isDateTime(value.submittedAt) ||
+    !Number.isInteger(value.totalScore) ||
+    Number(value.totalScore) < 0 ||
+    Number(value.totalScore) > 27 ||
+    !SCREENING_LEVELS.has(value.screeningLevel as ScreeningLevel)
+  )
+    return null
+  return {
+    assessmentId: value.assessmentId,
+    questionnaireVersion: value.questionnaireVersion,
+    submittedAt: value.submittedAt,
+    totalScore: Number(value.totalScore),
+    screeningLevel: value.screeningLevel as ScreeningLevel,
+  }
+}
+
+export function parseAssessmentProgress(
+  value: unknown,
+): AssessmentProgress | null {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some((key) => FORBIDDEN_PROGRESS_FIELDS.has(key))
+  )
+    return null
+
+  const previous = parseProgressPoint(value.previous)
+  const current = parseProgressPoint(value.current)
+  if (
+    !isInstrument(value.instrument) ||
+    typeof value.scoringVersion !== 'string' ||
+    value.scoringVersion.length < 1 ||
+    value.scoringVersion.length > 32 ||
+    !previous ||
+    !current ||
+    previous.assessmentId === current.assessmentId ||
+    !Number.isInteger(value.rawDelta) ||
+    Number(value.rawDelta) < -27 ||
+    Number(value.rawDelta) > 27 ||
+    !SCORE_DIRECTIONS.has(value.scoreDirection as ScoreDirection) ||
+    !isRecord(value.bandTransition) ||
+    Object.keys(value.bandTransition).some((key) =>
+      FORBIDDEN_PROGRESS_FIELDS.has(key),
+    ) ||
+    !SCREENING_LEVELS.has(value.bandTransition.previous as ScreeningLevel) ||
+    !SCREENING_LEVELS.has(value.bandTransition.current as ScreeningLevel) ||
+    typeof value.elapsedDuration !== 'string' ||
+    !DURATION_PATTERN.test(value.elapsedDuration)
+  )
+    return null
+
+  const rawDelta = current.totalScore - previous.totalScore
+  const direction: ScoreDirection =
+    rawDelta > 0 ? 'INCREASED' : rawDelta < 0 ? 'DECREASED' : 'UNCHANGED'
+  if (
+    value.rawDelta !== rawDelta ||
+    value.scoreDirection !== direction ||
+    value.bandTransition.previous !== previous.screeningLevel ||
+    value.bandTransition.current !== current.screeningLevel ||
+    Date.parse(current.submittedAt) < Date.parse(previous.submittedAt)
+  )
+    return null
+
+  return {
+    instrument: value.instrument,
+    scoringVersion: value.scoringVersion,
+    previous,
+    current,
+    rawDelta,
+    scoreDirection: direction,
+    bandTransition: {
+      previous: previous.screeningLevel,
+      current: current.screeningLevel,
+    },
+    elapsedDuration: value.elapsedDuration,
   }
 }
 

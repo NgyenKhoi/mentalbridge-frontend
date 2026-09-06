@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  isUuid,
   parseAnonymousAssessment,
+  parseAssessmentProgress,
   parseQuestionnaire,
   parseSubmission,
 } from './care-validation'
@@ -9,8 +11,13 @@ import {
 const definitionId = '10000000-0000-4000-8000-000000000001'
 const questionId = '10000000-0000-4000-8000-000000000002'
 const assessmentId = '10000000-0000-4000-8000-000000000003'
+const previousAssessmentId = '10000000-0000-4000-8000-000000000004'
 
 describe('Care runtime validation', () => {
+  it('accepts canonical UUIDs used by persisted Care reference data', () => {
+    expect(isUuid('10000000-0000-0000-0000-000000000002')).toBe(true)
+  })
+
   it('accepts a contract-shaped published questionnaire', () => {
     expect(
       parseQuestionnaire({
@@ -101,5 +108,125 @@ describe('Care runtime validation', () => {
         safetyStatus: 'POSITIVE_SAFETY_SCREEN',
       },
     })
+  })
+
+  it('accepts a self-consistent descriptive progress response', () => {
+    const progress = {
+      instrument: 'PHQ9',
+      scoringVersion: 'phq9-standard-bands-v1',
+      previous: {
+        assessmentId: previousAssessmentId,
+        questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+        submittedAt: '2026-09-01T00:00:00Z',
+        totalScore: 4,
+        screeningLevel: 'MINIMAL',
+      },
+      current: {
+        assessmentId,
+        questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+        submittedAt: '2026-09-04T00:00:00Z',
+        totalScore: 10,
+        screeningLevel: 'MODERATE',
+      },
+      rawDelta: 6,
+      scoreDirection: 'INCREASED',
+      bandTransition: { previous: 'MINIMAL', current: 'MODERATE' },
+      elapsedDuration: 'PT72H',
+    }
+
+    expect(parseAssessmentProgress(progress)).toEqual(progress)
+  })
+
+  it('ignores additive unknown progress fields without forwarding them', () => {
+    const parsed = parseAssessmentProgress({
+      instrument: 'PHQ9',
+      scoringVersion: 'phq9-standard-bands-v1',
+      previous: {
+        assessmentId: previousAssessmentId,
+        questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+        submittedAt: '2026-09-01T00:00:00Z',
+        totalScore: 4,
+        screeningLevel: 'MINIMAL',
+        futurePointMetadata: 'ignored',
+      },
+      current: {
+        assessmentId,
+        questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+        submittedAt: '2026-09-04T00:00:00Z',
+        totalScore: 10,
+        screeningLevel: 'MODERATE',
+      },
+      rawDelta: 6,
+      scoreDirection: 'INCREASED',
+      bandTransition: {
+        previous: 'MINIMAL',
+        current: 'MODERATE',
+        futureTransitionMetadata: true,
+      },
+      elapsedDuration: 'PT72H',
+      futureProgressMetadata: { version: 2 },
+    })
+
+    expect(parsed).not.toBeNull()
+    expect(parsed).not.toHaveProperty('futureProgressMetadata')
+    expect(parsed?.previous).not.toHaveProperty('futurePointMetadata')
+    expect(parsed?.bandTransition).not.toHaveProperty(
+      'futureTransitionMetadata',
+    )
+  })
+
+  it('uses the safe unavailable fallback for unknown progress enums', () => {
+    expect(
+      parseAssessmentProgress({
+        instrument: 'PHQ9',
+        scoringVersion: 'phq9-standard-bands-v1',
+        previous: {
+          assessmentId: previousAssessmentId,
+          questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+          submittedAt: '2026-09-01T00:00:00Z',
+          totalScore: 4,
+          screeningLevel: 'MINIMAL',
+        },
+        current: {
+          assessmentId,
+          questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+          submittedAt: '2026-09-04T00:00:00Z',
+          totalScore: 10,
+          screeningLevel: 'MODERATE',
+        },
+        rawDelta: 6,
+        scoreDirection: 'CLINICALLY_IMPROVED',
+        bandTransition: { previous: 'MINIMAL', current: 'MODERATE' },
+        elapsedDuration: 'PT72H',
+      }),
+    ).toBeNull()
+  })
+
+  it('rejects contradictory or safety-bearing progress responses', () => {
+    const progress = {
+      instrument: 'PHQ9',
+      scoringVersion: 'phq9-standard-bands-v1',
+      previous: {
+        assessmentId: previousAssessmentId,
+        questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+        submittedAt: '2026-09-01T00:00:00Z',
+        totalScore: 4,
+        screeningLevel: 'MINIMAL',
+      },
+      current: {
+        assessmentId,
+        questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+        submittedAt: '2026-09-04T00:00:00Z',
+        totalScore: 10,
+        screeningLevel: 'MODERATE',
+      },
+      rawDelta: 5,
+      scoreDirection: 'DECREASED',
+      bandTransition: { previous: 'MINIMAL', current: 'MILD' },
+      elapsedDuration: 'three days',
+      safetyStatus: 'NEGATIVE_SAFETY_SCREEN',
+    }
+
+    expect(parseAssessmentProgress(progress)).toBeNull()
   })
 })
