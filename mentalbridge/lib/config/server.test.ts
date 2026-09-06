@@ -93,7 +93,9 @@ describe('readCareServerConfig', () => {
   })
 
   it('should throw when baseUrl is missing', () => {
-    expect(() => readCareServerConfig({})).toThrow('CARE_API_BASE_URL is required')
+    expect(() => readCareServerConfig({})).toThrow(
+      'CARE_API_BASE_URL is required',
+    )
   })
 
   it('should throw when locale is invalid', () => {
