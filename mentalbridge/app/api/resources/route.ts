@@ -38,17 +38,6 @@ export async function GET(request: NextRequest) {
   // Lazy load config to allow test environment setup
   const contentConfig = readContentServerConfig()
 
-  // If Content service is not configured, return unavailable
-  if (!contentConfig.baseUrl) {
-    const unavailableResponse: ResourcesResponse = {
-      items: [],
-      hasMore: false,
-      unavailable: true,
-      message: 'Content service is not configured',
-    }
-    return NextResponse.json(unavailableResponse)
-  }
-
   const { searchParams } = request.url
     ? new URL(request.url)
     : { searchParams: new URLSearchParams() }
@@ -105,23 +94,55 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const backendData: BackendResourcesResponse = await response.json()
+    // Parse response as unknown first to validate before casting
+    let rawData: unknown
+    try {
+      rawData = await response.json()
+    } catch (jsonError) {
+      return NextResponse.json(
+        {
+          type: 'about:blank',
+          title: 'Malformed Response',
+          status: 502,
+          detail: 'Content service returned invalid JSON',
+        } as ErrorResponse,
+        { status: 502 },
+      )
+    }
 
-    // Check if backend returned unavailable state
-    if (backendData.fallback === 'unavailable') {
+    // Validate top-level response structure before accessing any fields
+    if (typeof rawData !== 'object' || rawData === null) {
+      return NextResponse.json(
+        {
+          type: 'about:blank',
+          title: 'Malformed Response',
+          status: 502,
+          detail: 'Content service returned non-object response',
+        } as ErrorResponse,
+        { status: 502 },
+      )
+    }
+
+    const maybeBackendData = rawData as Record<string, unknown>
+
+    // Check for unavailable fallback state BEFORE validating full structure
+    if (maybeBackendData.fallback === 'unavailable') {
       const normalizedResponse: ResourcesResponse = {
         items: [],
         hasMore: false,
         unavailable: true,
-        message: backendData.message,
+        message:
+          typeof maybeBackendData.message === 'string'
+            ? maybeBackendData.message
+            : undefined,
       }
       return NextResponse.json(normalizedResponse)
     }
 
-    // Validate backend response structure
+    // Validate required fields exist and have correct types
     if (
-      !Array.isArray(backendData.data) ||
-      typeof backendData.count !== 'number'
+      !Array.isArray(maybeBackendData.data) ||
+      typeof maybeBackendData.count !== 'number'
     ) {
       return NextResponse.json(
         {
@@ -133,6 +154,9 @@ export async function GET(request: NextRequest) {
         { status: 502 },
       )
     }
+
+    // Now safe to cast after validation
+    const backendData = rawData as BackendResourcesResponse
 
     // Validate each resource row at runtime before accepting
     function isValidResourceSummary(

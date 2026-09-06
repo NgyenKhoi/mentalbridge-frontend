@@ -144,7 +144,7 @@ test.describe('Resources Journey', () => {
     page,
     context,
   }) => {
-    // Mock response with published resources
+    // Mock response with published resources only
     await context.route('**/api/resources**', async (route) => {
       await route.fulfill({
         status: 200,
@@ -157,15 +157,10 @@ test.describe('Resources Journey', () => {
               summary: 'This article is published and visible',
               category: 'ARTICLE',
               externalUrl: 'https://example.com/article',
-              thumbnailUrl: null,
               locale: 'vi-VN',
               status: 'PUBLISHED',
-              reviewedBy: 'reviewer@test.com',
               reviewedAt: '2024-01-01T00:00:00Z',
-              effectiveAt: null,
-              expiresAt: null,
               createdAt: '2024-01-01T00:00:00Z',
-              updatedAt: '2024-01-01T00:00:00Z',
             },
           ],
           hasMore: false,
@@ -206,9 +201,9 @@ test.describe('Resources Journey', () => {
       page.getByText('This article is published and visible'),
     ).toBeVisible()
 
-    // Should NOT display draft or archived resources
-    await expect(page.getByText('Draft Article')).not.toBeVisible()
-    await expect(page.getByText('Archived Article')).not.toBeVisible()
+    // Verify that ONLY published resources are shown (no draft/archived in fixture)
+    const resourceCards = page.locator('.resources-grid > *')
+    await expect(resourceCards).toHaveCount(1)
   })
 
   test('resource links open in new tab with correct attributes', async ({
@@ -228,15 +223,10 @@ test.describe('Resources Journey', () => {
               summary: 'Click to visit',
               category: 'ARTICLE',
               externalUrl: 'https://example.com/resource',
-              thumbnailUrl: null,
               locale: 'vi-VN',
               status: 'PUBLISHED',
-              reviewedBy: 'reviewer@test.com',
               reviewedAt: '2024-01-01T00:00:00Z',
-              effectiveAt: null,
-              expiresAt: null,
               createdAt: '2024-01-01T00:00:00Z',
-              updatedAt: '2024-01-01T00:00:00Z',
             },
           ],
           hasMore: false,
@@ -413,6 +403,59 @@ test.describe('Resources Journey', () => {
     await expect(page.getByText(/không thể kết nối đến dịch vụ/i)).toBeVisible()
 
     // Resources section should still be present but showing error
+    const resourcesSection = page.locator('.resources-list')
+    await expect(resourcesSection).toBeVisible()
+  })
+
+  test('handles malformed response from BFF with 502 error', async ({
+    page,
+    context,
+  }) => {
+    // Mock malformed response (BFF should return 502)
+    await context.route('**/api/resources**', async (route) => {
+      await route.fulfill({
+        status: 502,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: 'about:blank',
+          title: 'Malformed Response',
+          status: 502,
+          detail: 'Content service returned invalid response structure',
+        }),
+      })
+    })
+
+    await page.goto('/assessment/anonymous')
+
+    // Complete assessment
+    await expect(
+      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
+    ).toBeVisible()
+
+    for (let item = 1; item <= 9; item += 1) {
+      await page
+        .getByRole('radio', {
+          name: item === 9 ? 'Vài ngày' : 'Không có gì',
+        })
+        .check()
+      if (item < 9) {
+        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
+      }
+    }
+
+    await page
+      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
+      .check()
+    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
+
+    await expect(
+      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
+    ).toBeVisible()
+
+    // Should show unavailable state for 502 error
+    await expect(page.getByText(/tạm thời không khả dụng/i)).toBeVisible()
+
+    // Resources section should still be present
     const resourcesSection = page.locator('.resources-list')
     await expect(resourcesSection).toBeVisible()
   })

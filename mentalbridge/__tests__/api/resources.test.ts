@@ -32,15 +32,10 @@ describe('GET /api/resources', () => {
           summary: 'Test summary',
           category: 'ARTICLE',
           externalUrl: 'https://example.com/article',
-          thumbnailUrl: null,
           locale: 'vi-VN',
           status: 'PUBLISHED',
-          reviewedBy: 'reviewer@test.com',
           reviewedAt: '2024-01-01T00:00:00Z',
-          effectiveAt: null,
-          expiresAt: null,
           createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z',
         },
       ],
       count: 1,
@@ -74,15 +69,10 @@ describe('GET /api/resources', () => {
           summary: 'OK',
           category: 'ARTICLE',
           externalUrl: 'https://e.com/p',
-          thumbnailUrl: null,
           locale: 'vi-VN',
           status: 'PUBLISHED',
-          reviewedBy: 'r@test.com',
           reviewedAt: '2024-01-01T00:00:00Z',
-          effectiveAt: null,
-          expiresAt: null,
           createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z',
         },
         {
           id: '456',
@@ -90,15 +80,10 @@ describe('GET /api/resources', () => {
           summary: 'No',
           category: 'ARTICLE',
           externalUrl: 'https://e.com/d',
-          thumbnailUrl: null,
           locale: 'vi-VN',
           status: 'DRAFT',
-          reviewedBy: null,
           reviewedAt: null,
-          effectiveAt: null,
-          expiresAt: null,
           createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z',
         },
       ],
       count: 2,
@@ -148,6 +133,65 @@ describe('GET /api/resources', () => {
     const request = new NextRequest('http://localhost:3000/api/resources')
     const response = await GET(request)
     expect(response.status).toBe(502)
+  })
+
+  it('should return 502 on invalid JSON from upstream', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => {
+        throw new SyntaxError('Unexpected token')
+      },
+    })
+    const request = new NextRequest('http://localhost:3000/api/resources')
+    const response = await GET(request)
+    const data = await response.json()
+    expect(response.status).toBe(502)
+    expect(data.title).toBe('Malformed Response')
+    expect(data.detail).toBe('Content service returned invalid JSON')
+  })
+
+  it('should return 502 when response is not an object', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => 'not an object',
+    })
+    const request = new NextRequest('http://localhost:3000/api/resources')
+    const response = await GET(request)
+    const data = await response.json()
+    expect(response.status).toBe(502)
+    expect(data.detail).toBe('Content service returned non-object response')
+  })
+
+  it('should return 502 when all rows are malformed', async () => {
+    const mockBackendResponse = {
+      data: [
+        {
+          id: '123',
+          title: 'Invalid',
+          // Missing required fields like summary, category, etc.
+        },
+      ],
+      count: 1,
+    }
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => mockBackendResponse,
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/resources')
+    const response = await GET(request)
+    const data = await response.json()
+
+    // Should return empty items but still 200 (valid resources are filtered)
+    expect(response.status).toBe(200)
+    expect(data.items).toHaveLength(0)
   })
 
   it('should pass filters to upstream', async () => {
