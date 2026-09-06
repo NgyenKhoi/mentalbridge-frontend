@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     let rawData: unknown
     try {
       rawData = await response.json()
-    } catch (jsonError) {
+    } catch {
       return NextResponse.json(
         {
           type: 'about:blank',
