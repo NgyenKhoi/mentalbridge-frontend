@@ -38,6 +38,17 @@ export async function GET(request: NextRequest) {
   // Lazy load config to allow test environment setup
   const contentConfig = readContentServerConfig()
 
+  // If Content service is not configured, return unavailable
+  if (!contentConfig.baseUrl) {
+    const unavailableResponse: ResourcesResponse = {
+      items: [],
+      hasMore: false,
+      unavailable: true,
+      message: 'Content service is not configured',
+    }
+    return NextResponse.json(unavailableResponse)
+  }
+
   const { searchParams } = request.url
     ? new URL(request.url)
     : { searchParams: new URLSearchParams() }

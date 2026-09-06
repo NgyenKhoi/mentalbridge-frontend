@@ -18,7 +18,7 @@ export type CareServerConfig = Readonly<{
 }>
 
 export type ContentServerConfig = Readonly<{
-  baseUrl: string
+  baseUrl: string | null
   timeoutMs: number
 }>
 
@@ -50,6 +50,33 @@ function parseBaseUrl(name: string, value: string | undefined) {
   if (!value) {
     throw new Error(`${name} is required.`)
   }
+
+  let url: URL
+
+  try {
+    url = new URL(value)
+  } catch {
+    throw new Error(`${name} must be a valid absolute URL.`)
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`${name} must use HTTP or HTTPS.`)
+  }
+
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error(
+      `${name} must not contain credentials, query parameters, or a fragment.`,
+    )
+  }
+
+  return `${url.toString().replace(/\/$/, '')}/`
+}
+
+function parseOptionalBaseUrl(
+  name: string,
+  value: string | undefined,
+): string | null {
+  if (!value) return null
 
   let url: URL
 
@@ -113,7 +140,7 @@ export function readContentServerConfig(
   environment: Environment = process.env,
 ): ContentServerConfig {
   return Object.freeze({
-    baseUrl: parseBaseUrl(
+    baseUrl: parseOptionalBaseUrl(
       'CONTENT_SERVICE_URL',
       environment.CONTENT_SERVICE_URL,
     ),
