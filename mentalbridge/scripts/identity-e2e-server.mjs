@@ -259,7 +259,8 @@ const server = createServer(async (request, response) => {
       json(response, 200, {
         ...state,
         activeAccessSessionCount: [...accessSessions.keys()].filter(
-          (token) => token !== careAccessToken,
+          (token) =>
+            token !== careAccessToken && token !== otherCareAccessToken,
         ).length,
         activeRefreshSessionCount: refreshSessions.size,
       })
