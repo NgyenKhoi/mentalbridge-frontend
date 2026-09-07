@@ -17,6 +17,7 @@ Story-specific delivery evidence:
 
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
 - [MB-177/MB-178 Care-backed screening, profile, consent, and history integration](care-assessment-integration.md)
+- Sprint 2 backend runbook and traceability: [`sprint-2-runbook-traceability.md`](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
 [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md). The current design language is

@@ -46,11 +46,12 @@ item-9 marker, archived source URI, and artifact checksum. A real local run now
 loads that definition through the default `vi-VN` request. Production
 language/domain approval remains a separately tracked deployment gate.
 
-Care currently returns score/band/safety provenance but no approved support
-resource catalogue. The result page therefore shows an explicit unavailable
-message and does not infer urgency, promise monitoring, notify a third party,
-or display a hotline. It also states explicitly that MentalBridge does not
-provide emergency response or continuous human monitoring.
+Care returns score/band/safety provenance without owning the support-resource
+catalogue. The result links to the public `/resources` flow, whose bounded BFF
+loads only reviewed published entries from Content/Notification. Content or
+database failure produces a neutral unavailable response and never substitutes
+a hotline, inferred urgency, monitoring promise, third-party notification, or
+local mock catalogue.
 
 ## MB-178 profile, consent, history, and reassessment
 
@@ -80,4 +81,19 @@ provide emergency response or continuous human monitoring.
 - component tests cover Care-owned results, profile/consent, history/reopen
   links, and unavailable-content states;
 - Playwright covers completion and result reopening for anonymous and
-  authenticated USER flows, including cookie/client-storage checks.
+  authenticated USER flows, reviewed-resource retrieval/fallback, and
+  cookie/client-storage checks. The managed suite uses deterministic synthetic
+  service fixtures; `PLAYWRIGHT_BASE_URL` targets only an explicitly approved
+  integrated environment.
+
+Run the managed journeys from `mentalbridge-frontend/mentalbridge` with:
+
+```powershell
+npm run test:e2e:install
+npm run test:e2e
+```
+
+The fixture is reset between serial Care tests and contains no production
+personal or clinical data. Failed tests attach bounded correlation IDs from
+response headers as `correlation-evidence.json`; no cookies, bearer tokens,
+request bodies, or response content are retained.

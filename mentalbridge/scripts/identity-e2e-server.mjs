@@ -62,11 +62,44 @@ const state = {
   questionnaireCount: 0,
   anonymousAssessmentCount: 0,
   authenticatedAssessmentCount: 0,
+  resourceCount: 0,
 }
+
+const syntheticResources = [
+  {
+    id: '30000000-0000-4000-8000-000000000001',
+    category: 'ARTICLE',
+    title: 'Kỹ thuật thở để giảm lo âu',
+    summary: 'Một bài thực hành thở ngắn đã được rà soát.',
+    externalUrl: 'https://example.test/resources/breathing',
+    locale: 'vi-VN',
+    reviewedAt: '2026-08-01T00:00:00Z',
+    status: 'PUBLISHED',
+    createdAt: '2026-08-01T00:00:00Z',
+    updatedAt: '2026-08-01T00:00:00Z',
+  },
+  {
+    id: '30000000-0000-4000-8000-000000000002',
+    category: 'MEDITATION',
+    title: 'Thiền chánh niệm cơ bản',
+    summary: 'Bài giới thiệu thực hành chánh niệm đã được rà soát.',
+    externalUrl: 'https://example.test/resources/mindfulness',
+    locale: 'vi-VN',
+    reviewedAt: '2026-08-01T00:00:00Z',
+    status: 'PUBLISHED',
+    createdAt: '2026-08-01T00:00:00Z',
+    updatedAt: '2026-08-01T00:00:00Z',
+  },
+]
 
 function reset() {
   accessSessions.clear()
   refreshSessions.clear()
+  anonymousCareSessions.clear()
+  anonymousAssessments.clear()
+  authenticatedAssessments.clear()
+  careConsents.clear()
+  careProfiles.clear()
   accessSessions.set(careAccessToken, careActor)
   careProfiles.set(careActor.accountId, {
     accountId: careActor.accountId,
@@ -564,6 +597,25 @@ const server = createServer(async (request, response) => {
       state.logoutAllCount += 1
       response.writeHead(204, { 'X-Correlation-Id': correlationId })
       response.end()
+      return
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/v1/resources') {
+      const category = url.searchParams.get('category')
+      const rawLimit = url.searchParams.get('limit') ?? '10'
+      const limit = Number.parseInt(rawLimit, 10)
+      if (!Number.isFinite(limit) || limit < 1 || limit > 50) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Request validation failed')
+        return
+      }
+      state.resourceCount += 1
+      const data = category
+        ? syntheticResources.filter((r) => r.category === category)
+        : syntheticResources
+      json(response, 200, {
+        data: data.slice(0, limit),
+        count: Math.min(data.length, limit),
+      })
       return
     }
 

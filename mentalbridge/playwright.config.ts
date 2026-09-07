@@ -43,12 +43,13 @@ export default defineConfig({
         },
         {
           name: 'mentalbridge-frontend',
-          command: `npm run start -- --hostname 127.0.0.1 --port ${port}`,
+          command: `node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port ${port}`,
           url: baseURL,
           env: {
             ...inheritedEnvironment,
             IDENTITY_API_BASE_URL: identityFixtureURL,
             CARE_API_BASE_URL: identityFixtureURL,
+            CONTENT_API_BASE_URL: identityFixtureURL,
             CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
           },
           reuseExistingServer: false,

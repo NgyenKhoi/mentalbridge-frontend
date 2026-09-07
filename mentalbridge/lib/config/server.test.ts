@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { readCareServerConfig, readIdentityServerConfig } from './server'
+import {
+  readCareServerConfig,
+  readContentServerConfig,
+  readIdentityServerConfig,
+} from './server'
 
 describe('readIdentityServerConfig', () => {
   it('validates and normalizes the server-only Identity configuration', () => {
@@ -89,5 +93,30 @@ describe('readCareServerConfig', () => {
     ],
   ])('rejects invalid Care configuration', (environment, message) => {
     expect(() => readCareServerConfig(environment)).toThrow(message)
+  })
+})
+
+describe('readContentServerConfig', () => {
+  it('validates and normalizes the server-only Content configuration', () => {
+    expect(
+      readContentServerConfig({
+        CONTENT_API_BASE_URL: 'http://content:3003/gateway',
+        CONTENT_API_TIMEOUT_MS: '1500',
+      }),
+    ).toEqual({
+      baseUrl: 'http://content:3003/gateway/',
+      timeoutMs: 1500,
+    })
+  })
+
+  it('rejects missing and unsafe Content configuration', () => {
+    expect(() => readContentServerConfig({})).toThrow(
+      'CONTENT_API_BASE_URL is required.',
+    )
+    expect(() =>
+      readContentServerConfig({
+        CONTENT_API_BASE_URL: 'file:///content',
+      }),
+    ).toThrow('CONTENT_API_BASE_URL must use HTTP or HTTPS.')
   })
 })

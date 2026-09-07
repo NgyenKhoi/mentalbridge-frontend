@@ -35,8 +35,10 @@ with non-secret development placeholders, is committed.
 | `CARE_API_BASE_URL`         | Server only | Validated Care server/BFF upstream base URL                                          |
 | `CARE_API_TIMEOUT_MS`       | Server only | Total Care request timeout from 100 through 30000 milliseconds; defaults to 3000     |
 | `CARE_QUESTIONNAIRE_LOCALE` | Server only | Reviewed questionnaire locale requested from Care; defaults to `vi-VN`               |
+| `CONTENT_API_BASE_URL`      | Server only | Validated Content/Notification server/BFF upstream base URL                          |
+| `CONTENT_API_TIMEOUT_MS`    | Server only | Total Content request timeout from 100 through 30000 milliseconds; defaults to 2000  |
 
-Identity and Care variables must not use the `NEXT_PUBLIC_*` prefix. Browser
+Identity, Care, and Content variables must not use the `NEXT_PUBLIC_*` prefix. Browser
 requests use only the bounded same-origin `/api/identity/*` and `/api/care/*`
 handlers and never receive either upstream address. The server validates URLs,
 timeouts, and the Care locale before their operations. Every new variable requires an `.env.example` entry,

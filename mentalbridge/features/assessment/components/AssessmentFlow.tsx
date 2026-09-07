@@ -140,6 +140,9 @@ function ResultPanel({
         >
           Quay lại
         </Link>
+        <Link href="/resources" className="btn btn-outline">
+          Xem tài nguyên đã rà soát
+        </Link>
       </div>
     </section>
   )
