@@ -28,6 +28,7 @@ jobs:
     env:
       CI: 'true'
       IDENTITY_API_BASE_URL: http://127.0.0.1:9
+      CONTENT_SERVICE_URL: http://127.0.0.1:3003
       PLAYWRIGHT_BROWSER_CHANNEL: chrome
 
     steps:
@@ -53,7 +54,7 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
-      - name: Validate generated Identity contract
+      - name: Validate generated contracts
         run: npm run contracts:check
 
       - name: Run unit, component, and API-boundary tests
