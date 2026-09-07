@@ -68,11 +68,17 @@ describe('Assessment history page', () => {
       'href',
       `/assessment/phq9?assessmentId=${assessmentId}`,
     )
-    await userEvent.click(screen.getByRole('button', { name: 'So sánh' }))
+    const compareButton = screen.getByRole('button', { name: 'So sánh' })
+    await userEvent.click(compareButton)
     expect(await screen.findByText('Điểm đã tăng 6 điểm.')).toBeVisible()
     expect(screen.getByText('3 ngày')).toBeVisible()
     expect(
       screen.queryByText(/hồi phục|cải thiện|xấu đi/i),
+    ).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Đóng so sánh' }))
+    expect(compareButton).toHaveFocus()
+    expect(
+      screen.queryByRole('heading', { name: 'Tiến trình assessment đã chọn' }),
     ).not.toBeInTheDocument()
   })
 })

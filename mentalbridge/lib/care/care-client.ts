@@ -338,7 +338,7 @@ export const careClient = {
       path: `/api/v1/assessments/${assessmentId}/progress`,
       correlationId,
       authorization: accessToken,
-      parseSuccess: parseAssessmentProgress,
+      parseSuccess: (value) => parseAssessmentProgress(value, assessmentId),
     })
   },
 }

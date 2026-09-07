@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type {
   AssessmentSummary,
@@ -73,6 +73,7 @@ export default function AssessmentsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [progressAssessmentId, setProgressAssessmentId] = useState<string>()
+  const progressTriggerRef = useRef<HTMLButtonElement | null>(null)
   const load = async (next?: string) => {
     setLoading(true)
     setError(false)
@@ -209,9 +210,10 @@ export default function AssessmentsPage() {
                             progressAssessmentId === item.assessmentId
                           }
                           aria-controls="assessment-progress-panel"
-                          onClick={() =>
+                          onClick={(event) => {
+                            progressTriggerRef.current = event.currentTarget
                             setProgressAssessmentId(item.assessmentId)
-                          }
+                          }}
                         >
                           So sánh
                         </button>
@@ -227,7 +229,10 @@ export default function AssessmentsPage() {
           <AssessmentProgressPanel
             key={progressAssessmentId}
             assessmentId={progressAssessmentId}
-            onClose={() => setProgressAssessmentId(undefined)}
+            onClose={() => {
+              progressTriggerRef.current?.focus()
+              setProgressAssessmentId(undefined)
+            }}
           />
         )}
         {loading && (

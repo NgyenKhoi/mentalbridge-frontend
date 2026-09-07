@@ -670,6 +670,10 @@
   .assessment-table td:nth-child(3) {
     display: none;
   }
+  .assessment-history .assessment-table th:last-child,
+  .assessment-history .assessment-table td:last-child {
+    display: table-cell;
+  }
   .assessment-table th,
   .assessment-table td {
     padding-left: 14px;

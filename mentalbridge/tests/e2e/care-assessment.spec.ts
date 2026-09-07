@@ -215,26 +215,35 @@ test.describe('Care-backed PHQ-9 screening', () => {
     ).toBeVisible()
     await page.getByRole('button', { name: 'Làm bài mới' }).click()
     await answerPublishedQuestionnaire(page)
+    await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/assessments')
     await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(2)
 
     await selectedAssessmentId(page)
     const previousAssessmentId = await selectedAssessmentId(page, 1)
-    await page.getByRole('button', { name: 'So sánh' }).first().click()
+    const compareButton = page.getByRole('button', { name: 'So sánh' }).first()
+    await expect(compareButton).toBeVisible()
+    await compareButton.click()
     await expect(page.getByText('Điểm không thay đổi.')).toBeVisible()
     await expect(page.getByText('Phiên bản chấm điểm')).toBeVisible()
     await expect(page.getByText('1 giờ')).toBeVisible()
     if (!useCareFixture) {
       await page.screenshot({
-        path: 'docs/evidence/mb-205-progress-desktop.png',
-        fullPage: true,
-      })
-      await page.setViewportSize({ width: 390, height: 844 })
-      await page.screenshot({
         path: 'docs/evidence/mb-205-progress-mobile.png',
         fullPage: true,
       })
-      await page.setViewportSize({ width: 1280, height: 720 })
+    }
+    await page.getByRole('button', { name: 'Đóng so sánh' }).click()
+    await expect(compareButton).toBeFocused()
+
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await compareButton.click()
+    await expect(page.getByText('Điểm không thay đổi.')).toBeVisible()
+    if (!useCareFixture) {
+      await page.screenshot({
+        path: 'docs/evidence/mb-205-progress-desktop.png',
+        fullPage: true,
+      })
     }
     await page.getByRole('button', { name: 'Đóng so sánh' }).click()
 
