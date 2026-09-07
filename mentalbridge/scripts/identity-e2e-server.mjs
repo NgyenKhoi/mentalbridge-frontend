@@ -51,8 +51,13 @@ const authenticatedAssessments = new Map()
 const careProfiles = new Map()
 const careConsents = new Map()
 const careAccessToken = 'synthetic-care-e2e-access'
+const otherCareAccessToken = 'synthetic-care-e2e-other-access'
 const careActor = actors.get('care-e2e@example.com')
+const otherCareActor = actors.get('user@example.com')
+let careNow = new Date('2098-01-01T00:00:00Z')
+let progressFault = null
 accessSessions.set(careAccessToken, careActor)
+accessSessions.set(otherCareAccessToken, otherCareActor)
 const state = {
   loginCount: 0,
   accountCount: 0,
@@ -67,7 +72,15 @@ const state = {
 function reset() {
   accessSessions.clear()
   refreshSessions.clear()
+  anonymousCareSessions.clear()
+  anonymousAssessments.clear()
+  authenticatedAssessments.clear()
+  careProfiles.clear()
+  careConsents.clear()
   accessSessions.set(careAccessToken, careActor)
+  accessSessions.set(otherCareAccessToken, otherCareActor)
+  careNow = new Date('2098-01-01T00:00:00Z')
+  progressFault = null
   careProfiles.set(careActor.accountId, {
     accountId: careActor.accountId,
     displayName: 'Care E2E User',
@@ -78,6 +91,13 @@ function reset() {
     reminderEnabled: false,
     ...timestamps,
     version: 0,
+  })
+  careConsents.set(otherCareActor.accountId, {
+    decisionId: '30000000-0000-4000-8000-000000000001',
+    consentType: 'PRIVACY_POLICY',
+    policyVersion: 'privacy-capstone-v1',
+    granted: true,
+    decidedAt: careNow.toISOString(),
   })
   Object.keys(state).forEach((key) => {
     state[key] = 0
@@ -202,7 +222,7 @@ function careAssessment(assessmentId, body, expiresAt) {
     instrument: 'PHQ9',
     questionnaireVersion: careQuestionnaire.version,
     privacyPolicyVersion: 'privacy-capstone-v1',
-    submittedAt: '2026-09-01T00:00:00Z',
+    submittedAt: careNow.toISOString(),
     voidedAt: null,
     result: {
       totalScore,
@@ -421,6 +441,11 @@ const server = createServer(async (request, response) => {
       const items = [...authenticatedAssessments.entries()]
         .filter(([key]) => key.startsWith(`${actor.accountId}:`))
         .map(([, assessment]) => assessment)
+        .sort(
+          (left, right) =>
+            right.submittedAt.localeCompare(left.submittedAt) ||
+            right.assessmentId.localeCompare(left.assessmentId),
+        )
       json(response, 200, { items, nextCursor: null, hasMore: false })
       return
     }
@@ -454,6 +479,165 @@ const server = createServer(async (request, response) => {
       }
       careProfiles.set(actor.accountId, profile)
       json(response, existing ? 200 : 201, profile)
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/__test/care/clock/advance'
+    ) {
+      if (!accessSessions.has(bearerToken(request))) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      if (url.searchParams.get('duration') !== 'PT1H') {
+        problem(response, 400, 'VALIDATION_FAILED', 'Unsupported duration')
+        return
+      }
+      careNow = new Date(careNow.getTime() + 60 * 60 * 1000)
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
+    const scoringVersionControl = url.pathname.match(
+      /^\/__test\/care\/assessments\/([^/]+)\/scoring-version$/,
+    )
+    if (request.method === 'POST' && scoringVersionControl) {
+      const actor = accessSessions.get(bearerToken(request))
+      const assessment = actor
+        ? authenticatedAssessments.get(
+            `${actor.accountId}:${scoringVersionControl[1]}`,
+          )
+        : null
+      const value = url.searchParams.get('value')
+      if (!assessment || !value) {
+        problem(response, 404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found')
+        return
+      }
+      assessment.result.scoringVersion = value
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
+    const voidControl = url.pathname.match(
+      /^\/__test\/care\/assessments\/([^/]+)\/(void|restore)$/,
+    )
+    if (request.method === 'POST' && voidControl) {
+      const actor = accessSessions.get(bearerToken(request))
+      const assessment = actor
+        ? authenticatedAssessments.get(`${actor.accountId}:${voidControl[1]}`)
+        : null
+      if (!assessment) {
+        problem(response, 404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found')
+        return
+      }
+      assessment.voidedAt =
+        voidControl[2] === 'void' ? careNow.toISOString() : null
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/__test/care/progress-fault'
+    ) {
+      if (!accessSessions.has(bearerToken(request))) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      progressFault = url.searchParams.get('mode')
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
+    const progressGet = url.pathname.match(
+      /^\/api\/v1\/assessments\/([^/]+)\/progress$/,
+    )
+    if (request.method === 'GET' && progressGet) {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || actor.expired || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      const current = authenticatedAssessments.get(
+        `${actor.accountId}:${progressGet[1]}`,
+      )
+      if (!current || current.voidedAt) {
+        problem(response, 404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found')
+        return
+      }
+
+      const fault = progressFault
+      progressFault = null
+      if (fault === 'TIMEOUT') {
+        await new Promise((resolveTimeout) => setTimeout(resolveTimeout, 4000))
+      } else if (fault === 'UNAVAILABLE') {
+        problem(response, 503, 'CARE_UNAVAILABLE', 'Care is unavailable')
+        return
+      } else if (fault === 'MALFORMED') {
+        json(response, 200, { instrument: 'PHQ9' })
+        return
+      }
+
+      const previous = [...authenticatedAssessments.entries()]
+        .filter(
+          ([key, assessment]) =>
+            key.startsWith(`${actor.accountId}:`) &&
+            assessment.assessmentId !== current.assessmentId &&
+            assessment.voidedAt === null &&
+            assessment.instrument === current.instrument &&
+            assessment.result.scoringVersion ===
+              current.result.scoringVersion &&
+            (assessment.submittedAt < current.submittedAt ||
+              (assessment.submittedAt === current.submittedAt &&
+                assessment.assessmentId < current.assessmentId)),
+        )
+        .map(([, assessment]) => assessment)
+        .sort(
+          (left, right) =>
+            right.submittedAt.localeCompare(left.submittedAt) ||
+            right.assessmentId.localeCompare(left.assessmentId),
+        )[0]
+      if (!previous) {
+        problem(
+          response,
+          409,
+          'INSUFFICIENT_COMPARABLE_DATA',
+          'Comparable assessment is unavailable',
+        )
+        return
+      }
+
+      const rawDelta = current.result.totalScore - previous.result.totalScore
+      const elapsedHours = Math.floor(
+        (Date.parse(current.submittedAt) - Date.parse(previous.submittedAt)) /
+          (60 * 60 * 1000),
+      )
+      const point = (assessment) => ({
+        assessmentId: assessment.assessmentId,
+        questionnaireVersion: assessment.questionnaireVersion,
+        submittedAt: assessment.submittedAt,
+        totalScore: assessment.result.totalScore,
+        screeningLevel: assessment.result.screeningLevel,
+      })
+      json(response, 200, {
+        instrument: current.instrument,
+        scoringVersion: current.result.scoringVersion,
+        previous: point(previous),
+        current: point(current),
+        rawDelta,
+        scoreDirection:
+          rawDelta > 0 ? 'INCREASED' : rawDelta < 0 ? 'DECREASED' : 'UNCHANGED',
+        bandTransition: {
+          previous: previous.result.screeningLevel,
+          current: current.result.screeningLevel,
+        },
+        elapsedDuration: elapsedHours > 0 ? `PT${elapsedHours}H` : 'PT0S',
+      })
       return
     }
 
@@ -575,3 +759,12 @@ const server = createServer(async (request, response) => {
 
 reset()
 server.listen(port, host)
+
+function shutdown() {
+  server.close(() => process.exit(0))
+  server.closeAllConnections?.()
+  setTimeout(() => process.exit(0), 1000).unref()
+}
+
+process.once('SIGINT', shutdown)
+process.once('SIGTERM', shutdown)

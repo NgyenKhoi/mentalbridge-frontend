@@ -29,26 +29,11 @@ jobs:
       CI: 'true'
       IDENTITY_API_BASE_URL: http://127.0.0.1:9
       PLAYWRIGHT_BROWSER_CHANNEL: chrome
-      CARE_BACKEND_DIRECTORY: ${{ github.workspace }}/mentalbridge-backend
+      CARE_E2E_MODE: fixture
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
-      - name: Check out compatible Care test backend
-        uses: actions/checkout@v4
-        with:
-          repository: NgyenKhoi/mentalbridge-backend
-          ref: 590054d96354b361176417d9b3f9365657bc9601
-          path: mentalbridge-backend
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-          cache-dependency-path: mentalbridge-backend/care-service/pom.xml
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

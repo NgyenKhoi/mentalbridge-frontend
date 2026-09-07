@@ -126,11 +126,14 @@ advance a mutable UTC clock and inject one-shot timeout, 503 and malformed
 progress responses. The same journey covers insufficient, incompatible,
 voided, forged/cross-owner and authoritative-result visibility behavior.
 
-The frontend quality workflow checks out the immutable compatible Care revision
-from backend PR #33 into `CARE_BACKEND_DIRECTORY`, sets up Java 21 and runs this
-same real-service journey. The pinned revision keeps cross-repository CI
-reproducible while the provider and consumer PRs are reviewed independently;
-advance it deliberately when the Care progress contract changes.
+The frontend quality workflow sets `CARE_E2E_MODE=fixture` and exercises the
+deterministic browser cases against the contract-shaped synthetic Care fixture
+already used by the repository's smoke suite. This keeps pull-request CI
+independent of credentials for the private backend repository. The synthetic
+fixture omits the socket-timing timeout injection to avoid open-handle behavior;
+the BFF/component tests and the managed real-Care journey cover that state. The
+managed local command above starts real Spring Care and PostgreSQL and produced
+the committed evidence screenshots.
 
 Successful comparison evidence is stored in
 [`evidence/mb-205-progress-desktop.png`](evidence/mb-205-progress-desktop.png)

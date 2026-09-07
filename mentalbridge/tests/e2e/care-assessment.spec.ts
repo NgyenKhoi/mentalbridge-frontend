@@ -5,6 +5,7 @@ import {
   type Page,
 } from '@playwright/test'
 
+const useCareFixture = process.env.CARE_E2E_MODE === 'fixture'
 const careServiceUrl = 'http://127.0.0.1:3202'
 const careAccessToken = 'synthetic-care-e2e-access'
 const otherCareAccessToken = 'synthetic-care-e2e-other-access'
@@ -173,7 +174,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
     page,
     request,
   }) => {
-    test.setTimeout(120_000)
+    test.setTimeout(useCareFixture ? 90_000 : 120_000)
 
     await context.addCookies([
       {
@@ -223,16 +224,18 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await expect(page.getByText('Điểm không thay đổi.')).toBeVisible()
     await expect(page.getByText('Phiên bản chấm điểm')).toBeVisible()
     await expect(page.getByText('1 giờ')).toBeVisible()
-    await page.screenshot({
-      path: 'docs/evidence/mb-205-progress-desktop.png',
-      fullPage: true,
-    })
-    await page.setViewportSize({ width: 390, height: 844 })
-    await page.screenshot({
-      path: 'docs/evidence/mb-205-progress-mobile.png',
-      fullPage: true,
-    })
-    await page.setViewportSize({ width: 1280, height: 720 })
+    if (!useCareFixture) {
+      await page.screenshot({
+        path: 'docs/evidence/mb-205-progress-desktop.png',
+        fullPage: true,
+      })
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.screenshot({
+        path: 'docs/evidence/mb-205-progress-mobile.png',
+        fullPage: true,
+      })
+      await page.setViewportSize({ width: 1280, height: 720 })
+    }
     await page.getByRole('button', { name: 'Đóng so sánh' }).click()
 
     await careControl(
@@ -255,11 +258,14 @@ test.describe('Care-backed PHQ-9 screening', () => {
       `/__test/care/assessments/${previousAssessmentId}/restore`,
     )
 
-    for (const [mode, title] of [
-      ['TIMEOUT', 'Care phản hồi quá thời gian'],
+    const injectedFailureCases = [
+      ...(useCareFixture
+        ? []
+        : ([['TIMEOUT', 'Care phản hồi quá thời gian']] as const)),
       ['UNAVAILABLE', 'Care tạm thời không khả dụng'],
       ['MALFORMED', 'Care trả về dữ liệu không hợp lệ'],
-    ] as const) {
+    ] as const
+    for (const [mode, title] of injectedFailureCases) {
       await careControl(request, `/__test/care/progress-fault?mode=${mode}`)
       await expectProgressFailure(page, title, 2)
     }
