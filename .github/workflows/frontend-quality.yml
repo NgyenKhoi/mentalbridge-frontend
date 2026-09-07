@@ -54,7 +54,7 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
-      - name: Validate generated Identity contract
+      - name: Validate generated contracts
         run: npm run contracts:check
 
       - name: Run unit, component, and API-boundary tests

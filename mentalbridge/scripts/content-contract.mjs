@@ -71,6 +71,22 @@ async function checkGeneratedContract(expected) {
     )
   }
 
+  const configuredSource = process.env.CONTENT_OPENAPI_SOURCE
+  if (configuredSource) {
+    const sourcePath = path.resolve(appRoot, configuredSource)
+    const [source, snapshot] = await Promise.all([
+      readFile(sourcePath),
+      readFile(snapshotPath),
+    ])
+
+    if (!source.equals(snapshot)) {
+      throw new Error(
+        'The committed Content OpenAPI snapshot differs from ' +
+          `${sourcePath}. Run npm run contracts:sync.`,
+      )
+    }
+  }
+
   console.log('Content OpenAPI snapshot and generated types are valid.')
 }
 

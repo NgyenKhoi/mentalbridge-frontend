@@ -50,6 +50,7 @@ export default defineConfig({
             IDENTITY_API_BASE_URL: identityFixtureURL,
             CARE_API_BASE_URL: identityFixtureURL,
             CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
+            CONTENT_SERVICE_URL: identityFixtureURL,
           },
           reuseExistingServer: false,
           timeout: 120_000,

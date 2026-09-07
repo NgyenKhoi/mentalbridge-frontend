@@ -1,462 +1,182 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 
-test.describe('Resources Journey', () => {
+test.describe('Resources journey', () => {
   test.skip(
     Boolean(process.env.PLAYWRIGHT_BASE_URL),
-    'Controlled fixtures are available only with the managed local server.',
+    'Controlled Content and Care fixtures are available only with the managed local server.',
   )
 
-  test('displays published resources in assessment result', async ({
+  async function completeAssessment(page: Page, path: string) {
+    await page.goto(path)
+    await expect(
+      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
+    ).toBeVisible()
+
+    for (let item = 1; item <= 9; item += 1) {
+      await page
+        .getByRole('radio', {
+          name: item === 9 ? 'Vài ngày' : 'Không có gì',
+        })
+        .check()
+      if (item < 9) {
+        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
+      }
+    }
+
+    await page
+      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
+      .check()
+    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
+    ).toBeVisible()
+  }
+
+  async function mockResources(
+    context: BrowserContext,
+    status: number,
+    body: unknown,
+  ) {
+    await context.route('**/api/resources**', async (route) => {
+      await route.fulfill({
+        status,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      })
+    })
+  }
+
+  test('loads reviewed published resources through the real BFF for an anonymous result', async ({
     page,
   }) => {
-    // Navigate to anonymous assessment flow
-    await page.goto('/assessment/anonymous')
-
-    // Complete PHQ-9 questionnaire
-    await expect(
-      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
-    ).toBeVisible()
-
-    // Answer all questions
-    for (let item = 1; item <= 9; item += 1) {
-      await page
-        .getByRole('radio', {
-          name: item === 9 ? 'Vài ngày' : 'Không có gì',
-        })
-        .check()
-      if (item < 9) {
-        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
-      }
-    }
-
-    // Submit assessment
-    await page
-      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
-      .check()
-    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
-
-    // Wait for results page
-    await expect(
-      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
-    ).toBeVisible()
-
-    // Check that resources section is present
-    await expect(page.getByText('Tài liệu hữu ích')).toBeVisible()
-
-    // Resources should be visible (at least one resource or empty/unavailable state)
-    const resourcesSection = page.locator('.resources-list')
-    await expect(resourcesSection).toBeVisible()
-  })
-
-  test('handles empty resources gracefully', async ({ page, context }) => {
-    // Mock empty resources response
-    await context.route('**/api/resources**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          items: [],
-          hasMore: false,
-        }),
-      })
-    })
-
-    await page.goto('/assessment/anonymous')
-
-    // Complete assessment
-    await expect(
-      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
-    ).toBeVisible()
-
-    for (let item = 1; item <= 9; item += 1) {
-      await page
-        .getByRole('radio', {
-          name: item === 9 ? 'Vài ngày' : 'Không có gì',
-        })
-        .check()
-      if (item < 9) {
-        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
-      }
-    }
-
-    await page
-      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
-      .check()
-    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
-
-    await expect(
-      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
-    ).toBeVisible()
-
-    // Should show empty state
-    await expect(page.getByText('Hiện chưa có tài liệu nào')).toBeVisible()
-  })
-
-  test('handles unavailable resources state', async ({ page, context }) => {
-    // Mock unavailable response
-    await context.route('**/api/resources**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          items: [],
-          hasMore: false,
-          unavailable: true,
-          message: 'Tài nguyên tạm thời không khả dụng',
-        }),
-      })
-    })
-
-    await page.goto('/assessment/anonymous')
-
-    // Complete assessment
-    await expect(
-      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
-    ).toBeVisible()
-
-    for (let item = 1; item <= 9; item += 1) {
-      await page
-        .getByRole('radio', {
-          name: item === 9 ? 'Vài ngày' : 'Không có gì',
-        })
-        .check()
-      if (item < 9) {
-        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
-      }
-    }
-
-    await page
-      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
-      .check()
-    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
-
-    await expect(
-      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
-    ).toBeVisible()
-
-    // Should show unavailable state
-    await expect(
-      page.getByText('Tài nguyên tạm thời không khả dụng'),
-    ).toBeVisible()
-  })
-
-  test('displays published resources only, not draft or archived', async ({
-    page,
-    context,
-  }) => {
-    // Mock response with published resources only
-    await context.route('**/api/resources**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          items: [
-            {
-              id: '1',
-              title: 'Published Article',
-              summary: 'This article is published and visible',
-              category: 'ARTICLE',
-              externalUrl: 'https://example.com/article',
-              locale: 'vi-VN',
-              status: 'PUBLISHED',
-              reviewedAt: '2024-01-01T00:00:00Z',
-              createdAt: '2024-01-01T00:00:00Z',
-            },
-          ],
-          hasMore: false,
-        }),
-      })
-    })
-
-    await page.goto('/assessment/anonymous')
-
-    // Complete assessment
-    await expect(
-      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
-    ).toBeVisible()
-
-    for (let item = 1; item <= 9; item += 1) {
-      await page
-        .getByRole('radio', {
-          name: item === 9 ? 'Vài ngày' : 'Không có gì',
-        })
-        .check()
-      if (item < 9) {
-        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
-      }
-    }
-
-    await page
-      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
-      .check()
-    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
-
-    await expect(
-      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
-    ).toBeVisible()
-
-    // Should display published resource
-    await expect(page.getByText('Published Article')).toBeVisible()
-    await expect(
-      page.getByText('This article is published and visible'),
-    ).toBeVisible()
-
-    // Verify that ONLY published resources are shown (no draft/archived in fixture)
-    const resourceCards = page.locator('.resources-grid > *')
-    await expect(resourceCards).toHaveCount(1)
-  })
-
-  test('resource links open in new tab with correct attributes', async ({
-    page,
-    context,
-  }) => {
-    // Mock response
-    await context.route('**/api/resources**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          items: [
-            {
-              id: '1',
-              title: 'External Resource',
-              summary: 'Click to visit',
-              category: 'ARTICLE',
-              externalUrl: 'https://example.com/resource',
-              locale: 'vi-VN',
-              status: 'PUBLISHED',
-              reviewedAt: '2024-01-01T00:00:00Z',
-              createdAt: '2024-01-01T00:00:00Z',
-            },
-          ],
-          hasMore: false,
-        }),
-      })
-    })
-
-    await page.goto('/assessment/anonymous')
-
-    // Complete assessment
-    await expect(
-      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
-    ).toBeVisible()
-
-    for (let item = 1; item <= 9; item += 1) {
-      await page
-        .getByRole('radio', {
-          name: item === 9 ? 'Vài ngày' : 'Không có gì',
-        })
-        .check()
-      if (item < 9) {
-        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
-      }
-    }
-
-    await page
-      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
-      .check()
-    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
-
-    await expect(
-      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
-    ).toBeVisible()
-
-    // Check resource link attributes
-    const resourceLink = page.getByText('External Resource').locator('..')
-    await expect(resourceLink).toHaveAttribute(
-      'href',
-      'https://example.com/resource',
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/resources' &&
+        response.status() === 200,
     )
-    await expect(resourceLink).toHaveAttribute('target', '_blank')
-    await expect(resourceLink).toHaveAttribute('rel', 'noopener noreferrer')
+
+    await completeAssessment(page, '/assessment/anonymous')
+    await responsePromise
+
+    await expect(page.getByText('Published Resource')).toBeVisible()
+    await expect(page.getByText('Draft Resource')).toHaveCount(0)
+    await expect(page.getByText('Archived Resource')).toHaveCount(0)
+    await expect(page.locator('.resources-grid > *')).toHaveCount(1)
+
+    const link = page.getByRole('link', { name: /published resource/i })
+    await expect(link).toHaveAttribute(
+      'href',
+      'https://example.com/reviewed-resource',
+    )
+    await expect(link).toHaveAttribute('target', '_blank')
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    await link.focus()
+    await expect(link).toBeFocused()
   })
 
-  test.skip('authenticated user journey shows resources', async ({
-    page,
+  test('loads resources for the authenticated USER result without skipping the journey', async ({
     context,
+    page,
   }) => {
-    // SKIPPED: Authenticated assessment route requires complex Identity/Care session setup
-    // that is beyond the scope of MB-180 ResourcesList integration.
-    // Anonymous flow tests already validate ResourcesList component functionality.
-
-    // Mock authentication session
     await context.addCookies([
       {
-        name: 'session',
-        value: 'mock-session-token',
-        domain: 'localhost',
+        name: 'mentalbridge_access',
+        value: 'synthetic-resource-e2e-access',
+        domain: '127.0.0.1',
         path: '/',
         httpOnly: true,
-        secure: false,
         sameSite: 'Lax',
       },
     ])
 
-    // Mock session endpoint
-    await context.route('**/api/identity/session', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          userId: 'user-123',
-          email: 'test@example.com',
-          role: 'USER',
-        }),
-      })
-    })
+    await completeAssessment(page, '/assessment/phq9')
 
-    // Mock resources response
-    await context.route('**/api/resources**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          items: [
-            {
-              id: '1',
-              title: 'Authenticated User Resource',
-              summary: 'Resource for logged in users',
-              category: 'MEDITATION',
-              externalUrl: 'https://example.com/meditation',
-              locale: 'vi-VN',
-              status: 'PUBLISHED',
-              reviewedAt: '2024-01-01T00:00:00Z',
-              createdAt: '2024-01-01T00:00:00Z',
-              updatedAt: '2024-01-01T00:00:00Z',
-            },
-          ],
-          hasMore: false,
-        }),
-      })
-    })
-
-    // Navigate to authenticated assessment
-    await page.goto('/assessment/phq9')
-
-    // Complete assessment
-    await expect(
-      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
-    ).toBeVisible()
-
-    for (let item = 1; item <= 9; item += 1) {
-      await page
-        .getByRole('radio', {
-          name: item === 9 ? 'Vài ngày' : 'Không có gì',
-        })
-        .check()
-      if (item < 9) {
-        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
-      }
-    }
-
-    await page
-      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
-      .check()
-    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
-
-    await expect(
-      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
-    ).toBeVisible()
-
-    // Should display resources for authenticated user
-    await expect(page.getByText('Authenticated User Resource')).toBeVisible()
-    await expect(page.getByText('Resource for logged in users')).toBeVisible()
+    await expect(page.getByText('Published Resource')).toBeVisible()
+    await expect(page.getByText('Draft Resource')).toHaveCount(0)
+    await expect(page.getByText('Archived Resource')).toHaveCount(0)
   })
 
-  test('published-flow fails gracefully when resources cannot be fetched', async ({
-    page,
+  test('distinguishes an empty catalogue from dependency failure', async ({
     context,
+    page,
   }) => {
-    // Mock network failure for resources endpoint
+    await mockResources(context, 200, { items: [], hasMore: false })
+
+    await completeAssessment(page, '/assessment/anonymous')
+
+    await expect(page.getByText('Hiện chưa có tài liệu nào')).toBeVisible()
+    await expect(page.getByText(/tạm thời không khả dụng/i)).toHaveCount(0)
+  })
+
+  test('renders the reviewed unavailable fallback returned by the BFF', async ({
+    context,
+    page,
+  }) => {
+    await mockResources(context, 200, {
+      items: [],
+      hasMore: false,
+      unavailable: true,
+      message:
+        'Tài nguyên hỗ trợ tạm thời không khả dụng. Vui lòng thử lại sau.',
+    })
+
+    await completeAssessment(page, '/assessment/anonymous')
+
+    await expect(
+      page.getByText(
+        'Tài nguyên hỗ trợ tạm thời không khả dụng. Vui lòng thử lại sau.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('renders a distinct timeout state', async ({ context, page }) => {
+    await mockResources(context, 504, { code: 'CONTENT_TIMEOUT' })
+
+    await completeAssessment(page, '/assessment/anonymous')
+
+    await expect(
+      page.getByText('Dịch vụ đang bận, vui lòng thử lại sau'),
+    ).toBeVisible()
+  })
+
+  test('renders a generic error for an unauthorized response', async ({
+    context,
+    page,
+  }) => {
+    await mockResources(context, 401, { code: 'CONTENT_REQUEST_FAILED' })
+
+    await completeAssessment(page, '/assessment/anonymous')
+
+    await expect(page.getByText('Không thể tải tài liệu')).toBeVisible()
+  })
+
+  test('keeps the assessment result usable when the resource request fails', async ({
+    context,
+    page,
+  }) => {
     await context.route('**/api/resources**', async (route) => {
       await route.abort('failed')
     })
 
-    await page.goto('/assessment/anonymous')
+    await completeAssessment(page, '/assessment/anonymous')
 
-    // Complete assessment
+    await expect(page.getByText('Không thể kết nối đến dịch vụ')).toBeVisible()
+    await expect(page.locator('.resources-list')).toBeVisible()
     await expect(
-      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
-    ).toBeVisible()
-
-    for (let item = 1; item <= 9; item += 1) {
-      await page
-        .getByRole('radio', {
-          name: item === 9 ? 'Vài ngày' : 'Không có gì',
-        })
-        .check()
-      if (item < 9) {
-        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
-      }
-    }
-
-    await page
-      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
-      .check()
-    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
-
-    await expect(
-      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
-    ).toBeVisible()
-
-    // Should show error state when fetch fails
-    await expect(page.getByText(/không thể kết nối đến dịch vụ/i)).toBeVisible()
-
-    // Resources section should still be present but showing error
-    const resourcesSection = page.locator('.resources-list')
-    await expect(resourcesSection).toBeVisible()
+      page.getByRole('button', { name: 'Làm bài mới' }),
+    ).toBeEnabled()
   })
 
-  test('handles malformed response from BFF with 502 error', async ({
-    page,
+  test('maps a malformed provider response to dependency unavailable', async ({
     context,
+    page,
   }) => {
-    // Mock malformed response (BFF should return 502)
-    await context.route('**/api/resources**', async (route) => {
-      await route.fulfill({
-        status: 502,
-        contentType: 'application/problem+json',
-        body: JSON.stringify({
-          type: 'about:blank',
-          title: 'Malformed Response',
-          status: 502,
-          detail: 'Content service returned invalid response structure',
-        }),
-      })
-    })
+    await mockResources(context, 502, { code: 'CONTENT_INVALID_RESPONSE' })
 
-    await page.goto('/assessment/anonymous')
-
-    // Complete assessment
-    await expect(
-      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
-    ).toBeVisible()
-
-    for (let item = 1; item <= 9; item += 1) {
-      await page
-        .getByRole('radio', {
-          name: item === 9 ? 'Vài ngày' : 'Không có gì',
-        })
-        .check()
-      if (item < 9) {
-        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
-      }
-    }
-
-    await page
-      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
-      .check()
-    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
+    await completeAssessment(page, '/assessment/anonymous')
 
     await expect(
-      page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
+      page.getByText('Dịch vụ tạm thời không khả dụng'),
     ).toBeVisible()
-
-    // Should show unavailable state for 502 error
-    await expect(page.getByText(/tạm thời không khả dụng/i)).toBeVisible()
-
-    // Resources section should still be present
-    const resourcesSection = page.locator('.resources-list')
-    await expect(resourcesSection).toBeVisible()
   })
 })

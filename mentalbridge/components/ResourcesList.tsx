@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import type { ResourcesResponse } from '@/app/api/resources/route'
 import type { components } from '@/contracts/content.generated'
 
@@ -15,6 +15,21 @@ interface ResourcesListProps {
 
 type LoadingState =
   'idle' | 'loading' | 'success' | 'error' | 'empty' | 'timeout' | 'unavailable'
+
+function safeExternalUrl(value: string | null | undefined): string | null {
+  if (!value) return null
+
+  try {
+    const url = new URL(value)
+    return (url.protocol === 'http:' || url.protocol === 'https:') &&
+      url.username === '' &&
+      url.password === ''
+      ? url.toString()
+      : null
+  } catch {
+    return null
+  }
+}
 
 // Future feature notice component
 function FutureFeatureNotice() {
@@ -30,8 +45,7 @@ function FutureFeatureNotice() {
       }}
     >
       <p style={{ fontSize: '0.9rem', textAlign: 'center' }}>
-        <strong>Sắp có:</strong> Đăng ký nhận tư vấn chuyên gia và tham gia nhóm
-        hỗ trợ
+        <strong>Sắp có:</strong> Đăng ký gói tư vấn và đặt lịch với chuyên gia
         <span
           style={{
             marginLeft: '0.5rem',
@@ -53,13 +67,18 @@ export default function ResourcesList({
   limit = 6,
   className = '',
 }: ResourcesListProps) {
+  const reduceMotion = useReducedMotion()
   const [resources, setResources] = useState<ResourceSummary[]>([])
   const [loadingState, setLoadingState] = useState<LoadingState>('loading')
   const [errorMessage, setErrorMessage] = useState<string>('')
 
   useEffect(() => {
+    const controller = new AbortController()
+
     const fetchResources = async () => {
       setLoadingState('loading')
+      setResources([])
+      setErrorMessage('')
 
       try {
         const params = new URLSearchParams()
@@ -69,6 +88,7 @@ export default function ResourcesList({
         const response = await fetch(`/api/resources?${params.toString()}`, {
           method: 'GET',
           headers: { Accept: 'application/json' },
+          signal: controller.signal,
         })
 
         if (response.status === 504) {
@@ -106,19 +126,25 @@ export default function ResourcesList({
         setResources(data.items)
         setLoadingState('success')
       } catch (error) {
-        console.error('[ResourcesList] Fetch error:', error)
+        if (error instanceof Error && error.name === 'AbortError') return
         setLoadingState('unavailable')
         setErrorMessage('Không thể kết nối đến dịch vụ')
       }
     }
 
-    fetchResources()
+    void fetchResources()
+    return () => controller.abort()
   }, [category, limit])
 
   // Loading state
   if (loadingState === 'loading') {
     return (
-      <div className={`resources-list ${className}`}>
+      <div
+        className={`resources-list ${className}`}
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
         <div className="resources-header">
           <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem' }}>
             Tài liệu hữu ích
@@ -149,6 +175,7 @@ export default function ResourcesList({
             />
           ))}
         </div>
+        <FutureFeatureNotice />
       </div>
     )
   }
@@ -156,7 +183,11 @@ export default function ResourcesList({
   // Empty state
   if (loadingState === 'empty') {
     return (
-      <div className={`resources-list ${className}`}>
+      <div
+        className={`resources-list ${className}`}
+        role="status"
+        aria-live="polite"
+      >
         <div
           style={{
             textAlign: 'center',
@@ -194,7 +225,11 @@ export default function ResourcesList({
     loadingState === 'unavailable'
   ) {
     return (
-      <div className={`resources-list ${className}`}>
+      <div
+        className={`resources-list ${className}`}
+        role="status"
+        aria-live="polite"
+      >
         <div
           style={{
             textAlign: 'center',
@@ -244,9 +279,9 @@ export default function ResourcesList({
   return (
     <motion.div
       className={`resources-list ${className}`}
-      initial={{ opacity: 0, y: 20 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.8 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2 }}
     >
       <div className="resources-header" style={{ marginBottom: '1.5rem' }}>
         <h3
@@ -285,13 +320,17 @@ export default function ResourcesList({
         }}
       >
         {resources.map((resource, index) => {
-          const isExternalLink = resource.externalUrl !== null
+          const externalUrl = safeExternalUrl(resource.externalUrl)
+          const isExternalLink = externalUrl !== null
           const ComponentElement = isExternalLink ? motion.a : motion.div
 
           const commonProps = {
-            initial: { opacity: 0, y: 20 },
+            initial: reduceMotion ? false : { opacity: 0, y: 20 },
             animate: { opacity: 1, y: 0 },
-            transition: { delay: index * 0.1 },
+            transition: {
+              duration: reduceMotion ? 0 : 0.2,
+              delay: index * 0.05,
+            },
             style: {
               display: 'block' as const,
               background: 'var(--surface-glass)',
@@ -303,18 +342,19 @@ export default function ResourcesList({
               transition: 'all 0.2s ease',
               cursor: isExternalLink ? 'pointer' : 'default',
             },
-            whileHover: isExternalLink
-              ? {
-                  y: -4,
-                  borderColor: 'var(--teal)',
-                  boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
-                }
-              : {},
+            whileHover:
+              isExternalLink && !reduceMotion
+                ? {
+                    y: -4,
+                    borderColor: 'var(--teal)',
+                    boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
+                  }
+                : {},
           }
 
           const linkProps = isExternalLink
             ? {
-                href: resource.externalUrl as string,
+                href: externalUrl,
                 target: '_blank' as const,
                 rel: 'noopener noreferrer',
               }

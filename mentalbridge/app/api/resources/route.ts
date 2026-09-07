@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+
 import type { components } from '@/contracts/content.generated'
 import { readContentServerConfig } from '@/lib/config/server'
 
-// Use generated types from OpenAPI contract
 type ResourceSummary = components['schemas']['ResourceSummary']
+type ResourceCategory = ResourceSummary['category']
+type ResourceStatus = ResourceSummary['status']
 
-// Backend actual response
 interface BackendResourcesResponse {
   data: ResourceSummary[]
   count: number
   nextCursor?: string
-  fallback?: 'unavailable'
-  message?: string
 }
 
-// Frontend normalized response
 export interface ResourcesResponse {
   items: ResourceSummary[]
   hasMore: boolean
@@ -27,211 +25,290 @@ interface ErrorResponse {
   type: string
   title: string
   status: number
-  detail?: string
+  code: string
+  detail: string
+}
+
+const RESOURCE_CATEGORIES = new Set<ResourceCategory>([
+  'BREATHING',
+  'MEDITATION',
+  'ARTICLE',
+  'VIDEO',
+  'JOURNALING',
+  'COMMUNITY',
+])
+const RESOURCE_STATUSES = new Set<ResourceStatus>([
+  'DRAFT',
+  'PUBLISHED',
+  'ARCHIVED',
+])
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const UNAVAILABLE_MESSAGE =
+  'Tài nguyên hỗ trợ tạm thời không khả dụng. Vui lòng thử lại sau.'
+
+function problemResponse(
+  status: number,
+  code: string,
+  title: string,
+  detail: string,
+) {
+  return NextResponse.json<ErrorResponse>(
+    { type: 'about:blank', title, status, code, detail },
+    {
+      status,
+      headers: { 'Content-Type': 'application/problem+json' },
+    },
+  )
+}
+
+function malformedResponse(detail: string) {
+  return problemResponse(
+    502,
+    'CONTENT_INVALID_RESPONSE',
+    'Malformed Response',
+    detail,
+  )
+}
+
+function isDateTime(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    !Number.isNaN(Date.parse(value))
+  )
+}
+
+function isSafeExternalUrl(value: unknown): value is string | null {
+  if (value === null) return true
+  if (typeof value !== 'string' || value.length === 0) return false
+
+  try {
+    const url = new URL(value)
+    return (
+      (url.protocol === 'http:' || url.protocol === 'https:') &&
+      url.username === '' &&
+      url.password === ''
+    )
+  } catch {
+    return false
+  }
+}
+
+function isValidResourceSummary(
+  resource: unknown,
+): resource is ResourceSummary {
+  if (typeof resource !== 'object' || resource === null) return false
+
+  const value = resource as Record<string, unknown>
+  return (
+    typeof value.id === 'string' &&
+    UUID_PATTERN.test(value.id) &&
+    typeof value.title === 'string' &&
+    typeof value.summary === 'string' &&
+    typeof value.category === 'string' &&
+    RESOURCE_CATEGORIES.has(value.category as ResourceCategory) &&
+    typeof value.locale === 'string' &&
+    value.locale.length > 0 &&
+    isSafeExternalUrl(value.externalUrl) &&
+    typeof value.status === 'string' &&
+    RESOURCE_STATUSES.has(value.status as ResourceStatus) &&
+    (value.reviewedAt === null || isDateTime(value.reviewedAt)) &&
+    isDateTime(value.createdAt) &&
+    (value.updatedAt === undefined || isDateTime(value.updatedAt))
+  )
+}
+
+function validateQuery(searchParams: URLSearchParams): ErrorResponse | null {
+  const category = searchParams.get('category')
+  if (category && !RESOURCE_CATEGORIES.has(category as ResourceCategory)) {
+    return {
+      type: 'about:blank',
+      title: 'Invalid Request',
+      status: 400,
+      code: 'INVALID_RESOURCE_CATEGORY',
+      detail: 'category must be a supported resource category',
+    }
+  }
+
+  const limit = searchParams.get('limit')
+  if (
+    limit &&
+    (!/^\d+$/.test(limit) || Number(limit) < 1 || Number(limit) > 100)
+  ) {
+    return {
+      type: 'about:blank',
+      title: 'Invalid Request',
+      status: 400,
+      code: 'INVALID_RESOURCE_LIMIT',
+      detail: 'limit must be an integer between 1 and 100',
+    }
+  }
+
+  const cursor = searchParams.get('cursor')
+  if (cursor && !UUID_PATTERN.test(cursor)) {
+    return {
+      type: 'about:blank',
+      title: 'Invalid Request',
+      status: 400,
+      code: 'INVALID_RESOURCE_CURSOR',
+      detail: 'cursor must be a valid UUID',
+    }
+  }
+
+  return null
 }
 
 /**
- * BFF route for fetching resources from Content service
- * Never exposes upstream URLs to browser
+ * BFF route for fetching reviewed resources from Content service.
+ * Upstream addresses and error payloads never cross the browser boundary.
  */
 export async function GET(request: NextRequest) {
-  // Lazy load config to allow test environment setup
+  const { searchParams } = new URL(request.url)
+  const queryError = validateQuery(searchParams)
+  if (queryError) {
+    return NextResponse.json(queryError, {
+      status: queryError.status,
+      headers: { 'Content-Type': 'application/problem+json' },
+    })
+  }
+
   const contentConfig = readContentServerConfig()
-
-  const { searchParams } = request.url
-    ? new URL(request.url)
-    : { searchParams: new URLSearchParams() }
-
   const category = searchParams.get('category')
   const limit = searchParams.get('limit')
   const cursor = searchParams.get('cursor')
-
-  // Get locale from Accept-Language header or default to vi-VN
   const acceptLanguage = request.headers.get('accept-language')
   const locale =
-    acceptLanguage?.split(',')[0]?.split('-')[0] === 'en' ? 'en-US' : 'vi-VN'
+    acceptLanguage?.split(',')[0]?.split('-')[0]?.toLowerCase() === 'en'
+      ? 'en-US'
+      : 'vi-VN'
 
-  // Build upstream URL
-  const upstreamUrl = new URL(`${contentConfig.baseUrl}api/v1/resources`)
+  const upstreamUrl = new URL('api/v1/resources', contentConfig.baseUrl)
   upstreamUrl.searchParams.set('locale', locale)
   if (category) upstreamUrl.searchParams.set('category', category)
   if (limit) upstreamUrl.searchParams.set('limit', limit)
   if (cursor) upstreamUrl.searchParams.set('cursor', cursor)
 
-  try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      contentConfig.timeoutMs,
-    )
+  const controller = new AbortController()
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    contentConfig.timeoutMs,
+  )
 
-    const response = await fetch(upstreamUrl.toString(), {
+  try {
+    const response = await fetch(upstreamUrl, {
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
+      headers: { Accept: 'application/json' },
       signal: controller.signal,
+      cache: 'no-store',
     })
 
-    clearTimeout(timeoutId)
-
     if (!response.ok) {
-      // Parse Problem Details if available
-      const contentType = response.headers.get('content-type')
-      if (contentType?.includes('application/problem+json')) {
-        const problemDetails: ErrorResponse = await response.json()
-        return NextResponse.json(problemDetails, { status: response.status })
-      }
-
-      return NextResponse.json(
-        {
-          type: 'about:blank',
-          title: 'Upstream Error',
-          status: response.status,
-          detail: `Content service returned ${response.status}`,
-        } as ErrorResponse,
-        { status: response.status },
+      const status =
+        response.status >= 400 && response.status <= 599 ? response.status : 502
+      return problemResponse(
+        status,
+        'CONTENT_REQUEST_FAILED',
+        'Content Request Failed',
+        'The resource catalogue could not be loaded.',
       )
     }
 
-    // Parse response as unknown first to validate before casting
     let rawData: unknown
     try {
       rawData = await response.json()
     } catch {
-      return NextResponse.json(
-        {
-          type: 'about:blank',
-          title: 'Malformed Response',
-          status: 502,
-          detail: 'Content service returned invalid JSON',
-        } as ErrorResponse,
-        { status: 502 },
-      )
+      return malformedResponse('Content service returned invalid JSON')
     }
 
-    // Validate top-level response structure before accessing any fields
     if (typeof rawData !== 'object' || rawData === null) {
-      return NextResponse.json(
-        {
-          type: 'about:blank',
-          title: 'Malformed Response',
-          status: 502,
-          detail: 'Content service returned non-object response',
-        } as ErrorResponse,
-        { status: 502 },
-      )
+      return malformedResponse('Content service returned a non-object response')
     }
 
-    const maybeBackendData = rawData as Record<string, unknown>
+    const value = rawData as Record<string, unknown>
+    if (value.fallback !== undefined) {
+      if (
+        value.fallback !== 'unavailable' ||
+        !Array.isArray(value.data) ||
+        value.data.length !== 0 ||
+        value.count !== 0
+      ) {
+        return malformedResponse(
+          'Content service returned an invalid fallback response',
+        )
+      }
 
-    // Check for unavailable fallback state BEFORE validating full structure
-    if (maybeBackendData.fallback === 'unavailable') {
-      const normalizedResponse: ResourcesResponse = {
+      return NextResponse.json<ResourcesResponse>({
         items: [],
         hasMore: false,
         unavailable: true,
-        message:
-          typeof maybeBackendData.message === 'string'
-            ? maybeBackendData.message
-            : undefined,
-      }
-      return NextResponse.json(normalizedResponse)
+        message: UNAVAILABLE_MESSAGE,
+      })
     }
 
-    // Validate required fields exist and have correct types
     if (
-      !Array.isArray(maybeBackendData.data) ||
-      typeof maybeBackendData.count !== 'number'
+      !Array.isArray(value.data) ||
+      !Number.isInteger(value.count) ||
+      (value.count as number) < 0 ||
+      (value.nextCursor !== undefined &&
+        (typeof value.nextCursor !== 'string' ||
+          !UUID_PATTERN.test(value.nextCursor)))
     ) {
-      return NextResponse.json(
-        {
-          type: 'about:blank',
-          title: 'Malformed Response',
-          status: 502,
-          detail: 'Content service returned invalid response structure',
-        } as ErrorResponse,
-        { status: 502 },
+      return malformedResponse(
+        'Content service returned an invalid response structure',
       )
     }
 
-    // Now safe to cast after validation
-    const backendData = rawData as BackendResourcesResponse
-
-    // Validate each resource row at runtime before accepting
-    function isValidResourceSummary(
-      resource: unknown,
-    ): resource is ResourceSummary {
-      return (
-        typeof resource === 'object' &&
-        resource !== null &&
-        typeof (resource as Record<string, unknown>).id === 'string' &&
-        typeof (resource as Record<string, unknown>).title === 'string' &&
-        typeof (resource as Record<string, unknown>).summary === 'string' &&
-        [
-          'BREATHING',
-          'MEDITATION',
-          'ARTICLE',
-          'VIDEO',
-          'JOURNALING',
-          'COMMUNITY',
-        ].includes((resource as Record<string, unknown>).category as string) &&
-        typeof (resource as Record<string, unknown>).locale === 'string' &&
-        ((resource as Record<string, unknown>).externalUrl === null ||
-          typeof (resource as Record<string, unknown>).externalUrl ===
-            'string') &&
-        (resource as Record<string, unknown>).status === 'PUBLISHED' &&
-        ((resource as Record<string, unknown>).reviewedAt === null ||
-          typeof (resource as Record<string, unknown>).reviewedAt ===
-            'string') &&
-        typeof (resource as Record<string, unknown>).createdAt === 'string'
+    if (!value.data.every(isValidResourceSummary)) {
+      console.warn('[BFF] Content service returned an invalid resource row.')
+      return malformedResponse(
+        'Content service returned an invalid resource row',
       )
     }
 
-    // Filter and validate each resource row
-    const validResources = backendData.data.filter(
-      (resource): resource is ResourceSummary => {
-        const isValid = isValidResourceSummary(resource)
-        if (!isValid) {
-          console.warn('[BFF] Invalid resource row:', resource)
-        }
-        return isValid && resource.status === 'PUBLISHED'
-      },
+    const backendData = value as unknown as BackendResourcesResponse
+    if (
+      backendData.data.some(
+        (resource) =>
+          resource.status === 'PUBLISHED' && resource.reviewedAt === null,
+      )
+    ) {
+      console.warn(
+        '[BFF] Content service returned an unreviewed published resource.',
+      )
+      return malformedResponse(
+        'Content service returned an unreviewed published resource',
+      )
+    }
+
+    const items = backendData.data.filter(
+      (resource) =>
+        resource.status === 'PUBLISHED' && resource.reviewedAt !== null,
     )
 
-    // Normalize to frontend contract
-    const normalizedResponse: ResourcesResponse = {
-      items: validResources,
-      hasMore: !!backendData.nextCursor,
-      nextCursor: backendData.nextCursor,
-    }
-
-    return NextResponse.json(normalizedResponse)
+    return NextResponse.json<ResourcesResponse>({
+      items,
+      hasMore: backendData.nextCursor !== undefined,
+      ...(backendData.nextCursor ? { nextCursor: backendData.nextCursor } : {}),
+    })
   } catch (error) {
-    // Handle timeout
     if (error instanceof Error && error.name === 'AbortError') {
-      return NextResponse.json(
-        {
-          type: 'about:blank',
-          title: 'Service Timeout',
-          status: 504,
-          detail: 'Content service did not respond within timeout',
-        } as ErrorResponse,
-        { status: 504 },
+      return problemResponse(
+        504,
+        'CONTENT_TIMEOUT',
+        'Service Timeout',
+        'The resource catalogue did not respond in time.',
       )
     }
 
-    // Handle network errors → return error to allow frontend to show unavailable state
-    console.error('[BFF] Resource fetch failed:', error)
-
-    return NextResponse.json(
-      {
-        type: 'about:blank',
-        title: 'Network Error',
-        status: 503,
-        detail: 'Could not connect to Content service',
-      } as ErrorResponse,
-      { status: 503 },
+    console.error('[BFF] Resource fetch failed.')
+    return problemResponse(
+      503,
+      'CONTENT_UNAVAILABLE',
+      'Service Unavailable',
+      'The resource catalogue is temporarily unavailable.',
     )
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
