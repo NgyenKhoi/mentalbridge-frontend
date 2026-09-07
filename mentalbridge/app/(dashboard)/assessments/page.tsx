@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type {
   AssessmentSummary,
   ScreeningLevel,
 } from '@/features/assessment/api/care-contract'
 import { getAssessmentHistory } from '@/features/assessment/api/browser-care'
+import AssessmentProgressPanel from '@/features/assessment/components/AssessmentProgressPanel'
 
 import './assessments.css'
 
@@ -71,6 +72,8 @@ export default function AssessmentsPage() {
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [progressAssessmentId, setProgressAssessmentId] = useState<string>()
+  const progressTriggerRef = useRef<HTMLButtonElement | null>(null)
   const load = async (next?: string) => {
     setLoading(true)
     setError(false)
@@ -178,7 +181,7 @@ export default function AssessmentsPage() {
                   <th>Bộ câu hỏi</th>
                   <th>Kết quả sàng lọc</th>
                   <th>Điểm</th>
-                  <th></th>
+                  <th>Hành động</th>
                 </tr>
               </thead>
               <tbody>
@@ -193,18 +196,44 @@ export default function AssessmentsPage() {
                     <td>{levelLabels[item.result.screeningLevel]}</td>
                     <td>{item.result.totalScore}/27</td>
                     <td>
-                      <Link
-                        className="assessment-row-action"
-                        href={`/assessment/phq9?assessmentId=${encodeURIComponent(item.assessmentId)}`}
-                      >
-                        Xem lại
-                      </Link>
+                      <div className="assessment-row-actions">
+                        <Link
+                          className="assessment-row-action"
+                          href={`/assessment/phq9?assessmentId=${encodeURIComponent(item.assessmentId)}`}
+                        >
+                          Xem lại
+                        </Link>
+                        <button
+                          type="button"
+                          className="assessment-row-action"
+                          aria-expanded={
+                            progressAssessmentId === item.assessmentId
+                          }
+                          aria-controls="assessment-progress-panel"
+                          onClick={(event) => {
+                            progressTriggerRef.current = event.currentTarget
+                            setProgressAssessmentId(item.assessmentId)
+                          }}
+                        >
+                          So sánh
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+        {progressAssessmentId && (
+          <AssessmentProgressPanel
+            key={progressAssessmentId}
+            assessmentId={progressAssessmentId}
+            onClose={() => {
+              progressTriggerRef.current?.focus()
+              setProgressAssessmentId(undefined)
+            }}
+          />
         )}
         {loading && (
           <p className="assessment-history-loading" aria-live="polite">

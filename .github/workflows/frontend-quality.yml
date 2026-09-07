@@ -30,6 +30,7 @@ jobs:
       IDENTITY_API_BASE_URL: http://127.0.0.1:9
       CONTENT_SERVICE_URL: http://127.0.0.1:3003
       PLAYWRIGHT_BROWSER_CHANNEL: chrome
+      CARE_E2E_MODE: fixture
 
     steps:
       - name: Check out repository

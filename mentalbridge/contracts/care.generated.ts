@@ -158,6 +158,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assessments/{assessmentId}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare one selected owned assessment with its preceding compatible result
+         * @description The selected assessment is the current result. Care selects the immediately
+         *     preceding non-voided result owned by the caller with the same instrument and
+         *     identical scoring version, ordered deterministically by submittedAt and
+         *     assessmentId. The response is descriptive only and makes no diagnosis,
+         *     treatment, causation, recovery, clinical change, or resolved-safety claim.
+         *     Anonymous sessions have no progress operation.
+         */
+        get: operations["getOwnAssessmentProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/anonymous-assessment-sessions": {
         parameters: {
             query?: never;
@@ -372,6 +397,46 @@ export interface components {
             nextCursor?: string | null;
             hasMore: boolean;
         };
+        /** @description Additive descriptive comparison; consumers ignore unknown fields and fail safely on unknown enum values */
+        AssessmentProgress: {
+            instrument: components["schemas"]["Instrument"];
+            scoringVersion: string;
+            previous: components["schemas"]["AssessmentProgressPoint"];
+            current: components["schemas"]["AssessmentProgressPoint"];
+            /** @description Current totalScore minus previous totalScore; no clinical interpretation is implied */
+            rawDelta: number;
+            scoreDirection: components["schemas"]["ScoreDirection"];
+            bandTransition: components["schemas"]["BandTransition"];
+            /**
+             * Format: duration
+             * @description Non-negative ISO 8601 duration from previous submittedAt to current submittedAt
+             */
+            elapsedDuration: string;
+        } & {
+            [key: string]: unknown;
+        };
+        AssessmentProgressPoint: {
+            /** Format: uuid */
+            assessmentId: string;
+            questionnaireVersion: string;
+            /** Format: date-time */
+            submittedAt: string;
+            totalScore: number;
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+        } & {
+            [key: string]: unknown;
+        };
+        BandTransition: {
+            previous: components["schemas"]["ScreeningLevel"];
+            current: components["schemas"]["ScreeningLevel"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * @description Descriptive arithmetic direction only; consumers must use an unavailable fallback for unknown values and must not infer clinical meaning
+         * @enum {string}
+         */
+        ScoreDirection: "INCREASED" | "DECREASED" | "UNCHANGED";
         AssessmentResult: {
             /** @description Server-computed sum of the validated answer values */
             totalScore: number;
@@ -512,6 +577,24 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The selected owned result has no immediately preceding valid result with the same instrument and scoring version */
+        InsufficientComparableDataProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "/problems/insufficient-comparable-data",
+                 *       "title": "Comparable assessment data is unavailable",
+                 *       "status": 409,
+                 *       "code": "INSUFFICIENT_COMPARABLE_DATA",
+                 *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
+                 *     }
+                 */
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
@@ -855,6 +938,35 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getOwnAssessmentProgress: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                assessmentId: components["parameters"]["AssessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Descriptive comparison returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentProgress"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["InsufficientComparableDataProblem"];
         };
     };
     createAnonymousAssessmentSession: {

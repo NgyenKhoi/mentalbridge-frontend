@@ -12,6 +12,7 @@ import type {
   CareProfile,
   CareProfileUpdate,
   AssessmentHistoryPage,
+  AssessmentProgress,
 } from './care-contract'
 
 export type AssessmentMode = 'anonymous' | 'authenticated'
@@ -70,6 +71,14 @@ export async function getAssessmentHistory(cursor?: string) {
       {
         params: { limit: 10, ...(cursor ? { cursor } : {}) },
       },
+    )
+  ).data
+}
+
+export async function getAssessmentProgress(assessmentId: string) {
+  return (
+    await browserApiClient.get<AssessmentProgress>(
+      `/care/assessments/by-id/${encodeURIComponent(assessmentId)}/progress`,
     )
   ).data
 }
