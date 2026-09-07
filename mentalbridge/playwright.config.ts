@@ -72,6 +72,7 @@ export default defineConfig({
             CARE_API_BASE_URL: careServiceURL,
             CARE_API_TIMEOUT_MS: '3000',
             CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
+            CONTENT_SERVICE_URL: identityFixtureURL,
           },
           reuseExistingServer: false,
           timeout: 120_000,

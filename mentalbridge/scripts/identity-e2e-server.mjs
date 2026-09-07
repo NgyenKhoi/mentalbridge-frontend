@@ -7,6 +7,41 @@ const timestamps = {
   createdAt: '2026-08-01T00:00:00Z',
   updatedAt: '2026-08-01T00:00:00Z',
 }
+const contentResources = [
+  {
+    id: '30000000-0000-4000-8000-000000000001',
+    category: 'ARTICLE',
+    locale: 'en-US',
+    title: 'Published Resource',
+    summary: 'Reviewed support content from the controlled provider fixture.',
+    externalUrl: 'https://example.com/reviewed-resource',
+    status: 'PUBLISHED',
+    reviewedAt: '2026-08-01T00:00:00Z',
+    ...timestamps,
+  },
+  {
+    id: '30000000-0000-4000-8000-000000000002',
+    category: 'ARTICLE',
+    locale: 'en-US',
+    title: 'Draft Resource',
+    summary: 'This resource must never reach the browser.',
+    externalUrl: null,
+    status: 'DRAFT',
+    reviewedAt: null,
+    ...timestamps,
+  },
+  {
+    id: '30000000-0000-4000-8000-000000000003',
+    category: 'ARTICLE',
+    locale: 'en-US',
+    title: 'Archived Resource',
+    summary: 'This resource must never reach the browser.',
+    externalUrl: null,
+    status: 'ARCHIVED',
+    reviewedAt: '2026-07-01T00:00:00Z',
+    ...timestamps,
+  },
+]
 
 const actors = new Map([
   [
@@ -41,6 +76,14 @@ const actors = new Map([
       initialAccessExpired: false,
     },
   ],
+  [
+    'resource-e2e@example.com',
+    {
+      accountId: '10000000-0000-4000-8000-000000000005',
+      roles: ['USER'],
+      initialAccessExpired: false,
+    },
+  ],
 ])
 
 const accessSessions = new Map()
@@ -54,10 +97,13 @@ const careAccessToken = 'synthetic-care-e2e-access'
 const otherCareAccessToken = 'synthetic-care-e2e-other-access'
 const careActor = actors.get('care-e2e@example.com')
 const otherCareActor = actors.get('user@example.com')
+const resourceAccessToken = 'synthetic-resource-e2e-access'
+const resourceActor = actors.get('resource-e2e@example.com')
 let careNow = new Date('2098-01-01T00:00:00Z')
 let progressFault = null
 accessSessions.set(careAccessToken, careActor)
 accessSessions.set(otherCareAccessToken, otherCareActor)
+accessSessions.set(resourceAccessToken, resourceActor)
 const state = {
   loginCount: 0,
   accountCount: 0,
@@ -79,6 +125,7 @@ function reset() {
   careConsents.clear()
   accessSessions.set(careAccessToken, careActor)
   accessSessions.set(otherCareAccessToken, otherCareActor)
+  accessSessions.set(resourceAccessToken, resourceActor)
   careNow = new Date('2098-01-01T00:00:00Z')
   progressFault = null
   careProfiles.set(careActor.accountId, {
@@ -248,6 +295,14 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/v1/resources') {
+      json(response, 200, {
+        data: contentResources,
+        count: contentResources.length,
+      })
+      return
+    }
+
     if (request.method === 'POST' && url.pathname === '/__test/reset') {
       reset()
       response.writeHead(204)
@@ -260,7 +315,9 @@ const server = createServer(async (request, response) => {
         ...state,
         activeAccessSessionCount: [...accessSessions.keys()].filter(
           (token) =>
-            token !== careAccessToken && token !== otherCareAccessToken,
+            token !== careAccessToken &&
+            token !== otherCareAccessToken &&
+            token !== resourceAccessToken,
         ).length,
         activeRefreshSessionCount: refreshSessions.size,
       })

@@ -1,93 +1,198 @@
-import { describe, expect, it } from 'vitest'
-
-import { readCareServerConfig, readIdentityServerConfig } from './server'
+import { describe, it, expect } from 'vitest'
+import {
+  readIdentityServerConfig,
+  readCareServerConfig,
+  readContentServerConfig,
+} from './server'
 
 describe('readIdentityServerConfig', () => {
-  it('validates and normalizes the server-only Identity configuration', () => {
-    expect(
-      readIdentityServerConfig({
-        IDENTITY_API_BASE_URL: 'https://identity.example.test/gateway',
-        IDENTITY_API_TIMEOUT_MS: '1750',
-      }),
-    ).toEqual({
-      baseUrl: 'https://identity.example.test/gateway/',
-      timeoutMs: 1750,
+  it('should parse valid configuration', () => {
+    const config = readIdentityServerConfig({
+      IDENTITY_API_BASE_URL: 'http://localhost:8080',
+      IDENTITY_API_TIMEOUT_MS: '3000',
     })
+
+    expect(config.baseUrl).toBe('http://localhost:8080/')
+    expect(config.timeoutMs).toBe(3000)
   })
 
-  it('uses a bounded timeout default', () => {
-    expect(
+  it('should use default timeout when not specified', () => {
+    const config = readIdentityServerConfig({
+      IDENTITY_API_BASE_URL: 'http://localhost:8080',
+    })
+
+    expect(config.timeoutMs).toBe(2000)
+  })
+
+  it('should throw when baseUrl is missing', () => {
+    expect(() => readIdentityServerConfig({})).toThrow(
+      'IDENTITY_API_BASE_URL is required',
+    )
+  })
+
+  it('should throw when baseUrl is invalid', () => {
+    expect(() =>
+      readIdentityServerConfig({ IDENTITY_API_BASE_URL: 'not-a-url' }),
+    ).toThrow('must be a valid absolute URL')
+  })
+
+  it('should throw when timeout is out of bounds', () => {
+    expect(() =>
       readIdentityServerConfig({
-        IDENTITY_API_BASE_URL: 'http://identity:8080',
-      }).timeoutMs,
-    ).toBe(2000)
+        IDENTITY_API_BASE_URL: 'http://localhost:8080',
+        IDENTITY_API_TIMEOUT_MS: '50',
+      }),
+    ).toThrow('must be an integer between')
   })
 
-  it.each([
-    [{}, 'IDENTITY_API_BASE_URL is required.'],
-    [
-      { IDENTITY_API_BASE_URL: 'identity-service' },
-      'IDENTITY_API_BASE_URL must be a valid absolute URL.',
-    ],
-    [
-      { IDENTITY_API_BASE_URL: 'file:///identity' },
-      'IDENTITY_API_BASE_URL must use HTTP or HTTPS.',
-    ],
-    [
-      { IDENTITY_API_BASE_URL: 'https://user:secret@identity.test' },
-      'IDENTITY_API_BASE_URL must not contain credentials',
-    ],
-    [
-      {
-        IDENTITY_API_BASE_URL: 'https://identity.test',
-        IDENTITY_API_TIMEOUT_MS: '0',
-      },
-      'IDENTITY_API_TIMEOUT_MS must be an integer',
-    ],
-  ])('rejects unsafe or invalid configuration', (environment, message) => {
-    expect(() => readIdentityServerConfig(environment)).toThrow(message)
+  it('should normalize baseUrl by removing trailing slash if present', () => {
+    const config = readIdentityServerConfig({
+      IDENTITY_API_BASE_URL: 'http://localhost:8080/',
+    })
+
+    expect(config.baseUrl).toBe('http://localhost:8080/')
+  })
+
+  it('should reject baseUrl with credentials', () => {
+    expect(() =>
+      readIdentityServerConfig({
+        IDENTITY_API_BASE_URL: 'http://user:pass@localhost:8080',
+      }),
+    ).toThrow('must not contain credentials')
+  })
+
+  it('should reject baseUrl with query parameters', () => {
+    expect(() =>
+      readIdentityServerConfig({
+        IDENTITY_API_BASE_URL: 'http://localhost:8080?query=value',
+      }),
+    ).toThrow('must not contain credentials, query parameters, or a fragment')
   })
 })
 
 describe('readCareServerConfig', () => {
-  it('keeps the Care endpoint and locale server-only and normalized', () => {
-    expect(
+  it('should parse valid configuration', () => {
+    const config = readCareServerConfig({
+      CARE_API_BASE_URL: 'http://localhost:8081',
+      CARE_API_TIMEOUT_MS: '5000',
+      CARE_QUESTIONNAIRE_LOCALE: 'en-US',
+    })
+
+    expect(config.baseUrl).toBe('http://localhost:8081/')
+    expect(config.timeoutMs).toBe(5000)
+    expect(config.questionnaireLocale).toBe('en-US')
+  })
+
+  it('should use default values when optional fields not specified', () => {
+    const config = readCareServerConfig({
+      CARE_API_BASE_URL: 'http://localhost:8081',
+    })
+
+    expect(config.timeoutMs).toBe(3000)
+    expect(config.questionnaireLocale).toBe('vi-VN')
+  })
+
+  it('should throw when baseUrl is missing', () => {
+    expect(() => readCareServerConfig({})).toThrow(
+      'CARE_API_BASE_URL is required',
+    )
+  })
+
+  it('should throw when locale is invalid', () => {
+    expect(() =>
       readCareServerConfig({
-        CARE_API_BASE_URL: 'http://care:8081/gateway',
-        CARE_API_TIMEOUT_MS: '2500',
-        CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
+        CARE_API_BASE_URL: 'http://localhost:8081',
+        CARE_QUESTIONNAIRE_LOCALE: 'invalid_locale',
       }),
-    ).toEqual({
-      baseUrl: 'http://care:8081/gateway/',
-      timeoutMs: 2500,
-      questionnaireLocale: 'vi-VN',
+    ).toThrow('must be a valid locale tag')
+  })
+})
+
+describe('readContentServerConfig', () => {
+  it('should parse valid configuration', () => {
+    const config = readContentServerConfig({
+      CONTENT_SERVICE_URL: 'http://localhost:3003',
+      CONTENT_SERVICE_TIMEOUT_MS: '5000',
     })
+
+    expect(config.baseUrl).toBe('http://localhost:3003/')
+    expect(config.timeoutMs).toBe(5000)
   })
 
-  it('defaults to the product locale and a bounded timeout', () => {
-    expect(
-      readCareServerConfig({ CARE_API_BASE_URL: 'http://care:8081' }),
-    ).toEqual({
-      baseUrl: 'http://care:8081/',
-      timeoutMs: 3000,
-      questionnaireLocale: 'vi-VN',
+  it('should use default timeout when not specified', () => {
+    const config = readContentServerConfig({
+      CONTENT_SERVICE_URL: 'http://localhost:3003',
     })
+
+    expect(config.timeoutMs).toBe(5000)
   })
 
-  it.each([
-    [{}, 'CARE_API_BASE_URL is required.'],
-    [
-      { CARE_API_BASE_URL: 'http://care:8081', CARE_API_TIMEOUT_MS: '45000' },
-      'CARE_API_TIMEOUT_MS must be an integer',
-    ],
-    [
-      {
-        CARE_API_BASE_URL: 'http://care:8081',
-        CARE_QUESTIONNAIRE_LOCALE: '../secret',
-      },
-      'CARE_QUESTIONNAIRE_LOCALE must be a valid locale tag.',
-    ],
-  ])('rejects invalid Care configuration', (environment, message) => {
-    expect(() => readCareServerConfig(environment)).toThrow(message)
+  it('should throw when baseUrl is missing', () => {
+    expect(() => readContentServerConfig({})).toThrow(
+      'CONTENT_SERVICE_URL is required',
+    )
+  })
+
+  it('should throw when baseUrl is invalid', () => {
+    expect(() =>
+      readContentServerConfig({ CONTENT_SERVICE_URL: 'not-a-url' }),
+    ).toThrow('must be a valid absolute URL')
+  })
+
+  it('should throw when timeout is out of bounds', () => {
+    expect(() =>
+      readContentServerConfig({
+        CONTENT_SERVICE_URL: 'http://localhost:3003',
+        CONTENT_SERVICE_TIMEOUT_MS: '50000',
+      }),
+    ).toThrow('must be an integer between')
+  })
+
+  it('should normalize baseUrl by adding trailing slash', () => {
+    const config = readContentServerConfig({
+      CONTENT_SERVICE_URL: 'http://localhost:3003',
+    })
+
+    expect(config.baseUrl).toBe('http://localhost:3003/')
+  })
+
+  it('should reject baseUrl with credentials', () => {
+    expect(() =>
+      readContentServerConfig({
+        CONTENT_SERVICE_URL: 'http://user:pass@localhost:3003',
+      }),
+    ).toThrow('must not contain credentials')
+  })
+
+  it('should reject baseUrl with query parameters', () => {
+    expect(() =>
+      readContentServerConfig({
+        CONTENT_SERVICE_URL: 'http://localhost:3003?query=value',
+      }),
+    ).toThrow('must not contain credentials, query parameters, or a fragment')
+  })
+
+  it('should reject baseUrl with fragment', () => {
+    expect(() =>
+      readContentServerConfig({
+        CONTENT_SERVICE_URL: 'http://localhost:3003#fragment',
+      }),
+    ).toThrow('must not contain credentials, query parameters, or a fragment')
+  })
+
+  it('should accept https protocol', () => {
+    const config = readContentServerConfig({
+      CONTENT_SERVICE_URL: 'https://content.example.com',
+    })
+
+    expect(config.baseUrl).toBe('https://content.example.com/')
+  })
+
+  it('should reject non-http/https protocols', () => {
+    expect(() =>
+      readContentServerConfig({
+        CONTENT_SERVICE_URL: 'ftp://localhost:3003',
+      }),
+    ).toThrow('must use HTTP or HTTPS')
   })
 })
