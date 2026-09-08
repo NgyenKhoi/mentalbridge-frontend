@@ -2,7 +2,7 @@ import 'server-only'
 
 const DEFAULT_IDENTITY_TIMEOUT_MS = 2_000
 const DEFAULT_CARE_TIMEOUT_MS = 3_000
-const DEFAULT_CONTENT_TIMEOUT_MS = 2_000
+const DEFAULT_CONTENT_TIMEOUT_MS = 5_000
 const MIN_IDENTITY_TIMEOUT_MS = 100
 const MAX_IDENTITY_TIMEOUT_MS = 30_000
 
@@ -114,12 +114,12 @@ export function readContentServerConfig(
 ): ContentServerConfig {
   return Object.freeze({
     baseUrl: parseBaseUrl(
-      'CONTENT_API_BASE_URL',
-      environment.CONTENT_API_BASE_URL,
+      'CONTENT_SERVICE_URL',
+      environment.CONTENT_SERVICE_URL,
     ),
     timeoutMs: parseTimeout(
-      'CONTENT_API_TIMEOUT_MS',
-      environment.CONTENT_API_TIMEOUT_MS,
+      'CONTENT_SERVICE_TIMEOUT_MS',
+      environment.CONTENT_SERVICE_TIMEOUT_MS,
       DEFAULT_CONTENT_TIMEOUT_MS,
     ),
   })

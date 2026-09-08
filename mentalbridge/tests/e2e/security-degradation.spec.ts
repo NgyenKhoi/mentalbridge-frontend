@@ -376,14 +376,14 @@ test.describe('AC2: Explicit degradation states', () => {
   test('Content outage renders an explicit resource fallback', async ({
     page,
   }) => {
-    await page.route('**/api/content/resources', (route) => {
+    await page.route('**/api/resources**', (route) => {
       void route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          data: [],
-          count: 0,
-          fallback: 'unavailable',
+          items: [],
+          hasMore: false,
+          unavailable: true,
           message:
             'Tài nguyên hỗ trợ tạm thời không khả dụng. Vui lòng thử lại sau.',
         }),
@@ -391,7 +391,9 @@ test.describe('AC2: Explicit degradation states', () => {
     })
     await page.goto('/resources')
     await expect(
-      page.getByRole('heading', { name: 'Tài nguyên hiện chưa khả dụng' }),
+      page.getByText(
+        'Tài nguyên hỗ trợ tạm thời không khả dụng. Vui lòng thử lại sau.',
+      ),
     ).toBeVisible()
     await expect(page.locator('.resource-card')).toHaveCount(0)
     await expect(page.getByText(/hotline/i)).toHaveCount(0)

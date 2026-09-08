@@ -1,4 +1,6 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test'
+import { expect, type BrowserContext, type Page } from '@playwright/test'
+
+import { test } from './test-fixtures'
 
 const identityFixtureUrl = 'http://127.0.0.1:3201'
 const sessionCookieNames = new Set([

@@ -1,4 +1,4 @@
-# MB-177/MB-178 Care-backed screening, profile, and history integration
+# MB-177/MB-178/MB-205 Care-backed screening, history, and progress integration
 
 ## Delivered flow
 
@@ -46,12 +46,11 @@ item-9 marker, archived source URI, and artifact checksum. A real local run now
 loads that definition through the default `vi-VN` request. Production
 language/domain approval remains a separately tracked deployment gate.
 
-Care returns score/band/safety provenance without owning the support-resource
-catalogue. The result links to the public `/resources` flow, whose bounded BFF
-loads only reviewed published entries from Content/Notification. Content or
-database failure produces a neutral unavailable response and never substitutes
-a hotline, inferred urgency, monitoring promise, third-party notification, or
-local mock catalogue.
+Care currently returns score/band/safety provenance but no approved support
+resource catalogue of its own. The result page retrieves only reviewed,
+published resources through the bounded Content BFF. Empty, unavailable,
+timeout, rejected, and malformed provider states remain explicit and do not
+invent urgency, monitoring, third-party notification, or emergency dispatch.
 
 ## MB-178 profile, consent, history, and reassessment
 
@@ -72,28 +71,77 @@ local mock catalogue.
 - Registered history is controlled-Capstone/test/demo behavior only; the UI
   makes no production retention or deletion-SLA claim.
 
+## MB-205 descriptive assessment progress
+
+- An authenticated USER selects one owned history result and requests progress
+  through the same-origin BFF. The browser never supplies an account ID or sees
+  the Identity access token.
+- Care chooses the immediately preceding non-voided result with the same
+  instrument and identical scoring version using deterministic submission-time
+  and assessment-ID ordering.
+- The response contains previous/current identifiers, questionnaire versions,
+  timestamps, scores and screening levels plus raw signed delta, arithmetic
+  direction, band transition and ISO 8601 elapsed duration.
+- The UI says only that the score increased, decreased or did not change. It
+  does not claim recovery, clinical improvement/worsening, treatment response,
+  causation, diagnosis or resolved safety risk.
+- Insufficient compatible evidence, unauthorized/missing ownership, malformed
+  requests, timeout, invalid upstream data and Care unavailability are distinct
+  accessible states. A progress failure does not hide or mutate an assessment
+  result and causes no AI, Kafka, notification, specialist, billing or follow-up
+  behavior.
+- Anonymous sessions have no progress BFF route or longitudinal UI.
+
 ## Verification
 
 - contract snapshot generation and drift check for Care and Identity;
 - runtime parsers reject malformed questionnaires/results;
 - BFF tests reject client-owned score/band fields and protect anonymous
   credentials;
-- component tests cover Care-owned results, profile/consent, history/reopen
-  links, and unavailable-content states;
+- component tests cover Care-owned results, profile/consent, history/reopen,
+  descriptive progress and every explicit progress failure state;
 - Playwright covers completion and result reopening for anonymous and
-  authenticated USER flows, reviewed-resource retrieval/fallback, and
-  cookie/client-storage checks. The managed suite uses deterministic synthetic
-  service fixtures; `PLAYWRIGHT_BASE_URL` targets only an explicitly approved
-  integrated environment.
+  authenticated USER flows, including reviewed-resource behavior,
+  authenticated progress, and cookie/client-storage checks.
 
-Run the managed journeys from `mentalbridge-frontend/mentalbridge` with:
+Every browser suite uses the shared failure fixture. A failed test attaches up
+to 20 bounded `X-Correlation-Id` values as `correlation-evidence.json`; cookies,
+bearer credentials, request bodies, response bodies, and personal or clinical
+data are not retained.
+
+### Managed local MB-205 journey
+
+Prerequisites are Java 21 or newer, Node/npm, Docker Desktop and the sibling
+checkout layout `mentalbridge-backend` plus `mentalbridge-frontend/mentalbridge`.
+No `.env`, webhook, cloud account, public tunnel, production credential or
+external API is required. From the frontend application directory run:
 
 ```powershell
-npm run test:e2e:install
-npm run test:e2e
+npm run contracts:sync
+npm run build
+npx playwright test tests/e2e/care-assessment.spec.ts --workers=1
 ```
 
-The fixture is reset between serial Care tests and contains no production
-personal or clinical data. Failed tests attach bounded correlation IDs from
-response headers as `correlation-evidence.json`; no cookies, bearer tokens,
-request bodies, or response content are retained.
+Playwright starts the deterministic Identity session fixture, Care's
+`TestCareServiceApplication`, a disposable PostgreSQL Testcontainer and the
+production Next server on loopback-only ports. The Care test application seeds
+only synthetic profiles and consent; the browser creates the assessments
+through the real published questionnaire/submission APIs. Test-only controls
+advance a mutable UTC clock and inject one-shot timeout, 503 and malformed
+progress responses. The same journey covers insufficient, incompatible,
+voided, forged/cross-owner and authoritative-result visibility behavior.
+
+The frontend quality workflow sets `CARE_E2E_MODE=fixture` and exercises the
+deterministic browser cases against the contract-shaped synthetic Care fixture
+already used by the repository's smoke suite. This keeps pull-request CI
+independent of credentials for the private backend repository. The synthetic
+fixture omits the socket-timing timeout injection to avoid open-handle behavior;
+the BFF/component tests and the managed real-Care journey cover that state. The
+managed local command above starts real Spring Care and PostgreSQL and produced
+the committed evidence screenshots.
+
+Successful comparison evidence is stored in
+[`evidence/mb-205-progress-desktop.png`](evidence/mb-205-progress-desktop.png)
+and [`evidence/mb-205-progress-mobile.png`](evidence/mb-205-progress-mobile.png).
+The screenshots contain synthetic score/version/timestamp facts only; bearer
+tokens and raw answer payloads are never rendered.

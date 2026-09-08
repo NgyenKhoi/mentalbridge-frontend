@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import ResourcesList from '@/components/ResourcesList'
 import type {
   AssessmentResult,
   PrivacyDisclosure,
@@ -129,6 +130,8 @@ function ResultPanel({
           </Link>
         </aside>
       )}
+
+      <ResourcesList limit={6} className="care-result-resources" />
 
       <div className="care-result-actions">
         <button className="btn btn-primary" type="button" onClick={onRestart}>

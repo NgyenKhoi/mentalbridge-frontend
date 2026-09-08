@@ -78,6 +78,7 @@ async function checkGeneratedContract(expected) {
       readFile(sourcePath),
       readFile(snapshotPath),
     ])
+
     if (!source.equals(snapshot)) {
       throw new Error(
         'The committed Content OpenAPI snapshot differs from ' +
@@ -90,9 +91,11 @@ async function checkGeneratedContract(expected) {
 }
 
 const argumentsSet = new Set(process.argv.slice(2))
+
 if (argumentsSet.has('--sync')) await syncSnapshot()
 
 const generatedContract = await generate()
+
 if (argumentsSet.has('--check')) {
   await checkGeneratedContract(generatedContract)
 } else {

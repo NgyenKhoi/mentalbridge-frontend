@@ -14,10 +14,13 @@ import type {
   ConsentDecisionRequest,
   PrivacyDisclosure,
   AssessmentHistoryPage,
+  AssessmentProgress,
+  AssessmentProgressPoint,
+  ScoreDirection,
 } from '@/features/assessment/api/care-contract'
 
 const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const SCREENING_LEVELS = new Set<ScreeningLevel>([
   'MINIMAL',
   'MILD',
@@ -29,6 +32,31 @@ const SAFETY_STATUSES = new Set<SafetyStatus>([
   'NEGATIVE_SAFETY_SCREEN',
   'POSITIVE_SAFETY_SCREEN',
 ])
+const SCORE_DIRECTIONS = new Set<ScoreDirection>([
+  'INCREASED',
+  'DECREASED',
+  'UNCHANGED',
+])
+
+const FORBIDDEN_PROGRESS_FIELDS = new Set([
+  'answers',
+  'rawAnswers',
+  'safetyItemPositive',
+  'safetyStatus',
+  'safetyPolicyVersion',
+  'consent',
+  'profile',
+])
+const DURATION_PATTERN =
+  /^PT(?=\d)(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d{1,9})?)S)?$/
+const RFC3339_DATE_TIME_PATTERN =
+  /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])[Tt]([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(?:\.(\d{1,9}))?([Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
+const NANOSECONDS_PER_MILLISECOND = 1_000_000
+
+type PreciseMilliseconds = Readonly<{
+  milliseconds: number
+  subMillisecondNanoseconds: number
+}>
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -38,8 +66,71 @@ export function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value)
 }
 
+function parseRfc3339Instant(value: unknown): PreciseMilliseconds | null {
+  if (typeof value !== 'string') return null
+  const match = RFC3339_DATE_TIME_PATTERN.exec(value)
+  if (!match) return null
+
+  const [, year, month, day, hour, minute, second, fraction = '', zone] = match
+  const local = new Date(0)
+  local.setUTCFullYear(Number(year), Number(month) - 1, Number(day))
+  local.setUTCHours(Number(hour), Number(minute), Number(second), 0)
+  if (
+    local.getUTCFullYear() !== Number(year) ||
+    local.getUTCMonth() !== Number(month) - 1 ||
+    local.getUTCDate() !== Number(day) ||
+    local.getUTCHours() !== Number(hour) ||
+    local.getUTCMinutes() !== Number(minute) ||
+    local.getUTCSeconds() !== Number(second)
+  ) {
+    return null
+  }
+
+  let offsetMinutes = 0
+  if (zone.toUpperCase() !== 'Z') {
+    const sign = zone.startsWith('+') ? 1 : -1
+    offsetMinutes =
+      sign * (Number(zone.slice(1, 3)) * 60 + Number(zone.slice(4, 6)))
+  }
+  const epochMilliseconds = local.getTime() - offsetMinutes * 60_000
+  if (!Number.isSafeInteger(epochMilliseconds)) return null
+
+  const fractionNanoseconds = Number(fraction.padEnd(9, '0'))
+  return {
+    milliseconds:
+      epochMilliseconds +
+      Math.floor(fractionNanoseconds / NANOSECONDS_PER_MILLISECOND),
+    subMillisecondNanoseconds:
+      fractionNanoseconds % NANOSECONDS_PER_MILLISECOND,
+  }
+}
+
 function isDateTime(value: unknown): value is string {
-  return typeof value === 'string' && Number.isFinite(Date.parse(value))
+  return parseRfc3339Instant(value) !== null
+}
+
+function parseDuration(value: unknown): PreciseMilliseconds | null {
+  if (typeof value !== 'string') return null
+  const match = DURATION_PATTERN.exec(value)
+  if (!match) return null
+
+  const [, hours = '0', minutes = '0', secondsWithFraction = '0'] = match
+  const [seconds, fraction = ''] = secondsWithFraction.split('.')
+  const wholeMilliseconds =
+    Number(hours) * 3_600_000 +
+    Number(minutes) * 60_000 +
+    Number(seconds) * 1_000
+  const fractionNanoseconds = Number(fraction.padEnd(9, '0'))
+  const milliseconds =
+    wholeMilliseconds +
+    Math.floor(fractionNanoseconds / NANOSECONDS_PER_MILLISECOND)
+  if (!Number.isSafeInteger(milliseconds)) return null
+
+  return {
+    milliseconds,
+    subMillisecondNanoseconds:
+      fractionNanoseconds % NANOSECONDS_PER_MILLISECOND,
+  }
 }
 
 function isOptionalString(value: unknown): value is string | null | undefined {
@@ -397,6 +488,116 @@ export function parseAssessmentHistory(
     items: items as AssessmentHistoryPage['items'],
     nextCursor: value.nextCursor as string | null | undefined,
     hasMore: value.hasMore,
+  }
+}
+
+function parseProgressPoint(value: unknown): AssessmentProgressPoint | null {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some((key) => FORBIDDEN_PROGRESS_FIELDS.has(key)) ||
+    !isUuid(value.assessmentId) ||
+    typeof value.questionnaireVersion !== 'string' ||
+    value.questionnaireVersion.length < 1 ||
+    value.questionnaireVersion.length > 32 ||
+    !isDateTime(value.submittedAt) ||
+    !Number.isInteger(value.totalScore) ||
+    Number(value.totalScore) < 0 ||
+    Number(value.totalScore) > 27 ||
+    !SCREENING_LEVELS.has(value.screeningLevel as ScreeningLevel)
+  )
+    return null
+  return {
+    assessmentId: value.assessmentId,
+    questionnaireVersion: value.questionnaireVersion,
+    submittedAt: value.submittedAt,
+    totalScore: Number(value.totalScore),
+    screeningLevel: value.screeningLevel as ScreeningLevel,
+  }
+}
+
+export function parseAssessmentProgress(
+  value: unknown,
+  expectedAssessmentId: string,
+): AssessmentProgress | null {
+  if (
+    !isRecord(value) ||
+    !isUuid(expectedAssessmentId) ||
+    Object.keys(value).some((key) => FORBIDDEN_PROGRESS_FIELDS.has(key))
+  )
+    return null
+
+  const previous = parseProgressPoint(value.previous)
+  const current = parseProgressPoint(value.current)
+  if (
+    !isInstrument(value.instrument) ||
+    typeof value.scoringVersion !== 'string' ||
+    value.scoringVersion.length < 1 ||
+    value.scoringVersion.length > 32 ||
+    !previous ||
+    !current ||
+    previous.assessmentId.toLowerCase() ===
+      current.assessmentId.toLowerCase() ||
+    current.assessmentId.toLowerCase() !== expectedAssessmentId.toLowerCase() ||
+    !Number.isInteger(value.rawDelta) ||
+    Number(value.rawDelta) < -27 ||
+    Number(value.rawDelta) > 27 ||
+    !SCORE_DIRECTIONS.has(value.scoreDirection as ScoreDirection) ||
+    !isRecord(value.bandTransition) ||
+    Object.keys(value.bandTransition).some((key) =>
+      FORBIDDEN_PROGRESS_FIELDS.has(key),
+    ) ||
+    !SCREENING_LEVELS.has(value.bandTransition.previous as ScreeningLevel) ||
+    !SCREENING_LEVELS.has(value.bandTransition.current as ScreeningLevel) ||
+    typeof value.elapsedDuration !== 'string'
+  )
+    return null
+
+  const rawDelta = current.totalScore - previous.totalScore
+  const direction: ScoreDirection =
+    rawDelta > 0 ? 'INCREASED' : rawDelta < 0 ? 'DECREASED' : 'UNCHANGED'
+  const previousSubmittedAt = parseRfc3339Instant(previous.submittedAt)
+  const currentSubmittedAt = parseRfc3339Instant(current.submittedAt)
+  const elapsedDuration = parseDuration(value.elapsedDuration)
+  if (
+    previousSubmittedAt === null ||
+    currentSubmittedAt === null ||
+    elapsedDuration === null
+  )
+    return null
+
+  let calculatedMilliseconds =
+    currentSubmittedAt.milliseconds - previousSubmittedAt.milliseconds
+  let calculatedSubMillisecondNanoseconds =
+    currentSubmittedAt.subMillisecondNanoseconds -
+    previousSubmittedAt.subMillisecondNanoseconds
+  if (calculatedSubMillisecondNanoseconds < 0) {
+    calculatedMilliseconds -= 1
+    calculatedSubMillisecondNanoseconds += NANOSECONDS_PER_MILLISECOND
+  }
+  if (
+    value.rawDelta !== rawDelta ||
+    value.scoreDirection !== direction ||
+    value.bandTransition.previous !== previous.screeningLevel ||
+    value.bandTransition.current !== current.screeningLevel ||
+    calculatedMilliseconds < 0 ||
+    elapsedDuration.milliseconds !== calculatedMilliseconds ||
+    elapsedDuration.subMillisecondNanoseconds !==
+      calculatedSubMillisecondNanoseconds
+  )
+    return null
+
+  return {
+    instrument: value.instrument,
+    scoringVersion: value.scoringVersion,
+    previous,
+    current,
+    rawDelta,
+    scoreDirection: direction,
+    bandTransition: {
+      previous: previous.screeningLevel,
+      current: current.screeningLevel,
+    },
+    elapsedDuration: value.elapsedDuration,
   }
 }
 

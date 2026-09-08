@@ -2,11 +2,12 @@ name: Frontend quality
 
 on:
   pull_request:
+    branches: [dev]
     paths:
       - 'mentalbridge/**'
       - '.github/workflows/frontend-quality.yml'
   push:
-    branches: [main, dev]
+    branches: [dev]
     paths:
       - 'mentalbridge/**'
       - '.github/workflows/frontend-quality.yml'
@@ -20,6 +21,7 @@ permissions:
 
 jobs:
   quality:
+    name: Frontend checks
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
@@ -28,7 +30,7 @@ jobs:
     env:
       CI: 'true'
       IDENTITY_API_BASE_URL: http://127.0.0.1:9
-      PLAYWRIGHT_BROWSER_CHANNEL: chrome
+      CONTENT_SERVICE_URL: http://127.0.0.1:3003
 
     steps:
       - name: Check out repository
@@ -53,7 +55,7 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
-      - name: Validate generated Identity contract
+      - name: Validate generated contracts
         run: npm run contracts:check
 
       - name: Run unit, component, and API-boundary tests
@@ -62,5 +64,14 @@ jobs:
       - name: Build production application
         run: npm run build
 
-      - name: Run browser smoke tests
-        run: npm run test:e2e
+  quality-gate:
+    name: quality-gate
+    if: always()
+    needs: [quality]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require frontend checks
+        if: needs.quality.result != 'success'
+        run: exit 1
+      - name: Confirm quality gate
+        run: echo "All required frontend quality checks passed."

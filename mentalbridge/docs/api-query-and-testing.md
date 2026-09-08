@@ -38,25 +38,26 @@ Feature-specific query keys, options, invalidation, and hooks belong in
 Server Components call server-only data access directly and do not fetch this
 application's own `/api` routes.
 
-## Identity contract workflow
+## Backend contract workflow
 
-The committed backend OpenAPI snapshot lives at
-`contracts/openapi/identity-service-v1.yaml`. `openapi-typescript` generates
-`contracts/identity.generated.ts`; application aliases live in
-`features/auth/api/identity-contract.ts`. Do not copy backend DTOs into pages.
+The committed backend OpenAPI snapshots live under `contracts/openapi`.
+`openapi-typescript` generates the Identity, Care, and Content contract types;
+application aliases live with their owning features. Do not copy backend DTOs
+into pages or components.
 
 Commands:
 
 ```powershell
-npm run contracts:sync      # copy sibling backend source and regenerate
-npm run contracts:generate  # regenerate from the committed snapshot
-npm run contracts:check     # validate snapshot and fail on stale generated types
+npm run contracts:sync      # copy sibling backend sources and regenerate
+npm run contracts:generate  # regenerate from the committed snapshots
+npm run contracts:check     # validate all snapshots and generated types
 ```
 
-Set `IDENTITY_OPENAPI_SOURCE` when the backend checkout is not in the documented
-sibling location. CI always validates the committed snapshot and generated
-types. When that variable is provided, the check additionally verifies that the
-backend source and snapshot are byte-for-byte equal.
+Set `IDENTITY_OPENAPI_SOURCE`, `CARE_OPENAPI_SOURCE`, or
+`CONTENT_OPENAPI_SOURCE` when a backend checkout is not in the documented
+sibling location. CI always validates the committed snapshots and generated
+types. When a source variable is provided, the check additionally verifies that
+the backend source and snapshot are byte-for-byte equal.
 
 ## Test layers
 

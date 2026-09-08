@@ -15,6 +15,7 @@ import type {
   ConsentDecisionRequest,
   PrivacyDisclosure,
   AssessmentHistoryPage,
+  AssessmentProgress,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
 
@@ -27,6 +28,7 @@ import {
   parsePrivacyDisclosure,
   parseConsentCollection,
   parseAssessmentHistory,
+  parseAssessmentProgress,
 } from './care-validation'
 
 type RequestOptions<T> = Readonly<{
@@ -323,6 +325,20 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parseAssessment,
+    })
+  },
+
+  progress(
+    accessToken: string,
+    assessmentId: string,
+    correlationId: string,
+  ): Promise<AssessmentProgress> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/assessments/${assessmentId}/progress`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: (value) => parseAssessmentProgress(value, assessmentId),
     })
   },
 }

@@ -3,6 +3,8 @@ import { defineConfig, devices } from '@playwright/test'
 const port = 3100
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`
 const identityFixtureURL = 'http://127.0.0.1:3201'
+const useCareFixture = process.env.CARE_E2E_MODE === 'fixture'
+const careServiceURL = 'http://127.0.0.1:3202'
 const browserChannel =
   process.env.PLAYWRIGHT_BROWSER_CHANNEL === 'chrome' ? 'chrome' : undefined
 const inheritedEnvironment = Object.entries(process.env).reduce<
@@ -41,6 +43,25 @@ export default defineConfig({
           reuseExistingServer: false,
           timeout: 30_000,
         },
+        useCareFixture
+          ? {
+              name: 'care-fixture',
+              command: 'node scripts/identity-e2e-server.mjs',
+              url: `${careServiceURL}/health`,
+              env: {
+                ...inheritedEnvironment,
+                IDENTITY_E2E_PORT: '3202',
+              },
+              reuseExistingServer: false,
+              timeout: 30_000,
+            }
+          : {
+              name: 'care-service',
+              command: 'node scripts/care-e2e-server.mjs',
+              url: `${careServiceURL}/actuator/health`,
+              reuseExistingServer: false,
+              timeout: 180_000,
+            },
         {
           name: 'mentalbridge-frontend',
           command: `node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port ${port}`,
@@ -48,9 +69,10 @@ export default defineConfig({
           env: {
             ...inheritedEnvironment,
             IDENTITY_API_BASE_URL: identityFixtureURL,
-            CARE_API_BASE_URL: identityFixtureURL,
-            CONTENT_API_BASE_URL: identityFixtureURL,
+            CARE_API_BASE_URL: careServiceURL,
+            CARE_API_TIMEOUT_MS: '3000',
             CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
+            CONTENT_SERVICE_URL: identityFixtureURL,
           },
           reuseExistingServer: false,
           timeout: 120_000,
