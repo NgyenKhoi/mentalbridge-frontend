@@ -61,7 +61,7 @@ export function identityErrorResponse(error: unknown, correlationId: string) {
         ? error.correlationId
         : correlationId
 
-    return problemResponse({
+    const response = problemResponse({
       type: `/problems/${code.toLowerCase().replaceAll('_', '-')}`,
       title: safeTitle(code, status),
       status,
@@ -69,6 +69,10 @@ export function identityErrorResponse(error: unknown, correlationId: string) {
       correlationId: responseCorrelationId,
       ...(violations === undefined ? {} : { violations }),
     })
+    if (error.retryAfterSeconds !== undefined) {
+      response.headers.set('Retry-After', error.retryAfterSeconds.toString())
+    }
+    return response
   }
 
   return localProblem(
@@ -126,6 +130,13 @@ export function successResponse<T>(
 
 export function noContentResponse(correlationId: string) {
   const response = new NextResponse(null, { status: 204 })
+  response.headers.set(CORRELATION_HEADER, correlationId)
+  response.headers.set('Cache-Control', 'no-store')
+  return response
+}
+
+export function acceptedResponse(correlationId: string) {
+  const response = new NextResponse(null, { status: 202 })
   response.headers.set(CORRELATION_HEADER, correlationId)
   response.headers.set('Cache-Control', 'no-store')
   return response

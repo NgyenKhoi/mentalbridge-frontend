@@ -4,6 +4,10 @@ import { NextRequest } from 'next/server'
 import { POST as login } from './login/route'
 import { POST as register } from './register/route'
 import { POST as verifyEmail } from './email-verification/route'
+import { POST as requestEmailVerification } from './email-verification-request/route'
+import { POST as requestPasswordRecovery } from './password-recovery/route'
+import { POST as resetPassword } from './password-reset/route'
+import { PUT as changePassword } from './password/route'
 import { POST as logoutAll } from './logout-all/route'
 import { POST as logout } from './logout/route'
 import { POST as refresh } from './refresh/route'
@@ -76,7 +80,10 @@ function request(
     headers?: Record<string, string>
   }> = {},
 ) {
-  const headers = new Headers({ 'X-Correlation-Id': correlationId })
+  const headers = new Headers({
+    Host: 'localhost',
+    'X-Correlation-Id': correlationId,
+  })
 
   if (options.body !== undefined) {
     headers.set('Content-Type', 'application/json')
@@ -282,6 +289,174 @@ describe('Identity BFF route handlers', () => {
     expect(response.status).toBe(400)
     expect(text).toContain('INVALID_CHALLENGE')
     expect(text).not.toContain(challenge)
+  })
+
+  it.each([
+    {
+      name: 'email verification',
+      handler: requestEmailVerification,
+      path: '/api/identity/email-verification-request',
+      upstreamPath: '/api/v1/auth/email-verification-requests',
+    },
+    {
+      name: 'password recovery',
+      handler: requestPasswordRecovery,
+      path: '/api/identity/password-recovery',
+      upstreamPath: '/api/v1/auth/password-recovery-requests',
+    },
+  ])(
+    'returns the same empty accepted response for an eligible or unknown $name request',
+    async ({ handler, path, upstreamPath }) => {
+      const upstream = vi
+        .fn()
+        .mockResolvedValue(new Response(null, { status: 202 }))
+      vi.stubGlobal('fetch', upstream)
+
+      const response = await handler(
+        request(path, {
+          method: 'POST',
+          body: { email: 'member@example.com' },
+        }),
+      )
+
+      expect(response.status).toBe(202)
+      expect(await response.text()).toBe('')
+      expect(String(upstream.mock.calls[0]?.[0])).toBe(
+        `http://identity.test${upstreamPath}`,
+      )
+      expect(upstream.mock.calls[0]?.[1]?.body).toBe(
+        JSON.stringify({ email: 'member@example.com' }),
+      )
+    },
+  )
+
+  it('preserves a bounded Retry-After signal without leaking an upstream rate-limit detail', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            type: '/problems/rate-limited?email=member@example.com',
+            title: 'member@example.com requested too often',
+            status: 429,
+            code: 'RATE_LIMITED',
+            correlationId,
+          }),
+          {
+            status: 429,
+            headers: {
+              'Content-Type': 'application/problem+json',
+              'Retry-After': '47',
+            },
+          },
+        ),
+      ),
+    )
+
+    const response = await requestPasswordRecovery(
+      request('/api/identity/password-recovery', {
+        method: 'POST',
+        body: { email: 'member@example.com' },
+      }),
+    )
+    const text = await response.text()
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get('Retry-After')).toBe('47')
+    expect(text).toContain('RATE_LIMITED')
+    expect(text).not.toContain('member@example.com')
+  })
+
+  it('fails closed when a credential request returns an undocumented success status', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ accepted: true }, 200)),
+    )
+
+    const response = await requestPasswordRecovery(
+      request('/api/identity/password-recovery', {
+        method: 'POST',
+        body: { email: 'member@example.com' },
+      }),
+    )
+
+    expect(response.status).toBe(502)
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'IDENTITY_MALFORMED_RESPONSE',
+    })
+  })
+
+  it('resets a password without returning the challenge and clears any local session', async () => {
+    const challenge = 'r'.repeat(32)
+    const upstream = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', upstream)
+
+    const response = await resetPassword(
+      request('/api/identity/password-reset', {
+        method: 'POST',
+        cookies: {
+          [ACCESS_COOKIE_NAME]: 'stale-access',
+          [REFRESH_COOKIE_NAME]: 's'.repeat(43),
+        },
+        body: {
+          challenge,
+          newPassword: 'a sufficiently long password',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(204)
+    expect(await response.text()).toBe('')
+    expect(setCookieHeader(response).match(/Max-Age=0/g)).toHaveLength(2)
+    expect(String(upstream.mock.calls[0]?.[0])).toBe(
+      'http://identity.test/api/v1/auth/password-resets',
+    )
+  })
+
+  it('changes the authenticated account password with same-origin protection and clears the session', async () => {
+    const upstream = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', upstream)
+
+    const response = await changePassword(
+      request('/api/identity/password', {
+        method: 'PUT',
+        headers: { Origin: 'http://localhost' },
+        cookies: { [ACCESS_COOKIE_NAME]: 'access-secret' },
+        body: {
+          currentPassword: 'old password',
+          newPassword: 'a sufficiently long password',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(204)
+    expect(setCookieHeader(response).match(/Max-Age=0/g)).toHaveLength(2)
+    const upstreamHeaders = new Headers(upstream.mock.calls[0]?.[1]?.headers)
+    expect(upstreamHeaders.get('Authorization')).toBe('Bearer access-secret')
+  })
+
+  it('rejects cross-origin password changes before reading credentials or calling Identity', async () => {
+    const upstream = vi.fn()
+    vi.stubGlobal('fetch', upstream)
+
+    const response = await changePassword(
+      request('/api/identity/password', {
+        method: 'PUT',
+        headers: { Origin: 'https://attacker.example' },
+        cookies: { [ACCESS_COOKIE_NAME]: 'access-secret' },
+        body: {
+          currentPassword: 'old password',
+          newPassword: 'a sufficiently long password',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    expect(upstream).not.toHaveBeenCalled()
   })
 
   it('logs in without returning credentials to browser JavaScript', async () => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useRef, useState } from 'react'
 
 import {
@@ -8,7 +9,7 @@ import {
   loginErrorMessage,
 } from '../api/browser-auth'
 
-export default function LoginForm() {
+export default function LoginForm({ notice }: Readonly<{ notice?: string }>) {
   const router = useRouter()
   const submitting = useRef(false)
   const [email, setEmail] = useState('')
@@ -38,6 +39,11 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="auth-form">
+      {notice ? (
+        <div className="auth-success" role="status">
+          {notice}
+        </div>
+      ) : null}
       <div className="form-group">
         <label htmlFor="email" className="form-label">
           Email
@@ -71,6 +77,10 @@ export default function LoginForm() {
           required
         />
       </div>
+
+      <Link href="/reset-password" className="forgot-link">
+        Quên mật khẩu?
+      </Link>
 
       {error ? (
         <div className="auth-error" role="alert">

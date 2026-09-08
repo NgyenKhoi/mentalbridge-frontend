@@ -86,6 +86,10 @@ test('registration follows the public contract and reaches a verification-pendin
   await page.getByRole('button', { name: 'Tạo tài khoản' }).click()
 
   await expect(page.getByText(/kiểm tra email của bạn/i)).toBeVisible()
+  await page.getByRole('button', { name: /gửi lại email xác minh/i }).click()
+  await expect(
+    page.getByText(/nếu tài khoản đang chờ xác minh và đủ điều kiện/i),
+  ).toBeVisible()
   expect(requestBody).toEqual({
     email: 'specialist@example.com',
     password: 'correct horse battery staple',
@@ -98,34 +102,50 @@ test('email verification consumes and removes the challenge from browser history
   page,
 }) => {
   const challenge = 'v'.repeat(32)
-  let requestBody: unknown
-  await page.route('**/api/identity/email-verification', async (route) => {
-    requestBody = route.request().postDataJSON()
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ verified: true }),
-    })
-  })
-
   await page.goto(`/verify-email?challenge=${challenge}`)
 
   await expect(page.getByText(/xác minh thành công/i)).toBeVisible()
   await expect(page).toHaveURL(/\/verify-email$/)
-  expect(requestBody).toEqual({ challenge })
   await expect(page.getByRole('link', { name: 'Đăng nhập' })).toBeVisible()
 })
 
-test('password recovery is explicitly unavailable instead of simulated', async ({
+test('password recovery keeps account eligibility private', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/reset-password')
 
-  await expect(
-    page.getByRole('heading', { name: /khôi phục mật khẩu chưa khả dụng/i }),
-  ).toBeVisible()
-  await expect(page.locator('form')).toHaveCount(0)
-  await expect(
-    page.getByRole('link', { name: /về trang đăng nhập/i }),
-  ).toBeVisible()
+  await page.getByLabel('Email').fill('unknown@example.com')
+  await page.getByRole('button', { name: /gửi liên kết khôi phục/i }).click()
+
+  await expect(page.getByRole('status')).toContainText(
+    'Nếu tài khoản đủ điều kiện',
+  )
+  await page.screenshot({
+    path: 'docs/evidence/mb-902-password-recovery-mobile.png',
+    fullPage: true,
+  })
+})
+
+test('password reset removes its challenge and returns to a fresh login', async ({
+  page,
+}) => {
+  const challenge = 'r'.repeat(32)
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto(`/reset-password?challenge=${challenge}`)
+
+  await expect(page).toHaveURL(/\/reset-password$/)
+  await page
+    .getByLabel('Mật khẩu mới', { exact: true })
+    .fill('a sufficiently long password')
+  await page
+    .getByLabel('Xác nhận mật khẩu mới')
+    .fill('a sufficiently long password')
+  await page.screenshot({
+    path: 'docs/evidence/mb-902-password-reset-desktop.png',
+    fullPage: true,
+  })
+  await page.getByRole('button', { name: /đặt lại mật khẩu/i }).click()
+
+  await expect(page).toHaveURL(/\/login\?credential=reset$/)
 })

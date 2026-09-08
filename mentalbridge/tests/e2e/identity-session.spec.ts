@@ -12,6 +12,7 @@ type FixtureState = Readonly<{
   refreshCount: number
   logoutCount: number
   logoutAllCount: number
+  passwordChangeCount: number
   activeAccessSessionCount: number
   activeRefreshSessionCount: number
 }>
@@ -153,6 +154,45 @@ test.describe('Identity session delivery', () => {
     expect(state.loginCount).toBe(1)
     expect(state.logoutCount).toBe(0)
     expect(state.logoutAllCount).toBe(1)
+    expect(state.activeAccessSessionCount).toBe(0)
+    expect(state.activeRefreshSessionCount).toBe(0)
+  })
+
+  test('changes the current password and clears every local session credential', async ({
+    context,
+    page,
+    request,
+  }) => {
+    await login(page, 'user@example.com', /\/dashboard$/)
+    await page.goto('/profile')
+
+    await page.getByLabel('Mật khẩu hiện tại').fill('synthetic-e2e-password')
+    await page
+      .getByLabel('Mật khẩu mới', { exact: true })
+      .fill('a sufficiently long password')
+    await page
+      .getByLabel('Xác nhận mật khẩu mới')
+      .fill('a sufficiently long password')
+    const passwordResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/identity/password') &&
+        response.request().method() === 'PUT',
+    )
+    await page
+      .getByRole('button', { name: /đổi mật khẩu và đăng xuất/i })
+      .click()
+
+    const passwordResponse = await passwordResponsePromise
+    expect(passwordResponse.status(), await passwordResponse.text()).toBe(204)
+
+    await expect(page).toHaveURL(/\/login\?credential=changed$/)
+    await expect(page.getByRole('status')).toContainText(
+      'Mật khẩu đã được thay đổi',
+    )
+    await expectSessionCleared(context)
+
+    const state = await fixtureState(request)
+    expect(state.passwordChangeCount).toBe(1)
     expect(state.activeAccessSessionCount).toBe(0)
     expect(state.activeRefreshSessionCount).toBe(0)
   })

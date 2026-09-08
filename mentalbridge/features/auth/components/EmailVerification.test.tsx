@@ -20,10 +20,12 @@ describe('EmailVerification', () => {
     window.history.replaceState({}, '', '/')
   })
 
-  it('does not call the BFF when the challenge is absent', () => {
-    render(<EmailVerification challenge={null} />)
+  it('does not call the BFF when the challenge is absent', async () => {
+    window.history.replaceState({}, '', '/verify-email')
 
-    expect(screen.getByText(/liên kết không còn hợp lệ/i)).toBeVisible()
+    render(<EmailVerification />)
+
+    expect(await screen.findByText(/liên kết không còn hợp lệ/i)).toBeVisible()
     expect(mocks.verify).not.toHaveBeenCalled()
   })
 
@@ -31,7 +33,7 @@ describe('EmailVerification', () => {
     const challenge = 'v'.repeat(32)
     window.history.replaceState({}, '', `/verify-email?challenge=${challenge}`)
 
-    render(<EmailVerification challenge={challenge} />)
+    render(<EmailVerification />)
 
     expect(mocks.verify).toHaveBeenCalledWith(challenge)
     expect(window.location.pathname).toBe('/verify-email')
@@ -45,8 +47,13 @@ describe('EmailVerification', () => {
 
   it('groups invalid, expired, and ineligible challenges into a safe state', async () => {
     mocks.verify.mockRejectedValue(new Error('private challenge detail'))
+    window.history.replaceState(
+      {},
+      '',
+      `/verify-email?challenge=${'x'.repeat(32)}`,
+    )
 
-    render(<EmailVerification challenge={'x'.repeat(32)} />)
+    render(<EmailVerification />)
 
     await waitFor(() => {
       expect(screen.getByText(/liên kết không còn hợp lệ/i)).toBeVisible()
@@ -55,7 +62,7 @@ describe('EmailVerification', () => {
       screen.queryByText(/private challenge detail/i),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: /gửi lại/i }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: /gửi lại email xác minh/i }),
+    ).toBeVisible()
   })
 })

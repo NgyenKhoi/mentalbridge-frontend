@@ -4,12 +4,7 @@ import EmailVerification from '@/features/auth/components/EmailVerification'
 
 import '../login/auth.css'
 
-export default async function VerifyEmailPage(
-  props: PageProps<'/verify-email'>,
-) {
-  const { challenge } = await props.searchParams
-  const verificationChallenge = typeof challenge === 'string' ? challenge : null
-
+export default function VerifyEmailPage() {
   return (
     <div className="auth-layout">
       <div className="auth-container">
@@ -35,7 +30,7 @@ export default async function VerifyEmailPage(
               <span>MentalBridge</span>
             </Link>
 
-            <EmailVerification challenge={verificationChallenge} />
+            <EmailVerification />
           </div>
         </div>
 

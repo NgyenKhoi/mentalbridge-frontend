@@ -94,6 +94,67 @@ export async function verifyEmailChallenge(challenge: string) {
   await browserApiClient.post('/identity/email-verification', { challenge })
 }
 
+export async function requestEmailVerification(email: string) {
+  await browserApiClient.post('/identity/email-verification-request', { email })
+}
+
+export async function requestPasswordRecovery(email: string) {
+  await browserApiClient.post('/identity/password-recovery', { email })
+}
+
+export async function resetPassword(challenge: string, newPassword: string) {
+  await browserApiClient.post('/identity/password-reset', {
+    challenge,
+    newPassword,
+  })
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+) {
+  await browserApiClient.put('/identity/password', {
+    currentPassword,
+    newPassword,
+  })
+}
+
+export function credentialRequestErrorMessage(error: unknown) {
+  if (error instanceof ApiError && error.status === 429) {
+    return 'Bạn đã gửi yêu cầu quá nhanh. Vui lòng chờ rồi thử lại.'
+  }
+  if (isDependencyFailure(error)) {
+    return 'Dịch vụ tài khoản tạm thời chưa sẵn sàng. Vui lòng thử lại sau.'
+  }
+  return 'Không thể gửi yêu cầu lúc này. Vui lòng kiểm tra thông tin và thử lại.'
+}
+
+export function passwordResetErrorMessage(error: unknown) {
+  if (
+    error instanceof ApiError &&
+    (error.code === 'INVALID_CHALLENGE' || error.code === 'VALIDATION_FAILED')
+  ) {
+    return 'Liên kết đặt lại mật khẩu không hợp lệ, đã hết hạn hoặc đã được sử dụng.'
+  }
+  if (isDependencyFailure(error)) {
+    return 'Dịch vụ đặt lại mật khẩu tạm thời chưa sẵn sàng. Vui lòng thử lại sau.'
+  }
+  return 'Không thể đặt lại mật khẩu lúc này. Vui lòng yêu cầu một liên kết mới.'
+}
+
+export function passwordChangeErrorMessage(error: unknown) {
+  if (error instanceof ApiError && error.code === 'INVALID_CREDENTIALS') {
+    return 'Mật khẩu hiện tại không đúng hoặc phiên không còn hợp lệ.'
+  }
+  if (error instanceof ApiError && error.code === 'VALIDATION_FAILED') {
+    return 'Mật khẩu mới chưa đáp ứng chính sách bảo mật.'
+  }
+  if (isDependencyFailure(error)) {
+    return 'Dịch vụ đổi mật khẩu tạm thời chưa sẵn sàng. Vui lòng thử lại sau.'
+  }
+  return 'Không thể đổi mật khẩu lúc này. Vui lòng thử lại.'
+}
+
 export function registrationErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.code === 'ACCOUNT_ALREADY_EXISTS') {

@@ -110,6 +110,10 @@ const state = {
   refreshCount: 0,
   logoutCount: 0,
   logoutAllCount: 0,
+  verificationRequestCount: 0,
+  passwordRecoveryRequestCount: 0,
+  passwordResetCount: 0,
+  passwordChangeCount: 0,
   questionnaireCount: 0,
   anonymousAssessmentCount: 0,
   authenticatedAssessmentCount: 0,
@@ -716,6 +720,93 @@ const server = createServer(async (request, response) => {
         return
       }
       json(response, 200, assessment)
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/auth/email-verifications'
+    ) {
+      const body = await readBody(request)
+      if (typeof body.challenge !== 'string' || body.challenge.length < 32) {
+        problem(response, 400, 'INVALID_CHALLENGE', 'Challenge is invalid')
+        return
+      }
+      const actor = actors.get('user@example.com')
+      json(response, 200, {
+        accountId: actor.accountId,
+        status: 'ACTIVE',
+        roles: actor.roles,
+        emailVerified: true,
+      })
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      (url.pathname === '/api/v1/auth/email-verification-requests' ||
+        url.pathname === '/api/v1/auth/password-recovery-requests')
+    ) {
+      const body = await readBody(request)
+      if (typeof body.email !== 'string' || !body.email.includes('@')) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Request validation failed')
+        return
+      }
+      if (url.pathname.endsWith('email-verification-requests')) {
+        state.verificationRequestCount += 1
+      } else {
+        state.passwordRecoveryRequestCount += 1
+      }
+      response.writeHead(202, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/auth/password-resets'
+    ) {
+      const body = await readBody(request)
+      if (
+        typeof body.challenge !== 'string' ||
+        body.challenge.length < 32 ||
+        typeof body.newPassword !== 'string' ||
+        body.newPassword.length < 12
+      ) {
+        problem(response, 400, 'INVALID_CHALLENGE', 'Challenge is invalid')
+        return
+      }
+      state.passwordResetCount += 1
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'PUT' &&
+      url.pathname === '/api/v1/account/password'
+    ) {
+      const accessToken = bearerToken(request)
+      const actor = accessSessions.get(accessToken)
+      const body = await readBody(request)
+      if (
+        !actor ||
+        typeof body.currentPassword !== 'string' ||
+        typeof body.newPassword !== 'string' ||
+        body.newPassword.length < 12
+      ) {
+        problem(response, 401, 'INVALID_CREDENTIALS', 'Credentials are invalid')
+        return
+      }
+      for (const [token, session] of accessSessions) {
+        if (session.accountId === actor.accountId) accessSessions.delete(token)
+      }
+      for (const [token, session] of refreshSessions) {
+        if (session.accountId === actor.accountId) refreshSessions.delete(token)
+      }
+      state.passwordChangeCount += 1
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
       return
     }
 

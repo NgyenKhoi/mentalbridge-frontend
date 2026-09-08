@@ -2,12 +2,15 @@ import type {
   AccountDetail,
   AccountSummary,
   ChallengeRequest,
+  EmailRequest,
   IdentityRole,
   LoginRequest,
   PublicRegistrationRole,
   RegistrationRequest,
   RegistrationResponse,
   TokenPair,
+  PasswordResetRequest,
+  PasswordChangeRequest,
 } from '@/features/auth/api/identity-contract'
 
 const ACCOUNT_STATUSES = new Set([
@@ -188,6 +191,103 @@ export function validateChallengeRequest(
     success: true,
     value: { challenge: value.challenge as string },
   }
+}
+
+export function validateEmailRequest(
+  value: unknown,
+): ValidationResult<EmailRequest> {
+  if (!isRecord(value)) {
+    return {
+      success: false,
+      violations: [{ field: 'body', code: 'INVALID_TYPE' }],
+    }
+  }
+  const violations: ValidationViolation[] = []
+  if (!hasOnlyKeys(value, ['email']))
+    violations.push({ field: 'body', code: 'UNKNOWN_FIELD' })
+  if (
+    typeof value.email !== 'string' ||
+    value.email.length > 254 ||
+    !EMAIL_PATTERN.test(value.email)
+  ) {
+    violations.push({ field: 'email', code: 'INVALID_FORMAT' })
+  }
+  return violations.length > 0
+    ? { success: false, violations }
+    : { success: true, value: { email: value.email as string } }
+}
+
+function validNewPassword(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    Array.from(value).length >= 12 &&
+    Array.from(value).length <= 128 &&
+    new TextEncoder().encode(value).byteLength <= 72
+  )
+}
+
+export function validatePasswordResetRequest(
+  value: unknown,
+): ValidationResult<PasswordResetRequest> {
+  if (!isRecord(value)) {
+    return {
+      success: false,
+      violations: [{ field: 'body', code: 'INVALID_TYPE' }],
+    }
+  }
+  const violations: ValidationViolation[] = []
+  if (!hasOnlyKeys(value, ['challenge', 'newPassword']))
+    violations.push({ field: 'body', code: 'UNKNOWN_FIELD' })
+  if (
+    typeof value.challenge !== 'string' ||
+    value.challenge.length < 32 ||
+    value.challenge.length > 512
+  ) {
+    violations.push({ field: 'challenge', code: 'INVALID_LENGTH' })
+  }
+  if (!validNewPassword(value.newPassword))
+    violations.push({ field: 'newPassword', code: 'INVALID_LENGTH' })
+  return violations.length > 0
+    ? { success: false, violations }
+    : {
+        success: true,
+        value: {
+          challenge: value.challenge as string,
+          newPassword: value.newPassword as string,
+        },
+      }
+}
+
+export function validatePasswordChangeRequest(
+  value: unknown,
+): ValidationResult<PasswordChangeRequest> {
+  if (!isRecord(value)) {
+    return {
+      success: false,
+      violations: [{ field: 'body', code: 'INVALID_TYPE' }],
+    }
+  }
+  const violations: ValidationViolation[] = []
+  if (!hasOnlyKeys(value, ['currentPassword', 'newPassword']))
+    violations.push({ field: 'body', code: 'UNKNOWN_FIELD' })
+  if (
+    typeof value.currentPassword !== 'string' ||
+    value.currentPassword.length < 1 ||
+    value.currentPassword.length > 128
+  ) {
+    violations.push({ field: 'currentPassword', code: 'INVALID_LENGTH' })
+  }
+  if (!validNewPassword(value.newPassword))
+    violations.push({ field: 'newPassword', code: 'INVALID_LENGTH' })
+  return violations.length > 0
+    ? { success: false, violations }
+    : {
+        success: true,
+        value: {
+          currentPassword: value.currentPassword as string,
+          newPassword: value.newPassword as string,
+        },
+      }
 }
 
 export function isValidIdempotencyKey(value: string | null): value is string {

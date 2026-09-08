@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { mockServer } from '@/tests/mocks/server'
+
+vi.mock('@/features/auth/components/PasswordChangeForm', () => ({
+  default: () => <div data-testid="password-change-form" />,
+}))
+
 import ProfilePage from './page'
 
 const profile = {
@@ -59,6 +64,7 @@ describe('Care profile page', () => {
     )
     render(<ProfilePage />)
     await screen.findByDisplayValue('Nguyễn An')
+    expect(screen.getByTestId('password-change-form')).toBeInTheDocument()
     expect(screen.getByText('Nội dung authoritative từ Care.')).toBeVisible()
     expect(screen.queryByText(/ThS\.|specialist/i)).not.toBeInTheDocument()
     await userEvent.click(
