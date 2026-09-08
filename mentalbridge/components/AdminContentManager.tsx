@@ -158,6 +158,25 @@ export default function AdminContentManager({
     },
   })
 
+  const createMutation = useMutation({
+    mutationFn: (data: {
+      category: ResourceCategory
+      title: string
+      summary: string
+      contentBody?: string
+      externalUrl?: string
+    }) => adminResourcesApi.create(data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+      setShowCreateForm(false)
+      setSelectedId(data.id)
+      onNotice('Đã tạo tài nguyên mới thành công')
+    },
+    onError: () => {
+      onNotice('Không thể tạo tài nguyên mới')
+    },
+  })
+
   const handlePublish = () => {
     if (!selectedId || !detailData?.version) return
     publishMutation.mutate({ id: selectedId, version: detailData.version })
@@ -175,6 +194,29 @@ export default function AdminContentManager({
     ) {
       deleteMutation.mutate(selectedId)
     }
+  }
+
+  const handleCreateSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const category = formData.get('category') as ResourceCategory
+    const title = formData.get('title') as string
+    const summary = formData.get('summary') as string
+    const contentBody = formData.get('contentBody') as string
+    const externalUrl = formData.get('externalUrl') as string
+
+    if (!category || !title || !summary) {
+      onNotice('Vui lòng điền đầy đủ thông tin bắt buộc')
+      return
+    }
+
+    createMutation.mutate({
+      category,
+      title,
+      summary,
+      contentBody: contentBody || undefined,
+      externalUrl: externalUrl || undefined,
+    })
   }
 
   if (isLoading) {
@@ -211,6 +253,98 @@ export default function AdminContentManager({
 
   return (
     <div className="admin-content-manager">
+      {showCreateForm && (
+        <div
+          className="acm-modal-overlay"
+          onClick={() => setShowCreateForm(false)}
+        >
+          <div
+            className="acm-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header>
+              <h2>Tạo tài nguyên mới</h2>
+              <button
+                onClick={() => setShowCreateForm(false)}
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </header>
+            <form onSubmit={handleCreateSubmit}>
+              <label>
+                <span>
+                  Danh mục <em>*</em>
+                </span>
+                <select name="category" required>
+                  <option value="">-- Chọn danh mục --</option>
+                  <option value="BREATHING">Thở</option>
+                  <option value="MEDITATION">Thiền</option>
+                  <option value="ARTICLE">Bài viết</option>
+                  <option value="VIDEO">Video</option>
+                  <option value="JOURNALING">Nhật ký</option>
+                  <option value="COMMUNITY">Cộng đồng</option>
+                </select>
+              </label>
+              <label>
+                <span>
+                  Tiêu đề <em>*</em>
+                </span>
+                <input
+                  name="title"
+                  type="text"
+                  maxLength={255}
+                  required
+                  placeholder="Nhập tiêu đề tài nguyên"
+                />
+              </label>
+              <label>
+                <span>
+                  Mô tả ngắn <em>*</em>
+                </span>
+                <textarea
+                  name="summary"
+                  rows={3}
+                  required
+                  placeholder="Mô tả ngắn gọn về nội dung"
+                />
+              </label>
+              <label>
+                <span>Nội dung chi tiết</span>
+                <textarea
+                  name="contentBody"
+                  rows={5}
+                  placeholder="Nội dung đầy đủ (hoặc để trống nếu dùng liên kết bên ngoài)"
+                />
+              </label>
+              <label>
+                <span>Liên kết bên ngoài</span>
+                <input
+                  name="externalUrl"
+                  type="url"
+                  placeholder="https://..."
+                />
+              </label>
+              <footer>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending ? 'Đang tạo...' : 'Tạo bản nháp'}
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="role-heading acm-heading">
         <div>
           <span className="eyebrow">Quản trị nền tảng</span>
