@@ -1,11 +1,10 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   adminResourcesApi,
   type ResourceSummary,
-  type ResourceDetail,
   type ResourceCategory,
 } from '../lib/api/admin-resources'
 
@@ -89,37 +88,21 @@ export default function AdminContentManager({
       : resources
   }, [query, resources])
 
-  const selectedResource = resources.find((item) => item.id === selectedId)
-
-  useEffect(() => {
-    if (resources.length > 0 && !selectedId) {
-      setSelectedId(resources[0].id)
+  const selectedResource = useMemo(() => {
+    const resource = resources.find((item) => item.id === selectedId)
+    // Auto-select first resource if none selected
+    if (!resource && resources.length > 0 && !selectedId) {
+      const firstId = resources[0].id
+      // Use setTimeout to avoid setState during render
+      setTimeout(() => setSelectedId(firstId), 0)
     }
+    return resource
   }, [resources, selectedId])
 
   const { data: detailData } = useQuery({
     queryKey: ['admin', 'resources', selectedId],
     queryFn: () => adminResourcesApi.getById(selectedId!),
     enabled: !!selectedId,
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: ({
-      id,
-      version,
-      data,
-    }: {
-      id: string
-      version: number
-      data: { title?: string; summary?: string }
-    }) => adminResourcesApi.update(id, version, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
-      onNotice('Đã cập nhật tài nguyên thành công')
-    },
-    onError: () => {
-      onNotice('Không thể cập nhật tài nguyên')
-    },
   })
 
   const publishMutation = useMutation({
