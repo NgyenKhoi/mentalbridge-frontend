@@ -85,6 +85,14 @@ function messageEvent(eventId = crypto.randomUUID()) {
   }
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
+
 async function flush(): Promise<void> {
   await Promise.resolve()
   await Promise.resolve()
@@ -167,7 +175,7 @@ describe('RealtimeTransport', () => {
     const command = createMessageCommand(conversationId, 'First')
     expect(await transport.sendMessage(conversationId, command)).toBe('sent')
     expect(
-      transport.retry({
+      await transport.retry({
         ...command,
         sentAt: new Date(Date.now() + 1000).toISOString(),
       }),
@@ -187,6 +195,44 @@ describe('RealtimeTransport', () => {
       messageId: accountId,
     })
     expect(codes).toEqual(['DUPLICATE_CONFLICT', 'DUPLICATE_CONFLICT'])
+  })
+
+  it('revalidates eligibility for retries and rejects commands without prior authorization', async () => {
+    const socket = new FakeSocket()
+    const results = ['eligible', 'unavailable', 'denied'] as const
+    let resultIndex = 0
+    const check = vi.fn(async () => results[resultIndex++] ?? 'eligible')
+    const transport = new RealtimeTransport({
+      socketFactory: () => socket,
+      credentialProvider: async () => ({
+        status: 'available',
+        credential: {
+          accessToken: 'synthetic',
+          expiresAtEpochMs: Date.now() + 1000,
+        },
+      }),
+      eligibility: { check },
+    })
+    transport.connect()
+    await flush()
+    socket.trigger('realtime.event', readyEvent())
+
+    const authorized = createMessageCommand(conversationId, 'Authorized once')
+    expect(await transport.sendMessage(conversationId, authorized)).toBe('sent')
+    expect(await transport.retry(authorized)).toBe('unavailable')
+    expect(await transport.retry(authorized)).toBe('denied')
+    expect(socket.sent).toHaveLength(1)
+    expect(check).toHaveBeenCalledTimes(3)
+    expect(check).toHaveBeenNthCalledWith(2, conversationId, 'send')
+    expect(check).toHaveBeenNthCalledWith(3, conversationId, 'send')
+
+    const neverAuthorized = createMessageCommand(
+      conversationId,
+      'Never authorized',
+    )
+    expect(await transport.retry(neverAuthorized)).toBe('denied')
+    expect(check).toHaveBeenCalledTimes(3)
+    expect(socket.sent).toHaveLength(1)
   })
 
   it('uses bounded reconnect, resubscribe, explicit history recovery, and cleans up', async () => {
@@ -390,6 +436,55 @@ describe('RealtimeTransport', () => {
       issue: { code: 'DEPENDENCY_UNAVAILABLE' },
     })
     transport.stop()
+  })
+
+  it('keeps deliberate stop terminal when deferred recovery completes', async () => {
+    const socket = new FakeSocket()
+    const states: ConnectionState[] = []
+    const historyStarted = deferred<void>()
+    const historyResult = deferred<{
+      status: 'recovered'
+      boundary: Record<string, never>
+      count: number
+    }>()
+    const transport = new RealtimeTransport({
+      socketFactory: () => socket,
+      credentialProvider: async () => ({
+        status: 'available',
+        credential: {
+          accessToken: 'synthetic',
+          expiresAtEpochMs: Date.now() + 60_000,
+        },
+      }),
+      eligibility: { check: async () => 'eligible' },
+      history: {
+        recover: async () => {
+          historyStarted.resolve()
+          return historyResult.promise
+        },
+      },
+      onState: (state) => states.push(state),
+    })
+    transport.connect()
+    await flush()
+    socket.trigger('realtime.event', readyEvent())
+    await transport.subscribe(
+      conversationId,
+      createSubscribeCommand(conversationId),
+    )
+
+    socket.trigger('realtime.event', readyEvent())
+    await historyStarted.promise
+    expect(transport.getState().phase).toBe('resubscribing')
+    transport.stop()
+    historyResult.resolve({ status: 'recovered', boundary: {}, count: 0 })
+    await flush()
+
+    expect(transport.getState()).toMatchObject({
+      phase: 'stopped',
+      recovery: 'not-needed',
+    })
+    expect(states.at(-1)?.phase).toBe('stopped')
   })
 
   it('rejects malformed frames and removes listeners during deliberate cleanup', async () => {

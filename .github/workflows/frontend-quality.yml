@@ -36,6 +36,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Check out Realtime provider contracts
+        uses: actions/checkout@v4
+        with:
+          repository: NgyenKhoi/mentalbridge-backend
+          ref: dev
+          path: realtime-provider
+          sparse-checkout: contracts/websocket/realtime
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -58,8 +66,22 @@ jobs:
       - name: Validate generated contracts
         run: npm run contracts:check
 
+      - name: Validate Realtime generated contracts
+        run: npm run contract:check
+
+      - name: Compare Realtime provider schemas
+        run: npm run contract:provider-check
+        env:
+          REALTIME_CONTRACT_SOURCE: ${{ github.workspace }}/realtime-provider/contracts/websocket/realtime
+
       - name: Run unit, component, and API-boundary tests
         run: npm run test:unit
+
+      - name: Install Chromium for Realtime browser tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Run controlled Realtime browser tests
+        run: npm run test:browser
 
       - name: Build production application
         run: npm run build

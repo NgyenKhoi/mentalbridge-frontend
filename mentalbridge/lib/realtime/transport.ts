@@ -105,6 +105,14 @@ type BoundListener = {
   readonly listener: SocketListener
 }
 
+type AuthorizedOperation = 'subscribe' | 'send'
+
+type CommandAuthorization = {
+  readonly conversationId: string
+  readonly operation: AuthorizedOperation
+  readonly fingerprint: string
+}
+
 const initialState: ConnectionState = {
   phase: 'stopped',
   reconnectAttempt: 0,
@@ -135,6 +143,10 @@ export class RealtimeTransport {
   private readonly subscriptions = new Map<string, CommandEnvelopeV1>()
   private readonly historyBoundaries = new Map<string, HistoryBoundary>()
   private readonly commandFingerprints = new Map<string, string>()
+  private readonly commandAuthorizations = new Map<
+    string,
+    CommandAuthorization
+  >()
   private readonly acknowledgementFingerprints = new Map<string, string>()
   private readonly eventFingerprints = new Map<string, string>()
   private readonly messageFingerprints = new Map<string, string>()
@@ -193,11 +205,24 @@ export class RealtimeTransport {
     conversationId: string,
     command: CommandEnvelopeV1,
   ): Promise<'sent' | 'unavailable' | 'denied' | 'conflict'> {
+    const scope = this.commandScope(command)
+    if (
+      !scope ||
+      scope.operation !== 'subscribe' ||
+      scope.conversationId !== conversationId
+    ) {
+      this.authorizationIssue('Subscription command scope does not match.')
+      return 'denied'
+    }
+    const generation = this.generation
     const eligible = await this.eligibility.check(conversationId, 'subscribe')
+    if (!this.isActiveGeneration(generation)) return 'unavailable'
     if (eligible !== 'eligible') {
       this.eligibilityIssue(eligible)
       return eligible
     }
+    const authorization = this.authorize(command, scope)
+    if (authorization === 'conflict') return authorization
     this.subscriptions.set(conversationId, command)
     return this.dispatch(command)
   }
@@ -206,7 +231,55 @@ export class RealtimeTransport {
     conversationId: string,
     command: CommandEnvelopeV1,
   ): Promise<'sent' | 'unavailable' | 'denied' | 'conflict'> {
+    const scope = this.commandScope(command)
+    if (
+      !scope ||
+      scope.operation !== 'send' ||
+      scope.conversationId !== conversationId
+    ) {
+      this.authorizationIssue('Message command scope does not match.')
+      return 'denied'
+    }
+    const generation = this.generation
     const eligible = await this.eligibility.check(conversationId, 'send')
+    if (!this.isActiveGeneration(generation)) return 'unavailable'
+    if (eligible !== 'eligible') {
+      this.eligibilityIssue(eligible)
+      return eligible
+    }
+    const authorization = this.authorize(command, scope)
+    if (authorization === 'conflict') return authorization
+    return this.dispatch(command)
+  }
+
+  async retry(
+    command: CommandEnvelopeV1,
+  ): Promise<'sent' | 'unavailable' | 'denied' | 'conflict'> {
+    const generation = this.generation
+    if (!this.isActiveGeneration(generation)) return 'unavailable'
+    const authorization = this.commandAuthorizations.get(command.commandId)
+    if (!authorization) {
+      this.authorizationIssue('Command was not previously authorized.')
+      return 'denied'
+    }
+    const scope = this.commandScope(command)
+    if (
+      !scope ||
+      scope.conversationId !== authorization.conversationId ||
+      scope.operation !== authorization.operation
+    ) {
+      this.authorizationIssue('Retry command scope does not match.')
+      return 'denied'
+    }
+    if (fingerprint(command) !== authorization.fingerprint) {
+      this.duplicateCommandIssue()
+      return 'conflict'
+    }
+    const eligible = await this.eligibility.check(
+      authorization.conversationId,
+      authorization.operation,
+    )
+    if (!this.isActiveGeneration(generation)) return 'unavailable'
     if (eligible !== 'eligible') {
       this.eligibilityIssue(eligible)
       return eligible
@@ -214,8 +287,43 @@ export class RealtimeTransport {
     return this.dispatch(command)
   }
 
-  retry(command: CommandEnvelopeV1): 'sent' | 'unavailable' | 'conflict' {
-    return this.dispatch(command)
+  private commandScope(command: CommandEnvelopeV1):
+    | {
+        readonly conversationId: string
+        readonly operation: AuthorizedOperation
+      }
+    | undefined {
+    if (command.commandType === 'conversation.subscribe')
+      return {
+        conversationId: command.payload.conversationId,
+        operation: 'subscribe',
+      }
+    if (command.commandType === 'message.send')
+      return {
+        conversationId: command.payload.conversationId,
+        operation: 'send',
+      }
+    return undefined
+  }
+
+  private authorize(
+    command: CommandEnvelopeV1,
+    scope: {
+      readonly conversationId: string
+      readonly operation: AuthorizedOperation
+    },
+  ): 'authorized' | 'conflict' {
+    const valueFingerprint = fingerprint(command)
+    const prior = this.commandAuthorizations.get(command.commandId)
+    if (prior && prior.fingerprint !== valueFingerprint) {
+      this.duplicateCommandIssue()
+      return 'conflict'
+    }
+    this.commandAuthorizations.set(command.commandId, {
+      ...scope,
+      fingerprint: valueFingerprint,
+    })
+    return 'authorized'
   }
 
   private async establish(generation: number): Promise<void> {
@@ -369,14 +477,7 @@ export class RealtimeTransport {
     const commandFingerprint = fingerprint(command)
     const prior = this.commandFingerprints.get(command.commandId)
     if (prior && prior !== commandFingerprint) {
-      this.reportIssue(
-        {
-          code: 'DUPLICATE_CONFLICT',
-          message: 'A command ID was reused with different content.',
-          retryable: false,
-        },
-        'degraded',
-      )
+      this.duplicateCommandIssue()
       return 'conflict'
     }
     if (
@@ -509,11 +610,12 @@ export class RealtimeTransport {
         reconnectAttempt: 0,
         recovery: this.subscriptions.size ? 'pending' : 'not-needed',
       })
-      if (this.subscriptions.size) void this.recover()
+      if (this.subscriptions.size) void this.recover(this.generation)
     }
   }
 
-  private async recover(): Promise<void> {
+  private async recover(generation: number): Promise<void> {
+    if (!this.isActiveGeneration(generation)) return
     this.transition({
       ...this.state,
       phase: 'resubscribing',
@@ -525,11 +627,13 @@ export class RealtimeTransport {
         conversationId,
         'subscribe',
       )
+      if (!this.isActiveGeneration(generation)) return
       if (eligibility !== 'eligible') {
         recovery = 'failed'
         this.eligibilityIssue(eligibility)
         continue
       }
+      if (!this.isActiveGeneration(generation)) return
       if (this.dispatch(subscribeCommand) !== 'sent') {
         recovery = 'failed'
         continue
@@ -538,6 +642,7 @@ export class RealtimeTransport {
         conversationId,
         'history',
       )
+      if (!this.isActiveGeneration(generation)) return
       if (historyEligibility !== 'eligible') {
         recovery =
           historyEligibility === 'unavailable'
@@ -549,9 +654,11 @@ export class RealtimeTransport {
         conversationId,
         this.historyBoundaries.get(conversationId) ?? {},
       )
+      if (!this.isActiveGeneration(generation)) return
       if (result.status === 'unavailable') recovery = 'history-unavailable'
       if (result.status === 'failed') recovery = 'failed'
     }
+    if (!this.isActiveGeneration(generation)) return
     this.transition({
       ...this.state,
       phase: recovery === 'recovered' ? 'ready' : 'degraded',
@@ -582,6 +689,28 @@ export class RealtimeTransport {
             retryable: true,
           }
     this.reportIssue(issue, 'degraded')
+  }
+
+  private authorizationIssue(message: string): void {
+    this.reportIssue(
+      { code: 'ACCESS_DENIED', message, retryable: false },
+      'degraded',
+    )
+  }
+
+  private duplicateCommandIssue(): void {
+    this.reportIssue(
+      {
+        code: 'DUPLICATE_CONFLICT',
+        message: 'A command ID was reused with different content.',
+        retryable: false,
+      },
+      'degraded',
+    )
+  }
+
+  private isActiveGeneration(generation: number): boolean {
+    return generation === this.generation && !this.deliberateStop
   }
 
   private reportMalformed(message: string): void {

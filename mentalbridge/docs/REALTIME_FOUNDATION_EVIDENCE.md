@@ -4,9 +4,9 @@
 
 The frontend consumes checked-in copies of the provider's WebSocket v1 JSON Schemas and generates TypeScript contract types from them. Ajv 2020 validates handshake, command, acknowledgement, safe-error, and server-event frames at runtime. The parser rejects unknown properties/versions, invalid UUIDs and timestamps, malformed JSON, content beyond the schema limit, and frames above 16 KiB.
 
-Transport construction is presentation-independent. Socket.IO uses namespace `/realtime`, disables its internal reconnection, and delegates lifecycle control to a deterministic adapter. Command and `clientMessageId` values are stable when the same command is retried. Identical acknowledgements and events are applied once; reuse with conflicting content is surfaced as a non-retryable conflict.
+Transport construction is presentation-independent. Socket.IO uses namespace `/realtime`, disables its internal reconnection, and delegates lifecycle control to a deterministic adapter. Command and `clientMessageId` values are stable when the same command is retried. A retry is accepted only for the exact previously authorized command and rechecks current Consultation eligibility before dispatch. Identical acknowledgements and events are applied once; reuse with conflicting content is surfaced as a non-retryable conflict.
 
-Lifecycle states are `connecting`, `ready`, `degraded`, `authentication-expired`, `disconnected`, `reconnecting`, `resubscribing`, and `stopped`. Reconnect is capped exponential backoff with bounded jitter and a maximum attempt count. Offline state pauses attempts; explicit `resume()` is required after connectivity returns. Expiry stops the socket and reconnect timer. Deliberate stop removes all socket listeners and timers.
+Lifecycle states are `connecting`, `ready`, `degraded`, `authentication-expired`, `disconnected`, `reconnecting`, `resubscribing`, and `stopped`. Reconnect is capped exponential backoff with bounded jitter and a maximum attempt count. Offline state pauses attempts; explicit `resume()` is required after connectivity returns. Expiry stops the socket and reconnect timer. Deliberate stop removes all socket listeners and timers. Recovery captures its connection generation and verifies it after every asynchronous eligibility/history boundary, so stale work cannot replace the terminal `stopped` state.
 
 Recovery stores the last accepted event boundary per conversation, resends the original stable subscription command, and calls the explicit history adapter. Planned/unavailable history remains `history-unavailable`; it is never reported as recovered. The production eligibility adapter returns unavailable, never allow-all.
 
@@ -20,6 +20,8 @@ Recovery stores the last accepted event boundary per conversation, resends the o
 - Production appointment chat: **not delivered by this Story**.
 
 The test-owned `/tests/browser-harness/` UI is a bounded synthetic Browser E2E fixture served by an isolated Vite server. The Next.js `/realtime-diagnostics` route always renders only the fail-closed notice and does not import the fixture. Fixtures contain no real conversation data or production credentials.
+
+The required frontend CI workflow runs the generated-contract check, provider-schema comparison, unit suite, controlled Chromium transport suite, and production build.
 
 ## Reproducible checks
 
@@ -53,11 +55,11 @@ The integration suite requires its disposable MongoDB/Redis test environment. Re
 
 - Frontend provider-schema comparison: passed; all five WebSocket v1 schemas match.
 - Frontend format, lint, typecheck, and production build: passed.
-- Frontend realtime unit tests: passed (13 tests across 2 files).
+- Frontend realtime unit tests: passed (15 tests across 2 files), including unavailable/denied retry eligibility and stop-during-deferred-recovery regressions.
 - Chromium Browser E2E: passed (4 tests).
 - Realtime provider contract validation: passed.
 - Realtime provider unit/contract tests: passed (32 tests across 7 files).
-- Realtime provider MongoDB/Redis/Socket.IO integration: passed (15 tests).
+- Realtime provider MongoDB/Redis/Socket.IO integration: an earlier controlled run passed 15 tests. The review run completed 14/15 with a presence-TTL failure and cleanup timeout; a local follow-up could not start because Testcontainers found no container runtime. A reproducible post-review green run remains an external verification gate and is not represented as green here.
 - Production dependency audit: the rebased `origin/dev` baseline contains known
   findings in Next.js 16.3.0 and its existing Sharp dependency. None of the
   Realtime dependencies added by this foundation is identified in the audit.
