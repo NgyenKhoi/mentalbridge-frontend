@@ -172,3 +172,9 @@
 .settings-runtime-error{margin-bottom:18px;padding:14px 16px;border:1px solid rgba(199,123,92,.35);border-radius:14px;background:var(--terracotta-soft);color:#8a4a2e;font-size:13px}
 .settings-privacy-runtime{margin-bottom:20px}.settings-privacy-runtime>div{padding:4px 24px 24px}.settings-privacy-runtime small,.settings-fields small{color:var(--ink-faint);font-size:10px}
 .settings-reminder{flex-direction:row!important;align-items:center!important}.settings-reminder input{width:18px;height:18px;accent-color:var(--teal-deep)}.settings-inline-note{font-weight:600}
+
+.settings-onboarding{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:20px;padding:22px 26px;border:1px solid rgba(45,110,99,.3);border-radius:var(--radius);background:var(--teal-pale)}
+.settings-onboarding span{color:var(--teal-deep);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.settings-onboarding h2{margin-top:3px;font-size:24px}.settings-onboarding p{margin-top:5px;color:var(--ink-soft);font-size:14px}.settings-field-error{color:#9d3f2c!important;font-size:13px!important;font-weight:650}.settings-fields input[aria-invalid="true"]{border-color:#b74e38}
+.settings-page input:-webkit-autofill,.settings-page input:-webkit-autofill:hover,.settings-page input:-webkit-autofill:focus{-webkit-text-fill-color:var(--ink);box-shadow:0 0 0 1000px #fff inset;caret-color:var(--ink)}
+.settings-page button:focus-visible,.settings-page input:focus-visible,.settings-page .light-select-trigger:focus-visible{outline:3px solid var(--teal-deep);outline-offset:3px}
+@media(max-width:700px){.settings-onboarding{align-items:flex-start;flex-direction:column}.settings-onboarding button{width:100%}}

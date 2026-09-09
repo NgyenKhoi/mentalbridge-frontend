@@ -29,7 +29,7 @@ const questionnaire = {
 }
 const disclosure = {
   consentType: 'PRIVACY_POLICY',
-  version: 'privacy-capstone-v1',
+  version: 'privacy-capstone-v2',
   locale: 'vi-VN',
   title: 'Thông báo xử lý dữ liệu',
   content: 'Nội dung do Care cung cấp.',
@@ -81,7 +81,7 @@ describe('AssessmentFlow', () => {
               questionnaireDefinitionId: definitionId,
               instrument: 'PHQ9',
               questionnaireVersion: 'phq9-vi-vn-capstone-v1',
-              privacyPolicyVersion: 'privacy-capstone-v1',
+              privacyPolicyVersion: 'privacy-capstone-v2',
               submittedAt: '2026-09-01T00:00:00Z',
               voidedAt: null,
               expiresAt: '2099-01-01T00:30:00Z',
@@ -107,9 +107,7 @@ describe('AssessmentFlow', () => {
     await userEvent.click(
       screen.getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i }),
     )
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Gửi cho Care chấm điểm' }),
-    )
+    await userEvent.click(screen.getByRole('button', { name: 'Xem kết quả' }))
 
     await screen.findByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' })
     expect(screen.getByText('1')).toBeVisible()
@@ -119,7 +117,7 @@ describe('AssessmentFlow', () => {
     expect(received).toHaveBeenCalledWith({
       body: {
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v2',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 1 }],
       },

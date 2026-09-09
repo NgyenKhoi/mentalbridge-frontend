@@ -6,6 +6,7 @@ import {
   parseAssessmentProgress,
   parseQuestionnaire,
   parseSubmission,
+  validateProfileUpdate,
 } from './care-validation'
 
 const definitionId = '10000000-0000-4000-8000-000000000001'
@@ -14,6 +15,57 @@ const assessmentId = '10000000-0000-4000-8000-000000000003'
 const previousAssessmentId = '10000000-0000-4000-8000-000000000004'
 
 describe('Care runtime validation', () => {
+  it('accepts the adult boundary and leap-day boundary without a maximum age', () => {
+    const today = new Date('2026-02-28T00:00:00Z')
+
+    expect(
+      validateProfileUpdate(
+        { displayName: 'Nguyễn An', dateOfBirth: '2008-02-29' },
+        today,
+      ),
+    ).toEqual({
+      success: true,
+      value: { displayName: 'Nguyễn An', dateOfBirth: '2008-02-29' },
+    })
+    expect(
+      validateProfileUpdate(
+        { displayName: 'Nguyễn An', dateOfBirth: '1900-01-01' },
+        today,
+      ).success,
+    ).toBe(true)
+  })
+
+  it('returns date-of-birth violations for malformed, future, and underage values', () => {
+    const today = new Date('2026-03-01T00:00:00Z')
+
+    expect(
+      validateProfileUpdate(
+        { displayName: 'Nguyễn An', dateOfBirth: 'not-a-date' },
+        today,
+      ),
+    ).toMatchObject({
+      success: false,
+      violations: [{ field: 'dateOfBirth', code: 'INVALID_DATE' }],
+    })
+    expect(
+      validateProfileUpdate(
+        { displayName: 'Nguyễn An', dateOfBirth: '2026-03-02' },
+        today,
+      ),
+    ).toMatchObject({
+      success: false,
+      violations: [{ field: 'dateOfBirth', code: 'DATE_OF_BIRTH_IN_FUTURE' }],
+    })
+    expect(
+      validateProfileUpdate(
+        { displayName: 'Nguyễn An', dateOfBirth: '2008-03-02' },
+        today,
+      ),
+    ).toMatchObject({
+      success: false,
+      violations: [{ field: 'dateOfBirth', code: 'MINIMUM_AGE_NOT_MET' }],
+    })
+  })
   it('accepts canonical UUIDs used by persisted Care reference data', () => {
     expect(isUuid('10000000-0000-0000-0000-000000000002')).toBe(true)
   })
@@ -57,13 +109,13 @@ describe('Care runtime validation', () => {
     expect(
       parseSubmission({
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v2',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 3 }],
       }),
     ).toEqual({
       questionnaireDefinitionId: definitionId,
-      privacyPolicyVersion: 'privacy-capstone-v1',
+      privacyPolicyVersion: 'privacy-capstone-v2',
       privacyDisclosureAcknowledged: true,
       answers: [{ questionId, value: 3 }],
     })
@@ -71,7 +123,7 @@ describe('Care runtime validation', () => {
     expect(
       parseSubmission({
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v2',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 3 }],
         totalScore: 3,
@@ -87,7 +139,7 @@ describe('Care runtime validation', () => {
         questionnaireDefinitionId: definitionId,
         instrument: 'PHQ9',
         questionnaireVersion: 'phq9-vi-vn-capstone-v1',
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v2',
         submittedAt: '2026-09-01T00:00:00Z',
         voidedAt: null,
         expiresAt: '2026-09-01T00:30:00Z',

@@ -18,6 +18,8 @@ export interface paths {
          * @description The account identifier comes only from the verified JWT subject. If-Match
          *     is omitted when creating the profile and is required for replacement of an
          *     existing profile. A stale version fails without overwriting newer data.
+         *     Locale, timezone, and reminders are not user-configurable in this release;
+         *     the server stores vi-VN, Asia/Ho_Chi_Minh, and reminders disabled.
          */
         put: operations["putOwnCareProfile"];
         post?: never;
@@ -36,7 +38,9 @@ export interface paths {
         };
         /**
          * Read the latest explicit platform consent decisions
-         * @description A missing consent type means no decision has been recorded; it is not silently treated as a grant.
+         * @description This lookup does not require a Care profile. A new account with no profile
+         *     and no decision receives 200 with decisions: []. A missing consent type
+         *     means no decision has been recorded; it is not silently treated as a grant.
          */
         get: operations["getOwnCurrentConsents"];
         put?: never;
@@ -252,13 +256,30 @@ export interface components {
     schemas: {
         ProfilePutRequest: {
             displayName: string;
-            /** Format: date */
+            /**
+             * Format: date
+             * @description Optional date of birth. When present, the user must have reached their 18th anniversary on the request date; no maximum age is inferred.
+             */
             dateOfBirth?: string | null;
             gender?: string | null;
-            locale: string;
-            /** @description IANA timezone identifier */
-            timezone: string;
-            reminderEnabled: boolean;
+            /**
+             * @deprecated
+             * @description Compatibility input only; this release always stores vi-VN.
+             * @constant
+             */
+            locale?: "vi-VN";
+            /**
+             * @deprecated
+             * @description Compatibility input only; this release always stores Asia/Ho_Chi_Minh.
+             * @constant
+             */
+            timezone?: "Asia/Ho_Chi_Minh";
+            /**
+             * @deprecated
+             * @description Compatibility input only; reminders are not implemented and remain disabled.
+             * @constant
+             */
+            reminderEnabled?: false;
         };
         Profile: {
             /** Format: uuid */
@@ -285,7 +306,7 @@ export interface components {
              * @description Exact approved text or policy version shown to the user
              * @constant
              */
-            policyVersion: "privacy-capstone-v1";
+            policyVersion: "privacy-capstone-v2";
             granted: boolean;
         };
         ConsentDecision: {
@@ -304,7 +325,7 @@ export interface components {
             /** @constant */
             consentType: "PRIVACY_POLICY";
             /** @constant */
-            version: "privacy-capstone-v1";
+            version: "privacy-capstone-v2";
             /** @constant */
             locale: "vi-VN";
             title: string;
@@ -339,7 +360,7 @@ export interface components {
             /** Format: uuid */
             questionnaireDefinitionId: string;
             /** @constant */
-            privacyPolicyVersion: "privacy-capstone-v1";
+            privacyPolicyVersion: "privacy-capstone-v2";
             /** @constant */
             privacyDisclosureAcknowledged: true;
             /** @description Exactly one answer for every question in the referenced definition; order is not authoritative */
@@ -571,6 +592,24 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description No Care profile has been created yet; clients should present the normal profile onboarding state (PROFILE_NOT_FOUND) */
+        ProfileNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "/problems/profile-not-found",
+                 *       "title": "Care profile was not found",
+                 *       "status": 404,
+                 *       "code": "PROFILE_NOT_FOUND",
+                 *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Request conflicts with stored state (IDEMPOTENCY_KEY_REUSED or QUESTIONNAIRE_VERSION_UNAVAILABLE) */
         ConflictProblem: {
             headers: {
@@ -672,7 +711,7 @@ export interface operations {
             };
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
-            404: components["responses"]["NotFoundProblem"];
+            404: components["responses"]["ProfileNotFoundProblem"];
         };
     };
     putOwnCareProfile: {
@@ -692,9 +731,7 @@ export interface operations {
                 /**
                  * @example {
                  *       "displayName": "Lan Nguyen",
-                 *       "locale": "vi-VN",
-                 *       "timezone": "Asia/Ho_Chi_Minh",
-                 *       "reminderEnabled": true
+                 *       "dateOfBirth": "2000-01-02"
                  *     }
                  */
                 "application/json": components["schemas"]["ProfilePutRequest"];

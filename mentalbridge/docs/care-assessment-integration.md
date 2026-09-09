@@ -5,7 +5,7 @@
 The public `/assessment/anonymous` page and authenticated
 `/assessment/phq9` page use the same contract-driven assessment component.
 Both retrieve the current published PHQ-9 questionnaire and the backend-owned
-`privacy-capstone-v1` disclosure from Care. A submission contains the exact
+`privacy-capstone-v2` disclosure from Care. A submission contains the exact
 disclosure version/acknowledgement plus its `questionnaireDefinitionId` and
 exact `questionId`/`value` answers.
 Care remains authoritative for total score, screening level, item-9 safety

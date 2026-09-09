@@ -56,7 +56,7 @@ describe('POST /api/care/anonymous-assessments/current', () => {
       request(
         {
           questionnaireDefinitionId: definitionId,
-          privacyPolicyVersion: 'privacy-capstone-v1',
+          privacyPolicyVersion: 'privacy-capstone-v2',
           privacyDisclosureAcknowledged: true,
           answers: [{ questionId, value: 1 }],
         },
@@ -72,7 +72,7 @@ describe('POST /api/care/anonymous-assessments/current', () => {
     const response = await POST(
       request({
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v2',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 1 }],
         totalScore: 1,
@@ -89,7 +89,7 @@ describe('POST /api/care/anonymous-assessments/current', () => {
       questionnaireDefinitionId: definitionId,
       instrument: 'PHQ9',
       questionnaireVersion: 'phq9-vi-vn-capstone-v1',
-      privacyPolicyVersion: 'privacy-capstone-v1',
+      privacyPolicyVersion: 'privacy-capstone-v2',
       submittedAt: '2026-09-01T00:00:00Z',
       voidedAt: null,
       expiresAt: '2099-01-01T00:30:00Z',
@@ -107,7 +107,7 @@ describe('POST /api/care/anonymous-assessments/current', () => {
     const response = await POST(
       request({
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v2',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 1 }],
       }),
@@ -118,7 +118,7 @@ describe('POST /api/care/anonymous-assessments/current', () => {
       sessionToken,
       {
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v2',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 1 }],
       },

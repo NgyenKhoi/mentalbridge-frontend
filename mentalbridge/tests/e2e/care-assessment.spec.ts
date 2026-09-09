@@ -9,6 +9,7 @@ const useCareFixture = process.env.CARE_E2E_MODE === 'fixture'
 const careServiceUrl = 'http://127.0.0.1:3202'
 const careAccessToken = 'synthetic-care-e2e-access'
 const otherCareAccessToken = 'synthetic-care-e2e-other-access'
+const firstTimeAccessToken = 'synthetic-resource-e2e-access'
 
 const anonymousCookieNames = new Set([
   'mentalbridge_care_anonymous_id',
@@ -30,7 +31,7 @@ async function answerPublishedQuestionnaire(page: Page) {
     }
   }
   await page.getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i }).check()
-  await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
+  await page.getByRole('button', { name: 'Xem kết quả' }).click()
   await expect(
     page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
   ).toBeVisible()
@@ -98,7 +99,7 @@ async function submitOwnedAssessment(
     },
     data: {
       questionnaireDefinitionId: questionnaire.definitionId,
-      privacyPolicyVersion: 'privacy-capstone-v1',
+      privacyPolicyVersion: 'privacy-capstone-v2',
       privacyDisclosureAcknowledged: true,
       answers: questionnaire.questions.map(({ questionId }) => ({
         questionId,
@@ -116,6 +117,54 @@ test.describe('Care-backed PHQ-9 screening', () => {
     'Controlled Care fixtures are available only with the managed local server.',
   )
   test.describe.configure({ mode: 'serial' })
+
+  test('shows first-time profile onboarding on desktop and mobile', async ({
+    context,
+    page,
+  }) => {
+    await context.addCookies([
+      {
+        name: 'mentalbridge_access',
+        value: firstTimeAccessToken,
+        domain: '127.0.0.1',
+        path: '/',
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ])
+
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.goto('/profile')
+    await expect(
+      page.getByRole('heading', { name: 'Bạn chưa có hồ sơ' }),
+    ).toBeVisible()
+    await expect(page.getByText(/không thể tải đầy đủ/i)).toHaveCount(0)
+    await expect(page.getByLabel('Ngôn ngữ')).toHaveCount(0)
+    await expect(page.getByLabel('Múi giờ')).toHaveCount(0)
+    await expect(page.getByText(/nhắc nhở/i)).toHaveCount(0)
+    const nameInput = page.getByLabel('Tên hiển thị')
+    await page.getByRole('button', { name: 'Tạo hồ sơ' }).first().click()
+    await expect(nameInput).toBeFocused()
+    await expect
+      .poll(() =>
+        nameInput.evaluate((element) => getComputedStyle(element).outlineWidth),
+      )
+      .toBe('3px')
+    await page.screenshot({
+      path: 'docs/evidence/story-1101-profile-desktop.png',
+      fullPage: true,
+    })
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.reload()
+    await expect(
+      page.getByRole('heading', { name: 'Bạn chưa có hồ sơ' }),
+    ).toBeVisible()
+    await page.screenshot({
+      path: 'docs/evidence/story-1101-profile-mobile.png',
+      fullPage: true,
+    })
+  })
 
   test('completes and reopens an anonymous result without exposing its bearer credential', async ({
     context,
@@ -189,11 +238,11 @@ test.describe('Care-backed PHQ-9 screening', () => {
 
     await page.goto('/profile')
     await expect(
-      page.getByRole('heading', { name: 'Hồ sơ Care' }),
+      page.getByRole('heading', { name: 'Hồ sơ và quyền riêng tư' }),
     ).toBeVisible()
     await expect(page.getByLabel('Tên hiển thị')).toHaveValue('Care E2E User')
     await expect(
-      page.getByText(/phiên bản backend: privacy-capstone-v1/i),
+      page.getByText(/thông báo về việc xử lý dữ liệu sức khỏe/i),
     ).toBeVisible()
 
     await page.goto('/assessment/phq9')
