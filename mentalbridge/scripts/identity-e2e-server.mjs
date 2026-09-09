@@ -146,7 +146,7 @@ function reset() {
   careConsents.set(otherCareActor.accountId, {
     decisionId: '30000000-0000-4000-8000-000000000001',
     consentType: 'PRIVACY_POLICY',
-    policyVersion: 'privacy-capstone-v1',
+    policyVersion: 'privacy-capstone-v2',
     granted: true,
     decidedAt: careNow.toISOString(),
   })
@@ -272,7 +272,7 @@ function careAssessment(assessmentId, body, expiresAt) {
     questionnaireDefinitionId: careDefinitionId,
     instrument: 'PHQ9',
     questionnaireVersion: careQuestionnaire.version,
-    privacyPolicyVersion: 'privacy-capstone-v1',
+    privacyPolicyVersion: 'privacy-capstone-v2',
     submittedAt: careNow.toISOString(),
     voidedAt: null,
     result: {
@@ -334,11 +334,11 @@ const server = createServer(async (request, response) => {
     ) {
       json(response, 200, {
         consentType: 'PRIVACY_POLICY',
-        version: 'privacy-capstone-v1',
+        version: 'privacy-capstone-v2',
         locale: 'vi-VN',
-        title: 'Thông báo xử lý dữ liệu cho bản Capstone',
+        title: 'Thông báo về việc xử lý dữ liệu sức khỏe',
         content:
-          'MentalBridge lưu hồ sơ Care, câu trả lời PHQ-9 và kết quả do backend tính cho controlled test/demo. Đây không phải chẩn đoán và không cho phép AI, nghiên cứu, marketing hoặc chia sẻ specialist.',
+          'MentalBridge lưu thông tin hồ sơ, câu trả lời PHQ-9 và kết quả sàng lọc để hiển thị lịch sử và hỗ trợ bạn thực hiện lại bài sàng lọc. Kết quả chỉ mang tính tham khảo, không phải chẩn đoán y khoa. Xác nhận này không bao gồm xử lý bằng AI, nghiên cứu, tiếp thị hoặc chia sẻ dữ liệu với chuyên gia.',
         capstoneOnly: true,
       })
       return
@@ -368,7 +368,7 @@ const server = createServer(async (request, response) => {
       const decision = {
         decisionId: crypto.randomUUID(),
         consentType: 'PRIVACY_POLICY',
-        policyVersion: 'privacy-capstone-v1',
+        policyVersion: 'privacy-capstone-v2',
         granted: body.granted === true,
         decidedAt: new Date().toISOString(),
       }
@@ -423,7 +423,7 @@ const server = createServer(async (request, response) => {
       const body = await readBody(request)
       if (
         body.questionnaireDefinitionId !== careDefinitionId ||
-        body.privacyPolicyVersion !== 'privacy-capstone-v1' ||
+        body.privacyPolicyVersion !== 'privacy-capstone-v2' ||
         body.privacyDisclosureAcknowledged !== true ||
         Object.hasOwn(body, 'totalScore')
       ) {
@@ -471,7 +471,7 @@ const server = createServer(async (request, response) => {
       }
       const body = await readBody(request)
       if (
-        body.privacyPolicyVersion !== 'privacy-capstone-v1' ||
+        body.privacyPolicyVersion !== 'privacy-capstone-v2' ||
         body.privacyDisclosureAcknowledged !== true ||
         careConsents.get(actor.accountId)?.granted !== true
       ) {
