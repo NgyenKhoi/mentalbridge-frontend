@@ -217,8 +217,8 @@ export default function ProfilePage() {
       setPrivacyGranted(granted)
       notify(
         granted
-          ? 'Đã ghi nhận xác nhận về quyền riêng tư.'
-          : 'Đã ghi nhận việc rút lại xác nhận cho các lần xử lý mới.',
+          ? 'Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'
+          : 'Đã ghi nhận việc rút lại sự đồng ý cho các lần xử lý mới.',
       )
     } catch {
       setError('Không thể ghi nhận lựa chọn về quyền riêng tư lúc này.')
@@ -292,8 +292,8 @@ export default function ProfilePage() {
             <div className="settings-badges">
               <span className="verified">
                 {privacyGranted
-                  ? '✓ Đã xác nhận thông báo quyền riêng tư'
-                  : 'Chưa xác nhận thông báo quyền riêng tư'}
+                  ? '✓ Đã đồng ý xử lý dữ liệu sàng lọc'
+                  : 'Chưa đồng ý xử lý dữ liệu sàng lọc'}
               </span>
             </div>
           </div>
@@ -409,7 +409,7 @@ export default function ProfilePage() {
             <article>
               <span className="amber">✓</span>
               <strong>{privacyGranted ? '1' : '0'}</strong>
-              <small>Xác nhận hiện hành</small>
+              <small>Sự đồng ý hiện hành</small>
             </article>
           </div>
         </aside>
@@ -430,13 +430,13 @@ export default function ProfilePage() {
                 {privacySaving
                   ? 'Đang ghi nhận…'
                   : privacyGranted
-                    ? 'Rút lại xác nhận cho lần xử lý mới'
-                    : 'Tôi đã đọc và xác nhận'}
+                    ? 'Rút lại sự đồng ý cho lần xử lý mới'
+                    : 'Tôi đồng ý'}
               </button>
             </div>
             {!profile && (
               <p className="settings-inline-note">
-                Bạn cần tạo hồ sơ trước khi xác nhận thông báo này.
+                Bạn cần tạo hồ sơ trước khi ghi nhận sự đồng ý này.
               </p>
             )}
           </div>
@@ -466,8 +466,8 @@ export default function ProfilePage() {
           <div>
             <strong>Xóa dữ liệu hiện chưa khả dụng</strong>
             <p>
-              Rút lại xác nhận quyền riêng tư sẽ ngăn các lần xử lý mới nhưng
-              không tự động xóa lịch sử đã lưu.
+              Rút lại sự đồng ý sẽ ngăn các lần xử lý mới nhưng không tự động
+              xóa lịch sử đã lưu.
             </p>
           </div>
           <span className="assessment-unavailable-label">Chưa khả dụng</span>

@@ -16,6 +16,7 @@ import type {
   PrivacyDisclosure,
   AssessmentHistoryPage,
   AssessmentProgress,
+  Instrument,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
 
@@ -245,11 +246,26 @@ export const careClient = {
       parseSuccess: parseAssessmentHistory,
     })
   },
-  currentPhq9(correlationId: string): Promise<Questionnaire> {
+  currentQuestionnaire(
+    instrument: Instrument,
+    correlationId: string,
+  ): Promise<Questionnaire> {
     const { questionnaireLocale } = readCareServerConfig()
     return careRequest({
       method: 'GET',
-      path: `/api/v1/questionnaires/PHQ9/current?locale=${encodeURIComponent(questionnaireLocale)}`,
+      path: `/api/v1/questionnaires/${instrument}/current?locale=${encodeURIComponent(questionnaireLocale)}`,
+      correlationId,
+      parseSuccess: parseQuestionnaire,
+    })
+  },
+
+  questionnaireDefinition(
+    definitionId: string,
+    correlationId: string,
+  ): Promise<Questionnaire> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/questionnaires/definitions/${encodeURIComponent(definitionId)}`,
       correlationId,
       parseSuccess: parseQuestionnaire,
     })

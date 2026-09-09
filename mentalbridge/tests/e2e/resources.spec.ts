@@ -23,10 +23,8 @@ test.describe('Resources journey', () => {
       }
     }
 
-    await page
-      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
-      .check()
-    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
+    await page.getByRole('checkbox', { name: /tôi đồng ý/i }).check()
+    await page.getByRole('button', { name: 'Xem kết quả' }).click()
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
     ).toBeVisible()

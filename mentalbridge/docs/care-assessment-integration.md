@@ -2,14 +2,17 @@
 
 ## Delivered flow
 
-The public `/assessment/anonymous` page and authenticated
-`/assessment/phq9` page use the same contract-driven assessment component.
-Both retrieve the current published PHQ-9 questionnaire and the backend-owned
-`privacy-capstone-v2` disclosure from Care. A submission contains the exact
+The public `/assessment/anonymous` page remains PHQ-9. Authenticated
+`/assessment/phq9` and `/assessment/gad7` pages use the same contract-driven
+assessment component. They retrieve the requested current published questionnaire and the backend-owned
+`privacy-capstone-v3` consent text from Care. V3 explicitly distinguishes
+authenticated history from session-scoped anonymous processing and excludes AI,
+research, marketing, and specialist sharing. A submission contains the exact
 disclosure version/acknowledgement plus its `questionnaireDefinitionId` and
 exact `questionId`/`value` answers.
-Care remains authoritative for total score, screening level, item-9 safety
-status, scoring version, and safety-policy version.
+Care remains authoritative for total score, screening level, scoring version,
+and questionnaire-specific safety semantics. PHQ-9 retains its item-9 policy;
+GAD-7 returns `NOT_APPLICABLE` with no safety-policy version.
 
 The browser does not contain a score calculator, score-band thresholds, item-9
 policy, questionnaire wording, hotline catalogue, or generated clinical
@@ -40,11 +43,12 @@ with bounded public titles. The UI distinguishes validation, conflict,
 anonymous-session expiry, forbidden access, rate limiting, and Care
 unavailability. A dependency failure never claims that answers were saved.
 
-Care publishes `phq9-vi-vn-capstone-v1` for controlled local/demo use. The
-definition contains the exact versioned questions, response labels, score bands,
-item-9 marker, archived source URI, and artifact checksum. A real local run now
-loads that definition through the default `vi-VN` request. Production
-language/domain approval remains a separately tracked deployment gate.
+Story 1102 publishes `phq9-vi-vn-capstone-v2` and
+`gad7-vi-vn-adult-v1` for controlled local/demo use. The earlier PHQ-9 v1 is
+retired but readable by immutable `definitionId`; reopening a result loads that
+stored definition so wording and bands do not drift. GAD-7 safety is rendered
+as explicitly not applicable, with no fabricated policy or negative item-9
+result.
 
 Care currently returns score/band/safety provenance but no approved support
 resource catalogue. The result page therefore shows an explicit unavailable

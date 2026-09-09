@@ -25,7 +25,7 @@ const profile = {
 }
 const disclosure = {
   consentType: 'PRIVACY_POLICY',
-  version: 'privacy-capstone-v2',
+  version: 'privacy-capstone-v3',
   locale: 'vi-VN',
   title: 'Thông báo xử lý dữ liệu',
   content: 'Nội dung authoritative từ Care.',
@@ -53,7 +53,7 @@ describe('Care profile page', () => {
             {
               decisionId: '10000000-0000-4000-8000-000000000002',
               consentType: 'PRIVACY_POLICY',
-              policyVersion: 'privacy-capstone-v2',
+              policyVersion: 'privacy-capstone-v3',
               granted: true,
               decidedAt: '2026-09-02T00:01:00Z',
             },
@@ -67,15 +67,13 @@ describe('Care profile page', () => {
     expect(screen.getByTestId('password-change-form')).toBeInTheDocument()
     expect(screen.getByText('Nội dung authoritative từ Care.')).toBeVisible()
     expect(screen.queryByText(/ThS\.|specialist/i)).not.toBeInTheDocument()
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Tôi đã đọc và xác nhận' }),
-    )
+    await userEvent.click(screen.getByRole('button', { name: 'Tôi đồng ý' }))
     expect(decision).toHaveBeenCalledWith({
       consentType: 'PRIVACY_POLICY',
-      policyVersion: 'privacy-capstone-v2',
+      policyVersion: 'privacy-capstone-v3',
       granted: true,
     })
-    await screen.findByText(/đã ghi nhận xác nhận về quyền riêng tư/i)
+    await screen.findByText(/đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc/i)
   })
 
   it('shows first-time onboarding when profile and consent data are empty', async () => {

@@ -33,10 +33,10 @@ const assessments = [
     id: 'gad7',
     name: 'GAD-7',
     fullName: 'Generalized Anxiety Disorder-7',
-    description: 'Bài sàng lọc lo âu này đang được chuẩn bị.',
-    duration: 'Chưa khả dụng',
+    description: 'Tự đánh giá các dấu hiệu lo âu trong hai tuần gần đây.',
+    duration: '3–5 phút',
     questions: 7,
-    available: false,
+    available: true,
   },
   {
     id: 'psqi',
@@ -125,7 +125,10 @@ export default function AssessmentsPage() {
               <div className="assessment-card-footer">
                 <div className="assessment-duration">{assessment.duration}</div>
                 {assessment.available ? (
-                  <Link href="/assessment/phq9" className="assessment-start">
+                  <Link
+                    href={`/assessment/${assessment.id}`}
+                    className="assessment-start"
+                  >
                     Bắt đầu <span aria-hidden="true">→</span>
                   </Link>
                 ) : (
@@ -186,12 +189,12 @@ export default function AssessmentsPage() {
                       {item.instrument} · {item.questionnaireVersion}
                     </td>
                     <td>{levelLabels[item.result.screeningLevel]}</td>
-                    <td>{item.result.totalScore}/27</td>
+                    <td>{item.result.totalScore} điểm</td>
                     <td>
                       <div className="assessment-row-actions">
                         <Link
                           className="assessment-row-action"
-                          href={`/assessment/phq9?assessmentId=${encodeURIComponent(item.assessmentId)}`}
+                          href={`/assessment/${item.instrument.toLowerCase()}?assessmentId=${encodeURIComponent(item.assessmentId)}`}
                         >
                           Xem lại
                         </Link>
