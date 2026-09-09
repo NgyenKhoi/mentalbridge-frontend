@@ -68,16 +68,15 @@ Story 212 implements the following design:
 - Client-visible account state is a minimal DTO derived from the backend current
   account endpoint. The browser does not decode a token to decide permissions.
 
-The implemented BFF surface is deliberately bounded to
-`/api/identity/register`, `/api/identity/email-verification`,
-`/api/identity/login`, `/api/identity/session`, `/api/identity/refresh`,
-`/api/identity/logout`, and `/api/identity/logout-all`. The server validates
-Identity responses before storing credentials, returns no access or refresh
-material to JavaScript, and maps dependency failures to sanitized Problem
-Details. Refresh commands share a short-lived process-local single flight and
-derive one stable opaque idempotency key from the high-entropy refresh
-credential across a bounded transient retry. Identity remains the authoritative
-replay and rotation coordinator across application instances.
+The implemented BFF surface is deliberately bounded to registration, email
+verification/resend, login/session/refresh/logout, password recovery/reset, and
+authenticated password change under `/api/identity/*`. The server validates
+request and Identity response shapes, returns no access/refresh material or
+credential challenges to JavaScript responses, and maps dependency failures to
+sanitized Problem Details. Refresh commands share a short-lived process-local
+single flight and derive one stable opaque idempotency key from the high-entropy
+refresh credential across a bounded transient retry. Identity remains the
+authoritative replay and rotation coordinator across application instances.
 
 The root `proxy.ts` checks only access/refresh cookie presence for fast protected
 route redirects. Server-only data access calls Identity `/api/v1/account` for
@@ -124,17 +123,22 @@ registration. Editing email, password, or actor type starts a new logical
 submission and therefore a new key. The browser receives only
 `registrationPending`, never the backend account record.
 
-The backend email link targets `/verify-email?challenge=...`. Its page passes
-the challenge to a small Client Component, which removes the query string from
-browser history before calling the bounded verification BFF. The challenge is
-not persisted, rendered, logged, or returned in the browser response. Invalid,
+The backend email link targets `/verify-email?challenge=...`. A small Client
+Component reads the challenge directly from `window.location`, removes the query
+string from browser history immediately, and only then calls the bounded
+verification BFF. The challenge is not serialized through a Server Component,
+persisted, rendered, logged, or returned in the browser response. Invalid,
 expired, and otherwise ineligible challenges intentionally share one safe UI
 state because the backend exposes the single `INVALID_CHALLENGE` code.
 
-Verification resend and password recovery remain planned contract operations.
-The UI does not invent these calls: the registration result explains the
-delivery limitation, login has no recovery action, and `/reset-password` states
-that recovery is unavailable instead of simulating OTP behavior.
+Story 902 implements verification resend, password recovery/reset, and
+authenticated password change. Both email request operations produce the same
+empty `202 Accepted` browser response for eligible and unknown/ineligible
+accounts. Recovery challenges are read and removed from `/reset-password`
+browser history before use and are never stored. Password change requires the
+current password, an authenticated HttpOnly session, and an exact same-origin
+request. Successful reset/change clears local session cookies and routes to a
+fresh login because Identity atomically revokes all account refresh sessions.
 
 ## Error and dependency behavior
 

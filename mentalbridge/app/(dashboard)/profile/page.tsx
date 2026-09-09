@@ -15,6 +15,7 @@ import {
   recordPrivacyDecision,
   saveCareProfile,
 } from '@/features/assessment/api/browser-care'
+import PasswordChangeForm from '@/features/auth/components/PasswordChangeForm'
 
 import './profile.css'
 
@@ -342,6 +343,16 @@ export default function ProfilePage() {
             <p>Không thể tự tạo nội dung hoặc phiên bản thay thế ở frontend.</p>
           </div>
         )}
+      </section>
+      <section className="settings-danger">
+        <h2>Bảo mật tài khoản</h2>
+        <div className="settings-password-info">
+          <div>
+            <strong>Đổi mật khẩu</strong>
+            <small>Mật khẩu mới sẽ thu hồi mọi phiên đăng nhập hiện tại.</small>
+            <PasswordChangeForm />
+          </div>
+        </div>
       </section>
       <section className="settings-danger">
         <h2>Dữ liệu & tài khoản</h2>

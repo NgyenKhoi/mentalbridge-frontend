@@ -130,3 +130,10 @@ export function noContentResponse(correlationId: string) {
   response.headers.set('Cache-Control', 'no-store')
   return response
 }
+
+export function acceptedResponse(correlationId: string) {
+  const response = new NextResponse(null, { status: 202 })
+  response.headers.set(CORRELATION_HEADER, correlationId)
+  response.headers.set('Cache-Control', 'no-store')
+  return response
+}

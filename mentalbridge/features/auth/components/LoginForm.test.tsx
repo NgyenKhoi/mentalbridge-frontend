@@ -29,8 +29,8 @@ describe('LoginForm', () => {
 
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('link', { name: /quên mật khẩu/i }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('link', { name: /quên mật khẩu/i }),
+    ).toHaveAttribute('href', '/reset-password')
   })
 
   it('prevents duplicate submission and routes from the resolved session', async () => {

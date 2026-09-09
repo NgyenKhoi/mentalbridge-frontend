@@ -105,6 +105,11 @@ describe('RegistrationForm', () => {
       'registration-key-0001',
     )
     expect(await screen.findByText(/kiểm tra email của bạn/i)).toBeVisible()
-    expect(screen.getByText(/gửi lại email chưa được hỗ trợ/i)).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: /gửi lại email xác minh/i }),
+    ).toBeVisible()
+    expect(screen.getByLabelText(/email tài khoản/i)).toHaveValue(
+      'member@example.com',
+    )
   })
 })

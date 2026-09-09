@@ -4,7 +4,14 @@ import LoginForm from '@/features/auth/components/LoginForm'
 
 import './auth.css'
 
-export default function LoginPage() {
+export default async function LoginPage(props: PageProps<'/login'>) {
+  const { credential } = await props.searchParams
+  const notice =
+    credential === 'reset'
+      ? 'Mật khẩu đã được đặt lại. Hãy đăng nhập bằng mật khẩu mới.'
+      : credential === 'changed'
+        ? 'Mật khẩu đã được thay đổi và các phiên cũ đã được đăng xuất.'
+        : undefined
   return (
     <div className="auth-layout">
       <div className="auth-container">
@@ -37,7 +44,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <LoginForm />
+            <LoginForm notice={notice} />
 
             <div className="anonymous-cta">
               <div className="divider">
