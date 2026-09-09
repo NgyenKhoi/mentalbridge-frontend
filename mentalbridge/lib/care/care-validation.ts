@@ -18,6 +18,10 @@ import type {
   AssessmentProgressPoint,
   ScoreDirection,
 } from '@/features/assessment/api/care-contract'
+import type {
+  ValidationResult,
+  ValidationViolation,
+} from '@/lib/auth/identity-validation'
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -157,30 +161,133 @@ export function parseProfile(value: unknown): CareProfile | null {
 }
 
 export function parseProfileUpdate(value: unknown): CareProfileUpdate | null {
+  const result = validateProfileUpdate(value)
+  return result.success ? result.value : null
+}
+
+export function validateProfileUpdate(
+  value: unknown,
+  today = new Date(),
+): ValidationResult<CareProfileUpdate> {
+  if (!isRecord(value)) {
+    return {
+      success: false,
+      violations: [{ field: 'body', code: 'INVALID_TYPE' }],
+    }
+  }
+
+  const violations: ValidationViolation[] = []
+  const allowedKeys = new Set([
+    'displayName',
+    'dateOfBirth',
+    'gender',
+    'locale',
+    'timezone',
+    'reminderEnabled',
+  ])
+  if (Object.keys(value).some((key) => !allowedKeys.has(key))) {
+    violations.push({ field: 'body', code: 'UNKNOWN_FIELD' })
+  }
   if (
-    !isRecord(value) ||
-    Object.keys(value).some(
-      (key) =>
-        ![
-          'displayName',
-          'dateOfBirth',
-          'gender',
-          'locale',
-          'timezone',
-          'reminderEnabled',
-        ].includes(key),
-    ) ||
     typeof value.displayName !== 'string' ||
     value.displayName.trim().length < 1 ||
-    value.displayName.length > 120 ||
-    !isOptionalString(value.dateOfBirth) ||
-    !isOptionalString(value.gender) ||
-    typeof value.locale !== 'string' ||
-    typeof value.timezone !== 'string' ||
-    typeof value.reminderEnabled !== 'boolean'
+    value.displayName.length > 120
+  ) {
+    violations.push({ field: 'displayName', code: 'INVALID_LENGTH' })
+  }
+  if (
+    value.gender !== undefined &&
+    value.gender !== null &&
+    (typeof value.gender !== 'string' || value.gender.length > 32)
+  ) {
+    violations.push({ field: 'gender', code: 'INVALID_LENGTH' })
+  }
+  if (value.locale !== undefined && value.locale !== 'vi-VN') {
+    violations.push({ field: 'locale', code: 'INVALID_VALUE' })
+  }
+  if (value.timezone !== undefined && value.timezone !== 'Asia/Ho_Chi_Minh') {
+    violations.push({ field: 'timezone', code: 'INVALID_VALUE' })
+  }
+  if (value.reminderEnabled !== undefined && value.reminderEnabled !== false) {
+    violations.push({ field: 'reminderEnabled', code: 'INVALID_VALUE' })
+  }
+
+  let dateOfBirth: string | null | undefined
+  if (value.dateOfBirth === undefined || value.dateOfBirth === null) {
+    dateOfBirth = value.dateOfBirth
+  } else if (
+    typeof value.dateOfBirth !== 'string' ||
+    parseIsoDate(value.dateOfBirth) === null
+  ) {
+    violations.push({ field: 'dateOfBirth', code: 'INVALID_DATE' })
+  } else {
+    dateOfBirth = value.dateOfBirth
+    const birth = parseIsoDate(value.dateOfBirth)
+    const current = utcDateParts(today)
+    if (birth && compareDateParts(birth, current) > 0) {
+      violations.push({
+        field: 'dateOfBirth',
+        code: 'DATE_OF_BIRTH_IN_FUTURE',
+      })
+    } else if (
+      birth &&
+      compareDateParts(eighteenthBirthday(birth), current) > 0
+    ) {
+      violations.push({ field: 'dateOfBirth', code: 'MINIMUM_AGE_NOT_MET' })
+    }
+  }
+
+  if (violations.length > 0) return { success: false, violations }
+
+  return {
+    success: true,
+    value: {
+      displayName: (value.displayName as string).trim(),
+      ...(dateOfBirth === undefined ? {} : { dateOfBirth }),
+      ...(value.gender === undefined
+        ? {}
+        : { gender: value.gender as string | null }),
+    },
+  }
+}
+
+type DateParts = Readonly<{ year: number; month: number; day: number }>
+
+function parseIsoDate(value: string): DateParts | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return null
+  const [, yearText, monthText, dayText] = match
+  const result = {
+    year: Number(yearText),
+    month: Number(monthText),
+    day: Number(dayText),
+  }
+  const date = new Date(Date.UTC(result.year, result.month - 1, result.day))
+  return date.getUTCFullYear() === result.year &&
+    date.getUTCMonth() === result.month - 1 &&
+    date.getUTCDate() === result.day
+    ? result
+    : null
+}
+
+function utcDateParts(value: Date): DateParts {
+  return {
+    year: value.getUTCFullYear(),
+    month: value.getUTCMonth() + 1,
+    day: value.getUTCDate(),
+  }
+}
+
+function eighteenthBirthday(birth: DateParts): DateParts {
+  const year = birth.year + 18
+  const lastDay = new Date(Date.UTC(year, birth.month, 0)).getUTCDate()
+  return { year, month: birth.month, day: Math.min(birth.day, lastDay) }
+}
+
+function compareDateParts(left: DateParts, right: DateParts) {
+  return (
+    left.year - right.year || left.month - right.month || left.day - right.day
   )
-    return null
-  return value as CareProfileUpdate
 }
 
 export function parsePrivacyDisclosure(
@@ -189,7 +296,7 @@ export function parsePrivacyDisclosure(
   if (
     !isRecord(value) ||
     value.consentType !== 'PRIVACY_POLICY' ||
-    value.version !== 'privacy-capstone-v1' ||
+    value.version !== 'privacy-capstone-v2' ||
     value.locale !== 'vi-VN' ||
     typeof value.title !== 'string' ||
     typeof value.content !== 'string' ||
@@ -233,7 +340,7 @@ export function parseConsentRequest(
       (key) => !['consentType', 'policyVersion', 'granted'].includes(key),
     ) ||
     value.consentType !== 'PRIVACY_POLICY' ||
-    value.policyVersion !== 'privacy-capstone-v1' ||
+    value.policyVersion !== 'privacy-capstone-v2' ||
     typeof value.granted !== 'boolean'
   )
     return null
@@ -413,7 +520,7 @@ export function parseSubmission(
   if (
     !isRecord(value) ||
     !isUuid(value.questionnaireDefinitionId) ||
-    value.privacyPolicyVersion !== 'privacy-capstone-v1' ||
+    value.privacyPolicyVersion !== 'privacy-capstone-v2' ||
     value.privacyDisclosureAcknowledged !== true
   )
     return null
@@ -464,7 +571,7 @@ export function parseSubmission(
 
   return {
     questionnaireDefinitionId: value.questionnaireDefinitionId,
-    privacyPolicyVersion: 'privacy-capstone-v1',
+    privacyPolicyVersion: 'privacy-capstone-v2',
     privacyDisclosureAcknowledged: true,
     answers: answers as AssessmentSubmissionRequest['answers'],
   }

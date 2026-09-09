@@ -1,9 +1,8 @@
 'use client'
 
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 
 import LightSelect from '@/components/LightSelect'
-import { ApiError } from '@/lib/api/api-error'
 import type {
   CareProfile,
   PrivacyDisclosure,
@@ -16,6 +15,8 @@ import {
   saveCareProfile,
 } from '@/features/assessment/api/browser-care'
 import PasswordChangeForm from '@/features/auth/components/PasswordChangeForm'
+import { ApiError } from '@/lib/api/api-error'
+import { validateProfileUpdate } from '@/lib/care/care-validation'
 
 import './profile.css'
 
@@ -23,17 +24,40 @@ type FormState = {
   displayName: string
   dateOfBirth: string
   gender: string
-  locale: string
-  timezone: string
-  reminderEnabled: boolean
 }
-const emptyForm: FormState = {
-  displayName: '',
-  dateOfBirth: '',
-  gender: '',
-  locale: 'vi-VN',
-  timezone: 'Asia/Ho_Chi_Minh',
-  reminderEnabled: false,
+
+type FieldErrors = Partial<Record<keyof FormState, string>>
+
+const emptyForm: FormState = { displayName: '', dateOfBirth: '', gender: '' }
+
+const fieldMessages: Record<string, string> = {
+  INVALID_DATE: 'Ngày sinh phải là một ngày hợp lệ.',
+  DATE_OF_BIRTH_IN_FUTURE: 'Ngày sinh không được ở trong tương lai.',
+  MINIMUM_AGE_NOT_MET: 'Bạn cần đủ 18 tuổi để tạo hồ sơ.',
+  INVALID_LENGTH: 'Vui lòng nhập tên hiển thị từ 1 đến 120 ký tự.',
+}
+
+function profileForm(profile: CareProfile): FormState {
+  return {
+    displayName: profile.displayName,
+    dateOfBirth: profile.dateOfBirth ?? '',
+    gender: profile.gender ?? '',
+  }
+}
+
+function errorsFromViolations(
+  violations: readonly { field: string; code: string }[],
+): FieldErrors {
+  return Object.fromEntries(
+    violations
+      .filter((violation) =>
+        ['displayName', 'dateOfBirth', 'gender'].includes(violation.field),
+      )
+      .map((violation) => [
+        violation.field,
+        fieldMessages[violation.code] ?? 'Giá trị này chưa hợp lệ.',
+      ]),
+  )
 }
 
 export default function ProfilePage() {
@@ -45,19 +69,25 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [privacySaving, setPrivacySaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [toast, setToast] = useState('')
+  const displayNameRef = useRef<HTMLInputElement>(null)
+  const dateOfBirthRef = useRef<HTMLInputElement>(null)
+
   const initials = useMemo(
     () =>
       (
-        form.displayName
+        profile?.displayName
           .trim()
           .split(/\s+/)
           .slice(-2)
           .map((part) => part[0])
           .join('') || 'MB'
       ).toUpperCase(),
-    [form.displayName],
+    [profile],
   )
+  const originalForm = profile ? profileForm(profile) : emptyForm
+  const hasDraftChanges = JSON.stringify(form) !== JSON.stringify(originalForm)
 
   useEffect(() => {
     let active = true
@@ -70,37 +100,42 @@ export default function ProfilePage() {
             getCurrentConsents(),
           ])
         if (!active) return
+
         if (profileResult.status === 'fulfilled') {
           setProfile(profileResult.value)
-          setForm({
-            displayName: profileResult.value.displayName,
-            dateOfBirth: profileResult.value.dateOfBirth ?? '',
-            gender: profileResult.value.gender ?? '',
-            locale: profileResult.value.locale,
-            timezone: profileResult.value.timezone,
-            reminderEnabled: profileResult.value.reminderEnabled,
-          })
+          setForm(profileForm(profileResult.value))
         } else if (!(
           profileResult.reason instanceof ApiError &&
-          profileResult.reason.status === 404
-        ))
+          profileResult.reason.code === 'PROFILE_NOT_FOUND'
+        )) {
           throw profileResult.reason
-        if (disclosureResult.status === 'rejected')
+        }
+
+        if (disclosureResult.status === 'rejected') {
           throw disclosureResult.reason
+        }
         setDisclosure(disclosureResult.value)
-        if (consentResult.status === 'rejected') throw consentResult.reason
-        setPrivacyGranted(
-          consentResult.value.decisions.some(
-            (decision) =>
-              decision.policyVersion === disclosureResult.value.version &&
-              decision.granted,
-          ),
-        )
-      } catch {
-        if (active)
-          setError(
-            'Care tạm thời chưa tải được hồ sơ hoặc trạng thái quyền riêng tư. Không có dữ liệu mẫu được hiển thị thay thế.',
+
+        if (consentResult.status === 'fulfilled') {
+          setPrivacyGranted(
+            consentResult.value.decisions.some(
+              (decision) =>
+                decision.policyVersion === disclosureResult.value.version &&
+                decision.granted,
+            ),
           )
+        } else if (!(
+          consentResult.reason instanceof ApiError &&
+          consentResult.reason.code === 'PROFILE_NOT_FOUND'
+        )) {
+          throw consentResult.reason
+        }
+      } catch {
+        if (active) {
+          setError(
+            'Không thể tải đầy đủ thông tin tài khoản lúc này. Vui lòng thử lại sau.',
+          )
+        }
       } finally {
         if (active) setLoading(false)
       }
@@ -114,31 +149,65 @@ export default function ProfilePage() {
     setToast(message)
     window.setTimeout(() => setToast(''), 2800)
   }
+
+  const updateField = (field: keyof FormState, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }))
+    setFieldErrors((current) => ({ ...current, [field]: undefined }))
+  }
+
+  const focusFirstError = (errors: FieldErrors) => {
+    window.setTimeout(() => {
+      if (errors.displayName) displayNameRef.current?.focus()
+      else if (errors.dateOfBirth) dateOfBirthRef.current?.focus()
+    })
+  }
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    setSaving(true)
     setError(null)
+    const validation = validateProfileUpdate({
+      displayName: form.displayName,
+      dateOfBirth: form.dateOfBirth || null,
+      gender: form.gender || null,
+    })
+    if (!validation.success) {
+      const errors = errorsFromViolations(validation.violations)
+      setFieldErrors(errors)
+      focusFirstError(errors)
+      return
+    }
+
+    setSaving(true)
     try {
-      const saved = await saveCareProfile(
-        {
-          ...form,
-          dateOfBirth: form.dateOfBirth || null,
-          gender: form.gender || null,
-        },
-        profile?.version,
-      )
+      const saved = await saveCareProfile(validation.value, profile?.version)
       setProfile(saved)
-      notify('Care đã lưu hồ sơ của bạn.')
+      setForm(profileForm(saved))
+      setFieldErrors({})
+      notify(profile ? 'Đã lưu thay đổi hồ sơ.' : 'Đã tạo hồ sơ của bạn.')
     } catch (cause) {
+      if (cause instanceof ApiError && cause.problem?.violations) {
+        const errors = errorsFromViolations(cause.problem.violations)
+        if (Object.keys(errors).length > 0) {
+          setFieldErrors(errors)
+          focusFirstError(errors)
+        }
+      }
       setError(
         cause instanceof ApiError && cause.status === 412
-          ? 'Hồ sơ đã được cập nhật ở nơi khác. Hãy tải lại trang trước khi lưu tiếp.'
-          : 'Không thể lưu hồ sơ lúc này. Thay đổi chưa được xác nhận.',
+          ? 'Hồ sơ đã thay đổi ở một nơi khác. Hãy tải lại trang trước khi lưu tiếp.'
+          : 'Không thể lưu hồ sơ lúc này. Nội dung bạn vừa nhập vẫn được giữ lại.',
       )
     } finally {
       setSaving(false)
     }
   }
+
+  const resetDraft = () => {
+    setForm(originalForm)
+    setFieldErrors({})
+    setError(null)
+  }
+
   const decidePrivacy = async (granted: boolean) => {
     if (!disclosure) return
     setPrivacySaving(true)
@@ -148,40 +217,61 @@ export default function ProfilePage() {
       setPrivacyGranted(granted)
       notify(
         granted
-          ? 'Đã ghi nhận xác nhận quyền riêng tư.'
-          : 'Đã ghi nhận thu hồi cho các lần xử lý mới.',
+          ? 'Đã ghi nhận xác nhận về quyền riêng tư.'
+          : 'Đã ghi nhận việc rút lại xác nhận cho các lần xử lý mới.',
       )
     } catch {
-      setError('Không thể ghi nhận quyết định quyền riêng tư lúc này.')
+      setError('Không thể ghi nhận lựa chọn về quyền riêng tư lúc này.')
     } finally {
       setPrivacySaving(false)
     }
   }
 
-  if (loading)
+  if (loading) {
     return (
       <div className="settings-page">
         <section className="settings-runtime-state" aria-live="polite">
-          <h1>Đang tải hồ sơ Care</h1>
-          <p>Đang lấy dữ liệu đã lưu từ backend.</p>
+          <h1>Đang tải hồ sơ</h1>
+          <p>Thông tin đã lưu của bạn đang được tải.</p>
         </section>
       </div>
     )
+  }
+
   return (
     <div className="settings-page">
       <header className="settings-hero">
         <span>Tài khoản của bạn</span>
-        <h1>Hồ sơ Care</h1>
-        <p>
-          Quản lý dữ liệu hồ sơ và quyết định quyền riêng tư được lưu bởi Care
-          service.
-        </p>
+        <h1>Hồ sơ và quyền riêng tư</h1>
+        <p>Quản lý thông tin cá nhân và lựa chọn xử lý dữ liệu của bạn.</p>
       </header>
+
       {error && (
         <p className="settings-runtime-error" role="alert">
           {error}
         </p>
       )}
+
+      {!profile && (
+        <section
+          className="settings-onboarding"
+          aria-labelledby="profile-onboarding-title"
+        >
+          <div>
+            <span>Bắt đầu</span>
+            <h2 id="profile-onboarding-title">Bạn chưa có hồ sơ</h2>
+            <p>Tạo hồ sơ để lưu kết quả sàng lọc và quản lý quyền riêng tư.</p>
+          </div>
+          <button
+            className="btn-primary"
+            type="button"
+            onClick={() => displayNameRef.current?.focus()}
+          >
+            Tạo hồ sơ
+          </button>
+        </section>
+      )}
+
       <section className="settings-profile-summary">
         <div className="settings-summary-left">
           <div className="settings-avatar-wrap">
@@ -192,51 +282,82 @@ export default function ProfilePage() {
           </div>
           <div>
             <div className="settings-name-row">
-              <h2>{form.displayName || 'Chưa tạo hồ sơ'}</h2>
-              <span>CARE</span>
+              <h2>{profile?.displayName ?? 'Chưa tạo hồ sơ'}</h2>
             </div>
             <p>
               {profile
                 ? `Cập nhật ${new Date(profile.updatedAt).toLocaleString('vi-VN')}`
-                : 'Hồ sơ Care chưa tồn tại'}
+                : 'Thông tin bạn nhập chỉ được hiển thị ở biểu mẫu cho đến khi lưu.'}
             </p>
             <div className="settings-badges">
               <span className="verified">
                 {privacyGranted
-                  ? '✓ Disclosure đã xác nhận'
-                  : 'Disclosure chưa xác nhận'}
+                  ? '✓ Đã xác nhận thông báo quyền riêng tư'
+                  : 'Chưa xác nhận thông báo quyền riêng tư'}
               </span>
             </div>
           </div>
         </div>
       </section>
+
       <div className="settings-grid">
         <section className="settings-group">
           <p className="settings-group-label">Thông tin cá nhân</p>
           <div className="settings-accordion open">
             <div className="settings-accordion-body">
-              <form onSubmit={submit}>
+              <form onSubmit={submit} noValidate>
                 <div className="settings-fields">
                   <label className="full">
                     Tên hiển thị
                     <input
-                      required
+                      ref={displayNameRef}
                       maxLength={120}
+                      autoComplete="name"
                       value={form.displayName}
+                      aria-invalid={Boolean(fieldErrors.displayName)}
+                      aria-describedby={
+                        fieldErrors.displayName
+                          ? 'display-name-error'
+                          : undefined
+                      }
                       onChange={(event) =>
-                        setForm({ ...form, displayName: event.target.value })
+                        updateField('displayName', event.target.value)
                       }
                     />
+                    {fieldErrors.displayName && (
+                      <small
+                        id="display-name-error"
+                        className="settings-field-error"
+                      >
+                        {fieldErrors.displayName}
+                      </small>
+                    )}
                   </label>
                   <label>
                     Ngày sinh
                     <input
+                      ref={dateOfBirthRef}
                       type="date"
+                      autoComplete="bday"
                       value={form.dateOfBirth}
+                      aria-invalid={Boolean(fieldErrors.dateOfBirth)}
+                      aria-describedby={
+                        fieldErrors.dateOfBirth
+                          ? 'date-of-birth-error'
+                          : undefined
+                      }
                       onChange={(event) =>
-                        setForm({ ...form, dateOfBirth: event.target.value })
+                        updateField('dateOfBirth', event.target.value)
                       }
                     />
+                    {fieldErrors.dateOfBirth && (
+                      <small
+                        id="date-of-birth-error"
+                        className="settings-field-error"
+                      >
+                        {fieldErrors.dateOfBirth}
+                      </small>
+                    )}
                   </label>
                   <label>
                     Giới tính
@@ -244,7 +365,7 @@ export default function ProfilePage() {
                       id="profile-gender"
                       name="gender"
                       value={form.gender}
-                      onChange={(gender) => setForm({ ...form, gender })}
+                      onChange={(gender) => updateField('gender', gender)}
                       options={[
                         { value: '', label: 'Không cung cấp' },
                         { value: 'male', label: 'Nam' },
@@ -253,31 +374,6 @@ export default function ProfilePage() {
                       ]}
                     />
                   </label>
-                  <label>
-                    Ngôn ngữ
-                    <input value={form.locale} readOnly />
-                    <small>Sprint 2 hỗ trợ vi-VN.</small>
-                  </label>
-                  <label>
-                    Múi giờ
-                    <input value={form.timezone} readOnly />
-                  </label>
-                  <label className="full settings-reminder">
-                    <input
-                      type="checkbox"
-                      checked={form.reminderEnabled}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          reminderEnabled: event.target.checked,
-                        })
-                      }
-                    />
-                    <span>
-                      Bật tùy chọn nhắc nhở trong hồ sơ. Sprint 2 chưa tự động
-                      đặt lịch nhắc lâm sàng.
-                    </span>
-                  </label>
                 </div>
                 <div className="settings-form-actions">
                   <button className="btn-primary" disabled={saving}>
@@ -285,39 +381,46 @@ export default function ProfilePage() {
                       ? 'Đang lưu…'
                       : profile
                         ? 'Lưu thay đổi'
-                        : 'Tạo hồ sơ Care'}
+                        : 'Tạo hồ sơ'}
                   </button>
+                  {hasDraftChanges && (
+                    <button
+                      className="btn-ghost"
+                      type="button"
+                      onClick={resetDraft}
+                    >
+                      Hủy thay đổi
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
           </div>
         </section>
+
         <aside className="settings-activity">
-          <h2>Trạng thái dữ liệu</h2>
+          <h2>Trạng thái</h2>
           <div>
             <article>
               <span className="teal">N</span>
               <strong>{profile ? '1' : '0'}</strong>
-              <small>Hồ sơ Care</small>
+              <small>Hồ sơ đã lưu</small>
             </article>
             <article>
               <span className="amber">✓</span>
               <strong>{privacyGranted ? '1' : '0'}</strong>
-              <small>Consent hiện hành</small>
+              <small>Xác nhận hiện hành</small>
             </article>
           </div>
         </aside>
       </div>
+
       <section className="settings-privacy-runtime">
-        <p className="settings-group-label">Quyền riêng tư & xử lý dữ liệu</p>
+        <p className="settings-group-label">Quyền riêng tư và xử lý dữ liệu</p>
         {disclosure ? (
           <div>
             <h2>{disclosure.title}</h2>
             <p>{disclosure.content}</p>
-            <small>
-              Phiên bản backend: {disclosure.version} · Chỉ dùng cho controlled
-              Capstone/test/demo.
-            </small>
             <div className="settings-form-actions">
               <button
                 className={privacyGranted ? 'btn-ghost' : 'btn-primary'}
@@ -327,23 +430,24 @@ export default function ProfilePage() {
                 {privacySaving
                   ? 'Đang ghi nhận…'
                   : privacyGranted
-                    ? 'Thu hồi cho lần xử lý mới'
+                    ? 'Rút lại xác nhận cho lần xử lý mới'
                     : 'Tôi đã đọc và xác nhận'}
               </button>
             </div>
             {!profile && (
               <p className="settings-inline-note">
-                Hãy tạo hồ sơ Care trước khi ghi nhận quyết định.
+                Bạn cần tạo hồ sơ trước khi xác nhận thông báo này.
               </p>
             )}
           </div>
         ) : (
           <div className="settings-runtime-state">
-            <strong>Disclosure hiện chưa khả dụng</strong>
-            <p>Không thể tự tạo nội dung hoặc phiên bản thay thế ở frontend.</p>
+            <strong>Thông báo quyền riêng tư hiện chưa khả dụng</strong>
+            <p>Vui lòng thử lại sau.</p>
           </div>
         )}
       </section>
+
       <section className="settings-danger">
         <h2>Bảo mật tài khoản</h2>
         <div className="settings-password-info">
@@ -354,21 +458,27 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
+
       <section className="settings-danger">
-        <h2>Dữ liệu & tài khoản</h2>
+        <h2>Quản lý dữ liệu</h2>
         <div>
           <span className="settings-row-icon terra">!</span>
           <div>
-            <strong>Workflow xóa dữ liệu chưa khả dụng</strong>
+            <strong>Xóa dữ liệu hiện chưa khả dụng</strong>
             <p>
-              Thu hồi PRIVACY_POLICY không xóa các assessment lịch sử. Xóa dữ
-              liệu là workflow riêng và chưa được triển khai trong Sprint 2.
+              Rút lại xác nhận quyền riêng tư sẽ ngăn các lần xử lý mới nhưng
+              không tự động xóa lịch sử đã lưu.
             </p>
           </div>
           <span className="assessment-unavailable-label">Chưa khả dụng</span>
         </div>
       </section>
-      {toast && <div className="settings-toast">✓ {toast}</div>}
+
+      {toast && (
+        <div className="settings-toast" role="status">
+          ✓ {toast}
+        </div>
+      )}
     </div>
   )
 }

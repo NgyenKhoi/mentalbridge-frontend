@@ -27,14 +27,14 @@ const groups = [
     items: [
       [
         '/dashboard',
-        'Dashboard',
+        'Tổng quan',
         <Svg key="h">
           <path d="M4 11 12 4l8 7M6 9.5V20h12V9.5" />
         </Svg>,
       ],
       [
         '/journal',
-        'Journal',
+        'Nhật ký',
         <Svg key="j">
           <path d="M6 3h9l3 3v15H6V3Z" />
           <path d="M9 9h6M9 13h6M9 17h3" />
@@ -42,7 +42,7 @@ const groups = [
       ],
       [
         '/assessments',
-        'Assessments',
+        'Bài sàng lọc',
         <Svg key="a">
           <path d="m5 13 4 4L19 7" />
         </Svg>,
@@ -54,7 +54,7 @@ const groups = [
     items: [
       [
         '/specialists',
-        'Specialists',
+        'Chuyên gia',
         <Svg key="s">
           <circle cx="9" cy="8" r="3.2" />
           <path d="M3.5 20c1-3.5 3.3-5.3 5.5-5.3S14 16.5 15 20M17 6.2a2.3 2.3 0 1 1 0 4.6" />
@@ -62,7 +62,7 @@ const groups = [
       ],
       [
         '/appointments',
-        'Appointments',
+        'Lịch hẹn',
         <Svg key="c">
           <rect x="4" y="5" width="16" height="15" rx="2.5" />
           <path d="M8 3v4M16 3v4M4 10h16" />
@@ -70,7 +70,7 @@ const groups = [
       ],
       [
         '/messages',
-        'Messages',
+        'Tin nhắn',
         <Svg key="m">
           <path d="M4 5h16v11H8l-4 4V5Z" />
         </Svg>,
@@ -83,7 +83,7 @@ const groups = [
     items: [
       [
         '/resources',
-        'Resources',
+        'Tài nguyên',
         <Svg key="r">
           <circle cx="12" cy="12" r="8.5" />
           <path d="M12 8v4l3 2" />
@@ -91,14 +91,14 @@ const groups = [
       ],
       [
         '/analytics',
-        'Analytics',
+        'Phân tích',
         <Svg key="n">
           <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />
         </Svg>,
       ],
       [
         '/subscription',
-        'Subscription',
+        'Gói dịch vụ',
         <Svg key="p">
           <rect x="3" y="6" width="18" height="12" rx="2.5" />
           <path d="M3 10h18" />
@@ -106,7 +106,7 @@ const groups = [
       ],
       [
         '/notifications',
-        'Notifications',
+        'Thông báo',
         <Svg key="b">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
         </Svg>,
@@ -125,7 +125,7 @@ const labels: Record<string, string> = {
   '/analytics': 'Phân tích',
   '/subscription': 'Gói dịch vụ',
   '/notifications': 'Thông báo',
-  '/profile': 'Tài khoản',
+  '/profile': 'Hồ sơ và quyền riêng tư',
 }
 
 export default function AuthenticatedShell({
@@ -192,7 +192,7 @@ export default function AuthenticatedShell({
                 <path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6" />
               </Svg>
             </i>
-            <span>Profile &amp; Privacy</span>
+            <span>Hồ sơ và quyền riêng tư</span>
           </Link>
           <div className="ref-user">
             <span className="ref-user-avatar">N</span>
@@ -215,7 +215,7 @@ export default function AuthenticatedShell({
             </Svg>
           </button>
           <div className="ref-context">
-            <span>Workspace</span>
+            <span>Không gian của bạn</span>
             <strong>{labels[pathname] ?? 'MentalBridge'}</strong>
           </div>
           <label>

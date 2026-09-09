@@ -30,7 +30,7 @@ async function answerPublishedQuestionnaire(page: Page) {
     }
   }
   await page.getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i }).check()
-  await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
+  await page.getByRole('button', { name: 'Xem kết quả' }).click()
   await expect(
     page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
   ).toBeVisible()
@@ -98,7 +98,7 @@ async function submitOwnedAssessment(
     },
     data: {
       questionnaireDefinitionId: questionnaire.definitionId,
-      privacyPolicyVersion: 'privacy-capstone-v1',
+      privacyPolicyVersion: 'privacy-capstone-v2',
       privacyDisclosureAcknowledged: true,
       answers: questionnaire.questions.map(({ questionId }) => ({
         questionId,
@@ -189,11 +189,11 @@ test.describe('Care-backed PHQ-9 screening', () => {
 
     await page.goto('/profile')
     await expect(
-      page.getByRole('heading', { name: 'Hồ sơ Care' }),
+      page.getByRole('heading', { name: 'Hồ sơ và quyền riêng tư' }),
     ).toBeVisible()
     await expect(page.getByLabel('Tên hiển thị')).toHaveValue('Care E2E User')
     await expect(
-      page.getByText(/phiên bản backend: privacy-capstone-v1/i),
+      page.getByText(/thông báo về việc xử lý dữ liệu sức khỏe/i),
     ).toBeVisible()
 
     await page.goto('/assessment/phq9')

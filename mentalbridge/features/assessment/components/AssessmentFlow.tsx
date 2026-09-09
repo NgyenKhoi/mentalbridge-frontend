@@ -51,12 +51,9 @@ function ResultPanel({
   return (
     <section className="care-result" aria-labelledby="care-result-title">
       <header>
-        <span className="eyebrow">Kết quả do Care xác định</span>
+        <span className="eyebrow">Kết quả sàng lọc của bạn</span>
         <h1 id="care-result-title">Kết quả sàng lọc PHQ-9</h1>
-        <p>
-          Kết quả được tính và lưu bởi Care service theo đúng phiên bản bộ câu
-          hỏi đã làm.
-        </p>
+        <p>Kết quả được tính từ những câu trả lời bạn vừa cung cấp.</p>
       </header>
 
       <div className="care-result-grid">
@@ -80,8 +77,8 @@ function ResultPanel({
           </strong>
           <p>
             {positive
-              ? 'Nội dung hướng dẫn an toàn đã được phê duyệt hiện chưa khả dụng trong contract này.'
-              : 'Không có nội dung hỗ trợ bổ sung đã được phê duyệt trong contract hiện tại.'}
+              ? 'Bạn có thể xem các tài nguyên hỗ trợ phù hợp ở bên dưới.'
+              : 'Bạn vẫn có thể xem các tài nguyên chăm sóc sức khỏe tinh thần ở bên dưới.'}
           </p>
         </article>
       </div>
@@ -284,7 +281,7 @@ export default function AssessmentFlow({
       <section className="care-assessment-state" aria-live="polite">
         <span className="care-loader" aria-hidden="true" />
         <h1>Đang chuẩn bị bài sàng lọc</h1>
-        <p>MentalBridge đang kiểm tra phiên bản đã được Care công bố.</p>
+        <p>MentalBridge đang chuẩn bị nội dung phù hợp cho bạn.</p>
       </section>
     )
   }
@@ -304,7 +301,7 @@ export default function AssessmentFlow({
       <section className="care-assessment-state unavailable" role="alert">
         <span aria-hidden="true">!</span>
         <h1>Bài sàng lọc hiện chưa khả dụng</h1>
-        <p>{error ?? 'Care chưa cung cấp bộ câu hỏi phù hợp.'}</p>
+        <p>{error ?? 'Hiện chưa có bộ câu hỏi phù hợp.'}</p>
         <div>
           <button
             className="btn btn-primary"
@@ -395,10 +392,7 @@ export default function AssessmentFlow({
                 setDisclosureAcknowledged(event.target.checked)
               }
             />
-            <span>
-              Tôi đã đọc và xác nhận thông báo xử lý dữ liệu phiên bản{' '}
-              {disclosure.version}.
-            </span>
+            <span>Tôi đã đọc và xác nhận thông báo xử lý dữ liệu.</span>
           </label>
         </aside>
       )}
@@ -429,7 +423,7 @@ export default function AssessmentFlow({
             }
             onClick={() => void submit()}
           >
-            {submitting ? 'Đang gửi…' : 'Gửi cho Care chấm điểm'}
+            {submitting ? 'Đang gửi…' : 'Xem kết quả'}
           </button>
         ) : (
           <button
@@ -442,11 +436,6 @@ export default function AssessmentFlow({
           </button>
         )}
       </footer>
-
-      <p className="care-contract-note">
-        Trình duyệt chỉ gửi mã câu hỏi và lựa chọn 0–3. Điểm số, mức sàng lọc và
-        trạng thái an toàn đều do Care service xác định.
-      </p>
     </section>
   )
 }

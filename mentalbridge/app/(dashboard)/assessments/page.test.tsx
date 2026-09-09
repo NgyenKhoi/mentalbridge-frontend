@@ -18,7 +18,7 @@ describe('Assessment history page', () => {
               questionnaireDefinitionId: '10000000-0000-4000-8000-000000000001',
               instrument: 'PHQ9',
               questionnaireVersion: 'phq9-vi-vn-capstone-v1',
-              privacyPolicyVersion: 'privacy-capstone-v1',
+              privacyPolicyVersion: 'privacy-capstone-v2',
               submittedAt: '2026-09-02T00:00:00Z',
               result: {
                 totalScore: 8,

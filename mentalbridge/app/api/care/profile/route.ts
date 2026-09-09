@@ -13,7 +13,7 @@ import {
   localProblem,
 } from '@/lib/care/bff-response'
 import { careClient } from '@/lib/care/care-client'
-import { parseProfileUpdate } from '@/lib/care/care-validation'
+import { validateProfileUpdate } from '@/lib/care/care-validation'
 
 export async function GET(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
@@ -45,12 +45,12 @@ export async function PUT(request: NextRequest) {
     return careAuthenticationFailure(error, correlationId)
   }
   try {
-    const update = parseProfileUpdate(await readBoundedJson(request))
+    const validation = validateProfileUpdate(await readBoundedJson(request))
     const rawVersion = request.headers.get('If-Match')
     const match = rawVersion?.match(/^"([0-9]+)"$/)
     const version = match ? Number(match[1]) : undefined
     if (
-      !update ||
+      !validation.success ||
       (rawVersion !== null && !match) ||
       (version !== undefined && !Number.isSafeInteger(version))
     )
@@ -60,12 +60,13 @@ export async function PUT(request: NextRequest) {
           'VALIDATION_FAILED',
           'Request validation failed.',
           correlationId,
+          validation.success ? undefined : validation.violations,
         ),
         user,
       )
     const profile = await careClient.putProfile(
       user.accessToken,
-      update,
+      validation.value,
       version,
       correlationId,
     )
