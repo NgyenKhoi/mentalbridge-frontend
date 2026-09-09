@@ -129,9 +129,6 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
           status: response.status,
           correlationId: body.correlationId,
           problem: body,
-          retryAfterSeconds: parseRetryAfter(
-            response.headers.get('retry-after'),
-          ),
         })
       }
 
@@ -185,11 +182,6 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
   } finally {
     clearTimeout(timeout)
   }
-}
-
-function parseRetryAfter(value: string | null) {
-  const seconds = value === null ? Number.NaN : Number(value)
-  return Number.isInteger(seconds) && seconds > 0 ? seconds : undefined
 }
 
 export const identityClient = {

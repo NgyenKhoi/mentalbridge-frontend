@@ -49,9 +49,9 @@ export interface paths {
         put?: never;
         /**
          * Request another verification delivery
-         * @description Always returns the same empty 202 response for a valid request unless the privacy-preserving
-         *     subject limit is exceeded. Only a pending unverified account receives a new 24-hour challenge.
-         *     An allowed replacement atomically invalidates every prior active verification challenge.
+         * @description Always returns the same empty 202 response for a valid request. Only a pending unverified
+         *     account receives a new 24-hour challenge. A replacement invalidates every prior active
+         *     verification challenge.
          */
         post: operations["requestEmailVerification"];
         delete?: never;
@@ -139,9 +139,9 @@ export interface paths {
         put?: never;
         /**
          * Request a password-recovery delivery without account enumeration
-         * @description Always returns the same empty 202 response for a valid request unless the privacy-preserving
-         *     subject limit is exceeded. Only an active verified account receives a new 15-minute challenge.
-         *     An allowed replacement atomically invalidates every prior active recovery challenge.
+         * @description Always returns the same empty 202 response for a valid request. Only an active verified
+         *     account receives a new 15-minute challenge. A replacement invalidates every prior active
+         *     recovery challenge.
          */
         post: operations["requestPasswordRecovery"];
         delete?: never;
@@ -632,7 +632,6 @@ export interface operations {
         responses: {
             202: components["responses"]["GenericAccepted"];
             400: components["responses"]["ValidationProblem"];
-            429: components["responses"]["RateLimitProblem"];
         };
     };
     login: {
@@ -764,7 +763,6 @@ export interface operations {
         responses: {
             202: components["responses"]["GenericAccepted"];
             400: components["responses"]["ValidationProblem"];
-            429: components["responses"]["RateLimitProblem"];
         };
     };
     resetPassword: {
@@ -791,7 +789,6 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["InvalidChallengeProblem"];
-            429: components["responses"]["RateLimitProblem"];
         };
     };
     getOwnAccount: {

@@ -330,43 +330,6 @@ describe('Identity BFF route handlers', () => {
     },
   )
 
-  it('preserves a bounded Retry-After signal without leaking an upstream rate-limit detail', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            type: '/problems/rate-limited?email=member@example.com',
-            title: 'member@example.com requested too often',
-            status: 429,
-            code: 'RATE_LIMITED',
-            correlationId,
-          }),
-          {
-            status: 429,
-            headers: {
-              'Content-Type': 'application/problem+json',
-              'Retry-After': '47',
-            },
-          },
-        ),
-      ),
-    )
-
-    const response = await requestPasswordRecovery(
-      request('/api/identity/password-recovery', {
-        method: 'POST',
-        body: { email: 'member@example.com' },
-      }),
-    )
-    const text = await response.text()
-
-    expect(response.status).toBe(429)
-    expect(response.headers.get('Retry-After')).toBe('47')
-    expect(text).toContain('RATE_LIMITED')
-    expect(text).not.toContain('member@example.com')
-  })
-
   it('fails closed when a credential request returns an undocumented success status', async () => {
     vi.stubGlobal(
       'fetch',

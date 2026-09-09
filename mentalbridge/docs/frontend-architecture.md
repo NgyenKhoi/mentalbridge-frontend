@@ -134,12 +134,11 @@ state because the backend exposes the single `INVALID_CHALLENGE` code.
 Story 902 implements verification resend, password recovery/reset, and
 authenticated password change. Both email request operations produce the same
 empty `202 Accepted` browser response for eligible and unknown/ineligible
-accounts; a safe `Retry-After` header may accompany rate limiting. Recovery
-challenges are read and removed from `/reset-password` browser history before
-use and are never stored. Password change requires the current password, an
-authenticated HttpOnly session, and an exact same-origin request. Successful
-reset/change clears local session cookies and routes to a fresh login because
-Identity atomically revokes all account refresh sessions.
+accounts. Recovery challenges are read and removed from `/reset-password`
+browser history before use and are never stored. Password change requires the
+current password, an authenticated HttpOnly session, and an exact same-origin
+request. Successful reset/change clears local session cookies and routes to a
+fresh login because Identity atomically revokes all account refresh sessions.
 
 ## Error and dependency behavior
 

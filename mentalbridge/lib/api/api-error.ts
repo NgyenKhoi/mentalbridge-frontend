@@ -8,7 +8,6 @@ type ApiErrorOptions = {
   status?: number
   correlationId?: string
   problem?: ProblemDetails
-  retryAfterSeconds?: number
   cause?: unknown
 }
 
@@ -17,7 +16,6 @@ export class ApiError extends Error {
   readonly status?: number
   readonly correlationId?: string
   readonly problem?: ProblemDetails
-  readonly retryAfterSeconds?: number
 
   constructor(options: ApiErrorOptions) {
     super(options.message, { cause: options.cause })
@@ -26,7 +24,6 @@ export class ApiError extends Error {
     this.status = options.status
     this.correlationId = options.correlationId
     this.problem = options.problem
-    this.retryAfterSeconds = options.retryAfterSeconds
   }
 }
 
@@ -43,9 +40,6 @@ export function toApiError(error: unknown): ApiError {
         status: problem.status,
         correlationId: problem.correlationId,
         problem,
-        retryAfterSeconds: parseRetryAfter(
-          error.response?.headers?.['retry-after'],
-        ),
         cause: error,
       })
     }
@@ -79,9 +73,4 @@ export function toApiError(error: unknown): ApiError {
     code: 'UNEXPECTED_ERROR',
     cause: error,
   })
-}
-
-function parseRetryAfter(value: unknown) {
-  const seconds = typeof value === 'string' ? Number(value) : Number.NaN
-  return Number.isInteger(seconds) && seconds > 0 ? seconds : undefined
 }

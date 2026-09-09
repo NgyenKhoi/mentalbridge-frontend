@@ -120,9 +120,6 @@ export async function changePassword(
 }
 
 export function credentialRequestErrorMessage(error: unknown) {
-  if (error instanceof ApiError && error.status === 429) {
-    return 'Bạn đã gửi yêu cầu quá nhanh. Vui lòng chờ rồi thử lại.'
-  }
   if (isDependencyFailure(error)) {
     return 'Dịch vụ tài khoản tạm thời chưa sẵn sàng. Vui lòng thử lại sau.'
   }

@@ -61,7 +61,7 @@ export function identityErrorResponse(error: unknown, correlationId: string) {
         ? error.correlationId
         : correlationId
 
-    const response = problemResponse({
+    return problemResponse({
       type: `/problems/${code.toLowerCase().replaceAll('_', '-')}`,
       title: safeTitle(code, status),
       status,
@@ -69,10 +69,6 @@ export function identityErrorResponse(error: unknown, correlationId: string) {
       correlationId: responseCorrelationId,
       ...(violations === undefined ? {} : { violations }),
     })
-    if (error.retryAfterSeconds !== undefined) {
-      response.headers.set('Retry-After', error.retryAfterSeconds.toString())
-    }
-    return response
   }
 
   return localProblem(
