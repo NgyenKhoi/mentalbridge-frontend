@@ -17,6 +17,8 @@ import type {
   AssessmentHistoryPage,
   AssessmentProgress,
   Instrument,
+  SupportEvaluation,
+  SupportEvaluationRequest,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
 
@@ -30,6 +32,7 @@ import {
   parseConsentCollection,
   parseAssessmentHistory,
   parseAssessmentProgress,
+  parseSupportEvaluation,
 } from './care-validation'
 
 type RequestOptions<T> = Readonly<{
@@ -355,6 +358,38 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: (value) => parseAssessmentProgress(value, assessmentId),
+    })
+  },
+
+  evaluateSupport(
+    accessToken: string,
+    request: SupportEvaluationRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportEvaluation> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v1/support-evaluations',
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: (value) => parseSupportEvaluation(value, request),
+    })
+  },
+
+  getSupportEvaluation(
+    accessToken: string,
+    supportEvaluationId: string,
+    expected: SupportEvaluationRequest,
+    correlationId: string,
+  ): Promise<SupportEvaluation> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-evaluations/${supportEvaluationId}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: (value) => parseSupportEvaluation(value, expected),
     })
   },
 }

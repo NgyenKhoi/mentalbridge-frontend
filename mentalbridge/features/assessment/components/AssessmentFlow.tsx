@@ -24,6 +24,7 @@ import {
   reopenAssessment,
   startAnonymousAssessmentSession,
   submitAssessment,
+  submitInitialCheckAssessment,
   type AssessmentMode,
   type AssessmentView,
 } from '@/features/assessment/api/browser-care'
@@ -190,10 +191,16 @@ export default function AssessmentFlow({
   mode,
   instrument,
   initialAssessmentId,
+  workflow = 'standalone',
+  onCompleted,
+  returnHref,
 }: {
   mode: AssessmentMode
   instrument: Instrument
   initialAssessmentId?: string
+  workflow?: 'standalone' | 'initial-check'
+  onCompleted?: () => void
+  returnHref?: string
 }) {
   const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null)
   const [assessment, setAssessment] = useState<AssessmentView | null>(null)
@@ -213,7 +220,7 @@ export default function AssessmentFlow({
       setError(null)
 
       try {
-        if (reopenExisting) {
+        if (reopenExisting && workflow === 'standalone') {
           try {
             const current = await reopenAssessment(mode, initialAssessmentId)
             if (current.instrument === instrument) {
@@ -266,7 +273,7 @@ export default function AssessmentFlow({
         setLoading(false)
       }
     },
-    [initialAssessmentId, instrument, mode],
+    [initialAssessmentId, instrument, mode, workflow],
   )
 
   useEffect(() => {
@@ -321,19 +328,27 @@ export default function AssessmentFlow({
         await recordPrivacyDecision(true, disclosure.version)
         setPrivacyGranted(true)
       }
-      const completed = await submitAssessment(
-        mode,
-        {
-          questionnaireDefinitionId: questionnaire.definitionId,
-          privacyPolicyVersion: disclosure.version,
-          privacyDisclosureAcknowledged: true,
-          answers: questions.map((question) => ({
-            questionId: question.questionId,
-            value: answers[question.questionId],
-          })),
-        },
-        idempotencyKey.current,
-      )
+      const submission = {
+        questionnaireDefinitionId: questionnaire.definitionId,
+        privacyPolicyVersion: disclosure.version,
+        privacyDisclosureAcknowledged: true as const,
+        answers: questions.map((question) => ({
+          questionId: question.questionId,
+          value: answers[question.questionId],
+        })),
+      }
+      const completed =
+        workflow === 'initial-check'
+          ? await submitInitialCheckAssessment(
+              instrument,
+              submission,
+              idempotencyKey.current,
+            )
+          : await submitAssessment(mode, submission, idempotencyKey.current)
+      if (onCompleted) {
+        onCompleted()
+        return
+      }
       setAssessment(completed)
     } catch (submissionError) {
       setError(assessmentErrorMessage(submissionError))
@@ -378,7 +393,7 @@ export default function AssessmentFlow({
             Thử lại
           </button>
           <Link
-            href={mode === 'anonymous' ? '/' : '/assessments'}
+            href={returnHref ?? (mode === 'anonymous' ? '/' : '/assessments')}
             className="btn btn-ghost"
           >
             Quay lại
