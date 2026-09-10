@@ -307,7 +307,7 @@ export default function DashboardPage() {
             </i>
             <p>
               <b>Làm bài đánh giá</b>
-              <span>PHQ-9 từ Care service</span>
+              <span>Bài sàng lọc sức khỏe tinh thần PHQ-9</span>
             </p>
           </Link>
           <Link href="/specialists">

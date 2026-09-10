@@ -2,12 +2,7 @@ import { cp, mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 const applicationDirectory = process.cwd()
-const standaloneDirectory = resolve(
-  applicationDirectory,
-  '.next',
-  'standalone',
-  'mentalbridge',
-)
+const standaloneDirectory = resolve(applicationDirectory, '.next', 'standalone')
 
 await mkdir(resolve(standaloneDirectory, '.next'), { recursive: true })
 await cp(

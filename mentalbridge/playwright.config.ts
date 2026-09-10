@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 const port = 3100
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`
 const identityFixtureURL = 'http://127.0.0.1:3201'
-const standaloneDirectory = resolve('.next', 'standalone', 'mentalbridge')
+const standaloneDirectory = resolve('.next', 'standalone')
 const liveCrossStack = process.env.E2E_RUNTIME === 'live-cross-stack'
 const useCareFixture = !liveCrossStack
 const careServiceURL = 'http://127.0.0.1:3202'

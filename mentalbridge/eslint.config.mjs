@@ -9,6 +9,11 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     '.next/**',
+    '.next-realtime-e2e/**',
+    '.next-dev-runs/**',
+    '.next-dev-configs/**',
+    '.playwright-realtime-e2e/**',
+    '.vite-realtime-e2e/**',
     'out/**',
     'build/**',
     'coverage/**',

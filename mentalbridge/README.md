@@ -3,7 +3,8 @@
 MentalBridge is a Next.js App Router frontend for mental-health support
 experiences. The repository contains implemented UI screens, a same-origin
 Identity BFF, role-based login/workspace access, public registration, email
-verification, and controlled Identity delivery evidence through Story 216.
+verification, verification resend, password recovery/change, and controlled
+Identity delivery evidence through Story 902.
 
 ## Review 1 container
 
@@ -101,8 +102,12 @@ authorization close to the operation.
 Registration accepts only `USER` and `SPECIALIST`, uses a per-submission
 idempotency key, and enters a verification-pending state after Identity accepts
 the request. `/verify-email` consumes the one-time challenge through the BFF and
-removes it from browser history. Resend and password recovery are explicitly
-unavailable until their backend contracts are implemented.
+removes it from browser history before verification. Verification resend and
+password recovery return the same empty accepted response regardless of account
+eligibility. `/reset-password` removes the recovery challenge from browser
+history before use, while authenticated password changes require a same-origin
+request. Successful reset/change clears the local session and returns the user
+to a fresh login because Identity revokes every refresh session for the account.
 
 `/resources` is public so an anonymous PHQ-9 journey can continue to reviewed
 self-help material. It loads only published, reviewed entries through the
@@ -123,6 +128,8 @@ or production mock content when Content cannot confirm the catalogue.
 - [`docs/review-and-testing.md`](docs/review-and-testing.md): delivery gates
 - [`docs/identity-delivery-evidence.md`](docs/identity-delivery-evidence.md):
   MB-139 acceptance and verification evidence
+- [`docs/story-902-credential-lifecycle-evidence.md`](docs/story-902-credential-lifecycle-evidence.md):
+  Story 902 acceptance, security, test, and visual evidence
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md): current visual language
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md): Git, Jira, PR, and review workflow
 

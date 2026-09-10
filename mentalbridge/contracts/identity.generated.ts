@@ -47,7 +47,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request another verification delivery */
+        /**
+         * Request another verification delivery
+         * @description Always returns the same empty 202 response for a valid request. Only a pending unverified
+         *     account receives a new 24-hour challenge. A replacement invalidates every prior active
+         *     verification challenge.
+         */
         post: operations["requestEmailVerification"];
         delete?: never;
         options?: never;
@@ -132,7 +137,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request a password-recovery delivery without account enumeration */
+        /**
+         * Request a password-recovery delivery without account enumeration
+         * @description Always returns the same empty 202 response for a valid request. Only an active verified
+         *     account receives a new 15-minute challenge. A replacement invalidates every prior active
+         *     recovery challenge.
+         */
         post: operations["requestPasswordRecovery"];
         delete?: never;
         options?: never;
@@ -149,7 +159,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Consume a recovery challenge and revoke all refresh sessions */
+        /**
+         * Consume a recovery challenge and revoke all refresh sessions
+         * @description Atomically consumes one active RESET_PASSWORD challenge, replaces the BCrypt credential,
+         *     clears credential lock state, and revokes every refresh session. Verification challenges
+         *     cannot be used for this operation, and a consumed recovery challenge cannot be replayed.
+         */
         post: operations["resetPassword"];
         delete?: never;
         options?: never;
@@ -182,7 +197,12 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Change the authenticated account password and revoke all sessions */
+        /**
+         * Change the authenticated account password and revoke all sessions
+         * @description Requires an active account and the current password. Credential replacement, credential-lock
+         *     reset, and revocation of every refresh session commit atomically. Existing access tokens retain
+         *     their original expiry and remain unsuitable as current account-state proof.
+         */
         put: operations["changePassword"];
         post?: never;
         delete?: never;
@@ -612,7 +632,6 @@ export interface operations {
         responses: {
             202: components["responses"]["GenericAccepted"];
             400: components["responses"]["ValidationProblem"];
-            429: components["responses"]["RateLimitProblem"];
         };
     };
     login: {
@@ -744,7 +763,6 @@ export interface operations {
         responses: {
             202: components["responses"]["GenericAccepted"];
             400: components["responses"]["ValidationProblem"];
-            429: components["responses"]["RateLimitProblem"];
         };
     };
     resetPassword: {
@@ -771,7 +789,6 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["InvalidChallengeProblem"];
-            429: components["responses"]["RateLimitProblem"];
         };
     };
     getOwnAccount: {

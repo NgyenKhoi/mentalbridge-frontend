@@ -18,7 +18,7 @@ describe('Assessment history page', () => {
               questionnaireDefinitionId: '10000000-0000-4000-8000-000000000001',
               instrument: 'PHQ9',
               questionnaireVersion: 'phq9-vi-vn-capstone-v1',
-              privacyPolicyVersion: 'privacy-capstone-v1',
+              privacyPolicyVersion: 'privacy-capstone-v2',
               submittedAt: '2026-09-02T00:00:00Z',
               result: {
                 totalScore: 8,
@@ -62,7 +62,8 @@ describe('Assessment history page', () => {
       ),
     )
     render(<AssessmentsPage />)
-    expect(await screen.findByText('8/27')).toBeVisible()
+    expect(await screen.findByText('8 điểm')).toBeVisible()
+    expect(screen.getAllByRole('link', { name: /bắt đầu/i })).toHaveLength(2)
     expect(screen.getByText('Nhẹ')).toBeVisible()
     expect(screen.getByRole('link', { name: 'Xem lại' })).toHaveAttribute(
       'href',

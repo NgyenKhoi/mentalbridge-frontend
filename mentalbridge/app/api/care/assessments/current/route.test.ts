@@ -64,7 +64,7 @@ describe('POST /api/care/assessments/current', () => {
       questionnaireDefinitionId: definitionId,
       instrument: 'PHQ9',
       questionnaireVersion: 'phq9-vi-vn-capstone-v1',
-      privacyPolicyVersion: 'privacy-capstone-v1',
+      privacyPolicyVersion: 'privacy-capstone-v3',
       submittedAt: '2026-09-01T00:00:00Z',
       voidedAt: null,
       result: {
@@ -81,7 +81,7 @@ describe('POST /api/care/assessments/current', () => {
     const response = await POST(
       request({
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v3',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 0 }],
       }),
@@ -95,7 +95,7 @@ describe('POST /api/care/assessments/current', () => {
       'identity-access-secret',
       {
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v3',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 0 }],
       },

@@ -12,6 +12,7 @@ import {
   registrationErrorMessage,
 } from '../api/browser-auth'
 import styles from './RegistrationForm.module.css'
+import VerificationResendForm from './VerificationResendForm'
 
 type RegistrationFields = Readonly<{
   email: string
@@ -137,10 +138,9 @@ export default function RegistrationForm() {
           Tài khoản cho <strong>{registeredEmail}</strong> đang chờ xác minh.
           Hãy mở liên kết một lần trong email để kích hoạt tài khoản.
         </p>
-        <p className={styles.deliveryNote}>
-          Việc gửi lại email chưa được hỗ trợ. Nếu email chưa đến, vui lòng chờ
-          hệ thống giao thư hiện tại hoàn tất.
-        </p>
+        <div className={styles.deliveryNote}>
+          <VerificationResendForm initialEmail={registeredEmail} />
+        </div>
         <Link href="/login" className="btn btn-primary">
           Đến trang đăng nhập
         </Link>
@@ -236,8 +236,7 @@ export default function RegistrationForm() {
           required
         />
         <span id="registration-password-hint" className={styles.fieldHint}>
-          Từ 12 ký tự và tối đa 72 byte UTF-8. Mật khẩu không bị tự động chuẩn
-          hóa hoặc cắt ngắn.
+          Ít nhất 12 kí tự
         </span>
         {fieldErrors.password ? (
           <span id="registration-password-error" className={styles.fieldError}>

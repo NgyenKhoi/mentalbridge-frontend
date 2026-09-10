@@ -19,6 +19,7 @@ const questionnaire = {
   locale: 'vi-VN',
   title: 'PHQ-9 — Sàng lọc triệu chứng',
   referencePeriodDays: 14,
+  scoringVersion: 'phq9-standard-bands-v1',
   responseOptions: [
     { value: 0, label: 'Không có gì' },
     { value: 1, label: 'Vài ngày' },
@@ -26,10 +27,21 @@ const questionnaire = {
     { value: 3, label: 'Gần như mỗi ngày' },
   ],
   questions: [{ questionId, itemNumber: 1, prompt: 'Câu hỏi từ Care' }],
+  scoreBands: [
+    { screeningLevel: 'MINIMAL', minimumScore: 0, maximumScore: 4 },
+    { screeningLevel: 'MILD', minimumScore: 5, maximumScore: 9 },
+    { screeningLevel: 'MODERATE', minimumScore: 10, maximumScore: 14 },
+    {
+      screeningLevel: 'MODERATELY_SEVERE',
+      minimumScore: 15,
+      maximumScore: 19,
+    },
+    { screeningLevel: 'SEVERE', minimumScore: 20, maximumScore: 27 },
+  ],
 }
 const disclosure = {
   consentType: 'PRIVACY_POLICY',
-  version: 'privacy-capstone-v1',
+  version: 'privacy-capstone-v3',
   locale: 'vi-VN',
   title: 'Thông báo xử lý dữ liệu',
   content: 'Nội dung do Care cung cấp.',
@@ -81,7 +93,7 @@ describe('AssessmentFlow', () => {
               questionnaireDefinitionId: definitionId,
               instrument: 'PHQ9',
               questionnaireVersion: 'phq9-vi-vn-capstone-v1',
-              privacyPolicyVersion: 'privacy-capstone-v1',
+              privacyPolicyVersion: 'privacy-capstone-v2',
               submittedAt: '2026-09-01T00:00:00Z',
               voidedAt: null,
               expiresAt: '2099-01-01T00:30:00Z',
@@ -100,16 +112,12 @@ describe('AssessmentFlow', () => {
       ),
     )
 
-    render(<AssessmentFlow mode="anonymous" />)
+    render(<AssessmentFlow mode="anonymous" instrument="PHQ9" />)
     await screen.findByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' })
 
     await userEvent.click(screen.getByRole('radio', { name: 'Vài ngày' }))
-    await userEvent.click(
-      screen.getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i }),
-    )
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Gửi cho Care chấm điểm' }),
-    )
+    await userEvent.click(screen.getByRole('checkbox', { name: /tôi đồng ý/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Xem kết quả/ }))
 
     await screen.findByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' })
     expect(screen.getByText('1')).toBeVisible()
@@ -119,7 +127,7 @@ describe('AssessmentFlow', () => {
     expect(received).toHaveBeenCalledWith({
       body: {
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v3',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 1 }],
       },
@@ -143,7 +151,7 @@ describe('AssessmentFlow', () => {
       ),
     )
 
-    render(<AssessmentFlow mode="anonymous" />)
+    render(<AssessmentFlow mode="anonymous" instrument="PHQ9" />)
 
     await screen.findByRole('heading', {
       name: 'Bài sàng lọc hiện chưa khả dụng',
@@ -154,5 +162,130 @@ describe('AssessmentFlow', () => {
     await waitFor(() => {
       expect(screen.queryByRole('radio')).not.toBeInTheDocument()
     })
+  })
+
+  it('completes authenticated GAD-7 without inventing a safety policy', async () => {
+    const gadQuestionnaire = {
+      ...questionnaire,
+      definitionId: '20000000-0000-4000-8000-000000000001',
+      instrument: 'GAD7',
+      version: 'gad7-vi-vn-adult-v1',
+      title: 'GAD-7 — Sàng lọc triệu chứng lo âu',
+      scoringVersion: 'gad7-standard-bands-v1',
+      scoreBands: [
+        { screeningLevel: 'MINIMAL', minimumScore: 0, maximumScore: 4 },
+        { screeningLevel: 'MILD', minimumScore: 5, maximumScore: 9 },
+        { screeningLevel: 'MODERATE', minimumScore: 10, maximumScore: 14 },
+        { screeningLevel: 'SEVERE', minimumScore: 15, maximumScore: 21 },
+      ],
+    }
+    mockServer.use(
+      http.get('http://localhost/api/care/assessments/current', () =>
+        problem(404, 'ASSESSMENT_NOT_FOUND'),
+      ),
+      http.get('http://localhost/api/care/questionnaires/gad7', () =>
+        HttpResponse.json(gadQuestionnaire),
+      ),
+      http.get('http://localhost/api/care/privacy-disclosure', () =>
+        HttpResponse.json(disclosure),
+      ),
+      http.get('http://localhost/api/care/consents', () =>
+        HttpResponse.json({
+          decisions: [
+            {
+              decisionId: correlationId,
+              consentType: 'PRIVACY_POLICY',
+              policyVersion: disclosure.version,
+              granted: true,
+              decidedAt: '2026-09-01T00:00:00Z',
+            },
+          ],
+        }),
+      ),
+      http.post('http://localhost/api/care/assessments/current', () =>
+        HttpResponse.json(
+          {
+            assessmentId,
+            questionnaireDefinitionId: gadQuestionnaire.definitionId,
+            instrument: 'GAD7',
+            questionnaireVersion: gadQuestionnaire.version,
+            privacyPolicyVersion: disclosure.version,
+            submittedAt: '2026-09-01T00:00:00Z',
+            voidedAt: null,
+            result: {
+              totalScore: 3,
+              screeningLevel: 'MINIMAL',
+              scoringVersion: gadQuestionnaire.scoringVersion,
+              safetyStatus: 'NOT_APPLICABLE',
+              safetyPolicyVersion: null,
+              disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
+            },
+          },
+          { status: 201 },
+        ),
+      ),
+    )
+
+    render(<AssessmentFlow mode="authenticated" instrument="GAD7" />)
+    await screen.findByRole('heading', { name: gadQuestionnaire.title })
+    await userEvent.click(
+      screen.getByRole('radio', { name: 'Gần như mỗi ngày' }),
+    )
+    await userEvent.click(screen.getByRole('checkbox', { name: /tôi đồng ý/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Xem kết quả/ }))
+
+    await screen.findByRole('heading', { name: 'Kết quả sàng lọc GAD-7' })
+    expect(screen.getByText('/ 21 điểm')).toBeVisible()
+    expect(screen.getByText('Không áp dụng cho bộ câu hỏi này')).toBeVisible()
+    expect(screen.getAllByText('Không áp dụng')).not.toHaveLength(0)
+    expect(screen.queryByText(/invented-gad-policy/i)).not.toBeInTheDocument()
+  })
+
+  it('reopens an assessment with its immutable retired definition', async () => {
+    const oldQuestion = 'Cảm thấy chán nản, chán nản hoặc vô vọng'
+    mockServer.use(
+      http.get(
+        `http://localhost/api/care/assessments/by-id/${assessmentId}`,
+        () =>
+          HttpResponse.json({
+            assessmentId,
+            questionnaireDefinitionId: definitionId,
+            instrument: 'PHQ9',
+            questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+            privacyPolicyVersion: disclosure.version,
+            submittedAt: '2026-08-01T00:00:00Z',
+            voidedAt: null,
+            result: {
+              totalScore: 4,
+              screeningLevel: 'MINIMAL',
+              scoringVersion: questionnaire.scoringVersion,
+              safetyStatus: 'NEGATIVE_SAFETY_SCREEN',
+              safetyPolicyVersion: 'MB-SAFETY-PHQ9-001/1.0-capstone',
+              disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
+            },
+          }),
+      ),
+      http.get(
+        `http://localhost/api/care/questionnaires/definitions/${definitionId}`,
+        () =>
+          HttpResponse.json({
+            ...questionnaire,
+            questions: [{ questionId, itemNumber: 2, prompt: oldQuestion }],
+          }),
+      ),
+    )
+
+    render(
+      <AssessmentFlow
+        mode="authenticated"
+        instrument="PHQ9"
+        initialAssessmentId={assessmentId}
+      />,
+    )
+
+    await screen.findByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' })
+    await userEvent.click(screen.getByText('Nội dung và thang điểm đã dùng'))
+    expect(screen.getByText(oldQuestion)).toBeVisible()
+    expect(screen.getAllByText(/phq9-vi-vn-capstone-v1/i)).toHaveLength(2)
   })
 })

@@ -1,0 +1,56 @@
+.realtime-diagnostic-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 64px 24px;
+  color: #17332e;
+}
+
+.realtime-diagnostic-kicker {
+  color: #28766b;
+  font: 700 0.75rem/1.4 monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.realtime-diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  margin: 32px 0;
+  overflow: hidden;
+  border: 1px solid #bed7d1;
+  border-radius: 12px;
+  background: #bed7d1;
+}
+
+.realtime-diagnostic-grid div {
+  padding: 18px;
+  background: #f7fbfa;
+}
+
+.realtime-diagnostic-grid dt {
+  margin-bottom: 8px;
+  color: #56726c;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.realtime-diagnostic-grid dd {
+  margin: 0;
+  font-family: monospace;
+}
+
+.realtime-diagnostic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.realtime-diagnostic-actions button {
+  padding: 10px 14px;
+  border: 1px solid #28766b;
+  border-radius: 8px;
+  background: white;
+  color: #17332e;
+  cursor: pointer;
+}

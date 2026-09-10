@@ -5,7 +5,7 @@ const host = '127.0.0.1'
 const identityPort = 3201
 const carePort = 3202
 const frontendPort = 3100
-const standaloneDirectory = resolve('.next', 'standalone', 'mentalbridge')
+const standaloneDirectory = resolve('.next', 'standalone')
 
 const inheritedEnvironment = Object.entries(process.env).reduce(
   (environment, [key, value]) => {

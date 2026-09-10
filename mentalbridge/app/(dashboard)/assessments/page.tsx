@@ -24,8 +24,7 @@ const assessments = [
     id: 'phq9',
     name: 'PHQ-9',
     fullName: 'Patient Health Questionnaire-9',
-    description:
-      'Bộ câu hỏi được tải từ phiên bản đã công bố của Care service.',
+    description: 'Tự đánh giá các dấu hiệu trầm cảm trong hai tuần gần đây.',
     duration: '3–5 phút',
     questions: 9,
     available: true,
@@ -34,10 +33,10 @@ const assessments = [
     id: 'gad7',
     name: 'GAD-7',
     fullName: 'Generalized Anxiety Disorder-7',
-    description: 'Runtime và nội dung đã duyệt hiện chưa khả dụng.',
-    duration: 'Chưa khả dụng',
+    description: 'Tự đánh giá các dấu hiệu lo âu trong hai tuần gần đây.',
+    duration: '3–5 phút',
     questions: 7,
-    available: false,
+    available: true,
   },
   {
     id: 'psqi',
@@ -98,10 +97,7 @@ export default function AssessmentsPage() {
         <div className="assessment-page-title">
           <span className="assessment-kicker">Theo dõi sức khỏe tinh thần</span>
           <h1>Bài đánh giá</h1>
-          <p>
-            Câu hỏi, lịch sử và kết quả được lấy trực tiếp qua Care service.
-            Trình duyệt không tự tính điểm hoặc suy diễn mức độ.
-          </p>
+          <p>Thực hiện bài sàng lọc và xem lại các kết quả bạn đã lưu.</p>
         </div>
       </header>
       <section aria-labelledby="available-assessments">
@@ -129,7 +125,10 @@ export default function AssessmentsPage() {
               <div className="assessment-card-footer">
                 <div className="assessment-duration">{assessment.duration}</div>
                 {assessment.available ? (
-                  <Link href="/assessment/phq9" className="assessment-start">
+                  <Link
+                    href={`/assessment/${assessment.id}`}
+                    className="assessment-start"
+                  >
                     Bắt đầu <span aria-hidden="true">→</span>
                   </Link>
                 ) : (
@@ -151,15 +150,11 @@ export default function AssessmentsPage() {
             <span>Lịch sử</span>
             <h2 id="assessment-history-title">Các lần đánh giá gần đây</h2>
           </div>
-          <p>Chỉ hiển thị các assessment thuộc tài khoản hiện tại.</p>
         </div>
         {error ? (
           <div className="assessment-history-unavailable" role="alert">
             <strong>Không thể tải lịch sử</strong>
-            <p>
-              Care chưa xác nhận dữ liệu. Không có bản ghi mẫu được hiển thị
-              thay thế.
-            </p>
+            <p>Thông tin của bạn chưa tải được. Vui lòng thử lại.</p>
             <button className="assessment-start" onClick={() => void load()}>
               Thử lại
             </button>
@@ -168,8 +163,7 @@ export default function AssessmentsPage() {
           <div className="assessment-history-unavailable">
             <strong>Chưa có lịch sử đánh giá</strong>
             <p>
-              Mỗi lần làm lại sẽ tạo một assessment mới, không ghi đè kết quả
-              cũ.
+              Mỗi lần làm lại sẽ tạo một kết quả mới, không ghi đè kết quả cũ.
             </p>
           </div>
         ) : (
@@ -194,12 +188,12 @@ export default function AssessmentsPage() {
                       {item.instrument} · {item.questionnaireVersion}
                     </td>
                     <td>{levelLabels[item.result.screeningLevel]}</td>
-                    <td>{item.result.totalScore}/27</td>
+                    <td>{item.result.totalScore} điểm</td>
                     <td>
                       <div className="assessment-row-actions">
                         <Link
                           className="assessment-row-action"
-                          href={`/assessment/phq9?assessmentId=${encodeURIComponent(item.assessmentId)}`}
+                          href={`/assessment/${item.instrument.toLowerCase()}?assessmentId=${encodeURIComponent(item.assessmentId)}`}
                         >
                           Xem lại
                         </Link>
@@ -237,7 +231,7 @@ export default function AssessmentsPage() {
         )}
         {loading && (
           <p className="assessment-history-loading" aria-live="polite">
-            Đang tải lịch sử từ Care…
+            Đang tải lịch sử…
           </p>
         )}
         {hasMore && !loading && (

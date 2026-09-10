@@ -18,6 +18,10 @@ import type {
   AssessmentProgressPoint,
   ScoreDirection,
 } from '@/features/assessment/api/care-contract'
+import type {
+  ValidationResult,
+  ValidationViolation,
+} from '@/lib/auth/identity-validation'
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -31,7 +35,16 @@ const SCREENING_LEVELS = new Set<ScreeningLevel>([
 const SAFETY_STATUSES = new Set<SafetyStatus>([
   'NEGATIVE_SAFETY_SCREEN',
   'POSITIVE_SAFETY_SCREEN',
+  'NOT_APPLICABLE',
 ])
+const INSTRUMENT_MAX_SCORES: Readonly<Record<Instrument, number>> = {
+  PHQ9: 27,
+  GAD7: 21,
+}
+const INSTRUMENT_QUESTION_COUNTS: Readonly<Record<Instrument, number>> = {
+  PHQ9: 9,
+  GAD7: 7,
+}
 const SCORE_DIRECTIONS = new Set<ScoreDirection>([
   'INCREASED',
   'DECREASED',
@@ -157,30 +170,133 @@ export function parseProfile(value: unknown): CareProfile | null {
 }
 
 export function parseProfileUpdate(value: unknown): CareProfileUpdate | null {
+  const result = validateProfileUpdate(value)
+  return result.success ? result.value : null
+}
+
+export function validateProfileUpdate(
+  value: unknown,
+  today = new Date(),
+): ValidationResult<CareProfileUpdate> {
+  if (!isRecord(value)) {
+    return {
+      success: false,
+      violations: [{ field: 'body', code: 'INVALID_TYPE' }],
+    }
+  }
+
+  const violations: ValidationViolation[] = []
+  const allowedKeys = new Set([
+    'displayName',
+    'dateOfBirth',
+    'gender',
+    'locale',
+    'timezone',
+    'reminderEnabled',
+  ])
+  if (Object.keys(value).some((key) => !allowedKeys.has(key))) {
+    violations.push({ field: 'body', code: 'UNKNOWN_FIELD' })
+  }
   if (
-    !isRecord(value) ||
-    Object.keys(value).some(
-      (key) =>
-        ![
-          'displayName',
-          'dateOfBirth',
-          'gender',
-          'locale',
-          'timezone',
-          'reminderEnabled',
-        ].includes(key),
-    ) ||
     typeof value.displayName !== 'string' ||
     value.displayName.trim().length < 1 ||
-    value.displayName.length > 120 ||
-    !isOptionalString(value.dateOfBirth) ||
-    !isOptionalString(value.gender) ||
-    typeof value.locale !== 'string' ||
-    typeof value.timezone !== 'string' ||
-    typeof value.reminderEnabled !== 'boolean'
+    value.displayName.length > 120
+  ) {
+    violations.push({ field: 'displayName', code: 'INVALID_LENGTH' })
+  }
+  if (
+    value.gender !== undefined &&
+    value.gender !== null &&
+    (typeof value.gender !== 'string' || value.gender.length > 32)
+  ) {
+    violations.push({ field: 'gender', code: 'INVALID_LENGTH' })
+  }
+  if (value.locale !== undefined && value.locale !== 'vi-VN') {
+    violations.push({ field: 'locale', code: 'INVALID_VALUE' })
+  }
+  if (value.timezone !== undefined && value.timezone !== 'Asia/Ho_Chi_Minh') {
+    violations.push({ field: 'timezone', code: 'INVALID_VALUE' })
+  }
+  if (value.reminderEnabled !== undefined && value.reminderEnabled !== false) {
+    violations.push({ field: 'reminderEnabled', code: 'INVALID_VALUE' })
+  }
+
+  let dateOfBirth: string | null | undefined
+  if (value.dateOfBirth === undefined || value.dateOfBirth === null) {
+    dateOfBirth = value.dateOfBirth
+  } else if (
+    typeof value.dateOfBirth !== 'string' ||
+    parseIsoDate(value.dateOfBirth) === null
+  ) {
+    violations.push({ field: 'dateOfBirth', code: 'INVALID_DATE' })
+  } else {
+    dateOfBirth = value.dateOfBirth
+    const birth = parseIsoDate(value.dateOfBirth)
+    const current = utcDateParts(today)
+    if (birth && compareDateParts(birth, current) > 0) {
+      violations.push({
+        field: 'dateOfBirth',
+        code: 'DATE_OF_BIRTH_IN_FUTURE',
+      })
+    } else if (
+      birth &&
+      compareDateParts(eighteenthBirthday(birth), current) > 0
+    ) {
+      violations.push({ field: 'dateOfBirth', code: 'MINIMUM_AGE_NOT_MET' })
+    }
+  }
+
+  if (violations.length > 0) return { success: false, violations }
+
+  return {
+    success: true,
+    value: {
+      displayName: (value.displayName as string).trim(),
+      ...(dateOfBirth === undefined ? {} : { dateOfBirth }),
+      ...(value.gender === undefined
+        ? {}
+        : { gender: value.gender as string | null }),
+    },
+  }
+}
+
+type DateParts = Readonly<{ year: number; month: number; day: number }>
+
+function parseIsoDate(value: string): DateParts | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return null
+  const [, yearText, monthText, dayText] = match
+  const result = {
+    year: Number(yearText),
+    month: Number(monthText),
+    day: Number(dayText),
+  }
+  const date = new Date(Date.UTC(result.year, result.month - 1, result.day))
+  return date.getUTCFullYear() === result.year &&
+    date.getUTCMonth() === result.month - 1 &&
+    date.getUTCDate() === result.day
+    ? result
+    : null
+}
+
+function utcDateParts(value: Date): DateParts {
+  return {
+    year: value.getUTCFullYear(),
+    month: value.getUTCMonth() + 1,
+    day: value.getUTCDate(),
+  }
+}
+
+function eighteenthBirthday(birth: DateParts): DateParts {
+  const year = birth.year + 18
+  const lastDay = new Date(Date.UTC(year, birth.month, 0)).getUTCDate()
+  return { year, month: birth.month, day: Math.min(birth.day, lastDay) }
+}
+
+function compareDateParts(left: DateParts, right: DateParts) {
+  return (
+    left.year - right.year || left.month - right.month || left.day - right.day
   )
-    return null
-  return value as CareProfileUpdate
 }
 
 export function parsePrivacyDisclosure(
@@ -189,7 +305,7 @@ export function parsePrivacyDisclosure(
   if (
     !isRecord(value) ||
     value.consentType !== 'PRIVACY_POLICY' ||
-    value.version !== 'privacy-capstone-v1' ||
+    value.version !== 'privacy-capstone-v3' ||
     value.locale !== 'vi-VN' ||
     typeof value.title !== 'string' ||
     typeof value.content !== 'string' ||
@@ -233,7 +349,7 @@ export function parseConsentRequest(
       (key) => !['consentType', 'policyVersion', 'granted'].includes(key),
     ) ||
     value.consentType !== 'PRIVACY_POLICY' ||
-    value.policyVersion !== 'privacy-capstone-v1' ||
+    value.policyVersion !== 'privacy-capstone-v3' ||
     typeof value.granted !== 'boolean'
   )
     return null
@@ -253,11 +369,14 @@ export function parseQuestionnaire(value: unknown): Questionnaire | null {
     typeof value.locale !== 'string' ||
     typeof value.title !== 'string' ||
     !Number.isInteger(value.referencePeriodDays) ||
+    typeof value.scoringVersion !== 'string' ||
+    value.scoringVersion.length < 1 ||
     !Array.isArray(value.responseOptions) ||
     value.responseOptions.length !== 4 ||
     !Array.isArray(value.questions) ||
-    value.questions.length < 1 ||
-    value.questions.length > 32
+    value.questions.length !== INSTRUMENT_QUESTION_COUNTS[value.instrument] ||
+    !Array.isArray(value.scoreBands) ||
+    value.scoreBands.length < 1
   ) {
     return null
   }
@@ -292,10 +411,33 @@ export function parseQuestionnaire(value: unknown): Questionnaire | null {
       prompt: question.prompt,
     }
   })
+  const scoreBands = value.scoreBands.map((band) => {
+    if (
+      !isRecord(band) ||
+      !SCREENING_LEVELS.has(band.screeningLevel as ScreeningLevel) ||
+      !Number.isInteger(band.minimumScore) ||
+      !Number.isInteger(band.maximumScore) ||
+      Number(band.minimumScore) < 0 ||
+      Number(band.maximumScore) < Number(band.minimumScore)
+    ) {
+      return null
+    }
+    return {
+      screeningLevel: band.screeningLevel as ScreeningLevel,
+      minimumScore: Number(band.minimumScore),
+      maximumScore: Number(band.maximumScore),
+    }
+  })
 
   if (responseOptions.some((option) => option === null)) return null
   if (questions.some((question) => question === null)) return null
-  if (new Set(responseOptions.map((option) => option?.value)).size !== 4) {
+  if (scoreBands.some((band) => band === null)) return null
+  if (
+    responseOptions
+      .map((option) => option?.value)
+      .toSorted((left, right) => Number(left) - Number(right))
+      .join(',') !== '0,1,2,3'
+  ) {
     return null
   }
   if (
@@ -303,6 +445,31 @@ export function parseQuestionnaire(value: unknown): Questionnaire | null {
       questions.length ||
     new Set(questions.map((question) => question?.itemNumber)).size !==
       questions.length
+  ) {
+    return null
+  }
+  const sortedQuestions = (questions as Questionnaire['questions']).toSorted(
+    (left, right) => left.itemNumber - right.itemNumber,
+  )
+  if (
+    sortedQuestions.some((question, index) => question.itemNumber !== index + 1)
+  ) {
+    return null
+  }
+  const sortedBands = (scoreBands as Questionnaire['scoreBands']).toSorted(
+    (left, right) => left.minimumScore - right.minimumScore,
+  )
+  if (
+    new Set(sortedBands.map((band) => band.screeningLevel)).size !==
+      sortedBands.length ||
+    sortedBands[0]?.minimumScore !== 0 ||
+    sortedBands.at(-1)?.maximumScore !==
+      INSTRUMENT_MAX_SCORES[value.instrument] ||
+    sortedBands.some(
+      (band, index) =>
+        index > 0 &&
+        band.minimumScore !== sortedBands[index - 1].maximumScore + 1,
+    )
   ) {
     return null
   }
@@ -314,10 +481,10 @@ export function parseQuestionnaire(value: unknown): Questionnaire | null {
     locale: value.locale,
     title: value.title,
     referencePeriodDays: Number(value.referencePeriodDays),
+    scoringVersion: value.scoringVersion,
     responseOptions: responseOptions as Questionnaire['responseOptions'],
-    questions: (questions as Questionnaire['questions']).toSorted(
-      (left, right) => left.itemNumber - right.itemNumber,
-    ),
+    questions: sortedQuestions,
+    scoreBands: sortedBands,
   }
 }
 
@@ -339,39 +506,50 @@ export function parseAnonymousSession(value: unknown): AnonymousSession | null {
   }
 }
 
-function parseResult(value: unknown): AssessmentResult | null {
+function parseResult(
+  value: unknown,
+  instrument: Instrument,
+): AssessmentResult | null {
   if (
     !isRecord(value) ||
     !Number.isInteger(value.totalScore) ||
     Number(value.totalScore) < 0 ||
-    Number(value.totalScore) > 27 ||
+    Number(value.totalScore) > INSTRUMENT_MAX_SCORES[instrument] ||
     !SCREENING_LEVELS.has(value.screeningLevel as ScreeningLevel) ||
     typeof value.scoringVersion !== 'string' ||
     !SAFETY_STATUSES.has(value.safetyStatus as SafetyStatus) ||
-    typeof value.safetyPolicyVersion !== 'string' ||
     value.disclaimerCode !== 'SCREENING_NOT_DIAGNOSIS'
   ) {
     return null
   }
 
+  const safetyStatus = value.safetyStatus as SafetyStatus
+  const hasValidSafetyProvenance =
+    instrument === 'PHQ9'
+      ? safetyStatus !== 'NOT_APPLICABLE' &&
+        typeof value.safetyPolicyVersion === 'string' &&
+        value.safetyPolicyVersion.length > 0
+      : safetyStatus === 'NOT_APPLICABLE' && value.safetyPolicyVersion === null
+  if (!hasValidSafetyProvenance) return null
+
   return {
     totalScore: Number(value.totalScore),
     screeningLevel: value.screeningLevel as ScreeningLevel,
     scoringVersion: value.scoringVersion,
-    safetyStatus: value.safetyStatus as SafetyStatus,
-    safetyPolicyVersion: value.safetyPolicyVersion,
+    safetyStatus,
+    safetyPolicyVersion: value.safetyPolicyVersion as string | null,
     disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
   }
 }
 
 function parseAssessmentBase(value: unknown) {
   if (!isRecord(value)) return null
-  const result = parseResult(value.result)
+  if (!isInstrument(value.instrument)) return null
+  const result = parseResult(value.result, value.instrument)
 
   if (
     !isUuid(value.assessmentId) ||
     !isUuid(value.questionnaireDefinitionId) ||
-    !isInstrument(value.instrument) ||
     typeof value.questionnaireVersion !== 'string' ||
     typeof value.privacyPolicyVersion !== 'string' ||
     !isDateTime(value.submittedAt) ||
@@ -413,7 +591,7 @@ export function parseSubmission(
   if (
     !isRecord(value) ||
     !isUuid(value.questionnaireDefinitionId) ||
-    value.privacyPolicyVersion !== 'privacy-capstone-v1' ||
+    value.privacyPolicyVersion !== 'privacy-capstone-v3' ||
     value.privacyDisclosureAcknowledged !== true
   )
     return null
@@ -464,7 +642,7 @@ export function parseSubmission(
 
   return {
     questionnaireDefinitionId: value.questionnaireDefinitionId,
-    privacyPolicyVersion: 'privacy-capstone-v1',
+    privacyPolicyVersion: 'privacy-capstone-v3',
     privacyDisclosureAcknowledged: true,
     answers: answers as AssessmentSubmissionRequest['answers'],
   }
@@ -491,7 +669,10 @@ export function parseAssessmentHistory(
   }
 }
 
-function parseProgressPoint(value: unknown): AssessmentProgressPoint | null {
+function parseProgressPoint(
+  value: unknown,
+  instrument: Instrument,
+): AssessmentProgressPoint | null {
   if (
     !isRecord(value) ||
     Object.keys(value).some((key) => FORBIDDEN_PROGRESS_FIELDS.has(key)) ||
@@ -502,7 +683,7 @@ function parseProgressPoint(value: unknown): AssessmentProgressPoint | null {
     !isDateTime(value.submittedAt) ||
     !Number.isInteger(value.totalScore) ||
     Number(value.totalScore) < 0 ||
-    Number(value.totalScore) > 27 ||
+    Number(value.totalScore) > INSTRUMENT_MAX_SCORES[instrument] ||
     !SCREENING_LEVELS.has(value.screeningLevel as ScreeningLevel)
   )
     return null
@@ -526,10 +707,10 @@ export function parseAssessmentProgress(
   )
     return null
 
-  const previous = parseProgressPoint(value.previous)
-  const current = parseProgressPoint(value.current)
+  if (!isInstrument(value.instrument)) return null
+  const previous = parseProgressPoint(value.previous, value.instrument)
+  const current = parseProgressPoint(value.current, value.instrument)
   if (
-    !isInstrument(value.instrument) ||
     typeof value.scoringVersion !== 'string' ||
     value.scoringVersion.length < 1 ||
     value.scoringVersion.length > 32 ||
@@ -539,8 +720,8 @@ export function parseAssessmentProgress(
       current.assessmentId.toLowerCase() ||
     current.assessmentId.toLowerCase() !== expectedAssessmentId.toLowerCase() ||
     !Number.isInteger(value.rawDelta) ||
-    Number(value.rawDelta) < -27 ||
-    Number(value.rawDelta) > 27 ||
+    Number(value.rawDelta) < -INSTRUMENT_MAX_SCORES[value.instrument] ||
+    Number(value.rawDelta) > INSTRUMENT_MAX_SCORES[value.instrument] ||
     !SCORE_DIRECTIONS.has(value.scoreDirection as ScoreDirection) ||
     !isRecord(value.bandTransition) ||
     Object.keys(value.bandTransition).some((key) =>

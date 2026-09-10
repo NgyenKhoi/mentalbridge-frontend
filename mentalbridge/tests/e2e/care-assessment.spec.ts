@@ -6,6 +6,7 @@ const useCareFixture = process.env.E2E_RUNTIME !== 'live-cross-stack'
 const careServiceUrl = 'http://127.0.0.1:3202'
 const careAccessToken = 'synthetic-care-e2e-access'
 const otherCareAccessToken = 'synthetic-care-e2e-other-access'
+const firstTimeAccessToken = 'synthetic-resource-e2e-access'
 
 const anonymousCookieNames = new Set([
   'mentalbridge_care_anonymous_id',
@@ -26,8 +27,10 @@ async function answerPublishedQuestionnaire(page: Page) {
       await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
     }
   }
-  await page.getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i }).check()
-  await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
+  await expect(page.getByText(/Đối với người dùng đã đăng nhập/)).toBeVisible()
+  await expect(page.getByText(/Đối với phiên ẩn danh/)).toBeVisible()
+  await page.getByRole('checkbox', { name: /tôi đồng ý/i }).check()
+  await page.getByRole('button', { name: 'Xem kết quả' }).click()
   await expect(
     page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
   ).toBeVisible()
@@ -35,6 +38,34 @@ async function answerPublishedQuestionnaire(page: Page) {
   await expect(page.getByText('Dương tính theo quy tắc sàng lọc')).toBeVisible()
   await expect(page.getByText(/không giám sát con người 24\/7/i)).toBeVisible()
   await expect(page.getByText(/hotline/i)).toHaveCount(0)
+}
+
+async function answerPublishedGad7(page: Page) {
+  await expect(
+    page.getByRole('heading', {
+      name: 'GAD-7 — Sàng lọc triệu chứng lo âu',
+    }),
+  ).toBeVisible()
+  await expect(
+    page.getByText('Cảm giác hồi hộp, lo lắng hoặc cáu kỉnh'),
+  ).toBeVisible()
+  for (let item = 1; item <= 7; item += 1) {
+    await page
+      .getByRole('radio', { name: 'Gần như hàng ngày (11-14 ngày)' })
+      .check()
+    if (item < 7) {
+      await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
+    }
+  }
+  await page.getByRole('checkbox', { name: /tôi đồng ý/i }).check()
+  await page.getByRole('button', { name: 'Xem kết quả' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Kết quả sàng lọc GAD-7' }),
+  ).toBeVisible()
+  await expect(page.getByText('21', { exact: true })).toBeVisible()
+  await expect(page.getByText('/ 21 điểm')).toBeVisible()
+  await expect(page.getByText('Không áp dụng cho bộ câu hỏi này')).toBeVisible()
+  await expect(page.getByText(/invented-gad-policy/i)).toHaveCount(0)
 }
 
 async function careControl(
@@ -95,7 +126,7 @@ async function submitOwnedAssessment(
     },
     data: {
       questionnaireDefinitionId: questionnaire.definitionId,
-      privacyPolicyVersion: 'privacy-capstone-v1',
+      privacyPolicyVersion: 'privacy-capstone-v3',
       privacyDisclosureAcknowledged: true,
       answers: questionnaire.questions.map(({ questionId }) => ({
         questionId,
@@ -113,6 +144,54 @@ test.describe('Care-backed PHQ-9 screening', () => {
     'Fixture Care journeys are not run against the live cross-stack environment.',
   )
   test.describe.configure({ mode: 'serial' })
+
+  test('shows first-time profile onboarding on desktop and mobile', async ({
+    context,
+    page,
+  }) => {
+    await context.addCookies([
+      {
+        name: 'mentalbridge_access',
+        value: firstTimeAccessToken,
+        domain: '127.0.0.1',
+        path: '/',
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ])
+
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.goto('/profile')
+    await expect(
+      page.getByRole('heading', { name: 'Bạn chưa có hồ sơ' }),
+    ).toBeVisible()
+    await expect(page.getByText(/không thể tải đầy đủ/i)).toHaveCount(0)
+    await expect(page.getByLabel('Ngôn ngữ')).toHaveCount(0)
+    await expect(page.getByLabel('Múi giờ')).toHaveCount(0)
+    await expect(page.getByText(/nhắc nhở/i)).toHaveCount(0)
+    const nameInput = page.getByLabel('Tên hiển thị')
+    await page.getByRole('button', { name: 'Tạo hồ sơ' }).first().click()
+    await expect(nameInput).toBeFocused()
+    await expect
+      .poll(() =>
+        nameInput.evaluate((element) => getComputedStyle(element).outlineWidth),
+      )
+      .toBe('3px')
+    await page.screenshot({
+      path: 'docs/evidence/story-1101-profile-desktop.png',
+      fullPage: true,
+    })
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.reload()
+    await expect(
+      page.getByRole('heading', { name: 'Bạn chưa có hồ sơ' }),
+    ).toBeVisible()
+    await page.screenshot({
+      path: 'docs/evidence/story-1101-profile-mobile.png',
+      fullPage: true,
+    })
+  })
 
   test('completes and reopens an anonymous result without exposing its bearer credential', async ({
     context,
@@ -201,6 +280,9 @@ test.describe('Care-backed PHQ-9 screening', () => {
     request,
   }) => {
     test.setTimeout(useCareFixture ? 90_000 : 120_000)
+    if (useCareFixture) {
+      await careControl(request, '/__test/reset')
+    }
 
     await context.addCookies([
       {
@@ -215,11 +297,11 @@ test.describe('Care-backed PHQ-9 screening', () => {
 
     await page.goto('/profile')
     await expect(
-      page.getByRole('heading', { name: 'Hồ sơ Care' }),
+      page.getByRole('heading', { name: 'Hồ sơ và quyền riêng tư' }),
     ).toBeVisible()
     await expect(page.getByLabel('Tên hiển thị')).toHaveValue('Care E2E User')
     await expect(
-      page.getByText(/phiên bản backend: privacy-capstone-v1/i),
+      page.getByText(/thông báo và đồng ý xử lý dữ liệu sàng lọc/i),
     ).toBeVisible()
     await page.getByLabel('Tên hiển thị').fill('Care E2E Updated User')
     await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
@@ -350,5 +432,24 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
     ).toBeVisible()
+
+    await page.goto('/assessment/gad7')
+    await answerPublishedGad7(page)
+    await page.reload()
+    await expect(
+      page.getByRole('heading', { name: 'Kết quả sàng lọc GAD-7' }),
+    ).toBeVisible()
+    await page.getByText('Nội dung và thang điểm đã dùng').click()
+    await expect(
+      page.getByText(
+        'Cảm thấy sợ như thể có một điều gì đó khủng khiếp có thể xảy ra',
+      ),
+    ).toBeVisible()
+
+    await page.goto('/assessments')
+    const gad7HistoryRow = page.getByRole('row').filter({ hasText: 'GAD7' })
+    await expect(
+      gad7HistoryRow.getByRole('link', { name: 'Xem lại' }),
+    ).toHaveAttribute('href', /\/assessment\/gad7\?assessmentId=/)
   })
 })

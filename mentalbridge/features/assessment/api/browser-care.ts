@@ -13,14 +13,22 @@ import type {
   CareProfileUpdate,
   AssessmentHistoryPage,
   AssessmentProgress,
+  Instrument,
 } from './care-contract'
 
 export type AssessmentMode = 'anonymous' | 'authenticated'
 export type AssessmentView = Assessment | AnonymousAssessment
 
-export async function getCurrentPhq9() {
+export async function getCurrentQuestionnaire(instrument: Instrument) {
   const response = await browserApiClient.get<Questionnaire>(
-    '/care/questionnaires/phq9',
+    `/care/questionnaires/${instrument.toLowerCase()}`,
+  )
+  return response.data
+}
+
+export async function getQuestionnaireDefinition(definitionId: string) {
+  const response = await browserApiClient.get<Questionnaire>(
+    `/care/questionnaires/definitions/${encodeURIComponent(definitionId)}`,
   )
   return response.data
 }
@@ -151,10 +159,10 @@ export function assessmentErrorMessage(error: unknown) {
       return 'Tài khoản hiện tại không có quyền thực hiện bài đánh giá này.'
     }
     if (error.code === 'PROFILE_NOT_FOUND') {
-      return 'Bạn cần tạo hồ sơ Care trước khi thực hiện bài sàng lọc có lưu lịch sử.'
+      return 'Bạn cần tạo hồ sơ trước khi thực hiện bài sàng lọc có lưu lịch sử.'
     }
     if (error.code === 'PRIVACY_DISCLOSURE_REQUIRED') {
-      return 'Bạn cần đọc và xác nhận thông báo xử lý dữ liệu hiện hành trước khi gửi bài.'
+      return 'Bạn cần đọc và đồng ý với nội dung xử lý dữ liệu hiện hành trước khi gửi bài.'
     }
     if (error.status === 409) {
       return 'Lần gửi này xung đột với một yêu cầu trước đó. Vui lòng bắt đầu lại bài đánh giá.'
@@ -170,7 +178,7 @@ export function assessmentErrorMessage(error: unknown) {
         'REQUEST_TIMEOUT',
       ].includes(error.code)
     ) {
-      return 'Dịch vụ đánh giá tạm thời chưa sẵn sàng. Câu trả lời của bạn chưa được xác nhận là đã lưu.'
+      return 'Tính năng sàng lọc tạm thời chưa sẵn sàng. Câu trả lời của bạn chưa được xác nhận là đã lưu.'
     }
     if (error.code === 'VALIDATION_FAILED') {
       return 'Câu trả lời chưa đầy đủ hoặc không còn phù hợp với phiên bản câu hỏi hiện tại.'

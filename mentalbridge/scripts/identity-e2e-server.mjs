@@ -110,6 +110,10 @@ const state = {
   refreshCount: 0,
   logoutCount: 0,
   logoutAllCount: 0,
+  verificationRequestCount: 0,
+  passwordRecoveryRequestCount: 0,
+  passwordResetCount: 0,
+  passwordChangeCount: 0,
   questionnaireCount: 0,
   anonymousAssessmentCount: 0,
   authenticatedAssessmentCount: 0,
@@ -142,7 +146,7 @@ function reset() {
   careConsents.set(otherCareActor.accountId, {
     decisionId: '30000000-0000-4000-8000-000000000001',
     consentType: 'PRIVACY_POLICY',
-    policyVersion: 'privacy-capstone-v1',
+    policyVersion: 'privacy-capstone-v3',
     granted: true,
     decidedAt: careNow.toISOString(),
   })
@@ -229,7 +233,7 @@ const careQuestionIds = Array.from(
 )
 const careQuestionPrompts = [
   'Ít quan tâm hoặc niềm vui khi làm việc',
-  'Cảm thấy chán nản, chán nản hoặc tuyệt vọng',
+  'Cảm thấy chán nản, buồn rầu hoặc vô vọng',
   'Khó ngủ hoặc duy trì giấc ngủ, hoặc ngủ quá nhiều',
   'Cảm thấy mệt mỏi hoặc có ít năng lượng',
   'Kém ăn hoặc ăn quá nhiều',
@@ -241,10 +245,11 @@ const careQuestionPrompts = [
 const careQuestionnaire = {
   definitionId: careDefinitionId,
   instrument: 'PHQ9',
-  version: 'phq9-vi-vn-capstone-v1',
+  version: 'phq9-vi-vn-capstone-v2',
   locale: 'vi-VN',
   title: 'PHQ-9 — Sàng lọc triệu chứng',
   referencePeriodDays: 14,
+  scoringVersion: 'phq9-standard-bands-v1',
   responseOptions: [
     { value: 0, label: 'Không có gì' },
     { value: 1, label: 'Vài ngày' },
@@ -256,30 +261,97 @@ const careQuestionnaire = {
     itemNumber: index + 1,
     prompt,
   })),
+  scoreBands: [
+    { screeningLevel: 'MINIMAL', minimumScore: 0, maximumScore: 4 },
+    { screeningLevel: 'MILD', minimumScore: 5, maximumScore: 9 },
+    { screeningLevel: 'MODERATE', minimumScore: 10, maximumScore: 14 },
+    {
+      screeningLevel: 'MODERATELY_SEVERE',
+      minimumScore: 15,
+      maximumScore: 19,
+    },
+    { screeningLevel: 'SEVERE', minimumScore: 20, maximumScore: 27 },
+  ],
 }
 
+const gadDefinitionId = '20000000-0000-4000-8000-000000000020'
+const gadQuestionIds = Array.from(
+  { length: 7 },
+  (_, index) =>
+    `20000000-0000-4000-8000-${String(index + 21).padStart(12, '0')}`,
+)
+const gadQuestionnaire = {
+  definitionId: gadDefinitionId,
+  instrument: 'GAD7',
+  version: 'gad7-vi-vn-adult-v1',
+  locale: 'vi-VN',
+  title: 'GAD-7 — Sàng lọc triệu chứng lo âu',
+  referencePeriodDays: 14,
+  scoringVersion: 'gad7-standard-bands-v1',
+  responseOptions: [
+    { value: 0, label: 'Không bao giờ (0 ngày nào)' },
+    { value: 1, label: 'Vài ngày (1-7 ngày)' },
+    { value: 2, label: 'Hơn một nửa số ngày (8-10 ngày)' },
+    { value: 3, label: 'Gần như hàng ngày (11-14 ngày)' },
+  ],
+  questions: [
+    'Cảm giác hồi hộp, lo lắng hoặc cáu kỉnh',
+    'Không thể dừng hoặc kiểm soát được việc lo lắng',
+    'Lo lắng quá nhiều về những điều khác nhau',
+    'Không thể thư giãn được',
+    'Cảm thấy bồn chồn đến mức mà khó có thể ngồi yên một chỗ',
+    'Trở nên dễ bực mình hoặc cáu kỉnh',
+    'Cảm thấy sợ như thể có một điều gì đó khủng khiếp có thể xảy ra',
+  ].map((prompt, index) => ({
+    questionId: gadQuestionIds[index],
+    itemNumber: index + 1,
+    prompt,
+  })),
+  scoreBands: [
+    { screeningLevel: 'MINIMAL', minimumScore: 0, maximumScore: 4 },
+    { screeningLevel: 'MILD', minimumScore: 5, maximumScore: 9 },
+    { screeningLevel: 'MODERATE', minimumScore: 10, maximumScore: 14 },
+    { screeningLevel: 'SEVERE', minimumScore: 15, maximumScore: 21 },
+  ],
+}
+const careQuestionnaires = new Map([
+  [careQuestionnaire.definitionId, careQuestionnaire],
+  [gadQuestionnaire.definitionId, gadQuestionnaire],
+])
+
 function careAssessment(assessmentId, body, expiresAt) {
+  const questionnaire = careQuestionnaires.get(body.questionnaireDefinitionId)
   const totalScore = body.answers.reduce((sum, answer) => sum + answer.value, 0)
-  const safetyAnswer = body.answers.find(
-    (answer) => answer.questionId === careQuestionIds[8],
+  const band = questionnaire.scoreBands.find(
+    ({ minimumScore, maximumScore }) =>
+      totalScore >= minimumScore && totalScore <= maximumScore,
   )
+  const safetyAnswer =
+    questionnaire.instrument === 'PHQ9'
+      ? body.answers.find((answer) => answer.questionId === careQuestionIds[8])
+      : null
   return {
     assessmentId,
-    questionnaireDefinitionId: careDefinitionId,
-    instrument: 'PHQ9',
-    questionnaireVersion: careQuestionnaire.version,
-    privacyPolicyVersion: 'privacy-capstone-v1',
+    questionnaireDefinitionId: questionnaire.definitionId,
+    instrument: questionnaire.instrument,
+    questionnaireVersion: questionnaire.version,
+    privacyPolicyVersion: 'privacy-capstone-v3',
     submittedAt: careNow.toISOString(),
     voidedAt: null,
     result: {
       totalScore,
-      screeningLevel: 'MINIMAL',
-      scoringVersion: 'phq9-standard-bands-v1',
+      screeningLevel: band.screeningLevel,
+      scoringVersion: questionnaire.scoringVersion,
       safetyStatus:
-        safetyAnswer?.value >= 1
-          ? 'POSITIVE_SAFETY_SCREEN'
-          : 'NEGATIVE_SAFETY_SCREEN',
-      safetyPolicyVersion: 'MB-SAFETY-PHQ9-001/1.0-capstone',
+        questionnaire.instrument === 'GAD7'
+          ? 'NOT_APPLICABLE'
+          : safetyAnswer?.value >= 1
+            ? 'POSITIVE_SAFETY_SCREEN'
+            : 'NEGATIVE_SAFETY_SCREEN',
+      safetyPolicyVersion:
+        questionnaire.instrument === 'GAD7'
+          ? null
+          : 'MB-SAFETY-PHQ9-001/1.0-capstone',
       disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
     },
     ...(expiresAt ? { expiresAt } : {}),
@@ -330,11 +402,11 @@ const server = createServer(async (request, response) => {
     ) {
       json(response, 200, {
         consentType: 'PRIVACY_POLICY',
-        version: 'privacy-capstone-v1',
+        version: 'privacy-capstone-v3',
         locale: 'vi-VN',
-        title: 'Thông báo xử lý dữ liệu cho bản Capstone',
+        title: 'Thông báo và đồng ý xử lý dữ liệu sàng lọc',
         content:
-          'MentalBridge lưu hồ sơ Care, câu trả lời PHQ-9 và kết quả do backend tính cho controlled test/demo. Đây không phải chẩn đoán và không cho phép AI, nghiên cứu, marketing hoặc chia sẻ specialist.',
+          'MentalBridge xử lý các câu trả lời PHQ-9 hoặc GAD-7 và kết quả sàng lọc được tính từ các câu trả lời đó nhằm cung cấp chức năng sàng lọc sức khỏe tâm lý. Đối với người dùng đã đăng nhập, MentalBridge có thể lưu kết quả sàng lọc cùng thông tin cần thiết của tài khoản để hiển thị lịch sử và hỗ trợ bạn thực hiện lại bài sàng lọc. Đối với phiên ẩn danh, dữ liệu chỉ được xử lý trong phạm vi của phiên ẩn danh theo chính sách hiện hành và không tự động được gắn vào tài khoản được tạo sau đó. Kết quả PHQ-9 và GAD-7 chỉ mang tính sàng lọc, không phải chẩn đoán y khoa và không thay thế đánh giá hoặc tư vấn của chuyên gia. Sự đồng ý này chỉ áp dụng cho việc xử lý dữ liệu cần thiết để thực hiện và lưu kết quả bài sàng lọc. Sự đồng ý này không bao gồm xử lý dữ liệu bằng AI, sử dụng dữ liệu cho nghiên cứu, tiếp thị hoặc chia sẻ dữ liệu với chuyên gia. Các mục đích đó, nếu được triển khai, phải có quyết định đồng ý riêng. Bạn có thể rút lại sự đồng ý đối với các hoạt động xử lý mới trong tương lai. Việc rút lại sự đồng ý không tự động xóa dữ liệu đã được lưu trước đó; yêu cầu xóa dữ liệu là một quy trình riêng theo chính sách hiện hành.',
         capstoneOnly: true,
       })
       return
@@ -364,7 +436,7 @@ const server = createServer(async (request, response) => {
       const decision = {
         decisionId: crypto.randomUUID(),
         consentType: 'PRIVACY_POLICY',
-        policyVersion: 'privacy-capstone-v1',
+        policyVersion: 'privacy-capstone-v3',
         granted: body.granted === true,
         decidedAt: new Date().toISOString(),
       }
@@ -373,10 +445,10 @@ const server = createServer(async (request, response) => {
       return
     }
 
-    if (
-      request.method === 'GET' &&
-      url.pathname === '/api/v1/questionnaires/PHQ9/current'
-    ) {
+    const currentQuestionnaireGet = url.pathname.match(
+      /^\/api\/v1\/questionnaires\/(PHQ9|GAD7)\/current$/,
+    )
+    if (request.method === 'GET' && currentQuestionnaireGet) {
       if (url.searchParams.get('locale') !== 'vi-VN') {
         problem(
           response,
@@ -387,7 +459,33 @@ const server = createServer(async (request, response) => {
         return
       }
       state.questionnaireCount += 1
-      json(response, 200, careQuestionnaire)
+      json(
+        response,
+        200,
+        currentQuestionnaireGet[1] === 'GAD7'
+          ? gadQuestionnaire
+          : careQuestionnaire,
+      )
+      return
+    }
+
+    const questionnaireDefinitionGet = url.pathname.match(
+      /^\/api\/v1\/questionnaires\/definitions\/([^/]+)$/,
+    )
+    if (request.method === 'GET' && questionnaireDefinitionGet) {
+      const questionnaire = careQuestionnaires.get(
+        questionnaireDefinitionGet[1],
+      )
+      if (!questionnaire) {
+        problem(
+          response,
+          404,
+          'QUESTIONNAIRE_NOT_FOUND',
+          'Questionnaire not found',
+        )
+        return
+      }
+      json(response, 200, questionnaire)
       return
     }
 
@@ -427,9 +525,12 @@ const server = createServer(async (request, response) => {
         return
       }
       const body = await readBody(request)
+      const questionnaire = careQuestionnaires.get(
+        body.questionnaireDefinitionId,
+      )
       if (
-        body.questionnaireDefinitionId !== careDefinitionId ||
-        body.privacyPolicyVersion !== 'privacy-capstone-v1' ||
+        questionnaire?.instrument !== 'PHQ9' ||
+        body.privacyPolicyVersion !== 'privacy-capstone-v3' ||
         body.privacyDisclosureAcknowledged !== true ||
         Object.hasOwn(body, 'totalScore')
       ) {
@@ -486,8 +587,12 @@ const server = createServer(async (request, response) => {
         return
       }
       const body = await readBody(request)
+      const questionnaire = careQuestionnaires.get(
+        body.questionnaireDefinitionId,
+      )
       if (
-        body.privacyPolicyVersion !== 'privacy-capstone-v1' ||
+        !questionnaire ||
+        body.privacyPolicyVersion !== 'privacy-capstone-v3' ||
         body.privacyDisclosureAcknowledged !== true ||
         careConsents.get(actor.accountId)?.granted !== true
       ) {
@@ -550,6 +655,9 @@ const server = createServer(async (request, response) => {
       const existing = careProfiles.get(actor.accountId)
       const profile = {
         accountId: actor.accountId,
+        locale: existing?.locale ?? 'vi-VN',
+        timezone: existing?.timezone ?? 'Asia/Ho_Chi_Minh',
+        reminderEnabled: existing?.reminderEnabled ?? false,
         ...body,
         createdAt: existing?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -749,6 +857,93 @@ const server = createServer(async (request, response) => {
         return
       }
       json(response, 200, assessment)
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/auth/email-verifications'
+    ) {
+      const body = await readBody(request)
+      if (typeof body.challenge !== 'string' || body.challenge.length < 32) {
+        problem(response, 400, 'INVALID_CHALLENGE', 'Challenge is invalid')
+        return
+      }
+      const actor = actors.get('user@example.com')
+      json(response, 200, {
+        accountId: actor.accountId,
+        status: 'ACTIVE',
+        roles: actor.roles,
+        emailVerified: true,
+      })
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      (url.pathname === '/api/v1/auth/email-verification-requests' ||
+        url.pathname === '/api/v1/auth/password-recovery-requests')
+    ) {
+      const body = await readBody(request)
+      if (typeof body.email !== 'string' || !body.email.includes('@')) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Request validation failed')
+        return
+      }
+      if (url.pathname.endsWith('email-verification-requests')) {
+        state.verificationRequestCount += 1
+      } else {
+        state.passwordRecoveryRequestCount += 1
+      }
+      response.writeHead(202, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/auth/password-resets'
+    ) {
+      const body = await readBody(request)
+      if (
+        typeof body.challenge !== 'string' ||
+        body.challenge.length < 32 ||
+        typeof body.newPassword !== 'string' ||
+        body.newPassword.length < 12
+      ) {
+        problem(response, 400, 'INVALID_CHALLENGE', 'Challenge is invalid')
+        return
+      }
+      state.passwordResetCount += 1
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'PUT' &&
+      url.pathname === '/api/v1/account/password'
+    ) {
+      const accessToken = bearerToken(request)
+      const actor = accessSessions.get(accessToken)
+      const body = await readBody(request)
+      if (
+        !actor ||
+        typeof body.currentPassword !== 'string' ||
+        typeof body.newPassword !== 'string' ||
+        body.newPassword.length < 12
+      ) {
+        problem(response, 401, 'INVALID_CREDENTIALS', 'Credentials are invalid')
+        return
+      }
+      for (const [token, session] of accessSessions) {
+        if (session.accountId === actor.accountId) accessSessions.delete(token)
+      }
+      for (const [token, session] of refreshSessions) {
+        if (session.accountId === actor.accountId) refreshSessions.delete(token)
+      }
+      state.passwordChangeCount += 1
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
       return
     }
 

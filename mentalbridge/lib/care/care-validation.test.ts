@@ -6,50 +6,130 @@ import {
   parseAssessmentProgress,
   parseQuestionnaire,
   parseSubmission,
+  validateProfileUpdate,
 } from './care-validation'
 
 const definitionId = '10000000-0000-4000-8000-000000000001'
 const questionId = '10000000-0000-4000-8000-000000000002'
 const assessmentId = '10000000-0000-4000-8000-000000000003'
 const previousAssessmentId = '10000000-0000-4000-8000-000000000004'
+const questionIds = Array.from(
+  { length: 9 },
+  (_, index) =>
+    `20000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+)
+const phq9Bands = [
+  { screeningLevel: 'MINIMAL', minimumScore: 0, maximumScore: 4 },
+  { screeningLevel: 'MILD', minimumScore: 5, maximumScore: 9 },
+  { screeningLevel: 'MODERATE', minimumScore: 10, maximumScore: 14 },
+  {
+    screeningLevel: 'MODERATELY_SEVERE',
+    minimumScore: 15,
+    maximumScore: 19,
+  },
+  { screeningLevel: 'SEVERE', minimumScore: 20, maximumScore: 27 },
+]
+
+function phq9Questionnaire(overrides: Record<string, unknown> = {}) {
+  return {
+    definitionId,
+    instrument: 'PHQ9',
+    version: 'phq9-vi-vn-capstone-v2',
+    locale: 'vi-VN',
+    title: 'PHQ-9',
+    referencePeriodDays: 14,
+    scoringVersion: 'phq9-standard-bands-v1',
+    responseOptions: [
+      { value: 0, label: 'Không ngày nào' },
+      { value: 1, label: 'Vài ngày' },
+      { value: 2, label: 'Hơn nửa số ngày' },
+      { value: 3, label: 'Gần như mỗi ngày' },
+    ],
+    questions: questionIds.map((id, index) => ({
+      questionId: id,
+      itemNumber: index + 1,
+      prompt: `Câu hỏi đã duyệt ${index + 1}`,
+    })),
+    scoreBands: phq9Bands,
+    ...overrides,
+  }
+}
 
 describe('Care runtime validation', () => {
+  it('accepts the adult boundary and leap-day boundary without a maximum age', () => {
+    const today = new Date('2026-02-28T00:00:00Z')
+
+    expect(
+      validateProfileUpdate(
+        { displayName: 'Nguyễn An', dateOfBirth: '2008-02-29' },
+        today,
+      ),
+    ).toEqual({
+      success: true,
+      value: { displayName: 'Nguyễn An', dateOfBirth: '2008-02-29' },
+    })
+    expect(
+      validateProfileUpdate(
+        { displayName: 'Nguyễn An', dateOfBirth: '1900-01-01' },
+        today,
+      ).success,
+    ).toBe(true)
+  })
+
+  it('returns date-of-birth violations for malformed, future, and underage values', () => {
+    const today = new Date('2026-03-01T00:00:00Z')
+
+    expect(
+      validateProfileUpdate(
+        { displayName: 'Nguyễn An', dateOfBirth: 'not-a-date' },
+        today,
+      ),
+    ).toMatchObject({
+      success: false,
+      violations: [{ field: 'dateOfBirth', code: 'INVALID_DATE' }],
+    })
+    expect(
+      validateProfileUpdate(
+        { displayName: 'Nguyễn An', dateOfBirth: '2026-03-02' },
+        today,
+      ),
+    ).toMatchObject({
+      success: false,
+      violations: [{ field: 'dateOfBirth', code: 'DATE_OF_BIRTH_IN_FUTURE' }],
+    })
+    expect(
+      validateProfileUpdate(
+        { displayName: 'Nguyễn An', dateOfBirth: '2008-03-02' },
+        today,
+      ),
+    ).toMatchObject({
+      success: false,
+      violations: [{ field: 'dateOfBirth', code: 'MINIMUM_AGE_NOT_MET' }],
+    })
+  })
   it('accepts canonical UUIDs used by persisted Care reference data', () => {
     expect(isUuid('10000000-0000-0000-0000-000000000002')).toBe(true)
   })
 
   it('accepts a contract-shaped published questionnaire', () => {
-    expect(
-      parseQuestionnaire({
-        definitionId,
-        instrument: 'PHQ9',
-        version: 'phq9-vi-vn-capstone-v1',
-        locale: 'vi-VN',
-        title: 'PHQ-9',
-        referencePeriodDays: 14,
-        responseOptions: [
-          { value: 0, label: 'Không ngày nào' },
-          { value: 1, label: 'Vài ngày' },
-          { value: 2, label: 'Hơn nửa số ngày' },
-          { value: 3, label: 'Gần như mỗi ngày' },
-        ],
-        questions: [{ questionId, itemNumber: 1, prompt: 'Câu hỏi đã duyệt' }],
-      }),
-    ).toMatchObject({ definitionId, locale: 'vi-VN' })
+    expect(parseQuestionnaire(phq9Questionnaire())).toMatchObject({
+      definitionId,
+      locale: 'vi-VN',
+    })
   })
 
   it('rejects incomplete option catalogues and duplicate question identifiers', () => {
     expect(
-      parseQuestionnaire({
-        definitionId,
-        instrument: 'PHQ9',
-        version: 'v1',
-        locale: 'vi-VN',
-        title: 'PHQ-9',
-        referencePeriodDays: 14,
-        responseOptions: [{ value: 0, label: 'Không ngày nào' }],
-        questions: [{ questionId, itemNumber: 1, prompt: 'Câu hỏi' }],
-      }),
+      parseQuestionnaire(
+        phq9Questionnaire({
+          responseOptions: [{ value: 0, label: 'Không ngày nào' }],
+          questions: Array.from({ length: 9 }, (_, index) => ({
+            questionId,
+            itemNumber: index + 1,
+            prompt: 'Câu hỏi',
+          })),
+        }),
+      ),
     ).toBeNull()
   })
 
@@ -57,13 +137,13 @@ describe('Care runtime validation', () => {
     expect(
       parseSubmission({
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v3',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 3 }],
       }),
     ).toEqual({
       questionnaireDefinitionId: definitionId,
-      privacyPolicyVersion: 'privacy-capstone-v1',
+      privacyPolicyVersion: 'privacy-capstone-v3',
       privacyDisclosureAcknowledged: true,
       answers: [{ questionId, value: 3 }],
     })
@@ -71,11 +151,20 @@ describe('Care runtime validation', () => {
     expect(
       parseSubmission({
         questionnaireDefinitionId: definitionId,
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v3',
         privacyDisclosureAcknowledged: true,
         answers: [{ questionId, value: 3 }],
         totalScore: 3,
         screeningLevel: 'MINIMAL',
+      }),
+    ).toBeNull()
+
+    expect(
+      parseSubmission({
+        questionnaireDefinitionId: definitionId,
+        privacyPolicyVersion: 'privacy-capstone-v2',
+        privacyDisclosureAcknowledged: true,
+        answers: [{ questionId, value: 3 }],
       }),
     ).toBeNull()
   })
@@ -87,7 +176,7 @@ describe('Care runtime validation', () => {
         questionnaireDefinitionId: definitionId,
         instrument: 'PHQ9',
         questionnaireVersion: 'phq9-vi-vn-capstone-v1',
-        privacyPolicyVersion: 'privacy-capstone-v1',
+        privacyPolicyVersion: 'privacy-capstone-v2',
         submittedAt: '2026-09-01T00:00:00Z',
         voidedAt: null,
         expiresAt: '2026-09-01T00:30:00Z',
@@ -108,6 +197,42 @@ describe('Care runtime validation', () => {
         safetyStatus: 'POSITIVE_SAFETY_SCREEN',
       },
     })
+  })
+
+  it('accepts GAD-7 only with not-applicable safety provenance', () => {
+    const gadAssessment = {
+      assessmentId,
+      questionnaireDefinitionId: definitionId,
+      instrument: 'GAD7',
+      questionnaireVersion: 'gad7-vi-vn-adult-v1',
+      privacyPolicyVersion: 'privacy-capstone-v3',
+      submittedAt: '2026-09-01T00:00:00Z',
+      voidedAt: null,
+      expiresAt: '2026-09-01T00:30:00Z',
+      result: {
+        totalScore: 21,
+        screeningLevel: 'SEVERE',
+        scoringVersion: 'gad7-standard-bands-v1',
+        safetyStatus: 'NOT_APPLICABLE',
+        safetyPolicyVersion: null,
+        disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
+      },
+    }
+
+    expect(parseAnonymousAssessment(gadAssessment)).toMatchObject({
+      instrument: 'GAD7',
+      result: { safetyStatus: 'NOT_APPLICABLE', safetyPolicyVersion: null },
+    })
+    expect(
+      parseAnonymousAssessment({
+        ...gadAssessment,
+        result: {
+          ...gadAssessment.result,
+          safetyStatus: 'NEGATIVE_SAFETY_SCREEN',
+          safetyPolicyVersion: 'invented-gad-policy',
+        },
+      }),
+    ).toBeNull()
   })
 
   it('accepts a self-consistent descriptive progress response', () => {

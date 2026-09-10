@@ -18,6 +18,8 @@ export interface paths {
          * @description The account identifier comes only from the verified JWT subject. If-Match
          *     is omitted when creating the profile and is required for replacement of an
          *     existing profile. A stale version fails without overwriting newer data.
+         *     Locale, timezone, and reminders are not user-configurable in this release;
+         *     the server stores vi-VN, Asia/Ho_Chi_Minh, and reminders disabled.
          */
         put: operations["putOwnCareProfile"];
         post?: never;
@@ -36,7 +38,9 @@ export interface paths {
         };
         /**
          * Read the latest explicit platform consent decisions
-         * @description A missing consent type means no decision has been recorded; it is not silently treated as a grant.
+         * @description This lookup does not require a Care profile. A new account with no profile
+         *     and no decision receives 200 with decisions: []. A missing consent type
+         *     means no decision has been recorded; it is not silently treated as a grant.
          */
         get: operations["getOwnCurrentConsents"];
         put?: never;
@@ -100,9 +104,31 @@ export interface paths {
         };
         /**
          * Read the current published questionnaire for an instrument and locale
-         * @description Only a reviewed published definition is returned. PHQ-9 is the MB-88 seeded instrument; GAD-7 remains a future reference-data version.
+         * @description Only the current reviewed published PHQ-9 or GAD-7 definition is returned.
          */
         get: operations["getCurrentQuestionnaire"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/questionnaires/definitions/{definitionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one immutable published or retired questionnaire definition
+         * @description Resolves the exact definition referenced by a historical assessment. Draft
+         *     definitions are never exposed, and callers must not replace the stored
+         *     definition identifier with the current questionnaire when reopening a result.
+         */
+        get: operations["getQuestionnaireDefinition"];
         put?: never;
         post?: never;
         delete?: never;
@@ -127,7 +153,7 @@ export interface paths {
         get: operations["listOwnAssessments"];
         put?: never;
         /**
-         * Submit and score a complete authenticated PHQ-9 assessment
+         * Submit and score a complete authenticated PHQ-9 or GAD-7 assessment
          * @description Care ignores no answers and accepts no client score, band, or safety result.
          *     It validates the exact published questionnaire version, requires one answer
          *     for every question, computes the result locally, and persists submission,
@@ -183,6 +209,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support-evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve deterministic support from explicitly selected PHQ-9 and GAD-7 results
+         * @description The authenticated USER explicitly selects one owned PHQ-9 result and one
+         *     owned GAD-7 result. Care validates immutable questionnaire/scoring evidence,
+         *     applies the published safety-first policy, and persists one reproducible
+         *     evaluation plus a transactional outbox event. It never calculates a
+         *     composite score, diagnoses a condition, contacts another person, books an
+         *     appointment, or shares assessment data. Local reviewed safety guidance
+         *     remains available without Content, AI, Kafka, Redis, Realtime, or
+         *     notification dependencies.
+         */
+        post: operations["evaluateOwnScreeningSupport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-evaluations/{supportEvaluationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reopen one immutable owned support evaluation */
+        get: operations["getOwnScreeningSupportEvaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/anonymous-assessment-sessions": {
         parameters: {
             query?: never;
@@ -216,7 +286,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Submit and score a complete PHQ-9 assessment inside one anonymous session
+         * Submit and score a complete published assessment inside one anonymous session
          * @description Session ownership is proven by the anonymous token, never by the path UUID
          *     alone. The result expires with the session and cannot be claimed by a later
          *     authenticated account. Scoring and atomic persistence are identical to the
@@ -252,13 +322,30 @@ export interface components {
     schemas: {
         ProfilePutRequest: {
             displayName: string;
-            /** Format: date */
+            /**
+             * Format: date
+             * @description Optional date of birth. When present, the user must have reached their 18th anniversary on the request date; no maximum age is inferred.
+             */
             dateOfBirth?: string | null;
             gender?: string | null;
-            locale: string;
-            /** @description IANA timezone identifier */
-            timezone: string;
-            reminderEnabled: boolean;
+            /**
+             * @deprecated
+             * @description Compatibility input only; this release always stores vi-VN.
+             * @constant
+             */
+            locale?: "vi-VN";
+            /**
+             * @deprecated
+             * @description Compatibility input only; this release always stores Asia/Ho_Chi_Minh.
+             * @constant
+             */
+            timezone?: "Asia/Ho_Chi_Minh";
+            /**
+             * @deprecated
+             * @description Compatibility input only; reminders are not implemented and remain disabled.
+             * @constant
+             */
+            reminderEnabled?: false;
         };
         Profile: {
             /** Format: uuid */
@@ -282,10 +369,11 @@ export interface components {
         ConsentDecisionRequest: {
             consentType: components["schemas"]["ConsentType"];
             /**
-             * @description Exact approved text or policy version shown to the user
+             * @description Exact approved consent text version shown to the user
              * @constant
              */
-            policyVersion: "privacy-capstone-v1";
+            policyVersion: "privacy-capstone-v3";
+            /** @description Grants or withdraws consent for future screening-data processing under this version */
             granted: boolean;
         };
         ConsentDecision: {
@@ -304,7 +392,7 @@ export interface components {
             /** @constant */
             consentType: "PRIVACY_POLICY";
             /** @constant */
-            version: "privacy-capstone-v1";
+            version: "privacy-capstone-v3";
             /** @constant */
             locale: "vi-VN";
             title: string;
@@ -322,8 +410,15 @@ export interface components {
             locale: string;
             title: string;
             referencePeriodDays: number;
+            scoringVersion: string;
             responseOptions: components["schemas"]["ResponseOption"][];
             questions: components["schemas"]["Question"][];
+            scoreBands: components["schemas"]["QuestionnaireScoreBand"][];
+        };
+        QuestionnaireScoreBand: {
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+            minimumScore: number;
+            maximumScore: number;
         };
         ResponseOption: {
             value: number;
@@ -339,8 +434,11 @@ export interface components {
             /** Format: uuid */
             questionnaireDefinitionId: string;
             /** @constant */
-            privacyPolicyVersion: "privacy-capstone-v1";
-            /** @constant */
+            privacyPolicyVersion: "privacy-capstone-v3";
+            /**
+             * @description Compatibility field recording explicit consent to the current screening-data policy
+             * @constant
+             */
             privacyDisclosureAcknowledged: true;
             /** @description Exactly one answer for every question in the referenced definition; order is not authoritative */
             answers: components["schemas"]["AssessmentAnswer"][];
@@ -443,18 +541,73 @@ export interface components {
             screeningLevel: components["schemas"]["ScreeningLevel"];
             scoringVersion: string;
             safetyStatus: components["schemas"]["SafetyStatus"];
-            /** @description Exact approved safety policy used for the deterministic item-9 result */
-            safetyPolicyVersion: string;
+            /** @description Exact approved PHQ-9 item-9 policy, or null when safetyStatus is NOT_APPLICABLE */
+            safetyPolicyVersion: string | null;
             /** @constant */
             disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
         };
+        SupportEvaluationRequest: {
+            /** Format: uuid */
+            phq9AssessmentId: string;
+            /** Format: uuid */
+            gad7AssessmentId: string;
+        };
+        SupportEvaluation: {
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** @constant */
+            policyVersion: "mb-support-routing-capstone-v1";
+            /** Format: date-time */
+            evaluatedAt: string;
+            supportTier: components["schemas"]["SupportTier"];
+            reasonCodes: components["schemas"]["SupportReasonCode"][];
+            evidence: components["schemas"]["SupportEvidence"][];
+            nextStep: components["schemas"]["SupportNextStep"];
+            /** @description Reviewed local minimum guidance for SAFETY_FOLLOW_UP_RECOMMENDED; null for other tiers */
+            safetyGuidance: string | null;
+            /** @constant */
+            disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
+            /** @constant */
+            disclaimer: "Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
+        };
+        SupportEvidence: {
+            /** Format: uuid */
+            assessmentId: string;
+            instrument: components["schemas"]["Instrument"];
+            questionnaireVersion: string;
+            scoringVersion: string;
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+            safetyStatus: components["schemas"]["SafetyStatus"];
+            meaning: components["schemas"]["ScreeningMeaning"];
+        };
+        ScreeningMeaning: {
+            meaningCode: string;
+            contentVersion: string;
+            /** @constant */
+            referencePeriodDays: 14;
+            text: string;
+            limitation: string;
+        };
+        SupportNextStep: {
+            code: string;
+            contentVersion: string;
+            text: string;
+            boundary: string;
+        };
+        /**
+         * @description Product support pathway, never a diagnosis or suicide-risk label
+         * @enum {string}
+         */
+        SupportTier: "SELF_GUIDED_SUPPORT" | "PROFESSIONAL_SUPPORT_RECOMMENDED" | "SAFETY_FOLLOW_UP_RECOMMENDED";
+        /** @enum {string} */
+        SupportReasonCode: "ALL_SCREENING_LEVELS_MINIMAL_OR_MILD" | "PHQ9_MODERATE_OR_HIGHER" | "GAD7_MODERATE_OR_HIGHER" | "PHQ9_SAFETY_SCREEN_POSITIVE";
         /** @enum {string} */
         ScreeningLevel: "MINIMAL" | "MILD" | "MODERATE" | "MODERATELY_SEVERE" | "SEVERE";
         /**
-         * @description Independent safety screen; it never overwrites the questionnaire screening level or claims intent or urgency
+         * @description Questionnaire-specific safety result; NOT_APPLICABLE means no safety screen was performed
          * @enum {string}
          */
-        SafetyStatus: "NEGATIVE_SAFETY_SCREEN" | "POSITIVE_SAFETY_SCREEN";
+        SafetyStatus: "NEGATIVE_SAFETY_SCREEN" | "POSITIVE_SAFETY_SCREEN" | "NOT_APPLICABLE";
         AnonymousSession: {
             /** Format: uuid */
             sessionId: string;
@@ -562,7 +715,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Requested resource does not exist (PROFILE_NOT_FOUND, QUESTIONNAIRE_NOT_FOUND, or ASSESSMENT_NOT_FOUND) */
+        /** @description Requested resource does not exist (PROFILE_NOT_FOUND, QUESTIONNAIRE_NOT_FOUND, ASSESSMENT_NOT_FOUND, or SUPPORT_EVALUATION_NOT_FOUND) */
         NotFoundProblem: {
             headers: {
                 [name: string]: unknown;
@@ -571,7 +724,25 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Request conflicts with stored state (IDEMPOTENCY_KEY_REUSED or QUESTIONNAIRE_VERSION_UNAVAILABLE) */
+        /** @description No Care profile has been created yet; clients should present the normal profile onboarding state (PROFILE_NOT_FOUND) */
+        ProfileNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "/problems/profile-not-found",
+                 *       "title": "Care profile was not found",
+                 *       "status": 404,
+                 *       "code": "PROFILE_NOT_FOUND",
+                 *       "correlationId": "8fb5720a-53ab-40db-9cf4-f5cfabbdaf65"
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Request conflicts with stored state (IDEMPOTENCY_KEY_REUSED, QUESTIONNAIRE_VERSION_UNAVAILABLE, or SUPPORT_EVIDENCE_INCOMPATIBLE) */
         ConflictProblem: {
             headers: {
                 [name: string]: unknown;
@@ -629,6 +800,8 @@ export interface components {
     };
     parameters: {
         AssessmentId: string;
+        DefinitionId: string;
+        SupportEvaluationId: string;
         SessionId: string;
         Instrument: components["schemas"]["Instrument"];
         Locale: string;
@@ -672,7 +845,7 @@ export interface operations {
             };
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
-            404: components["responses"]["NotFoundProblem"];
+            404: components["responses"]["ProfileNotFoundProblem"];
         };
     };
     putOwnCareProfile: {
@@ -692,9 +865,7 @@ export interface operations {
                 /**
                  * @example {
                  *       "displayName": "Lan Nguyen",
-                 *       "locale": "vi-VN",
-                 *       "timezone": "Asia/Ho_Chi_Minh",
-                 *       "reminderEnabled": true
+                 *       "dateOfBirth": "2000-01-02"
                  *     }
                  */
                 "application/json": components["schemas"]["ProfilePutRequest"];
@@ -769,8 +940,8 @@ export interface operations {
             content: {
                 /**
                  * @example {
-                 *       "consentType": "AI_PROCESSING",
-                 *       "policyVersion": "ai-processing-v1",
+                 *       "consentType": "PRIVACY_POLICY",
+                 *       "policyVersion": "privacy-capstone-v3",
                  *       "granted": true
                  *     }
                  */
@@ -846,6 +1017,32 @@ export interface operations {
             };
             404: components["responses"]["NotFoundProblem"];
             429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    getQuestionnaireDefinition: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                definitionId: components["parameters"]["DefinitionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable questionnaire definition returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Questionnaire"];
+                };
+            };
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     listOwnAssessments: {
@@ -967,6 +1164,75 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["InsufficientComparableDataProblem"];
+        };
+    };
+    evaluateOwnScreeningSupport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "phq9AssessmentId": "10000000-0000-4000-8000-000000000101",
+                 *       "gad7AssessmentId": "10000000-0000-4000-8000-000000000102"
+                 *     }
+                 */
+                "application/json": components["schemas"]["SupportEvaluationRequest"];
+            };
+        };
+        responses: {
+            /** @description Deterministic support evaluation created or replayed */
+            201: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportEvaluation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    getOwnScreeningSupportEvaluation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportEvaluationId: components["parameters"]["SupportEvaluationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable support evaluation returned with its original policy content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportEvaluation"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     createAnonymousAssessmentSession: {

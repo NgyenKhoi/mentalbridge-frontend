@@ -6,10 +6,13 @@ import type {
   AccountDetail,
   AccountSummary,
   ChallengeRequest,
+  EmailRequest,
   LoginRequest,
   RegistrationRequest,
   RegistrationResponse,
   TokenPair,
+  PasswordResetRequest,
+  PasswordChangeRequest,
 } from '@/features/auth/api/identity-contract'
 import { readIdentityServerConfig } from '@/lib/config/server'
 
@@ -21,13 +24,15 @@ import {
 } from './identity-validation'
 
 type RequestOptions<T> = Readonly<{
-  method: 'GET' | 'POST'
+  method: 'GET' | 'POST' | 'PUT'
   path: string
+  expectedStatus: number
   correlationId: string
   authorization?: string
   idempotencyKey?: string
   body?: unknown
   parseSuccess?: (value: unknown) => T | null
+  emptySuccess?: boolean
 }>
 
 const MAX_IDENTITY_RESPONSE_BYTES = 64 * 1_024
@@ -134,7 +139,15 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
       })
     }
 
-    if (response.status === 204) return undefined as T
+    if (response.status !== options.expectedStatus) {
+      throw new ApiError({
+        message: 'Identity returned an unexpected success status.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+
+    if (response.status === 204 || options.emptySuccess) return undefined as T
 
     const body = await readJson(response)
     const parsed = options.parseSuccess?.(body)
@@ -180,6 +193,7 @@ export const identityClient = {
     return identityRequest<RegistrationResponse>({
       method: 'POST',
       path: '/api/v1/auth/registrations',
+      expectedStatus: 201,
       correlationId,
       idempotencyKey,
       body: request,
@@ -191,9 +205,57 @@ export const identityClient = {
     return identityRequest<AccountSummary>({
       method: 'POST',
       path: '/api/v1/auth/email-verifications',
+      expectedStatus: 200,
       correlationId,
       body: request,
       parseSuccess: parseAccountSummary,
+    })
+  },
+
+  requestEmailVerification(request: EmailRequest, correlationId: string) {
+    return identityRequest<void>({
+      method: 'POST',
+      path: '/api/v1/auth/email-verification-requests',
+      expectedStatus: 202,
+      correlationId,
+      body: request,
+      emptySuccess: true,
+    })
+  },
+
+  requestPasswordRecovery(request: EmailRequest, correlationId: string) {
+    return identityRequest<void>({
+      method: 'POST',
+      path: '/api/v1/auth/password-recovery-requests',
+      expectedStatus: 202,
+      correlationId,
+      body: request,
+      emptySuccess: true,
+    })
+  },
+
+  resetPassword(request: PasswordResetRequest, correlationId: string) {
+    return identityRequest<void>({
+      method: 'POST',
+      path: '/api/v1/auth/password-resets',
+      expectedStatus: 204,
+      correlationId,
+      body: request,
+    })
+  },
+
+  changePassword(
+    accessToken: string,
+    request: PasswordChangeRequest,
+    correlationId: string,
+  ) {
+    return identityRequest<void>({
+      method: 'PUT',
+      path: '/api/v1/account/password',
+      expectedStatus: 204,
+      correlationId,
+      authorization: accessToken,
+      body: request,
     })
   },
 
@@ -201,6 +263,7 @@ export const identityClient = {
     return identityRequest<TokenPair>({
       method: 'POST',
       path: '/api/v1/auth/login',
+      expectedStatus: 200,
       correlationId,
       body: request,
       parseSuccess: parseTokenPair,
@@ -211,6 +274,7 @@ export const identityClient = {
     return identityRequest<TokenPair>({
       method: 'POST',
       path: '/api/v1/auth/refresh',
+      expectedStatus: 200,
       correlationId,
       idempotencyKey,
       body: { refreshToken },
@@ -222,6 +286,7 @@ export const identityClient = {
     return identityRequest<void>({
       method: 'POST',
       path: '/api/v1/auth/logout',
+      expectedStatus: 204,
       correlationId,
       authorization: accessToken,
       body: { refreshToken },
@@ -232,6 +297,7 @@ export const identityClient = {
     return identityRequest<void>({
       method: 'POST',
       path: '/api/v1/auth/logout-all',
+      expectedStatus: 204,
       correlationId,
       authorization: accessToken,
     })
@@ -241,6 +307,7 @@ export const identityClient = {
     return identityRequest<AccountDetail>({
       method: 'GET',
       path: '/api/v1/account',
+      expectedStatus: 200,
       correlationId,
       authorization: accessToken,
       parseSuccess: parseAccountDetail,
