@@ -19,7 +19,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
+    const correlationId =
+      request.headers.get('x-correlation-id') || crypto.randomUUID()
     const { id } = await params
 
     // Resolve and validate session
@@ -32,7 +33,7 @@ export async function GET(
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${credentials.accessToken}`,
+          Authorization: `Bearer ${credentials.accessToken}`,
           'x-correlation-id': correlationId,
         },
       },
@@ -65,7 +66,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
+    const correlationId =
+      request.headers.get('x-correlation-id') || crypto.randomUUID()
     const { id } = await params
     const { searchParams } = request.nextUrl
     const version = searchParams.get('version')
@@ -91,7 +93,7 @@ export async function PATCH(
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${credentials.accessToken}`,
+          Authorization: `Bearer ${credentials.accessToken}`,
           'x-correlation-id': correlationId,
         },
         body: JSON.stringify(validated),
@@ -141,7 +143,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
+    const correlationId =
+      request.headers.get('x-correlation-id') || crypto.randomUUID()
     const { id } = await params
     const { searchParams } = request.nextUrl
     const version = searchParams.get('version')
@@ -164,7 +167,7 @@ export async function DELETE(
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${credentials.accessToken}`,
+          Authorization: `Bearer ${credentials.accessToken}`,
           'x-correlation-id': correlationId,
         },
       },

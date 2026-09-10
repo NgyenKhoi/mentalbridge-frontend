@@ -25,8 +25,9 @@ const CreateResourceSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
-    
+    const correlationId =
+      request.headers.get('x-correlation-id') || crypto.randomUUID()
+
     // Resolve and validate session
     const credentials = readSessionCredentials(request.cookies)
     const session = await resolveSession(credentials, correlationId)
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${credentials.accessToken}`,
+          Authorization: `Bearer ${credentials.accessToken}`,
           'x-correlation-id': correlationId,
         },
       },
@@ -81,8 +82,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
-    
+    const correlationId =
+      request.headers.get('x-correlation-id') || crypto.randomUUID()
+
     // Resolve and validate session
     const credentials = readSessionCredentials(request.cookies)
     const session = await resolveSession(credentials, correlationId)
@@ -95,13 +97,14 @@ export async function POST(request: NextRequest) {
     const idempotencyKey = searchParams.get('idempotencyKey')
 
     const url = new URL(`${CONTENT_SERVICE_URL}/api/v1/resources`)
-    if (idempotencyKey) url.searchParams.append('idempotencyKey', idempotencyKey)
+    if (idempotencyKey)
+      url.searchParams.append('idempotencyKey', idempotencyKey)
 
     const response = await fetch(url.toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${credentials.accessToken}`,
+        Authorization: `Bearer ${credentials.accessToken}`,
         'x-correlation-id': correlationId,
       },
       body: JSON.stringify(validated),

@@ -11,7 +11,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
+    const correlationId =
+      request.headers.get('x-correlation-id') || crypto.randomUUID()
     const { id } = await params
     const { searchParams } = request.nextUrl
     const version = searchParams.get('version')
@@ -34,7 +35,7 @@ export async function POST(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${credentials.accessToken}`,
+          Authorization: `Bearer ${credentials.accessToken}`,
           'x-correlation-id': correlationId,
         },
       },
