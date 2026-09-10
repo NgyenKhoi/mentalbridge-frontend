@@ -214,6 +214,12 @@ export interface components {
             /** Format: uri */
             externalUrl?: string | null;
         };
+        PublishResourceRequest: {
+            /** Format: date-time */
+            effectiveAt?: string | null;
+            /** Format: date-time */
+            expiresAt?: string | null;
+        };
     };
     responses: {
         /** @description Resource not found */
@@ -486,7 +492,9 @@ export interface operations {
     };
     updateResource: {
         parameters: {
-            query?: never;
+            query: {
+                version: number;
+            };
             header?: never;
             path: {
                 id: string;
@@ -514,14 +522,20 @@ export interface operations {
     };
     publishResource: {
         parameters: {
-            query?: never;
+            query: {
+                version: number;
+            };
             header?: never;
             path: {
                 id: string;
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PublishResourceRequest"];
+            };
+        };
         responses: {
             /** @description Resource published */
             200: {
@@ -538,7 +552,9 @@ export interface operations {
     };
     archiveResource: {
         parameters: {
-            query?: never;
+            query: {
+                version: number;
+            };
             header?: never;
             path: {
                 id: string;
