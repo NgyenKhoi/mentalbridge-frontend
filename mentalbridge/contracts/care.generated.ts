@@ -209,6 +209,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support-evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve deterministic support from explicitly selected PHQ-9 and GAD-7 results
+         * @description The authenticated USER explicitly selects one owned PHQ-9 result and one
+         *     owned GAD-7 result. Care validates immutable questionnaire/scoring evidence,
+         *     applies the published safety-first policy, and persists one reproducible
+         *     evaluation plus a transactional outbox event. It never calculates a
+         *     composite score, diagnoses a condition, contacts another person, books an
+         *     appointment, or shares assessment data. Local reviewed safety guidance
+         *     remains available without Content, AI, Kafka, Redis, Realtime, or
+         *     notification dependencies.
+         */
+        post: operations["evaluateOwnScreeningSupport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-evaluations/{supportEvaluationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reopen one immutable owned support evaluation */
+        get: operations["getOwnScreeningSupportEvaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/anonymous-assessment-sessions": {
         parameters: {
             query?: never;
@@ -502,6 +546,61 @@ export interface components {
             /** @constant */
             disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
         };
+        SupportEvaluationRequest: {
+            /** Format: uuid */
+            phq9AssessmentId: string;
+            /** Format: uuid */
+            gad7AssessmentId: string;
+        };
+        SupportEvaluation: {
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** @constant */
+            policyVersion: "mb-support-routing-capstone-v1";
+            /** Format: date-time */
+            evaluatedAt: string;
+            supportTier: components["schemas"]["SupportTier"];
+            reasonCodes: components["schemas"]["SupportReasonCode"][];
+            evidence: components["schemas"]["SupportEvidence"][];
+            nextStep: components["schemas"]["SupportNextStep"];
+            /** @description Reviewed local minimum guidance for SAFETY_FOLLOW_UP_RECOMMENDED; null for other tiers */
+            safetyGuidance: string | null;
+            /** @constant */
+            disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
+            /** @constant */
+            disclaimer: "Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
+        };
+        SupportEvidence: {
+            /** Format: uuid */
+            assessmentId: string;
+            instrument: components["schemas"]["Instrument"];
+            questionnaireVersion: string;
+            scoringVersion: string;
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+            safetyStatus: components["schemas"]["SafetyStatus"];
+            meaning: components["schemas"]["ScreeningMeaning"];
+        };
+        ScreeningMeaning: {
+            meaningCode: string;
+            contentVersion: string;
+            /** @constant */
+            referencePeriodDays: 14;
+            text: string;
+            limitation: string;
+        };
+        SupportNextStep: {
+            code: string;
+            contentVersion: string;
+            text: string;
+            boundary: string;
+        };
+        /**
+         * @description Product support pathway, never a diagnosis or suicide-risk label
+         * @enum {string}
+         */
+        SupportTier: "SELF_GUIDED_SUPPORT" | "PROFESSIONAL_SUPPORT_RECOMMENDED" | "SAFETY_FOLLOW_UP_RECOMMENDED";
+        /** @enum {string} */
+        SupportReasonCode: "ALL_SCREENING_LEVELS_MINIMAL_OR_MILD" | "PHQ9_MODERATE_OR_HIGHER" | "GAD7_MODERATE_OR_HIGHER" | "PHQ9_SAFETY_SCREEN_POSITIVE";
         /** @enum {string} */
         ScreeningLevel: "MINIMAL" | "MILD" | "MODERATE" | "MODERATELY_SEVERE" | "SEVERE";
         /**
@@ -616,7 +715,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Requested resource does not exist (PROFILE_NOT_FOUND, QUESTIONNAIRE_NOT_FOUND, or ASSESSMENT_NOT_FOUND) */
+        /** @description Requested resource does not exist (PROFILE_NOT_FOUND, QUESTIONNAIRE_NOT_FOUND, ASSESSMENT_NOT_FOUND, or SUPPORT_EVALUATION_NOT_FOUND) */
         NotFoundProblem: {
             headers: {
                 [name: string]: unknown;
@@ -643,7 +742,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Request conflicts with stored state (IDEMPOTENCY_KEY_REUSED or QUESTIONNAIRE_VERSION_UNAVAILABLE) */
+        /** @description Request conflicts with stored state (IDEMPOTENCY_KEY_REUSED, QUESTIONNAIRE_VERSION_UNAVAILABLE, or SUPPORT_EVIDENCE_INCOMPATIBLE) */
         ConflictProblem: {
             headers: {
                 [name: string]: unknown;
@@ -702,6 +801,7 @@ export interface components {
     parameters: {
         AssessmentId: string;
         DefinitionId: string;
+        SupportEvaluationId: string;
         SessionId: string;
         Instrument: components["schemas"]["Instrument"];
         Locale: string;
@@ -1064,6 +1164,75 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["InsufficientComparableDataProblem"];
+        };
+    };
+    evaluateOwnScreeningSupport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "phq9AssessmentId": "10000000-0000-4000-8000-000000000101",
+                 *       "gad7AssessmentId": "10000000-0000-4000-8000-000000000102"
+                 *     }
+                 */
+                "application/json": components["schemas"]["SupportEvaluationRequest"];
+            };
+        };
+        responses: {
+            /** @description Deterministic support evaluation created or replayed */
+            201: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportEvaluation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    getOwnScreeningSupportEvaluation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportEvaluationId: components["parameters"]["SupportEvaluationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable support evaluation returned with its original policy content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportEvaluation"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     createAnonymousAssessmentSession: {
