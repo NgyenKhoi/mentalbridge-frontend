@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   adminResourcesApi,
@@ -58,6 +58,9 @@ export default function AdminContentManager({
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editSummary, setEditSummary] = useState('')
+  const [hasEdits, setHasEdits] = useState(false)
 
   const {
     data: resourcesData,
@@ -105,11 +108,21 @@ export default function AdminContentManager({
     enabled: !!selectedId,
   })
 
+  // Reset edit state when detail data changes
+  useEffect(() => {
+    if (detailData) {
+      setEditTitle(detailData.title)
+      setEditSummary(detailData.summary)
+      setHasEdits(false)
+    }
+  }, [detailData])
+
   const publishMutation = useMutation({
     mutationFn: ({ id, version }: { id: string; version: number }) =>
       adminResourcesApi.publish(id, version),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources', selectedId] })
       onNotice('Đã xuất bản tài nguyên thành công')
     },
     onError: () => {
@@ -122,6 +135,7 @@ export default function AdminContentManager({
       adminResourcesApi.archive(id, version),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources', selectedId] })
       onNotice('Đã lưu trữ tài nguyên thành công')
     },
     onError: () => {
@@ -130,7 +144,8 @@ export default function AdminContentManager({
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => adminResourcesApi.delete(id),
+    mutationFn: ({ id, version }: { id: string; version: number }) =>
+      adminResourcesApi.delete(id, version),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
       setSelectedId(null)
@@ -160,23 +175,66 @@ export default function AdminContentManager({
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      version,
+      data,
+    }: {
+      id: string
+      version: number
+      data: { title?: string; summary?: string }
+    }) => adminResourcesApi.update(id, version, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources', selectedId] })
+      setHasEdits(false)
+      onNotice('Đã cập nhật tài nguyên thành công')
+    },
+    onError: () => {
+      onNotice('Không thể cập nhật tài nguyên')
+    },
+  })
+
   const handlePublish = () => {
-    if (!selectedId || !detailData?.version) return
+    if (!selectedId || detailData?.version === undefined) return
     publishMutation.mutate({ id: selectedId, version: detailData.version })
   }
 
   const handleArchive = () => {
-    if (!selectedId || !detailData?.version) return
+    if (!selectedId || detailData?.version === undefined) return
     archiveMutation.mutate({ id: selectedId, version: detailData.version })
   }
 
   const handleDelete = () => {
-    if (!selectedId) return
+    if (!selectedId || detailData?.version === undefined) return
     if (
       confirm('Bạn có chắc chắn muốn xóa tài nguyên này? Chỉ có thể xóa bản nháp.')
     ) {
-      deleteMutation.mutate(selectedId)
+      deleteMutation.mutate({ id: selectedId, version: detailData.version })
     }
+  }
+
+  const handleUpdate = () => {
+    if (!selectedId || detailData?.version === undefined || !hasEdits) return
+    updateMutation.mutate({
+      id: selectedId,
+      version: detailData.version,
+      data: {
+        title: editTitle,
+        summary: editSummary,
+      },
+    })
+  }
+
+  const handleTitleChange = (value: string) => {
+    setEditTitle(value)
+    setHasEdits(true)
+  }
+
+  const handleSummaryChange = (value: string) => {
+    setEditSummary(value)
+    setHasEdits(true)
   }
 
   const handleCreateSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -480,8 +538,8 @@ export default function AdminContentManager({
                   <label>
                     <span>Tiêu đề</span>
                     <input
-                      defaultValue={selectedResource.title}
-                      key={`${selectedResource.id}-title`}
+                      value={editTitle}
+                      onChange={(e) => handleTitleChange(e.target.value)}
                       disabled={selectedResource.status !== 'DRAFT'}
                     />
                   </label>
@@ -495,8 +553,8 @@ export default function AdminContentManager({
                   <label className="wide">
                     <span>Mô tả ngắn</span>
                     <textarea
-                      defaultValue={selectedResource.summary}
-                      key={`${selectedResource.id}-description`}
+                      value={editSummary}
+                      onChange={(e) => handleSummaryChange(e.target.value)}
                       rows={3}
                       disabled={selectedResource.status !== 'DRAFT'}
                     />
@@ -548,13 +606,23 @@ export default function AdminContentManager({
                     <button onClick={handleDelete} disabled={deleteMutation.isPending}>
                       Xóa bản nháp
                     </button>
-                    <button
-                      className="acm-save"
-                      onClick={handlePublish}
-                      disabled={publishMutation.isPending}
-                    >
-                      Xuất bản
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      {hasEdits && (
+                        <button
+                          onClick={handleUpdate}
+                          disabled={updateMutation.isPending}
+                        >
+                          {updateMutation.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
+                        </button>
+                      )}
+                      <button
+                        className="acm-save"
+                        onClick={handlePublish}
+                        disabled={publishMutation.isPending}
+                      >
+                        Xuất bản
+                      </button>
+                    </div>
                   </>
                 )}
                 {selectedResource.status === 'PUBLISHED' && (
