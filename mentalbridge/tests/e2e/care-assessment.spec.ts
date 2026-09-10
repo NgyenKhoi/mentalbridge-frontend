@@ -30,7 +30,9 @@ async function answerPublishedQuestionnaire(page: Page) {
       await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
     }
   }
-  await page.getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i }).check()
+  await expect(page.getByText(/Đối với người dùng đã đăng nhập/)).toBeVisible()
+  await expect(page.getByText(/Đối với phiên ẩn danh/)).toBeVisible()
+  await page.getByRole('checkbox', { name: /tôi đồng ý/i }).check()
   await page.getByRole('button', { name: 'Xem kết quả' }).click()
   await expect(
     page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
@@ -39,6 +41,34 @@ async function answerPublishedQuestionnaire(page: Page) {
   await expect(page.getByText('Dương tính theo quy tắc sàng lọc')).toBeVisible()
   await expect(page.getByText(/không giám sát con người 24\/7/i)).toBeVisible()
   await expect(page.getByText(/hotline/i)).toHaveCount(0)
+}
+
+async function answerPublishedGad7(page: Page) {
+  await expect(
+    page.getByRole('heading', {
+      name: 'GAD-7 — Sàng lọc triệu chứng lo âu',
+    }),
+  ).toBeVisible()
+  await expect(
+    page.getByText('Cảm giác hồi hộp, lo lắng hoặc cáu kỉnh'),
+  ).toBeVisible()
+  for (let item = 1; item <= 7; item += 1) {
+    await page
+      .getByRole('radio', { name: 'Gần như hàng ngày (11-14 ngày)' })
+      .check()
+    if (item < 7) {
+      await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
+    }
+  }
+  await page.getByRole('checkbox', { name: /tôi đồng ý/i }).check()
+  await page.getByRole('button', { name: 'Xem kết quả' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Kết quả sàng lọc GAD-7' }),
+  ).toBeVisible()
+  await expect(page.getByText('21', { exact: true })).toBeVisible()
+  await expect(page.getByText('/ 21 điểm')).toBeVisible()
+  await expect(page.getByText('Không áp dụng cho bộ câu hỏi này')).toBeVisible()
+  await expect(page.getByText(/invented-gad-policy/i)).toHaveCount(0)
 }
 
 async function careControl(
@@ -99,7 +129,7 @@ async function submitOwnedAssessment(
     },
     data: {
       questionnaireDefinitionId: questionnaire.definitionId,
-      privacyPolicyVersion: 'privacy-capstone-v2',
+      privacyPolicyVersion: 'privacy-capstone-v3',
       privacyDisclosureAcknowledged: true,
       answers: questionnaire.questions.map(({ questionId }) => ({
         questionId,
@@ -242,7 +272,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
     ).toBeVisible()
     await expect(page.getByLabel('Tên hiển thị')).toHaveValue('Care E2E User')
     await expect(
-      page.getByText(/thông báo về việc xử lý dữ liệu sức khỏe/i),
+      page.getByText(/thông báo và đồng ý xử lý dữ liệu sàng lọc/i),
     ).toBeVisible()
 
     await page.goto('/assessment/phq9')
@@ -354,5 +384,24 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await expect(
       page.getByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' }),
     ).toBeVisible()
+
+    await page.goto('/assessment/gad7')
+    await answerPublishedGad7(page)
+    await page.reload()
+    await expect(
+      page.getByRole('heading', { name: 'Kết quả sàng lọc GAD-7' }),
+    ).toBeVisible()
+    await page.getByText('Nội dung và thang điểm đã dùng').click()
+    await expect(
+      page.getByText(
+        'Cảm thấy sợ như thể có một điều gì đó khủng khiếp có thể xảy ra',
+      ),
+    ).toBeVisible()
+
+    await page.goto('/assessments')
+    const gad7HistoryRow = page.getByRole('row').filter({ hasText: 'GAD7' })
+    await expect(
+      gad7HistoryRow.getByRole('link', { name: 'Xem lại' }),
+    ).toHaveAttribute('href', /\/assessment\/gad7\?assessmentId=/)
   })
 })

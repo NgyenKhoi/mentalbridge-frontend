@@ -104,9 +104,31 @@ export interface paths {
         };
         /**
          * Read the current published questionnaire for an instrument and locale
-         * @description Only a reviewed published definition is returned. PHQ-9 is the MB-88 seeded instrument; GAD-7 remains a future reference-data version.
+         * @description Only the current reviewed published PHQ-9 or GAD-7 definition is returned.
          */
         get: operations["getCurrentQuestionnaire"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/questionnaires/definitions/{definitionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one immutable published or retired questionnaire definition
+         * @description Resolves the exact definition referenced by a historical assessment. Draft
+         *     definitions are never exposed, and callers must not replace the stored
+         *     definition identifier with the current questionnaire when reopening a result.
+         */
+        get: operations["getQuestionnaireDefinition"];
         put?: never;
         post?: never;
         delete?: never;
@@ -131,7 +153,7 @@ export interface paths {
         get: operations["listOwnAssessments"];
         put?: never;
         /**
-         * Submit and score a complete authenticated PHQ-9 assessment
+         * Submit and score a complete authenticated PHQ-9 or GAD-7 assessment
          * @description Care ignores no answers and accepts no client score, band, or safety result.
          *     It validates the exact published questionnaire version, requires one answer
          *     for every question, computes the result locally, and persists submission,
@@ -220,7 +242,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Submit and score a complete PHQ-9 assessment inside one anonymous session
+         * Submit and score a complete published assessment inside one anonymous session
          * @description Session ownership is proven by the anonymous token, never by the path UUID
          *     alone. The result expires with the session and cannot be claimed by a later
          *     authenticated account. Scoring and atomic persistence are identical to the
@@ -303,10 +325,11 @@ export interface components {
         ConsentDecisionRequest: {
             consentType: components["schemas"]["ConsentType"];
             /**
-             * @description Exact approved text or policy version shown to the user
+             * @description Exact approved consent text version shown to the user
              * @constant
              */
-            policyVersion: "privacy-capstone-v2";
+            policyVersion: "privacy-capstone-v3";
+            /** @description Grants or withdraws consent for future screening-data processing under this version */
             granted: boolean;
         };
         ConsentDecision: {
@@ -325,7 +348,7 @@ export interface components {
             /** @constant */
             consentType: "PRIVACY_POLICY";
             /** @constant */
-            version: "privacy-capstone-v2";
+            version: "privacy-capstone-v3";
             /** @constant */
             locale: "vi-VN";
             title: string;
@@ -343,8 +366,15 @@ export interface components {
             locale: string;
             title: string;
             referencePeriodDays: number;
+            scoringVersion: string;
             responseOptions: components["schemas"]["ResponseOption"][];
             questions: components["schemas"]["Question"][];
+            scoreBands: components["schemas"]["QuestionnaireScoreBand"][];
+        };
+        QuestionnaireScoreBand: {
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+            minimumScore: number;
+            maximumScore: number;
         };
         ResponseOption: {
             value: number;
@@ -360,8 +390,11 @@ export interface components {
             /** Format: uuid */
             questionnaireDefinitionId: string;
             /** @constant */
-            privacyPolicyVersion: "privacy-capstone-v2";
-            /** @constant */
+            privacyPolicyVersion: "privacy-capstone-v3";
+            /**
+             * @description Compatibility field recording explicit consent to the current screening-data policy
+             * @constant
+             */
             privacyDisclosureAcknowledged: true;
             /** @description Exactly one answer for every question in the referenced definition; order is not authoritative */
             answers: components["schemas"]["AssessmentAnswer"][];
@@ -464,18 +497,18 @@ export interface components {
             screeningLevel: components["schemas"]["ScreeningLevel"];
             scoringVersion: string;
             safetyStatus: components["schemas"]["SafetyStatus"];
-            /** @description Exact approved safety policy used for the deterministic item-9 result */
-            safetyPolicyVersion: string;
+            /** @description Exact approved PHQ-9 item-9 policy, or null when safetyStatus is NOT_APPLICABLE */
+            safetyPolicyVersion: string | null;
             /** @constant */
             disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
         };
         /** @enum {string} */
         ScreeningLevel: "MINIMAL" | "MILD" | "MODERATE" | "MODERATELY_SEVERE" | "SEVERE";
         /**
-         * @description Independent safety screen; it never overwrites the questionnaire screening level or claims intent or urgency
+         * @description Questionnaire-specific safety result; NOT_APPLICABLE means no safety screen was performed
          * @enum {string}
          */
-        SafetyStatus: "NEGATIVE_SAFETY_SCREEN" | "POSITIVE_SAFETY_SCREEN";
+        SafetyStatus: "NEGATIVE_SAFETY_SCREEN" | "POSITIVE_SAFETY_SCREEN" | "NOT_APPLICABLE";
         AnonymousSession: {
             /** Format: uuid */
             sessionId: string;
@@ -668,6 +701,7 @@ export interface components {
     };
     parameters: {
         AssessmentId: string;
+        DefinitionId: string;
         SessionId: string;
         Instrument: components["schemas"]["Instrument"];
         Locale: string;
@@ -806,8 +840,8 @@ export interface operations {
             content: {
                 /**
                  * @example {
-                 *       "consentType": "AI_PROCESSING",
-                 *       "policyVersion": "ai-processing-v1",
+                 *       "consentType": "PRIVACY_POLICY",
+                 *       "policyVersion": "privacy-capstone-v3",
                  *       "granted": true
                  *     }
                  */
@@ -883,6 +917,32 @@ export interface operations {
             };
             404: components["responses"]["NotFoundProblem"];
             429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    getQuestionnaireDefinition: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                definitionId: components["parameters"]["DefinitionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable questionnaire definition returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Questionnaire"];
+                };
+            };
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     listOwnAssessments: {

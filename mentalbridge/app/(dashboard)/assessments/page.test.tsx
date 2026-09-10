@@ -62,7 +62,8 @@ describe('Assessment history page', () => {
       ),
     )
     render(<AssessmentsPage />)
-    expect(await screen.findByText('8/27')).toBeVisible()
+    expect(await screen.findByText('8 điểm')).toBeVisible()
+    expect(screen.getAllByRole('link', { name: /bắt đầu/i })).toHaveLength(2)
     expect(screen.getByText('Nhẹ')).toBeVisible()
     expect(screen.getByRole('link', { name: 'Xem lại' })).toHaveAttribute(
       'href',

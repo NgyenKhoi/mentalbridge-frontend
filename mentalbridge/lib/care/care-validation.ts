@@ -35,7 +35,16 @@ const SCREENING_LEVELS = new Set<ScreeningLevel>([
 const SAFETY_STATUSES = new Set<SafetyStatus>([
   'NEGATIVE_SAFETY_SCREEN',
   'POSITIVE_SAFETY_SCREEN',
+  'NOT_APPLICABLE',
 ])
+const INSTRUMENT_MAX_SCORES: Readonly<Record<Instrument, number>> = {
+  PHQ9: 27,
+  GAD7: 21,
+}
+const INSTRUMENT_QUESTION_COUNTS: Readonly<Record<Instrument, number>> = {
+  PHQ9: 9,
+  GAD7: 7,
+}
 const SCORE_DIRECTIONS = new Set<ScoreDirection>([
   'INCREASED',
   'DECREASED',
@@ -296,7 +305,7 @@ export function parsePrivacyDisclosure(
   if (
     !isRecord(value) ||
     value.consentType !== 'PRIVACY_POLICY' ||
-    value.version !== 'privacy-capstone-v2' ||
+    value.version !== 'privacy-capstone-v3' ||
     value.locale !== 'vi-VN' ||
     typeof value.title !== 'string' ||
     typeof value.content !== 'string' ||
@@ -340,7 +349,7 @@ export function parseConsentRequest(
       (key) => !['consentType', 'policyVersion', 'granted'].includes(key),
     ) ||
     value.consentType !== 'PRIVACY_POLICY' ||
-    value.policyVersion !== 'privacy-capstone-v2' ||
+    value.policyVersion !== 'privacy-capstone-v3' ||
     typeof value.granted !== 'boolean'
   )
     return null
@@ -360,11 +369,14 @@ export function parseQuestionnaire(value: unknown): Questionnaire | null {
     typeof value.locale !== 'string' ||
     typeof value.title !== 'string' ||
     !Number.isInteger(value.referencePeriodDays) ||
+    typeof value.scoringVersion !== 'string' ||
+    value.scoringVersion.length < 1 ||
     !Array.isArray(value.responseOptions) ||
     value.responseOptions.length !== 4 ||
     !Array.isArray(value.questions) ||
-    value.questions.length < 1 ||
-    value.questions.length > 32
+    value.questions.length !== INSTRUMENT_QUESTION_COUNTS[value.instrument] ||
+    !Array.isArray(value.scoreBands) ||
+    value.scoreBands.length < 1
   ) {
     return null
   }
@@ -399,10 +411,33 @@ export function parseQuestionnaire(value: unknown): Questionnaire | null {
       prompt: question.prompt,
     }
   })
+  const scoreBands = value.scoreBands.map((band) => {
+    if (
+      !isRecord(band) ||
+      !SCREENING_LEVELS.has(band.screeningLevel as ScreeningLevel) ||
+      !Number.isInteger(band.minimumScore) ||
+      !Number.isInteger(band.maximumScore) ||
+      Number(band.minimumScore) < 0 ||
+      Number(band.maximumScore) < Number(band.minimumScore)
+    ) {
+      return null
+    }
+    return {
+      screeningLevel: band.screeningLevel as ScreeningLevel,
+      minimumScore: Number(band.minimumScore),
+      maximumScore: Number(band.maximumScore),
+    }
+  })
 
   if (responseOptions.some((option) => option === null)) return null
   if (questions.some((question) => question === null)) return null
-  if (new Set(responseOptions.map((option) => option?.value)).size !== 4) {
+  if (scoreBands.some((band) => band === null)) return null
+  if (
+    responseOptions
+      .map((option) => option?.value)
+      .toSorted((left, right) => Number(left) - Number(right))
+      .join(',') !== '0,1,2,3'
+  ) {
     return null
   }
   if (
@@ -410,6 +445,31 @@ export function parseQuestionnaire(value: unknown): Questionnaire | null {
       questions.length ||
     new Set(questions.map((question) => question?.itemNumber)).size !==
       questions.length
+  ) {
+    return null
+  }
+  const sortedQuestions = (questions as Questionnaire['questions']).toSorted(
+    (left, right) => left.itemNumber - right.itemNumber,
+  )
+  if (
+    sortedQuestions.some((question, index) => question.itemNumber !== index + 1)
+  ) {
+    return null
+  }
+  const sortedBands = (scoreBands as Questionnaire['scoreBands']).toSorted(
+    (left, right) => left.minimumScore - right.minimumScore,
+  )
+  if (
+    new Set(sortedBands.map((band) => band.screeningLevel)).size !==
+      sortedBands.length ||
+    sortedBands[0]?.minimumScore !== 0 ||
+    sortedBands.at(-1)?.maximumScore !==
+      INSTRUMENT_MAX_SCORES[value.instrument] ||
+    sortedBands.some(
+      (band, index) =>
+        index > 0 &&
+        band.minimumScore !== sortedBands[index - 1].maximumScore + 1,
+    )
   ) {
     return null
   }
@@ -421,10 +481,10 @@ export function parseQuestionnaire(value: unknown): Questionnaire | null {
     locale: value.locale,
     title: value.title,
     referencePeriodDays: Number(value.referencePeriodDays),
+    scoringVersion: value.scoringVersion,
     responseOptions: responseOptions as Questionnaire['responseOptions'],
-    questions: (questions as Questionnaire['questions']).toSorted(
-      (left, right) => left.itemNumber - right.itemNumber,
-    ),
+    questions: sortedQuestions,
+    scoreBands: sortedBands,
   }
 }
 
@@ -446,39 +506,50 @@ export function parseAnonymousSession(value: unknown): AnonymousSession | null {
   }
 }
 
-function parseResult(value: unknown): AssessmentResult | null {
+function parseResult(
+  value: unknown,
+  instrument: Instrument,
+): AssessmentResult | null {
   if (
     !isRecord(value) ||
     !Number.isInteger(value.totalScore) ||
     Number(value.totalScore) < 0 ||
-    Number(value.totalScore) > 27 ||
+    Number(value.totalScore) > INSTRUMENT_MAX_SCORES[instrument] ||
     !SCREENING_LEVELS.has(value.screeningLevel as ScreeningLevel) ||
     typeof value.scoringVersion !== 'string' ||
     !SAFETY_STATUSES.has(value.safetyStatus as SafetyStatus) ||
-    typeof value.safetyPolicyVersion !== 'string' ||
     value.disclaimerCode !== 'SCREENING_NOT_DIAGNOSIS'
   ) {
     return null
   }
 
+  const safetyStatus = value.safetyStatus as SafetyStatus
+  const hasValidSafetyProvenance =
+    instrument === 'PHQ9'
+      ? safetyStatus !== 'NOT_APPLICABLE' &&
+        typeof value.safetyPolicyVersion === 'string' &&
+        value.safetyPolicyVersion.length > 0
+      : safetyStatus === 'NOT_APPLICABLE' && value.safetyPolicyVersion === null
+  if (!hasValidSafetyProvenance) return null
+
   return {
     totalScore: Number(value.totalScore),
     screeningLevel: value.screeningLevel as ScreeningLevel,
     scoringVersion: value.scoringVersion,
-    safetyStatus: value.safetyStatus as SafetyStatus,
-    safetyPolicyVersion: value.safetyPolicyVersion,
+    safetyStatus,
+    safetyPolicyVersion: value.safetyPolicyVersion as string | null,
     disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
   }
 }
 
 function parseAssessmentBase(value: unknown) {
   if (!isRecord(value)) return null
-  const result = parseResult(value.result)
+  if (!isInstrument(value.instrument)) return null
+  const result = parseResult(value.result, value.instrument)
 
   if (
     !isUuid(value.assessmentId) ||
     !isUuid(value.questionnaireDefinitionId) ||
-    !isInstrument(value.instrument) ||
     typeof value.questionnaireVersion !== 'string' ||
     typeof value.privacyPolicyVersion !== 'string' ||
     !isDateTime(value.submittedAt) ||
@@ -520,7 +591,7 @@ export function parseSubmission(
   if (
     !isRecord(value) ||
     !isUuid(value.questionnaireDefinitionId) ||
-    value.privacyPolicyVersion !== 'privacy-capstone-v2' ||
+    value.privacyPolicyVersion !== 'privacy-capstone-v3' ||
     value.privacyDisclosureAcknowledged !== true
   )
     return null
@@ -571,7 +642,7 @@ export function parseSubmission(
 
   return {
     questionnaireDefinitionId: value.questionnaireDefinitionId,
-    privacyPolicyVersion: 'privacy-capstone-v2',
+    privacyPolicyVersion: 'privacy-capstone-v3',
     privacyDisclosureAcknowledged: true,
     answers: answers as AssessmentSubmissionRequest['answers'],
   }
@@ -598,7 +669,10 @@ export function parseAssessmentHistory(
   }
 }
 
-function parseProgressPoint(value: unknown): AssessmentProgressPoint | null {
+function parseProgressPoint(
+  value: unknown,
+  instrument: Instrument,
+): AssessmentProgressPoint | null {
   if (
     !isRecord(value) ||
     Object.keys(value).some((key) => FORBIDDEN_PROGRESS_FIELDS.has(key)) ||
@@ -609,7 +683,7 @@ function parseProgressPoint(value: unknown): AssessmentProgressPoint | null {
     !isDateTime(value.submittedAt) ||
     !Number.isInteger(value.totalScore) ||
     Number(value.totalScore) < 0 ||
-    Number(value.totalScore) > 27 ||
+    Number(value.totalScore) > INSTRUMENT_MAX_SCORES[instrument] ||
     !SCREENING_LEVELS.has(value.screeningLevel as ScreeningLevel)
   )
     return null
@@ -633,10 +707,10 @@ export function parseAssessmentProgress(
   )
     return null
 
-  const previous = parseProgressPoint(value.previous)
-  const current = parseProgressPoint(value.current)
+  if (!isInstrument(value.instrument)) return null
+  const previous = parseProgressPoint(value.previous, value.instrument)
+  const current = parseProgressPoint(value.current, value.instrument)
   if (
-    !isInstrument(value.instrument) ||
     typeof value.scoringVersion !== 'string' ||
     value.scoringVersion.length < 1 ||
     value.scoringVersion.length > 32 ||
@@ -646,8 +720,8 @@ export function parseAssessmentProgress(
       current.assessmentId.toLowerCase() ||
     current.assessmentId.toLowerCase() !== expectedAssessmentId.toLowerCase() ||
     !Number.isInteger(value.rawDelta) ||
-    Number(value.rawDelta) < -27 ||
-    Number(value.rawDelta) > 27 ||
+    Number(value.rawDelta) < -INSTRUMENT_MAX_SCORES[value.instrument] ||
+    Number(value.rawDelta) > INSTRUMENT_MAX_SCORES[value.instrument] ||
     !SCORE_DIRECTIONS.has(value.scoreDirection as ScoreDirection) ||
     !isRecord(value.bandTransition) ||
     Object.keys(value.bandTransition).some((key) =>

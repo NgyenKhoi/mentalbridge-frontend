@@ -6,6 +6,7 @@ export type CarePaths = paths
 export type CareOperations = operations
 export type Instrument = Schemas['Instrument']
 export type Questionnaire = Schemas['Questionnaire']
+export type QuestionnaireScoreBand = Schemas['QuestionnaireScoreBand']
 export type QuestionnaireQuestion = Schemas['Question']
 export type ResponseOption = Schemas['ResponseOption']
 export type AssessmentSubmissionRequest = Schemas['AssessmentSubmissionRequest']

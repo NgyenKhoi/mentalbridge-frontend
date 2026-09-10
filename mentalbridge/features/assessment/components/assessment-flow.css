@@ -247,6 +247,9 @@
   border-color: rgba(199, 123, 92, 0.28);
   background: var(--terracotta-soft);
 }
+.care-safety-card.not-applicable {
+  background: var(--surface-soft);
+}
 .care-safety-card p {
   margin-top: 24px;
   font-size: 14px;
@@ -303,6 +306,20 @@
 }
 .care-provenance dd {
   overflow-wrap: anywhere;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.care-definition-history > p {
+  margin-top: 14px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.care-definition-history ol,
+.care-definition-history ul {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-left: 22px;
   color: var(--ink-soft);
   font-size: 13px;
 }

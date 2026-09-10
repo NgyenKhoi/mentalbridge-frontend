@@ -106,7 +106,7 @@ function ProgressPoint({
   return (
     <article className="assessment-progress-point">
       <span>{label}</span>
-      <strong>{point.totalScore}/27</strong>
+      <strong>{point.totalScore} điểm</strong>
       <p>{levelLabels[point.screeningLevel]}</p>
       <time dateTime={point.submittedAt}>
         {new Date(point.submittedAt).toLocaleString('vi-VN')}

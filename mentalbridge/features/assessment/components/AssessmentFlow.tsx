@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ResourcesList from '@/components/ResourcesList'
 import type {
   AssessmentResult,
+  Instrument,
   PrivacyDisclosure,
   Questionnaire,
   ScreeningLevel,
@@ -14,7 +15,8 @@ import {
   assessmentErrorMessage,
   clearAnonymousAssessmentSession,
   createAssessmentIdempotencyKey,
-  getCurrentPhq9,
+  getCurrentQuestionnaire,
+  getQuestionnaireDefinition,
   getPrivacyDisclosure,
   getCurrentConsents,
   recordPrivacyDecision,
@@ -36,23 +38,37 @@ const levelLabels: Record<ScreeningLevel, string> = {
   SEVERE: 'Nặng',
 }
 
+const instrumentLabels: Readonly<
+  Record<Instrument, { shortName: string; resultTitle: string }>
+> = {
+  PHQ9: { shortName: 'PHQ-9', resultTitle: 'Kết quả sàng lọc PHQ-9' },
+  GAD7: { shortName: 'GAD-7', resultTitle: 'Kết quả sàng lọc GAD-7' },
+}
+
 function ResultPanel({
   assessment,
+  questionnaire,
   mode,
   onRestart,
 }: {
   assessment: AssessmentView
+  questionnaire: Questionnaire
   mode: AssessmentMode
   onRestart: () => void
 }) {
   const result: AssessmentResult = assessment.result
   const positive = result.safetyStatus === 'POSITIVE_SAFETY_SCREEN'
+  const safetyApplicable = result.safetyStatus !== 'NOT_APPLICABLE'
+  const maximumScore = Math.max(
+    ...questionnaire.scoreBands.map((band) => band.maximumScore),
+  )
+  const instrumentLabel = instrumentLabels[assessment.instrument]
 
   return (
     <section className="care-result" aria-labelledby="care-result-title">
       <header>
         <span className="eyebrow">Kết quả sàng lọc của bạn</span>
-        <h1 id="care-result-title">Kết quả sàng lọc PHQ-9</h1>
+        <h1 id="care-result-title">{instrumentLabel.resultTitle}</h1>
         <p>Kết quả được tính từ những câu trả lời bạn vừa cung cấp.</p>
       </header>
 
@@ -62,23 +78,27 @@ function ResultPanel({
           <strong>{levelLabels[result.screeningLevel]}</strong>
           <div>
             <b>{result.totalScore}</b>
-            <small>/ 27 điểm</small>
+            <small>/ {maximumScore} điểm</small>
           </div>
         </article>
 
         <article
-          className={`care-safety-card ${positive ? 'positive' : 'negative'}`}
+          className={`care-safety-card ${!safetyApplicable ? 'not-applicable' : positive ? 'positive' : 'negative'}`}
         >
           <span>Trạng thái mục an toàn</span>
           <strong>
-            {positive
-              ? 'Dương tính theo quy tắc sàng lọc'
-              : 'Âm tính theo quy tắc sàng lọc'}
+            {!safetyApplicable
+              ? 'Không áp dụng cho bộ câu hỏi này'
+              : positive
+                ? 'Dương tính theo quy tắc sàng lọc'
+                : 'Âm tính theo quy tắc sàng lọc'}
           </strong>
           <p>
-            {positive
-              ? 'Bạn có thể xem các tài nguyên hỗ trợ phù hợp ở bên dưới.'
-              : 'Bạn vẫn có thể xem các tài nguyên chăm sóc sức khỏe tinh thần ở bên dưới.'}
+            {!safetyApplicable
+              ? `${instrumentLabel.shortName} không thực hiện mục sàng lọc an toàn riêng.`
+              : positive
+                ? 'Bạn có thể xem các tài nguyên hỗ trợ phù hợp ở bên dưới.'
+                : 'Bạn vẫn có thể xem các tài nguyên chăm sóc sức khỏe tinh thần ở bên dưới.'}
           </p>
         </article>
       </div>
@@ -108,9 +128,30 @@ function ResultPanel({
           </div>
           <div>
             <dt>Quy tắc an toàn</dt>
-            <dd>{result.safetyPolicyVersion}</dd>
+            <dd>{result.safetyPolicyVersion ?? 'Không áp dụng'}</dd>
           </div>
         </dl>
+      </details>
+
+      <details className="care-provenance care-definition-history">
+        <summary>Nội dung và thang điểm đã dùng</summary>
+        <p>
+          Đây là định nghĩa bất biến <strong>{questionnaire.version}</strong>{' '}
+          được lưu cùng kết quả này.
+        </p>
+        <ol>
+          {questionnaire.questions.map((question) => (
+            <li key={question.questionId}>{question.prompt}</li>
+          ))}
+        </ol>
+        <ul>
+          {questionnaire.scoreBands.map((band) => (
+            <li key={band.screeningLevel}>
+              {band.minimumScore}–{band.maximumScore}:{' '}
+              {levelLabels[band.screeningLevel]}
+            </li>
+          ))}
+        </ul>
       </details>
 
       {mode === 'anonymous' && (
@@ -147,9 +188,11 @@ function ResultPanel({
 
 export default function AssessmentFlow({
   mode,
+  instrument,
   initialAssessmentId,
 }: {
   mode: AssessmentMode
+  instrument: Instrument
   initialAssessmentId?: string
 }) {
   const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null)
@@ -173,8 +216,27 @@ export default function AssessmentFlow({
         if (reopenExisting) {
           try {
             const current = await reopenAssessment(mode, initialAssessmentId)
-            setAssessment(current)
-            return
+            if (current.instrument === instrument) {
+              const historicalDefinition = await getQuestionnaireDefinition(
+                current.questionnaireDefinitionId,
+              )
+              if (
+                historicalDefinition.definitionId !==
+                  current.questionnaireDefinitionId ||
+                historicalDefinition.instrument !== current.instrument ||
+                historicalDefinition.version !== current.questionnaireVersion ||
+                historicalDefinition.scoringVersion !==
+                  current.result.scoringVersion
+              ) {
+                throw new Error('Assessment definition provenance mismatch')
+              }
+              setQuestionnaire(historicalDefinition)
+              setAssessment(current)
+              return
+            }
+            if (initialAssessmentId) {
+              throw new Error('Assessment instrument does not match route')
+            }
           } catch (currentError) {
             if (!isMissingCurrentAssessment(currentError)) throw currentError
           }
@@ -182,7 +244,7 @@ export default function AssessmentFlow({
 
         const [currentQuestionnaire, currentDisclosure, currentConsents] =
           await Promise.all([
-            getCurrentPhq9(),
+            getCurrentQuestionnaire(instrument),
             getPrivacyDisclosure(),
             mode === 'authenticated'
               ? getCurrentConsents()
@@ -204,7 +266,7 @@ export default function AssessmentFlow({
         setLoading(false)
       }
     },
-    [initialAssessmentId, mode],
+    [initialAssessmentId, instrument, mode],
   )
 
   useEffect(() => {
@@ -235,7 +297,11 @@ export default function AssessmentFlow({
     setStep(0)
     setDisclosureAcknowledged(false)
     if (initialAssessmentId)
-      window.history.replaceState(null, '', '/assessment/phq9')
+      window.history.replaceState(
+        null,
+        '',
+        `/assessment/${instrument.toLowerCase()}`,
+      )
     await initialize(false)
   }
 
@@ -290,6 +356,7 @@ export default function AssessmentFlow({
     return (
       <ResultPanel
         assessment={assessment}
+        questionnaire={questionnaire!}
         mode={mode}
         onRestart={() => void restart()}
       />
@@ -392,7 +459,10 @@ export default function AssessmentFlow({
                 setDisclosureAcknowledged(event.target.checked)
               }
             />
-            <span>Tôi đã đọc và xác nhận thông báo xử lý dữ liệu.</span>
+            <span>
+              Tôi đồng ý cho MentalBridge xử lý dữ liệu sàng lọc theo nội dung
+              trên.
+            </span>
           </label>
         </aside>
       )}
