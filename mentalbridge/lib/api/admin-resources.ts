@@ -30,6 +30,7 @@ export type PublishResourceRequest = {
 export type ListResourcesParams = {
   locale?: string
   category?: ResourceCategory
+  status?: ResourceStatus
   limit?: number
   cursor?: string
 }
@@ -56,10 +57,16 @@ export const adminResourcesApi = {
     return response.data
   },
 
-  async create(data: CreateResourceRequest): Promise<ResourceSummary> {
+  async create(
+    data: CreateResourceRequest,
+    idempotencyKey?: string,
+  ): Promise<ResourceSummary> {
     const response = await browserApiClient.post<ResourceSummary>(
       '/admin/resources',
       data,
+      {
+        params: idempotencyKey ? { idempotencyKey } : undefined,
+      },
     )
     return response.data
   },
@@ -79,8 +86,10 @@ export const adminResourcesApi = {
     return response.data
   },
 
-  async delete(id: string): Promise<void> {
-    await browserApiClient.delete(`/admin/resources/${id}`)
+  async delete(id: string, version: number): Promise<void> {
+    await browserApiClient.delete(`/admin/resources/${id}`, {
+      params: { version },
+    })
   },
 
   async publish(

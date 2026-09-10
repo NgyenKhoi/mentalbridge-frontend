@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { readSessionCredentials } from '@/lib/auth/session-cookies'
+import { resolveSession, ensureRole } from '@/lib/auth/session-service'
+import { ApiError } from '@/lib/api/api-error'
 
 const CONTENT_SERVICE_URL =
-  process.env.CONTENT_NOTIFICATION_SERVICE_URL || 'http://localhost:3003'
+  process.env.CONTENT_SERVICE_URL || 'http://localhost:3003'
 
 const UpdateResourceSchema = z.object({
   title: z.string().min(1).max(255).optional(),
@@ -16,13 +19,21 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
     const { id } = await params
+
+    // Resolve and validate session
+    const credentials = readSessionCredentials(request.cookies)
+    const session = await resolveSession(credentials, correlationId)
+    ensureRole(session.account, ['ADMIN'])
 
     const response = await fetch(
       `${CONTENT_SERVICE_URL}/api/v1/resources/${id}`,
       {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${credentials.accessToken}`,
+          'x-correlation-id': correlationId,
         },
       },
     )
@@ -35,6 +46,12 @@ export async function GET(
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json(
+        { code: error.code, message: error.message },
+        { status: error.status },
+      )
+    }
     console.error('[BFF] Failed to get resource:', error)
     return NextResponse.json(
       { error: 'Failed to fetch resource' },
@@ -48,9 +65,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
     const { id } = await params
     const { searchParams } = request.nextUrl
     const version = searchParams.get('version')
+
+    // Resolve and validate session
+    const credentials = readSessionCredentials(request.cookies)
+    const session = await resolveSession(credentials, correlationId)
+    ensureRole(session.account, ['ADMIN'])
 
     if (!version) {
       return NextResponse.json(
@@ -68,6 +91,8 @@ export async function PATCH(
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${credentials.accessToken}`,
+          'x-correlation-id': correlationId,
         },
         body: JSON.stringify(validated),
       },
@@ -81,6 +106,12 @@ export async function PATCH(
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json(
+        { code: error.code, message: error.message },
+        { status: error.status },
+      )
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -110,14 +141,31 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
     const { id } = await params
+    const { searchParams } = request.nextUrl
+    const version = searchParams.get('version')
+
+    // Resolve and validate session
+    const credentials = readSessionCredentials(request.cookies)
+    const session = await resolveSession(credentials, correlationId)
+    ensureRole(session.account, ['ADMIN'])
+
+    if (!version) {
+      return NextResponse.json(
+        { error: 'version query parameter is required' },
+        { status: 400 },
+      )
+    }
 
     const response = await fetch(
-      `${CONTENT_SERVICE_URL}/api/v1/resources/${id}`,
+      `${CONTENT_SERVICE_URL}/api/v1/resources/${id}?version=${version}`,
       {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${credentials.accessToken}`,
+          'x-correlation-id': correlationId,
         },
       },
     )
@@ -129,6 +177,12 @@ export async function DELETE(
 
     return new NextResponse(null, { status: 204 })
   } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json(
+        { code: error.code, message: error.message },
+        { status: error.status },
+      )
+    }
     console.error('[BFF] Failed to delete resource:', error)
     return NextResponse.json(
       { error: 'Failed to delete resource' },
