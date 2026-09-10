@@ -236,8 +236,7 @@ export default function RegistrationForm() {
           required
         />
         <span id="registration-password-hint" className={styles.fieldHint}>
-          Từ 12 ký tự và tối đa 72 byte UTF-8. Mật khẩu không bị tự động chuẩn
-          hóa hoặc cắt ngắn.
+          Ít nhất 12 kí tự
         </span>
         {fieldErrors.password ? (
           <span id="registration-password-error" className={styles.fieldError}>
