@@ -15,8 +15,8 @@ vi.mock('@/lib/auth/session-cookies', () => ({
 }))
 
 vi.mock('@/lib/auth/session-service', () => ({
-  resolveSession: (...args: any[]) => mockResolveSession(...args),
-  ensureRole: (...args: any[]) => mockEnsureRole(...args),
+  resolveSession: (...args: unknown[]) => mockResolveSession(...args),
+  ensureRole: (...args: unknown[]) => mockEnsureRole(...args),
 }))
 
 import { GET, POST } from '@/app/api/admin/resources/route'
@@ -124,7 +124,7 @@ describe('Admin Resources API', () => {
     it('handles invalid status parameter', async () => {
       mockFetch.mockResolvedValueOnce(upstreamJson({ data: [], count: 0 }))
 
-      const response = await GET(request('?status=INVALID'))
+      await GET(request('?status=INVALID'))
       
       // Backend will handle validation, we just forward it
       expect(mockFetch).toHaveBeenCalled()
@@ -145,7 +145,6 @@ describe('Admin Resources API', () => {
       )
 
       const response = await POST(request('', 'POST', validResource))
-      const data = await response.json()
 
       expect(response.status).toBe(201)
       // Just verify fetch was called with correct URL and has auth header
