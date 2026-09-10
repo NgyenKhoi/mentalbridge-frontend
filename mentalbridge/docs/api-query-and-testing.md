@@ -86,9 +86,10 @@ npm run build
 npm run test:e2e
 ```
 
-`test:e2e` starts `next start` on port 3100 by default and therefore requires a
-current production build. Set `PLAYWRIGHT_BASE_URL` to test an already running,
-explicitly approved environment; never point automated tests at production.
+`test:e2e` starts the production standalone server on port 3100 by default and
+therefore requires a current production build. Set `PLAYWRIGHT_BASE_URL` only
+for the explicitly named `test:e2e:live` command and an approved environment;
+never point the fixture command at production.
 
 ## Quality commands
 

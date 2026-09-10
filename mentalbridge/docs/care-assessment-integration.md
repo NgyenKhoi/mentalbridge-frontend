@@ -131,8 +131,8 @@ advance a mutable UTC clock and inject one-shot timeout, 503 and malformed
 progress responses. The same journey covers insufficient, incompatible,
 voided, forged/cross-owner and authoritative-result visibility behavior.
 
-The frontend quality workflow sets `CARE_E2E_MODE=fixture` and exercises the
-deterministic browser cases against the contract-shaped synthetic Care fixture
+The frontend quality workflow sets `E2E_RUNTIME=fixture` and exercises the
+deterministic browser cases against the contract-shaped synthetic cross-stack fixture
 already used by the repository's smoke suite. This keeps pull-request CI
 independent of credentials for the private backend repository. The synthetic
 fixture omits the socket-timing timeout injection to avoid open-handle behavior;

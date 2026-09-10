@@ -67,8 +67,8 @@ async function injectSpecialistSession(
 
 test.describe('AC1: Cross-user authorization boundaries', () => {
   test.skip(
-    Boolean(process.env.PLAYWRIGHT_BASE_URL),
-    'Controlled fixtures are available only with the managed local server.',
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'Fixture authorization journeys are not run against the live cross-stack environment.',
   )
 
   test.beforeEach(async ({ request }) => {
@@ -195,8 +195,8 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
 
 test.describe('AC2: Explicit degradation states', () => {
   test.skip(
-    Boolean(process.env.PLAYWRIGHT_BASE_URL),
-    'Controlled fixtures are available only with the managed local server.',
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'Fixture degradation journeys are not run against the live cross-stack environment.',
   )
 
   test.beforeEach(async ({ request }) => {
@@ -407,8 +407,8 @@ test.describe('AC2: Explicit degradation states', () => {
 
 test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () => {
   test.skip(
-    Boolean(process.env.PLAYWRIGHT_BASE_URL),
-    'Controlled fixtures are available only with the managed local server.',
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'Fixture claim-boundary journeys are not run against the live cross-stack environment.',
   )
 
   test.beforeEach(async ({ request }) => {
