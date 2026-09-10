@@ -1,15 +1,12 @@
 import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { GET, POST } from '@/app/api/admin/resources/route'
-import { mockServer } from '@/tests/mocks/server'
-
 process.env.CONTENT_SERVICE_URL = 'http://localhost:3003'
 
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
-// Mock session resolution
+// Mock functions - must be defined at top level for vi.mock factory
 const mockResolveSession = vi.fn()
 const mockEnsureRole = vi.fn()
 
@@ -18,9 +15,12 @@ vi.mock('@/lib/auth/session-cookies', () => ({
 }))
 
 vi.mock('@/lib/auth/session-service', () => ({
-  resolveSession: mockResolveSession,
-  ensureRole: mockEnsureRole,
+  resolveSession: (...args: any[]) => mockResolveSession(...args),
+  ensureRole: (...args: any[]) => mockEnsureRole(...args),
 }))
+
+import { GET, POST } from '@/app/api/admin/resources/route'
+import { mockServer } from '@/tests/mocks/server'
 
 const adminResource = {
   id: '123e4567-e89b-42d3-a456-426614174000',
