@@ -101,7 +101,6 @@ const resourceAccessToken = 'synthetic-resource-e2e-access'
 const resourceActor = actors.get('resource-e2e@example.com')
 let careNow = new Date('2098-01-01T00:00:00Z')
 let progressFault = null
-let anonymousSessionsExpired = false
 accessSessions.set(careAccessToken, careActor)
 accessSessions.set(otherCareAccessToken, otherCareActor)
 accessSessions.set(resourceAccessToken, resourceActor)
@@ -129,7 +128,6 @@ function reset() {
   accessSessions.set(resourceAccessToken, resourceActor)
   careNow = new Date('2098-01-01T00:00:00Z')
   progressFault = null
-  anonymousSessionsExpired = false
   careProfiles.set(careActor.accountId, {
     accountId: careActor.accountId,
     displayName: 'Care E2E User',
@@ -413,22 +411,16 @@ const server = createServer(async (request, response) => {
       const session = anonymousCareSessions.get(sessionId)
       if (
         !session ||
-        anonymousSessionsExpired ||
         Date.parse(session.expiresAt) <= careNow.getTime() ||
         request.headers['x-anonymous-session-token'] !== session.sessionToken
       ) {
         problem(
           response,
-          anonymousSessionsExpired ||
-            Date.parse(session?.expiresAt ?? '') <= careNow.getTime()
-            ? 410
-            : 401,
-          anonymousSessionsExpired ||
-            Date.parse(session?.expiresAt ?? '') <= careNow.getTime()
+          Date.parse(session?.expiresAt ?? '') <= careNow.getTime() ? 410 : 401,
+          Date.parse(session?.expiresAt ?? '') <= careNow.getTime()
             ? 'ANONYMOUS_SESSION_EXPIRED'
             : 'INVALID_ANONYMOUS_SESSION',
-          anonymousSessionsExpired ||
-            Date.parse(session?.expiresAt ?? '') <= careNow.getTime()
+          Date.parse(session?.expiresAt ?? '') <= careNow.getTime()
             ? 'Anonymous session expired'
             : 'Invalid session',
         )
@@ -570,6 +562,18 @@ const server = createServer(async (request, response) => {
 
     if (
       request.method === 'POST' &&
+      url.pathname === '/__test/care/anonymous-expire'
+    ) {
+      for (const session of anonymousCareSessions.values()) {
+        session.expiresAt = new Date(careNow.getTime() - 1).toISOString()
+      }
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
       url.pathname === '/__test/care/clock/advance'
     ) {
       if (!accessSessions.has(bearerToken(request))) {
@@ -577,18 +581,6 @@ const server = createServer(async (request, response) => {
         return
       }
 
-      if (
-        request.method === 'POST' &&
-        url.pathname === '/__test/care/anonymous-expire'
-      ) {
-        for (const session of anonymousCareSessions.values()) {
-          session.expiresAt = new Date(careNow.getTime() - 1).toISOString()
-        }
-        anonymousSessionsExpired = true
-        response.writeHead(204)
-        response.end()
-        return
-      }
       if (url.searchParams.get('duration') !== 'PT1H') {
         problem(response, 400, 'VALIDATION_FAILED', 'Unsupported duration')
         return

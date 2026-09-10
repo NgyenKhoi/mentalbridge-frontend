@@ -173,19 +173,10 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await expect(
       page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
     ).toBeVisible()
-    await page.route('**/api/care/anonymous-assessments/current', (route) =>
-      route.fulfill({
-        status: 410,
-        contentType: 'application/problem+json',
-        body: JSON.stringify({
-          type: 'about:blank',
-          title: 'Anonymous session expired',
-          status: 410,
-          code: 'ANONYMOUS_SESSION_EXPIRED',
-          correlationId: 'e2e-anonymous-expiry',
-        }),
-      }),
+    const expiryResponse = await page.request.post(
+      `${careServiceUrl}/__test/care/anonymous-expire`,
     )
+    expect(expiryResponse.status()).toBe(204)
 
     for (let item = 1; item <= 9; item += 1) {
       await page

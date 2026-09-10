@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import ResourcesList from '@/components/ResourcesList'
+import { ApiError } from '@/lib/api/api-error'
 import type {
   AssessmentResult,
   PrivacyDisclosure,
@@ -151,6 +152,36 @@ function ResultPanel({
   )
 }
 
+async function initializeCare(mode: AssessmentMode) {
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const [currentQuestionnaire, currentDisclosure, currentConsents] =
+        await Promise.all([
+          getCurrentPhq9(),
+          getPrivacyDisclosure(),
+          mode === 'authenticated'
+            ? getCurrentConsents()
+            : Promise.resolve(null),
+        ])
+      return { currentQuestionnaire, currentDisclosure, currentConsents }
+    } catch (cause) {
+      lastError = cause
+      if (
+        !(cause instanceof ApiError) ||
+        (cause.status !== undefined && cause.status < 500) ||
+        attempt === 2
+      ) {
+        throw cause
+      }
+      await new Promise((resolve) =>
+        window.setTimeout(resolve, 150 * (attempt + 1)),
+      )
+    }
+  }
+  throw lastError
+}
+
 export default function AssessmentFlow({
   mode,
   initialAssessmentId,
@@ -186,14 +217,8 @@ export default function AssessmentFlow({
           }
         }
 
-        const [currentQuestionnaire, currentDisclosure, currentConsents] =
-          await Promise.all([
-            getCurrentPhq9(),
-            getPrivacyDisclosure(),
-            mode === 'authenticated'
-              ? getCurrentConsents()
-              : Promise.resolve(null),
-          ])
+        const { currentQuestionnaire, currentDisclosure, currentConsents } =
+          await initializeCare(mode)
         if (mode === 'anonymous') await startAnonymousAssessmentSession()
         setQuestionnaire(currentQuestionnaire)
         setDisclosure(currentDisclosure)
