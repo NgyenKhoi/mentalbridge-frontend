@@ -563,27 +563,27 @@ export default function AdminContentManager({
             </div>
           </aside>
 
-          {selectedResource && detailData && (
+          {selectedResource && detailData && typeof detailData.version === 'number' && (
             // key = detail.id đảm bảo ResourceEditor reset state khi chuyển resource
             <ResourceEditor
               key={detailData.id}
               resource={selectedResource}
               detail={detailData}
               onPublish={() =>
-                publishMutation.mutate({ id: selectedResource.id, version: detailData.version })
+                publishMutation.mutate({ id: selectedResource.id, version: detailData.version as number })
               }
               onArchive={() =>
-                archiveMutation.mutate({ id: selectedResource.id, version: detailData.version })
+                archiveMutation.mutate({ id: selectedResource.id, version: detailData.version as number })
               }
               onDelete={() => {
                 if (confirm('Bạn có chắc chắn muốn xóa tài nguyên này? Chỉ có thể xóa bản nháp.')) {
-                  deleteMutation.mutate({ id: selectedResource.id, version: detailData.version })
+                  deleteMutation.mutate({ id: selectedResource.id, version: detailData.version as number })
                 }
               }}
               onUpdate={(title, summary) =>
                 updateMutation.mutate({
                   id: selectedResource.id,
-                  version: detailData.version,
+                  version: detailData.version as number,
                   data: { title, summary },
                 })
               }
