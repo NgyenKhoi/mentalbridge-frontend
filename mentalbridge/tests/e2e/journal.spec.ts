@@ -1,27 +1,16 @@
-import { expect, test, type BrowserContext } from '@playwright/test'
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type BrowserContext,
+} from '@playwright/test'
 
-const ownerAccountId = '10000000-0000-4000-8000-000000000005'
-const journalId = '40000000-0000-4000-8000-000000000001'
-const timestamp = '2026-09-10T09:00:00.000Z'
+const providerFixtureUrl = 'http://127.0.0.1:3201'
 
-function entry(text: string, revision = 1, tags = ['riêng tư']) {
-  return {
-    id: journalId,
-    ownerAccountId,
-    currentRevision: revision,
-    occurredAt: timestamp,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    deleted: false,
-    tags,
-    encryption: {
-      algorithm: 'AES-256-GCM',
-      keyId: 'e2e-v1',
-      encryptedAt: timestamp,
-    },
-    analysisState: revision === 1 ? 'not_requested' : 'stale',
-    content: { text, byteLength: new TextEncoder().encode(text).byteLength },
-  }
+async function resetProvider(request: APIRequestContext) {
+  await expect(
+    (await request.post(`${providerFixtureUrl}/__test/reset`)).status(),
+  ).toBe(204)
 }
 
 async function authenticated(context: BrowserContext) {
@@ -37,118 +26,21 @@ async function authenticated(context: BrowserContext) {
   ])
 }
 
-test.describe('Private Journal CRUD', () => {
+test.describe('Private Journal CRUD through same-origin BFF', () => {
+  test.describe.configure({ mode: 'serial' })
+
   test.skip(
     Boolean(process.env.PLAYWRIGHT_BASE_URL),
     'Controlled session fixture is available only with the managed local server.',
   )
 
-  test('creates, refreshes, revises, handles conflict, and tombstones on desktop', async ({
+  test('creates, refreshes, recovers from 412, revises, and tombstones on desktop', async ({
     context,
     page,
+    request,
   }) => {
+    await resetProvider(request)
     await authenticated(context)
-    let current: ReturnType<typeof entry> | null = null
-    let conflictOnce = true
-    await context.route('**/api/journals**', async (route) => {
-      const request = route.request()
-      const path = new URL(request.url()).pathname
-      const method = request.method()
-      if (path === '/api/journals' && method === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items: current
-              ? [
-                  {
-                    ...current,
-                    content: {
-                      preview: current.content.text,
-                      byteLength: current.content.byteLength,
-                    },
-                  },
-                ]
-              : [],
-            page: { limit: 20, hasMore: false },
-          }),
-        })
-        return
-      }
-      if (path === '/api/journals' && method === 'POST') {
-        const payload = request.postDataJSON() as {
-          content: { text: string }
-          tags: string[]
-        }
-        current = entry(payload.content.text, 1, payload.tags)
-        await route.fulfill({
-          status: 201,
-          contentType: 'application/json',
-          body: JSON.stringify(current),
-        })
-        return
-      }
-      if (
-        path === `/api/journals/${journalId}` &&
-        method === 'GET' &&
-        current
-      ) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(current),
-        })
-        return
-      }
-      if (
-        path === `/api/journals/${journalId}` &&
-        method === 'PATCH' &&
-        current
-      ) {
-        if (conflictOnce) {
-          conflictOnce = false
-          await route.fulfill({
-            status: 412,
-            contentType: 'application/problem+json',
-            body: JSON.stringify({
-              code: 'PRECONDITION_FAILED',
-              title: 'Conflict',
-            }),
-          })
-          return
-        }
-        const payload = request.postDataJSON() as {
-          content: { text: string }
-          tags: string[]
-        }
-        current = entry(payload.content.text, 2, payload.tags)
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(current),
-        })
-        return
-      }
-      if (path === `/api/journals/${journalId}` && method === 'DELETE') {
-        current = null
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: journalId,
-            ownerAccountId,
-            deleted: true,
-            deletedAt: timestamp,
-          }),
-        })
-        return
-      }
-      await route.fulfill({
-        status: 404,
-        contentType: 'application/json',
-        body: '{}',
-      })
-    })
 
     await page.goto('/journal')
     await expect(
@@ -161,6 +53,7 @@ test.describe('Private Journal CRUD', () => {
     await expect(
       page.getByText('Nội dung được giữ sau khi tải lại'),
     ).toBeVisible()
+
     await page.reload()
     await expect(
       page.getByText('Nội dung được giữ sau khi tải lại'),
@@ -168,15 +61,23 @@ test.describe('Private Journal CRUD', () => {
     await page.getByRole('button', { name: 'Xem chi tiết' }).click()
     await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
     await page.getByLabel('Nội dung').fill('Bản chỉnh sửa không bị mất')
+    await expect(
+      (
+        await request.post(
+          `${providerFixtureUrl}/__test/journal/conflict?mode=NEXT_PATCH`,
+        )
+      ).status(),
+    ).toBe(204)
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
     await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
-      'cập nhật ở nơi khác',
+      'Đã tải phiên bản mới nhất',
     )
     await expect(page.getByLabel('Nội dung')).toHaveValue(
       'Bản chỉnh sửa không bị mất',
     )
+
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
-    await expect(page.getByText('Phiên bản 2')).toBeVisible()
+    await expect(page.getByText('Phiên bản 3')).toBeVisible()
     await page.screenshot({
       path: 'docs/evidence/mb-236-journal-desktop.png',
       fullPage: true,
@@ -194,33 +95,16 @@ test.describe('Private Journal CRUD', () => {
   test('keeps the Journal action and detail usable on mobile', async ({
     context,
     page,
+    request,
   }) => {
+    await resetProvider(request)
     await page.setViewportSize({ width: 390, height: 844 })
     await authenticated(context)
-    const seeded = entry('Nhật ký trên thiết bị di động')
-    await context.route('**/api/journals**', async (route) => {
-      const path = new URL(route.request().url()).pathname
-      const response = path.endsWith(journalId)
-        ? seeded
-        : {
-            items: [
-              {
-                ...seeded,
-                content: {
-                  preview: seeded.content.text,
-                  byteLength: seeded.content.byteLength,
-                },
-              },
-            ],
-            page: { limit: 20, hasMore: false },
-          }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(response),
-      })
-    })
     await page.goto('/journal')
+    await page.locator('.journal-live-hero button').click()
+    await page.getByLabel('Nội dung').fill('Nhật ký trên thiết bị di động')
+    await page.getByLabel('Thẻ do bạn đặt').fill('riêng tư')
+    await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
     const detail = page.getByRole('button', { name: 'Xem chi tiết' })
     await expect(detail).toBeVisible()
     await detail.click()
