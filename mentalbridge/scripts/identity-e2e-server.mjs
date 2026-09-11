@@ -84,6 +84,14 @@ const actors = new Map([
       initialAccessExpired: false,
     },
   ],
+  [
+    'mb273-e2e@example.com',
+    {
+      accountId: '10000000-0000-4000-8000-000000000007',
+      roles: ['USER'],
+      initialAccessExpired: false,
+    },
+  ],
 ])
 
 const accessSessions = new Map()
@@ -101,11 +109,16 @@ const careActor = actors.get('care-e2e@example.com')
 const otherCareActor = actors.get('user@example.com')
 const resourceAccessToken = 'synthetic-resource-e2e-access'
 const resourceActor = actors.get('resource-e2e@example.com')
+const releaseAccessToken = 'synthetic-mb273-e2e-access'
+const releaseActor = actors.get('mb273-e2e@example.com')
 let careNow = new Date('2098-01-01T00:00:00Z')
 let progressFault = null
+let questionnaireFault = null
+let contentFault = null
 accessSessions.set(careAccessToken, careActor)
 accessSessions.set(otherCareAccessToken, otherCareActor)
 accessSessions.set(resourceAccessToken, resourceActor)
+accessSessions.set(releaseAccessToken, releaseActor)
 const state = {
   loginCount: 0,
   accountCount: 0,
@@ -134,8 +147,11 @@ function reset() {
   accessSessions.set(careAccessToken, careActor)
   accessSessions.set(otherCareAccessToken, otherCareActor)
   accessSessions.set(resourceAccessToken, resourceActor)
+  accessSessions.set(releaseAccessToken, releaseActor)
   careNow = new Date('2098-01-01T00:00:00Z')
   progressFault = null
+  questionnaireFault = null
+  contentFault = null
   careProfiles.set(careActor.accountId, {
     accountId: careActor.accountId,
     displayName: 'Care E2E User',
@@ -452,10 +468,31 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/api/v1/resources') {
+      if (contentFault === 'UNAVAILABLE') {
+        problem(
+          response,
+          503,
+          'CONTENT_UNAVAILABLE',
+          'Reviewed resources are unavailable',
+        )
+        return
+      }
       json(response, 200, {
         data: contentResources,
         count: contentResources.length,
       })
+      return
+    }
+
+    if (request.method === 'POST' && url.pathname === '/__test/content-fault') {
+      const mode = url.searchParams.get('mode')
+      if (!['UNAVAILABLE', 'CLEAR'].includes(mode)) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Unsupported fault mode')
+        return
+      }
+      contentFault = mode === 'CLEAR' ? null : mode
+      response.writeHead(204)
+      response.end()
       return
     }
 
@@ -473,7 +510,8 @@ const server = createServer(async (request, response) => {
           (token) =>
             token !== careAccessToken &&
             token !== otherCareAccessToken &&
-            token !== resourceAccessToken,
+            token !== resourceAccessToken &&
+            token !== releaseAccessToken,
         ).length,
         activeRefreshSessionCount: refreshSessions.size,
       })
@@ -529,6 +567,21 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/__test/care/initial-check-fault'
+    ) {
+      const mode = url.searchParams.get('mode')
+      if (mode !== 'GAD_UNAVAILABLE') {
+        problem(response, 400, 'VALIDATION_FAILED', 'Unsupported fault mode')
+        return
+      }
+      questionnaireFault = mode
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
     const currentQuestionnaireGet = url.pathname.match(
       /^\/api\/v1\/questionnaires\/(PHQ9|GAD7)\/current$/,
     )
@@ -539,6 +592,19 @@ const server = createServer(async (request, response) => {
           404,
           'QUESTIONNAIRE_NOT_FOUND',
           'Questionnaire not found',
+        )
+        return
+      }
+      if (
+        currentQuestionnaireGet[1] === 'GAD7' &&
+        questionnaireFault === 'GAD_UNAVAILABLE'
+      ) {
+        questionnaireFault = null
+        problem(
+          response,
+          503,
+          'QUESTIONNAIRE_UNAVAILABLE',
+          'GAD-7 is unavailable',
         )
         return
       }
@@ -720,6 +786,10 @@ const server = createServer(async (request, response) => {
       const profile = {
         accountId: actor.accountId,
         ...body,
+        locale: body.locale ?? existing?.locale ?? 'vi-VN',
+        timezone: body.timezone ?? existing?.timezone ?? 'Asia/Ho_Chi_Minh',
+        reminderEnabled:
+          body.reminderEnabled ?? existing?.reminderEnabled ?? false,
         createdAt: existing?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         version: (existing?.version ?? -1) + 1,
@@ -904,9 +974,16 @@ const server = createServer(async (request, response) => {
       const gad7 = authenticatedAssessments.get(
         `${actor.accountId}:${body.gad7AssessmentId}`,
       )
+      if (!phq9 || !gad7) {
+        problem(
+          response,
+          404,
+          'ASSESSMENT_NOT_FOUND',
+          'Screening evidence was not found for the authenticated user',
+        )
+        return
+      }
       if (
-        !phq9 ||
-        !gad7 ||
         phq9.voidedAt ||
         gad7.voidedAt ||
         phq9.instrument !== 'PHQ9' ||

@@ -1,0 +1,31 @@
+{
+  "classification": "fixture-browser",
+  "environmentId": "loopback-fixture",
+  "frontendCommit": "working-tree",
+  "backendCommit": "working-tree",
+  "phq9": {
+    "assessmentId": "32d6e809-b526-4182-aa47-a06c2f48e497",
+    "questionnaireVersion": "phq9-vi-vn-capstone-v2",
+    "scoringVersion": "phq9-standard-bands-v1",
+    "totalScore": 1,
+    "screeningLevel": "MINIMAL",
+    "safetyStatus": "POSITIVE_SAFETY_SCREEN",
+    "safetyPolicyVersion": "MB-SAFETY-PHQ9-001/1.0-capstone"
+  },
+  "gad7": {
+    "assessmentId": "8a02538d-4583-4922-82be-4e69a393c7e9",
+    "questionnaireVersion": "gad7-vi-vn-adult-v1",
+    "scoringVersion": "gad7-standard-bands-v1",
+    "totalScore": 0,
+    "screeningLevel": "MINIMAL",
+    "safetyStatus": "NOT_APPLICABLE"
+  },
+  "support": {
+    "supportEvaluationId": "53c42acf-4970-4f47-8dd3-40a00248b370",
+    "policyVersion": "mb-support-routing-capstone-v1",
+    "supportTier": "SAFETY_FOLLOW_UP_RECOMMENDED",
+    "reasonCodes": [
+      "PHQ9_SAFETY_SCREEN_POSITIVE"
+    ]
+  }
+}
