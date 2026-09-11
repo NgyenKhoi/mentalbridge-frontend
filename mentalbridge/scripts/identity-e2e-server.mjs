@@ -103,6 +103,8 @@ const supportEvaluations = new Map()
 const supportEvaluationByPair = new Map()
 const careProfiles = new Map()
 const careConsents = new Map()
+const journalEntries = new Map()
+const journalCommands = new Map()
 const careAccessToken = 'synthetic-care-e2e-access'
 const otherCareAccessToken = 'synthetic-care-e2e-other-access'
 const careActor = actors.get('care-e2e@example.com')
@@ -115,6 +117,7 @@ let careNow = new Date('2098-01-01T00:00:00Z')
 let progressFault = null
 let questionnaireFault = null
 let contentFault = null
+let journalConflictOnce = false
 accessSessions.set(careAccessToken, careActor)
 accessSessions.set(otherCareAccessToken, otherCareActor)
 accessSessions.set(resourceAccessToken, resourceActor)
@@ -144,6 +147,8 @@ function reset() {
   supportEvaluationByPair.clear()
   careProfiles.clear()
   careConsents.clear()
+  journalEntries.clear()
+  journalCommands.clear()
   accessSessions.set(careAccessToken, careActor)
   accessSessions.set(otherCareAccessToken, otherCareActor)
   accessSessions.set(resourceAccessToken, resourceActor)
@@ -152,6 +157,7 @@ function reset() {
   progressFault = null
   questionnaireFault = null
   contentFault = null
+  journalConflictOnce = false
   careProfiles.set(careActor.accountId, {
     accountId: careActor.accountId,
     displayName: 'Care E2E User',
@@ -243,6 +249,59 @@ function bearerToken(request) {
   return authorization.startsWith('Bearer ')
     ? authorization.slice('Bearer '.length)
     : null
+}
+
+function journalActor(request, response) {
+  const actor = accessSessions.get(bearerToken(request))
+  if (!actor || !actor.roles.includes('USER')) {
+    problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+    return null
+  }
+  return actor
+}
+
+function journalCommand(actor, request, fingerprint) {
+  const key = request.headers['idempotency-key']
+  if (typeof key !== 'string') return { error: 'missing' }
+  const commandKey = `${actor.accountId}:${key}`
+  const existing = journalCommands.get(commandKey)
+  if (!existing) return { commandKey }
+  if (existing.fingerprint !== fingerprint) return { error: 'conflict' }
+  return { replay: existing }
+}
+
+function journalEntry(actor, body) {
+  const now = new Date().toISOString()
+  return {
+    id: body.clientEntryId,
+    ownerAccountId: actor.accountId,
+    currentRevision: 1,
+    occurredAt: body.occurredAt,
+    createdAt: now,
+    updatedAt: now,
+    deleted: false,
+    tags: body.tags ?? [],
+    encryption: {
+      algorithm: 'AES-256-GCM',
+      keyId: 'e2e-v1',
+      encryptedAt: now,
+    },
+    analysisState: 'not_requested',
+    content: {
+      text: body.content.text,
+      byteLength: Buffer.byteLength(body.content.text, 'utf8'),
+    },
+  }
+}
+
+function journalSummary(entry) {
+  return {
+    ...entry,
+    content: {
+      preview: Array.from(entry.content.text).slice(0, 160).join(''),
+      byteLength: entry.content.byteLength,
+    },
+  }
 }
 
 const careDefinitionId = '20000000-0000-4000-8000-000000000001'
@@ -516,6 +575,207 @@ const server = createServer(async (request, response) => {
         activeRefreshSessionCount: refreshSessions.size,
       })
       return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/__test/journal/conflict'
+    ) {
+      const mode = url.searchParams.get('mode')
+      if (!['NEXT_PATCH', 'CLEAR'].includes(mode)) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Unsupported fault mode')
+        return
+      }
+      journalConflictOnce = mode === 'NEXT_PATCH'
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/v1/journals') {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const items = [...journalEntries.values()]
+        .filter(
+          (entry) =>
+            entry.ownerAccountId === actor.accountId && entry.deleted === false,
+        )
+        .sort(
+          (left, right) =>
+            right.occurredAt.localeCompare(left.occurredAt) ||
+            right.createdAt.localeCompare(left.createdAt) ||
+            right.id.localeCompare(left.id),
+        )
+        .map(journalSummary)
+      json(response, 200, {
+        items,
+        page: { limit: 20, hasMore: false },
+      })
+      return
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/v1/journals') {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const body = await readBody(request)
+      const fingerprint = `create:${JSON.stringify(body)}`
+      const command = journalCommand(actor, request, fingerprint)
+      if (command.error === 'missing') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      if (command.error === 'conflict') {
+        problem(response, 409, 'CONFLICT', 'Idempotency key was reused')
+        return
+      }
+      if (command.replay) {
+        json(response, command.replay.status, command.replay.body)
+        return
+      }
+      if (journalEntries.has(body.clientEntryId)) {
+        problem(response, 409, 'CONFLICT', 'Journal entry already exists')
+        return
+      }
+      const created = journalEntry(actor, body)
+      journalEntries.set(created.id, created)
+      journalCommands.set(command.commandKey, {
+        fingerprint,
+        status: 201,
+        body: structuredClone(created),
+      })
+      json(response, 201, created)
+      return
+    }
+
+    const journalResource = url.pathname.match(
+      /^\/api\/v1\/journals\/([0-9a-f-]+)$/i,
+    )
+    if (journalResource) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const entry = journalEntries.get(journalResource[1])
+      if (
+        !entry ||
+        entry.ownerAccountId !== actor.accountId ||
+        entry.deleted === true
+      ) {
+        problem(response, 404, 'NOT_FOUND', 'Journal entry was not found')
+        return
+      }
+
+      if (request.method === 'GET') {
+        json(response, 200, entry)
+        return
+      }
+
+      if (request.method === 'PATCH') {
+        const body = await readBody(request)
+        const expectedRevision = Number.parseInt(
+          String(request.headers['if-match-revision'] ?? ''),
+          10,
+        )
+        const fingerprint = `revise:${entry.id}:${expectedRevision}:${JSON.stringify(body)}`
+        const command = journalCommand(actor, request, fingerprint)
+        if (command.error === 'missing') {
+          problem(
+            response,
+            400,
+            'VALIDATION_FAILED',
+            'Idempotency key is required',
+          )
+          return
+        }
+        if (command.error === 'conflict') {
+          problem(response, 409, 'CONFLICT', 'Idempotency key was reused')
+          return
+        }
+        if (command.replay) {
+          json(response, command.replay.status, command.replay.body)
+          return
+        }
+        if (journalConflictOnce) {
+          journalConflictOnce = false
+          const updatedAt = new Date().toISOString()
+          Object.assign(entry, {
+            currentRevision: entry.currentRevision + 1,
+            updatedAt,
+            tags: ['remote-update'],
+            encryption: { ...entry.encryption, encryptedAt: updatedAt },
+            analysisState: 'stale',
+            content: {
+              text: 'Authoritative update from another session',
+              byteLength: 41,
+            },
+          })
+          problem(response, 412, 'PRECONDITION_FAILED', 'Revision conflict')
+          return
+        }
+        if (expectedRevision !== entry.currentRevision) {
+          problem(response, 412, 'PRECONDITION_FAILED', 'Revision conflict')
+          return
+        }
+        const updatedAt = new Date().toISOString()
+        Object.assign(entry, {
+          currentRevision: entry.currentRevision + 1,
+          updatedAt,
+          tags: body.tags ?? entry.tags,
+          encryption: { ...entry.encryption, encryptedAt: updatedAt },
+          analysisState: 'stale',
+          content: {
+            text: body.content.text,
+            byteLength: Buffer.byteLength(body.content.text, 'utf8'),
+          },
+        })
+        const result = structuredClone(entry)
+        journalCommands.set(command.commandKey, {
+          fingerprint,
+          status: 200,
+          body: result,
+        })
+        json(response, 200, result)
+        return
+      }
+
+      if (request.method === 'DELETE') {
+        const fingerprint = `delete:${entry.id}`
+        const command = journalCommand(actor, request, fingerprint)
+        if (command.error === 'missing') {
+          problem(
+            response,
+            400,
+            'VALIDATION_FAILED',
+            'Idempotency key is required',
+          )
+          return
+        }
+        if (command.error === 'conflict') {
+          problem(response, 409, 'CONFLICT', 'Idempotency key was reused')
+          return
+        }
+        if (command.replay) {
+          json(response, command.replay.status, command.replay.body)
+          return
+        }
+        const tombstone = {
+          id: entry.id,
+          ownerAccountId: actor.accountId,
+          deleted: true,
+          deletedAt: new Date().toISOString(),
+        }
+        entry.deleted = true
+        journalCommands.set(command.commandKey, {
+          fingerprint,
+          status: 200,
+          body: tombstone,
+        })
+        json(response, 200, tombstone)
+        return
+      }
     }
 
     if (

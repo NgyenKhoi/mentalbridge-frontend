@@ -1,248 +1,604 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import JournalDetailModal, { type JournalEntry } from '../../../components/JournalDetailModal'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type {
+  JournalEntry,
+  JournalSummary,
+} from '@/lib/journal/journal-contract'
+import {
+  parseJournalEntry,
+  parseJournalPage,
+  parseTombstone,
+} from '@/lib/journal/journal-validation'
+import {
+  formatJournalLocalDateTime,
+  journalLocalDateTimeToIso,
+} from '@/lib/journal/journal-datetime'
 import './journal.css'
 
-const MOODS=[
- {emoji:'😊',label:'Tuyệt vời',value:5,tone:'deep'},
- {emoji:'🙂',label:'Tốt',value:4,tone:'teal'},
- {emoji:'😐',label:'Bình thường',value:3,tone:'amber'},
- {emoji:'😔',label:'Không tốt',value:2,tone:'terra'},
- {emoji:'😢',label:'Rất tệ',value:1,tone:'lavender'},
-]
+type Problem = { code?: string; title?: string }
+type Mode = 'closed' | 'create' | 'view' | 'edit' | 'delete'
+class JournalUiError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+  ) {
+    super(message)
+    this.name = 'JournalUiError'
+  }
+}
+const read = async (response: Response) => {
+  try {
+    return (await response.json()) as unknown
+  } catch {
+    return null
+  }
+}
+const errorMessage = (problem: Problem | null, fallback: string) =>
+  ({
+    AUTHENTICATION_REQUIRED:
+      'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    RESOURCE_NOT_FOUND: 'Nhật ký này không còn tồn tại.',
+    PRECONDITION_FAILED:
+      'Nhật ký đã được cập nhật ở nơi khác. Tải lại bản mới trước khi sửa tiếp.',
+    JOURNAL_MUTATION_OUTCOME_UNKNOWN:
+      'Chưa thể xác nhận thao tác. Nội dung vẫn được giữ để bạn thử lại an toàn.',
+    JOURNAL_MALFORMED_RESPONSE:
+      'Dịch vụ trả về dữ liệu không hợp lệ. Không có dữ liệu nào được hiển thị.',
+    JOURNAL_UNAVAILABLE:
+      'Dịch vụ nhật ký hiện không khả dụng. Vui lòng thử lại.',
+    DEPENDENCY_UNAVAILABLE:
+      'Dịch vụ nhật ký hiện không khả dụng. Vui lòng thử lại.',
+    VALIDATION_FAILED: 'Nội dung hoặc thẻ chưa hợp lệ.',
+  })[problem?.code ?? ''] ??
+  problem?.title ??
+  fallback
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(new Date(value))
+const tagsOf = (value: string) =>
+  value
+    .split(',')
+    .map((tag) => tag.trim().replace(/^#/, ''))
+    .filter(Boolean)
+const focusableSelector =
+  'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
 
-const PSYCHOLOGY_QUESTIONS = [
- { id: 'trigger', label: 'Điều gì đã khiến bạn cảm thấy như vậy?', placeholder: 'Ví dụ: Một cuộc trò chuyện, một sự kiện, hoặc suy nghĩ nào đó...' },
- { id: 'physical', label: 'Cơ thể bạn phản ứng như thế nào?', placeholder: 'Ví dụ: Căng thẳng ở vai, tim đập nhanh, mệt mỏi...' },
- { id: 'thought', label: 'Bạn đang nghĩ gì lúc này?', placeholder: 'Chia sẻ những suy nghĩ đang lặp đi lặp lại trong đầu bạn...' },
- { id: 'need', label: 'Điều bạn cần lúc này là gì?', placeholder: 'Ví dụ: Được lắng nghe, thời gian một mình, một cái ôm...' },
-]
-const ENTRIES: JournalEntry[]=[
- {id:1,date:'2026-08-13',time:'20:30',mood:4,content:'Hôm nay làm việc hiệu quả, hoàn thành được 3 task quan trọng. Buổi tối đi bộ 30 phút, cảm thấy thoải mái hơn.',tags:['work','exercise'],psychologyAnswers:{trigger:'Hoàn thành những việc đã trì hoãn trong tuần.',physical:'Vai nhẹ hơn, nhịp thở đều sau khi đi bộ.',need:'Một buổi tối yên tĩnh để nghỉ ngơi.'}},
- {id:2,date:'2026-08-12',time:'21:15',mood:3,content:'Ngày bình thường, có chút áp lực deadline nhưng vẫn kiểm soát được. Ngủ trưa 20 phút giúp tỉnh táo hơn.',tags:['work','sleep']},
- {id:3,date:'2026-08-11',time:'19:45',mood:5,content:'Gặp bạn bè sau một thời gian dài, cười rất nhiều. Cảm giác được kết nối lại thật tuyệt vời!',tags:['social','happy']},
-]
-const topicCounts=[['work',8],['exercise',5],['sleep',4],['social',3],['happy',3]]
+async function fetchJournalEntry(id: string) {
+  const response = await fetch(`/api/journals/${id}`, { cache: 'no-store' })
+  const value = await read(response)
+  const parsed = response.ok ? parseJournalEntry(value) : null
+  if (parsed) return parsed
+  const problem = value && typeof value === 'object' ? (value as Problem) : null
+  throw new JournalUiError(
+    errorMessage(problem, 'Không thể tải chi tiết nhật ký.'),
+    problem?.code,
+  )
+}
 
-export default function JournalPage(){
- const [entries,setEntries]=useState<JournalEntry[]>(ENTRIES)
- const [selectedEntry,setSelectedEntry]=useState<JournalEntry|null>(null)
- const [showModal,setShowModal]=useState(false)
- const [selectedMood,setSelectedMood]=useState<number|null>(null)
- const [content,setContent]=useState('')
- const [psychologyAnswers, setPsychologyAnswers] = useState<Record<string, string>>({})
- const [isSaving, setIsSaving] = useState(false)
- const [toast, setToast] = useState<string | null>(null)
+export default function JournalPage() {
+  const [entries, setEntries] = useState<JournalSummary[]>([])
+  const [cursor, setCursor] = useState<string>()
+  const [hasMore, setHasMore] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [pageError, setPageError] = useState('')
+  const [mode, setMode] = useState<Mode>('closed')
+  const [selected, setSelected] = useState<JournalEntry | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [working, setWorking] = useState(false)
+  const [modalError, setModalError] = useState('')
+  const [text, setText] = useState('')
+  const [tagText, setTagText] = useState('')
+  const [occurredAt, setOccurredAt] = useState('')
+  const [clientEntryId, setClientEntryId] = useState('')
+  const mutationKeys = useRef(new Map<string, string>())
+  const triggerRef = useRef<HTMLElement | null>(null)
+  const backgroundRef = useRef<HTMLDivElement | null>(null)
+  const dialogRef = useRef<HTMLElement | null>(null)
 
- const showToast = (message: string) => {
-   setToast(message)
-   setTimeout(() => setToast(null), 3000)
- }
+  const load = useCallback(async (next?: string) => {
+    if (next) setLoadingMore(true)
+    else setLoading(true)
+    setPageError('')
+    try {
+      const response = await fetch(
+        `/api/journals${next ? `?cursor=${encodeURIComponent(next)}` : ''}`,
+        { cache: 'no-store' },
+      )
+      const value = await read(response)
+      const parsed = response.ok ? parseJournalPage(value) : null
+      if (!parsed)
+        throw new Error(
+          errorMessage(
+            value && typeof value === 'object' ? (value as Problem) : null,
+            'Không thể tải nhật ký.',
+          ),
+        )
+      setEntries((current) =>
+        next ? [...current, ...parsed.items] : parsed.items,
+      )
+      setCursor(parsed.page.nextCursor)
+      setHasMore(parsed.page.hasMore)
+    } catch (error) {
+      setPageError(
+        error instanceof Error ? error.message : 'Không thể tải nhật ký.',
+      )
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }, [])
+  useEffect(() => {
+    const initialLoad = window.setTimeout(() => void load(), 0)
+    return () => window.clearTimeout(initialLoad)
+  }, [load])
 
- const handleUpdateEntry = (updatedEntry: JournalEntry) => {
-   setEntries(current => current.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry))
-   setSelectedEntry(updatedEntry)
-   showToast('Nhật ký đã được cập nhật.')
- }
+  const close = useCallback(() => {
+    setMode('closed')
+    setSelected(null)
+    setModalError('')
+    setWorking(false)
+    window.setTimeout(() => triggerRef.current?.focus(), 0)
+  }, [])
+  useEffect(() => {
+    if (mode === 'closed') return
+    const overflow = document.body.style.overflow
+    const background = backgroundRef.current
+    if (background) {
+      background.inert = true
+      background.setAttribute('aria-hidden', 'true')
+    }
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !working) {
+        event.preventDefault()
+        close()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const dialog = dialogRef.current
+      if (!dialog) return
+      const focusable = [
+        ...dialog.querySelectorAll<HTMLElement>(focusableSelector),
+      ]
+      if (focusable.length === 0) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable.at(-1)
+      if (
+        (event.shiftKey && document.activeElement === first) ||
+        (!event.shiftKey && document.activeElement === last)
+      ) {
+        event.preventDefault()
+        ;(event.shiftKey ? last : first)?.focus()
+      }
+    }
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', keyboard)
+    return () => {
+      document.body.style.overflow = overflow
+      document.removeEventListener('keydown', keyboard)
+      if (background) {
+        background.inert = false
+        background.removeAttribute('aria-hidden')
+      }
+    }
+  }, [close, mode, working])
+  useEffect(() => {
+    if (mode === 'closed') return
+    const frame = window.requestAnimationFrame(() => {
+      const dialog = dialogRef.current
+      const initial = dialog?.querySelector<HTMLElement>(
+        '[data-dialog-initial-focus]',
+      )
+      ;(initial ?? dialog)?.focus()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [detailLoading, mode])
+  function openCreate(event: React.MouseEvent<HTMLButtonElement>) {
+    triggerRef.current = event.currentTarget
+    setText('')
+    setTagText('')
+    setModalError('')
+    setOccurredAt(formatJournalLocalDateTime(new Date()))
+    setClientEntryId(crypto.randomUUID())
+    setMode('create')
+  }
+  async function openDetail(entry: JournalSummary, target: HTMLElement) {
+    triggerRef.current = target
+    setMode('view')
+    setDetailLoading(true)
+    setModalError('')
+    try {
+      const parsed = await fetchJournalEntry(entry.id)
+      setSelected(parsed)
+      setText(parsed.content.text)
+      setTagText(parsed.tags.join(', '))
+    } catch (error) {
+      setModalError(
+        error instanceof Error
+          ? error.message
+          : 'Không thể tải chi tiết nhật ký.',
+      )
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+  function commandKey(scope: string) {
+    const current = mutationKeys.current.get(scope)
+    if (current) return current
+    const created = crypto.randomUUID()
+    mutationKeys.current.set(scope, created)
+    return created
+  }
+  async function mutate(
+    scope: string,
+    url: string,
+    options: RequestInit,
+    parser: (value: unknown) => unknown,
+  ) {
+    setWorking(true)
+    setModalError('')
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: { ...options.headers, 'Idempotency-Key': commandKey(scope) },
+      })
+      const value = await read(response)
+      const parsed = response.ok ? parser(value) : null
+      if (!parsed) {
+        const problem =
+          value && typeof value === 'object' ? (value as Problem) : null
+        const code = response.ok
+          ? 'JOURNAL_MUTATION_OUTCOME_UNKNOWN'
+          : problem?.code
+        if (code !== 'JOURNAL_MUTATION_OUTCOME_UNKNOWN')
+          mutationKeys.current.delete(scope)
+        throw new JournalUiError(
+          errorMessage(
+            code === problem?.code ? problem : { code },
+            'Không thể hoàn tất thao tác.',
+          ),
+          code,
+        )
+      }
+      mutationKeys.current.delete(scope)
+      return parsed
+    } finally {
+      setWorking(false)
+    }
+  }
+  function valid(textValue: string, tags: string[]) {
+    return (
+      textValue.length > 0 &&
+      textValue.length <= 12_000 &&
+      tags.length <= 20 &&
+      new Set(tags).size === tags.length &&
+      tags.every((tag) => tag.length <= 40)
+    )
+  }
+  async function create() {
+    const tags = tagsOf(tagText)
+    const occurredAtIso = journalLocalDateTimeToIso(occurredAt)
+    if (!valid(text, tags) || !occurredAtIso) {
+      setModalError('Nhập nội dung và tối đa 20 thẻ không trùng nhau.')
+      return
+    }
+    const payload = {
+      clientEntryId,
+      occurredAt: occurredAtIso,
+      content: { text },
+      tags,
+    }
+    try {
+      await mutate(
+        `create:${clientEntryId}`,
+        '/api/journals',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+        parseJournalEntry,
+      )
+      close()
+      await load()
+    } catch (error) {
+      setModalError(
+        error instanceof Error ? error.message : 'Không thể tạo nhật ký.',
+      )
+    }
+  }
+  async function revise() {
+    if (!selected) return
+    const tags = tagsOf(tagText)
+    if (!valid(text, tags)) {
+      setModalError('Nhập nội dung và tối đa 20 thẻ không trùng nhau.')
+      return
+    }
+    const scope = `revise:${selected.id}:${selected.currentRevision}:${text}:${tagText}`
+    try {
+      const updated = (await mutate(
+        scope,
+        `/api/journals/${selected.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'If-Match-Revision': String(selected.currentRevision),
+          },
+          body: JSON.stringify({ content: { text }, tags }),
+        },
+        parseJournalEntry,
+      )) as JournalEntry
+      setSelected(updated)
+      setMode('view')
+      await load()
+    } catch (error) {
+      if (
+        error instanceof JournalUiError &&
+        error.code === 'PRECONDITION_FAILED'
+      ) {
+        setWorking(true)
+        try {
+          const authoritative = await fetchJournalEntry(selected.id)
+          setSelected(authoritative)
+          setModalError(
+            'Đã tải phiên bản mới nhất. Bản nháp của bạn vẫn được giữ; hãy xem lại rồi nhấn Lưu nhật ký để thử lại.',
+          )
+        } catch (refreshError) {
+          setModalError(
+            refreshError instanceof Error
+              ? `${error.message} ${refreshError.message}`
+              : error.message,
+          )
+        } finally {
+          setWorking(false)
+        }
+        return
+      }
+      setModalError(
+        error instanceof Error ? error.message : 'Không thể cập nhật nhật ký.',
+      )
+    }
+  }
+  async function remove() {
+    if (!selected) return
+    try {
+      await mutate(
+        `delete:${selected.id}`,
+        `/api/journals/${selected.id}`,
+        { method: 'DELETE' },
+        parseTombstone,
+      )
+      close()
+      await load()
+    } catch (error) {
+      setModalError(
+        error instanceof Error ? error.message : 'Không thể xóa nhật ký.',
+      )
+    }
+  }
 
- const handleDeleteEntry = (entryId: number) => {
-   setEntries(current => current.filter(entry => entry.id !== entryId))
-   setSelectedEntry(null)
-   showToast('Nhật ký đã được xóa.')
- }
-
- useEffect(() => {
-   if (!showModal) return
-
-   const previousOverflow = document.body.style.overflow
-   const closeOnEscape = (event: KeyboardEvent) => {
-     if (event.key === 'Escape' && !isSaving) setShowModal(false)
-   }
-
-   document.body.style.overflow = 'hidden'
-   document.addEventListener('keydown', closeOnEscape)
-
-   return () => {
-     document.body.style.overflow = previousOverflow
-     document.removeEventListener('keydown', closeOnEscape)
-   }
- }, [isSaving, showModal])
-
- const handleSave = async () => {
-   if (!selectedMood) {
-     setToast('Vui lòng chọn cảm xúc của bạn')
-     setTimeout(() => setToast(null), 3000)
-     return
-   }
-   if (!content.trim()) {
-     setToast('Vui lòng viết ghi chú của bạn')
-     setTimeout(() => setToast(null), 3000)
-     return
-   }
-
-   setIsSaving(true)
-   try {
-     // TODO: Kết nối API backend
-     // const response = await fetch('/api/journal', {
-     //   method: 'POST',
-     //   headers: { 'Content-Type': 'application/json' },
-     //   body: JSON.stringify({
-     //     mood: selectedMood,
-     //     content,
-     //     psychologyAnswers,
-     //     date: new Date().toISOString()
-     //   })
-     // })
-     
-     // Giả lập lưu thành công
-     await new Promise(resolve => setTimeout(resolve, 1000))
-     
-     setToast('✓ Nhật ký đã được lưu thành công!')
-     setTimeout(() => {
-       setShowModal(false)
-       setSelectedMood(null)
-       setContent('')
-       setPsychologyAnswers({})
-       setToast(null)
-     }, 1500)
-   } catch {
-     setToast('Có lỗi xảy ra. Vui lòng thử lại.')
-     setTimeout(() => setToast(null), 3000)
-   } finally {
-     setIsSaving(false)
-   }
- }
-
- return <div className="journal-page">
-  <header className="journal-hero"><div><span className="journal-eyebrow">Nhật ký cá nhân</span><h1>Nhật ký cảm xúc</h1><p>Ghi lại hành trình của bạn mỗi ngày.</p></div><button className="journal-new" onClick={()=>setShowModal(true)}><span>+</span>Viết nhật ký</button></header>
-  
-  {/* Modal Popup */}
-  <AnimatePresence>
-    {showModal && (
-      <>
-        <motion.div 
-          className="journal-modal-backdrop"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => setShowModal(false)}
-        />
-        <motion.div 
-          className="journal-modal-shell"
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+  return (
+    <main className="journal-live">
+      <div ref={backgroundRef} className="journal-page-content">
+        <header className="journal-live-hero">
+          <div>
+            <span>Nhật ký riêng tư</span>
+            <h1>Nhật ký của bạn</h1>
+            <p>
+              Nội dung được mã hóa trước khi lưu và chỉ tài khoản của bạn có thể
+              truy cập.
+            </p>
+          </div>
+          <button onClick={openCreate}>+ Viết nhật ký</button>
+        </header>
+        <section
+          aria-labelledby="journal-list-title"
+          className="journal-live-list"
         >
-          <div className="journal-modal" role="dialog" aria-modal="true" aria-labelledby="journal-modal-title">
-            <div className="journal-modal-header">
-              <div>
-                <span className="journal-modal-eyebrow">Check-in hôm nay</span>
-                <h2 id="journal-modal-title">Bạn đang cảm thấy thế nào?</h2>
-              </div>
-              <button className="journal-modal-close" onClick={() => setShowModal(false)} aria-label="Đóng">×</button>
+          <div className="journal-live-heading">
+            <h2 id="journal-list-title">Các ghi chép gần đây</h2>
+            <button onClick={() => void load()} disabled={loading}>
+              Tải lại
+            </button>
+          </div>
+          {loading && (
+            <p className="journal-status" role="status">
+              Đang tải nhật ký…
+            </p>
+          )}
+          {!loading && pageError && (
+            <div className="journal-status journal-error" role="alert">
+              <p>{pageError}</p>
+              <button onClick={() => void load()}>Thử lại</button>
             </div>
-
-            <div className="journal-modal-content">
-              <div className="journal-moods">
-                {MOODS.map(mood => (
-                  <button 
-                    key={mood.value} 
-                    className={`${mood.tone} ${selectedMood === mood.value ? 'selected' : ''}`} 
-                    onClick={() => setSelectedMood(mood.value)}
-                  >
-                    <span>{mood.emoji}</span>
-                    <small>{mood.label}</small>
-                  </button>
-                ))}
-              </div>
-
-              <label className="journal-field">
-                <span>Ghi chú của bạn</span>
-                <textarea 
-                  value={content} 
-                  onChange={e => setContent(e.target.value)} 
-                  placeholder="Viết về ngày của bạn..."
-                  maxLength={1000}
-                />
-              </label>
-
-              <div className="journal-psychology-section">
-                <div className="journal-psychology-header">
-                  <span className="journal-psychology-icon">💭</span>
-                  <div>
-                    <h3>Khám phá sâu hơn</h3>
-                    <p>Những câu hỏi này giúp bạn hiểu rõ hơn về cảm xúc của mình</p>
-                  </div>
+          )}
+          {!loading && !pageError && entries.length === 0 && (
+            <div className="journal-status">
+              <h3>Chưa có nhật ký</h3>
+              <p>
+                Ghi lại điều bạn muốn lưu giữ. Nội dung không được dùng để diễn
+                giải lâm sàng.
+              </p>
+              <button onClick={openCreate}>Viết nhật ký đầu tiên</button>
+            </div>
+          )}
+          <div className="journal-live-grid">
+            {entries.map((entry) => (
+              <article key={entry.id} className="journal-live-card">
+                <time>{formatDate(entry.occurredAt)}</time>
+                <p>{entry.content.preview}</p>
+                <div>
+                  {entry.tags.map((tag) => (
+                    <span key={tag}>#{tag}</span>
+                  ))}
                 </div>
-                
-                {PSYCHOLOGY_QUESTIONS.map((question) => (
-                  <label key={question.id} className="journal-psych-field">
-                    <span>{question.label}</span>
-                    <textarea
-                      value={psychologyAnswers[question.id] || ''}
-                      onChange={e => setPsychologyAnswers(prev => ({...prev, [question.id]: e.target.value}))}
-                      placeholder={question.placeholder}
-                      rows={2}
+                <button
+                  onClick={(event) =>
+                    void openDetail(entry, event.currentTarget)
+                  }
+                >
+                  Xem chi tiết
+                </button>
+              </article>
+            ))}
+          </div>
+          {hasMore && !pageError && (
+            <button
+              className="journal-load-more"
+              onClick={() => void load(cursor)}
+              disabled={loadingMore}
+            >
+              {loadingMore ? 'Đang tải…' : 'Xem thêm'}
+            </button>
+          )}
+        </section>
+      </div>
+      {mode !== 'closed' && (
+        <div
+          className="journal-dialog-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !working) close()
+          }}
+        >
+          <section
+            ref={dialogRef}
+            className="journal-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="journal-dialog-title"
+            aria-busy={working || detailLoading}
+            tabIndex={-1}
+          >
+            <header>
+              <div>
+                <span>Nhật ký riêng tư</span>
+                <h2 id="journal-dialog-title">
+                  {mode === 'create'
+                    ? 'Viết nhật ký'
+                    : mode === 'edit'
+                      ? 'Chỉnh sửa nhật ký'
+                      : mode === 'delete'
+                        ? 'Xác nhận xóa'
+                        : 'Chi tiết nhật ký'}
+                </h2>
+              </div>
+              <button onClick={close} disabled={working} aria-label="Đóng">
+                ×
+              </button>
+            </header>
+            {detailLoading && (
+              <p role="status" className="journal-status">
+                Đang tải nội dung…
+              </p>
+            )}
+            {modalError && (
+              <div role="alert" className="journal-modal-error">
+                <p>{modalError}</p>
+              </div>
+            )}
+            {!detailLoading && mode === 'view' && selected && (
+              <div className="journal-detail">
+                <time>{formatDate(selected.occurredAt)}</time>
+                <p>{selected.content.text}</p>
+                <div>
+                  {selected.tags.map((tag) => (
+                    <span key={tag}>#{tag}</span>
+                  ))}
+                </div>
+                <small>
+                  Phiên bản {selected.currentRevision} · Mã hóa{' '}
+                  {selected.encryption.algorithm}
+                </small>
+                <footer>
+                  <button className="danger" onClick={() => setMode('delete')}>
+                    Xóa
+                  </button>
+                  <button onClick={() => setMode('edit')}>Chỉnh sửa</button>
+                </footer>
+              </div>
+            )}
+            {(mode === 'create' || (mode === 'edit' && selected)) && (
+              <div className="journal-form">
+                {mode === 'create' && (
+                  <label>
+                    Thời điểm ghi
+                    <input
+                      aria-label="Thời điểm ghi"
+                      type="datetime-local"
+                      value={occurredAt}
+                      onChange={(event) => setOccurredAt(event.target.value)}
                     />
                   </label>
-                ))}
+                )}
+                <label>
+                  Nội dung
+                  <textarea
+                    aria-label="Nội dung"
+                    data-dialog-initial-focus
+                    value={text}
+                    maxLength={12_000}
+                    onChange={(event) => setText(event.target.value)}
+                    rows={10}
+                  />
+                  <small>{text.length}/12000</small>
+                </label>
+                <label>
+                  Thẻ do bạn đặt
+                  <input
+                    aria-label="Thẻ do bạn đặt"
+                    value={tagText}
+                    onChange={(event) => setTagText(event.target.value)}
+                    placeholder="công việc, gia đình"
+                  />
+                  <small>Phân cách bằng dấu phẩy, tối đa 20 thẻ.</small>
+                </label>
+                <footer>
+                  <button onClick={close} disabled={working}>
+                    Hủy
+                  </button>
+                  <button
+                    onClick={() =>
+                      void (mode === 'create' ? create() : revise())
+                    }
+                    disabled={working}
+                  >
+                    {working ? 'Đang lưu…' : 'Lưu nhật ký'}
+                  </button>
+                </footer>
               </div>
-            </div>
-
-            <div className="journal-modal-footer">
-              <span className="journal-char-count">{content.length}/1000</span>
-              <div className="journal-modal-actions">
-                <button className="btn-ghost" onClick={() => setShowModal(false)} disabled={isSaving}>Hủy</button>
-                <button className="btn-primary" onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? 'Đang lưu...' : 'Lưu nhật ký'}
-                </button>
+            )}
+            {mode === 'delete' && selected && (
+              <div className="journal-delete">
+                <p>
+                  Nhật ký sẽ biến mất khỏi danh sách. Hệ thống lưu một tombstone
+                  theo chính sách dữ liệu; thao tác này không có nghĩa dữ liệu
+                  vật lý được xóa ngay lập tức.
+                </p>
+                <footer>
+                  <button onClick={() => setMode('view')} disabled={working}>
+                    Giữ lại
+                  </button>
+                  <button
+                    className="danger"
+                    onClick={() => void remove()}
+                    disabled={working}
+                  >
+                    {working ? 'Đang xóa…' : 'Xóa nhật ký'}
+                  </button>
+                </footer>
               </div>
-            </div>
-          </div>
-        </motion.div>
-      </>
-    )}
-  </AnimatePresence>
-
-  {selectedEntry && <JournalDetailModal
-    key={selectedEntry.id}
-    isOpen
-    entry={selectedEntry}
-    onClose={() => setSelectedEntry(null)}
-    onUpdate={handleUpdateEntry}
-    onDelete={handleDeleteEntry}
-  />}
-
-  {/* Toast Notification */}
-  <AnimatePresence>
-    {toast && (
-      <motion.div 
-        className="journal-toast"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-      >
-        {toast}
-      </motion.div>
-    )}
-  </AnimatePresence>
-
-  <div className="journal-layout">
-   <section className="journal-stream" aria-label="Các nhật ký gần đây"><div className="journal-section-head"><div><span>Dòng thời gian</span><h2>Những ngày gần đây</h2></div><span className="journal-period">Tháng 8</span></div><div className="journal-timeline">
-    {entries.length === 0 && <div className="journal-empty"><span aria-hidden="true">✦</span><h3>Trang nhật ký đang chờ bạn</h3><p>Viết một dòng về cảm xúc hôm nay để bắt đầu lại dòng thời gian.</p><button onClick={()=>setShowModal(true)}>Viết nhật ký mới</button></div>}
-    {entries.map((entry,index)=>{const mood=MOODS.find(item=>item.value===entry.mood)!;return <motion.article className="journal-entry" key={entry.id} initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:index*.08}}>
-     <div className={`journal-node ${mood.tone}`}><span>{mood.emoji}</span></div><div className="journal-entry-card" role="button" tabIndex={0} aria-label={`Xem chi tiết nhật ký ${entry.date}`} onClick={()=>setSelectedEntry(entry)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();setSelectedEntry(entry)}}}><header><div><h3>{new Date(`${entry.date}T12:00:00`).toLocaleDateString('vi-VN',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</h3><p><span>◷</span>{entry.time}</p></div><span className={`journal-mood ${mood.tone}`}>{mood.label}</span></header><p className="journal-copy">{entry.content}</p><footer>{entry.tags.map(tag=><span key={tag}>#{tag}</span>)}<span className="journal-view-cue">Xem chi tiết <b>→</b></span></footer></div>
-    </motion.article>})}
-   </div></section>
-   <aside className="journal-insights">
-    <section className="journal-month"><span className="journal-orb"/><header><span>Tổng quan</span><h2>Tháng 8</h2></header><div><article><small>Số ngày ghi</small><strong>14<em>/31</em></strong><span>45% tháng này</span></article><article><small>Cảm xúc nổi bật</small><strong className="mood">🙂 <em>Tốt</em></strong><span>Xu hướng tích cực</span></article></div><div className="journal-progress"><i/></div>
-    </section>
-    <section className="journal-topics"><header><span>Chủ đề</span><h2>Thường xuất hiện</h2></header><div>{topicCounts.map(([topic,count],index)=><span className={index===0?'active':''} key={topic}>#{topic}<b>{count}</b></span>)}</div></section>
-    <section className="journal-prompt"><span>✶</span><div><small>Gợi ý hôm nay</small><p>Điều gì đã mang lại cho bạn một khoảnh khắc bình yên?</p></div><button onClick={()=>setShowModal(true)} aria-label="Viết theo gợi ý">→</button></section>
-   </aside>
-  </div>
- </div>
+            )}
+          </section>
+        </div>
+      )}
+    </main>
+  )
 }

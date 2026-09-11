@@ -86,6 +86,11 @@ jobs:
       - name: Build production application
         run: npm run build
 
+      - name: Run controlled Journal BFF browser tests
+        run: npx playwright test tests/e2e/journal.spec.ts --project=chromium
+        env:
+          CARE_E2E_MODE: fixture
+
   quality-gate:
     name: quality-gate
     if: always()

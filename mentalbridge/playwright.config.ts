@@ -74,6 +74,8 @@ export default defineConfig({
             CARE_API_TIMEOUT_MS: '3000',
             CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
             CONTENT_SERVICE_URL: identityFixtureURL,
+            JOURNAL_AI_SERVICE_URL: identityFixtureURL,
+            JOURNAL_AI_SERVICE_TIMEOUT_MS: '3000',
           },
           reuseExistingServer: false,
           timeout: 120_000,
