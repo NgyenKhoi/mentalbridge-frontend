@@ -68,6 +68,21 @@ async function answerPublishedGad7(page: Page) {
   await expect(page.getByText(/invented-gad-policy/i)).toHaveCount(0)
 }
 
+async function answerGuidedInstrument(
+  page: Page,
+  questionCount: number,
+  answerName: string,
+) {
+  for (let item = 1; item <= questionCount; item += 1) {
+    await page.getByRole('radio', { name: answerName }).check()
+    if (item < questionCount) {
+      await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
+    }
+  }
+  await page.getByRole('checkbox', { name: /tôi đồng ý/i }).check()
+  await page.getByRole('button', { name: 'Xem kết quả' }).click()
+}
+
 async function careControl(
   request: APIRequestContext,
   path: string,
@@ -451,5 +466,195 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await expect(
       gad7HistoryRow.getByRole('link', { name: 'Xem lại' }),
     ).toHaveAttribute('href', /\/assessment\/gad7\?assessmentId=/)
+  })
+
+  test('completes and resumes the guided initial check without browser-persisted health data', async ({
+    context,
+    page,
+  }) => {
+    test.setTimeout(useCareFixture ? 90_000 : 150_000)
+    await context.addCookies([
+      {
+        name: 'mentalbridge_access',
+        value: careAccessToken,
+        domain: '127.0.0.1',
+        path: '/',
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ])
+
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.goto('/dashboard')
+    const start = page.getByRole('link', {
+      name: /Bắt đầu kiểm tra ban đầu/,
+    })
+    await expect(start).toBeVisible()
+    await expect(page.getByText(/14 ngày gần đây/)).toBeVisible()
+    await expect(
+      page.getByText(/không phải chẩn đoán y khoa/).first(),
+    ).toBeVisible()
+    await start.click()
+
+    const privacyHeading = page.getByRole('heading', {
+      name: 'Xác nhận quyền riêng tư',
+    })
+    if (await privacyHeading.isVisible().catch(() => false)) {
+      await page
+        .getByRole('link', { name: 'Xem quyền riêng tư và tiếp tục' })
+        .click()
+      await page.getByRole('button', { name: 'Tôi đồng ý' }).click()
+      await page
+        .getByRole('link', { name: 'Tiếp tục bước chưa hoàn tất' })
+        .click()
+    }
+
+    await expect(
+      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
+    ).toBeVisible()
+    const stepCenters = await page
+      .locator('.initial-check-progress li')
+      .evaluateAll((steps) =>
+        steps.map((step) => {
+          const bounds = step.getBoundingClientRect()
+          return bounds.left + bounds.width / 2
+        }),
+      )
+    expect(stepCenters[3] - stepCenters[0]).toBeGreaterThan(600)
+    await page.screenshot({
+      path: 'docs/evidence/mb-272-initial-check-questionnaire-desktop.png',
+      fullPage: true,
+    })
+    await answerGuidedInstrument(page, 9, 'Vài ngày')
+    await expect(
+      page.getByRole('heading', {
+        name: 'GAD-7 — Sàng lọc triệu chứng lo âu',
+      }),
+    ).toBeVisible()
+
+    await page.reload()
+    await expect(
+      page.getByRole('heading', {
+        name: 'GAD-7 — Sàng lọc triệu chứng lo âu',
+      }),
+    ).toBeVisible()
+    await page.goto('/dashboard')
+    await page.getByRole('link', { name: /Bắt đầu kiểm tra ban đầu/ }).click()
+    await expect(
+      page.getByRole('heading', {
+        name: 'GAD-7 — Sàng lọc triệu chứng lo âu',
+      }),
+    ).toBeVisible()
+
+    await page.route('**/api/resources?**', async (route) => {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: 'about:blank',
+          title: 'Unavailable',
+          status: 503,
+          code: 'CONTENT_UNAVAILABLE',
+          correlationId: '50000000-0000-4000-8000-000000000101',
+        }),
+      })
+    })
+    await answerGuidedInstrument(page, 7, 'Không bao giờ (0 ngày nào)')
+
+    const resultHeading = page.getByRole('heading', {
+      name: 'Kết quả kiểm tra ban đầu',
+    })
+    await expect(resultHeading).toBeVisible()
+    expect(
+      await resultHeading.evaluate(
+        (element) => getComputedStyle(element).color,
+      ),
+    ).toBe('rgb(248, 251, 249)')
+    await expect(
+      page.getByRole('heading', { name: 'Ưu tiên xem hướng dẫn an toàn' }),
+    ).toBeVisible()
+    await expect(
+      page.getByText(/chủ động liên hệ dịch vụ khẩn cấp/i),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Nên ưu tiên theo dõi an toàn' }),
+    ).toBeVisible()
+    await expect(
+      page.getByText('Dịch vụ tạm thời không khả dụng'),
+    ).toBeVisible()
+
+    const blockOrder = await page
+      .locator('.initial-check-result > section')
+      .evaluateAll((elements) =>
+        elements.slice(0, 6).map((element) => element.className),
+      )
+    expect(blockOrder).toEqual([
+      'initial-check-evidence',
+      'initial-check-evidence',
+      'initial-check-safety positive',
+      'initial-check-tier',
+      'initial-check-meaning',
+      'initial-check-next',
+    ])
+
+    const journeyCookies = (await context.cookies()).filter((cookie) =>
+      cookie.name.startsWith('mentalbridge_initial_check_'),
+    )
+    expect(journeyCookies).toHaveLength(3)
+    expect(journeyCookies.every((cookie) => cookie.httpOnly)).toBe(true)
+    const browserState = await page.evaluate(() => ({
+      cookie: document.cookie,
+      local: JSON.stringify(localStorage),
+      session: JSON.stringify(sessionStorage),
+      url: window.location.href,
+      html: document.documentElement.innerHTML,
+    }))
+    for (const cookie of journeyCookies) {
+      expect(browserState.cookie).not.toContain(cookie.value)
+      expect(browserState.local).not.toContain(cookie.value)
+      expect(browserState.session).not.toContain(cookie.value)
+      expect(browserState.url).not.toContain(cookie.value)
+      expect(browserState.html).not.toContain(cookie.value)
+    }
+    expect(browserState.local).not.toMatch(/questionId|answers|totalScore/)
+    expect(browserState.session).not.toMatch(/questionId|answers|totalScore/)
+    await expect(page.locator('body')).not.toContainText(
+      /sprint|backend|demo|test/i,
+    )
+
+    await page.screenshot({
+      path: 'docs/evidence/mb-272-initial-check-desktop.png',
+      fullPage: true,
+    })
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.reload()
+    await expect(
+      page.getByRole('heading', { name: 'Kết quả kiểm tra ban đầu' }),
+    ).toBeVisible()
+    await page.screenshot({
+      path: 'docs/evidence/mb-272-initial-check-mobile.png',
+      fullPage: true,
+    })
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true)
+    const restartButton = page.getByRole('button', {
+      name: 'Bắt đầu lượt kiểm tra mới',
+    })
+    expect((await restartButton.boundingBox())?.height).toBeGreaterThanOrEqual(
+      44,
+    )
+
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 844, height: 390 })
+    await page.reload()
+    await expect(resultHeading).toBeVisible()
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true)
   })
 })

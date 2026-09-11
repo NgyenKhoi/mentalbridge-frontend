@@ -91,6 +91,8 @@ const refreshSessions = new Map()
 const anonymousCareSessions = new Map()
 const anonymousAssessments = new Map()
 const authenticatedAssessments = new Map()
+const supportEvaluations = new Map()
+const supportEvaluationByPair = new Map()
 const careProfiles = new Map()
 const careConsents = new Map()
 const careAccessToken = 'synthetic-care-e2e-access'
@@ -125,6 +127,8 @@ function reset() {
   anonymousCareSessions.clear()
   anonymousAssessments.clear()
   authenticatedAssessments.clear()
+  supportEvaluations.clear()
+  supportEvaluationByPair.clear()
   careProfiles.clear()
   careConsents.clear()
   accessSessions.set(careAccessToken, careActor)
@@ -355,6 +359,86 @@ function careAssessment(assessmentId, body, expiresAt) {
       disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
     },
     ...(expiresAt ? { expiresAt } : {}),
+  }
+}
+
+function supportEvaluation(phq9, gad7) {
+  const safetyPositive = phq9.result.safetyStatus === 'POSITIVE_SAFETY_SCREEN'
+  const moderateOrHigher = new Set(['MODERATE', 'MODERATELY_SEVERE', 'SEVERE'])
+  const professional =
+    moderateOrHigher.has(phq9.result.screeningLevel) ||
+    moderateOrHigher.has(gad7.result.screeningLevel)
+  const supportTier = safetyPositive
+    ? 'SAFETY_FOLLOW_UP_RECOMMENDED'
+    : professional
+      ? 'PROFESSIONAL_SUPPORT_RECOMMENDED'
+      : 'SELF_GUIDED_SUPPORT'
+  const reasonCodes = safetyPositive
+    ? ['PHQ9_SAFETY_SCREEN_POSITIVE']
+    : professional
+      ? [
+          ...(moderateOrHigher.has(phq9.result.screeningLevel)
+            ? ['PHQ9_MODERATE_OR_HIGHER']
+            : []),
+          ...(moderateOrHigher.has(gad7.result.screeningLevel)
+            ? ['GAD7_MODERATE_OR_HIGHER']
+            : []),
+        ]
+      : ['ALL_SCREENING_LEVELS_MINIMAL_OR_MILD']
+  const meaning = (assessment) => ({
+    meaningCode: `${assessment.instrument}_${assessment.result.screeningLevel}_14D`,
+    contentVersion: 'mb-screening-meaning-vi-vn-v1',
+    referencePeriodDays: 14,
+    text: `Câu trả lời ${assessment.instrument === 'PHQ9' ? 'PHQ-9' : 'GAD-7'} của bạn thuộc mức triệu chứng ${assessment.result.screeningLevel === 'MINIMAL' ? 'tối thiểu' : assessment.result.screeningLevel === 'MILD' ? 'nhẹ' : assessment.result.screeningLevel === 'MODERATE' ? 'trung bình' : 'nặng'} trong 14 ngày qua.`,
+    limitation:
+      'Kết quả này chỉ phản ánh câu trả lời tự khai trong 14 ngày qua. Đây là sàng lọc triệu chứng, không phải chẩn đoán y khoa và không thể hiện mức độ bệnh lý tổng thể.',
+  })
+  const nextStep = safetyPositive
+    ? {
+        code: 'REVIEW_SAFETY_GUIDANCE',
+        contentVersion: 'mb-safety-guidance-vi-vn-v1',
+        text: 'Ưu tiên xem hướng dẫn an toàn ngay bên dưới và chủ động tìm hỗ trợ trực tiếp nếu bạn cảm thấy không an toàn.',
+        boundary:
+          'Kết quả này không xác định ý định, kế hoạch hay mức độ khẩn cấp. MentalBridge không tự động liên hệ người khác, đặt lịch hoặc chia sẻ dữ liệu.',
+      }
+    : professional
+      ? {
+          code: 'CONSIDER_PROFESSIONAL_SUPPORT',
+          contentVersion: 'mb-support-next-step-vi-vn-v1',
+          text: 'Bạn có thể cân nhắc chủ động tìm sự hỗ trợ từ một chuyên gia phù hợp nếu mong muốn.',
+          boundary:
+            'MentalBridge chưa liên hệ chuyên gia, đặt lịch hoặc chia sẻ dữ liệu của bạn; các hành động đó cần quy trình và sự đồng ý riêng.',
+        }
+      : {
+          code: 'REVIEW_SELF_GUIDED_RESOURCE',
+          contentVersion: 'mb-support-next-step-vi-vn-v1',
+          text: 'Bạn có thể chọn một tài nguyên tự hỗ trợ đã được MentalBridge rà soát và tiếp tục theo dõi cảm nhận của mình.',
+          boundary:
+            'Không có cuộc hẹn, liên hệ với chuyên gia, chia sẻ dữ liệu hoặc can thiệp tự động nào được thực hiện.',
+        }
+
+  return {
+    supportEvaluationId: crypto.randomUUID(),
+    policyVersion: 'mb-support-routing-capstone-v1',
+    evaluatedAt: careNow.toISOString(),
+    supportTier,
+    reasonCodes,
+    evidence: [phq9, gad7].map((assessment) => ({
+      assessmentId: assessment.assessmentId,
+      instrument: assessment.instrument,
+      questionnaireVersion: assessment.questionnaireVersion,
+      scoringVersion: assessment.result.scoringVersion,
+      screeningLevel: assessment.result.screeningLevel,
+      safetyStatus: assessment.result.safetyStatus,
+      meaning: meaning(assessment),
+    })),
+    nextStep,
+    safetyGuidance: safetyPositive
+      ? 'Nếu bạn cảm thấy mình không an toàn hoặc có nguy cơ gây hại cho bản thân, hãy chủ động liên hệ dịch vụ khẩn cấp hoặc cơ sở y tế phù hợp tại khu vực của bạn.'
+      : null,
+    disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
+    disclaimer:
+      'Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.',
   }
 }
 
@@ -837,6 +921,78 @@ const server = createServer(async (request, response) => {
         },
         elapsedDuration: elapsedHours > 0 ? `PT${elapsedHours}H` : 'PT0S',
       })
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/support-evaluations'
+    ) {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || actor.expired || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      const body = await readBody(request)
+      const phq9 = authenticatedAssessments.get(
+        `${actor.accountId}:${body.phq9AssessmentId}`,
+      )
+      const gad7 = authenticatedAssessments.get(
+        `${actor.accountId}:${body.gad7AssessmentId}`,
+      )
+      if (
+        !phq9 ||
+        !gad7 ||
+        phq9.voidedAt ||
+        gad7.voidedAt ||
+        phq9.instrument !== 'PHQ9' ||
+        gad7.instrument !== 'GAD7'
+      ) {
+        problem(
+          response,
+          409,
+          'SUPPORT_EVIDENCE_INCOMPATIBLE',
+          'Support evidence is incompatible',
+        )
+        return
+      }
+      const pairKey = `${actor.accountId}:${phq9.assessmentId}:${gad7.assessmentId}`
+      let evaluationId = supportEvaluationByPair.get(pairKey)
+      let evaluation = evaluationId
+        ? supportEvaluations.get(`${actor.accountId}:${evaluationId}`)
+        : null
+      if (!evaluation) {
+        evaluation = supportEvaluation(phq9, gad7)
+        evaluationId = evaluation.supportEvaluationId
+        supportEvaluationByPair.set(pairKey, evaluationId)
+        supportEvaluations.set(`${actor.accountId}:${evaluationId}`, evaluation)
+      }
+      json(response, 201, evaluation)
+      return
+    }
+
+    const supportEvaluationGet = url.pathname.match(
+      /^\/api\/v1\/support-evaluations\/([^/]+)$/,
+    )
+    if (request.method === 'GET' && supportEvaluationGet) {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || actor.expired || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      const evaluation = supportEvaluations.get(
+        `${actor.accountId}:${supportEvaluationGet[1]}`,
+      )
+      if (!evaluation) {
+        problem(
+          response,
+          404,
+          'SUPPORT_EVALUATION_NOT_FOUND',
+          'Support evaluation not found',
+        )
+        return
+      }
+      json(response, 200, evaluation)
       return
     }
 
