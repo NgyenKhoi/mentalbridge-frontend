@@ -54,6 +54,8 @@ async function check(expected) {
   const sourcePath =
     process.env.JOURNAL_OPENAPI_SOURCE &&
     path.resolve(appRoot, process.env.JOURNAL_OPENAPI_SOURCE)
+  if (sourcePath && !(await exists(sourcePath)))
+    throw new Error(`Journal OpenAPI source not found at ${sourcePath}.`)
   if (
     sourcePath &&
     !(await readFile(sourcePath)).equals(await readFile(snapshotPath))

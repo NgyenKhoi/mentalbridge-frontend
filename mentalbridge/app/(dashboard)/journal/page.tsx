@@ -10,10 +10,23 @@ import {
   parseJournalPage,
   parseTombstone,
 } from '@/lib/journal/journal-validation'
+import {
+  formatJournalLocalDateTime,
+  journalLocalDateTimeToIso,
+} from '@/lib/journal/journal-datetime'
 import './journal.css'
 
 type Problem = { code?: string; title?: string }
 type Mode = 'closed' | 'create' | 'view' | 'edit' | 'delete'
+class JournalUiError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+  ) {
+    super(message)
+    this.name = 'JournalUiError'
+  }
+}
 const read = async (response: Response) => {
   try {
     return (await response.json()) as unknown
@@ -50,6 +63,20 @@ const tagsOf = (value: string) =>
     .split(',')
     .map((tag) => tag.trim().replace(/^#/, ''))
     .filter(Boolean)
+const focusableSelector =
+  'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+
+async function fetchJournalEntry(id: string) {
+  const response = await fetch(`/api/journals/${id}`, { cache: 'no-store' })
+  const value = await read(response)
+  const parsed = response.ok ? parseJournalEntry(value) : null
+  if (parsed) return parsed
+  const problem = value && typeof value === 'object' ? (value as Problem) : null
+  throw new JournalUiError(
+    errorMessage(problem, 'Không thể tải chi tiết nhật ký.'),
+    problem?.code,
+  )
+}
 
 export default function JournalPage() {
   const [entries, setEntries] = useState<JournalSummary[]>([])
@@ -69,6 +96,8 @@ export default function JournalPage() {
   const [clientEntryId, setClientEntryId] = useState('')
   const mutationKeys = useRef(new Map<string, string>())
   const triggerRef = useRef<HTMLElement | null>(null)
+  const backgroundRef = useRef<HTMLDivElement | null>(null)
+  const dialogRef = useRef<HTMLElement | null>(null)
 
   const load = useCallback(async (next?: string) => {
     if (next) setLoadingMore(true)
@@ -107,32 +136,76 @@ export default function JournalPage() {
     return () => window.clearTimeout(initialLoad)
   }, [load])
 
-  function close() {
+  const close = useCallback(() => {
     setMode('closed')
     setSelected(null)
     setModalError('')
     setWorking(false)
     window.setTimeout(() => triggerRef.current?.focus(), 0)
-  }
+  }, [])
   useEffect(() => {
     if (mode === 'closed') return
     const overflow = document.body.style.overflow
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !working) close()
+    const background = backgroundRef.current
+    if (background) {
+      background.inert = true
+      background.setAttribute('aria-hidden', 'true')
+    }
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !working) {
+        event.preventDefault()
+        close()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const dialog = dialogRef.current
+      if (!dialog) return
+      const focusable = [
+        ...dialog.querySelectorAll<HTMLElement>(focusableSelector),
+      ]
+      if (focusable.length === 0) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable.at(-1)
+      if (
+        (event.shiftKey && document.activeElement === first) ||
+        (!event.shiftKey && document.activeElement === last)
+      ) {
+        event.preventDefault()
+        ;(event.shiftKey ? last : first)?.focus()
+      }
     }
     document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', escape)
+    document.addEventListener('keydown', keyboard)
     return () => {
       document.body.style.overflow = overflow
-      document.removeEventListener('keydown', escape)
+      document.removeEventListener('keydown', keyboard)
+      if (background) {
+        background.inert = false
+        background.removeAttribute('aria-hidden')
+      }
     }
-  })
+  }, [close, mode, working])
+  useEffect(() => {
+    if (mode === 'closed') return
+    const frame = window.requestAnimationFrame(() => {
+      const dialog = dialogRef.current
+      const initial = dialog?.querySelector<HTMLElement>(
+        '[data-dialog-initial-focus]',
+      )
+      ;(initial ?? dialog)?.focus()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [detailLoading, mode])
   function openCreate(event: React.MouseEvent<HTMLButtonElement>) {
     triggerRef.current = event.currentTarget
     setText('')
     setTagText('')
     setModalError('')
-    setOccurredAt(new Date().toISOString().slice(0, 16))
+    setOccurredAt(formatJournalLocalDateTime(new Date()))
     setClientEntryId(crypto.randomUUID())
     setMode('create')
   }
@@ -142,18 +215,7 @@ export default function JournalPage() {
     setDetailLoading(true)
     setModalError('')
     try {
-      const response = await fetch(`/api/journals/${entry.id}`, {
-        cache: 'no-store',
-      })
-      const value = await read(response)
-      const parsed = response.ok ? parseJournalEntry(value) : null
-      if (!parsed)
-        throw new Error(
-          errorMessage(
-            value && typeof value === 'object' ? (value as Problem) : null,
-            'Không thể tải chi tiết nhật ký.',
-          ),
-        )
+      const parsed = await fetchJournalEntry(entry.id)
       setSelected(parsed)
       setText(parsed.content.text)
       setTagText(parsed.tags.join(', '))
@@ -192,9 +254,18 @@ export default function JournalPage() {
       if (!parsed) {
         const problem =
           value && typeof value === 'object' ? (value as Problem) : null
-        if (problem?.code !== 'JOURNAL_MUTATION_OUTCOME_UNKNOWN')
+        const code = response.ok
+          ? 'JOURNAL_MUTATION_OUTCOME_UNKNOWN'
+          : problem?.code
+        if (code !== 'JOURNAL_MUTATION_OUTCOME_UNKNOWN')
           mutationKeys.current.delete(scope)
-        throw new Error(errorMessage(problem, 'Không thể hoàn tất thao tác.'))
+        throw new JournalUiError(
+          errorMessage(
+            code === problem?.code ? problem : { code },
+            'Không thể hoàn tất thao tác.',
+          ),
+          code,
+        )
       }
       mutationKeys.current.delete(scope)
       return parsed
@@ -213,13 +284,14 @@ export default function JournalPage() {
   }
   async function create() {
     const tags = tagsOf(tagText)
-    if (!valid(text, tags)) {
+    const occurredAtIso = journalLocalDateTimeToIso(occurredAt)
+    if (!valid(text, tags) || !occurredAtIso) {
       setModalError('Nhập nội dung và tối đa 20 thẻ không trùng nhau.')
       return
     }
     const payload = {
       clientEntryId,
-      occurredAt: new Date(occurredAt).toISOString(),
+      occurredAt: occurredAtIso,
       content: { text },
       tags,
     }
@@ -268,6 +340,28 @@ export default function JournalPage() {
       setMode('view')
       await load()
     } catch (error) {
+      if (
+        error instanceof JournalUiError &&
+        error.code === 'PRECONDITION_FAILED'
+      ) {
+        setWorking(true)
+        try {
+          const authoritative = await fetchJournalEntry(selected.id)
+          setSelected(authoritative)
+          setModalError(
+            'Đã tải phiên bản mới nhất. Bản nháp của bạn vẫn được giữ; hãy xem lại rồi nhấn Lưu nhật ký để thử lại.',
+          )
+        } catch (refreshError) {
+          setModalError(
+            refreshError instanceof Error
+              ? `${error.message} ${refreshError.message}`
+              : error.message,
+          )
+        } finally {
+          setWorking(false)
+        }
+        return
+      }
       setModalError(
         error instanceof Error ? error.message : 'Không thể cập nhật nhật ký.',
       )
@@ -293,76 +387,80 @@ export default function JournalPage() {
 
   return (
     <main className="journal-live">
-      <header className="journal-live-hero">
-        <div>
-          <span>Nhật ký riêng tư</span>
-          <h1>Nhật ký của bạn</h1>
-          <p>
-            Nội dung được mã hóa trước khi lưu và chỉ tài khoản của bạn có thể
-            truy cập.
-          </p>
-        </div>
-        <button onClick={openCreate}>+ Viết nhật ký</button>
-      </header>
-      <section
-        aria-labelledby="journal-list-title"
-        className="journal-live-list"
-      >
-        <div className="journal-live-heading">
-          <h2 id="journal-list-title">Các ghi chép gần đây</h2>
-          <button onClick={() => void load()} disabled={loading}>
-            Tải lại
-          </button>
-        </div>
-        {loading && (
-          <p className="journal-status" role="status">
-            Đang tải nhật ký…
-          </p>
-        )}
-        {!loading && pageError && (
-          <div className="journal-status journal-error" role="alert">
-            <p>{pageError}</p>
-            <button onClick={() => void load()}>Thử lại</button>
-          </div>
-        )}
-        {!loading && !pageError && entries.length === 0 && (
-          <div className="journal-status">
-            <h3>Chưa có nhật ký</h3>
+      <div ref={backgroundRef} className="journal-page-content">
+        <header className="journal-live-hero">
+          <div>
+            <span>Nhật ký riêng tư</span>
+            <h1>Nhật ký của bạn</h1>
             <p>
-              Ghi lại điều bạn muốn lưu giữ. Nội dung không được dùng để diễn
-              giải lâm sàng.
+              Nội dung được mã hóa trước khi lưu và chỉ tài khoản của bạn có thể
+              truy cập.
             </p>
-            <button onClick={openCreate}>Viết nhật ký đầu tiên</button>
           </div>
-        )}
-        <div className="journal-live-grid">
-          {entries.map((entry) => (
-            <article key={entry.id} className="journal-live-card">
-              <time>{formatDate(entry.occurredAt)}</time>
-              <p>{entry.content.preview}</p>
-              <div>
-                {entry.tags.map((tag) => (
-                  <span key={tag}>#{tag}</span>
-                ))}
-              </div>
-              <button
-                onClick={(event) => void openDetail(entry, event.currentTarget)}
-              >
-                Xem chi tiết
-              </button>
-            </article>
-          ))}
-        </div>
-        {hasMore && !pageError && (
-          <button
-            className="journal-load-more"
-            onClick={() => void load(cursor)}
-            disabled={loadingMore}
-          >
-            {loadingMore ? 'Đang tải…' : 'Xem thêm'}
-          </button>
-        )}
-      </section>
+          <button onClick={openCreate}>+ Viết nhật ký</button>
+        </header>
+        <section
+          aria-labelledby="journal-list-title"
+          className="journal-live-list"
+        >
+          <div className="journal-live-heading">
+            <h2 id="journal-list-title">Các ghi chép gần đây</h2>
+            <button onClick={() => void load()} disabled={loading}>
+              Tải lại
+            </button>
+          </div>
+          {loading && (
+            <p className="journal-status" role="status">
+              Đang tải nhật ký…
+            </p>
+          )}
+          {!loading && pageError && (
+            <div className="journal-status journal-error" role="alert">
+              <p>{pageError}</p>
+              <button onClick={() => void load()}>Thử lại</button>
+            </div>
+          )}
+          {!loading && !pageError && entries.length === 0 && (
+            <div className="journal-status">
+              <h3>Chưa có nhật ký</h3>
+              <p>
+                Ghi lại điều bạn muốn lưu giữ. Nội dung không được dùng để diễn
+                giải lâm sàng.
+              </p>
+              <button onClick={openCreate}>Viết nhật ký đầu tiên</button>
+            </div>
+          )}
+          <div className="journal-live-grid">
+            {entries.map((entry) => (
+              <article key={entry.id} className="journal-live-card">
+                <time>{formatDate(entry.occurredAt)}</time>
+                <p>{entry.content.preview}</p>
+                <div>
+                  {entry.tags.map((tag) => (
+                    <span key={tag}>#{tag}</span>
+                  ))}
+                </div>
+                <button
+                  onClick={(event) =>
+                    void openDetail(entry, event.currentTarget)
+                  }
+                >
+                  Xem chi tiết
+                </button>
+              </article>
+            ))}
+          </div>
+          {hasMore && !pageError && (
+            <button
+              className="journal-load-more"
+              onClick={() => void load(cursor)}
+              disabled={loadingMore}
+            >
+              {loadingMore ? 'Đang tải…' : 'Xem thêm'}
+            </button>
+          )}
+        </section>
+      </div>
       {mode !== 'closed' && (
         <div
           className="journal-dialog-backdrop"
@@ -371,10 +469,13 @@ export default function JournalPage() {
           }}
         >
           <section
+            ref={dialogRef}
             className="journal-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="journal-dialog-title"
+            aria-busy={working || detailLoading}
+            tabIndex={-1}
           >
             <header>
               <div>
@@ -430,6 +531,7 @@ export default function JournalPage() {
                   <label>
                     Thời điểm ghi
                     <input
+                      aria-label="Thời điểm ghi"
                       type="datetime-local"
                       value={occurredAt}
                       onChange={(event) => setOccurredAt(event.target.value)}
@@ -439,7 +541,8 @@ export default function JournalPage() {
                 <label>
                   Nội dung
                   <textarea
-                    autoFocus
+                    aria-label="Nội dung"
+                    data-dialog-initial-focus
                     value={text}
                     maxLength={12_000}
                     onChange={(event) => setText(event.target.value)}
@@ -450,6 +553,7 @@ export default function JournalPage() {
                 <label>
                   Thẻ do bạn đặt
                   <input
+                    aria-label="Thẻ do bạn đặt"
                     value={tagText}
                     onChange={(event) => setTagText(event.target.value)}
                     placeholder="công việc, gia đình"

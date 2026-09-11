@@ -201,7 +201,7 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             deleted: boolean;
-            tags?: string[];
+            tags: string[];
             encryption: components["schemas"]["EncryptionMetadata"];
             /** @enum {string} */
             analysisState: "not_requested" | "current" | "stale";
@@ -287,7 +287,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Idempotency conflict or duplicate mutation. */
+        /** @description Idempotency conflict, duplicate mutation, or journal revision limit reached. */
         Conflict: {
             headers: {
                 [name: string]: unknown;
@@ -316,7 +316,6 @@ export interface components {
         Limit: number;
         /** @description Opaque cursor returned by the previous list response. */
         Cursor: string;
-        IncludeDeleted: boolean;
     };
     requestBodies: never;
     headers: {
@@ -333,7 +332,6 @@ export interface operations {
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque cursor returned by the previous list response. */
                 cursor?: components["parameters"]["Cursor"];
-                includeDeleted?: components["parameters"]["IncludeDeleted"];
             };
             header?: {
                 "x-correlation-id"?: components["parameters"]["CorrelationId"];

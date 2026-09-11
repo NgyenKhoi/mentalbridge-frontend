@@ -35,6 +35,14 @@ const malformed = (cause?: unknown) =>
     cause,
   })
 
+const mutationOutcomeUnknown = (cause?: unknown) =>
+  new ApiError({
+    message: 'The journal mutation outcome is unknown.',
+    code: 'JOURNAL_MUTATION_OUTCOME_UNKNOWN',
+    status: 503,
+    cause,
+  })
+
 async function json(response: Response): Promise<unknown> {
   const type = response.headers.get('content-type') ?? ''
   const length = Number(response.headers.get('content-length'))
@@ -87,7 +95,13 @@ async function request<T>(options: Options<T>): Promise<T> {
       },
     )
     if (!response.ok) {
-      const body = await json(response)
+      let body: unknown
+      try {
+        body = await json(response)
+      } catch (error) {
+        if (mutation) throw mutationOutcomeUnknown(error)
+        throw error
+      }
       if (isProblemDetails(body))
         throw new ApiError({
           message: body.title,
@@ -96,20 +110,20 @@ async function request<T>(options: Options<T>): Promise<T> {
           correlationId: body.correlationId,
           problem: body,
         })
+      if (mutation) throw mutationOutcomeUnknown(malformed())
       throw malformed()
     }
-    const parsed = options.parse(await json(response))
-    if (!parsed) throw malformed()
-    return parsed
+    try {
+      const parsed = options.parse(await json(response))
+      if (!parsed) throw malformed()
+      return parsed
+    } catch (error) {
+      if (mutation) throw mutationOutcomeUnknown(error)
+      throw error
+    }
   } catch (error) {
     if (error instanceof ApiError) throw error
-    if (mutation)
-      throw new ApiError({
-        message: 'The journal mutation outcome is unknown.',
-        code: 'JOURNAL_MUTATION_OUTCOME_UNKNOWN',
-        status: 503,
-        cause: error,
-      })
+    if (mutation) throw mutationOutcomeUnknown(error)
     throw new ApiError({
       message: 'Journal is unavailable.',
       code: 'JOURNAL_UNAVAILABLE',
