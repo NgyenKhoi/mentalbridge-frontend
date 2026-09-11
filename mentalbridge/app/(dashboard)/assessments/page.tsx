@@ -150,7 +150,6 @@ export default function AssessmentsPage() {
             <span>Lịch sử</span>
             <h2 id="assessment-history-title">Các lần đánh giá gần đây</h2>
           </div>
-          <p>Chỉ hiển thị kết quả thuộc tài khoản hiện tại.</p>
         </div>
         {error ? (
           <div className="assessment-history-unavailable" role="alert">

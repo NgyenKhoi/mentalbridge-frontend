@@ -17,6 +17,11 @@ import type {
   AssessmentProgress,
   AssessmentProgressPoint,
   ScoreDirection,
+  SupportEvaluation,
+  SupportEvaluationRequest,
+  SupportEvidence,
+  SupportReasonCode,
+  SupportTier,
 } from '@/features/assessment/api/care-contract'
 import type {
   ValidationResult,
@@ -50,6 +55,19 @@ const SCORE_DIRECTIONS = new Set<ScoreDirection>([
   'DECREASED',
   'UNCHANGED',
 ])
+const SUPPORT_TIERS = new Set<SupportTier>([
+  'SELF_GUIDED_SUPPORT',
+  'PROFESSIONAL_SUPPORT_RECOMMENDED',
+  'SAFETY_FOLLOW_UP_RECOMMENDED',
+])
+const SUPPORT_REASON_CODES = new Set<SupportReasonCode>([
+  'ALL_SCREENING_LEVELS_MINIMAL_OR_MILD',
+  'PHQ9_MODERATE_OR_HIGHER',
+  'GAD7_MODERATE_OR_HIGHER',
+  'PHQ9_SAFETY_SCREEN_POSITIVE',
+])
+const SUPPORT_DISCLAIMER =
+  'Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.'
 
 const FORBIDDEN_PROGRESS_FIELDS = new Set([
   'answers',
@@ -575,6 +593,157 @@ function parseAssessmentBase(value: unknown) {
 
 export function parseAssessment(value: unknown): Assessment | null {
   return parseAssessmentBase(value)
+}
+
+export function parseSupportEvaluationRequest(
+  value: unknown,
+): SupportEvaluationRequest | null {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some(
+      (key) => !['phq9AssessmentId', 'gad7AssessmentId'].includes(key),
+    ) ||
+    !isUuid(value.phq9AssessmentId) ||
+    !isUuid(value.gad7AssessmentId) ||
+    value.phq9AssessmentId.toLowerCase() ===
+      value.gad7AssessmentId.toLowerCase()
+  ) {
+    return null
+  }
+  return {
+    phq9AssessmentId: value.phq9AssessmentId,
+    gad7AssessmentId: value.gad7AssessmentId,
+  }
+}
+
+function isBoundedText(value: unknown, maximum: number): value is string {
+  return (
+    typeof value === 'string' && value.length >= 1 && value.length <= maximum
+  )
+}
+
+function parseSupportEvidence(value: unknown): SupportEvidence | null {
+  if (
+    !isRecord(value) ||
+    !isUuid(value.assessmentId) ||
+    !isInstrument(value.instrument) ||
+    !isBoundedText(value.questionnaireVersion, 32) ||
+    !isBoundedText(value.scoringVersion, 32) ||
+    !SCREENING_LEVELS.has(value.screeningLevel as ScreeningLevel) ||
+    !SAFETY_STATUSES.has(value.safetyStatus as SafetyStatus) ||
+    !isRecord(value.meaning) ||
+    !isBoundedText(value.meaning.meaningCode, 64) ||
+    !/^[A-Z0-9_]+$/.test(value.meaning.meaningCode) ||
+    !isBoundedText(value.meaning.contentVersion, 64) ||
+    value.meaning.referencePeriodDays !== 14 ||
+    !isBoundedText(value.meaning.text, 1000) ||
+    !isBoundedText(value.meaning.limitation, 1000)
+  ) {
+    return null
+  }
+
+  const safetyStatus = value.safetyStatus as SafetyStatus
+  if (
+    (value.instrument === 'PHQ9' && safetyStatus === 'NOT_APPLICABLE') ||
+    (value.instrument === 'GAD7' && safetyStatus !== 'NOT_APPLICABLE')
+  ) {
+    return null
+  }
+
+  return {
+    assessmentId: value.assessmentId,
+    instrument: value.instrument,
+    questionnaireVersion: value.questionnaireVersion,
+    scoringVersion: value.scoringVersion,
+    screeningLevel: value.screeningLevel as ScreeningLevel,
+    safetyStatus,
+    meaning: {
+      meaningCode: value.meaning.meaningCode,
+      contentVersion: value.meaning.contentVersion,
+      referencePeriodDays: 14,
+      text: value.meaning.text,
+      limitation: value.meaning.limitation,
+    },
+  }
+}
+
+export function parseSupportEvaluation(
+  value: unknown,
+  expected?: SupportEvaluationRequest,
+): SupportEvaluation | null {
+  if (
+    !isRecord(value) ||
+    !isUuid(value.supportEvaluationId) ||
+    value.policyVersion !== 'mb-support-routing-capstone-v1' ||
+    !isDateTime(value.evaluatedAt) ||
+    !SUPPORT_TIERS.has(value.supportTier as SupportTier) ||
+    !Array.isArray(value.reasonCodes) ||
+    value.reasonCodes.length < 1 ||
+    value.reasonCodes.length > 2 ||
+    value.reasonCodes.some(
+      (reason) => !SUPPORT_REASON_CODES.has(reason as SupportReasonCode),
+    ) ||
+    new Set(value.reasonCodes).size !== value.reasonCodes.length ||
+    !Array.isArray(value.evidence) ||
+    value.evidence.length !== 2 ||
+    !isRecord(value.nextStep) ||
+    !isBoundedText(value.nextStep.code, 64) ||
+    !/^[A-Z0-9_]+$/.test(value.nextStep.code) ||
+    !isBoundedText(value.nextStep.contentVersion, 64) ||
+    !isBoundedText(value.nextStep.text, 1000) ||
+    !isBoundedText(value.nextStep.boundary, 1000) ||
+    value.disclaimerCode !== 'SCREENING_NOT_DIAGNOSIS' ||
+    value.disclaimer !== SUPPORT_DISCLAIMER
+  ) {
+    return null
+  }
+
+  const evidence = value.evidence.map(parseSupportEvidence)
+  if (evidence.some((item) => item === null)) return null
+  const typedEvidence = evidence as [SupportEvidence, SupportEvidence]
+  const phq9 = typedEvidence.find((item) => item.instrument === 'PHQ9')
+  const gad7 = typedEvidence.find((item) => item.instrument === 'GAD7')
+  if (
+    !phq9 ||
+    !gad7 ||
+    (expected &&
+      (phq9.assessmentId.toLowerCase() !==
+        expected.phq9AssessmentId.toLowerCase() ||
+        gad7.assessmentId.toLowerCase() !==
+          expected.gad7AssessmentId.toLowerCase()))
+  ) {
+    return null
+  }
+
+  const supportTier = value.supportTier as SupportTier
+  const safetyGuidance = isBoundedText(value.safetyGuidance, 1000)
+    ? value.safetyGuidance
+    : null
+  if (
+    (supportTier === 'SAFETY_FOLLOW_UP_RECOMMENDED' && !safetyGuidance) ||
+    (supportTier !== 'SAFETY_FOLLOW_UP_RECOMMENDED' &&
+      value.safetyGuidance !== null)
+  ) {
+    return null
+  }
+
+  return {
+    supportEvaluationId: value.supportEvaluationId,
+    policyVersion: 'mb-support-routing-capstone-v1',
+    evaluatedAt: value.evaluatedAt,
+    supportTier,
+    reasonCodes: value.reasonCodes as SupportReasonCode[],
+    evidence: typedEvidence,
+    nextStep: {
+      code: value.nextStep.code,
+      contentVersion: value.nextStep.contentVersion,
+      text: value.nextStep.text,
+      boundary: value.nextStep.boundary,
+    },
+    safetyGuidance,
+    disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
+    disclaimer: SUPPORT_DISCLAIMER,
+  }
 }
 
 export function parseAnonymousAssessment(

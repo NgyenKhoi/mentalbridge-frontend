@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 
 import LightSelect from '@/components/LightSelect'
 import type {
@@ -71,6 +72,7 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [toast, setToast] = useState('')
+  const [returnToInitialCheck, setReturnToInitialCheck] = useState(false)
   const displayNameRef = useRef<HTMLInputElement>(null)
   const dateOfBirthRef = useRef<HTMLInputElement>(null)
 
@@ -90,6 +92,14 @@ export default function ProfilePage() {
   const hasDraftChanges = JSON.stringify(form) !== JSON.stringify(originalForm)
 
   useEffect(() => {
+    const returnTimer = window.setTimeout(
+      () =>
+        setReturnToInitialCheck(
+          new URLSearchParams(window.location.search).get('returnTo') ===
+            '/initial-check',
+        ),
+      0,
+    )
     let active = true
     void (async () => {
       try {
@@ -142,6 +152,7 @@ export default function ProfilePage() {
     })()
     return () => {
       active = false
+      window.clearTimeout(returnTimer)
     }
   }, [])
 
@@ -250,6 +261,24 @@ export default function ProfilePage() {
         <p className="settings-runtime-error" role="alert">
           {error}
         </p>
+      )}
+
+      {returnToInitialCheck && profile && privacyGranted && (
+        <section
+          className="settings-onboarding"
+          aria-labelledby="initial-check-ready-title"
+        >
+          <div>
+            <span>Sẵn sàng</span>
+            <h2 id="initial-check-ready-title">
+              Bạn có thể tiếp tục kiểm tra ban đầu
+            </h2>
+            <p>Hồ sơ và lựa chọn quyền riêng tư hiện đã đầy đủ.</p>
+          </div>
+          <Link className="btn-primary" href="/initial-check">
+            Tiếp tục bước chưa hoàn tất
+          </Link>
+        </section>
       )}
 
       {!profile && (

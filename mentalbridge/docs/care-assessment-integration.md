@@ -144,3 +144,27 @@ Successful comparison evidence is stored in
 and [`evidence/mb-205-progress-mobile.png`](evidence/mb-205-progress-mobile.png).
 The screenshots contain synthetic score/version/timestamp facts only; bearer
 tokens and raw answer payloads are never rendered.
+
+## MB-272 guided initial check
+
+- The dashboard exposes one primary `Bắt đầu kiểm tra ban đầu` entry with the
+  14-day purpose and non-diagnostic boundary.
+- `/initial-check` resolves profile and current privacy-consent readiness before
+  allowing PHQ-9, then GAD-7, then support evaluation. A return link on the
+  profile page resumes the next unfinished step.
+- Dedicated same-origin BFF handlers keep the exact completed PHQ-9, GAD-7 and
+  support-evaluation UUIDs in session-scoped HttpOnly cookies. The browser does
+  not select results, and the BFF revalidates ownership, instrument, void state
+  and evaluation evidence against Care before resuming.
+- Raw answers remain only in the live questionnaire state and submission body.
+  They are never placed in a URL, browser storage, log, cookie or result view.
+- The unified screen keeps PHQ-9, GAD-7, safety, support tier, meaning and next
+  step as separate blocks. Safety guidance is rendered before optional Content
+  resources and remains available when those resources time out or fail.
+- Restart clears only the three frontend navigation hints. It does not delete or
+  overwrite Care-owned assessment history.
+
+Synthetic desktop and mobile evidence is stored in
+[`evidence/mb-272-initial-check-desktop.png`](evidence/mb-272-initial-check-desktop.png)
+and
+[`evidence/mb-272-initial-check-mobile.png`](evidence/mb-272-initial-check-mobile.png).

@@ -181,6 +181,23 @@ export default function DashboardPage() {
           </b>
         </div>
       </section>
+      <section
+        className="ref-initial-check"
+        aria-labelledby="initial-check-cta-title"
+      >
+        <div>
+          <span>Kiểm tra ban đầu</span>
+          <h2 id="initial-check-cta-title">Hiểu rõ hơn về 14 ngày gần đây</h2>
+          <p>
+            Hoàn thành PHQ-9 rồi GAD-7 trong một hành trình có hướng dẫn để nhận
+            kết quả và bước hỗ trợ phù hợp. Đây là sàng lọc triệu chứng, không
+            phải chẩn đoán y khoa.
+          </p>
+        </div>
+        <Link href="/initial-check">
+          Bắt đầu kiểm tra ban đầu <strong aria-hidden="true">→</strong>
+        </Link>
+      </section>
       <section ref={bentoRef} className="ref-bento">
         <article className="ref-card ref-mood">
           <header>

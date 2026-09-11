@@ -17,6 +17,7 @@ Story-specific delivery evidence:
 
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
 - [MB-177/MB-178/MB-205 Care-backed screening, profile, consent, history, and progress integration](care-assessment-integration.md)
+- [MB-273 initial-check release evidence](initial-check-release-evidence.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
 [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md). The current design language is
@@ -24,22 +25,23 @@ documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
 
 ## Decision status
 
-| Decision                                         | Status      | Delivery story |
-| ------------------------------------------------ | ----------- | -------------- |
-| Next.js App Router, server-first components      | Approved    | MB-210         |
-| Feature-first package boundaries                 | Approved    | MB-210         |
-| Identity-owned authentication and roles          | Approved    | MB-210         |
-| Same-origin BFF with HttpOnly session cookies    | Implemented | MB-212         |
-| Identity login and authoritative role workspaces | Implemented | MB-213         |
-| Identity registration and email verification UI  | Implemented | MB-214         |
-| Axios and TanStack Query client baseline         | Implemented | MB-211         |
-| Unit/component/API mocking baseline              | Implemented | MB-211         |
-| Playwright browser baseline                      | Implemented | MB-211         |
-| Complete Identity integration scenarios          | Implemented | MB-216/MB-139  |
-| Care-backed anonymous and USER PHQ-9 screening   | Implemented | MB-177         |
-| Care profile, privacy consent, history, reassessment | Implemented | MB-178      |
-| Authenticated descriptive assessment progress       | Implemented | MB-205      |
-| GAD-7 runtime and immutable questionnaire history   | Implemented | Story 1102  |
+| Decision                                             | Status      | Delivery story |
+| ---------------------------------------------------- | ----------- | -------------- |
+| Next.js App Router, server-first components          | Approved    | MB-210         |
+| Feature-first package boundaries                     | Approved    | MB-210         |
+| Identity-owned authentication and roles              | Approved    | MB-210         |
+| Same-origin BFF with HttpOnly session cookies        | Implemented | MB-212         |
+| Identity login and authoritative role workspaces     | Implemented | MB-213         |
+| Identity registration and email verification UI      | Implemented | MB-214         |
+| Axios and TanStack Query client baseline             | Implemented | MB-211         |
+| Unit/component/API mocking baseline                  | Implemented | MB-211         |
+| Playwright browser baseline                          | Implemented | MB-211         |
+| Complete Identity integration scenarios              | Implemented | MB-216/MB-139  |
+| Care-backed anonymous and USER PHQ-9 screening       | Implemented | MB-177         |
+| Care profile, privacy consent, history, reassessment | Implemented | MB-178         |
+| Authenticated descriptive assessment progress        | Implemented | MB-205         |
+| GAD-7 runtime and immutable questionnaire history    | Implemented | Story 1102     |
+| Guided initial check and unified support result      | Implemented | MB-272         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

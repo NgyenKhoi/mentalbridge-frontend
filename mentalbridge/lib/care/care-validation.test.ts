@@ -6,6 +6,8 @@ import {
   parseAssessmentProgress,
   parseQuestionnaire,
   parseSubmission,
+  parseSupportEvaluation,
+  parseSupportEvaluationRequest,
   validateProfileUpdate,
 } from './care-validation'
 
@@ -431,6 +433,100 @@ describe('Care runtime validation', () => {
         { ...progress, elapsedDuration: 'PT59M' },
         assessmentId,
       ),
+    ).toBeNull()
+  })
+
+  it('accepts only an explicit PHQ-9 and GAD-7 support selection', () => {
+    const gad7AssessmentId = '10000000-0000-4000-8000-000000000006'
+    expect(
+      parseSupportEvaluationRequest({
+        phq9AssessmentId: assessmentId,
+        gad7AssessmentId,
+      }),
+    ).toEqual({ phq9AssessmentId: assessmentId, gad7AssessmentId })
+    expect(
+      parseSupportEvaluationRequest({
+        phq9AssessmentId: assessmentId,
+        gad7AssessmentId,
+        totalScore: 9,
+      }),
+    ).toBeNull()
+  })
+
+  it('parses support content only when its evidence matches the selected assessments', () => {
+    const gad7AssessmentId = '10000000-0000-4000-8000-000000000006'
+    const evaluation = {
+      supportEvaluationId: '10000000-0000-4000-8000-000000000007',
+      policyVersion: 'mb-support-routing-capstone-v1',
+      evaluatedAt: '2026-09-10T08:00:00Z',
+      supportTier: 'SELF_GUIDED_SUPPORT',
+      reasonCodes: ['ALL_SCREENING_LEVELS_MINIMAL_OR_MILD'],
+      evidence: [
+        {
+          assessmentId,
+          instrument: 'PHQ9',
+          questionnaireVersion: 'phq9-vi-vn-capstone-v2',
+          scoringVersion: 'phq9-standard-bands-v1',
+          screeningLevel: 'MILD',
+          safetyStatus: 'NEGATIVE_SAFETY_SCREEN',
+          meaning: {
+            meaningCode: 'PHQ9_MILD_14D',
+            contentVersion: 'mb-screening-meaning-vi-vn-v1',
+            referencePeriodDays: 14,
+            text: 'Câu trả lời PHQ-9 thuộc mức nhẹ trong 14 ngày qua.',
+            limitation: 'Đây là sàng lọc triệu chứng, không phải chẩn đoán.',
+          },
+        },
+        {
+          assessmentId: gad7AssessmentId,
+          instrument: 'GAD7',
+          questionnaireVersion: 'gad7-vi-vn-adult-v1',
+          scoringVersion: 'gad7-standard-bands-v1',
+          screeningLevel: 'MINIMAL',
+          safetyStatus: 'NOT_APPLICABLE',
+          meaning: {
+            meaningCode: 'GAD7_MINIMAL_14D',
+            contentVersion: 'mb-screening-meaning-vi-vn-v1',
+            referencePeriodDays: 14,
+            text: 'Câu trả lời GAD-7 thuộc mức tối thiểu trong 14 ngày qua.',
+            limitation: 'Đây là sàng lọc triệu chứng, không phải chẩn đoán.',
+          },
+        },
+      ],
+      nextStep: {
+        code: 'REVIEW_SELF_GUIDED_RESOURCE',
+        contentVersion: 'mb-support-next-step-vi-vn-v1',
+        text: 'Bạn có thể chọn một tài nguyên tự hỗ trợ đã được rà soát.',
+        boundary: 'Không có hành động hoặc chia sẻ dữ liệu tự động.',
+      },
+      safetyGuidance: null,
+      disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
+      disclaimer:
+        'Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.',
+    }
+    const expected = { phq9AssessmentId: assessmentId, gad7AssessmentId }
+
+    expect(parseSupportEvaluation(evaluation, expected)).toMatchObject({
+      supportTier: 'SELF_GUIDED_SUPPORT',
+      evidence: [{ assessmentId }, { assessmentId: gad7AssessmentId }],
+    })
+    const sanitized = parseSupportEvaluation(
+      {
+        ...evaluation,
+        evidence: [
+          { ...evaluation.evidence[0], rawAnswers: [{ value: 3 }] },
+          evaluation.evidence[1],
+        ],
+      },
+      expected,
+    )
+    expect(sanitized?.evidence[0]).toMatchObject({ assessmentId })
+    expect(sanitized?.evidence[0]).not.toHaveProperty('rawAnswers')
+    expect(
+      parseSupportEvaluation(evaluation, {
+        ...expected,
+        gad7AssessmentId: '10000000-0000-4000-8000-000000000008',
+      }),
     ).toBeNull()
   })
 })
