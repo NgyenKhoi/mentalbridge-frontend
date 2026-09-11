@@ -4,6 +4,7 @@ const port = 3100
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`
 const identityFixtureURL = 'http://127.0.0.1:3201'
 const useCareFixture = process.env.CARE_E2E_MODE === 'fixture'
+const isLiveInitialCheck = process.env.MB273_E2E_MODE === 'live'
 const careServiceURL = 'http://127.0.0.1:3202'
 const browserChannel =
   process.env.PLAYWRIGHT_BROWSER_CHANNEL === 'chrome' ? 'chrome' : undefined
@@ -24,7 +25,7 @@ export default defineConfig({
   reporter: process.env.CI ? 'line' : 'html',
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    trace: isLiveInitialCheck ? 'off' : 'on-first-retry',
     screenshot: 'only-on-failure',
   },
   projects: [

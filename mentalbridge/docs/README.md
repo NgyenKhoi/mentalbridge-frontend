@@ -17,6 +17,7 @@ Story-specific delivery evidence:
 
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
 - [MB-177/MB-178/MB-205 Care-backed screening, profile, consent, history, and progress integration](care-assessment-integration.md)
+- [MB-273 initial-check release evidence](initial-check-release-evidence.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
 [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md). The current design language is

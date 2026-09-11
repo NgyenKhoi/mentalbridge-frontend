@@ -10,3 +10,18 @@ the guided dashboard-to-result journey.
 The browser test also proves that optional-resource failure does not hide the
 support evaluation's local safety guidance. Regenerate both images with the
 same Care assessment Playwright command after a production build.
+
+MB-273 produces `mb-273-fixture-result-desktop.png`,
+`mb-273-fixture-result-mobile.png`, and the sanitized
+`mb-273-fixture-persisted-evidence.json` from the explicitly classified
+`fixture-browser` release-readiness journey. Regenerate them with
+`npm run test:e2e:initial-check:fixture`. They are controlled local evidence,
+not proof of a live cross-stack run. Every artifact must be labeled with its
+evidence class, environment, and reviewed commit identifiers.
+
+The service-integration run writes
+`mb-273-service-persisted-evidence.json` and attaches desktop/mobile screenshots
+to its Playwright report. Those artifacts prove real Care and disposable
+PostgreSQL behavior while Identity and Content remain controlled fixtures; they
+must not be labeled as live cross-stack evidence. Screenshots are not duplicated
+in Git because the deterministic visual output matches the fixture images.
