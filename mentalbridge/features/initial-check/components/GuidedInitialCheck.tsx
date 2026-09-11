@@ -600,6 +600,8 @@ export default function GuidedInitialCheck() {
           instrument="PHQ9"
           workflow="initial-check"
           returnHref="/dashboard"
+          completionLabel="Lưu PHQ-9 và bắt đầu GAD-7"
+          completionPendingLabel="Đang lưu PHQ-9…"
           onCompleted={() => void load()}
         />
       )}

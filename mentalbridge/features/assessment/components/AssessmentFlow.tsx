@@ -194,6 +194,8 @@ export default function AssessmentFlow({
   workflow = 'standalone',
   onCompleted,
   returnHref,
+  completionLabel = 'Xem kết quả',
+  completionPendingLabel = 'Đang gửi…',
 }: {
   mode: AssessmentMode
   instrument: Instrument
@@ -201,6 +203,8 @@ export default function AssessmentFlow({
   workflow?: 'standalone' | 'initial-check'
   onCompleted?: () => void
   returnHref?: string
+  completionLabel?: string
+  completionPendingLabel?: string
 }) {
   const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null)
   const [assessment, setAssessment] = useState<AssessmentView | null>(null)
@@ -508,7 +512,7 @@ export default function AssessmentFlow({
             }
             onClick={() => void submit()}
           >
-            {submitting ? 'Đang gửi…' : 'Xem kết quả'}
+            {submitting ? completionPendingLabel : completionLabel}
           </button>
         ) : (
           <button
