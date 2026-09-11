@@ -75,6 +75,8 @@ async function answerGuidedInstrument(
   page: Page,
   questionCount: number,
   answerName: string,
+  completionLabel: string,
+  completionEvidencePath?: string,
 ) {
   for (let item = 1; item <= questionCount; item += 1) {
     await page.getByRole('radio', { name: answerName }).check()
@@ -83,7 +85,10 @@ async function answerGuidedInstrument(
     }
   }
   await page.getByRole('checkbox', { name: /tôi đồng ý/i }).check()
-  await page.getByRole('button', { name: 'Xem kết quả' }).click()
+  if (completionEvidencePath) {
+    await page.screenshot({ path: completionEvidencePath, fullPage: true })
+  }
+  await page.getByRole('button', { name: completionLabel }).click()
 }
 
 async function careControl(
@@ -195,6 +200,22 @@ test.describe('Care-backed PHQ-9 screening', () => {
         nameInput.evaluate((element) => getComputedStyle(element).outlineWidth),
       )
       .toBe('3px')
+    await expect
+      .poll(() =>
+        nameInput.evaluate(
+          (element) => getComputedStyle(element).backgroundColor,
+        ),
+      )
+      .toBe('rgb(255, 255, 255)')
+    const searchInput = page.getByPlaceholder('Tìm kiếm chuyên gia, nhật ký...')
+    await searchInput.focus()
+    await expect
+      .poll(() =>
+        searchInput.evaluate(
+          (element) => getComputedStyle(element, '::placeholder').color,
+        ),
+      )
+      .toBe('rgb(138, 149, 133)')
     await page.screenshot({
       path: 'docs/evidence/story-1101-profile-desktop.png',
       fullPage: true,
@@ -477,7 +498,13 @@ test.describe('Care-backed PHQ-9 screening', () => {
       path: 'docs/evidence/mb-272-initial-check-questionnaire-desktop.png',
       fullPage: true,
     })
-    await answerGuidedInstrument(page, 9, 'Vài ngày')
+    await answerGuidedInstrument(
+      page,
+      9,
+      'Vài ngày',
+      'Lưu PHQ-9 và bắt đầu GAD-7',
+      'docs/evidence/mb-272-phq9-to-gad7-cta.png',
+    )
     await expect(
       page.getByRole('heading', {
         name: 'GAD-7 — Sàng lọc triệu chứng lo âu',
@@ -511,7 +538,12 @@ test.describe('Care-backed PHQ-9 screening', () => {
         }),
       })
     })
-    await answerGuidedInstrument(page, 7, 'Không bao giờ (0 ngày nào)')
+    await answerGuidedInstrument(
+      page,
+      7,
+      'Không bao giờ (0 ngày nào)',
+      'Xem kết quả',
+    )
 
     const resultHeading = page.getByRole('heading', {
       name: 'Kết quả kiểm tra ban đầu',

@@ -145,6 +145,7 @@ async function completeQuestions(
   page: Page,
   answers: string[],
   beforeSubmit?: () => Promise<void>,
+  completionLabel = 'Xem kết quả',
 ) {
   for (let index = 0; index < answers.length; index += 1) {
     await page.getByRole('radio', { name: answers[index], exact: true }).check()
@@ -154,7 +155,7 @@ async function completeQuestions(
   }
   await page.getByRole('checkbox', { name: /tôi đồng ý/i }).check()
   if (beforeSubmit) await beforeSubmit()
-  await page.getByRole('button', { name: 'Xem kết quả' }).click()
+  await page.getByRole('button', { name: completionLabel }).click()
 }
 
 async function injectLocalCareFault(request: APIRequestContext) {
@@ -378,6 +379,7 @@ test.describe('MB-273 initial-check release readiness', () => {
       page,
       [...Array.from({ length: 8 }, () => 'Không có gì'), 'Vài ngày'],
       isLocalMode ? () => injectLocalCareFault(request) : undefined,
+      'Lưu PHQ-9 và bắt đầu GAD-7',
     )
     const originalRequest = await phq9SubmissionRequest
     const originalHeaders = await originalRequest.allHeaders()

@@ -1318,6 +1318,21 @@ html{color-scheme:light}
 }
 
 :is(.auth-layout,.anonymous-assessment,.policy-page,.assessment-intro,.ref-shell,.role-shell)
+  :is(input,select,textarea):is(:focus,:focus-visible){
+  background-color:var(--surface)!important;
+  color:var(--ink)!important;
+  border-color:var(--teal)!important;
+  box-shadow:0 0 0 3px rgba(207,227,216,.82)!important;
+  color-scheme:light!important;
+}
+
+:is(.auth-layout,.anonymous-assessment,.policy-page,.assessment-intro,.ref-shell,.role-shell)
+  :is(input,textarea):is(:focus,:focus-visible)::placeholder{
+  color:var(--ink-faint)!important;
+  opacity:1;
+}
+
+:is(.auth-layout,.anonymous-assessment,.policy-page,.assessment-intro,.ref-shell,.role-shell)
   select option{
   background-color:var(--surface)!important;
   color:var(--ink)!important;
