@@ -153,7 +153,7 @@ describe('AssessmentFlow', () => {
 
     await userEvent.click(screen.getByRole('radio', { name: 'Vài ngày' }))
     await userEvent.click(screen.getByRole('checkbox', { name: /tôi đồng ý/i }))
-    await userEvent.click(screen.getByRole('button', { name: 'Xem kết quả' }))
+    await userEvent.click(screen.getByRole('button', { name: /Xem kết quả/ }))
 
     await screen.findByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' })
     expect(screen.getByText('1')).toBeVisible()
@@ -268,7 +268,7 @@ describe('AssessmentFlow', () => {
       screen.getByRole('radio', { name: 'Gần như mỗi ngày' }),
     )
     await userEvent.click(screen.getByRole('checkbox', { name: /tôi đồng ý/i }))
-    await userEvent.click(screen.getByRole('button', { name: 'Xem kết quả' }))
+    await userEvent.click(screen.getByRole('button', { name: /Xem kết quả/ }))
 
     await screen.findByRole('heading', { name: 'Kết quả sàng lọc GAD-7' })
     expect(screen.getByText('/ 21 điểm')).toBeVisible()

@@ -85,7 +85,9 @@ export default function ResourcesList({
         if (category) params.set('category', category)
         params.set('limit', limit.toString())
 
-        const response = await fetch(`/api/resources?${params.toString()}`, {
+        const endpoint = new URL('/api/resources', window.location.origin)
+        endpoint.search = params.toString()
+        const response = await fetch(endpoint, {
           method: 'GET',
           headers: { Accept: 'application/json' },
           signal: controller.signal,

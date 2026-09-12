@@ -2,12 +2,10 @@ import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { GET } from '@/app/api/resources/route'
-import { mockServer } from '@/tests/mocks/server'
-
 process.env.CONTENT_SERVICE_URL = 'http://localhost:3003'
 
 const mockFetch = vi.fn()
-global.fetch = mockFetch
+let interceptedFetch: typeof globalThis.fetch
 
 const publishedResource = {
   id: '123e4567-e89b-42d3-a456-426614174000',
@@ -40,11 +38,12 @@ function request(query = '', acceptLanguage?: string) {
 describe('GET /api/resources', () => {
   beforeEach(() => {
     mockFetch.mockReset()
-    mockServer.close()
+    interceptedFetch = globalThis.fetch
+    globalThis.fetch = mockFetch
   })
 
   afterEach(() => {
-    mockServer.listen({ onUnhandledRequest: 'error' })
+    globalThis.fetch = interceptedFetch
   })
 
   it('returns only reviewed PUBLISHED resources', async () => {

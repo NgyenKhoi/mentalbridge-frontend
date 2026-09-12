@@ -1115,9 +1115,19 @@ const server = createServer(async (request, response) => {
       const session = anonymousCareSessions.get(sessionId)
       if (
         !session ||
+        Date.parse(session.expiresAt) <= careNow.getTime() ||
         request.headers['x-anonymous-session-token'] !== session.sessionToken
       ) {
-        problem(response, 401, 'INVALID_ANONYMOUS_SESSION', 'Invalid session')
+        problem(
+          response,
+          Date.parse(session?.expiresAt ?? '') <= careNow.getTime() ? 410 : 401,
+          Date.parse(session?.expiresAt ?? '') <= careNow.getTime()
+            ? 'ANONYMOUS_SESSION_EXPIRED'
+            : 'INVALID_ANONYMOUS_SESSION',
+          Date.parse(session?.expiresAt ?? '') <= careNow.getTime()
+            ? 'Anonymous session expired'
+            : 'Invalid session',
+        )
         return
       }
       const body = await readBody(request)
@@ -1152,9 +1162,19 @@ const server = createServer(async (request, response) => {
       )
       if (
         !session ||
+        Date.parse(session.expiresAt) <= careNow.getTime() ||
         request.headers['x-anonymous-session-token'] !== session.sessionToken
       ) {
-        problem(response, 401, 'INVALID_ANONYMOUS_SESSION', 'Invalid session')
+        problem(
+          response,
+          Date.parse(session?.expiresAt ?? '') <= careNow.getTime() ? 410 : 401,
+          Date.parse(session?.expiresAt ?? '') <= careNow.getTime()
+            ? 'ANONYMOUS_SESSION_EXPIRED'
+            : 'INVALID_ANONYMOUS_SESSION',
+          Date.parse(session?.expiresAt ?? '') <= careNow.getTime()
+            ? 'Anonymous session expired'
+            : 'Invalid session',
+        )
         return
       }
       if (!assessment) {
@@ -1241,6 +1261,9 @@ const server = createServer(async (request, response) => {
       const existing = careProfiles.get(actor.accountId)
       const profile = {
         accountId: actor.accountId,
+        locale: existing?.locale ?? 'vi-VN',
+        timezone: existing?.timezone ?? 'Asia/Ho_Chi_Minh',
+        reminderEnabled: existing?.reminderEnabled ?? false,
         ...body,
         locale: body.locale ?? existing?.locale ?? 'vi-VN',
         timezone: body.timezone ?? existing?.timezone ?? 'Asia/Ho_Chi_Minh',
@@ -1257,12 +1280,25 @@ const server = createServer(async (request, response) => {
 
     if (
       request.method === 'POST' &&
+      url.pathname === '/__test/care/anonymous-expire'
+    ) {
+      for (const session of anonymousCareSessions.values()) {
+        session.expiresAt = new Date(careNow.getTime() - 1).toISOString()
+      }
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
       url.pathname === '/__test/care/clock/advance'
     ) {
       if (!accessSessions.has(bearerToken(request))) {
         problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
         return
       }
+
       if (url.searchParams.get('duration') !== 'PT1H') {
         problem(response, 400, 'VALIDATION_FAILED', 'Unsupported duration')
         return

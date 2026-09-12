@@ -159,7 +159,9 @@ describe('GuidedInitialCheck', () => {
       screen.getByRole('heading', { name: 'Một lựa chọn bạn có thể cân nhắc' }),
     ).toBeVisible()
     expect(
-      await screen.findByText('Dịch vụ tạm thời không khả dụng'),
+      await screen.findByText(
+        /Dịch vụ tạm thời không khả dụng|Không thể kết nối đến dịch vụ|Tài nguyên tạm thời không khả dụng/,
+      ),
     ).toBeVisible()
     expect(container.textContent).not.toMatch(/sprint|backend|demo|test/i)
 

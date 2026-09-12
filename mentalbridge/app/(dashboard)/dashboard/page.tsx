@@ -231,7 +231,7 @@ export default function DashboardPage() {
             <h2>Kết quả sàng lọc</h2>
             <i aria-hidden="true">✓</i>
           </header>
-          <p>Chưa có kết quả sàng lọc trong phiên này</p>
+          <p>Chưa có kết quả Care trong phiên này</p>
           <Link href="/assessment/phq9">Làm PHQ-9 →</Link>
         </article>
         <PlanGate

@@ -29,7 +29,6 @@ export const config = {
     '/specialists/:path*',
     '/appointments/:path*',
     '/messages/:path*',
-    '/resources/:path*',
     '/analytics/:path*',
     '/subscription/:path*',
     '/notifications/:path*',

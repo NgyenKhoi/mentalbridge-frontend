@@ -57,6 +57,25 @@ npm run test:e2e
 npm run start
 ```
 
+### Sprint 2 Playwright journeys
+
+The E2E command starts a deterministic local Identity/Care/Content fixture and a
+production-mode Next.js server automatically. Install Chromium once, then run
+all journeys or the focused Care journeys:
+
+```powershell
+npm run test:e2e:install
+npm run test:e2e
+npm run test:e2e -- tests/e2e/care-assessment.spec.ts
+```
+
+The fixture uses synthetic identities, profiles, consent decisions, PHQ-9
+answers, and reviewed resources only. It never connects to production services.
+On a failed E2E test, the Playwright result retains a
+`correlation-evidence.json` attachment containing only bounded
+`X-Correlation-Id` values; cookies, bearer tokens, request bodies, and response
+content are not attached.
+
 The only documented environment variable is server-only:
 
 ```text
@@ -89,6 +108,11 @@ eligibility. `/reset-password` removes the recovery challenge from browser
 history before use, while authenticated password changes require a same-origin
 request. Successful reset/change clears the local session and returns the user
 to a fresh login because Identity revokes every refresh session for the account.
+
+`/resources` is public so an anonymous PHQ-9 journey can continue to reviewed
+self-help material. It loads only published, reviewed entries through the
+same-origin Content BFF and shows a neutral unavailable state instead of local
+or production mock content when Content cannot confirm the catalogue.
 
 ## Project guidance
 

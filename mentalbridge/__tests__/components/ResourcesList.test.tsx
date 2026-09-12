@@ -1,9 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { HttpResponse, http } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import ResourcesList from '@/components/ResourcesList'
-import { mockServer } from '@/tests/mocks/server'
 
 const resource = {
   id: '123e4567-e89b-42d3-a456-426614174000',
@@ -19,18 +17,21 @@ const resource = {
 } as const
 
 function respond(body: Record<string, unknown>, status = 200) {
-  mockServer.use(
-    http.get('/api/resources', () => HttpResponse.json(body, { status })),
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    }),
   )
 }
 
 describe('ResourcesList', () => {
-  beforeEach(() => {
-    mockServer.resetHandlers()
-  })
+  afterEach(() => vi.restoreAllMocks())
 
   it('announces the loading state and keeps future scope explicit', () => {
-    mockServer.use(http.get('/api/resources', () => new Promise(() => {})))
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise(() => {}),
+    )
 
     render(<ResourcesList category="ARTICLE" limit={6} />)
 
@@ -113,7 +114,9 @@ describe('ResourcesList', () => {
   })
 
   it('shows a safe fallback when the browser request fails', async () => {
-    mockServer.use(http.get('/api/resources', () => HttpResponse.error()))
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new TypeError('Network error'),
+    )
 
     render(<ResourcesList />)
 
@@ -158,18 +161,21 @@ describe('ResourcesList', () => {
 
   it('refetches when filters change and aborts the superseded request', async () => {
     let firstSignal: AbortSignal | undefined
-    mockServer.use(
-      http.get('/api/resources', ({ request }) => {
-        if (new URL(request.url).searchParams.get('category') === 'ARTICLE') {
-          firstSignal = request.signal
-          return new Promise(() => {})
-        }
-        return HttpResponse.json({
-          items: [{ ...resource, category: 'VIDEO', title: 'Video hỗ trợ' }],
-          hasMore: false,
-        })
-      }),
-    )
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      if (new URL(String(input)).searchParams.get('category') === 'ARTICLE') {
+        firstSignal = init?.signal ?? undefined
+        return new Promise(() => {})
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            items: [{ ...resource, category: 'VIDEO', title: 'Video hỗ trợ' }],
+            hasMore: false,
+          }),
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+    })
 
     const { rerender } = render(<ResourcesList category="ARTICLE" />)
     await waitFor(() => expect(firstSignal).toBeDefined())

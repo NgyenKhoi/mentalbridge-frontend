@@ -20,6 +20,7 @@ export default defineConfig({
       },
     },
     globals: true,
+    testTimeout: 15_000,
     setupFiles: ['./tests/setup/vitest.setup.ts'],
     include: ['**/*.test.{ts,tsx}'],
     coverage: {

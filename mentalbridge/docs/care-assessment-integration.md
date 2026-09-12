@@ -51,10 +51,10 @@ as explicitly not applicable, with no fabricated policy or negative item-9
 result.
 
 Care currently returns score/band/safety provenance but no approved support
-resource catalogue. The result page therefore shows an explicit unavailable
-message and does not infer urgency, promise monitoring, notify a third party,
-or display a hotline. It also states explicitly that MentalBridge does not
-provide emergency response or continuous human monitoring.
+resource catalogue of its own. The result page retrieves only reviewed,
+published resources through the bounded Content BFF. Empty, unavailable,
+timeout, rejected, and malformed provider states remain explicit and do not
+invent urgency, monitoring, third-party notification, or emergency dispatch.
 
 ## MB-178 profile, consent, history, and reassessment
 
@@ -105,8 +105,13 @@ provide emergency response or continuous human monitoring.
 - component tests cover Care-owned results, profile/consent, history/reopen,
   descriptive progress and every explicit progress failure state;
 - Playwright covers completion and result reopening for anonymous and
-  authenticated USER flows, including authenticated progress and
-  cookie/client-storage checks.
+  authenticated USER flows, including reviewed-resource behavior,
+  authenticated progress, and cookie/client-storage checks.
+
+Every browser suite uses the shared failure fixture. A failed test attaches up
+to 20 bounded `X-Correlation-Id` values as `correlation-evidence.json`; cookies,
+bearer credentials, request bodies, response bodies, and personal or clinical
+data are not retained.
 
 ### Managed local MB-205 journey
 
@@ -130,8 +135,8 @@ advance a mutable UTC clock and inject one-shot timeout, 503 and malformed
 progress responses. The same journey covers insufficient, incompatible,
 voided, forged/cross-owner and authoritative-result visibility behavior.
 
-The frontend quality workflow sets `CARE_E2E_MODE=fixture` and exercises the
-deterministic browser cases against the contract-shaped synthetic Care fixture
+The frontend quality workflow sets `E2E_RUNTIME=fixture` and exercises the
+deterministic browser cases against the contract-shaped synthetic cross-stack fixture
 already used by the repository's smoke suite. This keeps pull-request CI
 independent of credentials for the private backend repository. The synthetic
 fixture omits the socket-timing timeout injection to avoid open-handle behavior;

@@ -67,7 +67,7 @@ describe('Care profile page', () => {
     expect(screen.getByTestId('password-change-form')).toBeInTheDocument()
     expect(screen.getByText('Nội dung authoritative từ Care.')).toBeVisible()
     expect(screen.queryByText(/ThS\.|specialist/i)).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Tôi đồng ý' }))
+    await userEvent.click(screen.getByRole('button', { name: /Tôi đồng ý/ }))
     expect(decision).toHaveBeenCalledWith({
       consentType: 'PRIVACY_POLICY',
       policyVersion: 'privacy-capstone-v3',

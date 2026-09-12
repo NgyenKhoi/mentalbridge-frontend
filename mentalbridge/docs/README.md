@@ -18,6 +18,7 @@ Story-specific delivery evidence:
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
 - [MB-177/MB-178/MB-205 Care-backed screening, profile, consent, history, and progress integration](care-assessment-integration.md)
 - [MB-273 initial-check release evidence](initial-check-release-evidence.md)
+- [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
 [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md). The current design language is
@@ -40,6 +41,7 @@ documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
 | Care-backed anonymous and USER PHQ-9 screening       | Implemented | MB-177         |
 | Care profile, privacy consent, history, reassessment | Implemented | MB-178         |
 | Authenticated descriptive assessment progress        | Implemented | MB-205         |
+| Reviewed resource retrieval and safe fallback        | Implemented | Sprint 2       |
 | GAD-7 runtime and immutable questionnaire history    | Implemented | Story 1102     |
 | Guided initial check and unified support result      | Implemented | MB-272         |
 

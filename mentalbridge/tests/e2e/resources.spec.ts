@@ -1,9 +1,11 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test'
+import { expect, type BrowserContext, type Page } from '@playwright/test'
+
+import { test } from './test-fixtures'
 
 test.describe('Resources journey', () => {
   test.skip(
-    Boolean(process.env.PLAYWRIGHT_BASE_URL),
-    'Controlled Content and Care fixtures are available only with the managed local server.',
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'Fixture Content and Care journeys are not run against the live cross-stack environment.',
   )
 
   async function completeAssessment(page: Page, path: string) {

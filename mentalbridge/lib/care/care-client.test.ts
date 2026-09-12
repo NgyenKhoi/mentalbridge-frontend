@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 

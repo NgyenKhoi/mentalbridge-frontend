@@ -1,4 +1,6 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test'
+import { expect, type BrowserContext, type Page } from '@playwright/test'
+
+import { test } from './test-fixtures'
 
 const identityFixtureUrl = 'http://127.0.0.1:3201'
 const sessionCookieNames = new Set([
@@ -88,8 +90,8 @@ async function expectSessionCleared(context: BrowserContext) {
 
 test.describe('Identity session delivery', () => {
   test.skip(
-    Boolean(process.env.PLAYWRIGHT_BASE_URL),
-    'Controlled Identity fixtures are available only with the managed local server.',
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'Fixture E2E is not run against the live cross-stack environment.',
   )
   test.describe.configure({ mode: 'serial' })
 

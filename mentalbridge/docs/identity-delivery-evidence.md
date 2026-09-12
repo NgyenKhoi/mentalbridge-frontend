@@ -8,7 +8,7 @@
 | Parent delivery scope | Sprint 1 frontend Story 216 |
 | Status date | 2026-08-31 |
 | Target branch | `dev` |
-| Result | Implemented and locally verified |
+| Result | Implementation updated; verification must be rerun |
 
 MB-139 verifies the existing Identity frontend integration rather than creating a second authentication design. Identity remains the owner of accounts, roles, credentials, access and refresh lifecycle, and authorization facts. The frontend owns the same-origin BFF, secure cookie transport, role-derived navigation, sanitized UI errors, and browser delivery evidence.
 
@@ -46,16 +46,18 @@ Run from `mentalbridge/` in the isolated MB-139 worktree:
 
 | Command | Result |
 | --- | --- |
-| `npm ci` | Passed; 596 packages installed, 0 reported vulnerabilities |
-| `npm run format:check` | Passed |
-| `npm run lint` | Passed |
-| `npm run typecheck` | Passed; Next.js route types generated successfully |
-| `npm run contracts:check` | Passed; Identity snapshot and generated types are valid |
-| `npm run test:unit` | Passed; 17 files and 84 tests |
-| `npm run build` | Passed; production build generated 30 routes |
-| `npm run test:e2e` | Passed; 9 Chromium scenarios |
+| `npm ci` | Historical evidence; rerun in the current worktree before release |
+| `npm run format:check` | Must be rerun after the current E2E and Content gate changes |
+| `npm run lint` | Must be rerun after the current E2E and Content gate changes |
+| `npm run typecheck` | Must be rerun after the current E2E and Content gate changes |
+| `npm run contracts:check` | Must be rerun after the current E2E and Content gate changes |
+| `npm run test:unit` | Current run: 29 files and 159 tests |
+| `npm run build` | Must be rerun; the browser runner now starts `.next/standalone/mentalbridge/server.js` |
+| `npm run test:e2e` | Current run: 37 Chromium tests |
 
-The final `npm run ci` completed successfully before handoff. Exact counts above describe the current MB-139 worktree and must be updated if later changes add or remove tests.
+The table records verification obligations, not a claim that the current worktree
+has passed. Playwright's fixture command fails if any test is unexpectedly
+skipped; live cross-stack runs must opt in explicitly with `test:e2e:live`.
 
 ## External integration boundary
 

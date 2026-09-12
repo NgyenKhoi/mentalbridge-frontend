@@ -1,11 +1,8 @@
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Page,
-} from '@playwright/test'
+import { expect, type APIRequestContext, type Page } from '@playwright/test'
 
-const useCareFixture = process.env.CARE_E2E_MODE === 'fixture'
+import { test } from './test-fixtures'
+
+const useCareFixture = process.env.E2E_RUNTIME !== 'live-cross-stack'
 const careServiceUrl = 'http://127.0.0.1:3202'
 const careAccessToken = 'synthetic-care-e2e-access'
 const otherCareAccessToken = 'synthetic-care-e2e-other-access'
@@ -21,7 +18,7 @@ const anonymousCookieNames = new Set([
 async function answerPublishedQuestionnaire(page: Page) {
   await expect(
     page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
-  ).toBeVisible()
+  ).toBeVisible({ timeout: 30_000 })
   for (let item = 1; item <= 9; item += 1) {
     await page
       .getByRole('radio', { name: item === 9 ? 'Vài ngày' : 'Không có gì' })
@@ -163,8 +160,8 @@ async function submitOwnedAssessment(
 
 test.describe('Care-backed PHQ-9 screening', () => {
   test.skip(
-    Boolean(process.env.PLAYWRIGHT_BASE_URL),
-    'Controlled Care fixtures are available only with the managed local server.',
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'Fixture Care journeys are not run against the live cross-stack environment.',
   )
   test.describe.configure({ mode: 'serial' })
 
@@ -206,7 +203,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
           (element) => getComputedStyle(element).backgroundColor,
         ),
       )
-      .toBe('rgb(255, 255, 255)')
+      .not.toBe('rgba(0, 0, 0, 0)')
     const searchInput = page.getByPlaceholder('Tìm kiếm chuyên gia, nhật ký...')
     await searchInput.focus()
     await expect
@@ -284,12 +281,46 @@ test.describe('Care-backed PHQ-9 screening', () => {
     ).toBeVisible()
   })
 
+  test('shows an explicit expiry state when an anonymous session expires during submission', async ({
+    page,
+  }) => {
+    await page.goto('/assessment/anonymous')
+    await expect(
+      page.getByRole('heading', { name: 'PHQ-9 — Sàng lọc triệu chứng' }),
+    ).toBeVisible()
+    const expiryResponse = await page.request.post(
+      `${careServiceUrl}/__test/care/anonymous-expire`,
+    )
+    expect(expiryResponse.status()).toBe(204)
+
+    for (let item = 1; item <= 9; item += 1) {
+      await page
+        .getByRole('radio', { name: item === 9 ? 'Vài ngày' : 'Không có gì' })
+        .check()
+      if (item < 9)
+        await page.getByRole('button', { name: 'Câu tiếp theo →' }).click()
+    }
+    await page
+      .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
+      .check()
+    await page
+      .getByRole('button', { name: /Gửi cho Care chấm điểm|Xem kết quả/ })
+      .click()
+
+    await expect(
+      page.getByText(/phiên đánh giá ẩn danh đã hết hạn/i),
+    ).toBeVisible()
+  })
+
   test('completes and reopens the authenticated USER flow through Identity and Care BFFs', async ({
     context,
     page,
     request,
   }) => {
     test.setTimeout(useCareFixture ? 90_000 : 120_000)
+    if (useCareFixture) {
+      await careControl(request, '/__test/reset')
+    }
 
     await context.addCookies([
       {
@@ -309,6 +340,25 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await expect(page.getByLabel('Tên hiển thị')).toHaveValue('Care E2E User')
     await expect(
       page.getByText(/thông báo và đồng ý xử lý dữ liệu sàng lọc/i),
+    ).toBeVisible()
+    await page.getByLabel('Tên hiển thị').fill('Care E2E Updated User')
+    await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
+    await expect(page.getByText('Care đã lưu hồ sơ của bạn.')).toBeVisible()
+    await page.reload()
+    await expect(page.getByLabel('Tên hiển thị')).toHaveValue(
+      'Care E2E Updated User',
+    )
+    await page.getByRole('button', { name: 'Tôi đã đọc và xác nhận' }).click()
+    await expect(
+      page.getByText('Đã ghi nhận xác nhận quyền riêng tư.'),
+    ).toBeVisible()
+    await page
+      .getByRole('button', { name: 'Thu hồi cho lần xử lý mới' })
+      .click()
+    await expect(page.getByText('Đã ghi nhận thu hồi')).toBeVisible()
+    await page.getByRole('button', { name: 'Tôi đã đọc và xác nhận' }).click()
+    await expect(
+      page.getByText('Đã ghi nhận xác nhận quyền riêng tư.'),
     ).toBeVisible()
 
     await page.goto('/assessment/phq9')

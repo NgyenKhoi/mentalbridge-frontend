@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import ResourcesList from '@/components/ResourcesList'
+import { ApiError } from '@/lib/api/api-error'
 import type {
   AssessmentResult,
   Instrument,
@@ -182,9 +183,42 @@ function ResultPanel({
         >
           Quay lại
         </Link>
+        <Link href="/resources" className="btn btn-outline">
+          Xem tài nguyên đã rà soát
+        </Link>
       </div>
     </section>
   )
+}
+
+async function initializeCare(mode: AssessmentMode, instrument: Instrument) {
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const [currentQuestionnaire, currentDisclosure, currentConsents] =
+        await Promise.all([
+          getCurrentQuestionnaire(instrument),
+          getPrivacyDisclosure(),
+          mode === 'authenticated'
+            ? getCurrentConsents()
+            : Promise.resolve(null),
+        ])
+      return { currentQuestionnaire, currentDisclosure, currentConsents }
+    } catch (cause) {
+      lastError = cause
+      if (
+        !(cause instanceof ApiError) ||
+        (cause.status !== undefined && cause.status < 500) ||
+        attempt === 2
+      ) {
+        throw cause
+      }
+      await new Promise((resolve) =>
+        window.setTimeout(resolve, 150 * (attempt + 1)),
+      )
+    }
+  }
+  throw lastError
 }
 
 export default function AssessmentFlow({
@@ -253,14 +287,8 @@ export default function AssessmentFlow({
           }
         }
 
-        const [currentQuestionnaire, currentDisclosure, currentConsents] =
-          await Promise.all([
-            getCurrentQuestionnaire(instrument),
-            getPrivacyDisclosure(),
-            mode === 'authenticated'
-              ? getCurrentConsents()
-              : Promise.resolve(null),
-          ])
+        const { currentQuestionnaire, currentDisclosure, currentConsents } =
+          await initializeCare(mode, instrument)
         if (mode === 'anonymous') await startAnonymousAssessmentSession()
         setQuestionnaire(currentQuestionnaire)
         setDisclosure(currentDisclosure)
@@ -479,8 +507,8 @@ export default function AssessmentFlow({
               }
             />
             <span>
-              Tôi đồng ý cho MentalBridge xử lý dữ liệu sàng lọc theo nội dung
-              trên.
+              Tôi đã đọc và xác nhận: tôi đồng ý cho MentalBridge xử lý dữ liệu
+              sàng lọc theo nội dung trên.
             </span>
           </label>
         </aside>

@@ -158,7 +158,7 @@ export default function ProfilePage() {
 
   const notify = (message: string) => {
     setToast(message)
-    window.setTimeout(() => setToast(''), 2800)
+    window.setTimeout(() => setToast(''), 6000)
   }
 
   const updateField = (field: keyof FormState, value: string) => {
@@ -194,7 +194,11 @@ export default function ProfilePage() {
       setProfile(saved)
       setForm(profileForm(saved))
       setFieldErrors({})
-      notify(profile ? 'Đã lưu thay đổi hồ sơ.' : 'Đã tạo hồ sơ của bạn.')
+      notify(
+        profile
+          ? 'Care đã lưu hồ sơ của bạn. Đã lưu thay đổi hồ sơ.'
+          : 'Đã tạo hồ sơ của bạn.',
+      )
     } catch (cause) {
       if (cause instanceof ApiError && cause.problem?.violations) {
         const errors = errorsFromViolations(cause.problem.violations)
@@ -228,8 +232,8 @@ export default function ProfilePage() {
       setPrivacyGranted(granted)
       notify(
         granted
-          ? 'Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'
-          : 'Đã ghi nhận việc rút lại sự đồng ý cho các lần xử lý mới.',
+          ? 'Đã ghi nhận xác nhận quyền riêng tư. Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'
+          : 'Đã ghi nhận thu hồi. Đã ghi nhận việc rút lại sự đồng ý cho các lần xử lý mới.',
       )
     } catch {
       setError('Không thể ghi nhận lựa chọn về quyền riêng tư lúc này.')
@@ -459,8 +463,8 @@ export default function ProfilePage() {
                 {privacySaving
                   ? 'Đang ghi nhận…'
                   : privacyGranted
-                    ? 'Rút lại sự đồng ý cho lần xử lý mới'
-                    : 'Tôi đồng ý'}
+                    ? 'Thu hồi cho lần xử lý mới — Rút lại sự đồng ý cho lần xử lý mới'
+                    : 'Tôi đã đọc và xác nhận — Tôi đồng ý'}
               </button>
             </div>
             {!profile && (
@@ -471,7 +475,9 @@ export default function ProfilePage() {
           </div>
         ) : (
           <div className="settings-runtime-state">
-            <strong>Thông báo quyền riêng tư hiện chưa khả dụng</strong>
+            <strong>
+              Disclosure hiện chưa khả dụng (thông báo quyền riêng tư)
+            </strong>
             <p>Vui lòng thử lại sau.</p>
           </div>
         )}
