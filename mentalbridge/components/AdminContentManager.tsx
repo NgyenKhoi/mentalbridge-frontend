@@ -53,10 +53,24 @@ function formatDate(dateString: string | null): string {
 }
 
 function toDateTimeInput(value: string | null | undefined) {
-  return value ? new Date(value).toISOString().slice(0, 16) : ''
+  if (!value) return ''
+
+  const instant = new Date(value)
+  if (!Number.isFinite(instant.getTime())) return ''
+
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${instant.getFullYear()}-${pad(instant.getMonth() + 1)}-${pad(
+    instant.getDate(),
+  )}T${pad(instant.getHours())}:${pad(instant.getMinutes())}`
 }
 
-function toIsoOrNull(value: string) {
+function toIsoOrNull(
+  value: string,
+  originalValue?: string | null,
+): string | null {
+  if (originalValue && value === toDateTimeInput(originalValue)) {
+    return originalValue
+  }
   return value ? new Date(value).toISOString() : null
 }
 
@@ -75,7 +89,6 @@ function mutationMessage(error: unknown, fallback: string) {
   return fallback
 }
 
-// Tách phần edit ra component riêng để dùng key reset state đúng cách
 function ResourceEditor({
   resource,
   detail,
@@ -95,7 +108,6 @@ function ResourceEditor({
   deletePending: boolean
   updatePending: boolean
 }) {
-  // State khởi tạo từ server data - hợp lệ vì dùng key để reset
   const [editTitle, setEditTitle] = useState(detail.title)
   const [editSummary, setEditSummary] = useState(detail.summary)
   const [editLocale, setEditLocale] = useState(detail.locale)
@@ -288,8 +300,11 @@ function ResourceEditor({
                       locale: editLocale,
                       contentBody: editBody || null,
                       externalUrl: editUrl || null,
-                      effectiveAt: toIsoOrNull(editEffectiveAt),
-                      expiresAt: toIsoOrNull(editExpiresAt),
+                      effectiveAt: toIsoOrNull(
+                        editEffectiveAt,
+                        detail.effectiveAt,
+                      ),
+                      expiresAt: toIsoOrNull(editExpiresAt, detail.expiresAt),
                     })
                   }
                   disabled={updatePending || (!editBody && !editUrl)}
@@ -330,6 +345,7 @@ export default function AdminContentManager({
   const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [reconcilingId, setReconcilingId] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const createAttempt = useRef<{ fingerprint: string; key: string } | null>(
     null,
@@ -456,12 +472,25 @@ export default function AdminContentManager({
       })
       onNotice('Đã cập nhật tài nguyên thành công')
     },
-    onError: (mutationError) => {
+    onError: async (mutationError, variables) => {
       onNotice(mutationMessage(mutationError, 'Không thể cập nhật tài nguyên'))
-      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
-      queryClient.invalidateQueries({
-        queryKey: ['admin', 'resources', activeId],
-      })
+      const isConflict = toApiError(mutationError).status === 409
+      if (isConflict) setReconcilingId(variables.id)
+
+      try {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] }),
+          queryClient.invalidateQueries({
+            queryKey: ['admin', 'resources', variables.id],
+          }),
+        ])
+      } finally {
+        if (isConflict) {
+          setReconcilingId((current) =>
+            current === variables.id ? null : current,
+          )
+        }
+      }
     },
   })
 
@@ -799,12 +828,18 @@ export default function AdminContentManager({
               </button>
             </div>
           )}
+          {selectedResource && reconcilingId === selectedResource.id && (
+            <p role="status">
+              Tài nguyên đã được thay đổi ở nơi khác. Đang tải phiên bản mới
+              nhất...
+            </p>
+          )}
           {selectedResource &&
             detailData &&
-            typeof detailData.version === 'number' && (
-              // key = detail.id đảm bảo ResourceEditor reset state khi chuyển resource
+            typeof detailData.version === 'number' &&
+            reconcilingId !== selectedResource.id && (
               <ResourceEditor
-                key={detailData.id}
+                key={`${detailData.id}:${detailData.version}`}
                 resource={selectedResource}
                 detail={detailData}
                 onArchive={() =>

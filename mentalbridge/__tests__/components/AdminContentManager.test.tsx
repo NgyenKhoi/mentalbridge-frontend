@@ -377,6 +377,124 @@ describe('AdminContentManager', () => {
     })
   })
 
+  it('preserves instants when unchanged datetime-local fields round-trip in Asia/Bangkok', async () => {
+    const originalTimezone = process.env.TZ
+    process.env.TZ = 'Asia/Bangkok'
+    const effectiveAt = '2026-09-12T00:00:00.000Z'
+    const expiresAt = '2026-09-13T00:00:00.000Z'
+    let requestBody: Record<string, unknown> | null = null
+
+    mockServer.use(
+      http.get('/api/admin/resources/:id', () =>
+        HttpResponse.json({
+          ...mockResourceDetail,
+          effectiveAt,
+          expiresAt,
+        }),
+      ),
+      http.patch('/api/admin/resources/:id', async ({ request }) => {
+        requestBody = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({ ...mockResourceDetail, version: 1 })
+      }),
+    )
+
+    try {
+      render(
+        <TestWrapper>
+          <AdminContentManager onNotice={mockOnNotice} />
+        </TestWrapper>,
+      )
+
+      await screen.findByDisplayValue('Draft Article')
+      expect(screen.getByLabelText('Hiệu lực từ')).toHaveValue(
+        '2026-09-12T07:00',
+      )
+      expect(screen.getByLabelText('Hết hiệu lực')).toHaveValue(
+        '2026-09-13T07:00',
+      )
+
+      const titleInput = screen.getByDisplayValue('Draft Article')
+      await userEvent.clear(titleInput)
+      await userEvent.type(titleInput, 'Updated without moving dates')
+      await userEvent.click(screen.getByText('Lưu thay đổi'))
+
+      await waitFor(() => expect(requestBody).not.toBeNull())
+      expect(requestBody).toMatchObject({ effectiveAt, expiresAt })
+    } finally {
+      process.env.TZ = originalTimezone
+    }
+  })
+
+  it('reconciles a stale editor with the latest version before a second update', async () => {
+    const patchVersions: string[] = []
+    const patchBodies: Record<string, unknown>[] = []
+    let detailReads = 0
+
+    mockServer.use(
+      http.get('/api/admin/resources/:id', () => {
+        detailReads += 1
+        if (detailReads === 1) return HttpResponse.json(mockResourceDetail)
+        return HttpResponse.json({
+          ...mockResourceDetail,
+          title: 'Other admin title',
+          summary: 'Other admin summary',
+          version: 1,
+        })
+      }),
+      http.patch('/api/admin/resources/:id', async ({ request }) => {
+        patchVersions.push(
+          new URL(request.url).searchParams.get('version') ?? '',
+        )
+        patchBodies.push((await request.json()) as Record<string, unknown>)
+        if (patchVersions.length === 1) {
+          return HttpResponse.json(
+            {
+              type: 'https://mentalbridge.io/errors/INVALID_STATE_TRANSITION',
+              title: 'Resource version conflict',
+              status: 409,
+              code: 'INVALID_STATE_TRANSITION',
+              correlationId: '223e4567-e89b-42d3-a456-426614174000',
+            },
+            { status: 409 },
+          )
+        }
+        return HttpResponse.json({
+          ...mockResourceDetail,
+          ...patchBodies.at(-1),
+          version: 2,
+        })
+      }),
+    )
+
+    render(
+      <TestWrapper>
+        <AdminContentManager onNotice={mockOnNotice} />
+      </TestWrapper>,
+    )
+
+    const firstTitle = await screen.findByDisplayValue('Draft Article')
+    await userEvent.clear(firstTitle)
+    await userEvent.type(firstTitle, 'Stale admin title')
+    await userEvent.click(screen.getByText('Lưu thay đổi'))
+
+    const latestTitle = await screen.findByDisplayValue('Other admin title')
+    expect(
+      screen.queryByDisplayValue('Stale admin title'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByDisplayValue('Other admin summary')).toBeInTheDocument()
+    expect(screen.getByText('v1')).toBeInTheDocument()
+
+    await userEvent.clear(latestTitle)
+    await userEvent.type(latestTitle, 'Reconciled title')
+    await userEvent.click(screen.getByText('Lưu thay đổi'))
+
+    await waitFor(() => expect(patchVersions).toEqual(['0', '1']))
+    expect(patchBodies[1]).toMatchObject({
+      title: 'Reconciled title',
+      summary: 'Other admin summary',
+    })
+  })
+
   it('keeps publish disabled until the review authority is approved', async () => {
     const publishRequest = vi.fn()
     mockServer.use(

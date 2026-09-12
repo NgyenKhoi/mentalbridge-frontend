@@ -27,6 +27,7 @@ test.describe('ADMIN to USER resource boundary', () => {
     Boolean(process.env.PLAYWRIGHT_BASE_URL),
     'The controlled Content fixture is available only with the managed local server.',
   )
+  test.describe.configure({ mode: 'serial' })
 
   test.beforeEach(async ({ request }) => {
     const response = await request.post(`${fixtureUrl}/__test/reset`)

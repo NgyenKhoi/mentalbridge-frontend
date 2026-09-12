@@ -5,6 +5,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`
 const identityFixtureURL = 'http://127.0.0.1:3201'
 const useCareFixture = process.env.CARE_E2E_MODE === 'fixture'
 const isLiveInitialCheck = process.env.MB273_E2E_MODE === 'live'
+const usesManagedServers = !process.env.PLAYWRIGHT_BASE_URL
 const careServiceURL = 'http://127.0.0.1:3202'
 const browserChannel =
   process.env.PLAYWRIGHT_BROWSER_CHANNEL === 'chrome' ? 'chrome' : undefined
@@ -21,7 +22,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI || usesManagedServers ? 1 : undefined,
   reporter: process.env.CI ? 'line' : 'html',
   use: {
     baseURL,

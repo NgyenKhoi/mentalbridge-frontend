@@ -46,6 +46,18 @@ function nullableHttpUrl(value: unknown): value is string | null {
   }
 }
 
+function optionalNullableDateTime(value: unknown): boolean {
+  return value === undefined || nullableDateTime(value)
+}
+
+function optionalNullableHttpUrl(value: unknown): boolean {
+  return value === undefined || nullableHttpUrl(value)
+}
+
+function optionalDateTime(value: unknown): boolean {
+  return value === undefined || dateTime(value)
+}
+
 export function isResourceId(value: string): boolean {
   return UUID.test(value)
 }
@@ -70,12 +82,12 @@ export function parseResourceSummary(value: unknown): ResourceSummary | null {
     !LOCALE.test(item.locale) ||
     typeof item.title !== 'string' ||
     typeof item.summary !== 'string' ||
-    !nullableHttpUrl(item.externalUrl) ||
+    !optionalNullableHttpUrl(item.externalUrl) ||
     typeof item.status !== 'string' ||
     !STATUSES.has(item.status) ||
-    !nullableDateTime(item.reviewedAt) ||
+    !optionalNullableDateTime(item.reviewedAt) ||
     !dateTime(item.createdAt) ||
-    !dateTime(item.updatedAt)
+    !optionalDateTime(item.updatedAt)
   ) {
     return null
   }
