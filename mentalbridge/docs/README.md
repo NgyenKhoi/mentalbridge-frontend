@@ -43,7 +43,7 @@ documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
 | Authenticated descriptive assessment progress        | Implemented | MB-205         |
 | Reviewed resource retrieval and safe fallback        | Implemented | Sprint 2       |
 | GAD-7 runtime and immutable questionnaire history    | Implemented | Story 1102     |
-| Guided initial check and unified support result     | Implemented | MB-272         |
+| Guided initial check and unified support result      | Implemented | MB-272         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then
