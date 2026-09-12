@@ -57,11 +57,15 @@ try {
 }
 
 const playwrightCli = resolve('node_modules', '@playwright', 'test', 'cli.js')
-const child = spawn(process.execPath, [playwrightCli, 'test', ...process.argv.slice(2)], {
-  env: { ...process.env, E2E_RUNTIME: 'live-cross-stack' },
-  stdio: 'inherit',
-  windowsHide: true,
-})
+const child = spawn(
+  process.execPath,
+  [playwrightCli, 'test', ...process.argv.slice(2)],
+  {
+    env: { ...process.env, E2E_RUNTIME: 'live-cross-stack' },
+    stdio: 'inherit',
+    windowsHide: true,
+  },
+)
 
 child.once('error', (error) => {
   console.error(`[live-cross-stack-e2e] ${error.message}`)

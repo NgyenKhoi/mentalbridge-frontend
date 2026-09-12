@@ -12,21 +12,30 @@ const contentControlUrl = process.env.E2E_CONTENT_CONTROL_URL
 const contentTestSecret = process.env.E2E_CONTENT_TEST_SECRET
 const execFileAsync = promisify(execFile)
 const controlledDocker = process.env.E2E_CONTROL_DOCKER === 'true'
-const backendDirectory = resolve(process.cwd(), '..', '..', 'mentalbridge-backend')
+const backendDirectory = resolve(
+  process.cwd(),
+  '..',
+  '..',
+  'mentalbridge-backend',
+)
 
 async function controlService(action: 'pause' | 'unpause', service: string) {
   if (!controlledDocker) throw new Error('E2E_CONTROL_DOCKER=true is required.')
-  await execFileAsync('docker', [
-    'compose',
-    '-f',
-    'docker-compose.local.yml',
-    '-f',
-    'docker-compose.e2e.yml',
-    '--env-file',
-    '.local/e2e.env',
-    action,
-    service,
-  ], { cwd: backendDirectory })
+  await execFileAsync(
+    'docker',
+    [
+      'compose',
+      '-f',
+      'docker-compose.local.yml',
+      '-f',
+      'docker-compose.e2e.yml',
+      '--env-file',
+      '.local/e2e.env',
+      action,
+      service,
+    ],
+    { cwd: backendDirectory },
+  )
 }
 
 test.skip(!isLive, 'Live cross-stack suite only runs with E2E_RUNTIME enabled.')
@@ -198,9 +207,7 @@ test('User A completes profile, consent, assessment, history, reassessment, and 
   await completePhq9(page)
   const afterReassessmentIds = await historyAssessmentIds(page)
   expect(
-    afterReassessmentIds.some(
-      (id) => !afterFirstAssessmentIds.includes(id),
-    ),
+    afterReassessmentIds.some((id) => !afterFirstAssessmentIds.includes(id)),
   ).toBe(true)
 })
 
@@ -241,7 +248,10 @@ test('User B cannot open User A Care result', async ({ browser, page }) => {
 })
 
 test('Identity outage shows an explicit login state', async ({ page }) => {
-  test.skip(!controlledDocker, 'Controlled Docker access is required for outage simulation.')
+  test.skip(
+    !controlledDocker,
+    'Controlled Docker access is required for outage simulation.',
+  )
   await controlService('pause', 'identity')
   try {
     await page.goto('/login')
@@ -249,7 +259,9 @@ test('Identity outage shows an explicit login state', async ({ page }) => {
     await page.getByLabel('Mật khẩu').fill(e2ePassword as string)
     await page.getByRole('button', { name: 'Đăng nhập' }).click()
     await expect(
-      page.getByText('Dịch vụ đăng nhập tạm thời chưa sẵn sàng.', { exact: false }),
+      page.getByText('Dịch vụ đăng nhập tạm thời chưa sẵn sàng.', {
+        exact: false,
+      }),
     ).toBeVisible({ timeout: 15_000 })
     await expect(page).toHaveURL(/\/login/)
   } finally {
@@ -258,20 +270,28 @@ test('Identity outage shows an explicit login state', async ({ page }) => {
 })
 
 test('Care outage shows an explicit assessment state', async ({ page }) => {
-  test.skip(!controlledDocker, 'Controlled Docker access is required for outage simulation.')
+  test.skip(
+    !controlledDocker,
+    'Controlled Docker access is required for outage simulation.',
+  )
   await login(page, userAEmail as string)
   await controlService('pause', 'care')
   try {
     await page.goto('/assessment/phq9')
     await expect(
-      page.getByText('Tính năng sàng lọc tạm thời chưa sẵn sàng.', { exact: false }),
+      page.getByText('Tính năng sàng lọc tạm thời chưa sẵn sàng.', {
+        exact: false,
+      }),
     ).toBeVisible({ timeout: 45_000 })
   } finally {
     await controlService('unpause', 'care')
   }
 })
 
-test('revoked session redirects safely without rendering protected data', async ({ context, page }) => {
+test('revoked session redirects safely without rendering protected data', async ({
+  context,
+  page,
+}) => {
   await login(page, userAEmail as string)
   const revokedRefreshCookie = (await context.cookies()).find(
     (cookie) => cookie.name === 'mentalbridge_refresh',
