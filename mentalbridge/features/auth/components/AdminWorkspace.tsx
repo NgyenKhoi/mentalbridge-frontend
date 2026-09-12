@@ -2,6 +2,7 @@ import Link from 'next/link'
 
 import SessionActions from './SessionActions'
 import WorkspaceSwitcher from './WorkspaceSwitcher'
+import AdminContentSection from './AdminContentSection'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -20,6 +21,10 @@ const SECTIONS = {
     label: 'Chuyên gia',
     description:
       'Khu vực xét duyệt chuyên gia. Không hiển thị hồ sơ giả hoặc dữ liệu cá nhân.',
+  },
+  content: {
+    label: 'Tài nguyên tự chăm sóc',
+    description: 'Quản lý tài nguyên qua Content service được bảo vệ.',
   },
   audit: {
     label: 'Nhật ký kiểm toán',
@@ -70,21 +75,29 @@ export default function AdminWorkspace({
       </aside>
 
       <main className={styles.main}>
-        <span className={styles.eyebrow}>Không gian quản trị được bảo vệ</span>
-        <h1>{active.label}</h1>
-        <p>{active.description}</p>
+        {section === 'content' ? (
+          <AdminContentSection />
+        ) : (
+          <>
+            <span className={styles.eyebrow}>
+              Không gian quản trị được bảo vệ
+            </span>
+            <h1>{active.label}</h1>
+            <p>{active.description}</p>
 
-        <section className={styles.empty} aria-label="Trạng thái tích hợp">
-          <span aria-hidden="true">✓</span>
-          <div>
-            <h2>Quyền ADMIN đã được xác minh</h2>
-            <p>
-              Trang khởi đầu không tải số liệu, tên, email hoặc nội dung nhạy
-              cảm giả. Chức năng quản trị chỉ xuất hiện khi có API và quyền
-              tương ứng.
-            </p>
-          </div>
-        </section>
+            <section className={styles.empty} aria-label="Trạng thái tích hợp">
+              <span aria-hidden="true">✓</span>
+              <div>
+                <h2>Quyền ADMIN đã được xác minh</h2>
+                <p>
+                  Trang khởi đầu không tải số liệu, tên, email hoặc nội dung
+                  nhạy cảm giả. Chức năng quản trị chỉ xuất hiện khi có API và
+                  quyền tương ứng.
+                </p>
+              </div>
+            </section>
+          </>
+        )}
       </main>
     </div>
   )

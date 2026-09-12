@@ -17,6 +17,11 @@ const contentResources = [
     externalUrl: 'https://example.com/reviewed-resource',
     status: 'PUBLISHED',
     reviewedAt: '2026-08-01T00:00:00Z',
+    contentBody: 'Published fixture body.',
+    reviewedBy: '10000000-0000-4000-8000-000000000006',
+    effectiveAt: null,
+    expiresAt: null,
+    version: 1,
     ...timestamps,
   },
   {
@@ -28,6 +33,11 @@ const contentResources = [
     externalUrl: null,
     status: 'DRAFT',
     reviewedAt: null,
+    contentBody: 'Draft fixture body.',
+    reviewedBy: null,
+    effectiveAt: null,
+    expiresAt: null,
+    version: 0,
     ...timestamps,
   },
   {
@@ -39,6 +49,11 @@ const contentResources = [
     externalUrl: null,
     status: 'ARCHIVED',
     reviewedAt: '2026-07-01T00:00:00Z',
+    contentBody: 'Archived fixture body.',
+    reviewedBy: '10000000-0000-4000-8000-000000000006',
+    effectiveAt: null,
+    expiresAt: null,
+    version: 2,
     ...timestamps,
   },
 ]
@@ -92,7 +107,18 @@ const actors = new Map([
       initialAccessExpired: false,
     },
   ],
+  [
+    'admin-resource-e2e@example.com',
+    {
+      accountId: '10000000-0000-4000-8000-000000000006',
+      roles: ['ADMIN'],
+      initialAccessExpired: false,
+    },
+  ],
 ])
+
+const initialContentResources = structuredClone(contentResources)
+const contentCreateByKey = new Map()
 
 const accessSessions = new Map()
 const refreshSessions = new Map()
@@ -149,6 +175,12 @@ function reset() {
   careConsents.clear()
   journalEntries.clear()
   journalCommands.clear()
+  contentCreateByKey.clear()
+  contentResources.splice(
+    0,
+    contentResources.length,
+    ...structuredClone(initialContentResources),
+  )
   accessSessions.set(careAccessToken, careActor)
   accessSessions.set(otherCareAccessToken, otherCareActor)
   accessSessions.set(resourceAccessToken, resourceActor)
@@ -537,8 +569,23 @@ const server = createServer(async (request, response) => {
         return
       }
       json(response, 200, {
-        data: contentResources,
-        count: contentResources.length,
+        data: contentResources
+          .filter((resource) => resource.status === 'PUBLISHED')
+          .map((resource) => ({
+            id: resource.id,
+            category: resource.category,
+            locale: resource.locale,
+            title: resource.title,
+            summary: resource.summary,
+            externalUrl: resource.externalUrl,
+            status: resource.status,
+            reviewedAt: resource.reviewedAt,
+            createdAt: resource.createdAt,
+            updatedAt: resource.updatedAt,
+          })),
+        count: contentResources.filter(
+          (resource) => resource.status === 'PUBLISHED',
+        ).length,
       })
       return
     }
@@ -552,6 +599,155 @@ const server = createServer(async (request, response) => {
       contentFault = mode === 'CLEAR' ? null : mode
       response.writeHead(204)
       response.end()
+      return
+    }
+
+    const contentActor = accessSessions.get(bearerToken(request))
+    const isContentAdmin = contentActor?.roles.includes('ADMIN')
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/resources/admin/list'
+    ) {
+      if (!isContentAdmin) {
+        problem(
+          response,
+          contentActor ? 403 : 401,
+          contentActor ? 'FORBIDDEN' : 'UNAUTHORIZED',
+          'Access denied',
+        )
+        return
+      }
+      const status = url.searchParams.get('status')
+      const data = status
+        ? contentResources.filter((resource) => resource.status === status)
+        : contentResources
+      json(response, 200, { data, count: data.length })
+      return
+    }
+
+    const adminDetail = url.pathname.match(
+      /^\/api\/v1\/resources\/admin\/([^/]+)$/,
+    )
+    if (request.method === 'GET' && adminDetail) {
+      if (!isContentAdmin) {
+        problem(
+          response,
+          contentActor ? 403 : 401,
+          contentActor ? 'FORBIDDEN' : 'UNAUTHORIZED',
+          'Access denied',
+        )
+        return
+      }
+      const resource = contentResources.find(({ id }) => id === adminDetail[1])
+      if (!resource)
+        problem(response, 404, 'RESOURCE_NOT_FOUND', 'Resource not found')
+      else json(response, 200, resource)
+      return
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/v1/resources') {
+      if (!isContentAdmin) {
+        problem(
+          response,
+          contentActor ? 403 : 401,
+          contentActor ? 'FORBIDDEN' : 'UNAUTHORIZED',
+          'Access denied',
+        )
+        return
+      }
+      const key = request.headers['idempotency-key']
+      const existing = contentCreateByKey.get(key)
+      if (existing) {
+        json(response, 201, existing)
+        return
+      }
+      const body = await readBody(request)
+      const resource = {
+        id: `30000000-0000-4000-8000-${String(contentResources.length + 1).padStart(12, '0')}`,
+        ...body,
+        locale: body.locale ?? 'vi-VN',
+        externalUrl: body.externalUrl ?? null,
+        contentBody: body.contentBody ?? null,
+        effectiveAt: body.effectiveAt ?? null,
+        expiresAt: body.expiresAt ?? null,
+        status: 'DRAFT',
+        reviewedAt: null,
+        reviewedBy: null,
+        version: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      contentResources.unshift(resource)
+      contentCreateByKey.set(key, resource)
+      json(response, 201, resource)
+      return
+    }
+
+    const resourceCommand = url.pathname.match(
+      /^\/api\/v1\/resources\/([^/]+)(?:\/(publish|archive))?$/,
+    )
+    if (
+      resourceCommand &&
+      ['PATCH', 'DELETE', 'POST'].includes(request.method ?? '')
+    ) {
+      if (!isContentAdmin) {
+        problem(
+          response,
+          contentActor ? 403 : 401,
+          contentActor ? 'FORBIDDEN' : 'UNAUTHORIZED',
+          'Access denied',
+        )
+        return
+      }
+      const index = contentResources.findIndex(
+        ({ id }) => id === resourceCommand[1],
+      )
+      const resource = contentResources[index]
+      if (!resource) {
+        problem(response, 409, 'INVALID_STATE_TRANSITION', 'Resource changed')
+        return
+      }
+      const version = Number(url.searchParams.get('version'))
+      if (version !== resource.version) {
+        problem(response, 409, 'INVALID_STATE_TRANSITION', 'Resource changed')
+        return
+      }
+      if (resourceCommand[2] === 'publish') {
+        problem(
+          response,
+          409,
+          'REVIEW_APPROVAL_REQUIRED',
+          'Review approval is required',
+        )
+        return
+      }
+      if (request.method === 'PATCH' && resource.status === 'DRAFT') {
+        Object.assign(resource, await readBody(request), {
+          version: resource.version + 1,
+          updatedAt: new Date().toISOString(),
+          reviewedAt: null,
+          reviewedBy: null,
+        })
+        json(response, 200, resource)
+        return
+      }
+      if (request.method === 'DELETE' && resource.status === 'DRAFT') {
+        contentResources.splice(index, 1)
+        response.writeHead(204)
+        response.end()
+        return
+      }
+      if (resourceCommand[2] === 'archive' && resource.status === 'PUBLISHED') {
+        Object.assign(resource, {
+          status: 'ARCHIVED',
+          version: resource.version + 1,
+          updatedAt: new Date().toISOString(),
+        })
+        json(response, 200, resource)
+        return
+      }
+      problem(response, 409, 'INVALID_STATE_TRANSITION', 'Resource changed')
       return
     }
 

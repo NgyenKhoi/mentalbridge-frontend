@@ -23,7 +23,10 @@ export class RequestBodyError extends Error {
   }
 }
 
-export async function readBoundedJson(request: Request): Promise<unknown> {
+export async function readBoundedJson(
+  request: Request,
+  maxBytes = MAX_AUTH_BODY_BYTES,
+): Promise<unknown> {
   const contentType = request.headers.get('content-type')?.toLowerCase() ?? ''
 
   if (!contentType.startsWith('application/json')) {
@@ -36,7 +39,7 @@ export async function readBoundedJson(request: Request): Promise<unknown> {
 
   const contentLength = Number(request.headers.get('content-length'))
 
-  if (Number.isFinite(contentLength) && contentLength > MAX_AUTH_BODY_BYTES) {
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new RequestBodyError(
       413,
       'PAYLOAD_TOO_LARGE',
@@ -46,7 +49,7 @@ export async function readBoundedJson(request: Request): Promise<unknown> {
 
   const text = await request.text()
 
-  if (new TextEncoder().encode(text).byteLength > MAX_AUTH_BODY_BYTES) {
+  if (new TextEncoder().encode(text).byteLength > maxBytes) {
     throw new RequestBodyError(
       413,
       'PAYLOAD_TOO_LARGE',
