@@ -25,7 +25,7 @@
 }
 
 .acm-modal-content {
-  background: var(--surface-primary);
+  background: var(--surface);
   border-radius: 12px;
   max-width: 600px;
   width: 100%;
@@ -39,7 +39,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem 2rem;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--line);
 }
 
 .acm-modal-content header h2 {
@@ -53,15 +53,15 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: var(--ink-soft);
   padding: 0.5rem;
   line-height: 1;
   border-radius: 4px;
 }
 
 .acm-modal-content header button:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
+  background: var(--surface-soft);
+  color: var(--ink);
 }
 
 .acm-modal-content form {
@@ -69,6 +69,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  background: var(--surface);
 }
 
 .acm-modal-content form label {
@@ -80,11 +81,11 @@
 .acm-modal-content form label > span {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--ink);
 }
 
 .acm-modal-content form label em {
-  color: var(--error);
+  color: var(--terracotta);
   font-style: normal;
 }
 
@@ -92,11 +93,11 @@
 .acm-modal-content form textarea,
 .acm-modal-content form select {
   padding: 0.75rem;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--line);
   border-radius: 6px;
   font-size: 1rem;
-  background: var(--surface-secondary);
-  color: var(--text-primary);
+  background: var(--surface-soft);
+  color: var(--ink);
   font-family: inherit;
 }
 
@@ -105,7 +106,7 @@
 .acm-modal-content form select:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-alpha);
+  box-shadow: 0 0 0 3px rgba(61, 122, 110, 0.16);
 }
 
 .acm-modal-content form textarea {
@@ -118,7 +119,7 @@
   gap: 1rem;
   justify-content: flex-end;
   padding-top: 1rem;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--line);
 }
 
 .acm-modal-content form footer button {
@@ -132,12 +133,12 @@
 
 .acm-modal-content form footer button[type='button'] {
   background: transparent;
-  border: 1px solid var(--border-default);
-  color: var(--text-primary);
+  border: 1px solid var(--line);
+  color: var(--ink);
 }
 
 .acm-modal-content form footer button[type='button']:hover {
-  background: var(--surface-hover);
+  background: var(--surface-soft);
 }
 
 .acm-modal-content form footer button.btn-primary,
@@ -149,7 +150,7 @@
 
 .acm-modal-content form footer button.btn-primary:hover,
 .acm-modal-content form footer button[type='submit']:hover {
-  background: var(--primary-hover);
+  background: var(--primary-strong);
 }
 
 .acm-modal-content form footer button:disabled {

@@ -55,6 +55,23 @@ test.describe('ADMIN to USER resource boundary', () => {
     await page.getByRole('button', { name: '+ Thêm tài nguyên' }).click()
     const dialog = page.getByRole('dialog', { name: 'Tạo tài nguyên mới' })
     await expect(dialog).toBeVisible()
+    await expect
+      .poll(() =>
+        dialog.evaluate((element) => {
+          const form = element.querySelector('form')
+          const input = element.querySelector('input')
+          return {
+            dialog: getComputedStyle(element).backgroundColor,
+            form: form ? getComputedStyle(form).backgroundColor : '',
+            input: input ? getComputedStyle(input).backgroundColor : '',
+          }
+        }),
+      )
+      .toEqual({
+        dialog: 'rgb(255, 255, 255)',
+        form: 'rgb(255, 255, 255)',
+        input: 'rgb(233, 239, 227)',
+      })
     await dialog.getByLabel(/Danh mục/).selectOption('ARTICLE')
     await dialog.getByLabel(/Tiêu đề/).fill('Private Journey Draft')
     await dialog.getByLabel(/Mô tả ngắn/).fill('Draft boundary evidence')
