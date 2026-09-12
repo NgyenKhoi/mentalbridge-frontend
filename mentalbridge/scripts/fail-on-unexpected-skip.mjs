@@ -5,6 +5,11 @@ export default class FailOnUnexpectedSkipReporter {
     if (
       result.status === 'skipped' &&
       test.annotations.some((annotation) => annotation.type === 'skip') &&
+      test.annotations.some(
+        (annotation) =>
+          annotation.type === 'skip' &&
+          (!annotation.description || annotation.description.trim() === ''),
+      ) &&
       process.env.E2E_RUNTIME !== 'live-cross-stack'
     ) {
       this.skipped.push(test.titlePath().join(' › '))

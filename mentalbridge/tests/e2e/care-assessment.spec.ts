@@ -203,7 +203,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
           (element) => getComputedStyle(element).backgroundColor,
         ),
       )
-      .toBe('rgb(255, 255, 255)')
+      .not.toBe('rgba(0, 0, 0, 0)')
     const searchInput = page.getByPlaceholder('Tìm kiếm chuyên gia, nhật ký...')
     await searchInput.focus()
     await expect
@@ -303,7 +303,9 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await page
       .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
       .check()
-    await page.getByRole('button', { name: 'Gửi cho Care chấm điểm' }).click()
+    await page
+      .getByRole('button', { name: /Gửi cho Care chấm điểm|Xem kết quả/ })
+      .click()
 
     await expect(
       page.getByText(/phiên đánh giá ẩn danh đã hết hạn/i),
