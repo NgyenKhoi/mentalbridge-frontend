@@ -2,7 +2,7 @@ import type { components } from '../../contracts/content.generated'
 import { browserApiClient } from './browser-client'
 
 export type ResourceSummary = components['schemas']['ResourceSummary']
-export type ResourceDetail = components['schemas']['ResourceDetail']
+export type ResourceDetail = components['schemas']['AdminResourceDetail']
 export type ResourceCategory = components['schemas']['ResourceCategory']
 export type ResourceStatus = components['schemas']['ResourceStatus']
 
@@ -13,13 +13,18 @@ export type CreateResourceRequest = {
   summary: string
   contentBody?: string | null
   externalUrl?: string | null
+  effectiveAt?: string | null
+  expiresAt?: string | null
 }
 
 export type UpdateResourceRequest = {
+  locale?: string
   title?: string
   summary?: string
   contentBody?: string | null
   externalUrl?: string | null
+  effectiveAt?: string | null
+  expiresAt?: string | null
 }
 
 export type PublishResourceRequest = {
@@ -50,6 +55,20 @@ export const adminResourcesApi = {
     return response.data
   },
 
+  async listAll(
+    params?: Omit<ListResourcesParams, 'cursor'>,
+  ): Promise<ResourceListResponse> {
+    const data: ResourceSummary[] = []
+    let cursor: string | undefined
+    for (let page = 0; page < 100; page += 1) {
+      const result = await this.list({ ...params, limit: 100, cursor })
+      data.push(...result.data)
+      if (!result.nextCursor) return { data, count: data.length }
+      cursor = result.nextCursor
+    }
+    throw new Error('Resource pagination exceeded the supported bound')
+  },
+
   async getById(id: string): Promise<ResourceDetail> {
     const response = await browserApiClient.get<ResourceDetail>(
       `/admin/resources/${id}`,
@@ -59,14 +78,12 @@ export const adminResourcesApi = {
 
   async create(
     data: CreateResourceRequest,
-    idempotencyKey?: string,
+    idempotencyKey: string,
   ): Promise<ResourceSummary> {
     const response = await browserApiClient.post<ResourceSummary>(
       '/admin/resources',
       data,
-      {
-        params: idempotencyKey ? { idempotencyKey } : undefined,
-      },
+      { headers: { 'Idempotency-Key': idempotencyKey } },
     )
     return response.data
   },

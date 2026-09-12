@@ -52,13 +52,15 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
       mutations: { retry: false },
     },
   })
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  return (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  )
 }
 
 describe('AdminContentManager', () => {
   beforeEach(() => {
     mockOnNotice.mockReset()
-    
+
     // Mock successful admin list
     mockServer.use(
       http.get('/api/admin/resources', () => {
@@ -67,11 +69,11 @@ describe('AdminContentManager', () => {
           count: mockResources.length,
         })
       }),
-      
+
       // Mock resource detail
       http.get('/api/admin/resources/:id', () => {
         return HttpResponse.json(mockResourceDetail)
-      })
+      }),
     )
   })
 
@@ -79,7 +81,7 @@ describe('AdminContentManager', () => {
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     await waitFor(() => {
@@ -88,9 +90,14 @@ describe('AdminContentManager', () => {
     })
 
     // Check that both resources appear in the list
-    const resourceItems = screen.getAllByRole('button').filter(btn => 
-      btn.className?.includes('acm-item') || btn.textContent?.includes('Draft') || btn.textContent?.includes('Published')
-    )
+    const resourceItems = screen
+      .getAllByRole('button')
+      .filter(
+        (btn) =>
+          btn.className?.includes('acm-item') ||
+          btn.textContent?.includes('Draft') ||
+          btn.textContent?.includes('Published'),
+      )
     expect(resourceItems.length).toBeGreaterThanOrEqual(2)
   })
 
@@ -98,7 +105,7 @@ describe('AdminContentManager', () => {
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     await waitFor(() => {
@@ -107,19 +114,23 @@ describe('AdminContentManager', () => {
     })
 
     // Search for draft
-    const searchInput = screen.getByPlaceholderText('Tìm theo tên hoặc trạng thái...')
+    const searchInput = screen.getByPlaceholderText(
+      'Tìm theo tên hoặc trạng thái...',
+    )
     await userEvent.clear(searchInput)
     await userEvent.type(searchInput, 'draft')
 
     // Wait a bit for the filter to apply
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise((resolve) => setTimeout(resolve, 100))
 
     // Use getAllByText since text appears both in list and detail view
     const draftTexts = screen.getAllByText('Draft Article')
     expect(draftTexts.length).toBeGreaterThanOrEqual(1)
-    
+
     // Just verify the search input has the correct value
-    const searchField = screen.getByPlaceholderText('Tìm theo tên hoặc trạng thái...')
+    const searchField = screen.getByPlaceholderText(
+      'Tìm theo tên hoặc trạng thái...',
+    )
     expect(searchField).toHaveValue('draft')
   })
 
@@ -127,7 +138,7 @@ describe('AdminContentManager', () => {
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     // Wait for data to load first
@@ -145,17 +156,17 @@ describe('AdminContentManager', () => {
 
   it('creates new resource with valid data', async () => {
     const newResource = { ...mockResourceDetail, title: 'New Resource' }
-    
+
     mockServer.use(
       http.post('/api/admin/resources', () => {
         return HttpResponse.json(newResource, { status: 201 })
-      })
+      }),
     )
 
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     // Wait for data to load first
@@ -167,23 +178,97 @@ describe('AdminContentManager', () => {
     await userEvent.click(screen.getByText('+ Thêm tài nguyên'))
 
     // Fill form
-    await userEvent.selectOptions(screen.getByDisplayValue('-- Chọn danh mục --'), 'ARTICLE')
-    await userEvent.type(screen.getByPlaceholderText('Nhập tiêu đề tài nguyên'), 'New Resource')
-    await userEvent.type(screen.getByPlaceholderText('Mô tả ngắn gọn về nội dung'), 'New summary')
+    await userEvent.selectOptions(
+      screen.getByDisplayValue('-- Chọn danh mục --'),
+      'ARTICLE',
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText('Nhập tiêu đề tài nguyên'),
+      'New Resource',
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText('Mô tả ngắn gọn về nội dung'),
+      'New summary',
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        'Nội dung đầy đủ (hoặc để trống nếu dùng liên kết bên ngoài)',
+      ),
+      'New content',
+    )
 
     // Submit
     await userEvent.click(screen.getByText('Tạo bản nháp'))
 
     await waitFor(() => {
-      expect(mockOnNotice).toHaveBeenCalledWith('Đã tạo tài nguyên mới thành công')
+      expect(mockOnNotice).toHaveBeenCalledWith(
+        'Đã tạo tài nguyên mới thành công',
+      )
     })
+  })
+
+  it('reuses one idempotency key for an unchanged create retry', async () => {
+    const keys: string[] = []
+    let attempt = 0
+    mockServer.use(
+      http.post('/api/admin/resources', ({ request }) => {
+        keys.push(request.headers.get('Idempotency-Key') ?? '')
+        attempt += 1
+        if (attempt === 1) {
+          return HttpResponse.json(
+            {
+              type: '/problems/content-command-outcome-unknown',
+              title: 'Outcome unknown',
+              status: 503,
+              code: 'CONTENT_COMMAND_OUTCOME_UNKNOWN',
+              correlationId: '223e4567-e89b-42d3-a456-426614174000',
+            },
+            { status: 503 },
+          )
+        }
+        return HttpResponse.json(mockResourceDetail, { status: 201 })
+      }),
+    )
+
+    render(
+      <TestWrapper>
+        <AdminContentManager onNotice={mockOnNotice} />
+      </TestWrapper>,
+    )
+    await screen.findByText('Draft Article')
+    await userEvent.click(screen.getByText('+ Thêm tài nguyên'))
+    await userEvent.selectOptions(
+      screen.getByDisplayValue('-- Chọn danh mục --'),
+      'ARTICLE',
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText('Nhập tiêu đề tài nguyên'),
+      'Retry Resource',
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText('Mô tả ngắn gọn về nội dung'),
+      'Retry summary',
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        'Nội dung đầy đủ (hoặc để trống nếu dùng liên kết bên ngoài)',
+      ),
+      'Retry content',
+    )
+
+    await userEvent.click(screen.getByText('Tạo bản nháp'))
+    await waitFor(() => expect(keys).toHaveLength(1))
+    await userEvent.click(screen.getByText('Tạo bản nháp'))
+    await waitFor(() => expect(keys).toHaveLength(2))
+    expect(keys[0]).toBeTruthy()
+    expect(keys[1]).toBe(keys[0])
   })
 
   it('handles version 0 correctly for new drafts', async () => {
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     await waitFor(() => {
@@ -195,7 +280,7 @@ describe('AdminContentManager', () => {
 
     await waitFor(() => {
       expect(screen.getByText('v0')).toBeInTheDocument() // Version should show 0
-      expect(screen.getByText('Xuất bản')).toBeInTheDocument() // Publish button should be enabled
+      expect(screen.getByText('Xuất bản — đang khóa')).toBeDisabled()
     })
   })
 
@@ -203,7 +288,7 @@ describe('AdminContentManager', () => {
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     await waitFor(() => {
@@ -216,7 +301,7 @@ describe('AdminContentManager', () => {
     await waitFor(() => {
       const titleInput = screen.getByDisplayValue('Draft Article')
       const summaryTextarea = screen.getByDisplayValue('Test draft summary')
-      
+
       expect(titleInput).not.toBeDisabled()
       expect(summaryTextarea).not.toBeDisabled()
     })
@@ -226,7 +311,7 @@ describe('AdminContentManager', () => {
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     await waitFor(() => {
@@ -253,14 +338,17 @@ describe('AdminContentManager', () => {
   it('saves changes when update button is clicked', async () => {
     mockServer.use(
       http.patch('/api/admin/resources/:id', () => {
-        return HttpResponse.json({ ...mockResourceDetail, title: 'Updated Title' })
-      })
+        return HttpResponse.json({
+          ...mockResourceDetail,
+          title: 'Updated Title',
+        })
+      }),
     )
 
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     await waitFor(() => {
@@ -269,7 +357,7 @@ describe('AdminContentManager', () => {
 
     // Select and edit
     await userEvent.click(screen.getByText('Draft Article'))
-    
+
     await waitFor(() => {
       const titleInput = screen.getByDisplayValue('Draft Article')
       expect(titleInput).toBeInTheDocument()
@@ -283,50 +371,39 @@ describe('AdminContentManager', () => {
     await userEvent.click(screen.getByText('Lưu thay đổi'))
 
     await waitFor(() => {
-      expect(mockOnNotice).toHaveBeenCalledWith('Đã cập nhật tài nguyên thành công')
+      expect(mockOnNotice).toHaveBeenCalledWith(
+        'Đã cập nhật tài nguyên thành công',
+      )
     })
   })
 
-  it('publishes draft resources', async () => {
+  it('keeps publish disabled until the review authority is approved', async () => {
+    const publishRequest = vi.fn()
     mockServer.use(
-      http.post('/api/admin/resources/:id/publish', () => {
-        return HttpResponse.json({ 
-          ...mockResourceDetail, 
-          status: 'PUBLISHED',
-          reviewedAt: '2026-09-01T00:00:00Z'
-        })
-      })
+      http.post('/api/admin/resources/:id/publish', publishRequest),
     )
-
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     await waitFor(() => {
       expect(screen.getByText('Draft Article')).toBeInTheDocument()
     })
 
-    // Select draft and publish
     await userEvent.click(screen.getByText('Draft Article'))
-    
-    await waitFor(() => {
-      expect(screen.getByText('Xuất bản')).toBeInTheDocument()
-    })
-
-    await userEvent.click(screen.getByText('Xuất bản'))
-
-    await waitFor(() => {
-      expect(mockOnNotice).toHaveBeenCalledWith('Đã xuất bản tài nguyên thành công')
-    })
+    const publishButton = await screen.findByText('Xuất bản — đang khóa')
+    expect(publishButton).toBeDisabled()
+    await userEvent.click(publishButton)
+    expect(publishRequest).not.toHaveBeenCalled()
   })
 
   it('deletes draft resources with version', async () => {
     mockServer.use(
       http.delete('/api/admin/resources/:id', () => {
         return new HttpResponse(null, { status: 204 })
-      })
+      }),
     )
 
     // Mock window.confirm
@@ -336,7 +413,7 @@ describe('AdminContentManager', () => {
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     await waitFor(() => {
@@ -345,7 +422,7 @@ describe('AdminContentManager', () => {
 
     // Select draft and delete
     await userEvent.click(screen.getByText('Draft Article'))
-    
+
     await waitFor(() => {
       expect(screen.getByText('Xóa bản nháp')).toBeInTheDocument()
     })
@@ -364,13 +441,13 @@ describe('AdminContentManager', () => {
     mockServer.use(
       http.get('/api/admin/resources', () => {
         return new HttpResponse(null, { status: 500 })
-      })
+      }),
     )
 
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
-      </TestWrapper>
+      </TestWrapper>,
     )
 
     await waitFor(() => {

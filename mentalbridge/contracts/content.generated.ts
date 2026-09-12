@@ -56,6 +56,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/resources/admin/list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List resources in every lifecycle state (Admin) */
+        get: operations["listAdminResources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resources/admin/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get any resource lifecycle state (Admin) */
+        get: operations["getAdminResource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/resources/{id}": {
         parameters: {
             query?: never;
@@ -65,7 +99,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Get resource detail */
+        /** Get an active reviewed resource for one locale */
         get: operations["getResource"];
         put?: never;
         post?: never;
@@ -86,7 +120,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Publish a DRAFT resource — reviewed content workflow (Admin) */
+        /** Publish a reviewed DRAFT resource (blocked pending MB-251 policy approval) */
         post: operations["publishResource"];
         delete?: never;
         options?: never;
@@ -175,11 +209,17 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string;
         };
-        ResourceDetail: components["schemas"]["ResourceSummary"] & {
-            contentBody?: string | null;
+        PublicResourceDetail: components["schemas"]["ResourceSummary"] & {
+            contentBody: string | null;
+            /** Format: date-time */
+            effectiveAt: string | null;
+            /** Format: date-time */
+            expiresAt: string | null;
+        };
+        AdminResourceDetail: components["schemas"]["PublicResourceDetail"] & {
             /** Format: uuid */
-            reviewedBy?: string | null;
-            version?: number;
+            reviewedBy: string | null;
+            version: number;
         };
         ResourceListResponse: {
             data: components["schemas"]["ResourceSummary"][];
@@ -206,15 +246,18 @@ export interface components {
             contentBody?: string | null;
             /** Format: uri */
             externalUrl?: string | null;
+            /** Format: date-time */
+            effectiveAt?: string | null;
+            /** Format: date-time */
+            expiresAt?: string | null;
         };
         UpdateResourceRequest: {
+            locale?: string;
             title?: string;
             summary?: string;
             contentBody?: string | null;
             /** Format: uri */
             externalUrl?: string | null;
-        };
-        PublishResourceRequest: {
             /** Format: date-time */
             effectiveAt?: string | null;
             /** Format: date-time */
@@ -222,6 +265,51 @@ export interface components {
         };
     };
     responses: {
+        /** @description Authentication is required or the credential is invalid */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Authenticated actor is not an administrator */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Resource administration is temporarily unavailable */
+        ServiceUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The actor reused an idempotency key with a different create payload */
+        IdempotencyConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Publish is unavailable until an approved MB-251 review decision is recorded */
+        ReviewApprovalRequired: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
         /** @description Resource not found */
         NotFound: {
             headers: {
@@ -237,7 +325,7 @@ export interface components {
                  *       "correlationId": "123e4567-e89b-12d3-a456-426614174000"
                  *     }
                  */
-                "application/json": components["schemas"]["ProblemDetails"];
+                "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
         /** @description State conflict or optimistic lock failure */
@@ -255,7 +343,7 @@ export interface components {
                  *       "correlationId": "123e4567-e89b-12d3-a456-426614174000"
                  *     }
                  */
-                "application/json": components["schemas"]["ProblemDetails"];
+                "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
         /** @description Validation failed */
@@ -283,7 +371,7 @@ export interface components {
                  *       ]
                  *     }
                  */
-                "application/json": components["schemas"]["ProblemDetails"];
+                "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
         /** @description Invalid query parameter */
@@ -305,7 +393,15 @@ export interface components {
             };
         };
     };
-    parameters: never;
+    parameters: {
+        ResourceId: string;
+        /** @description Opaque key reused only for an unchanged logical create request by this actor. */
+        IdempotencyKey: string;
+        Locale: string;
+        Category: components["schemas"]["ResourceCategory"];
+        Limit: number;
+        Cursor: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -409,7 +505,10 @@ export interface operations {
     createResource: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Opaque key reused only for an unchanged logical create request by this actor. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -442,12 +541,74 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceSummary"];
                 };
             };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["IdempotencyConflict"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    listAdminResources: {
+        parameters: {
+            query?: {
+                locale?: components["parameters"]["Locale"];
+                category?: components["parameters"]["Category"];
+                status?: components["schemas"]["ResourceStatus"];
+                limit?: components["parameters"]["Limit"];
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of admin-visible resources */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceListResponse"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getAdminResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Full admin resource detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminResourceDetail"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getResource: {
         parameters: {
-            query?: never;
+            query?: {
+                locale?: components["parameters"]["Locale"];
+            };
             header?: never;
             path: {
                 id: string;
@@ -462,15 +623,18 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ResourceDetail"];
+                    "application/json": components["schemas"]["PublicResourceDetail"];
                 };
             };
+            400: components["responses"]["RequestRejected"];
             404: components["responses"]["NotFound"];
         };
     };
     deleteResource: {
         parameters: {
-            query?: never;
+            query: {
+                version: number;
+            };
             header?: never;
             path: {
                 id: string;
@@ -486,7 +650,9 @@ export interface operations {
                 };
                 content?: never;
             };
-            404: components["responses"]["NotFound"];
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -516,7 +682,9 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceSummary"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -531,23 +699,12 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PublishResourceRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Resource published */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResourceSummary"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["ReviewApprovalRequired"];
         };
     };
     archiveResource: {
@@ -572,7 +729,9 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceSummary"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
     };

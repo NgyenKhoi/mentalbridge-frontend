@@ -1,13 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   adminResourcesApi,
   type ResourceDetail,
   type ResourceSummary,
   type ResourceCategory,
+  type UpdateResourceRequest,
 } from '../lib/api/admin-resources'
+import { toApiError } from '../lib/api/api-error'
 
 import './admin-content-manager.css'
 
@@ -50,26 +52,45 @@ function formatDate(dateString: string | null): string {
   })
 }
 
+function toDateTimeInput(value: string | null | undefined) {
+  return value ? new Date(value).toISOString().slice(0, 16) : ''
+}
+
+function toIsoOrNull(value: string) {
+  return value ? new Date(value).toISOString() : null
+}
+
+function mutationMessage(error: unknown, fallback: string) {
+  const apiError = toApiError(error)
+  if (apiError.code === 'INVALID_STATE_TRANSITION') {
+    return 'Tài nguyên đã thay đổi. Dữ liệu mới nhất đang được tải lại.'
+  }
+  if (apiError.code === 'CONTENT_COMMAND_OUTCOME_UNKNOWN') {
+    return 'Chưa xác nhận được kết quả thao tác. Hãy tải lại trước khi thử tiếp.'
+  }
+  if (apiError.status === 403)
+    return 'Phiên hiện tại không có quyền quản trị tài nguyên.'
+  if (apiError.code === 'CONTENT_TIMEOUT')
+    return 'Dịch vụ nội dung phản hồi quá chậm.'
+  return fallback
+}
+
 // Tách phần edit ra component riêng để dùng key reset state đúng cách
 function ResourceEditor({
   resource,
   detail,
-  onPublish,
   onArchive,
   onDelete,
   onUpdate,
-  publishPending,
   archivePending,
   deletePending,
   updatePending,
 }: {
   resource: ContentItem
   detail: ResourceDetail
-  onPublish: () => void
   onArchive: () => void
   onDelete: () => void
-  onUpdate: (title: string, summary: string) => void
-  publishPending: boolean
+  onUpdate: (data: UpdateResourceRequest) => void
   archivePending: boolean
   deletePending: boolean
   updatePending: boolean
@@ -77,8 +98,24 @@ function ResourceEditor({
   // State khởi tạo từ server data - hợp lệ vì dùng key để reset
   const [editTitle, setEditTitle] = useState(detail.title)
   const [editSummary, setEditSummary] = useState(detail.summary)
+  const [editLocale, setEditLocale] = useState(detail.locale)
+  const [editBody, setEditBody] = useState(detail.contentBody ?? '')
+  const [editUrl, setEditUrl] = useState(detail.externalUrl ?? '')
+  const [editEffectiveAt, setEditEffectiveAt] = useState(
+    toDateTimeInput(detail.effectiveAt),
+  )
+  const [editExpiresAt, setEditExpiresAt] = useState(
+    toDateTimeInput(detail.expiresAt),
+  )
 
-  const hasEdits = editTitle !== detail.title || editSummary !== detail.summary
+  const hasEdits =
+    editTitle !== detail.title ||
+    editSummary !== detail.summary ||
+    editLocale !== detail.locale ||
+    editBody !== (detail.contentBody ?? '') ||
+    editUrl !== (detail.externalUrl ?? '') ||
+    editEffectiveAt !== toDateTimeInput(detail.effectiveAt) ||
+    editExpiresAt !== toDateTimeInput(detail.expiresAt)
 
   return (
     <article className="acm-editor">
@@ -94,7 +131,9 @@ function ResourceEditor({
         <label className="acm-visibility">
           <span>
             <strong>
-              {resource.status === 'PUBLISHED' ? 'Đang hiển thị' : statusLabels[resource.status]}
+              {resource.status === 'PUBLISHED'
+                ? 'Đang hiển thị'
+                : statusLabels[resource.status]}
             </strong>
             <small>
               {resource.status === 'PUBLISHED'
@@ -138,8 +177,12 @@ function ResourceEditor({
             />
           </label>
           <label>
-            <span>Danh mục</span>
-            <input value={categoryLabels[resource.category]} disabled />
+            <span>Ngôn ngữ (BCP 47)</span>
+            <input
+              value={editLocale}
+              onChange={(event) => setEditLocale(event.target.value)}
+              disabled={resource.status !== 'DRAFT'}
+            />
           </label>
           <label className="wide">
             <span>Mô tả ngắn</span>
@@ -147,6 +190,44 @@ function ResourceEditor({
               value={editSummary}
               onChange={(e) => setEditSummary(e.target.value)}
               rows={3}
+              disabled={resource.status !== 'DRAFT'}
+            />
+          </label>
+        </div>
+        <div className="acm-form-grid">
+          <label className="wide">
+            <span>Nội dung chi tiết</span>
+            <textarea
+              value={editBody}
+              onChange={(event) => setEditBody(event.target.value)}
+              rows={6}
+              disabled={resource.status !== 'DRAFT'}
+            />
+          </label>
+          <label className="wide">
+            <span>Liên kết HTTP(S)</span>
+            <input
+              type="url"
+              value={editUrl}
+              onChange={(event) => setEditUrl(event.target.value)}
+              disabled={resource.status !== 'DRAFT'}
+            />
+          </label>
+          <label>
+            <span>Hiệu lực từ</span>
+            <input
+              type="datetime-local"
+              value={editEffectiveAt}
+              onChange={(event) => setEditEffectiveAt(event.target.value)}
+              disabled={resource.status !== 'DRAFT'}
+            />
+          </label>
+          <label>
+            <span>Hết hiệu lực</span>
+            <input
+              type="datetime-local"
+              value={editExpiresAt}
+              onChange={(event) => setEditExpiresAt(event.target.value)}
               disabled={resource.status !== 'DRAFT'}
             />
           </label>
@@ -166,12 +247,14 @@ function ResourceEditor({
             <i>{resource.reviewedAt ? '✓' : '○'}</i>
             <span>
               <strong>
-                {resource.reviewedAt ? 'Đã rà soát chuyên môn' : 'Chưa rà soát'}
+                {resource.reviewedAt
+                  ? 'Có provenance rà soát'
+                  : 'Chưa có quyết định rà soát'}
               </strong>
               <small>
                 {resource.reviewedAt
                   ? `Rà soát lúc ${formatDate(resource.reviewedAt)}`
-                  : 'Cần rà soát trước khi xuất bản'}
+                  : 'Quyền và quy trình rà soát MB-251 chưa được phê duyệt'}
               </small>
             </span>
           </p>
@@ -183,7 +266,8 @@ function ResourceEditor({
         <p>
           <strong>Nội dung tự chăm sóc không thay thế điều trị.</strong>
           <span>
-            Mọi hướng dẫn cần dùng ngôn ngữ an toàn và tránh đưa ra kết luận lâm sàng.
+            Mọi hướng dẫn cần dùng ngôn ngữ an toàn và tránh đưa ra kết luận lâm
+            sàng.
           </span>
         </p>
       </aside>
@@ -196,12 +280,29 @@ function ResourceEditor({
             </button>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               {hasEdits && (
-                <button onClick={() => onUpdate(editTitle, editSummary)} disabled={updatePending}>
+                <button
+                  onClick={() =>
+                    onUpdate({
+                      title: editTitle,
+                      summary: editSummary,
+                      locale: editLocale,
+                      contentBody: editBody || null,
+                      externalUrl: editUrl || null,
+                      effectiveAt: toIsoOrNull(editEffectiveAt),
+                      expiresAt: toIsoOrNull(editExpiresAt),
+                    })
+                  }
+                  disabled={updatePending || (!editBody && !editUrl)}
+                >
                   {updatePending ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
               )}
-              <button className="acm-save" onClick={onPublish} disabled={publishPending}>
-                Xuất bản
+              <button
+                className="acm-save"
+                disabled
+                title="Đang chờ phê duyệt quy trình rà soát MB-251"
+              >
+                Xuất bản — đang khóa
               </button>
             </div>
           </>
@@ -230,6 +331,11 @@ export default function AdminContentManager({
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const createAttempt = useRef<{ fingerprint: string; key: string } | null>(
+    null,
+  )
+  const addButton = useRef<HTMLButtonElement>(null)
+  const createDialog = useRef<HTMLDivElement>(null)
 
   const {
     data: resourcesData,
@@ -237,7 +343,7 @@ export default function AdminContentManager({
     error,
   } = useQuery({
     queryKey: ['admin', 'resources'],
-    queryFn: () => adminResourcesApi.list(),
+    queryFn: () => adminResourcesApi.listAll(),
   })
 
   const resources: ContentItem[] = useMemo(() => {
@@ -268,21 +374,14 @@ export default function AdminContentManager({
     [resources, activeId],
   )
 
-  const { data: detailData } = useQuery({
+  const {
+    data: detailData,
+    isLoading: detailLoading,
+    error: detailError,
+  } = useQuery({
     queryKey: ['admin', 'resources', activeId],
     queryFn: () => adminResourcesApi.getById(activeId!),
     enabled: !!activeId,
-  })
-
-  const publishMutation = useMutation({
-    mutationFn: ({ id, version }: { id: string; version: number }) =>
-      adminResourcesApi.publish(id, version),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'resources', activeId] })
-      onNotice('Đã xuất bản tài nguyên thành công')
-    },
-    onError: () => onNotice('Không thể xuất bản tài nguyên'),
   })
 
   const archiveMutation = useMutation({
@@ -290,10 +389,18 @@ export default function AdminContentManager({
       adminResourcesApi.archive(id, version),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'resources', activeId] })
+      queryClient.invalidateQueries({
+        queryKey: ['admin', 'resources', activeId],
+      })
       onNotice('Đã lưu trữ tài nguyên thành công')
     },
-    onError: () => onNotice('Không thể lưu trữ tài nguyên'),
+    onError: (mutationError) => {
+      onNotice(mutationMessage(mutationError, 'Không thể lưu trữ tài nguyên'))
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+      queryClient.invalidateQueries({
+        queryKey: ['admin', 'resources', activeId],
+      })
+    },
   })
 
   const deleteMutation = useMutation({
@@ -304,24 +411,32 @@ export default function AdminContentManager({
       setSelectedId(null)
       onNotice('Đã xóa tài nguyên thành công')
     },
-    onError: () => onNotice('Không thể xóa tài nguyên'),
+    onError: (mutationError) => {
+      onNotice(mutationMessage(mutationError, 'Không thể xóa tài nguyên'))
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+      queryClient.invalidateQueries({
+        queryKey: ['admin', 'resources', activeId],
+      })
+    },
   })
 
   const createMutation = useMutation({
-    mutationFn: (data: {
-      category: ResourceCategory
-      title: string
-      summary: string
-      contentBody?: string
-      externalUrl?: string
-    }) => adminResourcesApi.create(data),
+    mutationFn: ({
+      data,
+      idempotencyKey,
+    }: {
+      data: Parameters<typeof adminResourcesApi.create>[0]
+      idempotencyKey: string
+    }) => adminResourcesApi.create(data, idempotencyKey),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
       setShowCreateForm(false)
+      createAttempt.current = null
       setSelectedId(data.id)
       onNotice('Đã tạo tài nguyên mới thành công')
     },
-    onError: () => onNotice('Không thể tạo tài nguyên mới'),
+    onError: (mutationError) =>
+      onNotice(mutationMessage(mutationError, 'Không thể tạo tài nguyên mới')),
   })
 
   const updateMutation = useMutation({
@@ -332,14 +447,22 @@ export default function AdminContentManager({
     }: {
       id: string
       version: number
-      data: { title?: string; summary?: string }
+      data: UpdateResourceRequest
     }) => adminResourcesApi.update(id, version, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'resources', activeId] })
+      queryClient.invalidateQueries({
+        queryKey: ['admin', 'resources', activeId],
+      })
       onNotice('Đã cập nhật tài nguyên thành công')
     },
-    onError: () => onNotice('Không thể cập nhật tài nguyên'),
+    onError: (mutationError) => {
+      onNotice(mutationMessage(mutationError, 'Không thể cập nhật tài nguyên'))
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+      queryClient.invalidateQueries({
+        queryKey: ['admin', 'resources', activeId],
+      })
+    },
   })
 
   const handleCreateSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -350,19 +473,73 @@ export default function AdminContentManager({
     const summary = formData.get('summary') as string
     const contentBody = formData.get('contentBody') as string
     const externalUrl = formData.get('externalUrl') as string
+    const locale = formData.get('locale') as string
+    const effectiveAt = formData.get('effectiveAt') as string
+    const expiresAt = formData.get('expiresAt') as string
 
     if (!category || !title || !summary) {
       onNotice('Vui lòng điền đầy đủ thông tin bắt buộc')
       return
     }
 
-    createMutation.mutate({
+    if (!contentBody && !externalUrl) {
+      onNotice('Cần nhập nội dung chi tiết hoặc liên kết HTTP(S)')
+      return
+    }
+    if (
+      effectiveAt &&
+      expiresAt &&
+      Date.parse(effectiveAt) >= Date.parse(expiresAt)
+    ) {
+      onNotice('Thời điểm hết hiệu lực phải sau thời điểm bắt đầu')
+      return
+    }
+
+    const data = {
       category,
+      locale,
       title,
       summary,
-      contentBody: contentBody || undefined,
-      externalUrl: externalUrl || undefined,
-    })
+      contentBody: contentBody || null,
+      externalUrl: externalUrl || null,
+      effectiveAt: toIsoOrNull(effectiveAt),
+      expiresAt: toIsoOrNull(expiresAt),
+    }
+    const fingerprint = JSON.stringify(data)
+    if (createAttempt.current?.fingerprint !== fingerprint) {
+      createAttempt.current = { fingerprint, key: crypto.randomUUID() }
+    }
+    createMutation.mutate({ data, idempotencyKey: createAttempt.current.key })
+  }
+
+  const closeCreateForm = () => {
+    setShowCreateForm(false)
+    requestAnimationFrame(() => addButton.current?.focus())
+  }
+
+  const handleCreateDialogKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ) => {
+    if (event.key === 'Escape') {
+      closeCreateForm()
+      return
+    }
+    if (event.key !== 'Tab') return
+    const focusable = Array.from(
+      createDialog.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+      ) ?? [],
+    )
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
   }
 
   if (isLoading) {
@@ -393,18 +570,28 @@ export default function AdminContentManager({
     )
   }
 
-  const publishedCount = resources.filter((r) => r.status === 'PUBLISHED').length
+  const publishedCount = resources.filter(
+    (r) => r.status === 'PUBLISHED',
+  ).length
   const draftCount = resources.filter((r) => r.status === 'DRAFT').length
   const archivedCount = resources.filter((r) => r.status === 'ARCHIVED').length
 
   return (
     <div className="admin-content-manager">
       {showCreateForm && (
-        <div className="acm-modal-overlay" onClick={() => setShowCreateForm(false)}>
-          <div className="acm-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="acm-modal-overlay" onClick={closeCreateForm}>
+          <div
+            ref={createDialog}
+            className="acm-modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-resource-title"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={handleCreateDialogKeyDown}
+          >
             <header>
-              <h2>Tạo tài nguyên mới</h2>
-              <button onClick={() => setShowCreateForm(false)} aria-label="Đóng">
+              <h2 id="create-resource-title">Tạo tài nguyên mới</h2>
+              <button autoFocus onClick={closeCreateForm} aria-label="Đóng">
                 ✕
               </button>
             </header>
@@ -422,6 +609,15 @@ export default function AdminContentManager({
                   <option value="JOURNALING">Nhật ký</option>
                   <option value="COMMUNITY">Cộng đồng</option>
                 </select>
+              </label>
+              <label>
+                <span>Ngôn ngữ (BCP 47)</span>
+                <input
+                  name="locale"
+                  defaultValue="vi-VN"
+                  required
+                  pattern="[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*"
+                />
               </label>
               <label>
                 <span>
@@ -456,13 +652,29 @@ export default function AdminContentManager({
               </label>
               <label>
                 <span>Liên kết bên ngoài</span>
-                <input name="externalUrl" type="url" placeholder="https://..." />
+                <input
+                  name="externalUrl"
+                  type="url"
+                  placeholder="https://..."
+                />
+              </label>
+              <label>
+                <span>Hiệu lực từ</span>
+                <input name="effectiveAt" type="datetime-local" />
+              </label>
+              <label>
+                <span>Hết hiệu lực</span>
+                <input name="expiresAt" type="datetime-local" />
               </label>
               <footer>
-                <button type="button" onClick={() => setShowCreateForm(false)}>
+                <button type="button" onClick={closeCreateForm}>
                   Hủy
                 </button>
-                <button type="submit" className="btn-primary" disabled={createMutation.isPending}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={createMutation.isPending}
+                >
                   {createMutation.isPending ? 'Đang tạo...' : 'Tạo bản nháp'}
                 </button>
               </footer>
@@ -475,9 +687,13 @@ export default function AdminContentManager({
         <div>
           <span className="eyebrow">Quản trị nền tảng</span>
           <h1>Tài nguyên tự chăm sóc</h1>
-          <p>Quản lý nội dung đã được rà soát trước khi công bố.</p>
+          <p>Quản lý bản nháp và nội dung đã được rà soát, công bố.</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowCreateForm(true)}>
+        <button
+          ref={addButton}
+          className="btn-primary"
+          onClick={() => setShowCreateForm(true)}
+        >
           + Thêm tài nguyên
         </button>
       </div>
@@ -550,10 +766,13 @@ export default function AdminContentManager({
                     <strong>{item.title}</strong>
                     <small>{item.meta}</small>
                     <em>
-                      {item.id.substring(0, 8)} · Cập nhật {formatDate(item.updatedAt ?? null)}
+                      {item.id.substring(0, 8)} · Cập nhật{' '}
+                      {formatDate(item.updatedAt ?? null)}
                     </em>
                   </span>
-                  <span className={`acm-status ${item.status === 'DRAFT' ? 'draft' : ''}`}>
+                  <span
+                    className={`acm-status ${item.status === 'DRAFT' ? 'draft' : ''}`}
+                  >
                     <i />
                     {statusLabels[item.status]}
                   </span>
@@ -563,36 +782,61 @@ export default function AdminContentManager({
             </div>
           </aside>
 
-          {selectedResource && detailData && typeof detailData.version === 'number' && (
-            // key = detail.id đảm bảo ResourceEditor reset state khi chuyển resource
-            <ResourceEditor
-              key={detailData.id}
-              resource={selectedResource}
-              detail={detailData}
-              onPublish={() =>
-                publishMutation.mutate({ id: selectedResource.id, version: detailData.version as number })
-              }
-              onArchive={() =>
-                archiveMutation.mutate({ id: selectedResource.id, version: detailData.version as number })
-              }
-              onDelete={() => {
-                if (confirm('Bạn có chắc chắn muốn xóa tài nguyên này? Chỉ có thể xóa bản nháp.')) {
-                  deleteMutation.mutate({ id: selectedResource.id, version: detailData.version as number })
-                }
-              }}
-              onUpdate={(title, summary) =>
-                updateMutation.mutate({
-                  id: selectedResource.id,
-                  version: detailData.version as number,
-                  data: { title, summary },
-                })
-              }
-              publishPending={publishMutation.isPending}
-              archivePending={archiveMutation.isPending}
-              deletePending={deleteMutation.isPending}
-              updatePending={updateMutation.isPending}
-            />
+          {selectedResource && detailLoading && (
+            <p role="status">Đang tải chi tiết tài nguyên...</p>
           )}
+          {selectedResource && detailError && (
+            <div role="alert">
+              <p>Không thể tải chi tiết tài nguyên.</p>
+              <button
+                onClick={() =>
+                  queryClient.invalidateQueries({
+                    queryKey: ['admin', 'resources', activeId],
+                  })
+                }
+              >
+                Thử lại
+              </button>
+            </div>
+          )}
+          {selectedResource &&
+            detailData &&
+            typeof detailData.version === 'number' && (
+              // key = detail.id đảm bảo ResourceEditor reset state khi chuyển resource
+              <ResourceEditor
+                key={detailData.id}
+                resource={selectedResource}
+                detail={detailData}
+                onArchive={() =>
+                  archiveMutation.mutate({
+                    id: selectedResource.id,
+                    version: detailData.version as number,
+                  })
+                }
+                onDelete={() => {
+                  if (
+                    confirm(
+                      'Bạn có chắc chắn muốn xóa tài nguyên này? Chỉ có thể xóa bản nháp.',
+                    )
+                  ) {
+                    deleteMutation.mutate({
+                      id: selectedResource.id,
+                      version: detailData.version as number,
+                    })
+                  }
+                }}
+                onUpdate={(data) =>
+                  updateMutation.mutate({
+                    id: selectedResource.id,
+                    version: detailData.version as number,
+                    data,
+                  })
+                }
+                archivePending={archiveMutation.isPending}
+                deletePending={deleteMutation.isPending}
+                updatePending={updateMutation.isPending}
+              />
+            )}
         </div>
       </section>
     </div>

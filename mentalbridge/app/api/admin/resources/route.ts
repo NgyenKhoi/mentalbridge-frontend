@@ -1,149 +1,136 @@
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { readSessionCredentials } from '@/lib/auth/session-cookies'
-import { resolveSession, ensureRole } from '@/lib/auth/session-service'
-import { ApiError } from '@/lib/api/api-error'
-
-const CONTENT_SERVICE_URL =
-  process.env.CONTENT_SERVICE_URL || 'http://localhost:3003'
-
-const CreateResourceSchema = z.object({
-  category: z.enum([
-    'BREATHING',
-    'MEDITATION',
-    'ARTICLE',
-    'VIDEO',
-    'JOURNALING',
-    'COMMUNITY',
-  ]),
-  locale: z.string().default('vi-VN'),
-  title: z.string().min(1).max(255),
-  summary: z.string().min(1),
-  contentBody: z.string().nullish(),
-  externalUrl: z.string().nullish(),
-})
+import { correlationIdFrom } from '@/lib/auth/bff-response'
+import { readBoundedJson, RequestBodyError } from '@/lib/auth/request-body'
+import {
+  createResourceSchema,
+  listResourceQuerySchema,
+  queryObject,
+  RESOURCE_BODY_LIMIT,
+  zodViolations,
+} from '@/lib/content/admin-input'
+import {
+  authenticatedContentAdmin,
+  carryContentSession,
+  contentAuthenticationFailure,
+} from '@/lib/content/authenticated-admin'
+import {
+  contentErrorResponse,
+  contentSuccessResponse,
+  localProblem,
+} from '@/lib/content/bff-response'
+import { contentAdminClient } from '@/lib/content/content-client'
+import { isIdempotencyKey } from '@/lib/content/content-validation'
 
 export async function GET(request: NextRequest) {
+  const correlationId = correlationIdFrom(request)
+  let admin: Awaited<ReturnType<typeof authenticatedContentAdmin>>
   try {
-    const correlationId =
-      request.headers.get('x-correlation-id') || crypto.randomUUID()
-
-    // Resolve and validate session
-    const credentials = readSessionCredentials(request.cookies)
-    const session = await resolveSession(credentials, correlationId)
-    ensureRole(session.account, ['ADMIN'])
-
-    const { searchParams } = request.nextUrl
-    const locale = searchParams.get('locale')
-    const category = searchParams.get('category')
-    const status = searchParams.get('status')
-    const limit = searchParams.get('limit')
-    const cursor = searchParams.get('cursor')
-
-    const params = new URLSearchParams()
-    if (locale) params.append('locale', locale)
-    if (category) params.append('category', category)
-    if (status) params.append('status', status)
-    if (limit) params.append('limit', limit)
-    if (cursor) params.append('cursor', cursor)
-
-    const response = await fetch(
-      `${CONTENT_SERVICE_URL}/api/v1/resources/admin/list?${params}`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${credentials.accessToken}`,
-          'x-correlation-id': correlationId,
-        },
-      },
-    )
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      return NextResponse.json(errorData, { status: response.status })
-    }
-
-    const data = await response.json()
-    return NextResponse.json(data)
+    admin = await authenticatedContentAdmin(request, correlationId)
   } catch (error) {
-    if (error instanceof ApiError) {
-      return NextResponse.json(
-        { code: error.code, message: error.message },
-        { status: error.status },
+    return contentAuthenticationFailure(error, correlationId)
+  }
+  try {
+    const parsed = listResourceQuerySchema.parse(
+      queryObject(request.nextUrl.searchParams),
+    )
+    const query = new URLSearchParams()
+    for (const [key, value] of Object.entries(parsed)) {
+      if (value !== undefined) query.set(key, String(value))
+    }
+    return carryContentSession(
+      contentSuccessResponse(
+        await contentAdminClient.list(admin.accessToken, query, correlationId),
+        correlationId,
+      ),
+      admin,
+    )
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return carryContentSession(
+        localProblem(
+          400,
+          'VALIDATION_FAILED',
+          'Request validation failed.',
+          correlationId,
+          zodViolations(error),
+        ),
+        admin,
       )
     }
-    console.error('[BFF] Failed to list admin resources:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch resources' },
-      { status: 500 },
+    return carryContentSession(
+      contentErrorResponse(error, correlationId),
+      admin,
     )
   }
 }
 
 export async function POST(request: NextRequest) {
+  const correlationId = correlationIdFrom(request)
+  let admin: Awaited<ReturnType<typeof authenticatedContentAdmin>>
   try {
-    const correlationId =
-      request.headers.get('x-correlation-id') || crypto.randomUUID()
-
-    // Resolve and validate session
-    const credentials = readSessionCredentials(request.cookies)
-    const session = await resolveSession(credentials, correlationId)
-    ensureRole(session.account, ['ADMIN'])
-
-    const body = await request.json()
-    const validated = CreateResourceSchema.parse(body)
-
-    const { searchParams } = request.nextUrl
-    const idempotencyKey = searchParams.get('idempotencyKey')
-
-    const url = new URL(`${CONTENT_SERVICE_URL}/api/v1/resources`)
-    if (idempotencyKey)
-      url.searchParams.append('idempotencyKey', idempotencyKey)
-
-    const response = await fetch(url.toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${credentials.accessToken}`,
-        'x-correlation-id': correlationId,
-      },
-      body: JSON.stringify(validated),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      return NextResponse.json(errorData, { status: response.status })
-    }
-
-    const data = await response.json()
-    return NextResponse.json(data, { status: 201 })
+    admin = await authenticatedContentAdmin(request, correlationId)
   } catch (error) {
-    if (error instanceof ApiError) {
-      return NextResponse.json(
-        { code: error.code, message: error.message },
-        { status: error.status },
+    return contentAuthenticationFailure(error, correlationId)
+  }
+  try {
+    const idempotencyKey = request.headers.get('Idempotency-Key')
+    if (!isIdempotencyKey(idempotencyKey)) {
+      return carryContentSession(
+        localProblem(
+          400,
+          'VALIDATION_FAILED',
+          'Request validation failed.',
+          correlationId,
+          [{ field: 'Idempotency-Key', code: 'INVALID_FORMAT' }],
+        ),
+        admin,
       )
     }
+    const body = createResourceSchema.parse(
+      await readBoundedJson(request, RESOURCE_BODY_LIMIT),
+    )
+    return carryContentSession(
+      contentSuccessResponse(
+        await contentAdminClient.create(
+          admin.accessToken,
+          body,
+          idempotencyKey,
+          correlationId,
+        ),
+        correlationId,
+        201,
+      ),
+      admin,
+    )
+  } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          type: 'https://mentalbridge.io/errors/VALIDATION_ERROR',
-          title: 'Validation failed',
-          status: 422,
-          code: 'VALIDATION_ERROR',
-          fieldViolations: error.issues.map((e) => ({
-            field: e.path.join('.'),
-            message: e.message,
-          })),
-        },
-        { status: 422 },
+      return carryContentSession(
+        localProblem(
+          422,
+          'VALIDATION_ERROR',
+          'Request validation failed.',
+          correlationId,
+          zodViolations(error),
+        ),
+        admin,
       )
     }
-
-    console.error('[BFF] Failed to create resource:', error)
-    return NextResponse.json(
-      { error: 'Failed to create resource' },
-      { status: 500 },
+    if (error instanceof RequestBodyError) {
+      return carryContentSession(
+        localProblem(
+          error.status,
+          error.code,
+          error.message,
+          correlationId,
+          error.violations,
+        ),
+        admin,
+      )
+    }
+    return carryContentSession(
+      contentErrorResponse(error, correlationId),
+      admin,
     )
   }
 }

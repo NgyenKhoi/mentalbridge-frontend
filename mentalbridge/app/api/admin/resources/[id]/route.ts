@@ -1,195 +1,186 @@
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { readSessionCredentials } from '@/lib/auth/session-cookies'
-import { resolveSession, ensureRole } from '@/lib/auth/session-service'
-import { ApiError } from '@/lib/api/api-error'
+import { correlationIdFrom } from '@/lib/auth/bff-response'
+import { readBoundedJson, RequestBodyError } from '@/lib/auth/request-body'
+import {
+  RESOURCE_BODY_LIMIT,
+  updateResourceSchema,
+  versionFrom,
+  zodViolations,
+} from '@/lib/content/admin-input'
+import {
+  authenticatedContentAdmin,
+  carryContentSession,
+  contentAuthenticationFailure,
+} from '@/lib/content/authenticated-admin'
+import {
+  contentErrorResponse,
+  contentNoContentResponse,
+  contentSuccessResponse,
+  localProblem,
+} from '@/lib/content/bff-response'
+import { contentAdminClient } from '@/lib/content/content-client'
+import { isResourceId } from '@/lib/content/content-validation'
 
-const CONTENT_SERVICE_URL =
-  process.env.CONTENT_SERVICE_URL || 'http://localhost:3003'
+type Context = { params: Promise<{ id: string }> }
 
-const UpdateResourceSchema = z.object({
-  title: z.string().min(1).max(255).optional(),
-  summary: z.string().min(1).optional(),
-  contentBody: z.string().nullish(),
-  externalUrl: z.string().nullish(),
-})
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+async function authorize(request: NextRequest, context: Context) {
+  const correlationId = correlationIdFrom(request)
+  const { id } = await context.params
+  if (!isResourceId(id)) return { correlationId, id, invalid: true as const }
   try {
-    const correlationId =
-      request.headers.get('x-correlation-id') || crypto.randomUUID()
-    const { id } = await params
-
-    // Resolve and validate session
-    const credentials = readSessionCredentials(request.cookies)
-    const session = await resolveSession(credentials, correlationId)
-    ensureRole(session.account, ['ADMIN'])
-
-    const response = await fetch(
-      `${CONTENT_SERVICE_URL}/api/v1/resources/${id}`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${credentials.accessToken}`,
-          'x-correlation-id': correlationId,
-        },
-      },
-    )
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      return NextResponse.json(errorData, { status: response.status })
+    return {
+      correlationId,
+      id,
+      admin: await authenticatedContentAdmin(request, correlationId),
     }
-
-    const data = await response.json()
-    return NextResponse.json(data)
   } catch (error) {
-    if (error instanceof ApiError) {
-      return NextResponse.json(
-        { code: error.code, message: error.message },
-        { status: error.status },
-      )
+    return {
+      correlationId,
+      id,
+      authFailure: contentAuthenticationFailure(error, correlationId),
     }
-    console.error('[BFF] Failed to get resource:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch resource' },
-      { status: 500 },
+  }
+}
+
+export async function GET(request: NextRequest, context: Context) {
+  const auth = await authorize(request, context)
+  if ('invalid' in auth)
+    return localProblem(
+      400,
+      'VALIDATION_FAILED',
+      'Invalid resource ID.',
+      auth.correlationId,
+    )
+  if ('authFailure' in auth) return auth.authFailure
+  try {
+    return carryContentSession(
+      contentSuccessResponse(
+        await contentAdminClient.detail(
+          auth.admin.accessToken,
+          auth.id,
+          auth.correlationId,
+        ),
+        auth.correlationId,
+      ),
+      auth.admin,
+    )
+  } catch (error) {
+    return carryContentSession(
+      contentErrorResponse(error, auth.correlationId),
+      auth.admin,
     )
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const correlationId =
-      request.headers.get('x-correlation-id') || crypto.randomUUID()
-    const { id } = await params
-    const { searchParams } = request.nextUrl
-    const version = searchParams.get('version')
-
-    // Resolve and validate session
-    const credentials = readSessionCredentials(request.cookies)
-    const session = await resolveSession(credentials, correlationId)
-    ensureRole(session.account, ['ADMIN'])
-
-    if (!version) {
-      return NextResponse.json(
-        { error: 'version query parameter is required' },
-        { status: 400 },
-      )
-    }
-
-    const body = await request.json()
-    const validated = UpdateResourceSchema.parse(body)
-
-    const response = await fetch(
-      `${CONTENT_SERVICE_URL}/api/v1/resources/${id}?version=${version}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${credentials.accessToken}`,
-          'x-correlation-id': correlationId,
-        },
-        body: JSON.stringify(validated),
-      },
+export async function PATCH(request: NextRequest, context: Context) {
+  const auth = await authorize(request, context)
+  if ('invalid' in auth)
+    return localProblem(
+      400,
+      'VALIDATION_FAILED',
+      'Invalid resource ID.',
+      auth.correlationId,
     )
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      return NextResponse.json(errorData, { status: response.status })
-    }
-
-    const data = await response.json()
-    return NextResponse.json(data)
+  if ('authFailure' in auth) return auth.authFailure
+  const version = versionFrom(request.nextUrl.searchParams)
+  if (version === null) {
+    return carryContentSession(
+      localProblem(
+        400,
+        'VALIDATION_FAILED',
+        'A valid version is required.',
+        auth.correlationId,
+      ),
+      auth.admin,
+    )
+  }
+  try {
+    const body = updateResourceSchema.parse(
+      await readBoundedJson(request, RESOURCE_BODY_LIMIT),
+    )
+    return carryContentSession(
+      contentSuccessResponse(
+        await contentAdminClient.update(
+          auth.admin.accessToken,
+          auth.id,
+          version,
+          body,
+          auth.correlationId,
+        ),
+        auth.correlationId,
+      ),
+      auth.admin,
+    )
   } catch (error) {
-    if (error instanceof ApiError) {
-      return NextResponse.json(
-        { code: error.code, message: error.message },
-        { status: error.status },
-      )
-    }
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          type: 'https://mentalbridge.io/errors/VALIDATION_ERROR',
-          title: 'Validation failed',
-          status: 422,
-          code: 'VALIDATION_ERROR',
-          fieldViolations: error.issues.map((e) => ({
-            field: e.path.join('.'),
-            message: e.message,
-          })),
-        },
-        { status: 422 },
+      return carryContentSession(
+        localProblem(
+          422,
+          'VALIDATION_ERROR',
+          'Request validation failed.',
+          auth.correlationId,
+          zodViolations(error),
+        ),
+        auth.admin,
       )
     }
-
-    console.error('[BFF] Failed to update resource:', error)
-    return NextResponse.json(
-      { error: 'Failed to update resource' },
-      { status: 500 },
+    if (error instanceof RequestBodyError) {
+      return carryContentSession(
+        localProblem(
+          error.status,
+          error.code,
+          error.message,
+          auth.correlationId,
+          error.violations,
+        ),
+        auth.admin,
+      )
+    }
+    return carryContentSession(
+      contentErrorResponse(error, auth.correlationId),
+      auth.admin,
     )
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const correlationId =
-      request.headers.get('x-correlation-id') || crypto.randomUUID()
-    const { id } = await params
-    const { searchParams } = request.nextUrl
-    const version = searchParams.get('version')
-
-    // Resolve and validate session
-    const credentials = readSessionCredentials(request.cookies)
-    const session = await resolveSession(credentials, correlationId)
-    ensureRole(session.account, ['ADMIN'])
-
-    if (!version) {
-      return NextResponse.json(
-        { error: 'version query parameter is required' },
-        { status: 400 },
-      )
-    }
-
-    const response = await fetch(
-      `${CONTENT_SERVICE_URL}/api/v1/resources/${id}?version=${version}`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${credentials.accessToken}`,
-          'x-correlation-id': correlationId,
-        },
-      },
+export async function DELETE(request: NextRequest, context: Context) {
+  const auth = await authorize(request, context)
+  if ('invalid' in auth)
+    return localProblem(
+      400,
+      'VALIDATION_FAILED',
+      'Invalid resource ID.',
+      auth.correlationId,
     )
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      return NextResponse.json(errorData, { status: response.status })
-    }
-
-    return new NextResponse(null, { status: 204 })
+  if ('authFailure' in auth) return auth.authFailure
+  const version = versionFrom(request.nextUrl.searchParams)
+  if (version === null) {
+    return carryContentSession(
+      localProblem(
+        400,
+        'VALIDATION_FAILED',
+        'A valid version is required.',
+        auth.correlationId,
+      ),
+      auth.admin,
+    )
+  }
+  try {
+    await contentAdminClient.delete(
+      auth.admin.accessToken,
+      auth.id,
+      version,
+      auth.correlationId,
+    )
+    return carryContentSession(
+      contentNoContentResponse(auth.correlationId),
+      auth.admin,
+    )
   } catch (error) {
-    if (error instanceof ApiError) {
-      return NextResponse.json(
-        { code: error.code, message: error.message },
-        { status: error.status },
-      )
-    }
-    console.error('[BFF] Failed to delete resource:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete resource' },
-      { status: 500 },
+    return carryContentSession(
+      contentErrorResponse(error, auth.correlationId),
+      auth.admin,
     )
   }
 }
