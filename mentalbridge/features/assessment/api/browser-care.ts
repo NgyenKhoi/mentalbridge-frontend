@@ -14,7 +14,9 @@ import type {
   AssessmentHistoryPage,
   AssessmentProgress,
   Instrument,
+  SupportEvaluation,
 } from './care-contract'
+import type { InitialCheckState } from '@/features/initial-check/api/initial-check-contract'
 
 export type AssessmentMode = 'anonymous' | 'authenticated'
 export type AssessmentView = Assessment | AnonymousAssessment
@@ -119,6 +121,38 @@ export async function submitAssessment(
   return response.data
 }
 
+export async function submitInitialCheckAssessment(
+  instrument: Instrument,
+  submission: AssessmentSubmissionRequest,
+  idempotencyKey: string,
+) {
+  const response = await browserApiClient.post<Assessment>(
+    `/care/initial-check/assessments/${instrument.toLowerCase()}`,
+    submission,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
+  return response.data
+}
+
+export async function getInitialCheckState() {
+  return (await browserApiClient.get<InitialCheckState>('/care/initial-check'))
+    .data
+}
+
+export async function createInitialCheckEvaluation() {
+  return (
+    await browserApiClient.post<SupportEvaluation>(
+      '/care/initial-check/evaluation',
+    )
+  ).data
+}
+
+export async function resetInitialCheck() {
+  return (
+    await browserApiClient.delete<InitialCheckState>('/care/initial-check')
+  ).data
+}
+
 export async function reopenAssessment(
   mode: AssessmentMode,
   assessmentId?: string,
@@ -163,6 +197,12 @@ export function assessmentErrorMessage(error: unknown) {
     }
     if (error.code === 'PRIVACY_DISCLOSURE_REQUIRED') {
       return 'Bạn cần đọc và đồng ý với nội dung xử lý dữ liệu hiện hành trước khi gửi bài.'
+    }
+    if (
+      error.code === 'INITIAL_CHECK_ORDER_REQUIRED' ||
+      error.code === 'INITIAL_CHECK_INCOMPLETE'
+    ) {
+      return 'Trình tự kiểm tra đã thay đổi. MentalBridge sẽ tải lại bước chưa hoàn tất để bạn tiếp tục.'
     }
     if (error.status === 409) {
       return 'Lần gửi này xung đột với một yêu cầu trước đó. Vui lòng bắt đầu lại bài đánh giá.'

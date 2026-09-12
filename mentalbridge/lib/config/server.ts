@@ -3,6 +3,7 @@ import 'server-only'
 const DEFAULT_IDENTITY_TIMEOUT_MS = 2_000
 const DEFAULT_CARE_TIMEOUT_MS = 3_000
 const DEFAULT_CONTENT_TIMEOUT_MS = 5_000
+const DEFAULT_JOURNAL_TIMEOUT_MS = 5_000
 const MIN_IDENTITY_TIMEOUT_MS = 100
 const MAX_IDENTITY_TIMEOUT_MS = 30_000
 
@@ -18,6 +19,11 @@ export type CareServerConfig = Readonly<{
 }>
 
 export type ContentServerConfig = Readonly<{
+  baseUrl: string
+  timeoutMs: number
+}>
+
+export type JournalServerConfig = Readonly<{
   baseUrl: string
   timeoutMs: number
 }>
@@ -121,6 +127,22 @@ export function readContentServerConfig(
       'CONTENT_SERVICE_TIMEOUT_MS',
       environment.CONTENT_SERVICE_TIMEOUT_MS,
       DEFAULT_CONTENT_TIMEOUT_MS,
+    ),
+  })
+}
+
+export function readJournalServerConfig(
+  environment: Environment = process.env,
+): JournalServerConfig {
+  return Object.freeze({
+    baseUrl: parseBaseUrl(
+      'JOURNAL_AI_SERVICE_URL',
+      environment.JOURNAL_AI_SERVICE_URL,
+    ),
+    timeoutMs: parseTimeout(
+      'JOURNAL_AI_SERVICE_TIMEOUT_MS',
+      environment.JOURNAL_AI_SERVICE_TIMEOUT_MS,
+      DEFAULT_JOURNAL_TIMEOUT_MS,
     ),
   })
 }

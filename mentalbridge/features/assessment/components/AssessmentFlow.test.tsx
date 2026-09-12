@@ -62,6 +62,42 @@ function problem(status: number, code: string) {
 }
 
 describe('AssessmentFlow', () => {
+  it('can describe the next guided step in its completion action', async () => {
+    mockServer.use(
+      http.get('http://localhost/api/care/questionnaires/phq9', () =>
+        HttpResponse.json(questionnaire),
+      ),
+      http.get('http://localhost/api/care/privacy-disclosure', () =>
+        HttpResponse.json(disclosure),
+      ),
+      http.get('http://localhost/api/care/consents', () =>
+        HttpResponse.json({ decisions: [] }),
+      ),
+    )
+
+    render(
+      <AssessmentFlow
+        mode="authenticated"
+        instrument="PHQ9"
+        workflow="initial-check"
+        completionLabel="Lưu PHQ-9 và bắt đầu GAD-7"
+        completionPendingLabel="Đang lưu PHQ-9…"
+      />,
+    )
+
+    await screen.findByRole('heading', {
+      name: 'PHQ-9 — Sàng lọc triệu chứng',
+    })
+    expect(
+      screen.getByRole('button', {
+        name: 'Lưu PHQ-9 và bắt đầu GAD-7',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Xem kết quả' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('submits only versioned answers and renders the server-owned result', async () => {
     const received = vi.fn()
     mockServer.use(
