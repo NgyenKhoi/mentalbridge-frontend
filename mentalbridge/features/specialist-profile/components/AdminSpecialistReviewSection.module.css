@@ -1,0 +1,154 @@
+.workspace {
+  color: var(--ink);
+}
+.workspace header > span {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--teal);
+}
+.workspace h1 {
+  margin: 8px 0;
+  font-size: clamp(32px, 4vw, 48px);
+}
+.workspace header p {
+  max-width: 720px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.8fr) minmax(360px, 1.4fr);
+  gap: 18px;
+  margin-top: 28px;
+}
+.queue,
+.detail {
+  min-height: 360px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.queue h2 {
+  display: flex;
+  justify-content: space-between;
+  font-size: 18px;
+}
+.queue h2 b {
+  display: grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 99px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 13px;
+}
+.queue > button {
+  display: grid;
+  width: 100%;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.queue > button[aria-pressed='true'] {
+  border-color: var(--teal);
+  background: var(--teal-pale);
+}
+.queue span,
+.queue small {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.detailHead {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.detailHead h2 {
+  margin: 4px 0;
+  font-size: 26px;
+}
+.detailHead small {
+  color: var(--ink-faint);
+}
+.detailHead > span {
+  padding: 6px 9px;
+  border-radius: 99px;
+  background: #fff3d8;
+  color: #805a16;
+  font-size: 11px;
+  font-weight: 800;
+}
+.detail > p {
+  line-height: 1.7;
+}
+.detail dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.detail dl div {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+.detail dt {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.detail dd {
+  margin: 5px 0 0;
+  font-weight: 700;
+}
+.detail aside {
+  margin: 18px 0;
+  padding: 13px;
+  border-left: 3px solid var(--teal);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 13px;
+}
+.approve {
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--teal-deep);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+.approve:disabled {
+  opacity: 0.6;
+}
+.empty {
+  display: grid;
+  min-height: 300px;
+  place-content: center;
+  text-align: center;
+  color: var(--ink-soft);
+}
+.error {
+  color: #a33;
+}
+.notice {
+  color: var(--teal-deep);
+}
+@media (max-width: 800px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .detail dl {
+    grid-template-columns: 1fr;
+  }
+}

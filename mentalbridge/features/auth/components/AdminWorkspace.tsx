@@ -3,6 +3,7 @@ import Link from 'next/link'
 import SessionActions from './SessionActions'
 import WorkspaceSwitcher from './WorkspaceSwitcher'
 import AdminContentSection from './AdminContentSection'
+import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -77,6 +78,8 @@ export default function AdminWorkspace({
       <main className={styles.main}>
         {section === 'content' ? (
           <AdminContentSection />
+        ) : section === 'specialists' ? (
+          <AdminSpecialistReviewSection />
         ) : (
           <>
             <span className={styles.eyebrow}>
