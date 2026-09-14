@@ -3,6 +3,7 @@ import {
   readIdentityServerConfig,
   readCareServerConfig,
   readContentServerConfig,
+  readConsultationServerConfig,
 } from './server'
 
 describe('readIdentityServerConfig', () => {
@@ -67,6 +68,23 @@ describe('readIdentityServerConfig', () => {
         IDENTITY_API_BASE_URL: 'http://localhost:8080?query=value',
       }),
     ).toThrow('must not contain credentials, query parameters, or a fragment')
+  })
+})
+
+describe('readConsultationServerConfig', () => {
+  it('parses the server-only URL and timeout', () => {
+    expect(
+      readConsultationServerConfig({
+        CONSULTATION_SERVICE_URL: 'http://localhost:8082',
+        CONSULTATION_SERVICE_TIMEOUT_MS: '4500',
+      }),
+    ).toEqual({ baseUrl: 'http://localhost:8082/', timeoutMs: 4500 })
+  })
+
+  it('requires an absolute Consultation URL', () => {
+    expect(() => readConsultationServerConfig({})).toThrow(
+      'CONSULTATION_SERVICE_URL is required',
+    )
   })
 })
 

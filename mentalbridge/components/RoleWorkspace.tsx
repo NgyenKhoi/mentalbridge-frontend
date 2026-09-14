@@ -6,14 +6,14 @@ import { motion } from 'framer-motion'
 import SessionActions from '@/features/auth/components/SessionActions'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
-import SpecialistProfileManager from './SpecialistProfileManager'
+import SpecialistProfileWorkspace from '@/features/specialist-profile/components/SpecialistProfileWorkspace'
 import SpecialistAvailabilityManager from './SpecialistAvailabilityManager'
 import SpecialistAppointmentsManager from './SpecialistAppointmentsManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistMessagesManager from './SpecialistMessagesManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
 import AdminUsersManager from './AdminUsersManager'
-import AdminSpecialistsManager from './AdminSpecialistsManager'
+import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
 import AdminAssessmentsManager from './AdminAssessmentsManager'
 import AdminContentManager from './AdminContentManager'
 import AdminReportsManager from './AdminReportsManager'
@@ -67,7 +67,6 @@ const specialistSections: Record<string, Section> = {
     { id: 'p1', title: 'ThS. Nguyễn Thu Hà', meta: 'Tâm lý lâm sàng · 8 năm kinh nghiệm', status: 'Đang hoạt động', detail: 'Hồ sơ công khai gồm chuyên môn, giới thiệu, ngôn ngữ và phí tư vấn.' },
   ], tabs: ['Thông tin', 'Chuyên môn', 'Thiết lập tư vấn'] },
 }
-
 const adminSections: Record<string, Section> = {
   dashboard: { label: 'Tổng quan hệ thống', description: 'Các chỉ số vận hành và hạng mục cần xử lý.', rows: [
     { id: 'd1', title: '12.480 người dùng', meta: '+8,4% trong 30 ngày', status: 'Ổn định', detail: 'Bao gồm tài khoản đang hoạt động và tạm khóa.' },
@@ -259,14 +258,14 @@ export default function RoleWorkspace({
       <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div><Link href={`/${role}/notifications`} className="role-bell" aria-label="Thông báo">○<b>3</b></Link></header>
       <div className="role-content">
         {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboard rows={section.rows} onSelect={setSelected} setShowModal={setShowAvailabilityModal} />}
-        {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileManager />}
+        {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager onCreate={() => setShowAvailabilityModal(true)} />}
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentsManager rows={section.rows} onCreate={() => setShowAppointmentModal(true)} onSelect={setSelected} />}
         {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager rows={section.rows} />}
         {role === 'specialist' && sectionKey === 'messages' && <SpecialistMessagesManager />}
         {role === 'specialist' && sectionKey === 'earnings' && <SpecialistEarningsManager />}
         {role === 'admin' && sectionKey === 'users' && <AdminUsersManager onSelect={setSelected} onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
-        {role === 'admin' && sectionKey === 'specialists' && <AdminSpecialistsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
+        {role === 'admin' && sectionKey === 'specialists' && <AdminSpecialistReviewSection />}
         {role === 'admin' && sectionKey === 'assessments' && <AdminAssessmentsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'content' && <AdminContentManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'reports' && <AdminReportsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
