@@ -11,6 +11,15 @@ Journal content. Regenerate them with
 `npx playwright test tests/e2e/journal.spec.ts --project=chromium` after
 `npm run build`.
 
+Story 6201 produces `story-6201-journal-desktop.png` and
+`story-6201-journal-mobile.png`. The controlled `fixture-browser` journey
+covers mood-aware create and reload, an ambiguous failed save with retained
+draft, unsaved-close protection, revision-conflict recovery, edit, and delete
+through the same-origin BFF. It also checks portrait and landscape overflow.
+Regenerate the synthetic evidence with
+`npx playwright test tests/e2e/journal.spec.ts --project=chromium` after
+`npm run build`; do not label these artifacts as live cross-stack evidence.
+
 MB-272 produces `mb-272-initial-check-questionnaire-desktop.png`,
 `mb-272-initial-check-desktop.png` and `mb-272-initial-check-mobile.png` from
 the guided dashboard-to-result journey.

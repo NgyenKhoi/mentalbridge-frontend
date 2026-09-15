@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { JournalMood } from '@/lib/journal/journal-contract'
 import JournalPage from './page'
 
 const journalId = '40000000-0000-4000-8000-000000000001'
@@ -9,7 +10,12 @@ const clientEntryId = '50000000-0000-4000-8000-000000000001'
 const commandKey = '60000000-0000-4000-8000-000000000001'
 const timestamp = '2026-09-11T03:00:00.000Z'
 
-function entry(text: string, revision = 1, tags: string[] = []) {
+function entry(
+  text: string,
+  revision = 1,
+  tags: string[] = [],
+  mood: JournalMood | null = 'GOOD',
+) {
   return {
     id: journalId,
     ownerAccountId: '10000000-0000-4000-8000-000000000001',
@@ -19,6 +25,7 @@ function entry(text: string, revision = 1, tags: string[] = []) {
     updatedAt: timestamp,
     deleted: false,
     tags,
+    mood,
     encryption: {
       algorithm: 'AES-256-GCM',
       keyId: 'test-v1',
@@ -128,8 +135,13 @@ describe('Journal page', () => {
     )
     const modal = within(screen.getByRole('dialog'))
     await user.type(modal.getByLabelText('Nội dung'), 'bản nháp an toàn')
+    await user.click(modal.getByRole('radio', { name: 'Tốt' }))
     await user.click(modal.getByRole('button', { name: 'Lưu nhật ký' }))
-    await modal.findByRole('alert')
+    expect(await modal.findByRole('alert')).toHaveTextContent(
+      'Nội dung vẫn được giữ',
+    )
+    expect(modal.getByLabelText('Nội dung')).toHaveValue('bản nháp an toàn')
+    expect(modal.getByRole('radio', { name: 'Tốt' })).toBeChecked()
     await user.click(modal.getByRole('button', { name: 'Lưu nhật ký' }))
 
     const mutationCalls = fetchMock.mock.calls.filter(
@@ -146,6 +158,68 @@ describe('Journal page', () => {
         'Idempotency-Key'
       ],
     ).toBe(commandKey)
+    expect(JSON.parse(String(mutationCalls[0]?.[1]?.body))).toMatchObject({
+      mood: 'GOOD',
+      content: { text: 'bản nháp an toàn' },
+    })
+  })
+
+  it('shows inline validation and protects a dirty in-memory draft', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        json({ items: [], page: { limit: 20, hasMore: false } }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const user = userEvent.setup()
+    render(<JournalPage />)
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Viết nhật ký đầu tiên' }),
+    )
+    const modal = within(screen.getByRole('dialog'))
+    await user.click(modal.getByRole('button', { name: 'Lưu nhật ký' }))
+    expect(modal.getByText('Hãy chọn cảm xúc phù hợp nhất.')).toBeVisible()
+    expect(
+      modal.getByText('Hãy viết một vài dòng trước khi lưu.'),
+    ).toBeVisible()
+    await waitFor(() =>
+      expect(modal.getByRole('radio', { name: 'Tuyệt vời' })).toHaveFocus(),
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    await user.type(modal.getByLabelText('Nội dung'), 'đừng làm mất tôi')
+    await user.click(modal.getByRole('radio', { name: 'Bình thường' }))
+    const beforeUnload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(beforeUnload)
+    expect(beforeUnload.defaultPrevented).toBe(true)
+
+    const internalLink = document.createElement('a')
+    internalLink.href = '/profile'
+    internalLink.textContent = 'Hồ sơ'
+    document.body.append(internalLink)
+    const navigation = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    })
+    internalLink.dispatchEvent(navigation)
+    expect(navigation.defaultPrevented).toBe(true)
+    internalLink.remove()
+
+    await user.click(modal.getByRole('button', { name: 'Đóng' }))
+    expect(confirm).toHaveBeenCalledWith(
+      'Bạn có thay đổi chưa lưu. Rời đi và bỏ bản nháp?',
+    )
+    expect(screen.getByRole('dialog')).toBeVisible()
+    expect(modal.getByLabelText('Nội dung')).toHaveValue('đừng làm mất tôi')
+
+    confirm.mockReturnValue(true)
+    await user.click(modal.getByRole('button', { name: 'Đóng' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
   })
 
   it('loads the authoritative revision after 412 and retains the editable draft', async () => {

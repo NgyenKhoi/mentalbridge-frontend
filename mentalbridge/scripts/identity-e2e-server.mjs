@@ -144,6 +144,7 @@ let progressFault = null
 let questionnaireFault = null
 let contentFault = null
 let journalConflictOnce = false
+let journalCreateFailureOnce = false
 accessSessions.set(careAccessToken, careActor)
 accessSessions.set(otherCareAccessToken, otherCareActor)
 accessSessions.set(resourceAccessToken, resourceActor)
@@ -190,6 +191,7 @@ function reset() {
   questionnaireFault = null
   contentFault = null
   journalConflictOnce = false
+  journalCreateFailureOnce = false
   careProfiles.set(careActor.accountId, {
     accountId: careActor.accountId,
     displayName: 'Care E2E User',
@@ -313,6 +315,7 @@ function journalEntry(actor, body) {
     updatedAt: now,
     deleted: false,
     tags: body.tags ?? [],
+    mood: body.mood ?? null,
     encryption: {
       algorithm: 'AES-256-GCM',
       keyId: 'e2e-v1',
@@ -788,6 +791,21 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/__test/journal/create-failure'
+    ) {
+      const mode = url.searchParams.get('mode')
+      if (!['NEXT_POST', 'CLEAR'].includes(mode)) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Unsupported fault mode')
+        return
+      }
+      journalCreateFailureOnce = mode === 'NEXT_POST'
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/v1/journals') {
       const actor = journalActor(request, response)
       if (!actor) return
@@ -831,6 +849,16 @@ const server = createServer(async (request, response) => {
       }
       if (command.replay) {
         json(response, command.replay.status, command.replay.body)
+        return
+      }
+      if (journalCreateFailureOnce) {
+        journalCreateFailureOnce = false
+        problem(
+          response,
+          503,
+          'JOURNAL_MUTATION_OUTCOME_UNKNOWN',
+          'Synthetic ambiguous create outcome',
+        )
         return
       }
       if (journalEntries.has(body.clientEntryId)) {
@@ -920,6 +948,7 @@ const server = createServer(async (request, response) => {
           currentRevision: entry.currentRevision + 1,
           updatedAt,
           tags: body.tags ?? entry.tags,
+          mood: body.mood ?? entry.mood,
           encryption: { ...entry.encryption, encryptedAt: updatedAt },
           analysisState: 'stale',
           content: {

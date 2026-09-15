@@ -3,8 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   JournalEntry,
+  JournalMood,
   JournalSummary,
 } from '@/lib/journal/journal-contract'
+import {
+  JOURNAL_MOODS,
+  JOURNAL_PROMPTS,
+  journalMood,
+} from '@/features/journal/authoring'
 import {
   parseJournalEntry,
   parseJournalPage,
@@ -18,6 +24,19 @@ import './journal.css'
 
 type Problem = { code?: string; title?: string }
 type Mode = 'closed' | 'create' | 'view' | 'edit' | 'delete'
+type EditorSnapshot = {
+  text: string
+  tagText: string
+  occurredAt: string
+  mood: JournalMood | null
+}
+type FieldErrors = {
+  mood?: string
+  text?: string
+  occurredAt?: string
+  tags?: string
+}
+const DISCARD_MESSAGE = 'Bạn có thay đổi chưa lưu. Rời đi và bỏ bản nháp?'
 class JournalUiError extends Error {
   constructor(
     message: string,
@@ -85,6 +104,7 @@ export default function JournalPage() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [pageError, setPageError] = useState('')
+  const [pageNotice, setPageNotice] = useState('')
   const [mode, setMode] = useState<Mode>('closed')
   const [selected, setSelected] = useState<JournalEntry | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -93,11 +113,32 @@ export default function JournalPage() {
   const [text, setText] = useState('')
   const [tagText, setTagText] = useState('')
   const [occurredAt, setOccurredAt] = useState('')
+  const [mood, setMood] = useState<JournalMood | null>(null)
+  const [promptIndex, setPromptIndex] = useState(0)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const [editorBaseline, setEditorBaseline] = useState<EditorSnapshot | null>(
+    null,
+  )
   const [clientEntryId, setClientEntryId] = useState('')
   const mutationKeys = useRef(new Map<string, string>())
   const triggerRef = useRef<HTMLElement | null>(null)
   const backgroundRef = useRef<HTMLDivElement | null>(null)
   const dialogRef = useRef<HTMLElement | null>(null)
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null)
+  const firstMoodRef = useRef<HTMLInputElement | null>(null)
+  const occurredAtRef = useRef<HTMLInputElement | null>(null)
+  const tagsRef = useRef<HTMLInputElement | null>(null)
+  const navigationAllowedRef = useRef(false)
+
+  const editorSnapshot = { text, tagText, occurredAt, mood }
+  const baseline = editorBaseline
+  const dirty =
+    (mode === 'create' || mode === 'edit') &&
+    baseline !== null &&
+    (baseline.text !== editorSnapshot.text ||
+      baseline.tagText !== editorSnapshot.tagText ||
+      baseline.occurredAt !== editorSnapshot.occurredAt ||
+      baseline.mood !== editorSnapshot.mood)
 
   const load = useCallback(async (next?: string) => {
     if (next) setLoadingMore(true)
@@ -136,13 +177,20 @@ export default function JournalPage() {
     return () => window.clearTimeout(initialLoad)
   }, [load])
 
-  const close = useCallback(() => {
+  const discardAndClose = useCallback(() => {
     setMode('closed')
     setSelected(null)
     setModalError('')
+    setFieldErrors({})
     setWorking(false)
+    setEditorBaseline(null)
+    navigationAllowedRef.current = false
     window.setTimeout(() => triggerRef.current?.focus(), 0)
   }, [])
+  const requestClose = useCallback(() => {
+    if (dirty && !window.confirm(DISCARD_MESSAGE)) return
+    discardAndClose()
+  }, [dirty, discardAndClose])
   useEffect(() => {
     if (mode === 'closed') return
     const overflow = document.body.style.overflow
@@ -154,7 +202,7 @@ export default function JournalPage() {
     const keyboard = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !working) {
         event.preventDefault()
-        close()
+        requestClose()
         return
       }
       if (event.key !== 'Tab') return
@@ -188,7 +236,57 @@ export default function JournalPage() {
         background.removeAttribute('aria-hidden')
       }
     }
-  }, [close, mode, working])
+  }, [mode, requestClose, working])
+
+  useEffect(() => {
+    if (!dirty) return
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (navigationAllowedRef.current) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    const protectLinkNavigation = (event: MouseEvent) => {
+      if (
+        navigationAllowedRef.current ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return
+      const target = event.target
+      const anchor =
+        target instanceof Element
+          ? target.closest<HTMLAnchorElement>('a[href]')
+          : null
+      if (
+        !anchor ||
+        anchor.target === '_blank' ||
+        anchor.hasAttribute('download')
+      )
+        return
+      const destination = new URL(anchor.href, window.location.href)
+      if (
+        destination.origin !== window.location.origin ||
+        destination.href === window.location.href
+      )
+        return
+      if (!window.confirm(DISCARD_MESSAGE)) {
+        event.preventDefault()
+        event.stopPropagation()
+        return
+      }
+      navigationAllowedRef.current = true
+    }
+    window.addEventListener('beforeunload', beforeUnload)
+    document.addEventListener('click', protectLinkNavigation, true)
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload)
+      document.removeEventListener('click', protectLinkNavigation, true)
+    }
+  }, [dirty])
   useEffect(() => {
     if (mode === 'closed') return
     const frame = window.requestAnimationFrame(() => {
@@ -202,11 +300,21 @@ export default function JournalPage() {
   }, [detailLoading, mode])
   function openCreate(event: React.MouseEvent<HTMLButtonElement>) {
     triggerRef.current = event.currentTarget
+    const initialOccurredAt = formatJournalLocalDateTime(new Date())
     setText('')
     setTagText('')
+    setMood(null)
+    setPromptIndex(0)
+    setFieldErrors({})
     setModalError('')
-    setOccurredAt(formatJournalLocalDateTime(new Date()))
+    setOccurredAt(initialOccurredAt)
     setClientEntryId(crypto.randomUUID())
+    setEditorBaseline({
+      text: '',
+      tagText: '',
+      occurredAt: initialOccurredAt,
+      mood: null,
+    })
     setMode('create')
   }
   async function openDetail(entry: JournalSummary, target: HTMLElement) {
@@ -219,6 +327,7 @@ export default function JournalPage() {
       setSelected(parsed)
       setText(parsed.content.text)
       setTagText(parsed.tags.join(', '))
+      setMood(parsed.mood)
     } catch (error) {
       setModalError(
         error instanceof Error
@@ -228,6 +337,22 @@ export default function JournalPage() {
     } finally {
       setDetailLoading(false)
     }
+  }
+  function startEdit() {
+    if (!selected) return
+    const initial = {
+      text: selected.content.text,
+      tagText: selected.tags.join(', '),
+      occurredAt: '',
+      mood: selected.mood,
+    }
+    setText(initial.text)
+    setTagText(initial.tagText)
+    setMood(initial.mood)
+    setFieldErrors({})
+    setModalError('')
+    setEditorBaseline(initial)
+    setMode('edit')
   }
   function commandKey(scope: string) {
     const current = mutationKeys.current.get(scope)
@@ -273,26 +398,42 @@ export default function JournalPage() {
       setWorking(false)
     }
   }
-  function valid(textValue: string, tags: string[]) {
-    return (
-      textValue.length > 0 &&
-      textValue.length <= 12_000 &&
-      tags.length <= 20 &&
-      new Set(tags).size === tags.length &&
-      tags.every((tag) => tag.length <= 40)
+  function validateEditor(tags: string[], occurredAtIso?: string | null) {
+    const errors: FieldErrors = {}
+    if (!mood) errors.mood = 'Hãy chọn cảm xúc phù hợp nhất.'
+    if (text.trim().length === 0)
+      errors.text = 'Hãy viết một vài dòng trước khi lưu.'
+    else if (text.length > 12_000)
+      errors.text = 'Nội dung không được dài quá 12000 ký tự.'
+    if (
+      tags.length > 20 ||
+      new Set(tags).size !== tags.length ||
+      tags.some((tag) => tag.length > 40)
     )
+      errors.tags =
+        'Dùng tối đa 20 thẻ không trùng nhau, mỗi thẻ tối đa 40 ký tự.'
+    if (occurredAtIso === null)
+      errors.occurredAt = 'Hãy chọn thời điểm ghi hợp lệ.'
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      window.requestAnimationFrame(() => {
+        if (errors.mood) firstMoodRef.current?.focus()
+        else if (errors.occurredAt) occurredAtRef.current?.focus()
+        else if (errors.text) textAreaRef.current?.focus()
+        else if (errors.tags) tagsRef.current?.focus()
+      })
+    }
+    return Object.keys(errors).length === 0
   }
   async function create() {
     const tags = tagsOf(tagText)
     const occurredAtIso = journalLocalDateTimeToIso(occurredAt)
-    if (!valid(text, tags) || !occurredAtIso) {
-      setModalError('Nhập nội dung và tối đa 20 thẻ không trùng nhau.')
-      return
-    }
+    if (!validateEditor(tags, occurredAtIso) || !occurredAtIso || !mood) return
     const payload = {
       clientEntryId,
       occurredAt: occurredAtIso,
       content: { text },
+      mood,
       tags,
     }
     try {
@@ -306,7 +447,8 @@ export default function JournalPage() {
         },
         parseJournalEntry,
       )
-      close()
+      setPageNotice('Nhật ký đã được lưu.')
+      discardAndClose()
       await load()
     } catch (error) {
       setModalError(
@@ -317,11 +459,8 @@ export default function JournalPage() {
   async function revise() {
     if (!selected) return
     const tags = tagsOf(tagText)
-    if (!valid(text, tags)) {
-      setModalError('Nhập nội dung và tối đa 20 thẻ không trùng nhau.')
-      return
-    }
-    const scope = `revise:${selected.id}:${selected.currentRevision}:${text}:${tagText}`
+    if (!validateEditor(tags) || !mood) return
+    const scope = `revise:${selected.id}:${selected.currentRevision}:${mood}:${text}:${tagText}`
     try {
       const updated = (await mutate(
         scope,
@@ -332,12 +471,15 @@ export default function JournalPage() {
             'Content-Type': 'application/json',
             'If-Match-Revision': String(selected.currentRevision),
           },
-          body: JSON.stringify({ content: { text }, tags }),
+          body: JSON.stringify({ content: { text }, mood, tags }),
         },
         parseJournalEntry,
       )) as JournalEntry
       setSelected(updated)
+      setMood(updated.mood)
+      setEditorBaseline(null)
       setMode('view')
+      setPageNotice('Nhật ký đã được cập nhật.')
       await load()
     } catch (error) {
       if (
@@ -376,7 +518,8 @@ export default function JournalPage() {
         { method: 'DELETE' },
         parseTombstone,
       )
-      close()
+      setPageNotice('Nhật ký đã được xóa.')
+      discardAndClose()
       await load()
     } catch (error) {
       setModalError(
@@ -392,10 +535,6 @@ export default function JournalPage() {
           <div>
             <span>Nhật ký riêng tư</span>
             <h1>Nhật ký của bạn</h1>
-            <p>
-              Nội dung được mã hóa trước khi lưu và chỉ tài khoản của bạn có thể
-              truy cập.
-            </p>
           </div>
           <button onClick={openCreate}>+ Viết nhật ký</button>
         </header>
@@ -409,6 +548,11 @@ export default function JournalPage() {
               Tải lại
             </button>
           </div>
+          {pageNotice && (
+            <p className="journal-save-notice" role="status">
+              {pageNotice}
+            </p>
+          )}
           {loading && (
             <p className="journal-status" role="status">
               Đang tải nhật ký…
@@ -433,7 +577,17 @@ export default function JournalPage() {
           <div className="journal-live-grid">
             {entries.map((entry) => (
               <article key={entry.id} className="journal-live-card">
-                <time>{formatDate(entry.occurredAt)}</time>
+                <header>
+                  <time>{formatDate(entry.occurredAt)}</time>
+                  {journalMood(entry.mood) && (
+                    <span className="journal-mood-badge">
+                      <span aria-hidden="true">
+                        {journalMood(entry.mood)?.emoji}
+                      </span>{' '}
+                      {journalMood(entry.mood)?.label}
+                    </span>
+                  )}
+                </header>
                 <p>{entry.content.preview}</p>
                 <div>
                   {entry.tags.map((tag) => (
@@ -465,7 +619,7 @@ export default function JournalPage() {
         <div
           className="journal-dialog-backdrop"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !working) close()
+            if (event.target === event.currentTarget && !working) requestClose()
           }}
         >
           <section
@@ -490,7 +644,11 @@ export default function JournalPage() {
                         : 'Chi tiết nhật ký'}
                 </h2>
               </div>
-              <button onClick={close} disabled={working} aria-label="Đóng">
+              <button
+                onClick={requestClose}
+                disabled={working}
+                aria-label="Đóng"
+              >
                 ×
               </button>
             </header>
@@ -507,61 +665,208 @@ export default function JournalPage() {
             {!detailLoading && mode === 'view' && selected && (
               <div className="journal-detail">
                 <time>{formatDate(selected.occurredAt)}</time>
+                {journalMood(selected.mood) && (
+                  <p className="journal-detail-mood">
+                    <span aria-hidden="true">
+                      {journalMood(selected.mood)?.emoji}
+                    </span>{' '}
+                    Bạn đã chọn: {journalMood(selected.mood)?.label}
+                  </p>
+                )}
                 <p>{selected.content.text}</p>
                 <div>
                   {selected.tags.map((tag) => (
                     <span key={tag}>#{tag}</span>
                   ))}
                 </div>
-                <small>
-                  Phiên bản {selected.currentRevision} · Mã hóa{' '}
-                  {selected.encryption.algorithm}
-                </small>
+                <small>Phiên bản {selected.currentRevision}</small>
                 <footer>
                   <button className="danger" onClick={() => setMode('delete')}>
                     Xóa
                   </button>
-                  <button onClick={() => setMode('edit')}>Chỉnh sửa</button>
+                  <button onClick={startEdit}>Chỉnh sửa</button>
                 </footer>
               </div>
             )}
             {(mode === 'create' || (mode === 'edit' && selected)) && (
               <div className="journal-form">
+                <fieldset
+                  className="journal-mood-field"
+                  aria-describedby={
+                    fieldErrors.mood ? 'journal-mood-error' : undefined
+                  }
+                >
+                  <legend>Bạn đang cảm thấy thế nào? (bắt buộc)</legend>
+                  <div className="journal-mood-options">
+                    {JOURNAL_MOODS.map((option, index) => (
+                      <label
+                        key={option.value}
+                        className={
+                          mood === option.value ? 'selected' : undefined
+                        }
+                      >
+                        <input
+                          ref={index === 0 ? firstMoodRef : undefined}
+                          type="radio"
+                          name="journal-mood"
+                          value={option.value}
+                          checked={mood === option.value}
+                          onChange={() => {
+                            setMood(option.value)
+                            setFieldErrors((current) => ({
+                              ...current,
+                              mood: undefined,
+                            }))
+                          }}
+                        />
+                        <span aria-hidden="true">{option.emoji}</span>
+                        <strong>{option.label}</strong>
+                      </label>
+                    ))}
+                  </div>
+                  {fieldErrors.mood && (
+                    <small
+                      id="journal-mood-error"
+                      className="journal-field-error"
+                    >
+                      {fieldErrors.mood}
+                    </small>
+                  )}
+                </fieldset>
+                <section
+                  className="journal-prompts"
+                  aria-labelledby="journal-prompts-title"
+                >
+                  <div>
+                    <span>Gợi ý viết</span>
+                    <h3 id="journal-prompts-title">
+                      Nếu bạn chưa biết bắt đầu từ đâu
+                    </h3>
+                  </div>
+                  <div className="journal-prompt-options">
+                    {JOURNAL_PROMPTS.map((prompt, index) => (
+                      <button
+                        type="button"
+                        key={prompt}
+                        aria-pressed={promptIndex === index}
+                        onClick={() => {
+                          setPromptIndex(index)
+                          textAreaRef.current?.focus()
+                        }}
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </section>
                 {mode === 'create' && (
                   <label>
                     Thời điểm ghi
                     <input
+                      ref={occurredAtRef}
                       aria-label="Thời điểm ghi"
                       type="datetime-local"
                       value={occurredAt}
-                      onChange={(event) => setOccurredAt(event.target.value)}
+                      aria-invalid={Boolean(fieldErrors.occurredAt)}
+                      aria-describedby={
+                        fieldErrors.occurredAt
+                          ? 'journal-occurred-error'
+                          : undefined
+                      }
+                      onChange={(event) => {
+                        setOccurredAt(event.target.value)
+                        setFieldErrors((current) => ({
+                          ...current,
+                          occurredAt: undefined,
+                        }))
+                      }}
                     />
+                    {fieldErrors.occurredAt && (
+                      <small
+                        id="journal-occurred-error"
+                        className="journal-field-error"
+                      >
+                        {fieldErrors.occurredAt}
+                      </small>
+                    )}
                   </label>
                 )}
                 <label>
-                  Nội dung
+                  Nội dung (bắt buộc)
                   <textarea
+                    ref={textAreaRef}
                     aria-label="Nội dung"
+                    aria-invalid={Boolean(fieldErrors.text)}
+                    aria-describedby={
+                      fieldErrors.text ? 'journal-text-error' : undefined
+                    }
                     data-dialog-initial-focus
                     value={text}
                     maxLength={12_000}
-                    onChange={(event) => setText(event.target.value)}
+                    placeholder={JOURNAL_PROMPTS[promptIndex]}
+                    onChange={(event) => {
+                      setText(event.target.value)
+                      setFieldErrors((current) => ({
+                        ...current,
+                        text: undefined,
+                      }))
+                    }}
                     rows={10}
                   />
-                  <small>{text.length}/12000</small>
+                  <span className="journal-field-meta">
+                    {fieldErrors.text && (
+                      <small
+                        id="journal-text-error"
+                        className="journal-field-error"
+                      >
+                        {fieldErrors.text}
+                      </small>
+                    )}
+                    <small>{text.length}/12000</small>
+                  </span>
                 </label>
                 <label>
                   Thẻ do bạn đặt
                   <input
+                    ref={tagsRef}
                     aria-label="Thẻ do bạn đặt"
                     value={tagText}
-                    onChange={(event) => setTagText(event.target.value)}
+                    aria-invalid={Boolean(fieldErrors.tags)}
+                    aria-describedby={
+                      fieldErrors.tags
+                        ? 'journal-tags-help journal-tags-error'
+                        : 'journal-tags-help'
+                    }
+                    onChange={(event) => {
+                      setTagText(event.target.value)
+                      setFieldErrors((current) => ({
+                        ...current,
+                        tags: undefined,
+                      }))
+                    }}
                     placeholder="công việc, gia đình"
                   />
-                  <small>Phân cách bằng dấu phẩy, tối đa 20 thẻ.</small>
+                  <small id="journal-tags-help">
+                    Phân cách bằng dấu phẩy, tối đa 20 thẻ.
+                  </small>
+                  {fieldErrors.tags && (
+                    <small
+                      id="journal-tags-error"
+                      className="journal-field-error"
+                    >
+                      {fieldErrors.tags}
+                    </small>
+                  )}
                 </label>
+                <p className="journal-draft-state" role="status">
+                  {working
+                    ? 'Đang lưu thay đổi an toàn…'
+                    : dirty
+                      ? 'Có thay đổi chưa lưu. Bản nháp chỉ được giữ trên màn hình này.'
+                      : 'Chưa có thay đổi mới.'}
+                </p>
                 <footer>
-                  <button onClick={close} disabled={working}>
+                  <button onClick={requestClose} disabled={working}>
                     Hủy
                   </button>
                   <button

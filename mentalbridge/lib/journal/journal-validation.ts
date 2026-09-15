@@ -1,6 +1,7 @@
 import type {
   JournalCreate,
   JournalEntry,
+  JournalMood,
   JournalPage,
   JournalTombstone,
   JournalWrite,
@@ -10,6 +11,7 @@ const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const rfc3339 =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/
+const moods = new Set<JournalMood>(['GREAT', 'GOOD', 'OKAY', 'LOW', 'VERY_LOW'])
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 const exact = (value: Record<string, unknown>, keys: string[]) =>
@@ -29,6 +31,8 @@ const tags = (value: unknown): value is string[] =>
       tag.length <= 40,
   ) &&
   new Set(value).size === value.length
+export const isJournalMood = (value: unknown): value is JournalMood =>
+  typeof value === 'string' && moods.has(value as JournalMood)
 
 export const isJournalId = (value: unknown): value is string =>
   typeof value === 'string' && uuid.test(value)
@@ -46,6 +50,7 @@ function metadata(value: Record<string, unknown>) {
     dateTime(value.updatedAt) &&
     value.deleted === false &&
     tags(value.tags) &&
+    (value.mood === null || isJournalMood(value.mood)) &&
     object(value.encryption) &&
     exact(value.encryption, ['algorithm', 'keyId', 'encryptedAt']) &&
     value.encryption.algorithm === 'AES-256-GCM' &&
@@ -68,6 +73,7 @@ export function parseJournalEntry(value: unknown): JournalEntry | null {
       'updatedAt',
       'deleted',
       'tags',
+      'mood',
       'encryption',
       'analysisState',
       'content',
@@ -126,6 +132,7 @@ export function parseJournalPage(value: unknown): JournalPage | null {
         'updatedAt',
         'deleted',
         'tags',
+        'mood',
         'encryption',
         'analysisState',
         'content',
@@ -164,12 +171,13 @@ export function parseTombstone(value: unknown): JournalTombstone | null {
 export function parseJournalWrite(value: unknown): JournalWrite | null {
   if (
     !object(value) ||
-    !exact(value, ['content', 'tags']) ||
+    !exact(value, ['content', 'mood', 'tags']) ||
     !object(value.content) ||
     !exact(value.content, ['text']) ||
     typeof value.content.text !== 'string' ||
-    value.content.text.length < 1 ||
+    value.content.text.trim().length < 1 ||
     value.content.text.length > 12_000 ||
+    (value.mood !== undefined && !isJournalMood(value.mood)) ||
     (value.tags !== undefined && !tags(value.tags))
   )
     return null
@@ -179,13 +187,14 @@ export function parseJournalWrite(value: unknown): JournalWrite | null {
 export function parseJournalCreate(value: unknown): JournalCreate | null {
   if (
     !object(value) ||
-    !exact(value, ['clientEntryId', 'occurredAt', 'content', 'tags']) ||
+    !exact(value, ['clientEntryId', 'occurredAt', 'content', 'mood', 'tags']) ||
     !isJournalId(value.clientEntryId) ||
     !dateTime(value.occurredAt)
   )
     return null
   const write = parseJournalWrite({
     content: value.content,
+    ...(value.mood === undefined ? {} : { mood: value.mood }),
     ...(value.tags === undefined ? {} : { tags: value.tags }),
   })
   return write ? (value as JournalCreate) : null
