@@ -14,6 +14,7 @@ const metadata = {
   updatedAt: '2026-09-10T10:00:00.000Z',
   deleted: false,
   tags: ['riêng tư'],
+  mood: 'GOOD',
   encryption: {
     algorithm: 'AES-256-GCM',
     keyId: 'test-v1',
@@ -56,7 +57,13 @@ describe('Journal boundary validation', () => {
     ).toBeNull()
   })
   it('rejects unsupported persisted fields in writes', () => {
+    expect(
+      parseJournalWrite({ content: { text: 'text' }, mood: 'GOOD' }),
+    ).not.toBeNull()
     expect(parseJournalWrite({ content: { text: 'text' }, mood: 5 })).toBeNull()
+    expect(
+      parseJournalWrite({ content: { text: '   ' }, mood: 'GOOD' }),
+    ).toBeNull()
     expect(
       parseJournalWrite({ content: { text: 'text' }, tags: ['same', 'same'] }),
     ).toBeNull()

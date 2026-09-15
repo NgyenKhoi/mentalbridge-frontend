@@ -17,6 +17,7 @@ const entry = {
   updatedAt: timestamp,
   deleted: false,
   tags: [],
+  mood: 'GOOD' as const,
   encryption: {
     algorithm: 'AES-256-GCM' as const,
     keyId: 'test-v1',
@@ -29,6 +30,7 @@ const createBody = {
   clientEntryId,
   occurredAt: timestamp,
   content: { text: 'synthetic journal' },
+  mood: 'GOOD' as const,
   tags: [],
 }
 

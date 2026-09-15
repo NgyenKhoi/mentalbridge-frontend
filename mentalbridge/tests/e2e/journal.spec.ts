@@ -46,9 +46,30 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     await expect(
       page.getByRole('heading', { name: 'Chưa có nhật ký' }),
     ).toBeVisible()
+    await expect(
+      (
+        await request.post(
+          `${providerFixtureUrl}/__test/journal/create-failure?mode=NEXT_POST`,
+        )
+      ).status(),
+    ).toBe(204)
     await page.locator('.journal-live-hero button').click()
+    await page.getByRole('radio', { name: 'Tốt', exact: true }).check()
     await page.getByLabel('Nội dung').fill('Nội dung được giữ sau khi tải lại')
     await page.getByLabel('Thẻ do bạn đặt').fill('riêng tư, hôm nay')
+    page.once('dialog', (dialog) => dialog.dismiss())
+    await page.getByRole('button', { name: 'Đóng' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
+      'Nội dung vẫn được giữ',
+    )
+    await expect(page.getByLabel('Nội dung')).toHaveValue(
+      'Nội dung được giữ sau khi tải lại',
+    )
+    await expect(
+      page.getByRole('radio', { name: 'Tốt', exact: true }),
+    ).toBeChecked()
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
     await expect(
       page.getByText('Nội dung được giữ sau khi tải lại'),
@@ -59,7 +80,9 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
       page.getByText('Nội dung được giữ sau khi tải lại'),
     ).toBeVisible()
     await page.getByRole('button', { name: 'Xem chi tiết' }).click()
+    await expect(page.getByRole('dialog')).toContainText('Bạn đã chọn: Tốt')
     await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
+    await page.getByRole('radio', { name: 'Không tốt', exact: true }).check()
     await page.getByLabel('Nội dung').fill('Bản chỉnh sửa không bị mất')
     await expect(
       (
@@ -75,11 +98,14 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     await expect(page.getByLabel('Nội dung')).toHaveValue(
       'Bản chỉnh sửa không bị mất',
     )
+    await expect(
+      page.getByRole('radio', { name: 'Không tốt', exact: true }),
+    ).toBeChecked()
 
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
     await expect(page.getByText('Phiên bản 3')).toBeVisible()
     await page.screenshot({
-      path: 'docs/evidence/mb-236-journal-desktop.png',
+      path: 'docs/evidence/story-6201-journal-desktop.png',
       fullPage: true,
     })
     await page.getByRole('button', { name: 'Xóa' }).click()
@@ -98,10 +124,11 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     request,
   }) => {
     await resetProvider(request)
-    await page.setViewportSize({ width: 390, height: 844 })
+    await page.setViewportSize({ width: 375, height: 812 })
     await authenticated(context)
     await page.goto('/journal')
     await page.locator('.journal-live-hero button').click()
+    await page.getByRole('radio', { name: 'Bình thường' }).check()
     await page.getByLabel('Nội dung').fill('Nhật ký trên thiết bị di động')
     await page.getByLabel('Thẻ do bạn đặt').fill('riêng tư')
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
@@ -112,9 +139,20 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
       'Nhật ký trên thiết bị di động',
     )
     await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toBeVisible()
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true)
     await page.screenshot({
-      path: 'docs/evidence/mb-236-journal-mobile.png',
+      path: 'docs/evidence/story-6201-journal-mobile.png',
       fullPage: true,
     })
+    await page.setViewportSize({ width: 812, height: 375 })
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true)
   })
 })

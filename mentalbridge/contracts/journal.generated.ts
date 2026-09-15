@@ -178,16 +178,25 @@ export interface components {
             /** Format: date-time */
             occurredAt: string;
             content: components["schemas"]["JournalContentInput"];
+            /** @description Optional during the compatibility window; new MentalBridge editors require an explicit user selection. */
+            mood?: components["schemas"]["JournalMood"];
             tags?: string[];
         };
         ReviseJournalRequest: {
             content: components["schemas"]["JournalContentInput"];
+            /** @description When omitted by an older client, the current revision mood is preserved. */
+            mood?: components["schemas"]["JournalMood"];
             tags?: string[];
         };
         JournalContentInput: {
-            /** @description Plaintext is accepted only at the API boundary and must not be logged or indexed. */
+            /** @description Non-blank plaintext is accepted only at the API boundary and must not be logged or indexed. */
             text: string;
         };
+        /**
+         * @description User-selected reflection label; it is not a clinical score and the emoji presentation is client-owned.
+         * @enum {string}
+         */
+        JournalMood: "GREAT" | "GOOD" | "OKAY" | "LOW" | "VERY_LOW";
         JournalEntryMetadata: {
             /** Format: uuid */
             id: string;
@@ -202,6 +211,8 @@ export interface components {
             updatedAt: string;
             deleted: boolean;
             tags: string[];
+            /** @description Mood stored with the current encrypted revision; null only for entries written by compatible legacy clients. */
+            mood: components["schemas"]["JournalMood"] | null;
             encryption: components["schemas"]["EncryptionMetadata"];
             /** @enum {string} */
             analysisState: "not_requested" | "current" | "stale";
