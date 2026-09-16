@@ -19,6 +19,7 @@ Story-specific delivery evidence:
 - [MB-177/MB-178/MB-205 Care-backed screening, profile, consent, history, and progress integration](care-assessment-integration.md)
 - [MB-273 initial-check release evidence](initial-check-release-evidence.md)
 - [Story 6201 Journal authoring and draft protection](journal-authoring-story-6201.md)
+- [MB-510 daily emotion check-in delivery evidence](daily-emotion-check-in-mb-510.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
@@ -46,6 +47,7 @@ documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
 | GAD-7 runtime and immutable questionnaire history    | Implemented | Story 1102     |
 | Guided initial check and unified support result      | Implemented | MB-272         |
 | Mood-aware Journal authoring and draft protection    | Implemented | Story 6201     |
+| Daily self-reported emotion check-in                 | Implemented | MB-510         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then
