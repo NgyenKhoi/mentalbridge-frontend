@@ -73,16 +73,19 @@ function terminate(child) {
 
   if (process.platform === 'win32') {
     return new Promise((resolve) => {
-      const killer = spawn(
-        'taskkill',
-        ['/pid', String(child.pid), '/T', '/F'],
-        {
-          stdio: 'ignore',
-          windowsHide: true,
-        },
-      )
-      killer.once('exit', resolve)
-      killer.once('error', resolve)
+      let finished = false
+      const finish = () => {
+        if (finished) return
+        finished = true
+        resolve()
+      }
+      child.once('exit', finish)
+      try {
+        child.kill()
+      } catch {
+        finish()
+      }
+      setTimeout(finish, 2_000).unref()
     })
   }
 
@@ -105,10 +108,13 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 
 async function run() {
   if (process.env.PLAYWRIGHT_BASE_URL) {
-    const command = process.platform === 'win32' ? 'npx.cmd' : 'npx'
     const playwright = start(
-      command,
-      ['playwright', 'test', ...process.argv.slice(2)],
+      'node',
+      [
+        'node_modules/@playwright/test/cli.js',
+        'test',
+        ...process.argv.slice(2),
+      ],
       {
         ...inheritedEnvironment,
       },
@@ -151,6 +157,8 @@ async function run() {
       CARE_API_TIMEOUT_MS: '3000',
       CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
       CONTENT_SERVICE_URL: `http://${host}:${identityPort}`,
+      JOURNAL_AI_SERVICE_URL: `http://${host}:${identityPort}`,
+      JOURNAL_AI_SERVICE_TIMEOUT_MS: '3000',
       HOSTNAME: host,
       PORT: String(frontendPort),
     },
@@ -162,13 +170,13 @@ async function run() {
     frontend,
   )
 
-  const command = process.platform === 'win32' ? 'npx.cmd' : 'npx'
   const playwright = start(
-    command,
-    ['playwright', 'test', ...process.argv.slice(2)],
+    'node',
+    ['node_modules/@playwright/test/cli.js', 'test', ...process.argv.slice(2)],
     {
       ...inheritedEnvironment,
       PLAYWRIGHT_BASE_URL: `http://${host}:${frontendPort}`,
+      MANAGED_E2E_SERVERS: '1',
     },
   )
   const code = await new Promise((resolve) => playwright.once('exit', resolve))

@@ -131,6 +131,8 @@ const careProfiles = new Map()
 const careConsents = new Map()
 const journalEntries = new Map()
 const journalCommands = new Map()
+const emotionCheckIns = new Map()
+const emotionCommands = new Map()
 const careAccessToken = 'synthetic-care-e2e-access'
 const otherCareAccessToken = 'synthetic-care-e2e-other-access'
 const careActor = actors.get('care-e2e@example.com')
@@ -145,6 +147,7 @@ let questionnaireFault = null
 let contentFault = null
 let journalConflictOnce = false
 let journalCreateFailureOnce = false
+let emotionCreateFailureOnce = false
 accessSessions.set(careAccessToken, careActor)
 accessSessions.set(otherCareAccessToken, otherCareActor)
 accessSessions.set(resourceAccessToken, resourceActor)
@@ -176,6 +179,8 @@ function reset() {
   careConsents.clear()
   journalEntries.clear()
   journalCommands.clear()
+  emotionCheckIns.clear()
+  emotionCommands.clear()
   contentCreateByKey.clear()
   contentResources.splice(
     0,
@@ -192,6 +197,7 @@ function reset() {
   contentFault = null
   journalConflictOnce = false
   journalCreateFailureOnce = false
+  emotionCreateFailureOnce = false
   careProfiles.set(careActor.accountId, {
     accountId: careActor.accountId,
     displayName: 'Care E2E User',
@@ -336,6 +342,51 @@ function journalSummary(entry) {
       preview: Array.from(entry.content.text).slice(0, 160).join(''),
       byteLength: entry.content.byteLength,
     },
+  }
+}
+
+function emotionCommand(actor, request, fingerprint) {
+  const key = request.headers['idempotency-key']
+  if (typeof key !== 'string') return { error: 'missing' }
+  const commandKey = `${actor.accountId}:${key}`
+  const existing = emotionCommands.get(commandKey)
+  if (!existing) return { commandKey }
+  if (existing.fingerprint !== fingerprint) return { error: 'conflict' }
+  return { replay: existing }
+}
+
+function emotionCheckIn(actor, body) {
+  const now = new Date().toISOString()
+  return {
+    id: crypto.randomUUID(),
+    localDate: body.localDate,
+    timezone: body.timezone,
+    emotion: body.emotion,
+    intensity: body.intensity,
+    note: body.note ?? null,
+    sourceLabel: 'SELF_REPORTED_EMOTION',
+    clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',
+    revision: 1,
+    recordedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
+function publicEmotionCheckIn(entry) {
+  return {
+    id: entry.id,
+    localDate: entry.localDate,
+    timezone: entry.timezone,
+    emotion: entry.emotion,
+    intensity: entry.intensity,
+    note: entry.note,
+    sourceLabel: entry.sourceLabel,
+    clinicalUse: entry.clinicalUse,
+    revision: entry.revision,
+    recordedAt: entry.recordedAt,
+    createdAt: entry.createdAt,
+    updatedAt: entry.updatedAt,
   }
 }
 
@@ -774,6 +825,217 @@ const server = createServer(async (request, response) => {
         activeRefreshSessionCount: refreshSessions.size,
       })
       return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/__test/emotion/failure'
+    ) {
+      const mode = url.searchParams.get('mode')
+      if (!['NEXT_POST', 'CLEAR'].includes(mode)) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Unsupported fault mode')
+        return
+      }
+      emotionCreateFailureOnce = mode === 'NEXT_POST'
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/emotion-check-ins'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const limit = Math.min(
+        90,
+        Math.max(1, Number.parseInt(url.searchParams.get('limit') ?? '30', 10)),
+      )
+      const before = url.searchParams.get('before')
+      const items = [...emotionCheckIns.values()]
+        .filter(
+          (entry) =>
+            entry.ownerAccountId === actor.accountId &&
+            entry.deleted !== true &&
+            (!before || entry.localDate < before),
+        )
+        .sort((left, right) => right.localDate.localeCompare(left.localDate))
+        .slice(0, limit)
+        .map((entry) => structuredClone(publicEmotionCheckIn(entry)))
+      json(response, 200, {
+        items,
+        page: { limit, hasMore: false },
+        label: 'SELF_REPORTED_EMOTION',
+        interpretation: 'NOT_DIAGNOSIS_OR_RECOVERY',
+      })
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/emotion-check-ins'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const body = await readBody(request)
+      const fingerprint = `create-emotion:${JSON.stringify(body)}`
+      const command = emotionCommand(actor, request, fingerprint)
+      if (command.error === 'missing') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      if (command.error === 'conflict') {
+        problem(response, 409, 'CONFLICT', 'Idempotency key was reused')
+        return
+      }
+      if (command.replay) {
+        json(response, command.replay.status, command.replay.body)
+        return
+      }
+      if (emotionCreateFailureOnce) {
+        emotionCreateFailureOnce = false
+        problem(
+          response,
+          503,
+          'DEPENDENCY_UNAVAILABLE',
+          'Synthetic emotion dependency failure',
+        )
+        return
+      }
+      const documentKey = `${actor.accountId}:${body.localDate}`
+      if (emotionCheckIns.has(documentKey)) {
+        problem(response, 409, 'CONFLICT', 'Emotion check-in already exists')
+        return
+      }
+      const created = emotionCheckIn(actor, body)
+      emotionCheckIns.set(documentKey, {
+        ...created,
+        ownerAccountId: actor.accountId,
+        deleted: false,
+      })
+      emotionCommands.set(command.commandKey, {
+        fingerprint,
+        status: 201,
+        body: structuredClone(created),
+      })
+      json(response, 201, created)
+      return
+    }
+
+    const emotionResource = url.pathname.match(
+      /^\/api\/v1\/emotion-check-ins\/(\d{4}-\d{2}-\d{2})$/,
+    )
+    if (emotionResource) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const localDate = emotionResource[1]
+      const documentKey = `${actor.accountId}:${localDate}`
+      const stored = emotionCheckIns.get(documentKey)
+      if (!stored || stored.deleted === true) {
+        problem(
+          response,
+          404,
+          'RESOURCE_NOT_FOUND',
+          'Emotion check-in was not found',
+        )
+        return
+      }
+      const entry = publicEmotionCheckIn(stored)
+
+      if (request.method === 'GET') {
+        json(response, 200, entry)
+        return
+      }
+
+      if (request.method === 'PATCH') {
+        const body = await readBody(request)
+        const expectedRevision = Number.parseInt(
+          String(request.headers['if-match-revision'] ?? ''),
+          10,
+        )
+        const fingerprint = `update-emotion:${localDate}:${expectedRevision}:${JSON.stringify(body)}`
+        const command = emotionCommand(actor, request, fingerprint)
+        if (command.error === 'missing') {
+          problem(
+            response,
+            400,
+            'VALIDATION_FAILED',
+            'Idempotency key is required',
+          )
+          return
+        }
+        if (command.error === 'conflict') {
+          problem(response, 409, 'CONFLICT', 'Idempotency key was reused')
+          return
+        }
+        if (command.replay) {
+          json(response, command.replay.status, command.replay.body)
+          return
+        }
+        if (expectedRevision !== stored.revision) {
+          problem(response, 412, 'PRECONDITION_FAILED', 'Revision conflict')
+          return
+        }
+        const updatedAt = new Date().toISOString()
+        Object.assign(stored, {
+          emotion: body.emotion,
+          intensity: body.intensity,
+          note: body.note ?? null,
+          revision: stored.revision + 1,
+          recordedAt: updatedAt,
+          updatedAt,
+        })
+        const updated = publicEmotionCheckIn(stored)
+        emotionCommands.set(command.commandKey, {
+          fingerprint,
+          status: 200,
+          body: structuredClone(updated),
+        })
+        json(response, 200, updated)
+        return
+      }
+
+      if (request.method === 'DELETE') {
+        const fingerprint = `delete-emotion:${localDate}`
+        const command = emotionCommand(actor, request, fingerprint)
+        if (command.error === 'missing') {
+          problem(
+            response,
+            400,
+            'VALIDATION_FAILED',
+            'Idempotency key is required',
+          )
+          return
+        }
+        if (command.error === 'conflict') {
+          problem(response, 409, 'CONFLICT', 'Idempotency key was reused')
+          return
+        }
+        if (command.replay) {
+          json(response, command.replay.status, command.replay.body)
+          return
+        }
+        const tombstone = {
+          localDate,
+          deleted: true,
+          deletedAt: new Date().toISOString(),
+        }
+        stored.deleted = true
+        stored.note = null
+        emotionCommands.set(command.commandKey, {
+          fingerprint,
+          status: 200,
+          body: tombstone,
+        })
+        json(response, 200, tombstone)
+        return
+      }
     }
 
     if (
