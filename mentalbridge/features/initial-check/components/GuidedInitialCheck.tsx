@@ -481,6 +481,10 @@ function UnifiedResult({
               <JourneyIcon name="history" />
               Xem lịch sử sàng lọc
             </Link>
+            <Link className="btn btn-primary" href="/support-guides">
+              <JourneyIcon name="spark" />
+              Tạo Hướng dẫn hỗ trợ
+            </Link>
           </>
         )}
       </div>
