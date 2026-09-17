@@ -21,6 +21,15 @@ import type {
   SupportEvaluationRequest,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
+import type {
+  GenerateSupportGuideRequest,
+  SupportGuide,
+  SupportGuideHistory,
+} from '@/features/support-guide/api/support-guide-contract'
+import {
+  parseSupportGuide,
+  parseSupportGuideHistory,
+} from './support-guide-validation'
 
 import {
   parseAnonymousAssessment,
@@ -390,6 +399,54 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: (value) => parseSupportEvaluation(value, expected),
+    })
+  },
+
+  generateSupportGuide(
+    accessToken: string,
+    request: GenerateSupportGuideRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportGuide> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v1/support-guides',
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parseSupportGuide,
+    })
+  },
+
+  supportGuideHistory(
+    accessToken: string,
+    cursor: string | undefined,
+    limit: number,
+    correlationId: string,
+  ): Promise<SupportGuideHistory> {
+    const query = new URLSearchParams({ limit: String(limit) })
+    if (cursor) query.set('cursor', cursor)
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-guides?${query}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportGuideHistory,
+    })
+  },
+
+  supportGuide(
+    accessToken: string,
+    supportGuideId: string,
+    correlationId: string,
+  ): Promise<SupportGuide> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-guides/${encodeURIComponent(supportGuideId)}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportGuide,
     })
   },
 }
