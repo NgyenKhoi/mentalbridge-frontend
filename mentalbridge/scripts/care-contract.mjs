@@ -12,6 +12,17 @@ const snapshotPath = path.join(
   'care-service-v1.yaml',
 )
 const generatedPath = path.join(appRoot, 'contracts', 'care.generated.ts')
+const supportGuideSnapshotPath = path.join(
+  appRoot,
+  'contracts',
+  'openapi',
+  'care-support-guide-v1.yaml',
+)
+const supportGuideGeneratedPath = path.join(
+  appRoot,
+  'contracts',
+  'care-support-guide.generated.ts',
+)
 const defaultBackendSource = path.resolve(
   appRoot,
   '..',
@@ -20,6 +31,15 @@ const defaultBackendSource = path.resolve(
   'contracts',
   'openapi',
   'care-service-v1.yaml',
+)
+const defaultSupportGuideBackendSource = path.resolve(
+  appRoot,
+  '..',
+  '..',
+  'mentalbridge-backend',
+  'contracts',
+  'openapi',
+  'care-support-guide-v1.yaml',
 )
 
 async function exists(filePath) {
@@ -36,25 +56,46 @@ async function generate() {
   return COMMENT_HEADER + astToString(ast)
 }
 
+async function generateSupportGuide() {
+  const ast = await openapiTS(pathToFileURL(supportGuideSnapshotPath))
+  return COMMENT_HEADER + astToString(ast)
+}
+
 function normalizeLineEndings(value) {
   return value.replace(/\r\n/g, '\n')
 }
 
-async function syncSnapshot() {
+async function syncSnapshot({ includePrimaryCare = true } = {}) {
   const configuredSource = process.env.CARE_OPENAPI_SOURCE
+  const configuredSupportGuideSource =
+    process.env.CARE_SUPPORT_GUIDE_OPENAPI_SOURCE
   const sourcePath = configuredSource
     ? path.resolve(appRoot, configuredSource)
     : defaultBackendSource
+  const supportGuideSourcePath = configuredSupportGuideSource
+    ? path.resolve(appRoot, configuredSupportGuideSource)
+    : defaultSupportGuideBackendSource
 
-  if (!(await exists(sourcePath))) {
+  if (includePrimaryCare && !(await exists(sourcePath))) {
     throw new Error(
       `Care OpenAPI source not found at ${sourcePath}. ` +
         'Set CARE_OPENAPI_SOURCE to the backend contract path.',
     )
   }
+  if (!(await exists(supportGuideSourcePath))) {
+    throw new Error(
+      `Care Support Guide OpenAPI source not found at ${supportGuideSourcePath}. ` +
+        'Set CARE_SUPPORT_GUIDE_OPENAPI_SOURCE to the backend contract path.',
+    )
+  }
 
-  await copyFile(sourcePath, snapshotPath)
-  console.log(`Synced Care OpenAPI snapshot from ${sourcePath}`)
+  if (includePrimaryCare) await copyFile(sourcePath, snapshotPath)
+  await copyFile(supportGuideSourcePath, supportGuideSnapshotPath)
+  console.log(
+    includePrimaryCare
+      ? `Synced Care OpenAPI snapshots from ${sourcePath} and ${supportGuideSourcePath}`
+      : `Synced Care Support Guide OpenAPI snapshot from ${supportGuideSourcePath}`,
+  )
 }
 
 async function checkGeneratedContract(expected) {
@@ -90,15 +131,58 @@ async function checkGeneratedContract(expected) {
   console.log('Care OpenAPI snapshot and generated types are valid.')
 }
 
+async function checkSupportGuideContract(expected) {
+  if (!(await exists(supportGuideGeneratedPath))) {
+    throw new Error(
+      'Generated Support Guide types are missing. Run npm run contracts:generate.',
+    )
+  }
+  const actual = await readFile(supportGuideGeneratedPath, 'utf8')
+  if (normalizeLineEndings(actual) !== normalizeLineEndings(expected)) {
+    throw new Error(
+      'Generated Support Guide types are stale. Run npm run contracts:generate.',
+    )
+  }
+
+  const configuredSource = process.env.CARE_SUPPORT_GUIDE_OPENAPI_SOURCE
+  if (configuredSource) {
+    const sourcePath = path.resolve(appRoot, configuredSource)
+    const [source, snapshot] = await Promise.all([
+      readFile(sourcePath),
+      readFile(supportGuideSnapshotPath),
+    ])
+    if (!source.equals(snapshot)) {
+      throw new Error(
+        'The committed Care Support Guide OpenAPI snapshot differs from ' +
+          `${sourcePath}. Run npm run contracts:sync.`,
+      )
+    }
+  }
+
+  console.log(
+    'Care Support Guide OpenAPI snapshot and generated types are valid.',
+  )
+}
+
 const argumentsSet = new Set(process.argv.slice(2))
 
 if (argumentsSet.has('--sync')) await syncSnapshot()
+if (argumentsSet.has('--sync-support-guide')) {
+  await syncSnapshot({ includePrimaryCare: false })
+}
 
 const generatedContract = await generate()
+const generatedSupportGuideContract = await generateSupportGuide()
 
 if (argumentsSet.has('--check')) {
   await checkGeneratedContract(generatedContract)
+  await checkSupportGuideContract(generatedSupportGuideContract)
 } else {
   await writeFile(generatedPath, generatedContract, 'utf8')
+  await writeFile(
+    supportGuideGeneratedPath,
+    generatedSupportGuideContract,
+    'utf8',
+  )
   console.log(`Generated ${generatedPath}`)
 }
