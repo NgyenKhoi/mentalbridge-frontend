@@ -135,9 +135,10 @@ export function parseSafetyDirectory(
   return {
     trigger: value.trigger as SafetyDirectoryResponse['trigger'],
     state: value.state as SafetyDirectoryResponse['state'],
-    areaWording: value.areaWording,
-    safetyGuidance: value.safetyGuidance,
-    limitation: value.limitation,
+    areaWording: value.areaWording as SafetyDirectoryResponse['areaWording'],
+    safetyGuidance:
+      value.safetyGuidance as SafetyDirectoryResponse['safetyGuidance'],
+    limitation: value.limitation as SafetyDirectoryResponse['limitation'],
     entries,
   }
 }
