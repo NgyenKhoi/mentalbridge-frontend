@@ -98,7 +98,9 @@ export function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value)
 }
 
-export function parseSafetyDirectory(value: unknown): SafetyDirectoryResponse | null {
+export function parseSafetyDirectory(
+  value: unknown,
+): SafetyDirectoryResponse | null {
   if (!isRecord(value)) return null
   const states = new Set(['RESULTS', 'EMPTY', 'INVALID_AREA', 'UNAVAILABLE'])
   const triggers = new Set(['POSITIVE_ITEM_9', 'HELP_NOW'])
@@ -111,22 +113,25 @@ export function parseSafetyDirectory(value: unknown): SafetyDirectoryResponse | 
     !Array.isArray(value.entries)
   )
     return null
-  const entries = value.entries.filter((entry): entry is SafetyDirectoryResponse['entries'][number] => {
-    if (!isRecord(entry)) return false
-    return (
-      typeof entry.directoryEntryId === 'string' &&
-      typeof entry.name === 'string' &&
-      (entry.type === 'FACILITY' || entry.type === 'HOTLINE') &&
-      typeof entry.phone === 'string' &&
-      (entry.address === null || typeof entry.address === 'string') &&
-      Array.isArray(entry.coverage) &&
-      typeof entry.sourceName === 'string' &&
-      typeof entry.sourceReference === 'string' &&
-      typeof entry.reviewedAt === 'string' &&
-      typeof entry.verifiedAt === 'string'
-    )
-  })
-  if (entries.length !== value.entries.length || entries.length > 100) return null
+  const entries = value.entries.filter(
+    (entry): entry is SafetyDirectoryResponse['entries'][number] => {
+      if (!isRecord(entry)) return false
+      return (
+        typeof entry.directoryEntryId === 'string' &&
+        typeof entry.name === 'string' &&
+        (entry.type === 'FACILITY' || entry.type === 'HOTLINE') &&
+        typeof entry.phone === 'string' &&
+        (entry.address === null || typeof entry.address === 'string') &&
+        Array.isArray(entry.coverage) &&
+        typeof entry.sourceName === 'string' &&
+        typeof entry.sourceReference === 'string' &&
+        typeof entry.reviewedAt === 'string' &&
+        typeof entry.verifiedAt === 'string'
+      )
+    },
+  )
+  if (entries.length !== value.entries.length || entries.length > 100)
+    return null
   return {
     trigger: value.trigger as SafetyDirectoryResponse['trigger'],
     state: value.state as SafetyDirectoryResponse['state'],

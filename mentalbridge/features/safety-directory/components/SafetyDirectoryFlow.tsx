@@ -158,9 +158,7 @@ export default function SafetyDirectoryFlow({
         {result?.state === 'RESULTS' && (
           <div className="safety-directory-results">
             <h2>{result.areaWording}</h2>
-            <p className="safety-directory-guidance">
-              {result.safetyGuidance}
-            </p>
+            <p className="safety-directory-guidance">{result.safetyGuidance}</p>
             <div className="safety-directory-list">
               {result.entries.map((entry) => (
                 <article key={entry.directoryEntryId}>
@@ -184,7 +182,9 @@ export default function SafetyDirectoryFlow({
                   </div>
                   {copyState?.phone === entry.phone &&
                     copyState.status === 'failed' && (
-                      <p role="alert">Không thể sao chép. Hãy chọn số ở trên.</p>
+                      <p role="alert">
+                        Không thể sao chép. Hãy chọn số ở trên.
+                      </p>
                     )}
                 </article>
               ))}

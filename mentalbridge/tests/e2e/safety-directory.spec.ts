@@ -126,9 +126,7 @@ test.describe('reviewed safety directory consumer flow', () => {
     await expect(
       page.getByRole('heading', { name: 'Tra cứu tạm thời chưa khả dụng' }),
     ).toBeVisible()
-    await expect(
-      page.getByText(/Không thể kết nối Care lúc này/),
-    ).toBeVisible()
+    await expect(page.getByText(/Không thể kết nối Care lúc này/)).toBeVisible()
   })
 
   test('preserves the positive item-9 trigger from the assessment entry link', async ({
