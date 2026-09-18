@@ -19,6 +19,12 @@ export default defineConfig({
         url: 'http://localhost/',
       },
     },
+    environmentMatchGlobs: [
+      // server-only client tests do not need DOM and must run in Node to avoid
+      // the jsdom AbortSignal / undici-fetch incompatibility with msw/node
+      ['lib/journal/**/*.test.ts', 'node'],
+      ['lib/care/**/*.test.ts', 'node'],
+    ],
     globals: true,
     testTimeout: 15_000,
     setupFiles: ['./tests/setup/vitest.setup.ts'],
