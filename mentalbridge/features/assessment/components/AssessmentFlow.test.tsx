@@ -158,6 +158,11 @@ describe('AssessmentFlow', () => {
     await screen.findByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' })
     expect(screen.getByText('1')).toBeVisible()
     expect(screen.getByText('Dương tính theo quy tắc sàng lọc')).toBeVisible()
+    expect(
+      screen.getByRole('link', {
+        name: 'Xem hỗ trợ trong khu vực đã chọn',
+      }),
+    ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
     expect(screen.getByText(/không giám sát con người 24\/7/i)).toBeVisible()
     expect(screen.queryByText(/hotline/i)).not.toBeInTheDocument()
     expect(received).toHaveBeenCalledWith({
