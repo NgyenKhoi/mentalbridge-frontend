@@ -151,6 +151,8 @@ async function run() {
       CARE_API_TIMEOUT_MS: '3000',
       CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
       CONTENT_SERVICE_URL: `http://${host}:${identityPort}`,
+      CONSULTATION_SERVICE_URL: `http://${host}:${identityPort}`,
+      CONSULTATION_SERVICE_TIMEOUT_MS: '3000',
       HOSTNAME: host,
       PORT: String(frontendPort),
     },
