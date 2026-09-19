@@ -98,21 +98,37 @@ export function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value)
 }
 
+const AREA_WORDING_CONSTANT = 'Cơ sở trong khu vực đã chọn' as const
+const SAFETY_GUIDANCE_CONSTANT =
+  'Nếu bạn cảm thấy mình không an toàn hoặc có nguy cơ gây hại cho bản thân, hãy chủ động liên hệ dịch vụ khẩn cấp hoặc cơ sở y tế phù hợp tại khu vực của bạn.' as const
+const LIMITATION_CONSTANT =
+  'MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.' as const
+
+// States that must never carry directory entries in the response.
+const EMPTY_ENTRY_STATES = new Set(['EMPTY', 'INVALID_AREA', 'UNAVAILABLE'])
+
 export function parseSafetyDirectory(
   value: unknown,
 ): SafetyDirectoryResponse | null {
   if (!isRecord(value)) return null
   const states = new Set(['RESULTS', 'EMPTY', 'INVALID_AREA', 'UNAVAILABLE'])
   const triggers = new Set(['POSITIVE_ITEM_9', 'HELP_NOW'])
+  const state = String(value.state)
   if (
     !triggers.has(String(value.trigger)) ||
-    !states.has(String(value.state)) ||
-    typeof value.areaWording !== 'string' ||
-    typeof value.safetyGuidance !== 'string' ||
-    typeof value.limitation !== 'string' ||
+    !states.has(state) ||
+    // Enforce the exact approved constant — rejects any "nearest" or other
+    // deviation that would violate ADR 0018 / MB-554.
+    value.areaWording !== AREA_WORDING_CONSTANT ||
+    value.safetyGuidance !== SAFETY_GUIDANCE_CONSTANT ||
+    value.limitation !== LIMITATION_CONSTANT ||
     !Array.isArray(value.entries)
   )
     return null
+
+  // State-entry consistency: non-RESULTS states must not carry entries.
+  if (EMPTY_ENTRY_STATES.has(state) && value.entries.length > 0) return null
+
   const entries = value.entries.filter(
     (entry): entry is SafetyDirectoryResponse['entries'][number] => {
       if (!isRecord(entry)) return false
@@ -135,10 +151,9 @@ export function parseSafetyDirectory(
   return {
     trigger: value.trigger as SafetyDirectoryResponse['trigger'],
     state: value.state as SafetyDirectoryResponse['state'],
-    areaWording: value.areaWording as SafetyDirectoryResponse['areaWording'],
-    safetyGuidance:
-      value.safetyGuidance as SafetyDirectoryResponse['safetyGuidance'],
-    limitation: value.limitation as SafetyDirectoryResponse['limitation'],
+    areaWording: AREA_WORDING_CONSTANT,
+    safetyGuidance: SAFETY_GUIDANCE_CONSTANT,
+    limitation: LIMITATION_CONSTANT,
     entries,
   }
 }

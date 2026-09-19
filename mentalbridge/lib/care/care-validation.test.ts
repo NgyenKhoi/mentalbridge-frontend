@@ -5,6 +5,7 @@ import {
   parseAnonymousAssessment,
   parseAssessmentProgress,
   parseQuestionnaire,
+  parseSafetyDirectory,
   parseSubmission,
   parseSupportEvaluation,
   parseSupportEvaluationRequest,
@@ -527,6 +528,129 @@ describe('Care runtime validation', () => {
         ...expected,
         gad7AssessmentId: '10000000-0000-4000-8000-000000000008',
       }),
+    ).toBeNull()
+  })
+})
+
+describe('parseSafetyDirectory', () => {
+  const AREA_WORDING = 'Cơ sở trong khu vực đã chọn'
+  const SAFETY_GUIDANCE =
+    'Nếu bạn cảm thấy mình không an toàn hoặc có nguy cơ gây hại cho bản thân, hãy chủ động liên hệ dịch vụ khẩn cấp hoặc cơ sở y tế phù hợp tại khu vực của bạn.'
+  const LIMITATION =
+    'MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.'
+
+  const validEntry = {
+    directoryEntryId: '123e4567-e89b-42d3-a456-426614174000',
+    name: 'Cơ sở kiểm thử',
+    type: 'FACILITY',
+    phone: '0240000000',
+    address: 'Địa chỉ kiểm thử',
+    coverage: [
+      {
+        level: 'PROVINCE',
+        provinceCode: '01',
+        provinceName: 'Hà Nội',
+        districtCode: null,
+        districtName: null,
+      },
+    ],
+    sourceName: 'Nguồn kiểm thử',
+    sourceReference: 'synthetic://test',
+    reviewedAt: '2026-09-01T00:00:00Z',
+    verifiedAt: '2026-09-01T00:00:00Z',
+  }
+
+  function validResults() {
+    return {
+      trigger: 'HELP_NOW',
+      state: 'RESULTS',
+      areaWording: AREA_WORDING,
+      safetyGuidance: SAFETY_GUIDANCE,
+      limitation: LIMITATION,
+      entries: [validEntry],
+    }
+  }
+
+  it('accepts a well-formed RESULTS payload with the exact approved constants', () => {
+    const result = parseSafetyDirectory(validResults())
+    expect(result).not.toBeNull()
+    expect(result?.state).toBe('RESULTS')
+    expect(result?.areaWording).toBe(AREA_WORDING)
+    expect(result?.entries).toHaveLength(1)
+  })
+
+  it('accepts EMPTY, INVALID_AREA, and UNAVAILABLE states with no entries', () => {
+    for (const state of ['EMPTY', 'INVALID_AREA', 'UNAVAILABLE']) {
+      const result = parseSafetyDirectory({
+        ...validResults(),
+        state,
+        entries: [],
+      })
+      expect(result?.state).toBe(state)
+      expect(result?.entries).toHaveLength(0)
+    }
+  })
+
+  it('rejects a payload where areaWording deviates from the approved constant', () => {
+    // Covers MB-554: no "nearest" or any other deviation accepted.
+    const deviations = [
+      'Cơ sở gần nhất với bạn',
+      'nearest facilities',
+      'Facilities near you',
+      '',
+      'Cơ sở trong khu vực đã chọn ', // trailing space
+      'cơ sở trong khu vực đã chọn', // wrong case
+    ]
+    for (const areaWording of deviations) {
+      expect(
+        parseSafetyDirectory({ ...validResults(), areaWording }),
+        `should reject areaWording: "${areaWording}"`,
+      ).toBeNull()
+    }
+  })
+
+  it('rejects a payload where safetyGuidance or limitation deviate from constants', () => {
+    expect(
+      parseSafetyDirectory({
+        ...validResults(),
+        safetyGuidance: 'Gọi 115 ngay.',
+      }),
+    ).toBeNull()
+    expect(
+      parseSafetyDirectory({
+        ...validResults(),
+        limitation: 'Không có giới hạn.',
+      }),
+    ).toBeNull()
+  })
+
+  it('rejects EMPTY / INVALID_AREA / UNAVAILABLE states that carry entries', () => {
+    for (const state of ['EMPTY', 'INVALID_AREA', 'UNAVAILABLE']) {
+      expect(
+        parseSafetyDirectory({
+          ...validResults(),
+          state,
+          entries: [validEntry],
+        }),
+        `state ${state} must not carry entries`,
+      ).toBeNull()
+    }
+  })
+
+  it('rejects payloads with an unknown trigger or state', () => {
+    expect(
+      parseSafetyDirectory({ ...validResults(), trigger: 'AUTO_ESCALATE' }),
+    ).toBeNull()
+    expect(
+      parseSafetyDirectory({ ...validResults(), state: 'SUCCESS' }),
+    ).toBeNull()
+  })
+
+  it('returns null for non-object and missing required fields', () => {
+    expect(parseSafetyDirectory(null)).toBeNull()
+    expect(parseSafetyDirectory('string')).toBeNull()
+    expect(
+      parseSafetyDirectory({ ...validResults(), entries: undefined }),
     ).toBeNull()
   })
 })
