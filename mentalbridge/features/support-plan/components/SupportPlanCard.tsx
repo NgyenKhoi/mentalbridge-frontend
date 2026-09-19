@@ -1,4 +1,11 @@
-import type { SupportPlanDraft } from '../api/support-plan-contract'
+'use client'
+
+import { useMemo, useState } from 'react'
+
+import type {
+  ReplaceSupportPlanChoicesRequest,
+  SupportPlan,
+} from '../api/support-plan-contract'
 
 const domainLabel = {
   DEPRESSIVE_SYMPTOMS: 'Hỗ trợ theo miền triệu chứng trầm cảm',
@@ -10,8 +17,70 @@ const slotLabel: Record<string, string> = {
   OPTIONAL: 'Nội dung bổ trợ',
 }
 
-export default function SupportPlanCard({ plan }: { plan: SupportPlanDraft }) {
+function resourceKey(
+  resource: SupportPlan['slots'][number]['selectedResource'],
+) {
+  return resource ? `${resource.resourceId}:${resource.contentVersion}` : ''
+}
+
+function initialChoices(plan: SupportPlan) {
+  return Object.fromEntries(
+    plan.slots.map((slot) => [slot.slotId, resourceKey(slot.selectedResource)]),
+  )
+}
+
+type Props = Readonly<{
+  plan: SupportPlan
+  busy: 'SAVING' | 'ACTIVATING' | null
+  message: string
+  onSaveChoices: (request: ReplaceSupportPlanChoicesRequest) => Promise<void>
+  onActivate: () => Promise<void>
+}>
+
+export default function SupportPlanCard({
+  plan,
+  busy,
+  message,
+  onSaveChoices,
+  onActivate,
+}: Props) {
+  const [choices, setChoices] = useState<Record<string, string>>(() =>
+    initialChoices(plan),
+  )
+  const isDraft = plan.status === 'DRAFT'
   const safetyPositive = plan.safety.status === 'POSITIVE_SAFETY_SCREEN'
+
+  const dirty = useMemo(
+    () =>
+      plan.slots.some(
+        (slot) => choices[slot.slotId] !== resourceKey(slot.selectedResource),
+      ),
+    [choices, plan],
+  )
+
+  const submitChoices = async () => {
+    const slotSelections = plan.slots.flatMap((slot) => {
+      const selectedKey = choices[slot.slotId]
+      if (!selectedKey) return []
+      const resources = [
+        ...(slot.selectedResource ? [slot.selectedResource] : []),
+        ...slot.allowedAlternatives,
+      ]
+      const selected = resources.find(
+        (resource) => resourceKey(resource) === selectedKey,
+      )
+      return selected
+        ? [
+            {
+              slotId: slot.slotId,
+              resourceId: selected.resourceId,
+              contentVersion: selected.contentVersion,
+            },
+          ]
+        : []
+    })
+    await onSaveChoices({ slotSelections })
+  }
 
   return (
     <article
@@ -20,12 +89,18 @@ export default function SupportPlanCard({ plan }: { plan: SupportPlanDraft }) {
     >
       <header className="support-plan-card-header">
         <div>
-          <span>Bản nháp do Care quản lý</span>
+          <span>
+            {isDraft ? 'Bản nháp do Care quản lý' : 'Kế hoạch hiện tại'}
+          </span>
           <h2 id={`support-plan-${plan.supportPlanId}`}>
-            SupportPlan đề xuất cho bạn
+            {isDraft
+              ? 'SupportPlan đề xuất cho bạn'
+              : 'SupportPlan đang hoạt động'}
           </h2>
         </div>
-        <span className="support-plan-status">Chưa kích hoạt</span>
+        <span className={`support-plan-status ${isDraft ? '' : 'active'}`}>
+          {isDraft ? 'Chưa kích hoạt' : 'Đang hoạt động'}
+        </span>
       </header>
 
       <section
@@ -47,70 +122,178 @@ export default function SupportPlanCard({ plan }: { plan: SupportPlanDraft }) {
         <p>{plan.rationale.text}</p>
       </section>
 
-      <section className="support-plan-slots" aria-label="Nội dung đề xuất">
+      <section className="support-plan-slots" aria-label="Nội dung SupportPlan">
         <div className="support-plan-section-heading">
           <div>
-            <span>Kế hoạch dự kiến</span>
+            <span>
+              {isDraft ? 'Chọn nội dung phù hợp' : 'Kế hoạch đã xác nhận'}
+            </span>
             <h3>{plan.selectedResourceCount} nội dung đã được kiểm tra</h3>
           </div>
           <span>{plan.entitlement.packageCode}</span>
         </div>
         <ol>
-          {plan.slots.map((slot, index) => (
-            <li key={slot.slotId}>
-              <div className="support-plan-slot-number" aria-hidden="true">
-                {index + 1}
-              </div>
-              <div className="support-plan-slot-content">
-                <div className="support-plan-slot-meta">
-                  <span>{slotLabel[slot.kind]}</span>
-                  <span>{domainLabel[slot.targetDomain]}</span>
+          {plan.slots.map((slot, index) => {
+            const resources = [
+              ...(slot.selectedResource ? [slot.selectedResource] : []),
+              ...slot.allowedAlternatives,
+            ].filter(
+              (resource, resourceIndex, all) =>
+                all.findIndex(
+                  (candidate) =>
+                    resourceKey(candidate) === resourceKey(resource),
+                ) === resourceIndex,
+            )
+            return (
+              <li key={slot.slotId}>
+                <div className="support-plan-slot-number" aria-hidden="true">
+                  {index + 1}
                 </div>
-                <h4>{slot.selectedResource.title}</h4>
-                <p>{slot.selectedResource.summary}</p>
-                <small>
-                  Phiên bản {slot.selectedResource.contentVersion} ·{' '}
-                  {slot.selectedResource.category}
-                </small>
-                {slot.selectedResource.externalUrl && (
-                  <a
-                    href={slot.selectedResource.externalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Mở nội dung đã duyệt
-                  </a>
-                )}
-                {slot.allowedAlternatives.length > 0 && (
-                  <details>
-                    <summary>
-                      {slot.allowedAlternatives.length} lựa chọn phù hợp khác
-                    </summary>
-                    <ul>
-                      {slot.allowedAlternatives.map((alternative) => (
-                        <li
-                          key={`${slot.slotId}:${alternative.resourceId}:${alternative.contentVersion}`}
+                <div className="support-plan-slot-content">
+                  <div className="support-plan-slot-meta">
+                    <span>{slotLabel[slot.kind]}</span>
+                    <span>{domainLabel[slot.targetDomain]}</span>
+                  </div>
+                  {isDraft ? (
+                    <fieldset disabled={busy !== null}>
+                      <legend>
+                        {slot.kind === 'CORE'
+                          ? 'Chọn một nội dung cốt lõi'
+                          : 'Chọn hoặc bỏ nội dung bổ trợ'}
+                      </legend>
+                      {resources.map((resource) => {
+                        const value = resourceKey(resource)
+                        return (
+                          <label key={`${slot.slotId}:${value}`}>
+                            <input
+                              type="radio"
+                              name={`support-plan-slot-${slot.slotId}`}
+                              value={value}
+                              checked={choices[slot.slotId] === value}
+                              onChange={() =>
+                                setChoices((current) => ({
+                                  ...current,
+                                  [slot.slotId]: value,
+                                }))
+                              }
+                            />
+                            <span>
+                              <strong>{resource.title}</strong>
+                              <small>{resource.summary}</small>
+                              <small>
+                                Phiên bản {resource.contentVersion} ·{' '}
+                                {resource.category}
+                              </small>
+                            </span>
+                          </label>
+                        )
+                      })}
+                      {slot.kind === 'OPTIONAL' && (
+                        <label>
+                          <input
+                            type="radio"
+                            name={`support-plan-slot-${slot.slotId}`}
+                            value=""
+                            checked={!choices[slot.slotId]}
+                            onChange={() =>
+                              setChoices((current) => ({
+                                ...current,
+                                [slot.slotId]: '',
+                              }))
+                            }
+                          />
+                          <span>
+                            <strong>Bỏ nội dung bổ trợ này</strong>
+                            <small>
+                              Nội dung cốt lõi vẫn được giữ trong kế hoạch.
+                            </small>
+                          </span>
+                        </label>
+                      )}
+                    </fieldset>
+                  ) : slot.selectedResource ? (
+                    <div className="support-plan-selected-resource">
+                      <h4>{slot.selectedResource.title}</h4>
+                      <p>{slot.selectedResource.summary}</p>
+                      <small>
+                        Phiên bản {slot.selectedResource.contentVersion} ·{' '}
+                        {slot.selectedResource.category}
+                      </small>
+                      {slot.selectedResource.externalUrl && (
+                        <a
+                          href={slot.selectedResource.externalUrl}
+                          target="_blank"
+                          rel="noreferrer"
                         >
-                          <strong>{alternative.title}</strong>
-                          <span>{alternative.summary}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </div>
-            </li>
-          ))}
+                          Mở nội dung đã duyệt
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <p>Không chọn nội dung bổ trợ cho mục này.</p>
+                  )}
+                </div>
+              </li>
+            )
+          })}
         </ol>
       </section>
 
-      <aside className="support-plan-confirmation-note">
-        <strong>Bạn vẫn là người xác nhận</strong>
-        <p>
-          Đây là bản nháp. MentalBridge chưa kích hoạt, thay đổi hay theo dõi kế
-          hoạch cho đến khi có luồng xác nhận riêng.
-        </p>
-      </aside>
+      {isDraft ? (
+        <section
+          className="support-plan-actions"
+          aria-label="Xác nhận SupportPlan"
+        >
+          <div>
+            <strong>Bạn là người quyết định</strong>
+            <p>
+              Lưu lựa chọn trước, sau đó kích hoạt kế hoạch. Care sẽ kiểm tra
+              lại quyền gói, kết quả đánh giá và từng phiên bản nội dung ngay
+              trước khi kích hoạt.
+            </p>
+          </div>
+          <div className="support-plan-action-buttons">
+            <button
+              className="btn btn-ghost"
+              type="button"
+              disabled={!dirty || busy !== null}
+              onClick={() => void submitChoices()}
+            >
+              {busy === 'SAVING' ? 'Đang lưu…' : 'Lưu lựa chọn'}
+            </button>
+            <button
+              className="btn btn-primary"
+              type="button"
+              disabled={dirty || busy !== null}
+              onClick={() => void onActivate()}
+            >
+              {busy === 'ACTIVATING'
+                ? 'Đang kích hoạt…'
+                : 'Kích hoạt SupportPlan'}
+            </button>
+          </div>
+          {dirty && (
+            <p className="support-plan-action-hint">
+              Hãy lưu lựa chọn mới trước khi kích hoạt.
+            </p>
+          )}
+          <p
+            className="support-plan-action-message"
+            role="status"
+            aria-live="polite"
+          >
+            {message}
+          </p>
+        </section>
+      ) : (
+        <aside className="support-plan-confirmation-note">
+          <strong>SupportPlan đã được kích hoạt</strong>
+          <p>
+            Đây là trạng thái hiện tại do Care trả về. Mọi thay đổi tiếp theo
+            cần đi qua một lệnh riêng và được kiểm tra lại.
+          </p>
+        </aside>
+      )}
 
       <details className="support-plan-provenance">
         <summary>Nguồn và phiên bản quyết định</summary>

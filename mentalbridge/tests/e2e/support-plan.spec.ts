@@ -42,11 +42,6 @@ function plan() {
         templateVersion: 1,
         targetDomain: 'DEPRESSIVE_SYMPTOMS',
       },
-      {
-        family: 'ANXIETY_MAINTENANCE',
-        templateVersion: 1,
-        targetDomain: 'ANXIETY_SYMPTOMS',
-      },
     ],
     slots: [
       {
@@ -56,7 +51,7 @@ function plan() {
         purposeCode: 'DEPRESSION_PSYCHOEDUCATION',
         selectedResource: {
           resourceId: '30000000-0000-4000-8000-000000000372',
-          contentVersion: '0',
+          contentVersion: '4',
           publicationId: '40000000-0000-4000-8000-000000000372',
           role: 'PRIMARY',
           category: 'ARTICLE',
@@ -67,7 +62,7 @@ function plan() {
         allowedAlternatives: [
           {
             resourceId: '50000000-0000-4000-8000-000000000372',
-            contentVersion: '0',
+            contentVersion: '2',
             publicationId: '60000000-0000-4000-8000-000000000372',
             role: 'PRIMARY',
             category: 'VIDEO',
@@ -81,6 +76,7 @@ function plan() {
     selectedResourceCount: 1,
     createdAt: '2026-09-19T04:02:00Z',
     updatedAt: '2026-09-19T04:02:00Z',
+    activatedAt: null as string | null,
     disclaimerCode: 'WELLBEING_SUPPORT_NOT_TREATMENT',
     disclaimer:
       'SupportPlan hỗ trợ sức khỏe tổng quát và không phải kế hoạch điều trị.',
@@ -99,44 +95,147 @@ test.beforeEach(async ({ context }) => {
   ])
 })
 
-test('MB-372 reloads the same draft with safety, alternatives, and provenance', async ({
+test('MB-373 saves an admitted alternative and reloads the activated current plan', async ({
   page,
 }) => {
-  const fixture = plan()
-  let reads = 0
-  await page.route('**/api/care/support-plans', async (route) => {
-    reads += 1
+  await page.setViewportSize({ width: 375, height: 667 })
+  const draft = plan()
+  let persisted = draft
+  let currentReads = 0
+  let activationCommands = 0
+
+  await page.route('**/api/care/support-plans/current', async (route) => {
+    currentReads += 1
+    if (persisted.status !== 'ACTIVE') {
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: '/problems/support-plan-current-not-found',
+          title: 'Current plan not found.',
+          status: 404,
+          code: 'SUPPORT_PLAN_CURRENT_NOT_FOUND',
+          correlationId: '71000000-0000-4000-8000-000000000372',
+        }),
+      })
+      return
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(fixture),
+      body: JSON.stringify(persisted),
+    })
+  })
+  await page.route('**/api/care/support-plans', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(persisted),
+    })
+  })
+  await page.route('**/api/care/support-plans/*/choices', async (route) => {
+    expect(route.request().method()).toBe('PUT')
+    expect(route.request().headers()['if-match']).toBe('"0"')
+    expect(route.request().headers()['idempotency-key']).toBeTruthy()
+    expect(route.request().postDataJSON()).toEqual({
+      slotSelections: [
+        {
+          slotId: 'depression-psychoeducation',
+          resourceId: '50000000-0000-4000-8000-000000000372',
+          contentVersion: '2',
+        },
+      ],
+    })
+    persisted = {
+      ...persisted,
+      version: 1,
+      updatedAt: '2026-09-20T04:00:00Z',
+      slots: [
+        {
+          ...persisted.slots[0],
+          selectedResource: persisted.slots[0].allowedAlternatives[0],
+          allowedAlternatives: [persisted.slots[0].selectedResource],
+        },
+      ],
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(persisted),
+    })
+  })
+  await page.route('**/api/care/support-plans/*/activate', async (route) => {
+    activationCommands += 1
+    expect(route.request().method()).toBe('POST')
+    expect(route.request().headers()['if-match']).toBe('"1"')
+    expect(route.request().headers()['idempotency-key']).toBeTruthy()
+    persisted = {
+      ...persisted,
+      status: 'ACTIVE',
+      version: 2,
+      updatedAt: '2026-09-20T04:01:00Z',
+      activatedAt: '2026-09-20T04:01:00Z',
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(persisted),
     })
   })
 
   await page.goto('/support-plan')
-  await expect(page.getByText('Tài nguyên chính đã duyệt')).toBeVisible()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true)
   await expect(
     page.getByText('Hướng dẫn an toàn đồng bộ luôn khả dụng.'),
   ).toBeVisible()
-  await expect(page.getByText('Chưa kích hoạt', { exact: true })).toBeVisible()
-  await expect(page.getByText('Bạn vẫn là người xác nhận')).toBeVisible()
+  await page.getByRole('radio', { name: /Lựa chọn thay thế đã duyệt/ }).click()
+  await expect(
+    page.getByRole('button', { name: 'Kích hoạt SupportPlan' }),
+  ).toBeDisabled()
+  await page.getByRole('button', { name: 'Lưu lựa chọn' }).click()
+  await expect(
+    page.getByText('Đã lưu lựa chọn đã được Care kiểm tra.'),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Kích hoạt SupportPlan' }).click()
 
-  await page.getByText('1 lựa chọn phù hợp khác').click()
+  await expect(page.getByText('SupportPlan đang hoạt động')).toBeVisible()
   await expect(page.getByText('Lựa chọn thay thế đã duyệt')).toBeVisible()
-  await page.getByText('Nguồn và phiên bản quyết định').click()
-  await expect(page.getByText('mb-support-plan-selection-v1')).toBeVisible()
+  expect(activationCommands).toBe(1)
+  expect(currentReads).toBeGreaterThanOrEqual(2)
 
+  await page.setViewportSize({ width: 667, height: 375 })
   await page.reload()
-  await expect(page.getByText('Tài nguyên chính đã duyệt')).toBeVisible()
-  expect(reads).toBeGreaterThanOrEqual(2)
-  expect(await page.locator('.support-plan-page').innerText()).not.toMatch(
-    /totalScore|raw answer|journal|activate|diagnosis/i,
-  )
+  await expect(page.getByText('SupportPlan đang hoạt động')).toBeVisible()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true)
+  await expect(
+    page.getByRole('button', { name: 'Kích hoạt SupportPlan' }),
+  ).toHaveCount(0)
 })
 
-test('MB-372 presents the stable Free entitlement path without a plan', async ({
+test('MB-373 presents the stable Free entitlement path without a plan', async ({
   page,
 }) => {
+  await page.route('**/api/care/support-plans/current', async (route) => {
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        type: '/problems/support-plan-current-not-found',
+        title: 'Current plan not found.',
+        status: 404,
+        code: 'SUPPORT_PLAN_CURRENT_NOT_FOUND',
+        correlationId: '71000000-0000-4000-8000-000000000372',
+      }),
+    })
+  })
   await page.route('**/api/care/support-plans', async (route) => {
     await route.fulfill({
       status: 403,

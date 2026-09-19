@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { supportPlanFixture } from '@/features/support-plan/testing/support-plan-fixture'
 import {
   parseSupportEvaluationV2,
+  parseSupportPlan,
   parseSupportPlanDraft,
 } from './support-plan-validation'
 
@@ -50,6 +51,36 @@ const evaluation = {
 describe('SupportPlan validation', () => {
   it('accepts the governed persisted draft shape', () => {
     expect(parseSupportPlanDraft(supportPlanFixture())).not.toBeNull()
+  })
+
+  it('accepts an authoritative active plan but not as a draft', () => {
+    const fixture = supportPlanFixture()
+    const active = {
+      ...fixture,
+      status: 'ACTIVE',
+      activatedAt: '2026-09-20T05:00:00Z',
+    }
+    expect(parseSupportPlanDraft(active)).toBeNull()
+    expect(parseSupportPlan(active)).not.toBeNull()
+  })
+
+  it('accepts a removed optional selection with an exact resource count', () => {
+    const fixture = supportPlanFixture()
+    expect(
+      parseSupportPlan({
+        ...fixture,
+        slots: [
+          ...fixture.slots,
+          {
+            ...fixture.slots[0],
+            slotId: 'optional-practice',
+            kind: 'OPTIONAL',
+            selectedResource: null,
+            allowedAlternatives: [],
+          },
+        ],
+      }),
+    ).not.toBeNull()
   })
 
   it.each([

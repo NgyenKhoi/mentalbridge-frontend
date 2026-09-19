@@ -72,6 +72,7 @@ export function supportPlanFixture(): SupportPlanDraft {
     selectedResourceCount: 1,
     createdAt: '2026-09-19T04:02:00Z',
     updatedAt: '2026-09-19T04:02:00Z',
+    activatedAt: null,
     disclaimerCode: 'WELLBEING_SUPPORT_NOT_TREATMENT',
     disclaimer: 'This draft is wellbeing support, not diagnosis or treatment.',
   }

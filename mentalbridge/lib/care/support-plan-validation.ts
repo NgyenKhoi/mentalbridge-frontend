@@ -1,5 +1,6 @@
 import type {
   SupportEvaluationV2,
+  SupportPlan,
   SupportPlanDraft,
 } from '@/features/support-plan/api/support-plan-contract'
 import { isUuid } from './care-validation'
@@ -38,9 +39,13 @@ function resource(value: unknown) {
   )
 }
 
-export function parseSupportPlanDraft(value: unknown): SupportPlanDraft | null {
+export function parseSupportPlan(value: unknown): SupportPlan | null {
   if (!object(value) || !isUuid(String(value.supportPlanId))) return null
-  if (value.status !== 'DRAFT' || !Number.isInteger(value.version)) return null
+  if (
+    !['DRAFT', 'ACTIVE', 'PAUSED'].includes(String(value.status)) ||
+    !Number.isInteger(value.version)
+  )
+    return null
   if (!object(value.source) || !object(value.entitlement)) return null
   if (!object(value.rationale) || !object(value.safety)) return null
   if (
@@ -82,21 +87,33 @@ export function parseSupportPlanDraft(value: unknown): SupportPlanDraft | null {
         object(slot) &&
         text(slot.slotId, 64) &&
         ['CORE', 'OPTIONAL'].includes(String(slot.kind)) &&
-        resource(slot.selectedResource) &&
+        (slot.selectedResource === null || resource(slot.selectedResource)) &&
+        (slot.kind !== 'CORE' || resource(slot.selectedResource)) &&
         Array.isArray(slot.allowedAlternatives) &&
         slot.allowedAlternatives.every(resource),
     )
   )
     return null
   if (
-    value.selectedResourceCount !== value.slots.length ||
+    value.selectedResourceCount !==
+      value.slots.filter(
+        (slot) => object(slot) && slot.selectedResource !== null,
+      ).length ||
     value.disclaimerCode !== 'WELLBEING_SUPPORT_NOT_TREATMENT' ||
     !text(value.disclaimer, 1000) ||
     !instant(value.createdAt) ||
-    !instant(value.updatedAt)
+    !instant(value.updatedAt) ||
+    (value.status === 'DRAFT'
+      ? value.activatedAt !== null
+      : !instant(value.activatedAt))
   )
     return null
-  return value as SupportPlanDraft
+  return value as SupportPlan
+}
+
+export function parseSupportPlanDraft(value: unknown): SupportPlanDraft | null {
+  const plan = parseSupportPlan(value)
+  return plan?.status === 'DRAFT' ? plan : null
 }
 
 export function parseSupportEvaluationV2(
