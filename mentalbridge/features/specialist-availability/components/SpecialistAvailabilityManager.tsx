@@ -109,10 +109,42 @@ function displaySlot(slot: AvailabilitySlot) {
   return `${format.format(new Date(slot.startAt))}–${end.format(new Date(slot.endAt))}`
 }
 
-function friendlyError(error: unknown) {
+const withdrawReloadCodes = new Set([
+  'AVAILABILITY_SLOT_NOT_FOUND',
+  'AVAILABILITY_SLOT_STALE',
+  'AVAILABILITY_SLOT_VERSION_MISMATCH',
+  'AVAILABILITY_SLOT_WITHDRAWN',
+])
+
+function friendlyError(error: unknown, reloaded = false) {
   if (error instanceof AvailabilityBrowserError) {
-    if (error.status === 409 || error.status === 412)
-      return 'Khung giờ đã thay đổi. Danh sách mới nhất đã được tải lại.'
+    const reloadSuffix = reloaded ? ' Danh sách mới nhất đã được tải lại.' : ''
+    switch (error.code) {
+      case 'AVAILABILITY_SLOT_OVERLAP':
+        return 'Khung giờ này trùng với một khung giờ đang hoạt động. Hãy chọn thời gian khác.'
+      case 'VIDEO_AVAILABILITY_DISABLED':
+        return 'Tư vấn video trong ứng dụng chưa được bật. Hãy chọn chat trong ứng dụng.'
+      case 'SPECIALIST_NOT_APPROVED':
+        return 'Hồ sơ chuyên gia cần được phê duyệt trước khi xuất bản lịch khả dụng.'
+      case 'IDEMPOTENCY_KEY_REUSED':
+        return 'Yêu cầu xuất bản xung đột với một lần gửi trước. Hãy thử lại.'
+      case 'AVAILABILITY_SLOT_VERSION_MISMATCH':
+        return `Khung giờ đã thay đổi.${reloadSuffix || ' Hãy tải lại danh sách rồi thử lại.'}`
+      case 'AVAILABILITY_SLOT_WITHDRAWN':
+        return `Khung giờ này đã được rút.${reloadSuffix}`
+      case 'AVAILABILITY_SLOT_STALE':
+        return `Khung giờ đã bắt đầu nên không thể rút.${reloadSuffix}`
+      case 'AVAILABILITY_SLOT_NOT_FOUND':
+        return `Không tìm thấy khung giờ này.${reloadSuffix}`
+      case 'AVAILABILITY_SLOT_VERSION_REQUIRED':
+        return 'Không thể xác định phiên bản khung giờ. Hãy tải lại danh sách rồi thử lại.'
+      case 'VALIDATION_FAILED':
+        return 'Dữ liệu khung giờ không hợp lệ. Hãy kiểm tra ngày, giờ và múi giờ.'
+      case 'UNAUTHENTICATED':
+        return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+      case 'CONSULTATION_ROLE_REQUIRED':
+        return 'Tài khoản hiện tại không có quyền quản lý lịch chuyên gia.'
+    }
     return error.message
   }
   return error instanceof Error ? error.message : 'Không thể hoàn tất yêu cầu.'
@@ -140,8 +172,10 @@ export default function SpecialistAvailabilityManager() {
       const { data } = await browserAvailability.list()
       setSlots(data.items)
       setVideoEnabled(data.videoPublishingEnabled)
+      return true
     } catch (caught) {
       setError(friendlyError(caught))
+      return false
     } finally {
       setLoading(false)
     }
@@ -195,6 +229,11 @@ export default function SpecialistAvailabilityManager() {
       setForm((current) => ({ ...current, date: '', startTime: '' }))
       setNotice('Đã xuất bản khung giờ tư vấn trực tuyến 60 phút.')
     } catch (caught) {
+      if (
+        caught instanceof AvailabilityBrowserError &&
+        caught.code === 'IDEMPOTENCY_KEY_REUSED'
+      )
+        idempotencyKey.current = null
       setError(friendlyError(caught))
     } finally {
       setSaving(false)
@@ -212,12 +251,13 @@ export default function SpecialistAvailabilityManager() {
       )
       setNotice('Đã rút khung giờ khỏi lịch khả dụng.')
     } catch (caught) {
-      setError(friendlyError(caught))
       if (
         caught instanceof AvailabilityBrowserError &&
-        (caught.status === 409 || caught.status === 412)
-      )
-        await load()
+        withdrawReloadCodes.has(caught.code)
+      ) {
+        const reloaded = await load()
+        if (reloaded) setError(friendlyError(caught, true))
+      } else setError(friendlyError(caught))
     } finally {
       setSaving(false)
     }

@@ -9,7 +9,7 @@ only exact 60-minute `IN_APP_CHAT` and feature-gated `IN_APP_VIDEO` slots with
 an IANA display timezone. It does not collect or display a practice location,
 phone number, or external meeting link.
 
-The provider decision is recorded in backend ADR 0018. Publishing video
+The provider decision is recorded in backend ADR 0019. Publishing video
 availability is disabled by default and does not create or authorize a video
 room. Withdrawn slots remain visible as tombstones, and started slots are shown
 as stale instead of being presented as bookable.
