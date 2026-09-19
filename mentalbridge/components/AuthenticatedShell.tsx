@@ -54,6 +54,14 @@ const groups = [
           <path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h4" />
         </Svg>,
       ],
+      [
+        '/support-plan',
+        'Kế hoạch hỗ trợ',
+        <Svg key="sp">
+          <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" />
+          <path d="m15.5 16 1.2 1.2 2.3-2.7" />
+        </Svg>,
+      ],
     ],
   },
   {
@@ -126,6 +134,7 @@ const labels: Record<string, string> = {
   '/journal': 'Nhật ký',
   '/assessments': 'Đánh giá',
   '/support-guides': 'Hướng dẫn hỗ trợ',
+  '/support-plan': 'Kế hoạch hỗ trợ',
   '/specialists': 'Chuyên gia',
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',

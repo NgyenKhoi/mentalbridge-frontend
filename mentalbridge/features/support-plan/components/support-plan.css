@@ -1,0 +1,311 @@
+.support-plan-page {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+  color: var(--ink);
+}
+
+.support-plan-page-header {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 1.5rem;
+}
+
+.support-plan-page-header > span,
+.support-plan-card-header > div > span,
+.support-plan-rationale > span,
+.support-plan-section-heading > div > span {
+  color: var(--teal-deep);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.support-plan-page-header h1 {
+  margin: 0;
+  font:
+    600 clamp(2rem, 5vw, 3rem) / 1.1 var(--font-fraunces),
+    Georgia,
+    serif;
+}
+
+.support-plan-page-header p {
+  max-width: 730px;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.support-plan-card {
+  display: grid;
+  gap: 1.1rem;
+  padding: clamp(1rem, 3vw, 1.6rem);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: 0 18px 45px -34px rgba(21, 72, 57, 0.45);
+}
+
+.support-plan-card-header,
+.support-plan-section-heading,
+.support-plan-card > footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.support-plan-card h2,
+.support-plan-card h3,
+.support-plan-card h4,
+.support-plan-state h2 {
+  margin: 0;
+}
+
+.support-plan-card h2 {
+  margin-top: 0.25rem;
+  font:
+    600 clamp(1.45rem, 3vw, 2rem) / 1.2 var(--font-fraunces),
+    Georgia,
+    serif;
+}
+
+.support-plan-status,
+.support-plan-section-heading > span {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.72rem;
+  border-radius: 999px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.support-plan-safety {
+  padding: 1rem 1.1rem;
+  border-left: 4px solid var(--teal);
+  border-radius: 13px;
+  background: var(--teal-pale);
+}
+
+.support-plan-safety.attention {
+  border-left-color: var(--amber-deep);
+  background: var(--amber-soft);
+}
+
+.support-plan-safety p,
+.support-plan-rationale p,
+.support-plan-confirmation-note p,
+.support-plan-card > footer p {
+  margin: 0.4rem 0;
+  line-height: 1.6;
+}
+
+.support-plan-safety small,
+.support-plan-slot-content small,
+.support-plan-card > footer,
+.support-plan-state p {
+  color: var(--ink-soft);
+}
+
+.support-plan-rationale {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.support-plan-slots {
+  display: grid;
+  gap: 1rem;
+}
+
+.support-plan-slots > ol {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.support-plan-slots > ol > li {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+}
+
+.support-plan-slot-number,
+.support-plan-state-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--teal-deep);
+  color: #fff;
+  font-weight: 800;
+}
+
+.support-plan-slot-content {
+  min-width: 0;
+}
+
+.support-plan-slot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+  margin-bottom: 0.35rem;
+  color: var(--ink-faint);
+  font-size: 0.73rem;
+  font-weight: 750;
+}
+
+.support-plan-slot-content p {
+  margin: 0.4rem 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.support-plan-slot-content > a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: 0.45rem;
+  color: var(--teal-deep);
+  font-weight: 800;
+}
+
+.support-plan-slot-content details {
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+}
+
+.support-plan-slot-content summary,
+.support-plan-provenance summary {
+  min-height: 44px;
+  color: var(--teal-deep);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.support-plan-slot-content details ul {
+  display: grid;
+  gap: 0.6rem;
+  padding-left: 1.2rem;
+}
+
+.support-plan-slot-content details li span {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.support-plan-confirmation-note {
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  background: var(--amber-soft);
+}
+
+.support-plan-provenance dl {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.support-plan-provenance dl > div {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.4fr) minmax(0, 1fr);
+  gap: 0.65rem;
+}
+
+.support-plan-provenance dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.support-plan-card > footer {
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+
+.support-plan-card > footer p {
+  max-width: 660px;
+}
+
+.support-plan-card > footer time {
+  flex: 0 0 auto;
+}
+
+.support-plan-state {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.support-plan-state.notice {
+  background: var(--surface-soft);
+}
+
+.support-plan-state > p {
+  max-width: 650px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.support-plan-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.support-plan-state-actions .btn {
+  min-height: 44px;
+}
+
+.support-plan-loader {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--line);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: support-plan-spin 0.7s linear infinite;
+}
+
+.support-plan-page :is(button, a, summary):focus-visible {
+  outline: 3px solid rgba(61, 122, 110, 0.25);
+  outline-offset: 3px;
+}
+
+@keyframes support-plan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .support-plan-loader {
+    animation: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .support-plan-card-header,
+  .support-plan-section-heading,
+  .support-plan-card > footer {
+    flex-direction: column;
+  }
+
+  .support-plan-provenance dl > div {
+    grid-template-columns: 1fr;
+  }
+}

@@ -26,6 +26,12 @@ import type {
   SupportGuide,
   SupportGuideHistory,
 } from '@/features/support-guide/api/support-guide-contract'
+import type {
+  ProposeSupportPlanDraftRequest,
+  SupportEvaluationV2,
+  SupportEvaluationV2Request,
+  SupportPlanDraft,
+} from '@/features/support-plan/api/support-plan-contract'
 import {
   parseSupportGuide,
   parseSupportGuideHistory,
@@ -43,6 +49,10 @@ import {
   parseAssessmentProgress,
   parseSupportEvaluation,
 } from './care-validation'
+import {
+  parseSupportEvaluationV2,
+  parseSupportPlanDraft,
+} from './support-plan-validation'
 
 type RequestOptions<T> = Readonly<{
   method: 'GET' | 'POST' | 'PUT'
@@ -447,6 +457,53 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parseSupportGuide,
+    })
+  },
+
+  evaluateSupportV2(
+    accessToken: string,
+    request: SupportEvaluationV2Request,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportEvaluationV2> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v2/support-evaluations',
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parseSupportEvaluationV2,
+    })
+  },
+
+  proposeSupportPlanDraft(
+    accessToken: string,
+    request: ProposeSupportPlanDraftRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportPlanDraft> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v1/support-plans',
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parseSupportPlanDraft,
+    })
+  },
+
+  currentSupportPlanDraft(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<SupportPlanDraft> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/support-plans/current-draft',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanDraft,
     })
   },
 }
