@@ -34,6 +34,43 @@ export type PendingProfiles = Readonly<{
   count: number
 }>
 
+export const AVAILABILITY_MODALITIES = ['IN_APP_CHAT', 'IN_APP_VIDEO'] as const
+export const AVAILABILITY_STATUSES = ['ACTIVE', 'WITHDRAWN'] as const
+export const AVAILABILITY_READINESS = [
+  'AVAILABLE',
+  'STARTED',
+  'WITHDRAWN',
+  'VIDEO_DISABLED',
+] as const
+export type AvailabilityModality = (typeof AVAILABILITY_MODALITIES)[number]
+export type AvailabilitySlotStatus = (typeof AVAILABILITY_STATUSES)[number]
+export type AvailabilityReadiness = (typeof AVAILABILITY_READINESS)[number]
+
+export type PublishAvailabilityInput = Readonly<{
+  startAt: string
+  endAt: string
+  timezone: string
+  modality: AvailabilityModality
+}>
+
+export type AvailabilitySlot = PublishAvailabilityInput &
+  Readonly<{
+    id: string
+    status: AvailabilitySlotStatus
+    readiness: AvailabilityReadiness
+    withdrawnAt: string | null
+    createdAt: string
+    updatedAt: string
+    version: number
+  }>
+
+export type AvailabilitySlotList = Readonly<{
+  items: AvailabilitySlot[]
+  count: number
+  generatedAt: string
+  videoPublishingEnabled: boolean
+}>
+
 type Problem = Readonly<{
   title: string
   status: number
@@ -61,6 +98,25 @@ function instantOrNull(value: unknown): value is string | null {
     value === null ||
     (typeof value === 'string' && !Number.isNaN(Date.parse(value)))
   )
+}
+
+function utcInstant(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/.test(value) &&
+    !Number.isNaN(Date.parse(value))
+  )
+}
+
+function ianaTimezone(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length < 1 || value.length > 64)
+    return false
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: value })
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function parseProfile(value: unknown): SpecialistProfile | null {
@@ -111,6 +167,52 @@ export function parsePendingProfiles(value: unknown): PendingProfiles | null {
   return { items: items as SpecialistProfile[], count: result.count as number }
 }
 
+export function parseAvailabilitySlot(value: unknown): AvailabilitySlot | null {
+  const slot = record(value)
+  if (
+    !slot ||
+    !uuid(slot.id) ||
+    !utcInstant(slot.startAt) ||
+    !utcInstant(slot.endAt) ||
+    Date.parse(slot.endAt) - Date.parse(slot.startAt) !== 60 * 60 * 1000 ||
+    !ianaTimezone(slot.timezone) ||
+    !AVAILABILITY_MODALITIES.includes(slot.modality as AvailabilityModality) ||
+    !AVAILABILITY_STATUSES.includes(slot.status as AvailabilitySlotStatus) ||
+    !AVAILABILITY_READINESS.includes(slot.readiness as AvailabilityReadiness) ||
+    !(slot.withdrawnAt === null || utcInstant(slot.withdrawnAt)) ||
+    !utcInstant(slot.createdAt) ||
+    !utcInstant(slot.updatedAt) ||
+    !Number.isInteger(slot.version) ||
+    Number(slot.version) < 0
+  )
+    return null
+  return slot as AvailabilitySlot
+}
+
+export function parseAvailabilitySlotList(
+  value: unknown,
+): AvailabilitySlotList | null {
+  const result = record(value)
+  if (
+    !result ||
+    !Array.isArray(result.items) ||
+    result.items.length > 500 ||
+    !Number.isInteger(result.count) ||
+    result.count !== result.items.length ||
+    !utcInstant(result.generatedAt) ||
+    typeof result.videoPublishingEnabled !== 'boolean'
+  )
+    return null
+  const items = result.items.map(parseAvailabilitySlot)
+  if (items.some((item) => item === null)) return null
+  return {
+    items: items as AvailabilitySlot[],
+    count: result.count as number,
+    generatedAt: result.generatedAt,
+    videoPublishingEnabled: result.videoPublishingEnabled,
+  }
+}
+
 export function parseProblem(value: unknown, status: number): Problem | null {
   const problem = record(value)
   if (
@@ -133,6 +235,43 @@ export class ConsultationInputError extends Error {
   constructor(readonly field: string) {
     super(`Invalid ${field}`)
   }
+}
+
+export function parsePublishAvailabilityInput(
+  value: unknown,
+): PublishAvailabilityInput {
+  const input = record(value)
+  if (!input) throw new ConsultationInputError('body')
+  const keys = Object.keys(input)
+  if (
+    keys.length !== 4 ||
+    !keys.every((key) =>
+      ['startAt', 'endAt', 'timezone', 'modality'].includes(key),
+    )
+  )
+    throw new ConsultationInputError('body')
+  if (!utcInstant(input.startAt)) throw new ConsultationInputError('startAt')
+  if (!utcInstant(input.endAt)) throw new ConsultationInputError('endAt')
+  if (Date.parse(input.endAt) - Date.parse(input.startAt) !== 60 * 60 * 1000)
+    throw new ConsultationInputError('endAt')
+  if (!ianaTimezone(input.timezone))
+    throw new ConsultationInputError('timezone')
+  if (!AVAILABILITY_MODALITIES.includes(input.modality as AvailabilityModality))
+    throw new ConsultationInputError('modality')
+  return {
+    startAt: input.startAt,
+    endAt: input.endAt,
+    timezone: input.timezone,
+    modality: input.modality as AvailabilityModality,
+  }
+}
+
+export function validIdempotencyKey(value: string | null): value is string {
+  return value !== null && /^[!-~]{16,128}$/.test(value)
+}
+
+export function validUtcInstant(value: string | null): value is string {
+  return value !== null && utcInstant(value)
 }
 
 export function parseProfileInput(value: unknown): SpecialistProfileInput {
