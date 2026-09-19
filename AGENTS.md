@@ -8,11 +8,12 @@ These rules apply to the whole frontend repository. The more specific
 Before changing application code, read:
 
 1. This file.
-2. `mentalbridge/AGENTS.md`.
-3. `mentalbridge/docs/README.md` and the task-relevant documents it links.
-4. The relevant installed Next.js 16 guide under
+2. `.codex/skills/lean-task-delivery/SKILL.md`.
+3. `mentalbridge/AGENTS.md`.
+4. `mentalbridge/docs/README.md` and the task-relevant documents it links.
+5. The relevant installed Next.js 16 guide under
    `mentalbridge/node_modules/next/dist/docs/`.
-5. The backend OpenAPI contract for every API boundary being changed.
+6. The backend OpenAPI contract for every API boundary being changed.
 
 Do not rely on remembered Next.js behavior when the installed documentation is
 available. If dependencies are not installed, state that the local guide could
