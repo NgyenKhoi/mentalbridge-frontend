@@ -51,6 +51,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/consents/ai-processing/authorization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve the authenticated user's current AI-processing consent
+         * @description Returns a minimal current decision for exact-revision or bounded
+         *     longitudinal journal analysis. Journal/AI forwards the verified end-user
+         *     bearer credential for both request-time and pre-attempt checks. Missing,
+         *     revoked, or outdated consent fails closed.
+         */
+        get: operations["authorizeOwnAiProcessing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/consent-decisions": {
         parameters: {
             query?: never;
@@ -87,6 +110,28 @@ export interface paths {
          *     render this response and must not keep an independent disclosure copy.
          */
         get: operations["getCurrentPrivacyDisclosure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-processing-disclosures/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the backend-owned disclosure for journal AI processing
+         * @description Covers only explicit exact-revision and bounded longitudinal journal
+         *     analysis. It excludes research, marketing, specialist sharing, and safety
+         *     decisions. Story 6203 or a dedicated frontend follow-up renders this text.
+         */
+        get: operations["getCurrentAiProcessingDisclosure"];
         put?: never;
         post?: never;
         delete?: never;
@@ -253,6 +298,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create or replay one deterministic paid SupportPlan draft
+         * @description The authenticated USER supplies only one owned SupportEvaluation v2 reference.
+         *     Care resolves the current Consultation-owned entitlement, revalidates current
+         *     SupportEvaluation policy compatibility, resolves exact Content-owned resource
+         *     versions, and persists at most one DRAFT. FREE entitlement, stale or ineligible
+         *     source facts, and dependency uncertainty create no plan. AI and clients do not
+         *     select resources, template families, eligibility, or safety behavior.
+         */
+        post: operations["proposeOwnSupportPlanDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/current-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reload the authenticated user's same current SupportPlan draft
+         * @description Returns the persisted draft snapshot without re-running entitlement or
+         *     resource-provider decisions. The response retains the exact rationale,
+         *     choices, source versions, and safety copy used when Care created it.
+         */
+        get: operations["getOwnCurrentSupportPlanDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/anonymous-assessment-sessions": {
         parameters: {
             query?: never;
@@ -365,15 +457,26 @@ export interface components {
             version: number;
         };
         /** @enum {string} */
-        ConsentType: "PRIVACY_POLICY";
-        ConsentDecisionRequest: {
-            consentType: components["schemas"]["ConsentType"];
+        ConsentType: "PRIVACY_POLICY" | "AI_PROCESSING";
+        ConsentDecisionRequest: components["schemas"]["PrivacyConsentDecisionRequest"] | components["schemas"]["AiProcessingConsentDecisionRequest"];
+        PrivacyConsentDecisionRequest: {
             /**
-             * @description Exact approved consent text version shown to the user
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
+            consentType: "PRIVACY_POLICY";
+            /** @constant */
             policyVersion: "privacy-capstone-v3";
-            /** @description Grants or withdraws consent for future screening-data processing under this version */
+            granted: boolean;
+        };
+        AiProcessingConsentDecisionRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            consentType: "AI_PROCESSING";
+            /** @constant */
+            policyVersion: "ai-processing-capstone-v1";
             granted: boolean;
         };
         ConsentDecision: {
@@ -388,11 +491,33 @@ export interface components {
         ConsentCollection: {
             decisions: components["schemas"]["ConsentDecision"][];
         };
+        AiProcessingAuthorization: {
+            authorized: boolean;
+            /** @enum {string} */
+            reason: "GRANTED" | "MISSING" | "REVOKED" | "POLICY_OUTDATED";
+            /** @constant */
+            consentType: "AI_PROCESSING";
+            policyVersion: string | null;
+            /** Format: date-time */
+            decidedAt: string | null;
+        };
         PrivacyDisclosure: {
             /** @constant */
             consentType: "PRIVACY_POLICY";
             /** @constant */
             version: "privacy-capstone-v3";
+            /** @constant */
+            locale: "vi-VN";
+            title: string;
+            content: string;
+            /** @constant */
+            capstoneOnly: true;
+        };
+        AiProcessingDisclosure: {
+            /** @constant */
+            consentType: "AI_PROCESSING";
+            /** @constant */
+            version: "ai-processing-capstone-v1";
             /** @constant */
             locale: "vi-VN";
             title: string;
@@ -615,6 +740,107 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
         };
+        ProposeSupportPlanDraftRequest: {
+            /**
+             * Format: uuid
+             * @description One immutable SupportEvaluation v2 owned by the authenticated user
+             */
+            sourceSupportEvaluationId: string;
+        };
+        SupportPlanDraft: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @constant */
+            status: "DRAFT";
+            version: number;
+            source: components["schemas"]["SupportPlanSource"];
+            entitlement: components["schemas"]["SupportPlanEntitlementEvidence"];
+            rationale: components["schemas"]["SupportPlanRationale"];
+            safety: components["schemas"]["SupportPlanSafety"];
+            templateFamilies: components["schemas"]["SupportPlanTemplateFamily"][];
+            slots: components["schemas"]["SupportPlanSlot"][];
+            selectedResourceCount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @constant */
+            disclaimerCode: "WELLBEING_SUPPORT_NOT_TREATMENT";
+            disclaimer: string;
+        };
+        SupportPlanSource: {
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** @constant */
+            evaluationVersion: 2;
+            /** @constant */
+            evaluationPolicyVersion: "mb-support-routing-capstone-v2";
+            /** Format: date-time */
+            evaluatedAt: string;
+            /** @constant */
+            selectionPolicyVersion: "mb-support-plan-selection-v1";
+            /** @constant */
+            resourceEligibilityPolicyVersion: "content-eligibility-v1";
+            /** Format: date-time */
+            resourcesResolvedAt: string;
+        };
+        SupportPlanEntitlementEvidence: {
+            /** @enum {string} */
+            packageCode: "PLUS" | "PREMIUM";
+            /** @enum {string} */
+            source: "DEMO" | "PAID";
+            /** @constant */
+            policyVersion: "service-entitlement-v1";
+            version: number;
+            /** Format: date-time */
+            decidedAt: string;
+        };
+        SupportPlanRationale: {
+            /** @constant */
+            code: "DOMAIN_AWARE_WELLBEING_SUPPORT";
+            text: string;
+        };
+        SupportPlanSafety: {
+            status: components["schemas"]["SafetyStatus"];
+            reasonCode: string;
+            policyVersion: string;
+            /** @enum {string} */
+            guidanceCode: "REVIEW_SAFETY_GUIDANCE" | "STANDARD_SAFETY_REMINDER";
+            guidance: string;
+        };
+        SupportPlanTemplateFamily: {
+            /** @enum {string} */
+            family: "DEPRESSIVE_MAINTENANCE" | "DEPRESSIVE_SELF_GUIDED" | "DEPRESSIVE_PROFESSIONAL_ADJUNCT" | "ANXIETY_MAINTENANCE" | "ANXIETY_SELF_GUIDED" | "ANXIETY_PROFESSIONAL_ADJUNCT";
+            /** @constant */
+            templateVersion: 1;
+            /** @enum {string} */
+            targetDomain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
+        };
+        SupportPlanSlot: {
+            slotId: string;
+            /** @enum {string} */
+            kind: "CORE" | "OPTIONAL";
+            /** @enum {string} */
+            targetDomain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
+            purposeCode: string;
+            selectedResource: components["schemas"]["SupportPlanResource"];
+            allowedAlternatives: components["schemas"]["SupportPlanResource"][];
+        };
+        SupportPlanResource: {
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** Format: uuid */
+            publicationId: string;
+            /** @enum {string} */
+            role: "PRIMARY" | "ADJUNCT";
+            /** @enum {string} */
+            category: "BREATHING" | "MEDITATION" | "ARTICLE" | "VIDEO" | "JOURNALING" | "COMMUNITY";
+            title: string;
+            summary: string;
+            /** Format: uri */
+            externalUrl?: string | null;
+        };
         Problem: {
             /** Format: uri-reference */
             type: string;
@@ -751,6 +977,42 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Current authoritative package is FREE (SUPPORT_PLAN_ENTITLEMENT_REQUIRED); no draft was created */
+        SupportPlanEntitlementProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Current source facts cannot produce a bounded draft (SUPPORT_EVALUATION_STALE, SUPPORT_PLAN_CORE_UNAVAILABLE, or RESOURCE_VERSION_STALE); no draft was created */
+        SupportPlanEligibilityProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Entitlement or exact resource eligibility could not be trusted (ENTITLEMENT_UNAVAILABLE or RESOURCE_ELIGIBILITY_UNAVAILABLE); no draft was created */
+        SupportPlanDependencyProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The authenticated user has no current draft (SUPPORT_PLAN_DRAFT_NOT_FOUND) */
+        SupportPlanDraftNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description The selected owned result has no immediately preceding valid result with the same instrument and scoring version */
         InsufficientComparableDataProblem: {
             headers: {
@@ -816,7 +1078,10 @@ export interface components {
         PageLimit: number;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Strong ETag containing the Care-owned draft version */
+        SupportPlanETag: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -924,6 +1189,31 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
         };
     };
+    authorizeOwnAiProcessing: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authorization decision returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProcessingAuthorization"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     recordOwnConsentDecision: {
         parameters: {
             query?: never;
@@ -985,6 +1275,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PrivacyDisclosure"];
+                };
+            };
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getCurrentAiProcessingDisclosure: {
+        parameters: {
+            query?: {
+                locale?: components["parameters"]["Locale"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current AI-processing disclosure returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProcessingDisclosure"];
                 };
             };
             404: components["responses"]["NotFoundProblem"];
@@ -1233,6 +1549,70 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    proposeOwnSupportPlanDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposeSupportPlanDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description The newly created draft, the existing current draft, or an identical idempotent replay */
+            201: {
+                headers: {
+                    Location?: string;
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanDraft"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["SupportPlanEntitlementProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanEligibilityProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    getOwnCurrentSupportPlanDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current persisted draft */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanDraft"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanDraftNotFoundProblem"];
         };
     };
     createAnonymousAssessmentSession: {

@@ -53,11 +53,15 @@ npm run contracts:generate  # regenerate from the committed snapshots
 npm run contracts:check     # validate all snapshots and generated types
 ```
 
-Set `IDENTITY_OPENAPI_SOURCE`, `CARE_OPENAPI_SOURCE`, or
-`CONTENT_OPENAPI_SOURCE` when a backend checkout is not in the documented
-sibling location. CI always validates the committed snapshots and generated
-types. When a source variable is provided, the check additionally verifies that
-the backend source and snapshot are byte-for-byte equal.
+Set `IDENTITY_OPENAPI_SOURCE`, `CARE_OPENAPI_SOURCE`,
+`CARE_SUPPORT_GUIDE_OPENAPI_SOURCE`,
+`CARE_SUPPORT_EVALUATION_OPENAPI_SOURCE`, or `CONTENT_OPENAPI_SOURCE` when a
+backend checkout is not in the documented sibling location. The focused Care
+contracts are required because the SupportPlan BFF creates/replays a v2
+SupportEvaluation before asking Care for the initial draft. CI always validates
+the committed snapshots and generated types. When a source variable is
+provided, the check additionally verifies that the backend source and snapshot
+are byte-for-byte equal.
 
 ## Test layers
 
