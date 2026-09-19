@@ -28,21 +28,24 @@ Copy-Item .env.example .env.local
 `.env.local` and every real `.env*` file stay untracked. Only `.env.example`,
 with non-secret development placeholders, is committed.
 
-| Variable                     | Visibility  | Purpose                                                                              |
-| ---------------------------- | ----------- | ------------------------------------------------------------------------------------ |
-| `IDENTITY_API_BASE_URL`      | Server only | Validated Identity server/BFF upstream base URL                                      |
-| `IDENTITY_API_TIMEOUT_MS`    | Server only | Total Identity request timeout from 100 through 30000 milliseconds; defaults to 2000 |
-| `CARE_API_BASE_URL`          | Server only | Validated Care server/BFF upstream base URL                                          |
-| `CARE_API_TIMEOUT_MS`        | Server only | Total Care request timeout from 100 through 30000 milliseconds; defaults to 3000     |
-| `CARE_QUESTIONNAIRE_LOCALE`  | Server only | Reviewed questionnaire locale requested from Care; defaults to `vi-VN`               |
-| `CONTENT_SERVICE_URL`        | Server only | Validated Content service base URL used by the bounded resource BFF                  |
-| `CONTENT_SERVICE_TIMEOUT_MS` | Server only | Total Content request timeout from 100 through 30000 milliseconds; defaults to 5000  |
+| Variable                          | Visibility  | Purpose                                                                                  |
+| --------------------------------- | ----------- | ---------------------------------------------------------------------------------------- |
+| `IDENTITY_API_BASE_URL`           | Server only | Validated Identity server/BFF upstream base URL                                          |
+| `IDENTITY_API_TIMEOUT_MS`         | Server only | Total Identity request timeout from 100 through 30000 milliseconds; defaults to 2000     |
+| `CARE_API_BASE_URL`               | Server only | Validated Care server/BFF upstream base URL                                              |
+| `CARE_API_TIMEOUT_MS`             | Server only | Total Care request timeout from 100 through 30000 milliseconds; defaults to 3000         |
+| `CARE_QUESTIONNAIRE_LOCALE`       | Server only | Reviewed questionnaire locale requested from Care; defaults to `vi-VN`                   |
+| `CONTENT_SERVICE_URL`             | Server only | Validated Content service base URL used by the bounded resource BFF                      |
+| `CONTENT_SERVICE_TIMEOUT_MS`      | Server only | Total Content request timeout from 100 through 30000 milliseconds; defaults to 5000      |
+| `CONSULTATION_SERVICE_URL`        | Server only | Validated Consultation service base URL used by specialist profile and availability BFFs |
+| `CONSULTATION_SERVICE_TIMEOUT_MS` | Server only | Total Consultation request timeout from 100 through 30000 milliseconds; defaults to 5000 |
 
-Identity, Care, and Content variables must not use the `NEXT_PUBLIC_*` prefix.
+Identity, Care, Content, and Consultation variables must not use the
+`NEXT_PUBLIC_*` prefix.
 Browser requests use only the bounded same-origin `/api/identity/*`,
-`/api/care/*`, and `/api/resources` handlers and never receive upstream
-addresses. The server validates URLs, timeouts, and the Care locale before
-their operations. Every new variable requires an `.env.example` entry,
+`/api/care/*`, `/api/resources`, and `/api/consultation/*` handlers and never
+receive upstream addresses. The server validates URLs, timeouts, and the Care
+locale before their operations. Every new variable requires an `.env.example` entry,
 visibility/owner documentation, startup validation when first consumed, and
 deployment setup.
 

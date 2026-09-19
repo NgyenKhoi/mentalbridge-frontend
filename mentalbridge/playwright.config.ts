@@ -83,6 +83,8 @@ export default defineConfig({
             CARE_API_TIMEOUT_MS: '3000',
             CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
             CONTENT_SERVICE_URL: identityFixtureURL,
+            CONSULTATION_SERVICE_URL: identityFixtureURL,
+            CONSULTATION_SERVICE_TIMEOUT_MS: '3000',
             HOSTNAME: '127.0.0.1',
             PORT: String(port),
             JOURNAL_AI_SERVICE_URL: identityFixtureURL,

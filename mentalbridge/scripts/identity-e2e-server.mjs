@@ -131,6 +131,8 @@ const careProfiles = new Map()
 const careConsents = new Map()
 const journalEntries = new Map()
 const journalCommands = new Map()
+const availabilitySlots = new Map()
+const availabilityCommands = new Map()
 const careAccessToken = 'synthetic-care-e2e-access'
 const otherCareAccessToken = 'synthetic-care-e2e-other-access'
 const careActor = actors.get('care-e2e@example.com')
@@ -176,6 +178,8 @@ function reset() {
   careConsents.clear()
   journalEntries.clear()
   journalCommands.clear()
+  availabilitySlots.clear()
+  availabilityCommands.clear()
   contentCreateByKey.clear()
   contentResources.splice(
     0,
@@ -210,15 +214,36 @@ function reset() {
     granted: true,
     decidedAt: careNow.toISOString(),
   })
+  const specialist = actors.get('specialist@example.com')
+  availabilitySlots.set('60000000-0000-4000-8000-000000000001', {
+    id: '60000000-0000-4000-8000-000000000001',
+    ownerAccountId: specialist.accountId,
+    startAt: '2098-01-02T02:00:00.000Z',
+    endAt: '2098-01-02T03:00:00.000Z',
+    timezone: 'Asia/Ho_Chi_Minh',
+    modality: 'IN_APP_CHAT',
+    status: 'ACTIVE',
+    withdrawnAt: null,
+    createdAt: '2026-09-17T01:00:00.000Z',
+    updatedAt: '2026-09-17T01:00:00.000Z',
+    version: 0,
+  })
   Object.keys(state).forEach((key) => {
     state[key] = 0
   })
 }
 
-function json(response, status, body, contentType = 'application/json') {
+function json(
+  response,
+  status,
+  body,
+  contentType = 'application/json',
+  extraHeaders = {},
+) {
   response.writeHead(status, {
     'Content-Type': `${contentType}; charset=utf-8`,
     'X-Correlation-Id': correlationId,
+    ...extraHeaders,
   })
   response.end(JSON.stringify(body))
 }
@@ -292,6 +317,39 @@ function journalActor(request, response) {
     return null
   }
   return actor
+}
+
+function specialistActor(request, response) {
+  const actor = accessSessions.get(bearerToken(request))
+  if (!actor || !actor.roles.includes('SPECIALIST')) {
+    problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+    return null
+  }
+  return actor
+}
+
+function availabilityView(slot) {
+  const readiness =
+    slot.status === 'WITHDRAWN'
+      ? 'WITHDRAWN'
+      : Date.parse(slot.startAt) <= Date.now()
+        ? 'STARTED'
+        : slot.modality === 'IN_APP_VIDEO'
+          ? 'VIDEO_DISABLED'
+          : 'AVAILABLE'
+  return {
+    id: slot.id,
+    startAt: slot.startAt,
+    endAt: slot.endAt,
+    timezone: slot.timezone,
+    modality: slot.modality,
+    status: slot.status,
+    readiness,
+    withdrawnAt: slot.withdrawnAt,
+    createdAt: slot.createdAt,
+    updatedAt: slot.updatedAt,
+    version: slot.version,
+  }
 }
 
 function journalCommand(actor, request, fingerprint) {
@@ -558,6 +616,159 @@ const server = createServer(async (request, response) => {
   try {
     if (request.method === 'GET' && url.pathname === '/health') {
       json(response, 200, { status: 'UP' })
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/availability-slots'
+    ) {
+      const actor = specialistActor(request, response)
+      if (!actor) return
+      const includeWithdrawn =
+        url.searchParams.get('includeWithdrawn') === 'true'
+      const items = [...availabilitySlots.values()]
+        .filter(
+          (slot) =>
+            slot.ownerAccountId === actor.accountId &&
+            (includeWithdrawn || slot.status === 'ACTIVE'),
+        )
+        .sort((left, right) => left.startAt.localeCompare(right.startAt))
+        .map(availabilityView)
+      json(response, 200, {
+        items,
+        count: items.length,
+        generatedAt: new Date().toISOString(),
+        videoPublishingEnabled: false,
+      })
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/availability-slots'
+    ) {
+      const actor = specialistActor(request, response)
+      if (!actor) return
+      const key = request.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      const body = await readBody(request)
+      const fingerprint = JSON.stringify(body)
+      const commandKey = `${actor.accountId}:${key}`
+      const replay = availabilityCommands.get(commandKey)
+      if (replay) {
+        if (replay.fingerprint !== fingerprint) {
+          problem(
+            response,
+            409,
+            'IDEMPOTENCY_KEY_REUSED',
+            'Idempotency key was reused',
+          )
+          return
+        }
+        json(response, 201, availabilityView(replay.slot), 'application/json', {
+          ETag: `"${replay.slot.version}"`,
+        })
+        return
+      }
+      if (
+        !['IN_APP_CHAT', 'IN_APP_VIDEO'].includes(body.modality) ||
+        body.modality === 'IN_APP_VIDEO' ||
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(
+          body.startAt,
+        ) ||
+        Date.parse(body.endAt) - Date.parse(body.startAt) !== 3_600_000
+      ) {
+        problem(
+          response,
+          body.modality === 'IN_APP_VIDEO' ? 409 : 422,
+          body.modality === 'IN_APP_VIDEO'
+            ? 'VIDEO_AVAILABILITY_DISABLED'
+            : 'VALIDATION_FAILED',
+          'Availability slot is invalid',
+        )
+        return
+      }
+      try {
+        new Intl.DateTimeFormat('en', { timeZone: body.timezone })
+      } catch {
+        problem(response, 422, 'VALIDATION_FAILED', 'Timezone is invalid')
+        return
+      }
+      const overlap = [...availabilitySlots.values()].some(
+        (slot) =>
+          slot.ownerAccountId === actor.accountId &&
+          slot.status === 'ACTIVE' &&
+          Date.parse(slot.startAt) < Date.parse(body.endAt) &&
+          Date.parse(slot.endAt) > Date.parse(body.startAt),
+      )
+      if (overlap) {
+        problem(
+          response,
+          409,
+          'AVAILABILITY_SLOT_OVERLAP',
+          'Availability overlaps',
+        )
+        return
+      }
+      const now = new Date().toISOString()
+      const slot = {
+        id: crypto.randomUUID(),
+        ownerAccountId: actor.accountId,
+        ...body,
+        status: 'ACTIVE',
+        withdrawnAt: null,
+        createdAt: now,
+        updatedAt: now,
+        version: 0,
+      }
+      availabilitySlots.set(slot.id, slot)
+      availabilityCommands.set(commandKey, { fingerprint, slot })
+      json(response, 201, availabilityView(slot), 'application/json', {
+        ETag: '"0"',
+      })
+      return
+    }
+
+    const availabilityResource = url.pathname.match(
+      /^\/api\/v1\/availability-slots\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'DELETE' && availabilityResource) {
+      const actor = specialistActor(request, response)
+      if (!actor) return
+      const slot = availabilitySlots.get(availabilityResource[1])
+      if (!slot || slot.ownerAccountId !== actor.accountId) {
+        problem(response, 404, 'AVAILABILITY_SLOT_NOT_FOUND', 'Slot not found')
+        return
+      }
+      if (request.headers['if-match'] !== `"${slot.version}"`) {
+        problem(response, 412, 'VERSION_CONFLICT', 'Slot changed')
+        return
+      }
+      if (slot.status !== 'ACTIVE') {
+        problem(
+          response,
+          409,
+          'AVAILABILITY_SLOT_WITHDRAWN',
+          'Slot was withdrawn',
+        )
+        return
+      }
+      slot.status = 'WITHDRAWN'
+      slot.withdrawnAt = new Date().toISOString()
+      slot.updatedAt = slot.withdrawnAt
+      slot.version += 1
+      json(response, 200, availabilityView(slot), 'application/json', {
+        ETag: `"${slot.version}"`,
+      })
       return
     }
 

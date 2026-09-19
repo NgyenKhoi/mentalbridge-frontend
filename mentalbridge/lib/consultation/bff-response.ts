@@ -35,7 +35,7 @@ export function consultationFailure(error: unknown, correlationId: string) {
     type: `/problems/${error.code.toLowerCase().replaceAll('_', '-')}`,
     title:
       error.status === 412
-        ? 'Hồ sơ đã thay đổi. Vui lòng tải lại.'
+        ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
         : error.message,
     status: error.status,
     code: error.code,
