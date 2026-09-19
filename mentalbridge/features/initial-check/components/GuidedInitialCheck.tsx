@@ -303,6 +303,14 @@ function SafetyBlock({ evaluation }: { evaluation: SupportEvaluation }) {
         MentalBridge không cung cấp ứng cứu khẩn cấp, không giám sát 24/7 và
         không tự động liên hệ người khác.
       </p>
+      {positive && (
+        <Link
+          className="btn btn-primary"
+          href="/safety-directory?trigger=positive-item-9"
+        >
+          Xem hỗ trợ trong khu vực đã chọn
+        </Link>
+      )}
     </section>
   )
 }
@@ -469,6 +477,9 @@ function UnifiedResult({
           </div>
         ) : (
           <>
+            <Link className="btn btn-outline" href="/safety-directory">
+              Tôi cần hỗ trợ ngay
+            </Link>
             <button
               className="btn btn-primary"
               type="button"

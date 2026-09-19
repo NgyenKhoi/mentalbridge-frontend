@@ -254,6 +254,10 @@
   margin-top: 24px;
   font-size: 14px;
 }
+.care-safety-directory-link {
+  display: inline-flex;
+  margin-top: 16px;
+}
 .care-result-disclaimer,
 .care-anonymous-note {
   display: flex;

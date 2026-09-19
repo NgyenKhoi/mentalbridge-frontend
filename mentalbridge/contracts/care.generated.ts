@@ -51,6 +51,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/consents/ai-processing/authorization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve the authenticated user's current AI-processing consent
+         * @description Returns a minimal current decision for exact-revision or bounded
+         *     longitudinal journal analysis. Journal/AI forwards the verified end-user
+         *     bearer credential for both request-time and pre-attempt checks. Missing,
+         *     revoked, or outdated consent fails closed.
+         */
+        get: operations["authorizeOwnAiProcessing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/consent-decisions": {
         parameters: {
             query?: never;
@@ -87,6 +110,28 @@ export interface paths {
          *     render this response and must not keep an independent disclosure copy.
          */
         get: operations["getCurrentPrivacyDisclosure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-processing-disclosures/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the backend-owned disclosure for journal AI processing
+         * @description Covers only explicit exact-revision and bounded longitudinal journal
+         *     analysis. It excludes research, marketing, specialist sharing, and safety
+         *     decisions. Story 6203 or a dedicated frontend follow-up renders this text.
+         */
+        get: operations["getCurrentAiProcessingDisclosure"];
         put?: never;
         post?: never;
         delete?: never;
@@ -316,10 +361,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/safety-directory-lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return Care-owned safety fallback with optional current area-directory results
+         * @description Positive PHQ-9 item 9 and the explicit help-now action enter this same
+         *     flow. Calling this public endpoint is itself an explicit help-now action;
+         *     the trigger value is presentation provenance and never a risk label.
+         *     Care always returns local reviewed fallback even when Content is empty,
+         *     malformed, timed out, circuit-open, or unavailable.
+         */
+        post: operations["lookupReviewedSafetyDirectory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Presentation provenance only; never a suicide-risk classification
+         * @enum {string}
+         */
+        SafetyDirectoryTrigger: "POSITIVE_ITEM_9" | "HELP_NOW";
+        CareSafetyDirectoryLookupRequest: {
+            trigger: components["schemas"]["SafetyDirectoryTrigger"];
+            provinceCode?: string;
+            districtCode?: string;
+            manualLocation?: string;
+        } & (unknown | unknown);
+        /** @enum {string} */
+        CareSafetyDirectoryState: "RESULTS" | "EMPTY" | "INVALID_AREA" | "UNAVAILABLE";
+        CareSafetyDirectoryEntry: {
+            /** Format: uuid */
+            directoryEntryId: string;
+            name: string;
+            /** @enum {string} */
+            type: "FACILITY" | "HOTLINE";
+            phone: string;
+            address: string | null;
+            coverage: {
+                [key: string]: unknown;
+            }[];
+            sourceName: string;
+            sourceReference: string;
+            /** Format: date-time */
+            reviewedAt: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        } & {
+            [key: string]: unknown;
+        };
+        CareSafetyDirectoryLookupResponse: {
+            trigger: components["schemas"]["SafetyDirectoryTrigger"];
+            state: components["schemas"]["CareSafetyDirectoryState"];
+            /** @constant */
+            areaWording: "Cơ sở trong khu vực đã chọn";
+            /** @constant */
+            safetyGuidance: "Nếu bạn cảm thấy mình không an toàn hoặc có nguy cơ gây hại cho bản thân, hãy chủ động liên hệ dịch vụ khẩn cấp hoặc cơ sở y tế phù hợp tại khu vực của bạn.";
+            /** @constant */
+            limitation: "MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
+            entries: components["schemas"]["CareSafetyDirectoryEntry"][];
+        };
         ProfilePutRequest: {
             displayName: string;
             /**
@@ -365,15 +478,26 @@ export interface components {
             version: number;
         };
         /** @enum {string} */
-        ConsentType: "PRIVACY_POLICY";
-        ConsentDecisionRequest: {
-            consentType: components["schemas"]["ConsentType"];
+        ConsentType: "PRIVACY_POLICY" | "AI_PROCESSING";
+        ConsentDecisionRequest: components["schemas"]["PrivacyConsentDecisionRequest"] | components["schemas"]["AiProcessingConsentDecisionRequest"];
+        PrivacyConsentDecisionRequest: {
             /**
-             * @description Exact approved consent text version shown to the user
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
+            consentType: "PRIVACY_POLICY";
+            /** @constant */
             policyVersion: "privacy-capstone-v3";
-            /** @description Grants or withdraws consent for future screening-data processing under this version */
+            granted: boolean;
+        };
+        AiProcessingConsentDecisionRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            consentType: "AI_PROCESSING";
+            /** @constant */
+            policyVersion: "ai-processing-capstone-v1";
             granted: boolean;
         };
         ConsentDecision: {
@@ -388,11 +512,33 @@ export interface components {
         ConsentCollection: {
             decisions: components["schemas"]["ConsentDecision"][];
         };
+        AiProcessingAuthorization: {
+            authorized: boolean;
+            /** @enum {string} */
+            reason: "GRANTED" | "MISSING" | "REVOKED" | "POLICY_OUTDATED";
+            /** @constant */
+            consentType: "AI_PROCESSING";
+            policyVersion: string | null;
+            /** Format: date-time */
+            decidedAt: string | null;
+        };
         PrivacyDisclosure: {
             /** @constant */
             consentType: "PRIVACY_POLICY";
             /** @constant */
             version: "privacy-capstone-v3";
+            /** @constant */
+            locale: "vi-VN";
+            title: string;
+            content: string;
+            /** @constant */
+            capstoneOnly: true;
+        };
+        AiProcessingDisclosure: {
+            /** @constant */
+            consentType: "AI_PROCESSING";
+            /** @constant */
+            version: "ai-processing-capstone-v1";
             /** @constant */
             locale: "vi-VN";
             title: string;
@@ -924,6 +1070,31 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
         };
     };
+    authorizeOwnAiProcessing: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authorization decision returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProcessingAuthorization"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     recordOwnConsentDecision: {
         parameters: {
             query?: never;
@@ -985,6 +1156,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PrivacyDisclosure"];
+                };
+            };
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getCurrentAiProcessingDisclosure: {
+        parameters: {
+            query?: {
+                locale?: components["parameters"]["Locale"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current AI-processing disclosure returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProcessingDisclosure"];
                 };
             };
             404: components["responses"]["NotFoundProblem"];
@@ -1325,6 +1522,35 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
             410: components["responses"]["ExpiredAnonymousSessionProblem"];
             429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    lookupReviewedSafetyDirectory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CareSafetyDirectoryLookupRequest"];
+            };
+        };
+        responses: {
+            /** @description Synchronous safety response with results or explicit fallback state */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareSafetyDirectoryLookupResponse"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
         };
     };
 }

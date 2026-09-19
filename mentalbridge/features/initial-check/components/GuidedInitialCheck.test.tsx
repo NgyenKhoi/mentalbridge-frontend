@@ -150,6 +150,9 @@ describe('GuidedInitialCheck', () => {
     ).toBeVisible()
     expect(screen.getByRole('heading', { name: /mục an toàn/i })).toBeVisible()
     expect(
+      screen.getByRole('link', { name: 'Tôi cần hỗ trợ ngay' }),
+    ).toHaveAttribute('href', '/safety-directory')
+    expect(
       screen.getByRole('heading', { name: 'Tự hỗ trợ có hướng dẫn' }),
     ).toBeVisible()
     expect(
