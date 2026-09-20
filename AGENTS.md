@@ -71,8 +71,13 @@ The approved Identity integration is documented in
 ## Verification and delivery
 
 - Run the smallest relevant checks while developing and the story's complete
-  quality gate before handoff. At minimum, documentation-only changes require
-  link/content review plus `npm run lint` and a non-emitting TypeScript check.
+  `dev` quality gate before handoff. Browser E2E execution belongs to the
+  staging release gate unless the task explicitly requires an earlier run. At
+  minimum, documentation-only changes require link/content review plus
+  `npm run lint` and a non-emitting TypeScript check.
+- When a change materially alters an existing browser journey, update the
+  relevant Playwright test so it remains compatible with the new behavior,
+  even when Browser E2E is not run during normal `dev` delivery.
 - Do not claim a check passed unless it was run in the current worktree. Report
   skipped or blocked checks with the reason.
 - Review the final diff for secrets, unrelated files, generated output,
