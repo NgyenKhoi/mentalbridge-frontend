@@ -1,0 +1,98 @@
+name: Frontend staging release gate
+
+on:
+  pull_request:
+    branches: [staging]
+  push:
+    branches: [staging]
+
+concurrency:
+  group: frontend-staging-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  promotion-policy:
+    name: Promotion policy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require dev as the staging promotion source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" && "$BASE_REF" == "staging" && "$HEAD_REF" != "dev" ]]; then
+            echo "Only dev may be promoted into staging."
+            exit 1
+          fi
+
+  release-quality:
+    name: Staging frontend and fixture browser checks
+    needs: [promotion-policy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mentalbridge
+    env:
+      CI: 'true'
+      E2E_RUNTIME: fixture
+      IDENTITY_API_BASE_URL: http://127.0.0.1:9
+      CONTENT_SERVICE_URL: http://127.0.0.1:3003
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check out staging Realtime provider contracts
+        uses: actions/checkout@v4
+        with:
+          repository: NgyenKhoi/mentalbridge-backend
+          ref: staging
+          path: realtime-provider
+          sparse-checkout: contracts/websocket/realtime
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mentalbridge/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compare Realtime provider schemas
+        run: npm run contract:provider-check
+        env:
+          REALTIME_CONTRACT_SOURCE: ${{ github.workspace }}/realtime-provider/contracts/websocket/realtime
+
+      - name: Install Chromium
+        run: npm run test:e2e:install
+
+      - name: Run full staging release suite
+        run: npm run ci:staging
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-playwright-report
+          path: |
+            mentalbridge/playwright-report
+            mentalbridge/test-results
+          if-no-files-found: warn
+
+  staging-quality-gate:
+    name: staging-quality-gate
+    if: always()
+    needs: [promotion-policy, release-quality]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require staging release checks
+        if: needs.promotion-policy.result != 'success' || needs.release-quality.result != 'success'
+        run: exit 1
+      - name: Confirm staging quality gate
+        run: echo "All required staging release checks passed."
