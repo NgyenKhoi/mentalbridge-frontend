@@ -60,11 +60,11 @@ export default function SubscriptionPage() {
                 <span>✓</span>Một phiên hoàn tất dùng một credit đang giữ
               </li>
             </ul>
-            <button className="subscription-current" disabled>
+            <p className="subscription-current">
               {plan.id === 'PREMIUM'
                 ? 'Gói cao nhất'
                 : 'Thanh toán sẽ được mở ở luồng riêng'}
-            </button>
+            </p>
           </article>
         ))}
       </section>

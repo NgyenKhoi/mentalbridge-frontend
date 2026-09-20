@@ -8,7 +8,9 @@
 Verification on 2026-09-20:
 
 - `npm run typecheck` — pass.
-- Focused Vitest for validation, server client, and credit panel — 3 files, 12 tests passed.
+- `npm run test:unit` — 65 files, 330 tests passed, including validation, server client, and credit-panel coverage.
 - `npm run lint` — pass after the effect initialization was aligned with repository hook policy.
+- `npm run build` — pass with the production Next.js build.
+- `npx playwright test --workers=1 --reporter=line` — 50 passed, 7 live-environment scenarios skipped by configuration, 0 failed. This includes the MB-377 mobile balance journey and the regression proving the page exposes no simulated or live payment action.
 
 No live cross-stack or real-payment evidence is claimed.
