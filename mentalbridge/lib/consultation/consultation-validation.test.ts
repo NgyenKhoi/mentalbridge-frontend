@@ -6,6 +6,7 @@ import {
   parseProfile,
   parseProfileInput,
   parsePublishAvailabilityInput,
+  parseServiceCreditAccount,
 } from './consultation-validation'
 
 const profile = {
@@ -89,5 +90,47 @@ describe('Consultation contract validation', () => {
     expect(() =>
       parsePublishAvailabilityInput({ ...input, modality: 'PHONE' }),
     ).toThrow(ConsultationInputError)
+  })
+
+  it('accepts a coherent authoritative credit balance and rejects derived drift', () => {
+    const account = {
+      accountId: 'f5297ec9-bbc9-4d51-8212-62778245335c',
+      packageCode: 'PREMIUM',
+      source: 'DEMO',
+      sourceReference: 'controlled-demo-377',
+      periodStart: '2026-09-20T00:00:00Z',
+      periodEnd: '2026-10-20T00:00:00Z',
+      policyVersion: 'consultation-credit-v1',
+      balance: {
+        available: 2,
+        held: 1,
+        consumed: 0,
+        forfeited: 0,
+        total: 3,
+        releasedTransitions: 1,
+      },
+      history: [
+        {
+          eventId: 'bb2a8b90-cbe9-4f1c-8a04-ef957fb9c673',
+          creditId: '98435d70-438e-4fa5-b642-0456ea3f8747',
+          eventType: 'HELD',
+          source: 'DEMO',
+          packageCode: 'PREMIUM',
+          appointmentId: 'aa310a3a-209b-4698-9c24-42157bc345c7',
+          occurredAt: '2026-09-20T01:00:00Z',
+        },
+      ],
+      generatedAt: '2026-09-20T01:00:01Z',
+    }
+    expect(parseServiceCreditAccount(account)).toEqual(account)
+    expect(
+      parseServiceCreditAccount({
+        ...account,
+        balance: { ...account.balance, total: 2 },
+      }),
+    ).toBeNull()
+    expect(
+      parseServiceCreditAccount({ ...account, source: 'DEFAULT_FREE' }),
+    ).toBeNull()
   })
 })

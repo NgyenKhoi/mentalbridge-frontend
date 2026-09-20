@@ -7,12 +7,14 @@ import {
   parsePendingProfiles,
   parseProblem,
   parseProfile,
+  parseServiceCreditAccount,
   type PendingProfiles,
   type AvailabilitySlot,
   type AvailabilitySlotList,
   type PublishAvailabilityInput,
   type SpecialistProfile,
   type SpecialistProfileInput,
+  type ServiceCreditAccount,
 } from './consultation-validation'
 
 const MAX_RESPONSE_BYTES = 128 * 1024
@@ -147,6 +149,15 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  credits(token: string, correlationId: string) {
+    return request<ServiceCreditAccount>({
+      method: 'GET',
+      path: '/api/v1/service-credits',
+      token,
+      correlationId,
+      parse: parseServiceCreditAccount,
+    })
+  },
   own(token: string, correlationId: string) {
     return profileRequest(
       'GET',

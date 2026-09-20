@@ -17,7 +17,7 @@ import {
 export async function authenticatedConsultationActor(
   request: NextRequest,
   correlationId: string,
-  roles: readonly ('SPECIALIST' | 'ADMIN')[],
+  roles: readonly ('USER' | 'SPECIALIST' | 'ADMIN')[],
 ) {
   const credentials = readSessionCredentials(request.cookies)
   const session = await resolveSession(credentials, correlationId)

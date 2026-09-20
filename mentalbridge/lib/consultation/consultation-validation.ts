@@ -71,6 +71,41 @@ export type AvailabilitySlotList = Readonly<{
   videoPublishingEnabled: boolean
 }>
 
+export type ServicePackage = 'FREE' | 'PLUS' | 'PREMIUM'
+export type CreditSource = 'DEFAULT_FREE' | 'DEMO' | 'PAID'
+export type CreditEventType =
+  'PROVISIONED' | 'HELD' | 'CONSUMED' | 'RELEASED' | 'FORFEITED'
+
+export type ServiceCreditAccount = Readonly<{
+  accountId: string
+  packageCode: ServicePackage
+  source: CreditSource
+  sourceReference: string | null
+  periodStart: string | null
+  periodEnd: string | null
+  policyVersion: 'consultation-credit-v1'
+  balance: Readonly<{
+    available: number
+    held: number
+    consumed: number
+    forfeited: number
+    total: number
+    releasedTransitions: number
+  }>
+  history: ReadonlyArray<
+    Readonly<{
+      eventId: string
+      creditId: string
+      eventType: CreditEventType
+      source: CreditSource
+      packageCode: ServicePackage
+      appointmentId: string | null
+      occurredAt: string
+    }>
+  >
+  generatedAt: string
+}>
+
 type Problem = Readonly<{
   title: string
   status: number
@@ -211,6 +246,78 @@ export function parseAvailabilitySlotList(
     generatedAt: result.generatedAt,
     videoPublishingEnabled: result.videoPublishingEnabled,
   }
+}
+
+export function parseServiceCreditAccount(
+  value: unknown,
+): ServiceCreditAccount | null {
+  const account = record(value)
+  const balance = record(account?.balance)
+  if (
+    !account ||
+    !uuid(account.accountId) ||
+    !['FREE', 'PLUS', 'PREMIUM'].includes(String(account.packageCode)) ||
+    !['DEFAULT_FREE', 'DEMO', 'PAID'].includes(String(account.source)) ||
+    !(
+      account.sourceReference === null ||
+      typeof account.sourceReference === 'string'
+    ) ||
+    !instantOrNull(account.periodStart) ||
+    !instantOrNull(account.periodEnd) ||
+    account.policyVersion !== 'consultation-credit-v1' ||
+    !balance ||
+    ![
+      'available',
+      'held',
+      'consumed',
+      'forfeited',
+      'total',
+      'releasedTransitions',
+    ].every(
+      (key) => Number.isInteger(balance[key]) && Number(balance[key]) >= 0,
+    ) ||
+    Number(balance.total) > 3 ||
+    Number(balance.available) +
+      Number(balance.held) +
+      Number(balance.consumed) +
+      Number(balance.forfeited) !==
+      Number(balance.total) ||
+    !Array.isArray(account.history) ||
+    account.history.length > 100 ||
+    !utcInstant(account.generatedAt)
+  )
+    return null
+  for (const value of account.history) {
+    const event = record(value)
+    if (
+      !event ||
+      !uuid(event.eventId) ||
+      !uuid(event.creditId) ||
+      !['PROVISIONED', 'HELD', 'CONSUMED', 'RELEASED', 'FORFEITED'].includes(
+        String(event.eventType),
+      ) ||
+      !['DEMO', 'PAID'].includes(String(event.source)) ||
+      !['PLUS', 'PREMIUM'].includes(String(event.packageCode)) ||
+      !(event.appointmentId === null || uuid(event.appointmentId)) ||
+      !utcInstant(event.occurredAt)
+    )
+      return null
+  }
+  if (
+    (account.source === 'DEFAULT_FREE' &&
+      (account.packageCode !== 'FREE' ||
+        account.sourceReference !== null ||
+        account.periodStart !== null ||
+        account.periodEnd !== null ||
+        Number(balance.total) !== 0)) ||
+    (account.source !== 'DEFAULT_FREE' &&
+      (account.packageCode === 'FREE' ||
+        typeof account.sourceReference !== 'string' ||
+        account.periodStart === null ||
+        account.periodEnd === null))
+  )
+    return null
+  return account as ServiceCreditAccount
 }
 
 export function parseProblem(value: unknown, status: number): Problem | null {

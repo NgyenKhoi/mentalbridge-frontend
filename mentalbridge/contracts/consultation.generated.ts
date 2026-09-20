@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/service-credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the authenticated user's server-authoritative consultation-credit balance and bounded ledger history. Reading provisions any missing credits for the current effective entitlement idempotently; clients must never derive a mutable balance. */
+        get: operations["getOwnServiceCredits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/entitlements/current": {
         parameters: {
             query?: never;
@@ -176,6 +193,48 @@ export interface components {
             decidedAt: string;
         };
         /** @enum {string} */
+        CreditSource: "DEFAULT_FREE" | "DEMO" | "PAID";
+        /** @enum {string} */
+        CreditLedgerEventType: "PROVISIONED" | "HELD" | "CONSUMED" | "RELEASED" | "FORFEITED";
+        ServiceCreditBalance: {
+            available: number;
+            held: number;
+            consumed: number;
+            forfeited: number;
+            total: number;
+            releasedTransitions: number;
+        };
+        ServiceCreditLedgerEvent: {
+            /** Format: uuid */
+            eventId: string;
+            /** Format: uuid */
+            creditId: string;
+            eventType: components["schemas"]["CreditLedgerEventType"];
+            source: components["schemas"]["CreditSource"];
+            packageCode: components["schemas"]["ServicePackage"];
+            /** Format: uuid */
+            appointmentId: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+        };
+        ServiceCreditAccount: {
+            /** Format: uuid */
+            accountId: string;
+            packageCode: components["schemas"]["ServicePackage"];
+            source: components["schemas"]["CreditSource"];
+            sourceReference: string | null;
+            /** Format: date-time */
+            periodStart: string | null;
+            /** Format: date-time */
+            periodEnd: string | null;
+            /** @constant */
+            policyVersion: "consultation-credit-v1";
+            balance: components["schemas"]["ServiceCreditBalance"];
+            history: components["schemas"]["ServiceCreditLedgerEvent"][];
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        /** @enum {string} */
         SupportArea: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
         /** @enum {string} */
         SpecialistApprovalStatus: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
@@ -286,6 +345,15 @@ export interface components {
         };
     };
     responses: {
+        /** @description Entitlement period conflicts with an already provisioned immutable credit period */
+        CreditConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Invalid body, path, or query parameter (VALIDATION_FAILED). */
         ValidationProblem: {
             headers: {
@@ -418,6 +486,29 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getOwnServiceCredits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current plan, billing period, authoritative balance, and recent history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceCreditAccount"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["EntitlementForbiddenProblem"];
+            409: components["responses"]["CreditConflictProblem"];
+        };
+    };
     getCurrentServiceEntitlement: {
         parameters: {
             query?: never;
