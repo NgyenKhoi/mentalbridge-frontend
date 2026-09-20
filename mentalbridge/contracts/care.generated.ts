@@ -345,6 +345,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support-plans/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reload the authenticated user's authoritative active or paused SupportPlan
+         * @description Returns the single Care-owned current plan from persisted state without
+         *     deriving lifecycle state in the client. A draft is not a current plan.
+         */
+        get: operations["getOwnCurrentSupportPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/{supportPlanId}/choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Keep, swap, or remove only server-admitted draft choices
+         * @description The complete desired selection is accepted only for an owned DRAFT.
+         *     Every CORE slot is required; an OPTIONAL slot may be omitted. Care
+         *     rejects unknown slots, injected exact versions, duplicate versions,
+         *     and stale plan versions. A changed desired selection is revalidated
+         *     against current entitlement, evaluation/template policy, and exact
+         *     resource eligibility. Replacing the current selection with the same
+         *     complete desired state is a no-op and keeps the existing version.
+         */
+        put: operations["replaceOwnSupportPlanDraftChoices"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/{supportPlanId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly activate a fully revalidated paid SupportPlan draft
+         * @description The authenticated user explicitly activates the owned draft. Care
+         *     immediately revalidates current paid entitlement, SupportEvaluation,
+         *     template policy, every selected exact resource version and eligibility
+         *     role before opening the local transaction. The normal command also
+         *     applies to safety-positive users and accepts no safety acknowledgement field.
+         */
+        post: operations["activateOwnSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/anonymous-assessment-sessions": {
         parameters: {
             query?: never;
@@ -747,11 +818,21 @@ export interface components {
              */
             sourceSupportEvaluationId: string;
         };
-        SupportPlanDraft: {
+        ReplaceSupportPlanChoicesRequest: {
+            slotSelections: components["schemas"]["SupportPlanSlotSelection"][];
+        };
+        SupportPlanSlotSelection: {
+            slotId: string;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+        };
+        SupportPlanDraft: components["schemas"]["SupportPlan"];
+        SupportPlan: {
             /** Format: uuid */
             supportPlanId: string;
-            /** @constant */
-            status: "DRAFT";
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "PAUSED";
             version: number;
             source: components["schemas"]["SupportPlanSource"];
             entitlement: components["schemas"]["SupportPlanEntitlementEvidence"];
@@ -764,6 +845,8 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** Format: date-time */
+            activatedAt: string | null;
             /** @constant */
             disclaimerCode: "WELLBEING_SUPPORT_NOT_TREATMENT";
             disclaimer: string;
@@ -823,7 +906,7 @@ export interface components {
             /** @enum {string} */
             targetDomain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
             purposeCode: string;
-            selectedResource: components["schemas"]["SupportPlanResource"];
+            selectedResource: components["schemas"]["SupportPlanResource"] | null;
             allowedAlternatives: components["schemas"]["SupportPlanResource"][];
         };
         SupportPlanResource: {
@@ -1013,6 +1096,61 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description The authenticated user has no ACTIVE or PAUSED SupportPlan (SUPPORT_PLAN_CURRENT_NOT_FOUND) */
+        SupportPlanCurrentNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The SupportPlan is absent or not owned by the authenticated user (SUPPORT_PLAN_NOT_FOUND) */
+        SupportPlanNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The choice update targets a non-draft, omits a core slot, injects a version, or duplicates a version */
+        SupportPlanChoiceConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The activation command reuses a key differently, targets a non-draft, conflicts with another current plan, or fails current policy or eligibility */
+        SupportPlanActivationConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description If-Match does not equal the current Care-owned SupportPlan version (SUPPORT_PLAN_VERSION_MISMATCH) */
+        SupportPlanVersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Updated authoritative plan or the identical persisted command outcome */
+        SupportPlanCommandResult: {
+            headers: {
+                ETag: components["headers"]["SupportPlanETag"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["SupportPlan"];
+            };
+        };
         /** @description The selected owned result has no immediately preceding valid result with the same instrument and scoring version */
         InsufficientComparableDataProblem: {
             headers: {
@@ -1064,6 +1202,7 @@ export interface components {
         AssessmentId: string;
         DefinitionId: string;
         SupportEvaluationId: string;
+        SupportPlanId: string;
         SessionId: string;
         Instrument: components["schemas"]["Instrument"];
         Locale: string;
@@ -1073,6 +1212,8 @@ export interface components {
         IdempotencyKey: string;
         /** @example "3" */
         OptionalIfMatch: string;
+        /** @example "3" */
+        RequiredIfMatch: string;
         /** @description Opaque cursor returned as nextCursor by the preceding page */
         AssessmentCursor: string;
         PageLimit: number;
@@ -1613,6 +1754,91 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["SupportPlanDraftNotFoundProblem"];
+        };
+    };
+    getOwnCurrentSupportPlan: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative plan */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlan"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    replaceOwnSupportPlanDraftChoices: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceSupportPlanChoicesRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["SupportPlanCommandResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["SupportPlanEntitlementProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanChoiceConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    activateOwnSupportPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["SupportPlanCommandResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["SupportPlanEntitlementProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanActivationConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
         };
     };
     createAnonymousAssessmentSession: {

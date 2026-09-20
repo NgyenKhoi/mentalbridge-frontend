@@ -28,8 +28,10 @@ import type {
 } from '@/features/support-guide/api/support-guide-contract'
 import type {
   ProposeSupportPlanDraftRequest,
+  ReplaceSupportPlanChoicesRequest,
   SupportEvaluationV2,
   SupportEvaluationV2Request,
+  SupportPlan,
   SupportPlanDraft,
 } from '@/features/support-plan/api/support-plan-contract'
 import {
@@ -51,6 +53,7 @@ import {
 } from './care-validation'
 import {
   parseSupportEvaluationV2,
+  parseSupportPlan,
   parseSupportPlanDraft,
 } from './support-plan-validation'
 
@@ -504,6 +507,55 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parseSupportPlanDraft,
+    })
+  },
+
+  currentSupportPlan(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/support-plans/current',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlan,
+    })
+  },
+
+  replaceSupportPlanChoices(
+    accessToken: string,
+    supportPlanId: string,
+    request: ReplaceSupportPlanChoicesRequest,
+    version: number,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'PUT',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}/choices`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      body: request,
+      parseSuccess: parseSupportPlan,
+    })
+  },
+
+  activateSupportPlan(
+    accessToken: string,
+    supportPlanId: string,
+    version: number,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}/activate`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      idempotencyKey,
+      parseSuccess: parseSupportPlan,
     })
   },
 }

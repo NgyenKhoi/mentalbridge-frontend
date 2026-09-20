@@ -5,20 +5,24 @@ import { useEffect, useRef, useState } from 'react'
 
 import { ApiError } from '@/lib/api/api-error'
 import {
+  activateSupportPlan,
+  getCurrentSupportPlan,
   getCurrentSupportPlanDraft,
   proposeSupportPlanDraft,
+  replaceSupportPlanChoices,
 } from '../api/browser-support-plan'
-import type { SupportPlanDraft } from '../api/support-plan-contract'
+import type {
+  ReplaceSupportPlanChoicesRequest,
+  SupportPlan,
+} from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
 
 import './support-plan.css'
 
 type EmptyReason = 'NONE' | 'FREE' | 'STALE' | 'DEPENDENCY'
+type Busy = 'SAVING' | 'ACTIVATING' | null
 
-function stateFor(error: unknown): {
-  reason: EmptyReason
-  message: string
-} {
+function stateFor(error: unknown): { reason: EmptyReason; message: string } {
   if (error instanceof ApiError) {
     if (error.status === 404) return { reason: 'NONE', message: '' }
     if (error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED') {
@@ -47,7 +51,7 @@ function stateFor(error: unknown): {
       return {
         reason: 'DEPENDENCY',
         message:
-          'Chưa thể kiểm tra đầy đủ quyền gói hoặc tài nguyên đã duyệt. Không có bản nháp chưa hoàn chỉnh nào được tạo.',
+          'Chưa thể kiểm tra đầy đủ quyền gói hoặc tài nguyên đã duyệt. Không có thay đổi chưa hoàn chỉnh nào được áp dụng.',
       }
     }
     if (error.status === 401) {
@@ -63,19 +67,62 @@ function stateFor(error: unknown): {
   }
 }
 
+function mutationMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED') {
+      return 'Gói hiện tại không còn đủ điều kiện. SupportPlan chưa được kích hoạt.'
+    }
+    if (
+      error.code === 'RESOURCE_VERSION_STALE' ||
+      error.code === 'SUPPORT_EVALUATION_STALE'
+    ) {
+      return 'Kết quả đánh giá hoặc phiên bản nội dung đã thay đổi. Hãy tải lại trước khi tiếp tục.'
+    }
+    if (error.code === 'SUPPORT_PLAN_INVALID_CHOICE') {
+      return 'Lựa chọn này không còn nằm trong danh sách đã được duyệt.'
+    }
+    if (
+      error.code === 'SUPPORT_PLAN_VERSION_MISMATCH' ||
+      error.code === 'SUPPORT_PLAN_NOT_DRAFT' ||
+      error.code === 'SUPPORT_PLAN_CURRENT_EXISTS'
+    ) {
+      return 'SupportPlan đã thay đổi ở nơi khác. Trạng thái mới nhất đang được tải lại.'
+    }
+    if (error.code === 'RESOURCE_ELIGIBILITY_UNAVAILABLE') {
+      return 'Chưa thể kiểm tra lại tài nguyên. Không có thay đổi nào được áp dụng.'
+    }
+  }
+  return 'Chưa thể hoàn tất thao tác. Không có thay đổi nào được áp dụng.'
+}
+
+async function readAuthoritativePlan(): Promise<SupportPlan> {
+  try {
+    return await getCurrentSupportPlan()
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return await getCurrentSupportPlanDraft()
+    }
+    throw error
+  }
+}
+
 export default function SupportPlanJourney() {
-  const [plan, setPlan] = useState<SupportPlanDraft>()
+  const [plan, setPlan] = useState<SupportPlan>()
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [busy, setBusy] = useState<Busy>(null)
   const [reason, setReason] = useState<EmptyReason>('NONE')
   const [message, setMessage] = useState('')
+  const [commandMessage, setCommandMessage] = useState('')
+  const [recoveryVersion, setRecoveryVersion] = useState(0)
   const creationKey = useRef<string | undefined>(undefined)
+  const activationKey = useRef<string | undefined>(undefined)
 
   const load = async () => {
     setLoading(true)
     setMessage('')
     try {
-      setPlan(await getCurrentSupportPlanDraft())
+      setPlan(await readAuthoritativePlan())
       setReason('NONE')
     } catch (error) {
       const state = stateFor(error)
@@ -109,25 +156,85 @@ export default function SupportPlanJourney() {
     }
   }
 
+  const recover = async () => {
+    try {
+      setPlan(await readAuthoritativePlan())
+      setRecoveryVersion((current) => current + 1)
+    } catch {
+      // Keep the last complete plan visible with the stable command error.
+    }
+  }
+
+  const saveChoices = async (request: ReplaceSupportPlanChoicesRequest) => {
+    if (!plan || plan.status !== 'DRAFT') return
+    setBusy('SAVING')
+    setCommandMessage('')
+    try {
+      setPlan(
+        await replaceSupportPlanChoices(
+          plan.supportPlanId,
+          plan.version,
+          request,
+        ),
+      )
+      setCommandMessage('Đã lưu lựa chọn đã được Care kiểm tra.')
+    } catch (error) {
+      setCommandMessage(mutationMessage(error))
+      await recover()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const activate = async () => {
+    if (!plan || plan.status !== 'DRAFT') return
+    setBusy('ACTIVATING')
+    setCommandMessage('')
+    activationKey.current ??= crypto.randomUUID()
+    try {
+      await activateSupportPlan(
+        plan.supportPlanId,
+        plan.version,
+        activationKey.current,
+      )
+      setPlan(await getCurrentSupportPlan())
+      activationKey.current = undefined
+    } catch (error) {
+      setCommandMessage(mutationMessage(error))
+      await recover()
+    } finally {
+      setBusy(null)
+    }
+  }
+
   return (
     <div className="support-plan-page">
       <header className="support-plan-page-header">
         <span>Plus & Premium · Dữ liệu bền vững</span>
         <h1>SupportPlan của bạn</h1>
         <p>
-          Xem bản nháp do Care tạo từ đúng phiên bản Kiểm tra ban đầu và tài
-          nguyên đã duyệt. AI không chọn nội dung hoặc thay đổi kế hoạch này.
+          Chọn trong các nội dung Care đã duyệt và chủ động kích hoạt kế hoạch.
+          Care kiểm tra lại mọi bằng chứng ngay trước khi áp dụng.
         </p>
       </header>
 
       {loading && (
         <div className="support-plan-state" role="status">
           <span className="support-plan-loader" aria-hidden="true" />
-          <p>Đang tải bản nháp SupportPlan…</p>
+          <p>Đang tải SupportPlan hiện tại…</p>
         </div>
       )}
 
-      {!loading && plan && <SupportPlanCard plan={plan} />}
+      {!loading && plan && (
+        <SupportPlanCard
+          key={`${plan.supportPlanId}:${plan.version}:${recoveryVersion}`}
+          plan={plan}
+          busy={busy}
+          message={commandMessage}
+          onSaveChoices={saveChoices}
+          onActivate={activate}
+        />
+      )}
 
       {!loading && !plan && (
         <section
@@ -144,7 +251,7 @@ export default function SupportPlanJourney() {
                 ? 'Cần một Kiểm tra ban đầu mới'
                 : reason === 'DEPENDENCY'
                   ? 'Chưa thể tạo bản nháp'
-                  : 'Chưa có bản nháp SupportPlan'}
+                  : 'Chưa có SupportPlan'}
           </h2>
           <p>
             {message ||
