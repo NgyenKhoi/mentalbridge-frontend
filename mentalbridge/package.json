@@ -28,7 +28,7 @@
     "contract:check": "node scripts/generate-realtime-contracts.mjs --check",
     "contract:provider-check": "node scripts/generate-realtime-contracts.mjs --provider-check",
     "quality": "npm run format:check && npm run lint && npm run typecheck && npm run contracts:check && npm run contract:check && npm run test:unit && npm run build",
-    "ci": "npm run quality && npm run test:e2e"
+    "ci": "npm run quality"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",

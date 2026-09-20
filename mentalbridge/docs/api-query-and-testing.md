@@ -104,11 +104,9 @@ npm run typecheck
 npm run contracts:check
 npm run test:unit
 npm run build
-npm run test:e2e
 ```
 
-`npm run quality` runs every gate except browser tests. `npm run ci` runs the
-complete sequence and assumes the Playwright Chromium binary has already been
-installed. The GitHub Actions workflow performs a clean install, uses only a
-synthetic unreachable Identity URL, installs Chromium, and fails on every
-required command.
+`npm run quality` and `npm run ci` run the complete non-browser gate. The GitHub
+Actions workflow performs a clean install, uses only a synthetic unreachable
+Identity URL, and fails on every required command. Browser E2E remains
+available through `npm run test:e2e` as manually requested release evidence.

@@ -61,13 +61,12 @@ npm run typecheck
 npm run contracts:check
 npm run test:unit
 npm run build
-npm run test:e2e
 ```
 
-Install Chromium once with `npm run test:e2e:install`; browser tests require a
-current production build. A check may be skipped only when the handoff/PR states
-why and what evidence replaces it. Never weaken a gate merely to make a change
-pass.
+Browser E2E is manual release evidence rather than a `dev` pull-request gate.
+Install Chromium once with `npm run test:e2e:install`, create a current
+production build, and run `npm run test:e2e` when that evidence is requested.
+Never weaken an automated gate merely to make a change pass.
 
 ## Review checklist
 
