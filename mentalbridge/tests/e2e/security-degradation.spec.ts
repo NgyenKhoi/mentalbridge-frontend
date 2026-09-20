@@ -526,27 +526,23 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     ).toBeVisible()
   })
 
-  test('subscription checkout modal is explicitly labeled as simulation, not live payment', async ({
+  test('subscription page exposes no simulated or live payment action', async ({
     context,
     page,
   }) => {
     await injectUserSession(context)
     await page.goto('/subscription')
 
-    await expect(page.getByRole('heading', { name: /chọn gói/i })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { name: /quyền lợi tư vấn/i }),
+    ).toBeVisible({
       timeout: 10_000,
     })
-
-    // Open checkout for Plus plan
-    await page.getByRole('button', { name: 'Nâng cấp lên Plus' }).click()
-
-    await expect(page.getByRole('dialog')).toBeVisible()
-
-    // Must explicitly state it is a simulation
-    await expect(page.getByText(/chế độ mô phỏng/i)).toBeVisible()
-
-    // Must not claim real payment processing has occurred until confirmed
-    await expect(page.getByText('Thanh toán thành công')).toHaveCount(0)
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: /thanh toán|nâng cấp lên/i }),
+    ).toHaveCount(0)
+    await expect(page.getByText(/thanh toán thành công/i)).toHaveCount(0)
   })
 
   test('no protected page claims continuous human monitoring or emergency response', async ({

@@ -621,6 +621,44 @@ const server = createServer(async (request, response) => {
 
     if (
       request.method === 'GET' &&
+      url.pathname === '/api/v1/service-credits'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      json(response, 200, {
+        accountId: actor.accountId,
+        packageCode: 'PLUS',
+        source: 'DEMO',
+        sourceReference: 'controlled-e2e-mb-377',
+        periodStart: '2098-01-01T00:00:00Z',
+        periodEnd: '2098-02-01T00:00:00Z',
+        policyVersion: 'consultation-credit-v1',
+        balance: {
+          available: 1,
+          held: 0,
+          consumed: 0,
+          forfeited: 0,
+          total: 1,
+          releasedTransitions: 0,
+        },
+        history: [
+          {
+            eventId: '0f31cf85-4538-4e7d-8ba8-d2646ce44e3f',
+            creditId: 'fbd686b0-29c1-4a0b-8255-b61da0aff407',
+            eventType: 'PROVISIONED',
+            source: 'DEMO',
+            packageCode: 'PLUS',
+            appointmentId: null,
+            occurredAt: '2098-01-01T00:00:00Z',
+          },
+        ],
+        generatedAt: new Date().toISOString(),
+      })
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
       url.pathname === '/api/v1/availability-slots'
     ) {
       const actor = specialistActor(request, response)

@@ -109,4 +109,38 @@ describe('Consultation server-only client', () => {
       code: 'CONSULTATION_MALFORMED_RESPONSE',
     })
   })
+
+  it('reads the authoritative credit balance with bearer and correlation headers', async () => {
+    const account = {
+      accountId: 'f5297ec9-bbc9-4d51-8212-62778245335c',
+      packageCode: 'FREE',
+      source: 'DEFAULT_FREE',
+      sourceReference: null,
+      periodStart: null,
+      periodEnd: null,
+      policyVersion: 'consultation-credit-v1',
+      balance: {
+        available: 0,
+        held: 0,
+        consumed: 0,
+        forfeited: 0,
+        total: 0,
+        releasedTransitions: 0,
+      },
+      history: [],
+      generatedAt: '2026-09-20T01:00:00Z',
+    }
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(account))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      consultationClient.credits('access-token', 'correlation-id'),
+    ).resolves.toMatchObject({ data: account })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe('http://consultation.test/api/v1/service-credits')
+    expect(init.headers).toMatchObject({
+      Authorization: 'Bearer access-token',
+      'X-Correlation-Id': 'correlation-id',
+    })
+  })
 })
