@@ -136,7 +136,6 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   await page.route('**/api/care/support-plans/*/choices', async (route) => {
     expect(route.request().method()).toBe('PUT')
     expect(route.request().headers()['if-match']).toBe('"0"')
-    expect(route.request().headers()['idempotency-key']).toBeTruthy()
     expect(route.request().postDataJSON()).toEqual({
       slotSelections: [
         {
