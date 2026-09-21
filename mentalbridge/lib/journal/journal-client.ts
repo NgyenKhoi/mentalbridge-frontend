@@ -64,6 +64,8 @@ async function json(response: Response): Promise<unknown> {
 
 async function request<T>(options: Options<T>): Promise<T> {
   const config = readJournalServerConfig()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
   const mutation = options.method !== 'GET'
   try {
     const response = await fetch(
@@ -72,7 +74,7 @@ async function request<T>(options: Options<T>): Promise<T> {
         method: options.method,
         cache: 'no-store',
         redirect: 'error',
-        signal: AbortSignal.timeout(config.timeoutMs),
+        signal: controller.signal,
         headers: {
           Accept: 'application/json, application/problem+json',
           Authorization: `Bearer ${options.accessToken}`,
@@ -129,7 +131,7 @@ async function request<T>(options: Options<T>): Promise<T> {
       cause: error,
     })
   } finally {
-    // AbortSignal.timeout() manages its own cleanup — no manual clearTimeout needed
+    clearTimeout(timeout)
   }
 }
 

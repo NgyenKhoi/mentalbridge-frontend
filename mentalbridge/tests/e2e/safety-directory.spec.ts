@@ -5,8 +5,9 @@ const resultsResponse = {
   state: 'RESULTS',
   areaWording: 'Cơ sở trong khu vực đã chọn',
   safetyGuidance:
-    'Nếu đang có nguy hiểm tức thời, hãy gọi dịch vụ khẩn cấp tại địa phương.',
-  limitation: 'Thông tin được hiển thị từ các bản ghi đã được rà soát.',
+    'Nếu bạn cảm thấy mình không an toàn hoặc có nguy cơ gây hại cho bản thân, hãy chủ động liên hệ dịch vụ khẩn cấp hoặc cơ sở y tế phù hợp tại khu vực của bạn.',
+  limitation:
+    'MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.',
   entries: [
     {
       directoryEntryId: '123e4567-e89b-42d3-a456-426614174000',
@@ -91,7 +92,6 @@ test.describe('reviewed safety directory consumer flow', () => {
           ...resultsResponse,
           state: 'INVALID_AREA',
           entries: [],
-          areaWording: 'Khu vực chưa được xác định',
         }),
       })
     })
