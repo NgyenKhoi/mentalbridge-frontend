@@ -1,0 +1,734 @@
+.support-plan-page {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+  color: var(--ink);
+}
+
+.support-plan-page-header {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 1.5rem;
+}
+
+.support-plan-page-header > span,
+.support-plan-card-header > div > span,
+.support-plan-rationale > span,
+.support-plan-section-heading > div > span {
+  color: var(--teal-deep);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.support-plan-page-header h1 {
+  margin: 0;
+  font:
+    600 clamp(2rem, 5vw, 3rem) / 1.1 var(--font-fraunces),
+    Georgia,
+    serif;
+}
+
+.support-plan-page-header p {
+  max-width: 730px;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.support-plan-card {
+  display: grid;
+  gap: 1.1rem;
+  padding: clamp(1rem, 3vw, 1.6rem);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: 0 18px 45px -34px rgba(21, 72, 57, 0.45);
+}
+
+.support-plan-card-header,
+.support-plan-section-heading,
+.support-plan-card > footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.support-plan-card h2,
+.support-plan-card h3,
+.support-plan-card h4,
+.support-plan-state h2 {
+  margin: 0;
+}
+
+.support-plan-card h2 {
+  margin-top: 0.25rem;
+  font:
+    600 clamp(1.45rem, 3vw, 2rem) / 1.2 var(--font-fraunces),
+    Georgia,
+    serif;
+}
+
+.support-plan-status,
+.support-plan-section-heading > span {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.72rem;
+  border-radius: 999px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.support-plan-status.active {
+  background: var(--teal-deep);
+  color: #fff;
+}
+
+.support-plan-safety {
+  padding: 1rem 1.1rem;
+  border-left: 4px solid var(--teal);
+  border-radius: 13px;
+  background: var(--teal-pale);
+}
+
+.support-plan-safety.attention {
+  border-left-color: var(--amber-deep);
+  background: var(--amber-soft);
+}
+
+.support-plan-safety p,
+.support-plan-rationale p,
+.support-plan-confirmation-note p,
+.support-plan-card > footer p {
+  margin: 0.4rem 0;
+  line-height: 1.6;
+}
+
+.support-plan-safety small,
+.support-plan-slot-content small,
+.support-plan-card > footer,
+.support-plan-state p {
+  color: var(--ink-soft);
+}
+
+.support-plan-rationale {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.support-plan-slots {
+  display: grid;
+  gap: 1rem;
+}
+
+.support-plan-slots > ol {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.support-plan-slots > ol > li {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+}
+
+.support-plan-slot-number,
+.support-plan-state-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--teal-deep);
+  color: #fff;
+  font-weight: 800;
+}
+
+.support-plan-slot-content {
+  min-width: 0;
+}
+
+.support-plan-slot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+  margin-bottom: 0.35rem;
+  color: var(--ink-faint);
+  font-size: 0.73rem;
+  font-weight: 750;
+}
+
+.support-plan-slot-content p {
+  margin: 0.4rem 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.support-plan-slot-content a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: 0.45rem;
+  color: var(--teal-deep);
+  font-weight: 800;
+}
+
+.support-plan-slot-content fieldset {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.support-plan-slot-content legend {
+  margin-bottom: 0.5rem;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.support-plan-slot-content fieldset label {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 0.7rem;
+  min-height: 44px;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.support-plan-slot-content fieldset label:has(input:checked) {
+  border-color: var(--teal);
+  background: var(--teal-pale);
+  box-shadow: 0 0 0 2px rgba(61, 122, 110, 0.12);
+}
+
+.support-plan-slot-content input[type='radio'] {
+  width: 20px;
+  height: 20px;
+  margin: 0.15rem 0 0;
+  accent-color: var(--teal-deep);
+}
+
+.support-plan-slot-content fieldset label > span,
+.support-plan-slot-content fieldset label small {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.support-plan-selected-resource h4 {
+  margin-top: 0.4rem;
+}
+
+.support-plan-slot-content details {
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+}
+
+.support-plan-slot-content summary,
+.support-plan-provenance summary {
+  min-height: 44px;
+  color: var(--teal-deep);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.support-plan-slot-content details ul {
+  display: grid;
+  gap: 0.6rem;
+  padding-left: 1.2rem;
+}
+
+.support-plan-slot-content details li span {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.support-plan-confirmation-note {
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  background: var(--amber-soft);
+}
+
+.support-plan-actions {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.support-plan-actions p {
+  margin: 0.35rem 0 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.support-plan-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.support-plan-action-buttons .btn {
+  min-height: 44px;
+}
+
+.support-plan-action-hint {
+  font-weight: 700;
+}
+
+.support-plan-action-message:empty {
+  display: none;
+}
+
+.support-plan-dialog-backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(16, 32, 28, 0.56);
+}
+
+.support-plan-dialog {
+  display: grid;
+  width: min(100%, 500px);
+  gap: 0.9rem;
+  padding: clamp(1.2rem, 4vw, 1.8rem);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 24px 70px -20px rgba(8, 35, 28, 0.65);
+}
+
+.support-plan-dialog > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--amber-soft);
+  color: var(--amber-deep);
+  font-weight: 900;
+}
+
+.support-plan-dialog p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.support-plan-dialog label {
+  display: grid;
+  gap: 0.45rem;
+  font-weight: 750;
+}
+
+.support-plan-dialog select {
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.support-plan-dialog > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.support-plan-lifecycle-actions,
+.support-plan-occurrence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.support-plan-lifecycle-actions .btn,
+.support-plan-occurrence-actions .btn {
+  min-height: 44px;
+}
+
+.support-plan-schedule {
+  display: grid;
+  gap: 1.25rem;
+  padding: clamp(1.1rem, 3vw, 1.6rem);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface-soft);
+}
+
+.support-plan-schedule-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.support-plan-schedule-heading span,
+.support-plan-occurrence-state {
+  color: var(--teal);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.support-plan-schedule-heading h3,
+.support-plan-occurrence-copy h4 {
+  margin: 0.25rem 0 0;
+}
+
+.support-plan-schedule-groups {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.support-plan-schedule-groups ol {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.support-plan-occurrence {
+  display: grid;
+  grid-template-columns: minmax(92px, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-inline-start: 4px solid var(--teal);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.support-plan-occurrence.state-completed {
+  border-inline-start-color: var(--teal-deep);
+}
+
+.support-plan-occurrence.state-missed,
+.support-plan-occurrence.state-skipped {
+  border-inline-start-color: var(--amber);
+}
+
+.support-plan-occurrence.state-cancelled {
+  border-inline-start-color: var(--ink-faint);
+  color: var(--ink-soft);
+}
+
+.support-plan-occurrence time {
+  display: grid;
+  gap: 0.15rem;
+  color: var(--teal-deep);
+}
+
+.support-plan-occurrence time strong {
+  font-size: 1.15rem;
+}
+
+.support-plan-occurrence time span,
+.support-plan-occurrence details {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+.support-plan-occurrence details {
+  margin-top: 0.45rem;
+}
+
+.support-plan-occurrence summary {
+  min-height: 44px;
+  cursor: pointer;
+  line-height: 44px;
+}
+
+.support-plan-occurrence details p {
+  margin: 0.25rem 0;
+}
+
+.support-plan-schedule-boundary {
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.support-plan-provenance dl {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.support-plan-provenance dl > div {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.4fr) minmax(0, 1fr);
+  gap: 0.65rem;
+}
+
+.support-plan-provenance dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.support-plan-card > footer {
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+
+.support-plan-card > footer p {
+  max-width: 660px;
+}
+
+.support-plan-card > footer time {
+  flex: 0 0 auto;
+}
+
+.support-plan-state {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.support-plan-state.notice {
+  background: var(--surface-soft);
+}
+
+.support-plan-state > p {
+  max-width: 650px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.support-plan-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.support-plan-state-actions .btn {
+  min-height: 44px;
+}
+
+.support-plan-history {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: clamp(1rem, 3vw, 1.6rem);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface-soft);
+}
+
+.support-plan-history > header {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.support-plan-history > header span,
+.support-plan-history-detail > div span {
+  color: var(--teal-deep);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.support-plan-history h2,
+.support-plan-history h3,
+.support-plan-history h4,
+.support-plan-history p {
+  margin: 0;
+}
+
+.support-plan-history > header p,
+.support-plan-history-state p {
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.support-plan-history > ol {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.support-plan-history > ol > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.support-plan-history > ol > li > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.support-plan-history time,
+.support-plan-history small,
+.support-plan-history-detail span {
+  color: var(--ink-soft);
+}
+
+.support-plan-history-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.support-plan-history-detail {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--teal);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.support-plan-history-detail > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.support-plan-history-detail dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.support-plan-history-detail dl > div {
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.support-plan-history-detail dt {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.support-plan-history-detail dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.support-plan-history-detail ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.support-plan-history-detail li {
+  padding-left: 0.2rem;
+}
+
+.support-plan-history-detail li strong,
+.support-plan-history-detail li span {
+  display: block;
+}
+
+.support-plan-loader {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--line);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: support-plan-spin 0.7s linear infinite;
+}
+
+.support-plan-page :is(button, a, summary):focus-visible {
+  outline: 3px solid rgba(61, 122, 110, 0.25);
+  outline-offset: 3px;
+}
+
+@keyframes support-plan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .support-plan-loader {
+    animation: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .support-plan-card-header,
+  .support-plan-section-heading,
+  .support-plan-card > footer {
+    flex-direction: column;
+  }
+
+  .support-plan-provenance dl > div {
+    grid-template-columns: 1fr;
+  }
+
+  .support-plan-schedule-heading,
+  .support-plan-occurrence {
+    grid-template-columns: 1fr;
+  }
+
+  .support-plan-schedule-heading {
+    flex-direction: column;
+  }
+
+  .support-plan-history > header,
+  .support-plan-history-detail dl {
+    grid-template-columns: 1fr;
+  }
+
+  .support-plan-history > ol > li,
+  .support-plan-history-detail > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .support-plan-occurrence-actions .btn {
+    flex: 1 1 140px;
+  }
+}

@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/v1/service-credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the authenticated user's server-authoritative consultation-credit balance and bounded ledger history. Reading provisions any missing credits for the current effective entitlement idempotently; clients must never derive a mutable balance. */
+        get: operations["getOwnServiceCredits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/entitlements/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the authenticated user's current server-authoritative service package. Absence of an effective paid or explicit demo projection returns FREE with DEFAULT_FREE provenance. */
+        get: operations["getCurrentServiceEntitlement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile": {
         parameters: {
             query?: never;
@@ -33,6 +67,43 @@ export interface paths {
         /** @description Places the complete PENDING profile in the administrator review queue. */
         post: operations["submitOwnSpecialistProfile"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/availability-slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists the authenticated specialist's slots in a bounded UTC interval, including tombstones when requested. */
+        get: operations["listOwnAvailabilitySlots"];
+        put?: never;
+        /** @description Publishes one exact future 60-minute online slot. Replaying the same Idempotency-Key with the same command returns the same slot identity and current state. */
+        post: operations["publishOwnAvailabilitySlot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/availability-slots/{slotId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slotId: components["parameters"]["AvailabilitySlotId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Withdraws one owned future slot while retaining an auditable tombstone. */
+        delete: operations["withdrawOwnAvailabilitySlot"];
         options?: never;
         head?: never;
         patch?: never;
@@ -97,6 +168,73 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {string} */
+        ServicePackage: "FREE" | "PLUS" | "PREMIUM";
+        /** @enum {string} */
+        EntitlementSource: "DEFAULT_FREE" | "DEMO" | "PAID";
+        CurrentServiceEntitlement: {
+            /** Format: uuid */
+            accountId: string;
+            packageCode: components["schemas"]["ServicePackage"];
+            source: components["schemas"]["EntitlementSource"];
+            /** @description Explicit demo identifier or future paid lifecycle reference; null only for DEFAULT_FREE. */
+            sourceReference: string | null;
+            /** Format: date-time */
+            effectiveFrom: string | null;
+            /**
+             * Format: date-time
+             * @description Exclusive entitlement end; null only for DEFAULT_FREE.
+             */
+            effectiveUntil: string | null;
+            /** @constant */
+            policyVersion: "service-entitlement-v1";
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            decidedAt: string;
+        };
+        /** @enum {string} */
+        CreditSource: "DEFAULT_FREE" | "DEMO" | "PAID";
+        /** @enum {string} */
+        CreditLedgerEventType: "PROVISIONED" | "HELD" | "CONSUMED" | "RELEASED" | "FORFEITED";
+        ServiceCreditBalance: {
+            available: number;
+            held: number;
+            consumed: number;
+            forfeited: number;
+            total: number;
+            releasedTransitions: number;
+        };
+        ServiceCreditLedgerEvent: {
+            /** Format: uuid */
+            eventId: string;
+            /** Format: uuid */
+            creditId: string;
+            eventType: components["schemas"]["CreditLedgerEventType"];
+            source: components["schemas"]["CreditSource"];
+            packageCode: components["schemas"]["ServicePackage"];
+            /** Format: uuid */
+            appointmentId: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+        };
+        ServiceCreditAccount: {
+            /** Format: uuid */
+            accountId: string;
+            packageCode: components["schemas"]["ServicePackage"];
+            source: components["schemas"]["CreditSource"];
+            sourceReference: string | null;
+            /** Format: date-time */
+            periodStart: string | null;
+            /** Format: date-time */
+            periodEnd: string | null;
+            /** @constant */
+            policyVersion: "consultation-credit-v1";
+            balance: components["schemas"]["ServiceCreditBalance"];
+            history: components["schemas"]["ServiceCreditLedgerEvent"][];
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        /** @enum {string} */
         SupportArea: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
         /** @enum {string} */
         SpecialistApprovalStatus: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
@@ -139,6 +277,55 @@ export interface components {
             items: components["schemas"]["SpecialistProfile"][];
             count: number;
         };
+        /** @enum {string} */
+        AvailabilityModality: "IN_APP_CHAT" | "IN_APP_VIDEO";
+        /** @enum {string} */
+        AvailabilitySlotStatus: "ACTIVE" | "WITHDRAWN";
+        /** @enum {string} */
+        AvailabilityReadiness: "AVAILABLE" | "STARTED" | "WITHDRAWN" | "VIDEO_DISABLED";
+        PublishAvailabilitySlotRequest: {
+            /**
+             * Format: date-time
+             * @description Inclusive UTC start instant.
+             */
+            startAt: string;
+            /**
+             * Format: date-time
+             * @description Exclusive UTC end instant exactly 60 minutes after startAt.
+             */
+            endAt: string;
+            /** @description IANA timezone retained only for stable display. */
+            timezone: string;
+            modality: components["schemas"]["AvailabilityModality"];
+        };
+        AvailabilitySlot: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            startAt: string;
+            /** Format: date-time */
+            endAt: string;
+            timezone: string;
+            modality: components["schemas"]["AvailabilityModality"];
+            status: components["schemas"]["AvailabilitySlotStatus"];
+            readiness: components["schemas"]["AvailabilityReadiness"];
+            /** Format: date-time */
+            withdrawnAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        AvailabilitySlotList: {
+            items: components["schemas"]["AvailabilitySlot"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
+            /** @description True only while the reviewed video capability/provider contract gate is enabled. */
+            videoPublishingEnabled: boolean;
+        };
         Problem: {
             /** Format: uri-reference */
             type: string;
@@ -158,6 +345,15 @@ export interface components {
         };
     };
     responses: {
+        /** @description Entitlement period conflicts with an already provisioned immutable credit period */
+        CreditConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Invalid body, path, or query parameter (VALIDATION_FAILED). */
         ValidationProblem: {
             headers: {
@@ -178,6 +374,15 @@ export interface components {
         };
         /** @description Required SPECIALIST or ADMIN role is absent (CONSULTATION_ROLE_REQUIRED). */
         ForbiddenProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The entitlement lookup requires an authenticated USER role (ENTITLEMENT_USER_REQUIRED). */
+        EntitlementForbiddenProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -221,6 +426,42 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Owned availability slot does not exist (AVAILABILITY_SLOT_NOT_FOUND). */
+        AvailabilityNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Slot overlaps active availability, is stale/withdrawn, reuses a key for another command, belongs to an unapproved specialist, or requests disabled video. */
+        AvailabilityConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description If-Match does not equal the current slot version (AVAILABILITY_SLOT_VERSION_MISMATCH). */
+        AvailabilityVersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description If-Match is required for withdrawal (AVAILABILITY_SLOT_VERSION_REQUIRED). */
+        AvailabilityVersionRequiredProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
     parameters: {
         SpecialistAccountId: string;
@@ -228,16 +469,68 @@ export interface components {
         OptionalIfMatch: string;
         /** @description Quoted current non-negative profile version. */
         RequiredIfMatch: string;
+        AvailabilitySlotId: string;
+        /** @description Printable caller key scoped to the authenticated specialist and retained with the slot outcome. */
+        IdempotencyKey: string;
+        /** @description Quoted current non-negative availability slot version. */
+        AvailabilitySlotIfMatch: string;
     };
     requestBodies: never;
     headers: {
         /** @description Quoted current profile version for If-Match. */
         ProfileETag: string;
+        /** @description Quoted current availability slot version for If-Match. */
+        AvailabilitySlotETag: string;
     };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getOwnServiceCredits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current plan, billing period, authoritative balance, and recent history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceCreditAccount"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["EntitlementForbiddenProblem"];
+            409: components["responses"]["CreditConflictProblem"];
+        };
+    };
+    getCurrentServiceEntitlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current effective service-plan entitlement */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentServiceEntitlement"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["EntitlementForbiddenProblem"];
+        };
+    };
     getOwnSpecialistProfile: {
         parameters: {
             query?: never;
@@ -335,6 +628,100 @@ export interface operations {
             409: components["responses"]["ConflictProblem"];
             412: components["responses"]["VersionProblem"];
             428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    listOwnAvailabilitySlots: {
+        parameters: {
+            query?: {
+                /** @description Inclusive UTC lower bound. Defaults to seven days before the request instant. */
+                from?: string;
+                /** @description Exclusive UTC upper bound. Defaults to ninety days after the request instant and may span at most 366 days from from. */
+                to?: string;
+                includeWithdrawn?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped availability and current modality capability */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilitySlotList"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    publishOwnAvailabilitySlot: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Printable caller key scoped to the authenticated specialist and retained with the slot outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishAvailabilitySlotRequest"];
+            };
+        };
+        responses: {
+            /** @description Slot published or the same slot aggregate returned for an exact replay */
+            201: {
+                headers: {
+                    ETag: components["headers"]["AvailabilitySlotETag"];
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilitySlot"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            409: components["responses"]["AvailabilityConflictProblem"];
+        };
+    };
+    withdrawOwnAvailabilitySlot: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative availability slot version. */
+                "If-Match": components["parameters"]["AvailabilitySlotIfMatch"];
+            };
+            path: {
+                slotId: components["parameters"]["AvailabilitySlotId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Withdrawn slot tombstone */
+            200: {
+                headers: {
+                    ETag: components["headers"]["AvailabilitySlotETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilitySlot"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["AvailabilityNotFoundProblem"];
+            409: components["responses"]["AvailabilityConflictProblem"];
+            412: components["responses"]["AvailabilityVersionProblem"];
+            428: components["responses"]["AvailabilityVersionRequiredProblem"];
         };
     };
     listPendingSpecialistProfiles: {

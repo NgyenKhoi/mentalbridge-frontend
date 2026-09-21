@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   ConsultationInputError,
+  parseAvailabilitySlot,
+  parseAvailabilitySlotList,
   parseProfile,
   parseProfileInput,
+  parsePublishAvailabilityInput,
+  parseServiceCreditAccount,
 } from './consultation-validation'
 
 const profile = {
@@ -35,5 +39,98 @@ describe('Consultation contract validation', () => {
     expect(() => parseProfileInput({ ...profile, languages: ['fr'] })).toThrow(
       ConsultationInputError,
     )
+  })
+
+  it('accepts exact 60-minute online availability and rejects contract drift', () => {
+    const slot = {
+      id: '1c12df8c-bdd7-4a14-9cd1-e9ce9d35d7f8',
+      startAt: '2026-09-18T02:00:00Z',
+      endAt: '2026-09-18T03:00:00Z',
+      timezone: 'Asia/Ho_Chi_Minh',
+      modality: 'IN_APP_CHAT',
+      status: 'ACTIVE',
+      readiness: 'AVAILABLE',
+      withdrawnAt: null,
+      createdAt: '2026-09-17T01:00:00Z',
+      updatedAt: '2026-09-17T01:00:00Z',
+      version: 0,
+    }
+    expect(parseAvailabilitySlot(slot)).toEqual(slot)
+    expect(
+      parseAvailabilitySlot({ ...slot, endAt: '2026-09-18T02:45:00Z' }),
+    ).toBeNull()
+    expect(parseAvailabilitySlot({ ...slot, modality: 'PHONE' })).toBeNull()
+    expect(
+      parseAvailabilitySlot({ ...slot, startAt: '2026-09-18T02:00:00+00:00' }),
+    ).toBeNull()
+    expect(
+      parseAvailabilitySlotList({
+        items: [slot],
+        count: 1,
+        generatedAt: '2026-09-17T01:00:00Z',
+        videoPublishingEnabled: false,
+      }),
+    ).not.toBeNull()
+  })
+
+  it('rejects non-UTC, non-60-minute, and unsupported publish input', () => {
+    const input = {
+      startAt: '2026-09-18T02:00:00Z',
+      endAt: '2026-09-18T03:00:00Z',
+      timezone: 'Asia/Ho_Chi_Minh',
+      modality: 'IN_APP_VIDEO',
+    }
+    expect(parsePublishAvailabilityInput(input)).toEqual(input)
+    expect(() =>
+      parsePublishAvailabilityInput({
+        ...input,
+        endAt: '2026-09-18T03:30:00Z',
+      }),
+    ).toThrow(ConsultationInputError)
+    expect(() =>
+      parsePublishAvailabilityInput({ ...input, modality: 'PHONE' }),
+    ).toThrow(ConsultationInputError)
+  })
+
+  it('accepts a coherent authoritative credit balance and rejects derived drift', () => {
+    const account = {
+      accountId: 'f5297ec9-bbc9-4d51-8212-62778245335c',
+      packageCode: 'PREMIUM',
+      source: 'DEMO',
+      sourceReference: 'controlled-demo-377',
+      periodStart: '2026-09-20T00:00:00Z',
+      periodEnd: '2026-10-20T00:00:00Z',
+      policyVersion: 'consultation-credit-v1',
+      balance: {
+        available: 2,
+        held: 1,
+        consumed: 0,
+        forfeited: 0,
+        total: 3,
+        releasedTransitions: 1,
+      },
+      history: [
+        {
+          eventId: 'bb2a8b90-cbe9-4f1c-8a04-ef957fb9c673',
+          creditId: '98435d70-438e-4fa5-b642-0456ea3f8747',
+          eventType: 'HELD',
+          source: 'DEMO',
+          packageCode: 'PREMIUM',
+          appointmentId: 'aa310a3a-209b-4698-9c24-42157bc345c7',
+          occurredAt: '2026-09-20T01:00:00Z',
+        },
+      ],
+      generatedAt: '2026-09-20T01:00:01Z',
+    }
+    expect(parseServiceCreditAccount(account)).toEqual(account)
+    expect(
+      parseServiceCreditAccount({
+        ...account,
+        balance: { ...account.balance, total: 2 },
+      }),
+    ).toBeNull()
+    expect(
+      parseServiceCreditAccount({ ...account, source: 'DEFAULT_FREE' }),
+    ).toBeNull()
   })
 })

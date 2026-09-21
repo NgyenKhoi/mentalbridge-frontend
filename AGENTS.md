@@ -8,11 +8,12 @@ These rules apply to the whole frontend repository. The more specific
 Before changing application code, read:
 
 1. This file.
-2. `mentalbridge/AGENTS.md`.
-3. `mentalbridge/docs/README.md` and the task-relevant documents it links.
-4. The relevant installed Next.js 16 guide under
+2. `.codex/skills/lean-task-delivery/SKILL.md`.
+3. `mentalbridge/AGENTS.md`.
+4. `mentalbridge/docs/README.md` and the task-relevant documents it links.
+5. The relevant installed Next.js 16 guide under
    `mentalbridge/node_modules/next/dist/docs/`.
-5. The backend OpenAPI contract for every API boundary being changed.
+6. The backend OpenAPI contract for every API boundary being changed.
 
 Do not rely on remembered Next.js behavior when the installed documentation is
 available. If dependencies are not installed, state that the local guide could
@@ -70,8 +71,13 @@ The approved Identity integration is documented in
 ## Verification and delivery
 
 - Run the smallest relevant checks while developing and the story's complete
-  quality gate before handoff. At minimum, documentation-only changes require
-  link/content review plus `npm run lint` and a non-emitting TypeScript check.
+  `dev` quality gate before handoff. Browser E2E execution belongs to the
+  staging release gate unless the task explicitly requires an earlier run. At
+  minimum, documentation-only changes require link/content review plus
+  `npm run lint` and a non-emitting TypeScript check.
+- When a change materially alters an existing browser journey, update the
+  relevant Playwright test so it remains compatible with the new behavior,
+  even when Browser E2E is not run during normal `dev` delivery.
 - Do not claim a check passed unless it was run in the current worktree. Report
   skipped or blocked checks with the reason.
 - Review the final diff for secrets, unrelated files, generated output,

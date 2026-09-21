@@ -7,7 +7,7 @@ import SessionActions from '@/features/auth/components/SessionActions'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
 import SpecialistProfileWorkspace from '@/features/specialist-profile/components/SpecialistProfileWorkspace'
-import SpecialistAvailabilityManager from './SpecialistAvailabilityManager'
+import SpecialistAvailabilityManager from '@/features/specialist-availability/components/SpecialistAvailabilityManager'
 import SpecialistAppointmentsManager from './SpecialistAppointmentsManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistMessagesManager from './SpecialistMessagesManager'
@@ -39,10 +39,7 @@ const specialistSections: Record<string, Section> = {
     { id: 'a2', title: 'Trần Gia Hân', meta: 'Ngày mai · 14:00–14:45', status: 'Chờ xác nhận', detail: 'Yêu cầu mới. Hãy xem ghi chú trước khi chấp nhận hoặc từ chối.' },
     { id: 'a3', title: 'Lê Hoàng Nam', meta: '12/08/2026 · 09:00', status: 'Hoàn thành', detail: 'Phiên đã hoàn thành. Các hành động hủy và đổi lịch đã được ẩn.' },
   ], tabs: ['Sắp tới', 'Chờ xác nhận', 'Lịch sử'] },
-  availability: { label: 'Lịch khả dụng', description: 'Quản lý khung giờ nhận tư vấn theo lịch tuần.', rows: [
-    { id: 'v1', title: 'Thứ Hai, 17/08', meta: '09:00–12:00 · 3 khung giờ', status: 'Còn trống', detail: 'Bạn có thể cập nhật hoặc xóa các khung giờ chưa được đặt.' },
-    { id: 'v2', title: 'Thứ Tư, 19/08', meta: '13:30–17:00 · 4 khung giờ', status: '2 đã đặt', detail: 'Khung giờ đã có lịch hẹn sẽ không thể xóa.' },
-  ], tabs: ['Lịch tuần', 'Danh sách'] },
+  availability: { label: 'Lịch khả dụng', description: 'Quản lý các khung tư vấn trực tuyến 60 phút đã lưu.', rows: [] },
   clients: { label: 'Khách hàng đồng ý chia sẻ', description: 'Chỉ hiển thị dữ liệu nằm trong phạm vi consent hiện hành.', rows: [
     { id: 'c1', title: 'Nguyễn Minh Anh', meta: 'Được xem: Assessment, xu hướng cảm xúc', status: 'Đã cấp quyền', detail: 'Access granted by user · Không có quyền xem nội dung nhật ký riêng tư.' },
     { id: 'c2', title: 'Trần Gia Hân', meta: 'Được xem: Tổng quan, follow-up', status: 'Đã cấp quyền', detail: 'Access granted by user · Quyền có thể bị người dùng thu hồi bất kỳ lúc nào.' },
@@ -127,10 +124,10 @@ const navIcons: Record<string, string> = { dashboard: '⌂', appointments: '◷'
 
 const statusClass = (status: string) => /hoàn thành|thành công|hoạt động|đã duyệt|khả dụng|sẵn sàng|xuất bản|cấp quyền|xác nhận/i.test(status) ? 'ok' : /chờ|cần|thất bại|tạm khóa|ẩn/i.test(status) ? 'attention' : 'neutral'
 
-function SpecialistDashboard({ rows, onSelect, setShowModal }: { rows: Row[]; onSelect: (row: Row) => void; setShowModal: (show: boolean) => void }) {
+function SpecialistDashboard({ rows, onSelect }: { rows: Row[]; onSelect: (row: Row) => void }) {
   const [appointment, requests, followUps] = rows
   return <div className="specialist-command">
-    <div className="role-heading specialist-command-head"><div><span className="eyebrow">Không gian chuyên gia</span><h1>Chào buổi sáng, Thu Hà</h1><p>Mọi thông tin quan trọng cho ngày làm việc của bạn được tổng hợp tại đây.</p></div><button className="btn-primary" onClick={() => setShowModal(true)}>+ Tạo lịch trống</button></div>
+    <div className="role-heading specialist-command-head"><div><span className="eyebrow">Không gian chuyên gia</span><h1>Chào buổi sáng, Thu Hà</h1><p>Mọi thông tin quan trọng cho ngày làm việc của bạn được tổng hợp tại đây.</p></div><Link className="btn-primary" href="/specialist/availability">+ Tạo lịch trống</Link></div>
     <div className="specialist-command-grid">
       <button className="specialist-pulse" onClick={() => onSelect(appointment)}>
         <div className="specialist-card-kicker"><span>Nhịp làm việc hôm nay</span><b>14 tháng 8</b></div>
@@ -168,15 +165,7 @@ export default function RoleWorkspace({
   const [toast, setToast] = useState('')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [showAvailabilityModal, setShowAvailabilityModal] = useState(false)
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
-  const [availabilityForm, setAvailabilityForm] = useState({
-    date: '',
-    startTime: '',
-    endTime: '',
-    duration: '45',
-    notes: ''
-  })
   const [appointmentForm, setAppointmentForm] = useState({
     client: '',
     date: '',
@@ -212,22 +201,6 @@ export default function RoleWorkspace({
     window.setTimeout(() => setToast(''), 3200)
   }
   
-  const handleCreateAvailability = () => {
-    // TODO: Kết nối API để tạo lịch trống
-    console.log('Creating availability:', availabilityForm)
-    setShowAvailabilityModal(false)
-    setToast('Lịch trống mới đã được tạo thành công!')
-    window.setTimeout(() => setToast(''), 3200)
-    // Reset form
-    setAvailabilityForm({
-      date: '',
-      startTime: '',
-      endTime: '',
-      duration: '45',
-      notes: ''
-    })
-  }
-
   const handleCreateAppointment = () => {
     console.log('Creating appointment:', appointmentForm)
     setShowAppointmentModal(false)
@@ -257,9 +230,9 @@ export default function RoleWorkspace({
     <motion.main className="role-main" layout="position" transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div><Link href={`/${role}/notifications`} className="role-bell" aria-label="Thông báo">○<b>3</b></Link></header>
       <div className="role-content">
-        {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboard rows={section.rows} onSelect={setSelected} setShowModal={setShowAvailabilityModal} />}
+        {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboard rows={section.rows} onSelect={setSelected} />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
-        {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager onCreate={() => setShowAvailabilityModal(true)} />}
+        {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentsManager rows={section.rows} onCreate={() => setShowAppointmentModal(true)} onSelect={setSelected} />}
         {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager rows={section.rows} />}
         {role === 'specialist' && sectionKey === 'messages' && <SpecialistMessagesManager />}
@@ -277,9 +250,8 @@ export default function RoleWorkspace({
         <div className={`role-generic ${(role === 'specialist' && (sectionKey === 'dashboard' || sectionKey === 'profile' || sectionKey === 'availability' || sectionKey === 'appointments' || sectionKey === 'clients' || sectionKey === 'messages' || sectionKey === 'earnings')) || (role === 'admin' && (sectionKey === 'dashboard' || sectionKey === 'users' || sectionKey === 'specialists' || sectionKey === 'assessments' || sectionKey === 'content' || sectionKey === 'reports' || sectionKey === 'payments' || sectionKey === 'payouts' || sectionKey === 'moderation' || sectionKey === 'appointments')) ? 'role-generic-hidden' : ''}`}>
         <div className="role-heading"><div><span className="eyebrow">{role === 'admin' ? 'Quản trị nền tảng' : 'Không gian chuyên gia'}</span><h1>{section.label}</h1><p>{section.description}</p></div><button className="btn-primary" onClick={() => {
           if (role === 'specialist' && sectionKey === 'appointments') return setShowAppointmentModal(true)
-          if (role === 'specialist' && sectionKey === 'availability') return setShowAvailabilityModal(true)
           setToast('Biểu mẫu tạo mới đã sẵn sàng để kết nối API.')
-        }}>{role === 'specialist' && sectionKey === 'availability' ? '+ Thêm khung giờ' : '+ Tạo mới'}</button></div>
+        }}>+ Tạo mới</button></div>
         {sectionKey === 'dashboard' && <div className="role-stat-grid">{section.rows.map((row,index) => <button key={row.id} className="role-stat" onClick={() => setSelected(row)}><small>{row.status}</small><strong>{row.title}</strong><span>{row.meta}</span><i style={{'--value': `${72-index*12}%`} as React.CSSProperties} /></button>)}</div>}
         <section className="role-panel">
           {section.tabs && <div className="role-tabs" role="tablist">{section.tabs.map(tab => <button role="tab" aria-selected={activeTab === tab} key={tab} onClick={() => setActiveTab(tab)}>{tab}</button>)}</div>}
@@ -296,7 +268,6 @@ export default function RoleWorkspace({
     {selected && <><button className="role-drawer-backdrop" aria-label="Đóng chi tiết" onClick={() => setSelected(null)} /><aside className="role-drawer" aria-label="Chi tiết"><div className="role-drawer-head"><div><small>CHI TIẾT · {selected.id.toUpperCase()}</small><h2>{selected.title}</h2></div><button onClick={() => setSelected(null)} aria-label="Đóng">×</button></div><span className={`role-status ${statusClass(selected.status)}`}>{selected.status}</span><p className="role-detail-meta">{selected.meta}</p><div className="role-detail-block"><h3>Thông tin</h3><p>{selected.detail}</p></div>{sectionKey === 'clients' && <div className="role-consent">✓ Access granted by user</div>}<div className="role-detail-block"><h3>Dòng thời gian</h3><ul><li><i />Cập nhật gần nhất · Hôm nay, 14:30</li><li><i />Được tạo trên MentalBridge · 12/08/2026</li></ul></div><div className="role-drawer-actions"><button className="btn-primary" onClick={() => setToast('Đã lưu cập nhật thành công.')}>Cập nhật</button>{showAction(selected, role === 'admin' ? 'Xử lý' : 'Hủy lịch') && <button className="btn-outline danger" onClick={() => setConfirmAction(role === 'admin' ? 'Xác nhận thao tác quản trị' : 'Xác nhận hủy lịch')}>{role === 'admin' ? 'Thao tác khác' : 'Hủy lịch'}</button>}</div></aside></>}
     {confirmAction && <div className="role-modal-wrap"><button className="role-drawer-backdrop" aria-label="Đóng xác nhận" onClick={() => setConfirmAction(null)} /><div className="role-modal"><span className="role-modal-icon">!</span><h2>{confirmAction}</h2><p>Thao tác này có thể ảnh hưởng đến dữ liệu hoặc quyền truy cập. Vui lòng kiểm tra kỹ trước khi tiếp tục.</p><div><button className="btn-ghost" onClick={() => setConfirmAction(null)}>Quay lại</button><button className="btn-primary" onClick={finishAction}>Xác nhận</button></div></div></div>}
     {showAppointmentModal && <div className="role-modal-wrap availability-modal-wrap appointment-modal-wrap"><button className="role-drawer-backdrop" aria-label="Đóng" onClick={() => setShowAppointmentModal(false)} /><div className="availability-modal appointment-modal"><div className="availability-modal-header"><div><span className="availability-modal-eyebrow">TẠO LỊCH HẸN</span><h2>Đặt một phiên tư vấn</h2><p>Chọn khách hàng và thời gian cụ thể cho cuộc hẹn đã được thống nhất.</p></div><button onClick={() => setShowAppointmentModal(false)} aria-label="Đóng" className="availability-modal-close">×</button></div><div className="availability-modal-content"><div className="availability-form-grid"><div className="availability-form-field"><label htmlFor="appointment-client">Khách hàng</label><select id="appointment-client" value={appointmentForm.client} onChange={e => setAppointmentForm({...appointmentForm, client: e.target.value})}><option value="">Chọn khách hàng</option><option value="Nguyễn Minh Anh">Nguyễn Minh Anh</option><option value="Trần Gia Hân">Trần Gia Hân</option><option value="Lê Hoàng Nam">Lê Hoàng Nam</option></select></div><div className="availability-form-row"><div className="availability-form-field"><label htmlFor="appointment-date">Ngày hẹn</label><input type="date" id="appointment-date" value={appointmentForm.date} onChange={e => setAppointmentForm({...appointmentForm, date: e.target.value})} min={new Date().toISOString().split('T')[0]} /></div><div className="availability-form-field"><label htmlFor="appointment-start">Giờ bắt đầu</label><input type="time" id="appointment-start" value={appointmentForm.startTime} onChange={e => setAppointmentForm({...appointmentForm, startTime: e.target.value})} /></div></div><div className="availability-form-row"><div className="availability-form-field"><label htmlFor="appointment-duration">Thời lượng</label><select id="appointment-duration" value={appointmentForm.duration} onChange={e => setAppointmentForm({...appointmentForm, duration: e.target.value})}><option value="30">30 phút</option><option value="45">45 phút</option><option value="60">60 phút</option><option value="90">90 phút</option></select></div><div className="availability-form-field"><label htmlFor="appointment-format">Hình thức tư vấn</label><select id="appointment-format" value={appointmentForm.format} onChange={e => setAppointmentForm({...appointmentForm, format: e.target.value})}><option value="Video call">Video call</option><option value="Tại phòng tư vấn">Tại phòng tư vấn</option><option value="Điện thoại">Điện thoại</option></select></div></div><div className="availability-form-field"><label htmlFor="appointment-notes">Ghi chú (tùy chọn)</label><textarea id="appointment-notes" value={appointmentForm.notes} onChange={e => setAppointmentForm({...appointmentForm, notes: e.target.value})} placeholder="Thêm ghi chú chuẩn bị cho phiên tư vấn..." rows={3} /></div></div><div className="availability-info-box appointment-info-box"><span className="availability-info-icon">ⓘ</span><div><strong>Cuộc hẹn sẽ được thêm vào lịch làm việc</strong><p>Khách hàng có thể nhận thông báo sau khi cuộc hẹn được xác nhận.</p></div></div><div className="availability-summary"><h3>Tóm tắt cuộc hẹn</h3><div className="availability-summary-grid"><div className="availability-summary-item"><small>Khách hàng</small><strong>{appointmentForm.client || 'Chưa chọn'}</strong></div><div className="availability-summary-item"><small>Thời gian</small><strong>{appointmentForm.startTime ? `${appointmentForm.startTime} · ${appointmentForm.duration} phút` : 'Chưa chọn'}</strong></div></div></div></div><div className="availability-modal-footer"><button className="btn-ghost" onClick={() => setShowAppointmentModal(false)}>Hủy</button><button className="btn-primary" onClick={handleCreateAppointment} disabled={!appointmentForm.client || !appointmentForm.date || !appointmentForm.startTime}>Tạo lịch hẹn</button></div></div></div>}
-    {showAvailabilityModal && <div className="role-modal-wrap availability-modal-wrap"><button className="role-drawer-backdrop" aria-label="Đóng" onClick={() => setShowAvailabilityModal(false)} /><div className="availability-modal"><div className="availability-modal-header"><div><span className="availability-modal-eyebrow">TẠO LỊCH TRỐNG</span><h2>2 yêu cầu đặt lịch</h2><p>Xác định phạm vi nhận tư vấn - chỉ bạn có quyền xem và cập nhật.</p></div><button onClick={() => setShowAvailabilityModal(false)} aria-label="Đóng" className="availability-modal-close">×</button></div><div className="availability-modal-content"><div className="availability-form-grid"><div className="availability-form-field"><label htmlFor="availability-date">Ngày khả dụng</label><input type="date" id="availability-date" value={availabilityForm.date} onChange={e => setAvailabilityForm({...availabilityForm, date: e.target.value})} min={new Date().toISOString().split('T')[0]} /></div><div className="availability-form-row"><div className="availability-form-field"><label htmlFor="availability-start">Giờ bắt đầu</label><input type="time" id="availability-start" value={availabilityForm.startTime} onChange={e => setAvailabilityForm({...availabilityForm, startTime: e.target.value})} /></div><div className="availability-form-field"><label htmlFor="availability-end">Giờ kết thúc</label><input type="time" id="availability-end" value={availabilityForm.endTime} onChange={e => setAvailabilityForm({...availabilityForm, endTime: e.target.value})} /></div></div><div className="availability-form-field"><label htmlFor="availability-duration">Thời lượng mỗi phiên (phút)</label><select id="availability-duration" value={availabilityForm.duration} onChange={e => setAvailabilityForm({...availabilityForm, duration: e.target.value})}><option value="30">30 phút</option><option value="45">45 phút</option><option value="60">60 phút</option><option value="90">90 phút</option></select></div><div className="availability-form-field"><label htmlFor="availability-notes">Ghi chú (tùy chọn)</label><textarea id="availability-notes" value={availabilityForm.notes} onChange={e => setAvailabilityForm({...availabilityForm, notes: e.target.value})} placeholder="Ghi chú nội bộ về khung giờ này..." rows={3} /></div></div><div className="availability-info-box"><span className="availability-info-icon">ⓘ</span><div><strong>4 check-in mới</strong><p>Có 2 phản hồi mới từ kế hoạch theo dõi của bạn - hãy xem lại.</p></div></div><div className="availability-summary"><h3>Mốt ngày càn bàng</h3><div className="availability-summary-grid"><div className="availability-summary-item"><small>Khung giờ</small><strong>{availabilityForm.startTime && availabilityForm.endTime ? `${availabilityForm.startTime} - ${availabilityForm.endTime}` : 'Chưa chọn'}</strong></div><div className="availability-summary-item"><small>Số phiên có thể tạo</small><strong>{availabilityForm.startTime && availabilityForm.endTime && availabilityForm.duration ? Math.floor((parseInt(availabilityForm.endTime.split(':')[0]) * 60 + parseInt(availabilityForm.endTime.split(':')[1]) - parseInt(availabilityForm.startTime.split(':')[0]) * 60 - parseInt(availabilityForm.startTime.split(':')[1])) / parseInt(availabilityForm.duration)) : '0'} phiên</strong></div></div></div></div><div className="availability-modal-footer"><button className="btn-ghost" onClick={() => setShowAvailabilityModal(false)}>Hủy</button><button className="btn-primary" onClick={handleCreateAvailability} disabled={!availabilityForm.date || !availabilityForm.startTime || !availabilityForm.endTime}>Tạo lịch trống</button></div></div></div>}
     {toast && <div className="role-toast"><span>✓</span>{toast}</div>}
   </div>
 }

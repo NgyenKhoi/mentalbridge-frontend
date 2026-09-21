@@ -61,13 +61,18 @@ npm run typecheck
 npm run contracts:check
 npm run test:unit
 npm run build
-npm run test:e2e
 ```
 
-Install Chromium once with `npm run test:e2e:install`; browser tests require a
-current production build. A check may be skipped only when the handoff/PR states
-why and what evidence replaces it. Never weaken a gate merely to make a change
-pass.
+This is the fast non-browser gate for feature pull requests into `dev`.
+Material changes to an existing browser journey must update its Playwright test,
+but ordinary feature delivery does not run Browser E2E unless the task requires
+it.
+
+Promotion pull requests from `dev` to `staging` run `npm run ci:staging` after
+installing Chromium. That release gate repeats the non-browser checks and then
+runs the controlled Realtime browser tests plus the full fixture Playwright
+suite. Live cross-stack E2E remains an explicit approved-environment command;
+it is not part of either automatic gate.
 
 ## Review checklist
 

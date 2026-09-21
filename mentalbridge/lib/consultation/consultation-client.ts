@@ -2,12 +2,19 @@ import 'server-only'
 
 import { readConsultationServerConfig } from '@/lib/config/server'
 import {
+  parseAvailabilitySlot,
+  parseAvailabilitySlotList,
   parsePendingProfiles,
   parseProblem,
   parseProfile,
+  parseServiceCreditAccount,
   type PendingProfiles,
+  type AvailabilitySlot,
+  type AvailabilitySlotList,
+  type PublishAvailabilityInput,
   type SpecialistProfile,
   type SpecialistProfileInput,
+  type ServiceCreditAccount,
 } from './consultation-validation'
 
 const MAX_RESPONSE_BYTES = 128 * 1024
@@ -50,12 +57,13 @@ function malformed(cause?: unknown) {
 }
 
 async function request<T>(options: {
-  method: 'GET' | 'PUT' | 'POST'
+  method: 'GET' | 'PUT' | 'POST' | 'DELETE'
   path: string
   token: string
   correlationId: string
   body?: unknown
   ifMatch?: string
+  idempotencyKey?: string
   parse: (value: unknown) => T | null
 }): Promise<Result<T>> {
   const config = readConsultationServerConfig()
@@ -77,6 +85,9 @@ async function request<T>(options: {
             ? {}
             : { 'Content-Type': 'application/json' }),
           ...(options.ifMatch ? { 'If-Match': options.ifMatch } : {}),
+          ...(options.idempotencyKey
+            ? { 'Idempotency-Key': options.idempotencyKey }
+            : {}),
         },
         ...(options.body === undefined
           ? {}
@@ -138,6 +149,15 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  credits(token: string, correlationId: string) {
+    return request<ServiceCreditAccount>({
+      method: 'GET',
+      path: '/api/v1/service-credits',
+      token,
+      correlationId,
+      parse: parseServiceCreditAccount,
+    })
+  },
   own(token: string, correlationId: string) {
     return profileRequest(
       'GET',
@@ -197,5 +217,45 @@ export const consultationClient = {
       undefined,
       etag,
     )
+  },
+  availability(token: string, correlationId: string, query = '') {
+    return request<AvailabilitySlotList>({
+      method: 'GET',
+      path: `/api/v1/availability-slots${query}`,
+      token,
+      correlationId,
+      parse: parseAvailabilitySlotList,
+    })
+  },
+  publishAvailability(
+    token: string,
+    correlationId: string,
+    body: PublishAvailabilityInput,
+    idempotencyKey: string,
+  ) {
+    return request<AvailabilitySlot>({
+      method: 'POST',
+      path: '/api/v1/availability-slots',
+      token,
+      correlationId,
+      body,
+      idempotencyKey,
+      parse: parseAvailabilitySlot,
+    })
+  },
+  withdrawAvailability(
+    token: string,
+    correlationId: string,
+    id: string,
+    etag: string,
+  ) {
+    return request<AvailabilitySlot>({
+      method: 'DELETE',
+      path: `/api/v1/availability-slots/${encodeURIComponent(id)}`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      parse: parseAvailabilitySlot,
+    })
   },
 }

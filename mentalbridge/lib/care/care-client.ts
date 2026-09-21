@@ -27,6 +27,19 @@ import type {
   SupportGuide,
   SupportGuideHistory,
 } from '@/features/support-guide/api/support-guide-contract'
+import type {
+  ProposeSupportPlanDraftRequest,
+  ReplaceSupportPlanChoicesRequest,
+  SupportEvaluationV2,
+  SupportEvaluationV2Request,
+  SupportPlan,
+  SupportPlanDraft,
+  SupportPlanHistoryPage,
+  SupportPlanOccurrence,
+  SupportPlanOccurrenceList,
+  ChangeSupportPlanOccurrenceStateRequest,
+  ChangeSupportPlanStatusRequest,
+} from '@/features/support-plan/api/support-plan-contract'
 import {
   parseSupportGuide,
   parseSupportGuideHistory,
@@ -45,6 +58,14 @@ import {
   parseSupportEvaluation,
   parseSafetyDirectory,
 } from './care-validation'
+import {
+  parseSupportEvaluationV2,
+  parseSupportPlan,
+  parseSupportPlanDraft,
+  parseSupportPlanHistoryPage,
+  parseSupportPlanOccurrence,
+  parseSupportPlanOccurrenceList,
+} from './support-plan-validation'
 
 type RequestOptions<T> = Readonly<{
   method: 'GET' | 'POST' | 'PUT'
@@ -467,6 +488,199 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parseSupportGuide,
+    })
+  },
+
+  evaluateSupportV2(
+    accessToken: string,
+    request: SupportEvaluationV2Request,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportEvaluationV2> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v2/support-evaluations',
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parseSupportEvaluationV2,
+    })
+  },
+
+  proposeSupportPlanDraft(
+    accessToken: string,
+    request: ProposeSupportPlanDraftRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportPlanDraft> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v1/support-plans',
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parseSupportPlanDraft,
+    })
+  },
+
+  currentSupportPlanDraft(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<SupportPlanDraft> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/support-plans/current-draft',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanDraft,
+    })
+  },
+
+  currentSupportPlan(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/support-plans/current',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlan,
+    })
+  },
+
+  supportPlan(
+    accessToken: string,
+    supportPlanId: string,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlan,
+    })
+  },
+
+  supportPlanHistory(
+    accessToken: string,
+    limit: number,
+    cursor: string | undefined,
+    correlationId: string,
+  ): Promise<SupportPlanHistoryPage> {
+    const query = new URLSearchParams({ limit: String(limit) })
+    if (cursor) query.set('cursor', cursor)
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-plans/history?${query}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanHistoryPage,
+    })
+  },
+
+  replaceSupportPlanChoices(
+    accessToken: string,
+    supportPlanId: string,
+    request: ReplaceSupportPlanChoicesRequest,
+    version: number,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'PUT',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}/choices`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      body: request,
+      parseSuccess: parseSupportPlan,
+    })
+  },
+
+  activateSupportPlan(
+    accessToken: string,
+    supportPlanId: string,
+    version: number,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}/activate`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      idempotencyKey,
+      parseSuccess: parseSupportPlan,
+    })
+  },
+
+  supportPlanOccurrences(
+    accessToken: string,
+    from: string,
+    through: string,
+    correlationId: string,
+  ): Promise<SupportPlanOccurrenceList> {
+    const query = new URLSearchParams({ from, through })
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-plan-occurrences?${query}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanOccurrenceList,
+    })
+  },
+
+  supportPlanOccurrence(
+    accessToken: string,
+    occurrenceId: string,
+    correlationId: string,
+  ): Promise<SupportPlanOccurrence> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-plan-occurrences/${encodeURIComponent(occurrenceId)}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanOccurrence,
+    })
+  },
+
+  changeSupportPlanOccurrenceState(
+    accessToken: string,
+    occurrenceId: string,
+    version: number,
+    request: ChangeSupportPlanOccurrenceStateRequest,
+    correlationId: string,
+  ): Promise<SupportPlanOccurrence> {
+    return careRequest({
+      method: 'PUT',
+      path: `/api/v1/support-plan-occurrences/${encodeURIComponent(occurrenceId)}/state`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      body: request,
+      parseSuccess: parseSupportPlanOccurrence,
+    })
+  },
+
+  changeSupportPlanStatus(
+    accessToken: string,
+    supportPlanId: string,
+    version: number,
+    request: ChangeSupportPlanStatusRequest,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'PUT',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}/status`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      body: request,
+      parseSuccess: parseSupportPlan,
     })
   },
 }
