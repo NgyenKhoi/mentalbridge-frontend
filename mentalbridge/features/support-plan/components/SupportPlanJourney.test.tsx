@@ -7,8 +7,11 @@ import SupportPlanJourney from './SupportPlanJourney'
 
 const api = vi.hoisted(() => ({
   activateSupportPlan: vi.fn(),
+  changeSupportPlanOccurrenceState: vi.fn(),
+  changeSupportPlanStatus: vi.fn(),
   getCurrentSupportPlan: vi.fn(),
   getCurrentSupportPlanDraft: vi.fn(),
+  getSupportPlanOccurrences: vi.fn(),
   proposeSupportPlanDraft: vi.fn(),
   replaceSupportPlanChoices: vi.fn(),
 }))
@@ -34,6 +37,16 @@ describe('SupportPlanJourney', () => {
     api.getCurrentSupportPlan.mockRejectedValue(
       problem('SUPPORT_PLAN_CURRENT_NOT_FOUND', 404),
     )
+    api.getSupportPlanOccurrences.mockResolvedValue({
+      supportPlanId: '10000000-0000-4000-8000-000000000373',
+      supportPlanStatus: 'ACTIVE',
+      schedulePolicyVersion: 'support-plan-activity-schedule-v1',
+      from: '2026-09-21',
+      through: '2026-10-04',
+      occurrences: [],
+      interpretationCode:
+        'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
+    })
   })
 
   it('renders the authoritative current active plan before looking for a draft', async () => {

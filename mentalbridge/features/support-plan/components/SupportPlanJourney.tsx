@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/api/api-error'
 import {
   activateSupportPlan,
+  changeSupportPlanStatus,
   getCurrentSupportPlan,
   getCurrentSupportPlanDraft,
   proposeSupportPlanDraft,
@@ -20,7 +21,7 @@ import SupportPlanCard from './SupportPlanCard'
 import './support-plan.css'
 
 type EmptyReason = 'NONE' | 'FREE' | 'STALE' | 'DEPENDENCY'
-type Busy = 'SAVING' | 'ACTIVATING' | null
+type Busy = 'SAVING' | 'ACTIVATING' | 'LIFECYCLE' | null
 
 function stateFor(error: unknown): { reason: EmptyReason; message: string } {
   if (error instanceof ApiError) {
@@ -207,6 +208,24 @@ export default function SupportPlanJourney() {
     }
   }
 
+  const changeStatus = async (
+    status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED',
+  ) => {
+    if (!plan) return
+    setBusy('LIFECYCLE')
+    setCommandMessage('')
+    try {
+      setPlan(
+        await changeSupportPlanStatus(plan.supportPlanId, plan.version, status),
+      )
+    } catch (error) {
+      setCommandMessage(mutationMessage(error))
+      await recover()
+    } finally {
+      setBusy(null)
+    }
+  }
+
   return (
     <div className="support-plan-page">
       <header className="support-plan-page-header">
@@ -233,6 +252,7 @@ export default function SupportPlanJourney() {
           message={commandMessage}
           onSaveChoices={saveChoices}
           onActivate={activate}
+          onStatusChange={changeStatus}
         />
       )}
 

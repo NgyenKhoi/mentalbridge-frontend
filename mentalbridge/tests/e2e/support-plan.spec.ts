@@ -103,6 +103,43 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   let persisted = draft
   let currentReads = 0
   let activationCommands = 0
+  let occurrenceState = 'SCHEDULED'
+  let occurrenceVersion = 0
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+  const occurrence = () => ({
+    occurrenceId: '91000000-0000-4000-8000-000000000513',
+    supportPlanId: persisted.supportPlanId,
+    scheduleId: '92000000-0000-4000-8000-000000000513',
+    scheduleVersion: 1,
+    localDate: today,
+    localTime: '08:00:00',
+    timezone: 'Asia/Ho_Chi_Minh',
+    scheduledAt: `${today}T01:00:00Z`,
+    state: occurrenceState,
+    displayState: occurrenceState,
+    stateReason: null,
+    version: occurrenceVersion,
+    source: {
+      type: 'RESOURCE',
+      supportPlanVersion: 2,
+      slotId: 'depression-psychoeducation',
+      resourceId: persisted.slots[0].selectedResource.resourceId,
+      contentVersion: persisted.slots[0].selectedResource.contentVersion,
+      title: persisted.slots[0].selectedResource.title,
+    },
+    updatedAt: '2026-09-21T00:00:00Z',
+    completedAt:
+      occurrenceState === 'COMPLETED' ? '2026-09-21T02:00:00Z' : null,
+    skippedAt: null,
+    cancelledAt: null,
+    interpretationCode:
+      'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
+  })
 
   await page.route('**/api/care/support-plans/current', async (route) => {
     currentReads += 1
@@ -181,6 +218,39 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       body: JSON.stringify(persisted),
     })
   })
+  await page.route(
+    '**/api/care/support-plan-occurrences/*/state',
+    async (route) => {
+      expect(route.request().method()).toBe('PUT')
+      expect(route.request().headers()['if-match']).toBe(
+        `"${occurrenceVersion}"`,
+      )
+      expect(route.request().postDataJSON()).toEqual({ state: 'COMPLETED' })
+      occurrenceState = 'COMPLETED'
+      occurrenceVersion += 1
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(occurrence()),
+      })
+    },
+  )
+  await page.route('**/api/care/support-plan-occurrences?*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        supportPlanId: persisted.supportPlanId,
+        supportPlanStatus: persisted.status,
+        schedulePolicyVersion: 'support-plan-activity-schedule-v1',
+        from: today,
+        through: today,
+        occurrences: [occurrence()],
+        interpretationCode:
+          'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
+      }),
+    })
+  })
 
   await page.goto('/support-plan')
   expect(
@@ -202,7 +272,20 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   await page.getByRole('button', { name: 'Kích hoạt SupportPlan' }).click()
 
   await expect(page.getByText('SupportPlan đang hoạt động')).toBeVisible()
-  await expect(page.getByText('Lựa chọn thay thế đã duyệt')).toBeVisible()
+  await expect(
+    page
+      .getByRole('region', { name: 'Nội dung SupportPlan' })
+      .getByRole('heading', { name: 'Lựa chọn thay thế đã duyệt' }),
+  ).toBeVisible()
+  await expect(page.getByText('Hôm nay và sắp tới')).toBeVisible()
+  await expect(page.getByText('Asia/Ho_Chi_Minh')).toBeVisible()
+  await page.getByText('Chi tiết nguồn').click()
+  await expect(page.getByText(/Phiên bản tài nguyên 2/)).toBeVisible()
+  await page.getByRole('button', { name: 'Đã làm' }).click()
+  await expect(page.getByText('Bạn đã hoàn thành')).toBeVisible()
+  await expect(
+    page.getByText(/không phải đánh giá tuân thủ điều trị/),
+  ).toBeVisible()
   expect(activationCommands).toBe(1)
   expect(currentReads).toBeGreaterThanOrEqual(2)
 

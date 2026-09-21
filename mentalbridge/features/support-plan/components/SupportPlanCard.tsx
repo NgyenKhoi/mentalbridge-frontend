@@ -6,6 +6,7 @@ import type {
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
 } from '../api/support-plan-contract'
+import SupportPlanSchedule from './SupportPlanSchedule'
 
 const domainLabel = {
   DEPRESSIVE_SYMPTOMS: 'Hỗ trợ theo miền triệu chứng trầm cảm',
@@ -31,10 +32,13 @@ function initialChoices(plan: SupportPlan) {
 
 type Props = Readonly<{
   plan: SupportPlan
-  busy: 'SAVING' | 'ACTIVATING' | null
+  busy: 'SAVING' | 'ACTIVATING' | 'LIFECYCLE' | null
   message: string
   onSaveChoices: (request: ReplaceSupportPlanChoicesRequest) => Promise<void>
   onActivate: () => Promise<void>
+  onStatusChange: (
+    status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED',
+  ) => Promise<void>
 }>
 
 export default function SupportPlanCard({
@@ -43,12 +47,29 @@ export default function SupportPlanCard({
   message,
   onSaveChoices,
   onActivate,
+  onStatusChange,
 }: Props) {
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     initialChoices(plan),
   )
   const isDraft = plan.status === 'DRAFT'
   const safetyPositive = plan.safety.status === 'POSITIVE_SAFETY_SCREEN'
+  const statusLabel = {
+    DRAFT: 'Chưa kích hoạt',
+    ACTIVE: 'Đang hoạt động',
+    PAUSED: 'Đang tạm dừng',
+    COMPLETED: 'Đã kết thúc',
+    SUPERSEDED: 'Đã được thay thế',
+    DISCARDED: 'Đã hủy bản nháp',
+  }[plan.status]
+  const titleLabel = {
+    DRAFT: 'SupportPlan đề xuất cho bạn',
+    ACTIVE: 'SupportPlan đang hoạt động',
+    PAUSED: 'SupportPlan đang tạm dừng',
+    COMPLETED: 'SupportPlan đã kết thúc',
+    SUPERSEDED: 'SupportPlan đã được thay thế',
+    DISCARDED: 'Bản nháp SupportPlan đã hủy',
+  }[plan.status]
 
   const dirty = useMemo(
     () =>
@@ -92,14 +113,12 @@ export default function SupportPlanCard({
           <span>
             {isDraft ? 'Bản nháp do Care quản lý' : 'Kế hoạch hiện tại'}
           </span>
-          <h2 id={`support-plan-${plan.supportPlanId}`}>
-            {isDraft
-              ? 'SupportPlan đề xuất cho bạn'
-              : 'SupportPlan đang hoạt động'}
-          </h2>
+          <h2 id={`support-plan-${plan.supportPlanId}`}>{titleLabel}</h2>
         </div>
-        <span className={`support-plan-status ${isDraft ? '' : 'active'}`}>
-          {isDraft ? 'Chưa kích hoạt' : 'Đang hoạt động'}
+        <span
+          className={`support-plan-status ${plan.status === 'ACTIVE' ? 'active' : ''}`}
+        >
+          {statusLabel}
         </span>
       </header>
 
@@ -256,6 +275,14 @@ export default function SupportPlanCard({
             <button
               className="btn btn-ghost"
               type="button"
+              disabled={busy !== null}
+              onClick={() => void onStatusChange('DISCARDED')}
+            >
+              Hủy bản nháp
+            </button>
+            <button
+              className="btn btn-ghost"
+              type="button"
               disabled={!dirty || busy !== null}
               onClick={() => void submitChoices()}
             >
@@ -286,13 +313,44 @@ export default function SupportPlanCard({
           </p>
         </section>
       ) : (
-        <aside className="support-plan-confirmation-note">
-          <strong>SupportPlan đã được kích hoạt</strong>
-          <p>
-            Đây là trạng thái hiện tại do Care trả về. Mọi thay đổi tiếp theo
-            cần đi qua một lệnh riêng và được kiểm tra lại.
-          </p>
-        </aside>
+        <>
+          <aside className="support-plan-confirmation-note">
+            <strong>Trạng thái do Care quản lý</strong>
+            <p>
+              Tạm dừng sẽ hủy các lịch tương lai; tiếp tục chỉ khôi phục các mục
+              vẫn còn ở tương lai. Kết thúc không mang ý nghĩa phục hồi.
+            </p>
+            {(plan.status === 'ACTIVE' || plan.status === 'PAUSED') && (
+              <div className="support-plan-lifecycle-actions">
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() =>
+                    void onStatusChange(
+                      plan.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
+                    )
+                  }
+                >
+                  {plan.status === 'ACTIVE'
+                    ? 'Tạm dừng kế hoạch'
+                    : 'Tiếp tục kế hoạch'}
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void onStatusChange('COMPLETED')}
+                >
+                  Kết thúc kế hoạch
+                </button>
+              </div>
+            )}
+          </aside>
+          {(plan.status === 'ACTIVE' || plan.status === 'PAUSED') && (
+            <SupportPlanSchedule planStatus={plan.status} />
+          )}
+        </>
       )}
 
       <details className="support-plan-provenance">

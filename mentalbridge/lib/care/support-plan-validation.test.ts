@@ -2,9 +2,15 @@ import { describe, expect, it } from 'vitest'
 
 import { supportPlanFixture } from '@/features/support-plan/testing/support-plan-fixture'
 import {
+  supportPlanOccurrenceFixture,
+  supportPlanOccurrenceListFixture,
+} from '@/features/support-plan/testing/support-plan-occurrence-fixture'
+import {
   parseSupportEvaluationV2,
   parseSupportPlan,
   parseSupportPlanDraft,
+  parseSupportPlanOccurrence,
+  parseSupportPlanOccurrenceList,
 } from './support-plan-validation'
 
 const evaluation = {
@@ -115,6 +121,44 @@ describe('SupportPlan validation', () => {
           evaluation.contributingDomains[0],
           evaluation.contributingDomains[0],
         ],
+      }),
+    ).toBeNull()
+  })
+
+  it('accepts bounded resource and standalone wellbeing prompt occurrences', () => {
+    expect(
+      parseSupportPlanOccurrenceList(supportPlanOccurrenceListFixture()),
+    ).not.toBeNull()
+    expect(
+      parseSupportPlanOccurrence(
+        supportPlanOccurrenceFixture({
+          source: {
+            ...supportPlanOccurrenceFixture().source,
+            type: 'JOURNAL_PROMPT',
+            slotId: null,
+            resourceId: null,
+            contentVersion: null,
+          },
+        }),
+      ),
+    ).not.toBeNull()
+  })
+
+  it('rejects occurrence payloads that lose source provenance or meaning', () => {
+    expect(
+      parseSupportPlanOccurrence(
+        supportPlanOccurrenceFixture({
+          interpretationCode: 'TREATMENT_ADHERENCE' as never,
+        }),
+      ),
+    ).toBeNull()
+    expect(
+      parseSupportPlanOccurrence({
+        ...supportPlanOccurrenceFixture(),
+        source: {
+          ...supportPlanOccurrenceFixture().source,
+          contentVersion: 'latest',
+        },
       }),
     ).toBeNull()
   })
