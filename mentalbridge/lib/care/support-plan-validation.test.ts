@@ -9,6 +9,7 @@ import {
   parseSupportEvaluationV2,
   parseSupportPlan,
   parseSupportPlanDraft,
+  parseSupportPlanHistoryPage,
   parseSupportPlanOccurrence,
   parseSupportPlanOccurrenceList,
 } from './support-plan-validation'
@@ -68,6 +69,39 @@ describe('SupportPlan validation', () => {
     }
     expect(parseSupportPlanDraft(active)).toBeNull()
     expect(parseSupportPlan(active)).not.toBeNull()
+  })
+
+  it('accepts only lifecycle-consistent immutable terminal history', () => {
+    const fixture = supportPlanFixture()
+    const completed = {
+      ...fixture,
+      status: 'COMPLETED',
+      version: 2,
+      activatedAt: '2026-09-20T05:00:00Z',
+      completedAt: '2026-09-21T05:00:00Z',
+      completionReason: 'USER_DECISION',
+    }
+
+    expect(
+      parseSupportPlanHistoryPage({
+        items: [completed],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseSupportPlan({
+        ...completed,
+        status: 'ACTIVE',
+      }),
+    ).toBeNull()
+    expect(
+      parseSupportPlanHistoryPage({
+        items: [{ ...completed, completionReason: 'RECOVERED' }],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    ).toBeNull()
   })
 
   it('accepts a removed optional selection with an exact resource count', () => {

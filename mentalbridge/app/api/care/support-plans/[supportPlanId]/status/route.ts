@@ -16,6 +16,11 @@ import { isUuid } from '@/lib/care/care-validation'
 
 const VERSION = /^"(0|[1-9]\d*)"$/
 const STATUSES = new Set(['ACTIVE', 'PAUSED', 'COMPLETED', 'DISCARDED'])
+const COMPLETION_REASONS = new Set([
+  'USER_DECISION',
+  'PLAN_NO_LONGER_FITS',
+  'OTHER',
+])
 
 export async function PUT(
   request: NextRequest,
@@ -33,15 +38,27 @@ export async function PUT(
   const match = VERSION.exec(request.headers.get('if-match') ?? '')
   const version = match ? Number(match[1]) : Number.NaN
   const body: unknown = await request.json().catch(() => null)
-  const status =
-    typeof body === 'object' && body !== null && 'status' in body
-      ? (body as { status?: unknown }).status
-      : undefined
+  const record =
+    typeof body === 'object' && body !== null && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : null
+  const status = record?.status
+  const completionReason = record?.completionReason
+  const keysAreValid =
+    record !== null &&
+    Object.keys(record).every((key) =>
+      ['status', 'completionReason'].includes(key),
+    )
   if (
     !isUuid(supportPlanId) ||
     !Number.isSafeInteger(version) ||
     typeof status !== 'string' ||
-    !STATUSES.has(status)
+    !STATUSES.has(status) ||
+    !keysAreValid ||
+    (completionReason !== undefined &&
+      (status !== 'COMPLETED' ||
+        typeof completionReason !== 'string' ||
+        !COMPLETION_REASONS.has(completionReason)))
   ) {
     return carryCareSession(
       localProblem(
@@ -59,7 +76,13 @@ export async function PUT(
       user.accessToken,
       supportPlanId,
       version,
-      { status: status as 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED' },
+      completionReason === undefined
+        ? { status: status as 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED' }
+        : {
+            status: status as 'COMPLETED',
+            completionReason: completionReason as
+              'USER_DECISION' | 'PLAN_NO_LONGER_FITS' | 'OTHER',
+          },
       correlationId,
     )
     const response = careSuccessResponse(plan, correlationId)

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ApiError } from '@/lib/api/api-error'
 import {
@@ -9,6 +9,7 @@ import {
   changeSupportPlanStatus,
   getCurrentSupportPlan,
   getCurrentSupportPlanDraft,
+  getSupportPlanHistory,
   proposeSupportPlanDraft,
   replaceSupportPlanChoices,
 } from '../api/browser-support-plan'
@@ -17,6 +18,7 @@ import type {
   SupportPlan,
 } from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
+import SupportPlanHistory from './SupportPlanHistory'
 
 import './support-plan.css'
 
@@ -116,10 +118,16 @@ export default function SupportPlanJourney() {
   const [message, setMessage] = useState('')
   const [commandMessage, setCommandMessage] = useState('')
   const [recoveryVersion, setRecoveryVersion] = useState(0)
+  const [history, setHistory] = useState<SupportPlan[]>([])
+  const [historyCursor, setHistoryCursor] = useState<string>()
+  const [historyHasMore, setHistoryHasMore] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false)
+  const [historyMessage, setHistoryMessage] = useState('')
   const creationKey = useRef<string | undefined>(undefined)
   const activationKey = useRef<string | undefined>(undefined)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setMessage('')
     try {
@@ -133,12 +141,37 @@ export default function SupportPlanJourney() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  const loadHistory = useCallback(async (cursor?: string) => {
+    const append = Boolean(cursor)
+    if (append) setHistoryLoadingMore(true)
+    else setHistoryLoading(true)
+    setHistoryMessage('')
+    try {
+      const page = await getSupportPlanHistory(cursor)
+      setHistory((current) =>
+        append ? [...current, ...page.items] : page.items,
+      )
+      setHistoryCursor(page.nextCursor ?? undefined)
+      setHistoryHasMore(page.hasMore)
+    } catch {
+      setHistoryMessage(
+        'Chưa thể tải lịch sử SupportPlan. Kế hoạch hiện tại không bị thay đổi.',
+      )
+    } finally {
+      setHistoryLoading(false)
+      setHistoryLoadingMore(false)
+    }
+  }, [])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 0)
+    const timer = window.setTimeout(() => {
+      void load()
+      void loadHistory()
+    }, 0)
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [load, loadHistory])
 
   const create = async () => {
     setCreating(true)
@@ -161,9 +194,14 @@ export default function SupportPlanJourney() {
     try {
       setPlan(await readAuthoritativePlan())
       setRecoveryVersion((current) => current + 1)
-    } catch {
-      // Keep the last complete plan visible with the stable command error.
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        setPlan(undefined)
+        setReason('NONE')
+      }
+      // On dependency failure, keep the last complete plan visible.
     }
+    await loadHistory()
   }
 
   const saveChoices = async (request: ReplaceSupportPlanChoicesRequest) => {
@@ -210,16 +248,23 @@ export default function SupportPlanJourney() {
 
   const changeStatus = async (
     status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED',
+    completionReason?: 'USER_DECISION' | 'PLAN_NO_LONGER_FITS' | 'OTHER',
   ) => {
     if (!plan) return
     setBusy('LIFECYCLE')
     setCommandMessage('')
     try {
-      setPlan(
-        await changeSupportPlanStatus(plan.supportPlanId, plan.version, status),
+      await changeSupportPlanStatus(
+        plan.supportPlanId,
+        plan.version,
+        status,
+        completionReason,
       )
+      await Promise.all([load(), loadHistory()])
     } catch (error) {
-      setCommandMessage(mutationMessage(error))
+      const errorMessage = mutationMessage(error)
+      setCommandMessage(errorMessage)
+      setMessage(errorMessage)
       await recover()
     } finally {
       setBusy(null)
@@ -309,6 +354,16 @@ export default function SupportPlanJourney() {
           </div>
         </section>
       )}
+
+      <SupportPlanHistory
+        items={history}
+        loading={historyLoading}
+        loadingMore={historyLoadingMore}
+        hasMore={historyHasMore}
+        message={historyMessage}
+        onRetry={() => void loadHistory()}
+        onLoadMore={() => void loadHistory(historyCursor)}
+      />
     </div>
   )
 }

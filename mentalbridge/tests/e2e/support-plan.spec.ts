@@ -77,6 +77,11 @@ function plan() {
     createdAt: '2026-09-19T04:02:00Z',
     updatedAt: '2026-09-19T04:02:00Z',
     activatedAt: null as string | null,
+    completedAt: null as string | null,
+    completionReason: null as
+      'USER_DECISION' | 'PLAN_NO_LONGER_FITS' | 'OTHER' | null,
+    supersededAt: null as string | null,
+    discardedAt: null as string | null,
     disclaimerCode: 'WELLBEING_SUPPORT_NOT_TREATMENT',
     disclaimer:
       'SupportPlan hỗ trợ sức khỏe tổng quát và không phải kế hoạch điều trị.',
@@ -251,6 +256,13 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       }),
     })
   })
+  await page.route('**/api/care/support-plans/history?*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], nextCursor: null, hasMore: false }),
+    })
+  })
 
   await page.goto('/support-plan')
   expect(
@@ -331,6 +343,13 @@ test('MB-373 presents the stable Free entitlement path without a plan', async ({
       }),
     })
   })
+  await page.route('**/api/care/support-plans/history?*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], nextCursor: null, hasMore: false }),
+    })
+  })
 
   await page.goto('/support-plan')
   await expect(page.getByText(/dành cho gói Plus và Premium/)).toBeVisible()
@@ -338,4 +357,159 @@ test('MB-373 presents the stable Free entitlement path without a plan', async ({
     page.getByRole('link', { name: 'Mở Hướng dẫn hỗ trợ' }),
   ).toHaveAttribute('href', '/support-guides')
   await expect(page.locator('.support-plan-card')).toHaveCount(0)
+})
+
+test('MB-374 confirms lifecycle commands and reloads immutable completion history', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  let persisted = {
+    ...plan(),
+    status: 'ACTIVE',
+    version: 1,
+    activatedAt: '2026-09-20T04:01:00Z',
+  }
+  let terminalHistory: ReturnType<typeof plan>[] = []
+  const commands: string[] = []
+
+  await page.route('**/api/care/support-plans/current', async (route) => {
+    if (!['ACTIVE', 'PAUSED'].includes(persisted.status)) {
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: '/problems/support-plan-current-not-found',
+          title: 'Current plan not found.',
+          status: 404,
+          code: 'SUPPORT_PLAN_CURRENT_NOT_FOUND',
+          correlationId: '71000000-0000-4000-8000-000000000374',
+        }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(persisted),
+    })
+  })
+  await page.route('**/api/care/support-plans/history?*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: terminalHistory,
+        nextCursor: null,
+        hasMore: false,
+      }),
+    })
+  })
+  await page.route(
+    new RegExp(`/api/care/support-plans/${persisted.supportPlanId}$`),
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(persisted),
+      })
+    },
+  )
+  await page.route('**/api/care/support-plans/*/status', async (route) => {
+    const request = route.request()
+    const body = request.postDataJSON() as {
+      status: 'ACTIVE' | 'PAUSED' | 'COMPLETED'
+      completionReason?: 'PLAN_NO_LONGER_FITS'
+    }
+    commands.push(body.status)
+    expect(request.headers()['if-match']).toBe(`"${persisted.version}"`)
+    persisted = {
+      ...persisted,
+      status: body.status,
+      version: persisted.version + 1,
+      updatedAt: `2026-09-21T0${persisted.version}:00:00Z`,
+      completedAt: body.status === 'COMPLETED' ? '2026-09-21T04:00:00Z' : null,
+      completionReason:
+        body.status === 'COMPLETED' ? (body.completionReason ?? null) : null,
+    }
+    if (body.status === 'COMPLETED') terminalHistory = [persisted]
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(persisted),
+    })
+  })
+  await page.route('**/api/care/support-plans', async (route) => {
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        type: '/problems/support-plan-draft-not-found',
+        title: 'Draft not found.',
+        status: 404,
+        code: 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+        correlationId: '72000000-0000-4000-8000-000000000374',
+      }),
+    })
+  })
+  await page.route('**/api/care/support-plan-occurrences?*', async (route) => {
+    const today = new Date().toISOString().slice(0, 10)
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        supportPlanId: persisted.supportPlanId,
+        supportPlanStatus: persisted.status,
+        schedulePolicyVersion: 'support-plan-activity-schedule-v1',
+        from: today,
+        through: today,
+        occurrences: [],
+        interpretationCode:
+          'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
+      }),
+    })
+  })
+
+  await page.goto('/support-plan')
+  await page.getByRole('button', { name: 'Tạm dừng kế hoạch' }).click()
+  await expect(
+    page.getByRole('dialog', { name: 'Tạm dừng SupportPlan?' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Quay lại' }).click()
+  expect(commands).toEqual([])
+
+  await page.getByRole('button', { name: 'Tạm dừng kế hoạch' }).click()
+  await page.getByRole('button', { name: 'Xác nhận tạm dừng' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Tiếp tục kế hoạch' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Tiếp tục kế hoạch' }).click()
+  await page.getByRole('button', { name: 'Xác nhận tiếp tục' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Tạm dừng kế hoạch' }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: 'Kết thúc kế hoạch' }).click()
+  await page
+    .getByLabel('Lý do (không bắt buộc)')
+    .selectOption('PLAN_NO_LONGER_FITS')
+  await page.getByRole('button', { name: 'Xác nhận kết thúc' }).click()
+
+  await expect(page.getByText('Đã kết thúc')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Tạm dừng kế hoạch' }),
+  ).toHaveCount(0)
+  await page.getByRole('button', { name: 'Xem chi tiết' }).click()
+  await expect(page.getByText('Kế hoạch không còn phù hợp')).toBeVisible()
+  expect(commands).toEqual(['PAUSED', 'ACTIVE', 'COMPLETED'])
+
+  await page.reload()
+  await expect(page.getByText('Đã kết thúc')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Kết thúc kế hoạch' }),
+  ).toHaveCount(0)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true)
 })
