@@ -11,6 +11,8 @@ const api = vi.hoisted(() => ({
   changeSupportPlanStatus: vi.fn(),
   getCurrentSupportPlan: vi.fn(),
   getCurrentSupportPlanDraft: vi.fn(),
+  getSupportPlan: vi.fn(),
+  getSupportPlanHistory: vi.fn(),
   getSupportPlanOccurrences: vi.fn(),
   proposeSupportPlanDraft: vi.fn(),
   replaceSupportPlanChoices: vi.fn(),
@@ -46,6 +48,11 @@ describe('SupportPlanJourney', () => {
       occurrences: [],
       interpretationCode:
         'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
+    })
+    api.getSupportPlanHistory.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+      hasMore: false,
     })
   })
 
@@ -185,5 +192,96 @@ describe('SupportPlanJourney', () => {
       await screen.findByText(/phiên bản nội dung đã thay đổi/),
     ).toBeVisible()
     expect(screen.getByText('Reviewed primary resource')).toBeVisible()
+  })
+
+  it('confirms completion, forwards the optional reason, and reloads current state and history', async () => {
+    const active = activePlan()
+    const completed = {
+      ...active,
+      status: 'COMPLETED' as const,
+      version: 2,
+      updatedAt: '2026-09-21T05:00:00Z',
+      completedAt: '2026-09-21T05:00:00Z',
+      completionReason: 'PLAN_NO_LONGER_FITS' as const,
+    }
+    api.getCurrentSupportPlan
+      .mockResolvedValueOnce(active)
+      .mockRejectedValueOnce(problem('SUPPORT_PLAN_CURRENT_NOT_FOUND', 404))
+    api.getCurrentSupportPlanDraft.mockRejectedValue(
+      problem('SUPPORT_PLAN_DRAFT_NOT_FOUND', 404),
+    )
+    api.changeSupportPlanStatus.mockResolvedValue(completed)
+    api.getSupportPlanHistory
+      .mockResolvedValueOnce({ items: [], nextCursor: null, hasMore: false })
+      .mockResolvedValueOnce({
+        items: [completed],
+        nextCursor: null,
+        hasMore: false,
+      })
+
+    render(<SupportPlanJourney />)
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Kết thúc kế hoạch' }),
+    )
+    await screen.findByRole('dialog', { name: 'Kết thúc SupportPlan?' })
+    fireEvent.change(screen.getByLabelText('Lý do (không bắt buộc)'), {
+      target: { value: 'PLAN_NO_LONGER_FITS' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận kết thúc' }))
+
+    await waitFor(() =>
+      expect(api.changeSupportPlanStatus).toHaveBeenCalledWith(
+        active.supportPlanId,
+        1,
+        'COMPLETED',
+        'PLAN_NO_LONGER_FITS',
+      ),
+    )
+    expect(await screen.findByText('Đã kết thúc')).toBeVisible()
+    expect(api.getCurrentSupportPlan).toHaveBeenCalledTimes(2)
+    expect(api.getSupportPlanHistory).toHaveBeenCalledTimes(2)
+  })
+
+  it('reconciles a terminal concurrency conflict and exposes only the persisted history state', async () => {
+    const active = activePlan()
+    const completed = {
+      ...active,
+      status: 'COMPLETED' as const,
+      version: 2,
+      updatedAt: '2026-09-21T05:00:00Z',
+      completedAt: '2026-09-21T05:00:00Z',
+      completionReason: null,
+    }
+    api.getCurrentSupportPlan
+      .mockResolvedValueOnce(active)
+      .mockRejectedValueOnce(problem('SUPPORT_PLAN_CURRENT_NOT_FOUND', 404))
+    api.getCurrentSupportPlanDraft.mockRejectedValue(
+      problem('SUPPORT_PLAN_DRAFT_NOT_FOUND', 404),
+    )
+    api.changeSupportPlanStatus.mockRejectedValue(
+      problem('SUPPORT_PLAN_VERSION_MISMATCH', 412),
+    )
+    api.getSupportPlanHistory
+      .mockResolvedValueOnce({ items: [], nextCursor: null, hasMore: false })
+      .mockResolvedValueOnce({
+        items: [completed],
+        nextCursor: null,
+        hasMore: false,
+      })
+
+    render(<SupportPlanJourney />)
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Kết thúc kế hoạch' }),
+    )
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Xác nhận kết thúc' }),
+    )
+
+    expect(await screen.findByText('Đã kết thúc')).toBeVisible()
+    expect(screen.getByText(/SupportPlan đã thay đổi ở nơi khác/)).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Kết thúc kế hoạch' }),
+    ).not.toBeInTheDocument()
+    expect(api.getSupportPlanHistory).toHaveBeenCalledTimes(2)
   })
 })

@@ -3,6 +3,7 @@ import type {
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
   SupportPlanDraft,
+  SupportPlanHistoryPage,
   SupportPlanOccurrenceList,
   SupportPlanOccurrence,
 } from './support-plan-contract'
@@ -44,11 +45,12 @@ export async function changeSupportPlanStatus(
   supportPlanId: string,
   version: number,
   status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED',
+  completionReason?: 'USER_DECISION' | 'PLAN_NO_LONGER_FITS' | 'OTHER',
 ) {
   return (
     await browserApiClient.put<SupportPlan>(
       `/care/support-plans/${encodeURIComponent(supportPlanId)}/status`,
-      { status },
+      { status, ...(completionReason ? { completionReason } : {}) },
       { headers: { 'If-Match': `"${version}"` } },
     )
   ).data
@@ -62,6 +64,23 @@ export async function getCurrentSupportPlanDraft() {
 export async function getCurrentSupportPlan() {
   return (
     await browserApiClient.get<SupportPlan>('/care/support-plans/current')
+  ).data
+}
+
+export async function getSupportPlan(supportPlanId: string) {
+  return (
+    await browserApiClient.get<SupportPlan>(
+      `/care/support-plans/${encodeURIComponent(supportPlanId)}`,
+    )
+  ).data
+}
+
+export async function getSupportPlanHistory(cursor?: string) {
+  return (
+    await browserApiClient.get<SupportPlanHistoryPage>(
+      '/care/support-plans/history',
+      { params: { limit: 10, ...(cursor ? { cursor } : {}) } },
+    )
   ).data
 }
 

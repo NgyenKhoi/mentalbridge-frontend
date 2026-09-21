@@ -2,6 +2,7 @@ import type {
   SupportEvaluationV2,
   SupportPlan,
   SupportPlanDraft,
+  SupportPlanHistoryPage,
   SupportPlanOccurrence,
   SupportPlanOccurrenceList,
 } from '@/features/support-plan/api/support-plan-contract'
@@ -19,6 +20,10 @@ function text(value: unknown, max = 4096): value is string {
 
 function instant(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(Date.parse(value))
+}
+
+function nullableInstant(value: unknown): value is string | null {
+  return value === null || instant(value)
 }
 
 function localDate(value: unknown): value is string {
@@ -54,6 +59,44 @@ function resource(value: unknown) {
 
 export function parseSupportPlan(value: unknown): SupportPlan | null {
   if (!object(value) || !isUuid(String(value.supportPlanId))) return null
+  const status = String(value.status)
+  const lifecycleTimesAreValid =
+    nullableInstant(value.completedAt) &&
+    nullableInstant(value.supersededAt) &&
+    nullableInstant(value.discardedAt) &&
+    (value.completionReason === null ||
+      ['USER_DECISION', 'PLAN_NO_LONGER_FITS', 'OTHER'].includes(
+        String(value.completionReason),
+      )) &&
+    ((status === 'DRAFT' &&
+      value.activatedAt === null &&
+      value.completedAt === null &&
+      value.completionReason === null &&
+      value.supersededAt === null &&
+      value.discardedAt === null) ||
+      (['ACTIVE', 'PAUSED'].includes(status) &&
+        instant(value.activatedAt) &&
+        value.completedAt === null &&
+        value.completionReason === null &&
+        value.supersededAt === null &&
+        value.discardedAt === null) ||
+      (status === 'COMPLETED' &&
+        instant(value.activatedAt) &&
+        instant(value.completedAt) &&
+        value.supersededAt === null &&
+        value.discardedAt === null) ||
+      (status === 'SUPERSEDED' &&
+        instant(value.activatedAt) &&
+        value.completedAt === null &&
+        value.completionReason === null &&
+        instant(value.supersededAt) &&
+        value.discardedAt === null) ||
+      (status === 'DISCARDED' &&
+        value.activatedAt === null &&
+        value.completedAt === null &&
+        value.completionReason === null &&
+        value.supersededAt === null &&
+        instant(value.discardedAt)))
   if (
     ![
       'DRAFT',
@@ -123,12 +166,35 @@ export function parseSupportPlan(value: unknown): SupportPlan | null {
     !text(value.disclaimer, 1000) ||
     !instant(value.createdAt) ||
     !instant(value.updatedAt) ||
-    (['DRAFT', 'DISCARDED'].includes(String(value.status))
-      ? value.activatedAt !== null
-      : !instant(value.activatedAt))
+    !lifecycleTimesAreValid
   )
     return null
   return value as SupportPlan
+}
+
+export function parseSupportPlanHistoryPage(
+  value: unknown,
+): SupportPlanHistoryPage | null {
+  if (
+    !object(value) ||
+    !Array.isArray(value.items) ||
+    value.items.length > 50 ||
+    typeof value.hasMore !== 'boolean' ||
+    (value.nextCursor !== null && !text(value.nextCursor, 256)) ||
+    (value.hasMore && value.nextCursor === null) ||
+    (!value.hasMore && value.nextCursor !== null)
+  )
+    return null
+  const items = value.items.map(parseSupportPlan)
+  if (
+    items.some(
+      (item) =>
+        item === null ||
+        !['COMPLETED', 'SUPERSEDED', 'DISCARDED'].includes(item.status),
+    )
+  )
+    return null
+  return { ...value, items } as SupportPlanHistoryPage
 }
 
 export function parseSupportPlanDraft(value: unknown): SupportPlanDraft | null {

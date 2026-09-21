@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import type {
   ReplaceSupportPlanChoicesRequest,
@@ -38,8 +38,38 @@ type Props = Readonly<{
   onActivate: () => Promise<void>
   onStatusChange: (
     status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED',
+    completionReason?: 'USER_DECISION' | 'PLAN_NO_LONGER_FITS' | 'OTHER',
   ) => Promise<void>
 }>
+
+type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
+
+const lifecycleConfirmation = {
+  PAUSED: {
+    title: 'Tạm dừng SupportPlan?',
+    message:
+      'Các hoạt động tương lai sẽ được hủy trong lúc tạm dừng. Bạn có thể tiếp tục lại sau.',
+    action: 'Xác nhận tạm dừng',
+  },
+  ACTIVE: {
+    title: 'Tiếp tục SupportPlan?',
+    message:
+      'Chỉ các hoạt động vẫn còn ở tương lai mới được khôi phục và lên lịch lại.',
+    action: 'Xác nhận tiếp tục',
+  },
+  COMPLETED: {
+    title: 'Kết thúc SupportPlan?',
+    message:
+      'Kế hoạch sẽ chuyển vào lịch sử và không thể tiếp tục lại. Thao tác này không có nghĩa là bạn đã hồi phục.',
+    action: 'Xác nhận kết thúc',
+  },
+  DISCARDED: {
+    title: 'Hủy bản nháp SupportPlan?',
+    message:
+      'Bản nháp sẽ chuyển vào lịch sử và không thể kích hoạt. Kế hoạch đang hoạt động, nếu có, không bị thay đổi.',
+    action: 'Xác nhận hủy bản nháp',
+  },
+} as const
 
 export default function SupportPlanCard({
   plan,
@@ -52,6 +82,11 @@ export default function SupportPlanCard({
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     initialChoices(plan),
   )
+  const [pendingStatus, setPendingStatus] = useState<LifecycleStatus | null>(
+    null,
+  )
+  const [completionReason, setCompletionReason] = useState('')
+  const lifecycleTrigger = useRef<HTMLButtonElement | null>(null)
   const isDraft = plan.status === 'DRAFT'
   const safetyPositive = plan.safety.status === 'POSITIVE_SAFETY_SCREEN'
   const statusLabel = {
@@ -101,6 +136,32 @@ export default function SupportPlanCard({
         : []
     })
     await onSaveChoices({ slotSelections })
+  }
+
+  const requestLifecycle = (
+    status: LifecycleStatus,
+    trigger: HTMLButtonElement,
+  ) => {
+    lifecycleTrigger.current = trigger
+    setCompletionReason('')
+    setPendingStatus(status)
+  }
+
+  const closeLifecycle = () => {
+    setPendingStatus(null)
+    window.setTimeout(() => lifecycleTrigger.current?.focus(), 0)
+  }
+
+  const confirmLifecycle = async () => {
+    if (!pendingStatus) return
+    await onStatusChange(
+      pendingStatus,
+      pendingStatus === 'COMPLETED' && completionReason
+        ? (completionReason as
+            'USER_DECISION' | 'PLAN_NO_LONGER_FITS' | 'OTHER')
+        : undefined,
+    )
+    closeLifecycle()
   }
 
   return (
@@ -276,7 +337,9 @@ export default function SupportPlanCard({
               className="btn btn-ghost"
               type="button"
               disabled={busy !== null}
-              onClick={() => void onStatusChange('DISCARDED')}
+              onClick={(event) =>
+                requestLifecycle('DISCARDED', event.currentTarget)
+              }
             >
               Hủy bản nháp
             </button>
@@ -326,9 +389,10 @@ export default function SupportPlanCard({
                   className="btn btn-outline"
                   type="button"
                   disabled={busy !== null}
-                  onClick={() =>
-                    void onStatusChange(
+                  onClick={(event) =>
+                    requestLifecycle(
                       plan.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
+                      event.currentTarget,
                     )
                   }
                 >
@@ -340,7 +404,9 @@ export default function SupportPlanCard({
                   className="btn btn-ghost"
                   type="button"
                   disabled={busy !== null}
-                  onClick={() => void onStatusChange('COMPLETED')}
+                  onClick={(event) =>
+                    requestLifecycle('COMPLETED', event.currentTarget)
+                  }
                 >
                   Kết thúc kế hoạch
                 </button>
@@ -383,6 +449,61 @@ export default function SupportPlanCard({
           Cập nhật {new Date(plan.updatedAt).toLocaleString('vi-VN')}
         </time>
       </footer>
+
+      {pendingStatus && (
+        <div className="support-plan-dialog-backdrop">
+          <section
+            className="support-plan-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="support-plan-lifecycle-title"
+          >
+            <span aria-hidden="true">!</span>
+            <h3 id="support-plan-lifecycle-title">
+              {lifecycleConfirmation[pendingStatus].title}
+            </h3>
+            <p>{lifecycleConfirmation[pendingStatus].message}</p>
+            {pendingStatus === 'COMPLETED' && (
+              <label>
+                Lý do (không bắt buộc)
+                <select
+                  value={completionReason}
+                  disabled={busy !== null}
+                  onChange={(event) => setCompletionReason(event.target.value)}
+                >
+                  <option value="">Không nêu lý do</option>
+                  <option value="USER_DECISION">Tôi chủ động kết thúc</option>
+                  <option value="PLAN_NO_LONGER_FITS">
+                    Kế hoạch không còn phù hợp
+                  </option>
+                  <option value="OTHER">Lý do khác</option>
+                </select>
+              </label>
+            )}
+            <div>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                disabled={busy !== null}
+                onClick={closeLifecycle}
+              >
+                Quay lại
+              </button>
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={busy !== null}
+                autoFocus
+                onClick={() => void confirmLifecycle()}
+              >
+                {busy === 'LIFECYCLE'
+                  ? 'Đang cập nhật…'
+                  : lifecycleConfirmation[pendingStatus].action}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </article>
   )
 }

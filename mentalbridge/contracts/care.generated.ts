@@ -366,6 +366,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support-plans/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List immutable terminal SupportPlan snapshots
+         * @description Returns only the authenticated user's COMPLETED, SUPERSEDED, and
+         *     DISCARDED plans in stable newest-first order. This persisted history is
+         *     never rebuilt from assessments, AI output, or current eligibility.
+         */
+        get: operations["listOwnTerminalSupportPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/{supportPlanId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reload one owned SupportPlan snapshot
+         * @description Returns the persisted owner snapshot in any lifecycle state. Terminal
+         *     snapshots are immutable and are not recomputed from newer evidence.
+         */
+        get: operations["getOwnSupportPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/support-plans/{supportPlanId}/choices": {
         parameters: {
             query?: never;
@@ -429,7 +472,9 @@ export interface paths {
          * @description ACTIVE may resume PAUSED, PAUSED may pause ACTIVE, COMPLETED ends an
          *     ACTIVE or PAUSED plan without implying recovery, and DISCARDED removes
          *     a DRAFT from current consideration. Repeating the already-applied desired
-         *     state is a no-op. Pausing cancels future scheduled occurrences; resuming
+         *     state is a no-op. An optional stable completion reason is accepted only
+         *     for COMPLETED and becomes part of the immutable terminal snapshot.
+         *     Pausing cancels future scheduled occurrences; resuming
          *     restores only still-future pause-cancelled occurrences and extends the
          *     bounded horizon; completing cancels future open occurrences.
          */
@@ -942,6 +987,11 @@ export interface components {
         ChangeSupportPlanStatusRequest: {
             /** @enum {string} */
             status: "ACTIVE" | "PAUSED" | "COMPLETED" | "DISCARDED";
+            /**
+             * @description Optional user-selected reason accepted only when status is COMPLETED; it never implies recovery
+             * @enum {string}
+             */
+            completionReason?: "USER_DECISION" | "PLAN_NO_LONGER_FITS" | "OTHER";
         };
         ReplaceCurrentSupportPlanRequest: {
             /** Format: uuid */
@@ -968,9 +1018,25 @@ export interface components {
             updatedAt: string;
             /** Format: date-time */
             activatedAt: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            /**
+             * @description Optional user-selected completion reason; never evidence of recovery
+             * @enum {string|null}
+             */
+            completionReason: "USER_DECISION" | "PLAN_NO_LONGER_FITS" | "OTHER" | null;
+            /** Format: date-time */
+            supersededAt: string | null;
+            /** Format: date-time */
+            discardedAt: string | null;
             /** @constant */
             disclaimerCode: "WELLBEING_SUPPORT_NOT_TREATMENT";
             disclaimer: string;
+        };
+        SupportPlanHistoryPage: {
+            items: components["schemas"]["SupportPlan"][];
+            nextCursor: string | null;
+            hasMore: boolean;
         };
         SupportPlanSource: {
             /** Format: uuid */
@@ -2012,6 +2078,64 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    listOwnTerminalSupportPlans: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stable terminal SupportPlan history page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanHistoryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getOwnSupportPlan: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned SupportPlan snapshot */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlan"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
         };
     };
     replaceOwnSupportPlanDraftChoices: {

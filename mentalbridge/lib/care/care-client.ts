@@ -33,6 +33,7 @@ import type {
   SupportEvaluationV2Request,
   SupportPlan,
   SupportPlanDraft,
+  SupportPlanHistoryPage,
   SupportPlanOccurrence,
   SupportPlanOccurrenceList,
   ChangeSupportPlanOccurrenceStateRequest,
@@ -59,6 +60,7 @@ import {
   parseSupportEvaluationV2,
   parseSupportPlan,
   parseSupportPlanDraft,
+  parseSupportPlanHistoryPage,
   parseSupportPlanOccurrence,
   parseSupportPlanOccurrenceList,
 } from './support-plan-validation'
@@ -526,6 +528,37 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parseSupportPlan,
+    })
+  },
+
+  supportPlan(
+    accessToken: string,
+    supportPlanId: string,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlan,
+    })
+  },
+
+  supportPlanHistory(
+    accessToken: string,
+    limit: number,
+    cursor: string | undefined,
+    correlationId: string,
+  ): Promise<SupportPlanHistoryPage> {
+    const query = new URLSearchParams({ limit: String(limit) })
+    if (cursor) query.set('cursor', cursor)
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-plans/history?${query}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanHistoryPage,
     })
   },
 

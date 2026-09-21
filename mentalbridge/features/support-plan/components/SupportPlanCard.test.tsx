@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { supportPlanFixture } from '../testing/support-plan-fixture'
@@ -129,12 +129,22 @@ describe('SupportPlanCard', () => {
     expect(screen.getByTestId('support-plan-schedule')).toBeVisible()
   })
 
-  it('keeps lifecycle decisions explicit and user-controlled', () => {
+  it('keeps lifecycle decisions explicit, confirmed, and user-controlled', async () => {
     const fixture = supportPlanFixture()
     const { onStatusChange, rerender } = renderCard(fixture)
 
     fireEvent.click(screen.getByRole('button', { name: 'Hủy bản nháp' }))
-    expect(onStatusChange).toHaveBeenCalledWith('DISCARDED')
+    expect(onStatusChange).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('dialog', { name: 'Hủy bản nháp SupportPlan?' }),
+    ).toBeVisible()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Xác nhận hủy bản nháp' }),
+    )
+    await waitFor(() =>
+      expect(onStatusChange).toHaveBeenCalledWith('DISCARDED', undefined),
+    )
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 
     rerender(
       <SupportPlanCard
@@ -152,7 +162,11 @@ describe('SupportPlanCard', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Tạm dừng kế hoạch' }))
-    expect(onStatusChange).toHaveBeenCalledWith('PAUSED')
+    expect(onStatusChange).not.toHaveBeenCalledWith('PAUSED', undefined)
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận tạm dừng' }))
+    await waitFor(() =>
+      expect(onStatusChange).toHaveBeenCalledWith('PAUSED', undefined),
+    )
 
     rerender(
       <SupportPlanCard
@@ -166,5 +180,25 @@ describe('SupportPlanCard', () => {
     )
     expect(screen.getByText('Bản nháp SupportPlan đã hủy')).toBeVisible()
     expect(screen.queryByTestId('support-plan-schedule')).toBeNull()
+  })
+
+  it('collects only a bounded optional reason when completing', async () => {
+    const fixture = supportPlanFixture()
+    const { onStatusChange } = renderCard({
+      ...fixture,
+      status: 'ACTIVE',
+      version: 1,
+      activatedAt: '2026-09-20T05:00:00Z',
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kết thúc kế hoạch' }))
+    fireEvent.change(screen.getByLabelText('Lý do (không bắt buộc)'), {
+      target: { value: 'USER_DECISION' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận kết thúc' }))
+
+    await waitFor(() =>
+      expect(onStatusChange).toHaveBeenCalledWith('COMPLETED', 'USER_DECISION'),
+    )
   })
 })
