@@ -4,10 +4,15 @@ import { describe, expect, it, vi } from 'vitest'
 import { supportPlanFixture } from '../testing/support-plan-fixture'
 import SupportPlanCard from './SupportPlanCard'
 
+vi.mock('./SupportPlanSchedule', () => ({
+  default: () => <div data-testid="support-plan-schedule" />,
+}))
+
 function renderCard(
   plan = supportPlanFixture(),
   onSaveChoices = vi.fn(async () => undefined),
   onActivate = vi.fn(async () => undefined),
+  onStatusChange = vi.fn(async () => undefined),
 ) {
   const view = render(
     <SupportPlanCard
@@ -16,9 +21,10 @@ function renderCard(
       message=""
       onSaveChoices={onSaveChoices}
       onActivate={onActivate}
+      onStatusChange={onStatusChange}
     />,
   )
-  return { ...view, onSaveChoices, onActivate }
+  return { ...view, onSaveChoices, onActivate, onStatusChange }
 }
 
 describe('SupportPlanCard', () => {
@@ -115,10 +121,50 @@ describe('SupportPlanCard', () => {
     })
 
     expect(screen.getByText('Đang hoạt động')).toBeVisible()
-    expect(screen.getByText('SupportPlan đã được kích hoạt')).toBeVisible()
+    expect(screen.getByText('SupportPlan đang hoạt động')).toBeVisible()
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Kích hoạt SupportPlan' }),
     ).not.toBeInTheDocument()
+    expect(screen.getByTestId('support-plan-schedule')).toBeVisible()
+  })
+
+  it('keeps lifecycle decisions explicit and user-controlled', () => {
+    const fixture = supportPlanFixture()
+    const { onStatusChange, rerender } = renderCard(fixture)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy bản nháp' }))
+    expect(onStatusChange).toHaveBeenCalledWith('DISCARDED')
+
+    rerender(
+      <SupportPlanCard
+        plan={{
+          ...fixture,
+          status: 'ACTIVE',
+          version: 1,
+          activatedAt: '2026-09-20T05:00:00Z',
+        }}
+        busy={null}
+        message=""
+        onSaveChoices={vi.fn()}
+        onActivate={vi.fn()}
+        onStatusChange={onStatusChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Tạm dừng kế hoạch' }))
+    expect(onStatusChange).toHaveBeenCalledWith('PAUSED')
+
+    rerender(
+      <SupportPlanCard
+        plan={{ ...fixture, status: 'DISCARDED', version: 1 }}
+        busy={null}
+        message=""
+        onSaveChoices={vi.fn()}
+        onActivate={vi.fn()}
+        onStatusChange={onStatusChange}
+      />,
+    )
+    expect(screen.getByText('Bản nháp SupportPlan đã hủy')).toBeVisible()
+    expect(screen.queryByTestId('support-plan-schedule')).toBeNull()
   })
 })

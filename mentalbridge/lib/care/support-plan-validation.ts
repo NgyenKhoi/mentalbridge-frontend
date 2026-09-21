@@ -2,6 +2,8 @@ import type {
   SupportEvaluationV2,
   SupportPlan,
   SupportPlanDraft,
+  SupportPlanOccurrence,
+  SupportPlanOccurrenceList,
 } from '@/features/support-plan/api/support-plan-contract'
 import { isUuid } from './care-validation'
 
@@ -17,6 +19,17 @@ function text(value: unknown, max = 4096): value is string {
 
 function instant(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(Date.parse(value))
+}
+
+function localDate(value: unknown): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+function localTime(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(value)
+  )
 }
 
 function resource(value: unknown) {
@@ -42,7 +55,14 @@ function resource(value: unknown) {
 export function parseSupportPlan(value: unknown): SupportPlan | null {
   if (!object(value) || !isUuid(String(value.supportPlanId))) return null
   if (
-    !['DRAFT', 'ACTIVE', 'PAUSED'].includes(String(value.status)) ||
+    ![
+      'DRAFT',
+      'ACTIVE',
+      'PAUSED',
+      'COMPLETED',
+      'SUPERSEDED',
+      'DISCARDED',
+    ].includes(String(value.status)) ||
     !Number.isInteger(value.version)
   )
     return null
@@ -103,7 +123,7 @@ export function parseSupportPlan(value: unknown): SupportPlan | null {
     !text(value.disclaimer, 1000) ||
     !instant(value.createdAt) ||
     !instant(value.updatedAt) ||
-    (value.status === 'DRAFT'
+    (['DRAFT', 'DISCARDED'].includes(String(value.status))
       ? value.activatedAt !== null
       : !instant(value.activatedAt))
   )
@@ -114,6 +134,80 @@ export function parseSupportPlan(value: unknown): SupportPlan | null {
 export function parseSupportPlanDraft(value: unknown): SupportPlanDraft | null {
   const plan = parseSupportPlan(value)
   return plan?.status === 'DRAFT' ? plan : null
+}
+
+export function parseSupportPlanOccurrence(
+  value: unknown,
+): SupportPlanOccurrence | null {
+  if (!object(value) || !object(value.source)) return null
+  const sourceType = String(value.source.type)
+  const resourceSource =
+    sourceType === 'RESOURCE' &&
+    text(value.source.slotId, 64) &&
+    isUuid(String(value.source.resourceId)) &&
+    typeof value.source.contentVersion === 'string' &&
+    /^\d+$/.test(value.source.contentVersion)
+  const promptSource =
+    ['JOURNAL_PROMPT', 'EMOTION_CHECK_IN_PROMPT'].includes(sourceType) &&
+    value.source.slotId === null &&
+    value.source.resourceId === null &&
+    value.source.contentVersion === null
+  if (
+    !isUuid(String(value.occurrenceId)) ||
+    !isUuid(String(value.supportPlanId)) ||
+    !isUuid(String(value.scheduleId)) ||
+    !Number.isInteger(value.scheduleVersion) ||
+    Number(value.scheduleVersion) < 1 ||
+    !localDate(value.localDate) ||
+    !localTime(value.localTime) ||
+    !text(value.timezone, 64) ||
+    !instant(value.scheduledAt) ||
+    !['SCHEDULED', 'COMPLETED', 'SKIPPED', 'CANCELLED'].includes(
+      String(value.state),
+    ) ||
+    !['SCHEDULED', 'MISSED', 'COMPLETED', 'SKIPPED', 'CANCELLED'].includes(
+      String(value.displayState),
+    ) ||
+    (value.stateReason !== null &&
+      !['PLAN_PAUSED', 'PLAN_COMPLETED', 'PLAN_REPLACED'].includes(
+        String(value.stateReason),
+      )) ||
+    !Number.isInteger(value.version) ||
+    Number(value.version) < 0 ||
+    !Number.isInteger(value.source.supportPlanVersion) ||
+    Number(value.source.supportPlanVersion) < 1 ||
+    (!resourceSource && !promptSource) ||
+    !text(value.source.title, 255) ||
+    !instant(value.updatedAt) ||
+    ![value.completedAt, value.skippedAt, value.cancelledAt].every(
+      (timestamp) => timestamp === null || instant(timestamp),
+    ) ||
+    value.interpretationCode !==
+      'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE'
+  )
+    return null
+  return value as SupportPlanOccurrence
+}
+
+export function parseSupportPlanOccurrenceList(
+  value: unknown,
+): SupportPlanOccurrenceList | null {
+  if (
+    !object(value) ||
+    !isUuid(String(value.supportPlanId)) ||
+    !['ACTIVE', 'PAUSED'].includes(String(value.supportPlanStatus)) ||
+    value.schedulePolicyVersion !== 'support-plan-activity-schedule-v1' ||
+    !localDate(value.from) ||
+    !localDate(value.through) ||
+    !Array.isArray(value.occurrences) ||
+    value.occurrences.length > 217 ||
+    value.interpretationCode !==
+      'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE'
+  )
+    return null
+  const occurrences = value.occurrences.map(parseSupportPlanOccurrence)
+  if (occurrences.some((occurrence) => occurrence === null)) return null
+  return { ...value, occurrences } as SupportPlanOccurrenceList
 }
 
 export function parseSupportEvaluationV2(

@@ -416,6 +416,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support-plans/{supportPlanId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Apply an explicit idempotent SupportPlan lifecycle state
+         * @description ACTIVE may resume PAUSED, PAUSED may pause ACTIVE, COMPLETED ends an
+         *     ACTIVE or PAUSED plan without implying recovery, and DISCARDED removes
+         *     a DRAFT from current consideration. Repeating the already-applied desired
+         *     state is a no-op. Pausing cancels future scheduled occurrences; resuming
+         *     restores only still-future pause-cancelled occurrences and extends the
+         *     bounded horizon; completing cancels future open occurrences.
+         */
+        put: operations["replaceOwnSupportPlanStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/{supportPlanId}/replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly replace the current plan with a revalidated draft
+         * @description Care revalidates the owned draft before one local transaction marks the
+         *     former current plan SUPERSEDED, cancels its future occurrences, activates
+         *     the draft, and creates the replacement plan's deterministic schedules.
+         */
+        post: operations["replaceOwnCurrentSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plan-occurrences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List current-plan occurrences for a bounded local-date window
+         * @description The inclusive window is at most 31 local days and is limited to the
+         *     supported recent/today/upcoming range. For an ACTIVE plan, Care safely
+         *     fills any missing logical occurrences before returning the persisted
+         *     list. Generation is deterministic and protected by a unique local-intent
+         *     key, so retries and plan reloads do not duplicate occurrences. DAILY and
+         *     WEEKLY schedules preserve the profile's IANA timezone. A daylight gap
+         *     moves to the first valid local instant; an overlap uses the earlier offset.
+         */
+        get: operations["listOwnSupportPlanOccurrences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plan-occurrences/{occurrenceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one owned occurrence with source and local-time provenance */
+        get: operations["getOwnSupportPlanOccurrence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plan-occurrences/{occurrenceId}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark an occurrence completed or skipped as a self-reported input
+         * @description This user action is not treatment adherence, clinical success, or
+         *     recovery evidence. Repeating the same desired state is a no-op. AI may
+         *     phrase a label but cannot call this command or select the state.
+         */
+        put: operations["replaceOwnSupportPlanOccurrenceState"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/anonymous-assessment-sessions": {
         parameters: {
             query?: never;
@@ -827,12 +939,21 @@ export interface components {
             resourceId: string;
             contentVersion: string;
         };
+        ChangeSupportPlanStatusRequest: {
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED" | "COMPLETED" | "DISCARDED";
+        };
+        ReplaceCurrentSupportPlanRequest: {
+            /** Format: uuid */
+            currentSupportPlanId: string;
+            currentVersion: number;
+        };
         SupportPlanDraft: components["schemas"]["SupportPlan"];
         SupportPlan: {
             /** Format: uuid */
             supportPlanId: string;
             /** @enum {string} */
-            status: "DRAFT" | "ACTIVE" | "PAUSED";
+            status: "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED" | "SUPERSEDED" | "DISCARDED";
             version: number;
             source: components["schemas"]["SupportPlanSource"];
             entitlement: components["schemas"]["SupportPlanEntitlementEvidence"];
@@ -923,6 +1044,69 @@ export interface components {
             summary: string;
             /** Format: uri */
             externalUrl?: string | null;
+        };
+        ChangeSupportPlanOccurrenceStateRequest: {
+            /** @enum {string} */
+            state: "COMPLETED" | "SKIPPED";
+        };
+        SupportPlanOccurrenceList: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @enum {string} */
+            supportPlanStatus: "ACTIVE" | "PAUSED";
+            /** @constant */
+            schedulePolicyVersion: "support-plan-activity-schedule-v1";
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            through: string;
+            occurrences: components["schemas"]["SupportPlanOccurrence"][];
+            /** @constant */
+            interpretationCode: "SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE";
+        };
+        SupportPlanOccurrence: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: uuid */
+            supportPlanId: string;
+            /** Format: uuid */
+            scheduleId: string;
+            scheduleVersion: number;
+            /** Format: date */
+            localDate: string;
+            /** Format: time */
+            localTime: string;
+            timezone: string;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            state: "SCHEDULED" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+            /** @enum {string} */
+            displayState: "SCHEDULED" | "MISSED" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+            /** @enum {string|null} */
+            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | null;
+            version: number;
+            source: components["schemas"]["SupportPlanOccurrenceSource"];
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: date-time */
+            skippedAt: string | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            /** @constant */
+            interpretationCode: "SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE";
+        };
+        SupportPlanOccurrenceSource: {
+            /** @enum {string} */
+            type: "RESOURCE" | "JOURNAL_PROMPT" | "EMOTION_CHECK_IN_PROMPT";
+            supportPlanVersion: number;
+            slotId: string | null;
+            /** Format: uuid */
+            resourceId: string | null;
+            contentVersion: string | null;
+            title: string;
         };
         Problem: {
             /** Format: uri-reference */
@@ -1141,6 +1325,52 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description The requested lifecycle transition is invalid or a replacement source is stale (SUPPORT_PLAN_TRANSITION_INVALID) */
+        SupportPlanLifecycleConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The occurrence is absent or not owned by the authenticated user (OCCURRENCE_NOT_FOUND) */
+        SupportPlanOccurrenceNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The occurrence is cancelled, already has another terminal input, or its source plan is no longer current (OCCURRENCE_NOT_OPEN or SUPPORT_PLAN_NOT_CURRENT) */
+        SupportPlanOccurrenceConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description If-Match does not equal the Care-owned occurrence version (OCCURRENCE_VERSION_MISMATCH) */
+        SupportPlanOccurrenceVersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Authoritative occurrence with local-time and source provenance */
+        SupportPlanOccurrenceResult: {
+            headers: {
+                ETag: components["headers"]["SupportPlanETag"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["SupportPlanOccurrence"];
+            };
+        };
         /** @description Updated authoritative plan or the identical persisted command outcome */
         SupportPlanCommandResult: {
             headers: {
@@ -1203,6 +1433,7 @@ export interface components {
         DefinitionId: string;
         SupportEvaluationId: string;
         SupportPlanId: string;
+        OccurrenceId: string;
         SessionId: string;
         Instrument: components["schemas"]["Instrument"];
         Locale: string;
@@ -1839,6 +2070,140 @@ export interface operations {
             409: components["responses"]["SupportPlanActivationConflictProblem"];
             412: components["responses"]["SupportPlanVersionProblem"];
             503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    replaceOwnSupportPlanStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSupportPlanStatusRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["SupportPlanCommandResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanLifecycleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
+    replaceOwnCurrentSupportPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceCurrentSupportPlanRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["SupportPlanCommandResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["SupportPlanEntitlementProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanLifecycleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    listOwnSupportPlanOccurrences: {
+        parameters: {
+            query: {
+                from: string;
+                through: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted occurrence window for the current plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanOccurrenceList"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    getOwnSupportPlanOccurrence: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["SupportPlanOccurrenceResult"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+        };
+    };
+    replaceOwnSupportPlanOccurrenceState: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSupportPlanOccurrenceStateRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["SupportPlanOccurrenceResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
         };
     };
     createAnonymousAssessmentSession: {
