@@ -6,6 +6,7 @@ import type {
   SupportPlanHistoryPage,
   SupportPlanOccurrenceList,
   SupportPlanOccurrence,
+  ReplaceSupportPlanOccurrenceEngagementRequest,
 } from './support-plan-contract'
 
 export async function proposeSupportPlanDraft(idempotencyKey: string) {
@@ -36,6 +37,32 @@ export async function changeSupportPlanOccurrenceState(
     await browserApiClient.put<SupportPlanOccurrence>(
       `/care/support-plan-occurrences/${encodeURIComponent(occurrenceId)}/state`,
       { state },
+      { headers: { 'If-Match': `"${version}"` } },
+    )
+  ).data
+}
+
+export async function replaceSupportPlanOccurrenceEngagement(
+  occurrenceId: string,
+  version: number,
+  request: ReplaceSupportPlanOccurrenceEngagementRequest,
+) {
+  return (
+    await browserApiClient.put<SupportPlanOccurrence>(
+      `/care/support-plan-occurrences/${encodeURIComponent(occurrenceId)}/engagement`,
+      request,
+      { headers: { 'If-Match': `"${version}"` } },
+    )
+  ).data
+}
+
+export async function deleteSupportPlanOccurrenceEngagement(
+  occurrenceId: string,
+  version: number,
+) {
+  return (
+    await browserApiClient.delete<SupportPlanOccurrence>(
+      `/care/support-plan-occurrences/${encodeURIComponent(occurrenceId)}/engagement`,
       { headers: { 'If-Match': `"${version}"` } },
     )
   ).data
