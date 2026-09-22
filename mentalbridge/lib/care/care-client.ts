@@ -19,6 +19,7 @@ import type {
   Instrument,
   SupportEvaluation,
   SupportEvaluationRequest,
+  SafetyDirectoryResponse,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
 import type {
@@ -56,6 +57,7 @@ import {
   parseAssessmentHistory,
   parseAssessmentProgress,
   parseSupportEvaluation,
+  parseSafetyDirectory,
 } from './care-validation'
 import {
   parseSupportEvaluationV2,
@@ -195,6 +197,24 @@ async function careRequest<T>(options: RequestOptions<T>): Promise<T> {
 }
 
 export const careClient = {
+  lookupSafetyDirectory(
+    request: {
+      trigger: 'POSITIVE_ITEM_9' | 'HELP_NOW'
+      provinceCode?: string
+      districtCode?: string
+      manualLocation?: string
+    },
+    correlationId: string,
+  ): Promise<SafetyDirectoryResponse> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v1/safety-directory-lookups',
+      correlationId,
+      body: request,
+      parseSuccess: parseSafetyDirectory,
+    })
+  },
+
   currentPrivacyDisclosure(correlationId: string): Promise<PrivacyDisclosure> {
     return careRequest({
       method: 'GET',

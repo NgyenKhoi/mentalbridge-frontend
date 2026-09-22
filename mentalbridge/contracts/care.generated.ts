@@ -672,10 +672,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/safety-directory-lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return Care-owned safety fallback with optional current area-directory results
+         * @description Positive PHQ-9 item 9 and the explicit help-now action enter this same
+         *     flow. Calling this public endpoint is itself an explicit help-now action;
+         *     the trigger value is presentation provenance and never a risk label.
+         *     Care always returns local reviewed fallback even when Content is empty,
+         *     malformed, timed out, circuit-open, or unavailable.
+         */
+        post: operations["lookupReviewedSafetyDirectory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Presentation provenance only; never a suicide-risk classification
+         * @enum {string}
+         */
+        SafetyDirectoryTrigger: "POSITIVE_ITEM_9" | "HELP_NOW";
+        CareSafetyDirectoryLookupRequest: {
+            trigger: components["schemas"]["SafetyDirectoryTrigger"];
+            provinceCode?: string;
+            districtCode?: string;
+            manualLocation?: string;
+        } & (unknown | unknown);
+        /** @enum {string} */
+        CareSafetyDirectoryState: "RESULTS" | "EMPTY" | "INVALID_AREA" | "UNAVAILABLE";
+        CareSafetyDirectoryEntry: {
+            /** Format: uuid */
+            directoryEntryId: string;
+            name: string;
+            /** @enum {string} */
+            type: "FACILITY" | "HOTLINE";
+            phone: string;
+            address: string | null;
+            coverage: {
+                [key: string]: unknown;
+            }[];
+            sourceName: string;
+            sourceReference: string;
+            /** Format: date-time */
+            reviewedAt: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        } & {
+            [key: string]: unknown;
+        };
+        CareSafetyDirectoryLookupResponse: {
+            trigger: components["schemas"]["SafetyDirectoryTrigger"];
+            state: components["schemas"]["CareSafetyDirectoryState"];
+            /** @constant */
+            areaWording: "Cơ sở trong khu vực đã chọn";
+            /** @constant */
+            safetyGuidance: "Nếu bạn cảm thấy mình không an toàn hoặc có nguy cơ gây hại cho bản thân, hãy chủ động liên hệ dịch vụ khẩn cấp hoặc cơ sở y tế phù hợp tại khu vực của bạn.";
+            /** @constant */
+            limitation: "MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
+            entries: components["schemas"]["CareSafetyDirectoryEntry"][];
+        };
         ProfilePutRequest: {
             displayName: string;
             /**
@@ -2540,6 +2608,35 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
             410: components["responses"]["ExpiredAnonymousSessionProblem"];
             429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    lookupReviewedSafetyDirectory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CareSafetyDirectoryLookupRequest"];
+            };
+        };
+        responses: {
+            /** @description Synchronous safety response with results or explicit fallback state */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareSafetyDirectoryLookupResponse"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
         };
     };
 }

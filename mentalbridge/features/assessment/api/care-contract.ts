@@ -36,3 +36,9 @@ export type ScreeningMeaning = Schemas['ScreeningMeaning']
 export type SupportNextStep = Schemas['SupportNextStep']
 export type SupportTier = Schemas['SupportTier']
 export type SupportReasonCode = Schemas['SupportReasonCode']
+
+export type SafetyDirectoryTrigger = Schemas['SafetyDirectoryTrigger']
+export type SafetyDirectoryState = Schemas['CareSafetyDirectoryState']
+export type SafetyDirectoryEntry = Schemas['CareSafetyDirectoryEntry']
+export type SafetyDirectoryResponse =
+  Schemas['CareSafetyDirectoryLookupResponse']
