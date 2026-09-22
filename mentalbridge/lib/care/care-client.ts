@@ -37,6 +37,7 @@ import type {
   SupportPlanOccurrence,
   SupportPlanOccurrenceList,
   ChangeSupportPlanOccurrenceStateRequest,
+  ReplaceSupportPlanOccurrenceEngagementRequest,
   ChangeSupportPlanStatusRequest,
 } from '@/features/support-plan/api/support-plan-contract'
 import {
@@ -66,7 +67,7 @@ import {
 } from './support-plan-validation'
 
 type RequestOptions<T> = Readonly<{
-  method: 'GET' | 'POST' | 'PUT'
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   path: string
   correlationId: string
   authorization?: string
@@ -642,6 +643,40 @@ export const careClient = {
       authorization: accessToken,
       ifMatch: version,
       body: request,
+      parseSuccess: parseSupportPlanOccurrence,
+    })
+  },
+
+  replaceSupportPlanOccurrenceEngagement(
+    accessToken: string,
+    occurrenceId: string,
+    version: number,
+    request: ReplaceSupportPlanOccurrenceEngagementRequest,
+    correlationId: string,
+  ): Promise<SupportPlanOccurrence> {
+    return careRequest({
+      method: 'PUT',
+      path: `/api/v1/support-plan-occurrences/${encodeURIComponent(occurrenceId)}/engagement`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      body: request,
+      parseSuccess: parseSupportPlanOccurrence,
+    })
+  },
+
+  deleteSupportPlanOccurrenceEngagement(
+    accessToken: string,
+    occurrenceId: string,
+    version: number,
+    correlationId: string,
+  ): Promise<SupportPlanOccurrence> {
+    return careRequest({
+      method: 'DELETE',
+      path: `/api/v1/support-plan-occurrences/${encodeURIComponent(occurrenceId)}/engagement`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
       parseSuccess: parseSupportPlanOccurrence,
     })
   },

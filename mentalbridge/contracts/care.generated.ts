@@ -573,6 +573,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support-plan-occurrences/{occurrenceId}/engagement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace one current occurrence's user-owned engagement
+         * @description The complete desired state is naturally idempotent. SCHEDULED reopens
+         *     a completed or skipped occurrence and clears its signals. Helpfulness
+         *     belongs only to completion, while a barrier belongs only to skip.
+         *     Reflection is bounded and never published in the minimized integration
+         *     fact. Hiding is a reversible display preference. Only an occurrence in
+         *     the authenticated user's ACTIVE current plan accepts this command.
+         *     These values are self-reported wellbeing engagement, not adherence,
+         *     clinical outcome, symptom improvement, or recovery.
+         */
+        put: operations["replaceOwnSupportPlanOccurrenceEngagement"];
+        post?: never;
+        /**
+         * Delete one current occurrence's mutable engagement
+         * @description Clears completion/skip, visibility, helpfulness, barrier, reflection,
+         *     and reuse approval while retaining immutable schedule and exact source
+         *     provenance. Repeating the already-cleared desired result is a no-op.
+         *     The controlled demo retains engagement with its occurrence until this
+         *     owner command or account-deletion coordination removes it; no public
+         *     production retention duration is claimed.
+         */
+        delete: operations["deleteOwnSupportPlanOccurrenceEngagement"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/anonymous-assessment-sessions": {
         parameters: {
             query?: never;
@@ -1115,6 +1151,26 @@ export interface components {
             /** @enum {string} */
             state: "COMPLETED" | "SKIPPED";
         };
+        ReplaceSupportPlanOccurrenceEngagementRequest: {
+            /** @enum {string} */
+            state: "SCHEDULED" | "COMPLETED" | "SKIPPED";
+            /** @description Reversible owner display preference; it does not change engagement state. */
+            hidden: boolean;
+            /**
+             * @description Optional self-reported helpfulness, valid only with COMPLETED.
+             * @enum {string|null}
+             */
+            helpfulness: "NOT_HELPFUL" | "A_LITTLE_HELPFUL" | "HELPFUL" | "VERY_HELPFUL" | null;
+            /**
+             * @description Optional structured barrier, valid only with SKIPPED.
+             * @enum {string|null}
+             */
+            barrierCode: "LOW_ENERGY" | "NOT_ENOUGH_TIME" | "DIFFICULT_TO_START" | "NOT_A_GOOD_FIT" | "OTHER" | null;
+            /** @description Optional bounded owner reflection; excluded from minimized integration facts. */
+            reflection: string | null;
+            /** @description Explicit approval for later bounded-summary reuse; never grants live checklist access. */
+            summaryReuseApproved: boolean;
+        };
         SupportPlanOccurrenceList: {
             /** Format: uuid */
             supportPlanId: string;
@@ -1161,6 +1217,17 @@ export interface components {
             skippedAt: string | null;
             /** Format: date-time */
             cancelledAt: string | null;
+            /** @description Owner-controlled display preference independent of completion state. */
+            hidden: boolean;
+            /** @enum {string|null} */
+            helpfulness: "NOT_HELPFUL" | "A_LITTLE_HELPFUL" | "HELPFUL" | "VERY_HELPFUL" | null;
+            /** @enum {string|null} */
+            barrierCode: "LOW_ENERGY" | "NOT_ENOUGH_TIME" | "DIFFICULT_TO_START" | "NOT_A_GOOD_FIT" | "OTHER" | null;
+            reflection: string | null;
+            /** @description Owner approval for a later bounded summary, not specialist checklist access. */
+            summaryReuseApproved: boolean;
+            /** Format: date-time */
+            engagementUpdatedAt: string | null;
             /** @constant */
             interpretationCode: "SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE";
         };
@@ -2325,6 +2392,59 @@ export interface operations {
             200: components["responses"]["SupportPlanOccurrenceResult"];
             400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    replaceOwnSupportPlanOccurrenceEngagement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceSupportPlanOccurrenceEngagementRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["SupportPlanOccurrenceResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    deleteOwnSupportPlanOccurrenceEngagement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["SupportPlanOccurrenceResult"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
             409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
             412: components["responses"]["SupportPlanOccurrenceVersionProblem"];

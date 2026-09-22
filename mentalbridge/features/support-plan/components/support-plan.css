@@ -417,8 +417,8 @@
 
 .support-plan-occurrence {
   display: grid;
-  grid-template-columns: minmax(92px, auto) minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(92px, auto) minmax(0, 1fr);
+  align-items: start;
   gap: 1rem;
   padding: 1rem;
   border: 1px solid var(--line);
@@ -469,6 +469,88 @@
 
 .support-plan-occurrence details p {
   margin: 0.25rem 0;
+}
+
+.support-plan-reflection {
+  margin: 0.65rem 0 0;
+  padding: 0.7rem 0.8rem;
+  border-inline-start: 3px solid var(--teal);
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.support-plan-engagement-form {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.support-plan-engagement-form h5 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.support-plan-engagement-form > label:not(.support-plan-summary-consent) {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+.support-plan-engagement-form select,
+.support-plan-engagement-form textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.support-plan-engagement-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.support-plan-character-count {
+  justify-self: end;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.support-plan-summary-consent {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  gap: 0.65rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.support-plan-summary-consent input {
+  width: 20px;
+  height: 20px;
+  margin: 0.15rem 0 0;
+  accent-color: var(--teal-deep);
+}
+
+.support-plan-hidden-items > summary {
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--teal-deep);
+  font-weight: 750;
+  line-height: 44px;
+}
+
+.support-plan-hidden-items > ol {
+  margin-top: 0.5rem;
 }
 
 .support-plan-schedule-boundary {

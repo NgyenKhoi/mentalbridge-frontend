@@ -110,6 +110,9 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   let activationCommands = 0
   let occurrenceState = 'SCHEDULED'
   let occurrenceVersion = 0
+  let occurrenceHelpfulness: 'HELPFUL' | null = null
+  let occurrenceReflection: string | null = null
+  let occurrenceSummaryReuseApproved = false
   const today = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
@@ -142,6 +145,12 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       occurrenceState === 'COMPLETED' ? '2026-09-21T02:00:00Z' : null,
     skippedAt: null,
     cancelledAt: null,
+    hidden: false,
+    helpfulness: occurrenceHelpfulness,
+    barrierCode: null,
+    reflection: occurrenceReflection,
+    summaryReuseApproved: occurrenceSummaryReuseApproved,
+    engagementUpdatedAt: occurrenceVersion > 0 ? '2026-09-21T02:00:00Z' : null,
     interpretationCode:
       'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
   })
@@ -224,14 +233,24 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     })
   })
   await page.route(
-    '**/api/care/support-plan-occurrences/*/state',
+    '**/api/care/support-plan-occurrences/*/engagement',
     async (route) => {
       expect(route.request().method()).toBe('PUT')
       expect(route.request().headers()['if-match']).toBe(
         `"${occurrenceVersion}"`,
       )
-      expect(route.request().postDataJSON()).toEqual({ state: 'COMPLETED' })
+      expect(route.request().postDataJSON()).toEqual({
+        state: 'COMPLETED',
+        hidden: false,
+        helpfulness: 'HELPFUL',
+        barrierCode: null,
+        reflection: 'Tôi muốn tiếp tục theo nhịp này.',
+        summaryReuseApproved: true,
+      })
       occurrenceState = 'COMPLETED'
+      occurrenceHelpfulness = 'HELPFUL'
+      occurrenceReflection = 'Tôi muốn tiếp tục theo nhịp này.'
+      occurrenceSummaryReuseApproved = true
       occurrenceVersion += 1
       await route.fulfill({
         status: 200,
@@ -289,12 +308,19 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       .getByRole('region', { name: 'Nội dung SupportPlan' })
       .getByRole('heading', { name: 'Lựa chọn thay thế đã duyệt' }),
   ).toBeVisible()
-  await expect(page.getByText('Hôm nay và sắp tới')).toBeVisible()
+  await expect(page.getByText('Hoạt động của tôi')).toBeVisible()
   await expect(page.getByText('Asia/Ho_Chi_Minh')).toBeVisible()
   await page.getByText('Chi tiết nguồn').click()
   await expect(page.getByText(/Phiên bản tài nguyên 2/)).toBeVisible()
-  await page.getByRole('button', { name: 'Đã làm' }).click()
-  await expect(page.getByText('Bạn đã hoàn thành')).toBeVisible()
+  await page.getByRole('button', { name: 'Ghi nhận đã làm' }).click()
+  await page.getByLabel(/Hoạt động này hữu ích với bạn/).selectOption('HELPFUL')
+  await page
+    .getByLabel(/Ghi chú riêng/)
+    .fill('Tôi muốn tiếp tục theo nhịp này.')
+  await page.getByRole('checkbox').check()
+  await page.getByRole('button', { name: 'Lưu tự ghi nhận' }).click()
+  await expect(page.getByText('Bạn đã ghi nhận là đã làm')).toBeVisible()
+  await expect(page.getByText(/Tôi muốn tiếp tục theo nhịp này/)).toBeVisible()
   await expect(
     page.getByText(/không phải đánh giá tuân thủ điều trị/),
   ).toBeVisible()
