@@ -118,17 +118,29 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
   const [draft, setDraft] = useState<Draft>()
   const [message, setMessage] = useState('')
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setMessage('')
-    try {
-      setSchedule(await getSupportPlanOccurrences(today, addDays(today, 13)))
-    } catch {
-      setMessage('Chưa thể tải lịch hoạt động lúc này.')
-    } finally {
-      setLoading(false)
-    }
-  }, [today])
+  const load = useCallback(
+    async (messageAfterLoad = '') => {
+      setLoading(true)
+      if (!messageAfterLoad) setMessage('')
+      try {
+        const loaded = await getSupportPlanOccurrences(
+          today,
+          addDays(today, 13),
+        )
+        setSchedule(loaded)
+        if (loaded.supportPlanStatus !== 'ACTIVE') {
+          setEditingId(undefined)
+          setDraft(undefined)
+        }
+        setMessage(messageAfterLoad)
+      } catch {
+        setMessage('Chưa thể tải lịch hoạt động lúc này.')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [today],
+  )
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0)
@@ -168,8 +180,7 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
         successMessage,
       )
     } catch (error) {
-      setMessage(errorMessage(error))
-      await load()
+      await load(errorMessage(error))
     } finally {
       setBusyId(undefined)
     }
@@ -204,8 +215,7 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
         'Đã xoá phần tự ghi nhận; lịch gốc vẫn được giữ lại.',
       )
     } catch (error) {
-      setMessage(errorMessage(error))
-      await load()
+      await load(errorMessage(error))
     } finally {
       setBusyId(undefined)
     }
@@ -223,13 +233,19 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
   }
 
   const occurrences = schedule?.occurrences ?? []
+  const authoritativePlanStatus = schedule?.supportPlanStatus ?? planStatus
   const visible = occurrences.filter((item) => !item.hidden)
   const hidden = occurrences.filter((item) => item.hidden)
   const todayItems = visible.filter((item) => item.localDate === today)
   const upcoming = visible.filter((item) => item.localDate !== today)
 
   const renderForm = (occurrence: SupportPlanOccurrence) => {
-    if (editingId !== occurrence.occurrenceId || !draft) return null
+    if (
+      authoritativePlanStatus !== 'ACTIVE' ||
+      editingId !== occurrence.occurrenceId ||
+      !draft
+    )
+      return null
     const busy = busyId === occurrence.occurrenceId
     return (
       <div className="support-plan-engagement-form">
@@ -337,7 +353,8 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
   }
 
   const renderItem = (occurrence: SupportPlanOccurrence) => {
-    const mutable = occurrence.state !== 'CANCELLED' && planStatus === 'ACTIVE'
+    const mutable =
+      occurrence.state !== 'CANCELLED' && authoritativePlanStatus === 'ACTIVE'
     const hasResponse =
       occurrence.state === 'COMPLETED' ||
       occurrence.state === 'SKIPPED' ||
@@ -497,7 +514,7 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
           <span>Giờ địa phương</span>
           <h3 id="support-plan-schedule-title">Hoạt động của tôi</h3>
         </div>
-        {planStatus === 'PAUSED' && <strong>Đang tạm dừng</strong>}
+        {authoritativePlanStatus === 'PAUSED' && <strong>Đang tạm dừng</strong>}
       </div>
       {occurrences.length === 0 ? (
         <p>Chưa có hoạt động trong khoảng thời gian này.</p>

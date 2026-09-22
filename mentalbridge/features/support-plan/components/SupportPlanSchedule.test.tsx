@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '@/lib/api/api-error'
+
 import {
   supportPlanOccurrenceFixture,
   supportPlanOccurrenceListFixture,
@@ -222,14 +224,98 @@ describe('SupportPlanSchedule', () => {
   })
 
   it('does not offer mutation actions while the plan is paused', async () => {
-    api.getSupportPlanOccurrences.mockResolvedValue(
-      supportPlanOccurrenceListFixture(),
-    )
+    api.getSupportPlanOccurrences.mockResolvedValue({
+      ...supportPlanOccurrenceListFixture(),
+      supportPlanStatus: 'PAUSED' as const,
+    })
 
     render(<SupportPlanSchedule planStatus="PAUSED" />)
 
     expect(await screen.findByText('Đang tạm dừng')).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Ghi nhận đã làm' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Ghi nhận bỏ qua' })).toBeNull()
+  })
+
+  it('uses the reloaded paused status and keeps the inactive-plan message', async () => {
+    const scheduled = supportPlanOccurrenceFixture()
+    const completed = supportPlanOccurrenceFixture({
+      occurrenceId: '91000000-0000-4000-8000-000000000514',
+      state: 'COMPLETED',
+      displayState: 'COMPLETED',
+      version: 1,
+      completedAt: '2026-09-21T02:00:00Z',
+      engagementUpdatedAt: '2026-09-21T02:00:00Z',
+    })
+    const active = supportPlanOccurrenceListFixture([scheduled, completed])
+    const paused = { ...active, supportPlanStatus: 'PAUSED' as const }
+    api.getSupportPlanOccurrences
+      .mockResolvedValueOnce(active)
+      .mockResolvedValueOnce(paused)
+    api.replaceSupportPlanOccurrenceEngagement.mockRejectedValue(
+      new ApiError({
+        message: 'SupportPlan is not active',
+        code: 'SUPPORT_PLAN_NOT_ACTIVE',
+        status: 409,
+      }),
+    )
+
+    render(<SupportPlanSchedule planStatus="ACTIVE" />)
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Ghi nhận đã làm' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu tự ghi nhận' }))
+
+    expect(
+      await screen.findByText(
+        'Mục này không còn nhận cập nhật. Trạng thái mới nhất đã được tải lại.',
+      ),
+    ).toBeVisible()
+    expect(screen.getByText('Đang tạm dừng')).toBeVisible()
+    expect(api.getSupportPlanOccurrences).toHaveBeenCalledTimes(2)
+    for (const name of [
+      'Ghi nhận đã làm',
+      'Ghi nhận bỏ qua',
+      'Chỉnh sửa tự ghi nhận',
+      'Mở lại',
+      'Ẩn khỏi danh sách',
+      'Xoá tự ghi nhận',
+      'Lưu tự ghi nhận',
+    ]) {
+      expect(screen.queryByRole('button', { name })).toBeNull()
+    }
+  })
+
+  it('keeps the version-mismatch message after reloading current data', async () => {
+    const occurrence = supportPlanOccurrenceFixture()
+    api.getSupportPlanOccurrences
+      .mockResolvedValueOnce(supportPlanOccurrenceListFixture([occurrence]))
+      .mockResolvedValueOnce(
+        supportPlanOccurrenceListFixture([
+          supportPlanOccurrenceFixture({ version: 1 }),
+        ]),
+      )
+    api.replaceSupportPlanOccurrenceEngagement.mockRejectedValue(
+      new ApiError({
+        message: 'Occurrence version does not match',
+        code: 'OCCURRENCE_VERSION_MISMATCH',
+        status: 412,
+      }),
+    )
+
+    render(<SupportPlanSchedule planStatus="ACTIVE" />)
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Ghi nhận đã làm' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu tự ghi nhận' }))
+
+    expect(
+      await screen.findByText(
+        'Mục này đã thay đổi ở nơi khác. Dữ liệu mới nhất đã được tải lại.',
+      ),
+    ).toBeVisible()
+    expect(api.getSupportPlanOccurrences).toHaveBeenCalledTimes(2)
+    expect(
+      screen.getByRole('button', { name: 'Ghi nhận đã làm' }),
+    ).toBeVisible()
   })
 })
