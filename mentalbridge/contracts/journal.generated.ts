@@ -249,6 +249,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai-companion/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the authenticated owner's retained conversations. */
+        get: operations["listAiCompanionConversations"];
+        put?: never;
+        /** Start an encrypted owner-scoped AI Companion conversation. */
+        post: operations["createAiCompanionConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-companion/conversations/{conversationId}": {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        /** Resume one owned retained conversation. */
+        get: operations["getAiCompanionConversation"];
+        put?: never;
+        post?: never;
+        /** Permanently erase one owned conversation and its encrypted messages. */
+        delete: operations["deleteAiCompanionConversation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-companion/conversations/{conversationId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deliver one bounded response using only owner-verified minimized context. */
+        post: operations["sendAiCompanionMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/longitudinal-analysis-jobs": {
         parameters: {
             query?: never;
@@ -307,6 +364,84 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CreateAiConversationRequest: {
+            title?: string;
+        };
+        AiContextSelection: {
+            /** @default [] */
+            journalIds: string[];
+            /** Format: uuid */
+            longitudinalAnalysisId?: string;
+            /** @default true */
+            includeCurrentSupportPlan: boolean;
+            /**
+             * @description Fails closed until Content/Notification publishes an approved reminder-context owner contract.
+             * @default false
+             */
+            includeReminderContext: boolean;
+        };
+        SendAiMessageRequest: {
+            message: string;
+            context?: components["schemas"]["AiContextSelection"];
+        };
+        /** @enum {string} */
+        AiContextKind: "JOURNAL" | "SUPPORT_PLAN" | "REASSESSMENT";
+        AiMessage: {
+            /** Format: uuid */
+            messageId: string;
+            /** @enum {string} */
+            role: "USER" | "ASSISTANT";
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            contextKinds: components["schemas"]["AiContextKind"][];
+        };
+        AiConversation: {
+            /** Format: uuid */
+            conversationId: string;
+            title: string;
+            messages: components["schemas"]["AiMessage"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        AiConversationSummary: {
+            /** Format: uuid */
+            conversationId: string;
+            title: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        /** @description PREMIUM returns null remaining and no displayed daily cap, while hidden server token/rate/fair-use controls still apply. */
+        AiQuota: {
+            /** @enum {string} */
+            plan: "FREE" | "PLUS" | "PREMIUM";
+            /** @constant */
+            policyVersion: "companion-quota-v1";
+            remaining: number | null;
+            /** Format: date-time */
+            resetAt: string;
+            limitDisplayed: boolean;
+        };
+        SendAiMessageResponse: {
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: uuid */
+            userMessageId: string;
+            /** Format: uuid */
+            assistantMessageId: string;
+            assistant: string;
+            /** Format: date-time */
+            createdAt: string;
+            quota: components["schemas"]["AiQuota"];
+        };
         /**
          * @description Self-selected, non-clinical label shared with Journal authoring.
          * @enum {string}
@@ -719,6 +854,7 @@ export interface components {
         AnalysisJobId: string;
         UserId: string;
         LongitudinalAnalysisId: string;
+        ConversationId: string;
         /** @description Stable key for safe client retries of journal mutations. */
         IdempotencyKey: string;
         /** @description Current revision number expected by the client. */
@@ -1144,6 +1280,156 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listAiCompanionConversations: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest-first owner-scoped conversation history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["AiConversationSummary"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createAiCompanionConversation: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAiConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description Conversation created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiConversation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getAiCompanionConversation: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Decrypted conversation for its authenticated owner. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiConversation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAiCompanionConversation: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Conversation content and replay records were deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    sendAiCompanionMessage: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable key for safe client retries of journal mutations. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendAiMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description User message and successfully delivered assistant response persisted exactly once. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendAiMessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description Daily answer, rate, token, or fair-use control blocked the request. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["DependencyUnavailable"];
         };
     };
     createLongitudinalAnalysisJob: {
