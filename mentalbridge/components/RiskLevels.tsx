@@ -16,7 +16,6 @@ export default function RiskLevels() {
             <ul>
               <li>Khoảng điểm từ 0 đến 27</li>
               <li>Không nhận điểm do trình duyệt tự tính</li>
-              <li>Không phải chẩn đoán y khoa</li>
             </ul>
           </TiltCard>
           <TiltCard wrapperClassName="motion-tilt-shell risk-tilt risk-tilt--offset reveal reveal-d2" dataGroup="risk" className="risk-card mid">

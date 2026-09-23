@@ -153,6 +153,8 @@ async function run() {
       CONTENT_SERVICE_URL: `http://${host}:${identityPort}`,
       CONSULTATION_SERVICE_URL: `http://${host}:${identityPort}`,
       CONSULTATION_SERVICE_TIMEOUT_MS: '3000',
+      JOURNAL_AI_SERVICE_URL: `http://${host}:${identityPort}`,
+      JOURNAL_AI_SERVICE_TIMEOUT_MS: '3000',
       HOSTNAME: host,
       PORT: String(frontendPort),
     },

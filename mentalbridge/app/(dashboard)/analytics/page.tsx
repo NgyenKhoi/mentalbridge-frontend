@@ -51,7 +51,7 @@ export default function AnalyticsPage() {
       </svg></div>
     </section>
 
-    <aside className="analytics-insights"><div className="analytics-insight-title"><span>✦</span><div><strong>Nhận xét từ dữ liệu</strong><small>Thông tin hỗ trợ theo dõi, không phải kết luận chuyên môn</small></div></div><ul><li className="positive"><span>✓</span>Tâm trạng được ghi nhận có xu hướng <strong>tích cực hơn</strong> so với tuần trước.</li><li className="positive"><span>✓</span>Bạn đã duy trì viết nhật ký <strong>12 ngày liên tiếp</strong>.</li><li className="attention"><span>!</span>Thứ Sáu có mức tâm trạng thấp hơn; bạn có thể ghi chú thêm bối cảnh để hiểu rõ hơn.</li></ul></aside>
+    <aside className="analytics-insights"><div className="analytics-insight-title"><span>✦</span><div><strong>Nhận xét từ dữ liệu</strong><small>Tổng hợp từ các ghi nhận của bạn</small></div></div><ul><li className="positive"><span>✓</span>Tâm trạng được ghi nhận có xu hướng <strong>tích cực hơn</strong> so với tuần trước.</li><li className="positive"><span>✓</span>Bạn đã duy trì viết nhật ký <strong>12 ngày liên tiếp</strong>.</li><li className="attention"><span>!</span>Thứ Sáu có mức tâm trạng thấp hơn; bạn có thể ghi chú thêm bối cảnh để hiểu rõ hơn.</li></ul></aside>
   </div>
   <ActivitySummaryModal isOpen={isActivitySummaryOpen} onClose={() => setIsActivitySummaryOpen(false)} />
   <EmotionProgressModal isOpen={isEmotionProgressOpen} onClose={() => setIsEmotionProgressOpen(false)} />

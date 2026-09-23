@@ -8,6 +8,7 @@ const baseUrl = 'http://journal.test'
 const journalId = '40000000-0000-4000-8000-000000000001'
 const clientEntryId = '50000000-0000-4000-8000-000000000001'
 const timestamp = '2026-09-11T03:00:00.000Z'
+const jobId = '70000000-0000-4000-8000-000000000001'
 const entry = {
   id: journalId,
   ownerAccountId: '10000000-0000-4000-8000-000000000001',
@@ -32,6 +33,18 @@ const createBody = {
   content: { text: 'synthetic journal' },
   mood: 'GOOD' as const,
   tags: [],
+}
+const runningJob = {
+  jobId,
+  journalId,
+  journalRevision: 1,
+  status: 'RUNNING' as const,
+  attemptCount: 0,
+  terminalReason: null,
+  result: null,
+  createdAt: timestamp,
+  updatedAt: timestamp,
+  completedAt: null,
 }
 
 describe('Journal server-only client', () => {
@@ -66,6 +79,41 @@ describe('Journal server-only client', () => {
         'correlation-id',
       ),
     ).resolves.toEqual(entry)
+  })
+
+  it('requests and reloads the exact owner-scoped analysis job', async () => {
+    configure()
+    mockServer.use(
+      http.post(
+        `${baseUrl}/api/v1/journals/${journalId}/revisions/1/analysis-jobs`,
+        ({ request }) => {
+          expect(request.headers.get('authorization')).toBe(
+            'Bearer access-token',
+          )
+          expect(request.headers.get('idempotency-key')).toBe(
+            'analysis-command-0001',
+          )
+          return HttpResponse.json(runningJob, { status: 202 })
+        },
+      ),
+      http.get(`${baseUrl}/api/v1/analysis-jobs/${jobId}`, ({ request }) => {
+        expect(request.headers.get('authorization')).toBe('Bearer access-token')
+        return HttpResponse.json({ ...runningJob, attemptCount: 1 })
+      }),
+    )
+
+    await expect(
+      journalClient.requestAnalysis(
+        'access-token',
+        journalId,
+        1,
+        'analysis-command-0001',
+        'correlation-id',
+      ),
+    ).resolves.toEqual(runningJob)
+    await expect(
+      journalClient.analysisJob('access-token', jobId, 'correlation-id'),
+    ).resolves.toMatchObject({ jobId, journalRevision: 1, attemptCount: 1 })
   })
 
   it.each([

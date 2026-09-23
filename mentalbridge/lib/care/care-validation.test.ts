@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest'
 import {
   isUuid,
   parseAnonymousAssessment,
+  parseAiProcessingDisclosure,
   parseAssessmentProgress,
+  parseConsentCollection,
+  parseConsentRequest,
   parseQuestionnaire,
   parseSafetyDirectory,
   parseSubmission,
@@ -112,6 +115,46 @@ describe('Care runtime validation', () => {
   })
   it('accepts canonical UUIDs used by persisted Care reference data', () => {
     expect(isUuid('10000000-0000-0000-0000-000000000002')).toBe(true)
+  })
+
+  it('accepts the exact AI disclosure and current AI consent shape', () => {
+    expect(
+      parseAiProcessingDisclosure({
+        consentType: 'AI_PROCESSING',
+        version: 'ai-processing-capstone-v1',
+        locale: 'vi-VN',
+        title: 'Đồng ý xử lý nhật ký bằng AI',
+        content: 'Nội dung do Care sở hữu.',
+        capstoneOnly: true,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseConsentCollection({
+        decisions: [
+          {
+            decisionId: '30000000-0000-4000-8000-000000000001',
+            consentType: 'AI_PROCESSING',
+            policyVersion: 'ai-processing-capstone-v1',
+            granted: true,
+            decidedAt: '2026-09-23T00:00:00Z',
+          },
+        ],
+      }),
+    ).not.toBeNull()
+    expect(
+      parseConsentRequest({
+        consentType: 'AI_PROCESSING',
+        policyVersion: 'ai-processing-capstone-v1',
+        granted: true,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseConsentRequest({
+        consentType: 'AI_PROCESSING',
+        policyVersion: 'privacy-capstone-v3',
+        granted: true,
+      }),
+    ).toBeNull()
   })
 
   it('accepts a contract-shaped published questionnaire', () => {

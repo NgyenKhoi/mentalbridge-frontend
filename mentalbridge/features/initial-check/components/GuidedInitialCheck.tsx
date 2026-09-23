@@ -353,7 +353,6 @@ function UnifiedResult({
           <ul aria-label="Phạm vi kết quả">
             <li>2 bài sàng lọc</li>
             <li>Khung 14 ngày</li>
-            <li>Không phải chẩn đoán</li>
           </ul>
         </div>
       </header>

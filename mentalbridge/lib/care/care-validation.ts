@@ -12,6 +12,7 @@ import type {
   CareProfileUpdate,
   ConsentCollection,
   ConsentDecisionRequest,
+  AiProcessingDisclosure,
   PrivacyDisclosure,
   AssessmentHistoryPage,
   AssessmentProgress,
@@ -394,12 +395,34 @@ export function parsePrivacyDisclosure(
   return value as PrivacyDisclosure
 }
 
+export function parseAiProcessingDisclosure(
+  value: unknown,
+): AiProcessingDisclosure | null {
+  if (
+    !isRecord(value) ||
+    value.consentType !== 'AI_PROCESSING' ||
+    value.version !== 'ai-processing-capstone-v1' ||
+    value.locale !== 'vi-VN' ||
+    typeof value.title !== 'string' ||
+    value.title.length < 1 ||
+    value.title.length > 160 ||
+    typeof value.content !== 'string' ||
+    value.content.length < 1 ||
+    value.content.length > 4000 ||
+    value.capstoneOnly !== true
+  )
+    return null
+  return value as AiProcessingDisclosure
+}
+
 function parseConsentDecision(value: unknown) {
   if (
     !isRecord(value) ||
     !isUuid(value.decisionId) ||
-    value.consentType !== 'PRIVACY_POLICY' ||
+    !['PRIVACY_POLICY', 'AI_PROCESSING'].includes(String(value.consentType)) ||
     typeof value.policyVersion !== 'string' ||
+    value.policyVersion.length < 1 ||
+    value.policyVersion.length > 64 ||
     typeof value.granted !== 'boolean' ||
     !isDateTime(value.decidedAt)
   )
@@ -413,6 +436,7 @@ export function parseConsentCollection(
   if (
     !isRecord(value) ||
     !Array.isArray(value.decisions) ||
+    value.decisions.length > 2 ||
     value.decisions.some((item) => !parseConsentDecision(item))
   )
     return null
@@ -427,8 +451,12 @@ export function parseConsentRequest(
     Object.keys(value).some(
       (key) => !['consentType', 'policyVersion', 'granted'].includes(key),
     ) ||
-    value.consentType !== 'PRIVACY_POLICY' ||
-    value.policyVersion !== 'privacy-capstone-v3' ||
+    !(
+      (value.consentType === 'PRIVACY_POLICY' &&
+        value.policyVersion === 'privacy-capstone-v3') ||
+      (value.consentType === 'AI_PROCESSING' &&
+        value.policyVersion === 'ai-processing-capstone-v1')
+    ) ||
     typeof value.granted !== 'boolean'
   )
     return null

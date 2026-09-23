@@ -121,6 +121,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/emotion-check-ins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the authenticated user's self-reported emotion history. */
+        get: operations["listEmotionCheckIns"];
+        put?: never;
+        /** Record the authenticated user's check-in for the current local day. */
+        post: operations["createEmotionCheckIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/emotion-check-ins/{localDate}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reload one owned check-in by its recorded local day. */
+        get: operations["getEmotionCheckIn"];
+        put?: never;
+        post?: never;
+        /** Delete the encrypted emotion payload and tombstone the local day. */
+        delete: operations["deleteEmotionCheckIn"];
+        options?: never;
+        head?: never;
+        /** Update the owned check-in while its stored local day is current. */
+        patch: operations["updateEmotionCheckIn"];
+        trace?: never;
+    };
+    "/api/v1/emotion-check-in-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Return a note-free minimized projection for consented AI reflection.
+         * @description Reminder composition is deliberately unavailable until a separate reminder consent contract is accepted.
+         */
+        get: operations["getEmotionCheckInConsumerContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/journals": {
         parameters: {
             query?: never;
@@ -158,10 +215,182 @@ export interface paths {
         patch: operations["reviseJournalEntry"];
         trace?: never;
     };
+    "/api/v1/journals/{journalId}/revisions/{revision}/analysis-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request analysis of one exact owned journal revision. */
+        post: operations["createExactRevisionAnalysisJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analysis-jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an owned analysis job and its normalized result. */
+        get: operations["getOwnAnalysisJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/longitudinal-analysis-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a consented comparison of owned journals across two bounded periods. */
+        post: operations["createLongitudinalAnalysisJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/longitudinal-analysis-jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an owned longitudinal analysis job and normalized evidence. */
+        get: operations["getOwnLongitudinalAnalysisJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/users/{userId}/longitudinal-analyses/{analysisId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Return minimized longitudinal evidence for Care reassessment composition.
+         * @description Requires the verified end-user bearer context forwarded by Care, a matching user ID, current AI_PROCESSING consent, and purpose REASSESSMENT_SUMMARY. The response never contains raw journal text or a clinical improvement conclusion.
+         */
+        get: operations["getLongitudinalEvidenceForCare"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Self-selected, non-clinical label shared with Journal authoring.
+         * @enum {string}
+         */
+        Emotion: "GREAT" | "GOOD" | "OKAY" | "LOW" | "VERY_LOW";
+        EmotionCheckInValue: {
+            emotion: components["schemas"]["Emotion"];
+            /** @description Strength of the selected feeling, not wellness, severity, diagnosis, or recovery. */
+            intensity: number;
+            /** @description Optional private free text; encrypted at rest and excluded from consumer projections, logs, and events. */
+            note?: string | null;
+        };
+        CreateEmotionCheckInRequest: components["schemas"]["EmotionCheckInValue"] & {
+            /** Format: date */
+            localDate: string;
+            /** @description IANA timezone; localDate must equal the server acceptance time in this zone. */
+            timezone: string;
+        };
+        EmotionCheckIn: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            localDate: string;
+            timezone: string;
+            emotion: components["schemas"]["Emotion"];
+            intensity: number;
+            note: string | null;
+            /** @constant */
+            sourceLabel: "SELF_REPORTED_EMOTION";
+            /** @constant */
+            clinicalUse: "NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER";
+            revision: number;
+            /** Format: date-time */
+            recordedAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        EmotionCheckInList: {
+            items: components["schemas"]["EmotionCheckIn"][];
+            page: {
+                limit: number;
+                hasMore: boolean;
+                /** Format: date */
+                nextBefore?: string;
+            };
+            /** @constant */
+            label: "SELF_REPORTED_EMOTION";
+            /** @constant */
+            interpretation: "NOT_DIAGNOSIS_OR_RECOVERY";
+        };
+        EmotionCheckInTombstone: {
+            /** Format: date */
+            localDate: string;
+            /** @constant */
+            deleted: true;
+            /** Format: date-time */
+            deletedAt: string;
+        };
+        EmotionCheckInConsumerItem: {
+            /** Format: date */
+            localDate: string;
+            timezone: string;
+            emotion: components["schemas"]["Emotion"];
+            intensity: number;
+            /** @constant */
+            sourceLabel: "SELF_REPORTED_EMOTION";
+            revision: number;
+            /** Format: date-time */
+            recordedAt: string;
+        };
+        EmotionCheckInConsumerContext: {
+            /** @constant */
+            purpose: "AI_REFLECTION";
+            consent: {
+                /** @constant */
+                type: "AI_PROCESSING";
+                policyVersion: string | null;
+                /** Format: date-time */
+                decidedAt: string | null;
+            };
+            items: components["schemas"]["EmotionCheckInConsumerItem"][];
+        };
         HealthResponse: {
             /** @enum {string} */
             status: "ok";
@@ -236,6 +465,7 @@ export interface components {
         EncryptionMetadata: {
             /** @enum {string} */
             algorithm: "AES-256-GCM";
+            /** @description Fixed compatibility marker for the single application encryption key; it is not a rotation selector. */
             keyId: string;
             /** Format: date-time */
             encryptedAt: string;
@@ -258,6 +488,149 @@ export interface components {
                 hasMore: boolean;
             };
         };
+        AnalysisJob: {
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            journalId: string;
+            journalRevision: number;
+            /** @enum {string} */
+            status: "RUNNING" | "SUCCEEDED" | "FAILED";
+            attemptCount: number;
+            terminalReason?: components["schemas"]["AnalysisTerminalReason"] | null;
+            result?: components["schemas"]["NormalizedAnalysisResult"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+        };
+        /** @enum {string} */
+        AnalysisTerminalReason: "CONSENT_REQUIRED" | "CONSENT_REVOKED" | "CONSENT_UNAVAILABLE" | "ENTITLEMENT_UNAVAILABLE" | "ENTITLEMENT_CHANGED" | "AUTHORIZATION_CONTEXT_LOST" | "REVISION_STALE" | "JOURNAL_DELETED" | "PROVIDER_TIMEOUT" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | "INTERNAL_ERROR";
+        NormalizedAnalysisResult: {
+            summary?: string;
+            contextSignals: string[];
+            emotionIndicators: string[];
+            themes: string[];
+            preferenceSignals: string[];
+            barrierSignals: string[];
+            sentiment?: string;
+            modelConfidence?: number;
+            /** @enum {string} */
+            suggestedAction: "NONE" | "OFFER_RESOURCE_EXPLANATION" | "GUIDE_APPROVED_ACTIVITY" | "REQUEST_ALLOWED_ALTERNATIVE" | "REQUEST_PLAN_REVIEW" | "OPEN_PROFESSIONAL_SUPPORT" | "OPEN_SAFETY_GUIDANCE";
+            /** @constant */
+            workload?: "EXACT_REVISION";
+            /** @enum {string} */
+            servicePlan?: "FREE" | "PLUS" | "PREMIUM";
+            /** @enum {string} */
+            entitlementSource?: "DEFAULT_FREE" | "DEMO" | "PAID";
+            entitlementPolicyVersion?: string;
+            /** Format: int64 */
+            entitlementVersion?: number;
+            routingPolicyVersion?: string;
+            providerApprovalVersion?: string;
+            /** @enum {string} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI";
+            model: string;
+            promptVersion: string;
+            /** @constant */
+            schemaVersion: 1;
+            latencyMs?: number;
+            inputTokens?: number | null;
+            outputTokens?: number | null;
+            /** @description Estimated provider cost in millionths of one USD using the versioned configured benchmark rate. */
+            estimatedCostMicroUsd?: number | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        LongitudinalPeriod: {
+            /**
+             * Format: date-time
+             * @description Inclusive UTC instant.
+             */
+            startAt: string;
+            /**
+             * Format: date-time
+             * @description Exclusive UTC instant.
+             */
+            endAt: string;
+        };
+        /** @description Periods are half-open, non-overlapping, equal in duration, and each must span 7 through 31 days. The current period cannot end in the future. */
+        CreateLongitudinalAnalysisRequest: {
+            previousPeriod: components["schemas"]["LongitudinalPeriod"];
+            currentPeriod: components["schemas"]["LongitudinalPeriod"];
+            /**
+             * @description Owned journals intentionally excluded before exact current revisions are selected.
+             * @default []
+             */
+            excludedJournalIds: string[];
+        };
+        LongitudinalSourceRevision: {
+            /** Format: uuid */
+            journalId: string;
+            journalRevision: number;
+            /** @enum {string} */
+            period: "PREVIOUS" | "CURRENT";
+        };
+        /** @enum {string} */
+        LongitudinalDirection: "MORE_FREQUENT" | "LESS_FREQUENT" | "SIMILAR" | "INSUFFICIENT_DATA";
+        LongitudinalChange: {
+            signal: string;
+            direction: components["schemas"]["LongitudinalDirection"];
+        };
+        /** @description Sufficient requires at least three entries in each period and no greater than a 2:1 count imbalance. */
+        LongitudinalDataCoverage: {
+            previousPeriodJournalEntryCount: number;
+            currentPeriodJournalEntryCount: number;
+            sufficientForComparison: boolean;
+        };
+        /** @description Non-standardized observations limited to the available entries; never a diagnosis, combined score, recovery verdict, or clinical improvement conclusion. */
+        LongitudinalEvidence: {
+            /** Format: uuid */
+            analysisId: string;
+            previousPeriod: components["schemas"]["LongitudinalPeriod"];
+            currentPeriod: components["schemas"]["LongitudinalPeriod"];
+            sourceJournalRevisions: components["schemas"]["LongitudinalSourceRevision"][];
+            contextSignals: string[];
+            emotionIndicators: string[];
+            recurringThemes: string[];
+            changesComparedWithPreviousPeriod: components["schemas"]["LongitudinalChange"][];
+            preferences: string[];
+            barriers: string[];
+            helpfulPatterns: string[];
+            dataCoverage: components["schemas"]["LongitudinalDataCoverage"];
+            /** @enum {string} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI";
+            model: string;
+            /** @constant */
+            promptVersion: "longitudinal-v1";
+            /** @constant */
+            schemaVersion: 1;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        LongitudinalAnalysisJob: {
+            /** Format: uuid */
+            jobId: string;
+            previousPeriod: components["schemas"]["LongitudinalPeriod"];
+            currentPeriod: components["schemas"]["LongitudinalPeriod"];
+            sourceJournalRevisions: components["schemas"]["LongitudinalSourceRevision"][];
+            dataCoverage: components["schemas"]["LongitudinalDataCoverage"];
+            /** @enum {string} */
+            status: "RUNNING" | "SUCCEEDED" | "FAILED";
+            attemptCount: number;
+            terminalReason?: components["schemas"]["LongitudinalTerminalReason"] | null;
+            result: components["schemas"]["LongitudinalEvidence"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+        };
+        /** @enum {string} */
+        LongitudinalTerminalReason: "CONSENT_REQUIRED" | "CONSENT_REVOKED" | "CONSENT_UNAVAILABLE" | "ENTITLEMENT_UNAVAILABLE" | "ENTITLEMENT_CHANGED" | "AUTHORIZATION_CONTEXT_LOST" | "SOURCE_REVISION_CHANGED" | "SOURCE_DELETED" | "PROVIDER_TIMEOUT" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | "INTERNAL_ERROR";
         Problem: {
             /** Format: uri-reference */
             type: string;
@@ -289,7 +662,16 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Journal entry was not found for the authenticated owner. */
+        /** @description Current consent does not authorize this minimized consumer projection. */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Requested resource was not found for the authenticated owner. */
         NotFound: {
             headers: {
                 [name: string]: unknown;
@@ -298,7 +680,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Idempotency conflict, duplicate mutation, or journal revision limit reached. */
+        /** @description Idempotency conflict, duplicate mutation, or revision/history limit reached. */
         Conflict: {
             headers: {
                 [name: string]: unknown;
@@ -316,9 +698,27 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description A required dependency was unavailable and the request failed closed. */
+        DependencyUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
     parameters: {
+        /** @description Calendar day computed in the IANA timezone stored at creation. */
+        LocalDate: string;
+        EmotionLimit: number;
+        /** @description Exclusive newest-first history cursor. */
+        BeforeLocalDate: string;
         JournalId: string;
+        JournalRevision: number;
+        AnalysisJobId: string;
+        UserId: string;
+        LongitudinalAnalysisId: string;
         /** @description Stable key for safe client retries of journal mutations. */
         IdempotencyKey: string;
         /** @description Current revision number expected by the client. */
@@ -337,6 +737,197 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listEmotionCheckIns: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["EmotionLimit"];
+                /** @description Exclusive newest-first history cursor. */
+                before?: components["parameters"]["BeforeLocalDate"];
+            };
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A bounded, newest-first history page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckInList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    createEmotionCheckIn: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable key for safe client retries of journal mutations. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEmotionCheckInRequest"];
+            };
+        };
+        responses: {
+            /** @description Check-in created, or an exact create retry replayed. */
+            201: {
+                headers: {
+                    Location?: string;
+                    "x-correlation-id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckIn"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    getEmotionCheckIn: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Calendar day computed in the IANA timezone stored at creation. */
+                localDate: components["parameters"]["LocalDate"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The owned active check-in. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckIn"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    deleteEmotionCheckIn: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable key for safe client retries of journal mutations. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Calendar day computed in the IANA timezone stored at creation. */
+                localDate: components["parameters"]["LocalDate"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The encrypted payload was removed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckInTombstone"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    updateEmotionCheckIn: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable key for safe client retries of journal mutations. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Current revision number expected by the client. */
+                "If-Match-Revision": components["parameters"]["IfMatchRevision"];
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description Calendar day computed in the IANA timezone stored at creation. */
+                localDate: components["parameters"]["LocalDate"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmotionCheckInValue"];
+            };
+        };
+        responses: {
+            /** @description Check-in updated, or an exact update retry replayed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckIn"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    getEmotionCheckInConsumerContext: {
+        parameters: {
+            query: {
+                purpose: "AI_REFLECTION";
+                limit?: number;
+            };
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current Care consent was verified and only minimized fields are returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckInConsumerContext"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
     listJournalEntries: {
         parameters: {
             query?: {
@@ -492,6 +1083,160 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+        };
+    };
+    createExactRevisionAnalysisJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable key for safe client retries of journal mutations. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                journalId: components["parameters"]["JournalId"];
+                revision: components["parameters"]["JournalRevision"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The idempotent asynchronous job was accepted. */
+            202: {
+                headers: {
+                    Location?: string;
+                    "x-correlation-id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisJob"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    getOwnAnalysisJob: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                jobId: components["parameters"]["AnalysisJobId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Job state returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisJob"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createLongitudinalAnalysisJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Stable key for safe client retries of journal mutations. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLongitudinalAnalysisRequest"];
+            };
+        };
+        responses: {
+            /** @description The idempotent asynchronous comparison job was accepted. */
+            202: {
+                headers: {
+                    Location?: string;
+                    "x-correlation-id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LongitudinalAnalysisJob"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    getOwnLongitudinalAnalysisJob: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                jobId: components["parameters"]["AnalysisJobId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Job state returned without raw journal text. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LongitudinalAnalysisJob"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getLongitudinalEvidenceForCare: {
+        parameters: {
+            query: {
+                purpose: "REASSESSMENT_SUMMARY";
+            };
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                userId: components["parameters"]["UserId"];
+                analysisId: components["parameters"]["LongitudinalAnalysisId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current consent was verified and minimized non-standardized evidence was returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LongitudinalEvidence"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["DependencyUnavailable"];
         };
     };
 }

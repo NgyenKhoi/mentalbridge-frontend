@@ -131,6 +131,7 @@ const careProfiles = new Map()
 const careConsents = new Map()
 const journalEntries = new Map()
 const journalCommands = new Map()
+const journalAnalysisJobs = new Map()
 const availabilitySlots = new Map()
 const availabilityCommands = new Map()
 const careAccessToken = 'synthetic-care-e2e-access'
@@ -147,6 +148,7 @@ let questionnaireFault = null
 let contentFault = null
 let journalConflictOnce = false
 let journalCreateFailureOnce = false
+let journalAnalysisFailureOnce = false
 accessSessions.set(careAccessToken, careActor)
 accessSessions.set(otherCareAccessToken, otherCareActor)
 accessSessions.set(resourceAccessToken, resourceActor)
@@ -178,6 +180,7 @@ function reset() {
   careConsents.clear()
   journalEntries.clear()
   journalCommands.clear()
+  journalAnalysisJobs.clear()
   availabilitySlots.clear()
   availabilityCommands.clear()
   contentCreateByKey.clear()
@@ -196,6 +199,7 @@ function reset() {
   contentFault = null
   journalConflictOnce = false
   journalCreateFailureOnce = false
+  journalAnalysisFailureOnce = false
   careProfiles.set(careActor.accountId, {
     accountId: careActor.accountId,
     displayName: 'Care E2E User',
@@ -207,7 +211,7 @@ function reset() {
     ...timestamps,
     version: 0,
   })
-  careConsents.set(otherCareActor.accountId, {
+  careConsents.set(`${otherCareActor.accountId}:PRIVACY_POLICY`, {
     decisionId: '30000000-0000-4000-8000-000000000001',
     consentType: 'PRIVACY_POLICY',
     policyVersion: 'privacy-capstone-v3',
@@ -394,6 +398,41 @@ function journalSummary(entry) {
       preview: Array.from(entry.content.text).slice(0, 160).join(''),
       byteLength: entry.content.byteLength,
     },
+  }
+}
+
+function consentKey(accountId, consentType) {
+  return `${accountId}:${consentType}`
+}
+
+function journalAnalysisResult() {
+  return {
+    summary:
+      'Bản ghi cho thấy bạn đang dành thời gian nhận diện điều gì đã giúp mình trong ngày.',
+    contextSignals: ['công việc', 'cuối ngày'],
+    emotionIndicators: ['nhẹ nhõm'],
+    themes: ['tự quan sát'],
+    preferenceSignals: ['khoảng lặng ngắn'],
+    barrierSignals: ['ít thời gian'],
+    sentiment: 'reflective',
+    modelConfidence: 0.82,
+    suggestedAction: 'GUIDE_APPROVED_ACTIVITY',
+    workload: 'EXACT_REVISION',
+    servicePlan: 'FREE',
+    entitlementSource: 'DEFAULT_FREE',
+    entitlementPolicyVersion: 'journal-analysis-entitlement-v1',
+    entitlementVersion: 1,
+    routingPolicyVersion: 'journal-action-routing-v1',
+    providerApprovalVersion: 'provider-approval-v1',
+    provider: 'DETERMINISTIC_FAKE',
+    model: 'fixture-reflection-v1',
+    promptVersion: 'journal-reflection-v1',
+    schemaVersion: 1,
+    latencyMs: 45,
+    inputTokens: null,
+    outputTokens: null,
+    estimatedCostMicroUsd: null,
+    createdAt: new Date().toISOString(),
   }
 }
 
@@ -1055,6 +1094,21 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/__test/journal/analysis-failure'
+    ) {
+      const mode = url.searchParams.get('mode')
+      if (!['NEXT_JOB', 'CLEAR'].includes(mode)) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Unsupported fault mode')
+        return
+      }
+      journalAnalysisFailureOnce = mode === 'NEXT_JOB'
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/v1/journals') {
       const actor = journalActor(request, response)
       if (!actor) return
@@ -1122,6 +1176,123 @@ const server = createServer(async (request, response) => {
         body: structuredClone(created),
       })
       json(response, 201, created)
+      return
+    }
+
+    const journalAnalysisCreate = url.pathname.match(
+      /^\/api\/v1\/journals\/([0-9a-f-]+)\/revisions\/(\d+)\/analysis-jobs$/i,
+    )
+    if (request.method === 'POST' && journalAnalysisCreate) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const [, journalId, rawRevision] = journalAnalysisCreate
+      const journalRevision = Number.parseInt(rawRevision, 10)
+      const entry = journalEntries.get(journalId)
+      if (
+        !entry ||
+        entry.ownerAccountId !== actor.accountId ||
+        entry.deleted === true
+      ) {
+        problem(response, 404, 'NOT_FOUND', 'Journal entry was not found')
+        return
+      }
+      if (entry.currentRevision !== journalRevision) {
+        problem(response, 409, 'REVISION_STALE', 'Journal revision is stale')
+        return
+      }
+      const fingerprint = `analysis:${journalId}:${journalRevision}`
+      const command = journalCommand(actor, request, fingerprint)
+      if (command.error === 'missing') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      if (command.error === 'conflict') {
+        problem(response, 409, 'CONFLICT', 'Idempotency key was reused')
+        return
+      }
+      if (command.replay) {
+        json(response, command.replay.status, command.replay.body)
+        return
+      }
+      const now = new Date().toISOString()
+      const job = {
+        jobId: crypto.randomUUID(),
+        journalId,
+        journalRevision,
+        status: 'RUNNING',
+        attemptCount: 0,
+        terminalReason: null,
+        result: null,
+        createdAt: now,
+        updatedAt: now,
+        completedAt: null,
+      }
+      journalAnalysisJobs.set(job.jobId, {
+        actorId: actor.accountId,
+        pollCount: 0,
+        fail: journalAnalysisFailureOnce,
+        job,
+      })
+      journalAnalysisFailureOnce = false
+      const responseBody = structuredClone(job)
+      journalCommands.set(command.commandKey, {
+        fingerprint,
+        status: 202,
+        body: responseBody,
+      })
+      json(response, 202, responseBody)
+      return
+    }
+
+    const journalAnalysisGet = url.pathname.match(
+      /^\/api\/v1\/analysis-jobs\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'GET' && journalAnalysisGet) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const stored = journalAnalysisJobs.get(journalAnalysisGet[1])
+      if (!stored || stored.actorId !== actor.accountId) {
+        problem(response, 404, 'NOT_FOUND', 'Analysis job was not found')
+        return
+      }
+      stored.pollCount += 1
+      const now = new Date().toISOString()
+      if (stored.job.status === 'RUNNING' && stored.pollCount === 1) {
+        stored.job.attemptCount = 1
+        stored.job.updatedAt = now
+      } else if (stored.job.status === 'RUNNING') {
+        Object.assign(
+          stored.job,
+          stored.fail
+            ? {
+                status: 'FAILED',
+                attemptCount: 2,
+                terminalReason: 'PROVIDER_UNAVAILABLE',
+                updatedAt: now,
+                completedAt: now,
+              }
+            : {
+                status: 'SUCCEEDED',
+                attemptCount: 1,
+                result: journalAnalysisResult(),
+                updatedAt: now,
+                completedAt: now,
+              },
+        )
+        const entry = journalEntries.get(stored.job.journalId)
+        if (
+          !stored.fail &&
+          entry?.currentRevision === stored.job.journalRevision
+        ) {
+          entry.analysisState = 'current'
+        }
+      }
+      json(response, 200, structuredClone(stored.job))
       return
     }
 
@@ -1268,14 +1439,32 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/ai-processing-disclosures/current'
+    ) {
+      json(response, 200, {
+        consentType: 'AI_PROCESSING',
+        version: 'ai-processing-capstone-v1',
+        locale: 'vi-VN',
+        title: 'Đồng ý xử lý nhật ký bằng AI',
+        content:
+          'Chỉ phiên bản nhật ký bạn chủ động chọn mới được gửi để tạo phản ánh không mang tính chẩn đoán. Bạn có thể rút lại đồng ý cho các yêu cầu mới bất cứ lúc nào.',
+        capstoneOnly: true,
+      })
+      return
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/v1/consents') {
       const actor = accessSessions.get(bearerToken(request))
       if (!actor || !actor.roles.includes('USER')) {
         problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
         return
       }
-      const decision = careConsents.get(actor.accountId)
-      json(response, 200, { decisions: decision ? [decision] : [] })
+      const decisions = [...careConsents.entries()]
+        .filter(([key]) => key.startsWith(`${actor.accountId}:`))
+        .map(([, decision]) => decision)
+      json(response, 200, { decisions })
       return
     }
 
@@ -1289,14 +1478,24 @@ const server = createServer(async (request, response) => {
         return
       }
       const body = await readBody(request)
+      const expectedVersion =
+        body.consentType === 'AI_PROCESSING'
+          ? 'ai-processing-capstone-v1'
+          : body.consentType === 'PRIVACY_POLICY'
+            ? 'privacy-capstone-v3'
+            : null
+      if (!expectedVersion || body.policyVersion !== expectedVersion) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Invalid consent decision')
+        return
+      }
       const decision = {
         decisionId: crypto.randomUUID(),
-        consentType: 'PRIVACY_POLICY',
-        policyVersion: 'privacy-capstone-v3',
+        consentType: body.consentType,
+        policyVersion: expectedVersion,
         granted: body.granted === true,
         decidedAt: new Date().toISOString(),
       }
-      careConsents.set(actor.accountId, decision)
+      careConsents.set(consentKey(actor.accountId, body.consentType), decision)
       json(response, 201, decision)
       return
     }
@@ -1478,7 +1677,8 @@ const server = createServer(async (request, response) => {
         !questionnaire ||
         body.privacyPolicyVersion !== 'privacy-capstone-v3' ||
         body.privacyDisclosureAcknowledged !== true ||
-        careConsents.get(actor.accountId)?.granted !== true
+        careConsents.get(consentKey(actor.accountId, 'PRIVACY_POLICY'))
+          ?.granted !== true
       ) {
         problem(
           response,
