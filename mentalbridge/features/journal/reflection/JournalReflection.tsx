@@ -26,6 +26,18 @@ import {
 } from './reflection'
 import styles from './JournalReflection.module.css'
 
+function SystemLabel({ children = 'Thông tin từ hệ thống' }) {
+  return (
+    <span className={styles.systemLabel}>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 10.7v5.1M12 7.7h.01" />
+      </svg>
+      {children}
+    </span>
+  )
+}
+
 type Problem = Readonly<{ code?: string; title?: string }>
 type ConsentState = 'loading' | 'granted' | 'missing' | 'error'
 
@@ -405,12 +417,14 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
 
       {restoring && (
         <div className={styles.state} role="status">
+          <SystemLabel>Trạng thái phân tích</SystemLabel>
           <p>Đang kiểm tra kết quả phân tích cho nội dung hiện tại…</p>
         </div>
       )}
 
       {!restoring && !job && entry.analysisState === 'stale' && (
         <div className={styles.state}>
+          <SystemLabel />
           <strong>Kết quả phân tích trước cần cập nhật</strong>
           <p>
             Nhật ký đã được chỉnh sửa nên kết quả cũ không được gắn vào nội dung
@@ -421,6 +435,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
 
       {!restoring && !job && entry.analysisState === 'current' && (
         <div className={styles.state}>
+          <SystemLabel />
           <strong>Đã có kết quả cho nội dung này</strong>
           <p>
             Liên kết yêu cầu không còn trên trình duyệt này. Chỉ yêu cầu lại khi
@@ -431,10 +446,20 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
 
       {job?.status === 'RUNNING' && (
         <div className={styles.state} role="status" aria-live="polite">
+          <SystemLabel>Trạng thái phân tích</SystemLabel>
           <strong>
-            {job.attemptCount === 0
-              ? 'Yêu cầu đang chờ xử lý'
-              : 'Đang phân tích nhật ký này'}
+            {job.attemptCount === 0 ? (
+              'Yêu cầu đang chờ xử lý'
+            ) : (
+              <span className={styles.analyzingTitle}>
+                Đang phân tích nhật ký này
+                <span className={styles.analyzingDots} aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </span>
+            )}
           </strong>
           <p>
             Bạn có thể đóng cửa sổ và quay lại sau. Nhật ký vẫn dùng được trong
@@ -449,6 +474,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
           role="alert"
           aria-live="assertive"
         >
+          <SystemLabel>Trạng thái phân tích</SystemLabel>
           <strong>
             {isStaleFailure(reason)
               ? 'Nhật ký đã được chỉnh sửa'
@@ -478,7 +504,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
               ))}
             </div>
           )}
-          <details>
+          <details className={styles.technicalDetails}>
             <summary>Thông tin kỹ thuật</summary>
             {job.result.modelConfidence !== undefined && (
               <p className={styles.confidence}>
@@ -506,6 +532,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
 
       {analysisError && (
         <div className={`${styles.state} ${styles.error}`} role="alert">
+          <SystemLabel>Thông báo hệ thống</SystemLabel>
           <p>{analysisError}</p>
           {job?.jobId && (
             <div className={styles.actions}>
@@ -523,6 +550,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
 
       {consentState === 'loading' && (
         <div className={styles.state} role="status">
+          <SystemLabel>Trạng thái hệ thống</SystemLabel>
           <p>Đang kiểm tra đồng ý xử lý AI…</p>
         </div>
       )}
@@ -544,11 +572,19 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
             <>
               <label className={styles.consentChoice}>
                 <input
+                  className={styles.consentInput}
                   type="checkbox"
                   checked={accepted}
                   onChange={(event) => setAccepted(event.target.checked)}
                 />
-                <span>Tôi đồng ý để AI phân tích nội dung nhật ký này.</span>
+                <span className={styles.consentControl} aria-hidden="true">
+                  <svg viewBox="0 0 16 16">
+                    <path d="m3.2 8.2 3 3.1 6.7-7" />
+                  </svg>
+                </span>
+                <span className={styles.consentLabel}>
+                  Tôi đồng ý để AI phân tích nội dung nhật ký này.
+                </span>
               </label>
               <div className={styles.actions}>
                 <button

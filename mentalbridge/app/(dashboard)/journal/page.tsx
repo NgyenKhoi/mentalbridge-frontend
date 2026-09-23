@@ -536,8 +536,16 @@ export default function JournalPage() {
           <div>
             <span>Nhật ký riêng tư</span>
             <h1>Nhật ký của bạn</h1>
+            <p>
+              Ghi lại cảm xúc và những điều bạn muốn nhìn lại theo nhịp riêng.
+            </p>
           </div>
-          <button onClick={openCreate}>+ Viết nhật ký</button>
+          <button onClick={openCreate}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Viết nhật ký
+          </button>
         </header>
         <section
           aria-labelledby="journal-list-title"
@@ -573,8 +581,16 @@ export default function JournalPage() {
             </div>
           )}
           <div className="journal-live-grid">
-            {entries.map((entry) => (
-              <article key={entry.id} className="journal-live-card">
+            {entries.map((entry, index) => (
+              <article
+                key={entry.id}
+                className="journal-live-card"
+                style={
+                  {
+                    '--entry-delay': `${Math.min(index, 7) * 45}ms`,
+                  } as React.CSSProperties
+                }
+              >
                 <header>
                   <time>{formatDate(entry.occurredAt)}</time>
                   {journalMood(entry.mood) && (

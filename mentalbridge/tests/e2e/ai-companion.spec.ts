@@ -139,7 +139,7 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
     page.getByRole('link', { name: 'Cần trợ giúp ngay' }),
   ).toBeVisible()
 
-  await page.getByText('Bối cảnh cho phép trong câu trả lời này').click()
+  await page.getByText('Chọn thông tin để AI hiểu bạn hơn').click()
   await page.getByRole('checkbox', { name: 'Một ngày bình tĩnh hơn' }).check()
   await page
     .getByRole('textbox', { name: 'Tin nhắn' })
@@ -150,7 +150,9 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
     page.getByText('Hãy chọn một bước nhỏ và vừa sức.'),
   ).toBeVisible()
   await expect(page.getByText(/Còn 4 lượt/)).toBeVisible()
-  await expect(page.getByText(/JOURNAL, SUPPORT_PLAN/)).toBeVisible()
+  await expect(
+    page.getByText('Nhật ký bạn đã chọn · Kế hoạch hỗ trợ hiện tại'),
+  ).toBeVisible()
   expect(idempotencyKey.length).toBeGreaterThanOrEqual(16)
   expect(sentBody).toEqual({
     message: 'Mình nên bắt đầu từ đâu?',

@@ -1,17 +1,22 @@
 .reflection {
   display: grid;
-  gap: 16px;
-  margin-top: 8px;
-  padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: linear-gradient(145deg, var(--teal-pale), var(--surface-soft));
-  font-family: var(--font-lora-variable, Georgia), 'Times New Roman', serif;
+  gap: 18px;
+  margin-top: 12px;
+  padding: clamp(20px, 4vw, 28px);
+  border: 1px solid color-mix(in srgb, var(--teal) 24%, var(--line));
+  border-radius: var(--radius);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--teal-pale) 74%, var(--surface)),
+    var(--surface-soft)
+  );
+  font-family: var(--font-be-vietnam), sans-serif;
 }
 
 .header {
   display: grid;
-  gap: 5px;
+  max-width: 68ch;
+  gap: 8px;
 }
 
 .eyebrow {
@@ -27,7 +32,12 @@
 .signalGroup h4 {
   margin: 0;
   color: var(--teal-deep);
-  font-family: var(--font-lora-variable, Georgia), 'Times New Roman', serif;
+  font-family: var(--font-fraunces), serif;
+}
+
+.header h3 {
+  font-size: clamp(23px, 3vw, 30px);
+  line-height: 1.3;
 }
 
 .header p,
@@ -37,6 +47,7 @@
 .provenance {
   margin: 0;
   color: var(--ink-soft);
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -48,14 +59,84 @@
 }
 
 .state {
-  padding: 14px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--teal) 18%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 14px 30px -28px var(--teal-deep);
+}
+
+.systemLabel {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.systemLabel svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.analyzingTitle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.analyzingDots {
+  display: inline-flex;
+  min-width: 28px;
+  align-items: center;
+  gap: 4px;
+}
+
+.analyzingDots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: analyzing-pulse 1.2s ease-in-out infinite;
+}
+
+.analyzingDots span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.analyzingDots span:nth-child(3) {
+  animation-delay: 0.32s;
 }
 
 .error {
-  border: 1px solid color-mix(in srgb, #a33b3b 42%, transparent);
-  background: color-mix(in srgb, #fff2f0 88%, var(--surface));
+  border-color: color-mix(in srgb, var(--terracotta) 42%, transparent);
+  background: color-mix(in srgb, var(--terracotta-soft) 72%, var(--surface));
+}
+
+.error .systemLabel {
+  color: color-mix(in srgb, var(--terracotta) 76%, var(--ink));
+}
+
+.result {
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--teal) 20%, var(--line));
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 18px 36px -34px var(--teal-deep);
+}
+
+.result > h4 {
+  font-size: 22px;
 }
 
 .consentText {
@@ -69,18 +150,77 @@
 }
 
 .consentChoice {
+  position: relative;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  align-items: start;
-  min-height: 44px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
   cursor: pointer;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
-.consentChoice input {
-  width: 20px;
-  height: 20px;
-  margin-top: 2px;
+.consentInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.consentControl {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1.5px solid color-mix(in srgb, var(--teal) 58%, var(--line));
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--primary-foreground);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.consentControl svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+  opacity: 0;
+  transform: scale(0.72);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.consentInput:checked + .consentControl {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 14%, transparent);
+}
+
+.consentInput:checked + .consentControl svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.consentInput:focus-visible + .consentControl {
+  outline: 3px solid color-mix(in srgb, var(--teal) 38%, transparent);
+  outline-offset: 3px;
+}
+
+.consentLabel {
+  color: var(--ink);
+  font-weight: 650;
 }
 
 .actions {
@@ -133,9 +273,10 @@
   display: grid;
   gap: 8px;
   min-width: 0;
-  padding: 12px;
-  border-radius: 10px;
-  background: var(--surface);
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
 }
 
 .signalGroup ul {
@@ -159,6 +300,33 @@
   overflow-wrap: anywhere;
 }
 
+.technicalDetails {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.technicalDetails summary {
+  min-height: 44px;
+  padding: 10px 13px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.technicalDetails > p,
+.technicalDetails > small {
+  display: block;
+  margin: 0 13px 12px;
+}
+
+.technicalDetails summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal) 38%, transparent);
+  outline-offset: -3px;
+}
+
 @media (max-width: 620px) {
   .reflection {
     padding: 16px;
@@ -172,5 +340,31 @@
   .actions button,
   .actions a {
     width: 100%;
+  }
+}
+
+@keyframes analyzing-pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analyzingDots span {
+    animation: none;
+    opacity: 0.65;
+  }
+
+  .consentControl,
+  .consentControl svg {
+    transition: none;
   }
 }

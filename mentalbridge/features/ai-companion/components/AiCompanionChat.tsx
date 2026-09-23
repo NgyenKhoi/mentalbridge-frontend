@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type {
   CompanionConversation,
   CompanionConversationSummary,
@@ -41,8 +42,7 @@ const refreshAfterSendError =
   'Tin nhắn đã được gửi nhưng chưa thể tải lại cuộc trò chuyện. Hãy chọn Tải lại để xem lịch sử mới nhất.'
 
 const quotaCopy = (quota: CompanionQuota | null) => {
-  if (!quota)
-    return 'Hạn mức sẽ được xác nhận bởi máy chủ sau câu trả lời đầu tiên.'
+  if (!quota) return 'Số lượt còn lại sẽ hiện sau câu trả lời đầu tiên.'
   if (quota.plan === 'PREMIUM')
     return 'Premium không hiển thị giới hạn trả lời hằng ngày; giới hạn token, tốc độ và sử dụng hợp lý vẫn áp dụng.'
   return `Còn ${String(quota.remaining)} lượt · đặt lại ${new Intl.DateTimeFormat(
@@ -54,6 +54,40 @@ const quotaCopy = (quota: CompanionQuota | null) => {
       month: '2-digit',
     },
   ).format(new Date(quota.resetAt))}`
+}
+
+const contextLabels: Record<string, string> = {
+  JOURNAL: 'Nhật ký bạn đã chọn',
+  SUPPORT_PLAN: 'Kế hoạch hỗ trợ hiện tại',
+  REMINDER: 'Lời nhắc của bạn',
+}
+
+function InfoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 10.7v5.1M12 7.7h.01" />
+    </svg>
+  )
+}
+
+function SparkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3.5c.6 4.1 2.4 5.9 6.5 6.5-4.1.6-5.9 2.4-6.5 6.5-.6-4.1-2.4-5.9-6.5-6.5 4.1-.6 5.9-2.4 6.5-6.5Z" />
+      <path d="M18.2 15.5c.2 1.7 1.1 2.6 2.8 2.8-1.7.3-2.6 1.1-2.8 2.8-.3-1.7-1.1-2.5-2.8-2.8 1.7-.2 2.5-1.1 2.8-2.8Z" />
+    </svg>
+  )
+}
+
+function CheckMark() {
+  return (
+    <span className={styles.checkboxControl} aria-hidden="true">
+      <svg viewBox="0 0 16 16">
+        <path d="m3.2 8.2 3 3.1 6.7-7" />
+      </svg>
+    </span>
+  )
 }
 
 export default function AiCompanionChat() {
@@ -240,18 +274,29 @@ export default function AiCompanionChat() {
             Cuộc trò chuyện mới
           </button>
         </div>
-        <p className={styles.boundary}>
-          AI hỗ trợ suy ngẫm; không chẩn đoán, chấm điểm, quyết định an toàn hay
-          thay đổi kế hoạch.
-        </p>
+        <aside className={styles.boundary} aria-label="Lưu ý về AI">
+          <span className={styles.noticeIcon}>
+            <InfoIcon />
+          </span>
+          <span>
+            <strong>Lưu ý về AI</strong>
+            AI hỗ trợ suy ngẫm; không chẩn đoán, chấm điểm, quyết định an toàn
+            hay thay đổi kế hoạch.
+          </span>
+        </aside>
         <div className={styles.history}>
           {conversations.length === 0 ? (
             <p>Chưa có cuộc trò chuyện.</p>
           ) : (
-            conversations.map((conversation) => (
+            conversations.map((conversation, index) => (
               <button
                 type="button"
                 key={conversation.conversationId}
+                style={
+                  {
+                    '--entry-delay': `${Math.min(index, 7) * 45}ms`,
+                  } as CSSProperties
+                }
                 className={
                   active?.conversationId === conversation.conversationId
                     ? styles.activeConversation
@@ -276,9 +321,14 @@ export default function AiCompanionChat() {
 
       <section className={styles.chat} aria-label="AI Companion">
         <header className={styles.chatHeader}>
-          <div>
-            <span>Hạn mức gói dịch vụ</span>
-            <strong>{quotaCopy(quota)}</strong>
+          <div className={styles.accountNotice}>
+            <span className={styles.noticeIcon}>
+              <InfoIcon />
+            </span>
+            <div>
+              <span>Thông tin tài khoản</span>
+              <strong>{quotaCopy(quota)}</strong>
+            </div>
           </div>
           <div className={styles.headerActions}>
             <Link href="/initial-check#safety">Cần trợ giúp ngay</Link>
@@ -324,64 +374,132 @@ export default function AiCompanionChat() {
                 active.messages.map((item) => (
                   <article
                     key={item.messageId}
-                    className={
+                    className={`${styles.messageRow} ${
                       item.role === 'USER'
                         ? styles.userMessage
                         : styles.aiMessage
-                    }
+                    }`}
                   >
-                    <span>{item.role === 'USER' ? 'Bạn' : 'AI Companion'}</span>
-                    <p>{item.content}</p>
-                    {item.contextKinds.length > 0 ? (
-                      <small>
-                        Bối cảnh đã dùng: {item.contextKinds.join(', ')}
-                      </small>
-                    ) : null}
+                    <span className={styles.avatar} aria-hidden="true">
+                      {item.role === 'USER' ? 'B' : <SparkIcon />}
+                    </span>
+                    <div className={styles.messageBubble}>
+                      <header>
+                        <strong>
+                          {item.role === 'USER' ? 'Bạn' : 'AI Companion'}
+                        </strong>
+                        <time dateTime={item.createdAt}>
+                          {new Intl.DateTimeFormat('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }).format(new Date(item.createdAt))}
+                        </time>
+                      </header>
+                      <p>{item.content}</p>
+                      {item.contextKinds.length > 0 ? (
+                        <aside className={styles.messageSystemInfo}>
+                          <InfoIcon />
+                          <span>
+                            <strong>Thông tin được dùng</strong>
+                            {item.contextKinds
+                              .map((kind) => contextLabels[kind])
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </span>
+                        </aside>
+                      ) : null}
+                    </div>
                   </article>
                 ))
               )}
               {sending ? (
-                <p className={styles.thinking} role="status">
-                  AI Companion đang chuẩn bị câu trả lời…
-                </p>
+                <div className={styles.thinking} role="status">
+                  <span aria-hidden="true">
+                    <SparkIcon />
+                  </span>
+                  <span>AI Companion đang chuẩn bị câu trả lời</span>
+                  <i aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </i>
+                </div>
               ) : null}
             </div>
 
             <details className={styles.context}>
-              <summary>Bối cảnh cho phép trong câu trả lời này</summary>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={includePlan}
-                  onChange={(event) => setIncludePlan(event.target.checked)}
-                />
-                Kế hoạch hỗ trợ hiện tại (nếu có)
-              </label>
-              <fieldset>
-                <legend>Nhật ký đã chọn ({selectedJournals.length}/3)</legend>
-                {journals.length === 0 ? (
-                  <p>Không có nhật ký khả dụng.</p>
-                ) : (
-                  journals.map((journal) => (
-                    <label key={journal.id}>
-                      <input
-                        type="checkbox"
-                        checked={selectedJournals.includes(journal.id)}
-                        disabled={
-                          !selectedJournals.includes(journal.id) &&
-                          selectedJournals.length >= 3
-                        }
-                        onChange={() => toggleJournal(journal.id)}
-                      />
-                      {journal.content.preview}
-                    </label>
-                  ))
-                )}
-              </fieldset>
-              <small>
-                Chỉ bối cảnh đã chọn và được dịch vụ sở hữu xác minh mới được
-                gửi. Bối cảnh nhắc nhở chưa được bật.
-              </small>
+              <summary>
+                <span className={styles.summaryContent}>
+                  <span className={styles.contextIcon}>
+                    <InfoIcon />
+                  </span>
+                  <span>
+                    <strong>Chọn thông tin để AI hiểu bạn hơn</strong>
+                    <small>
+                      {selectedJournals.length > 0
+                        ? `${selectedJournals.length} nhật ký đã chọn`
+                        : 'Không bắt buộc · bạn luôn kiểm soát nội dung được dùng'}
+                    </small>
+                  </span>
+                </span>
+                <svg
+                  className={styles.chevron}
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="m7 9.5 5 5 5-5" />
+                </svg>
+              </summary>
+              <div className={styles.contextBody}>
+                <label className={styles.checkboxOption}>
+                  <input
+                    className={styles.checkboxInput}
+                    type="checkbox"
+                    checked={includePlan}
+                    onChange={(event) => setIncludePlan(event.target.checked)}
+                  />
+                  <CheckMark />
+                  <span>
+                    <strong>Kế hoạch hỗ trợ hiện tại</strong>
+                    <small>Nếu bạn đã có kế hoạch hỗ trợ</small>
+                  </span>
+                </label>
+                <fieldset>
+                  <legend>
+                    Nhật ký muốn chia sẻ{' '}
+                    <span>{selectedJournals.length}/3</span>
+                  </legend>
+                  {journals.length === 0 ? (
+                    <p className={styles.contextEmpty}>
+                      Chưa có nhật ký để chọn.
+                    </p>
+                  ) : (
+                    journals.map((journal) => (
+                      <label className={styles.checkboxOption} key={journal.id}>
+                        <input
+                          className={styles.checkboxInput}
+                          type="checkbox"
+                          checked={selectedJournals.includes(journal.id)}
+                          disabled={
+                            !selectedJournals.includes(journal.id) &&
+                            selectedJournals.length >= 3
+                          }
+                          onChange={() => toggleJournal(journal.id)}
+                        />
+                        <CheckMark />
+                        <span>{journal.content.preview}</span>
+                      </label>
+                    ))
+                  )}
+                </fieldset>
+                <aside className={styles.privacyNote}>
+                  <InfoIcon />
+                  <span>
+                    Chỉ những mục bạn chọn mới được dùng để hỗ trợ câu trả lời.
+                    Nội dung nhắc nhở hiện chưa được sử dụng.
+                  </span>
+                </aside>
+              </div>
             </details>
 
             <div className={styles.composer}>
