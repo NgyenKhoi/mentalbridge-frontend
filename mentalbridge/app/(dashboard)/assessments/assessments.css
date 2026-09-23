@@ -541,40 +541,6 @@
   font-weight: 750;
 }
 
-.assessment-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-top: 28px;
-  padding: 18px 20px;
-  border: 1px solid #ddd7f4;
-  border-radius: 16px;
-  background: #f0edfc;
-}
-.assessment-note > span {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  flex: none;
-  border-radius: 50%;
-  background: #8e84c9;
-  color: #fff;
-  font-family: var(--font-fraunces);
-  font-size: 15px;
-  font-weight: 700;
-}
-.assessment-note strong {
-  color: var(--teal-deep);
-  font-size: 14px;
-}
-.assessment-note p {
-  margin-top: 3px;
-  color: var(--ink-soft);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
 .assessment-card-unavailable {
   opacity: 0.72;
 }
@@ -690,9 +656,6 @@
   .assessment-progress-arrow {
     transform: rotate(90deg);
     text-align: center;
-  }
-  .assessment-note {
-    margin-bottom: 20px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

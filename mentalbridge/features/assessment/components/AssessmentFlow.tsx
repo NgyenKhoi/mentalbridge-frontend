@@ -102,6 +102,14 @@ function ResultPanel({
                 ? 'Bạn có thể xem các tài nguyên hỗ trợ phù hợp ở bên dưới.'
                 : 'Bạn vẫn có thể xem các tài nguyên chăm sóc sức khỏe tinh thần ở bên dưới.'}
           </p>
+          {positive && (
+            <Link
+              href="/safety-directory?trigger=positive-item-9"
+              className="btn btn-primary care-safety-directory-link"
+            >
+              Xem hỗ trợ trong khu vực đã chọn
+            </Link>
+          )}
         </article>
       </div>
 
@@ -174,6 +182,9 @@ function ResultPanel({
       <ResourcesList limit={6} className="care-result-resources" />
 
       <div className="care-result-actions">
+        <Link href="/safety-directory" className="btn btn-outline">
+          Tôi cần hỗ trợ ngay
+        </Link>
         <button className="btn btn-primary" type="button" onClick={onRestart}>
           Làm bài mới
         </button>

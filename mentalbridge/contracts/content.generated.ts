@@ -145,10 +145,230 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/resources/{id}/versions/{contentVersion}/eligibility-publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish immutable exact-version SupportPlan eligibility (Admin) */
+        post: operations["publishResourceEligibility"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resources/{id}/versions/{contentVersion}/eligibility-publications/withdrawal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw an exact-version eligibility publication (Admin) */
+        post: operations["withdrawResourceEligibility"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/resource-eligibility:resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve exact-version resource eligibility for Care in one bounded batch
+         * @description Care forwards the authenticated USER bearer credential and correlation ID. Results preserve request order. A successful provider response never infers eligibility from resource type, review, or publication alone. Dependency uncertainty is represented by HTTP 503; Care maps it to UNAVAILABLE and commits no proposal mutation.
+         */
+        post: operations["resolveResourceEligibility"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/safety-directory/admin/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List directory records for administration */
+        get: operations["listSafetyDirectoryEntriesForAdmin"];
+        put?: never;
+        /** Create an inactive unreviewed directory record */
+        post: operations["createSafetyDirectoryEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/safety-directory/admin/entries/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Replace reviewed fields and invalidate prior review */
+        patch: operations["updateSafetyDirectoryEntry"];
+        trace?: never;
+    };
+    "/api/v1/safety-directory/admin/entries/{entryId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review, verify, and activate the exact directory version */
+        post: operations["reviewSafetyDirectoryEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/safety-directory/admin/entries/{entryId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate a directory record without deleting review history */
+        post: operations["deactivateSafetyDirectoryEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/safety-directory:lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve active reviewed current records for one deliberate coarse area
+         * @description Public read-only owner lookup used by Care. Manual text is matched only against reviewed area labels; no geocoding, proximity, or location sharing occurs.
+         */
+        post: operations["lookupSafetyDirectory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {string} */
+        SafetyDirectoryEntryType: "FACILITY" | "HOTLINE";
+        /** @enum {string} */
+        SafetyDirectoryCoverageLevel: "NATIONWIDE" | "PROVINCE" | "DISTRICT";
+        SafetyDirectoryCoverage: {
+            level: components["schemas"]["SafetyDirectoryCoverageLevel"];
+            provinceCode: string | null;
+            provinceName: string | null;
+            districtCode: string | null;
+            districtName: string | null;
+        };
+        SafetyDirectoryEntryWrite: {
+            name: string;
+            type: components["schemas"]["SafetyDirectoryEntryType"];
+            phone: string;
+            address: string | null;
+            coverage: components["schemas"]["SafetyDirectoryCoverage"][];
+            sourceName: string;
+            sourceReference: string;
+            /** Format: date-time */
+            sourceRetrievedAt: string;
+            sourceChecksum?: string | null;
+        };
+        /** @enum {string} */
+        SafetyDirectoryReviewState: "UNREVIEWED" | "CURRENT" | "STALE" | "INACTIVE";
+        SafetyDirectoryPublicEntry: {
+            /** Format: uuid */
+            directoryEntryId: string;
+            name: string;
+            type: components["schemas"]["SafetyDirectoryEntryType"];
+            phone: string;
+            address: string | null;
+            coverage: components["schemas"]["SafetyDirectoryCoverage"][];
+            sourceName: string;
+            sourceReference: string;
+            /** Format: date-time */
+            reviewedAt: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        };
+        SafetyDirectoryAdminEntry: components["schemas"]["SafetyDirectoryPublicEntry"] & ({
+            /** Format: int64 */
+            recordVersion: number;
+            active: boolean;
+            reviewState: components["schemas"]["SafetyDirectoryReviewState"];
+            /** Format: uuid */
+            reviewedBy: string | null;
+            /** Format: uuid */
+            verifiedBy: string | null;
+            /** Format: date-time */
+            sourceRetrievedAt: string;
+            sourceChecksum: string | null;
+            readonly seedKey: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        } & {
+            [key: string]: unknown;
+        });
+        SafetyDirectoryLookupRequest: {
+            provinceCode?: string;
+            districtCode?: string;
+            manualLocation?: string;
+        } & (unknown | unknown);
+        /** @enum {string} */
+        SafetyDirectoryLookupState: "RESULTS" | "EMPTY" | "INVALID_AREA";
+        SafetyDirectoryLookupResponse: {
+            state: components["schemas"]["SafetyDirectoryLookupState"];
+            /** @constant */
+            wording: "Cơ sở trong khu vực đã chọn";
+            resolvedProvinceCode: string | null;
+            resolvedDistrictCode: string | null;
+            entries: components["schemas"]["SafetyDirectoryPublicEntry"][];
+        } & {
+            [key: string]: unknown;
+        };
         LiveResponse: {
             /** @example ok */
             status: string;
@@ -262,6 +482,123 @@ export interface components {
             effectiveAt?: string | null;
             /** Format: date-time */
             expiresAt?: string | null;
+        };
+        /** @enum {string} */
+        EligibilityPolicyVersion: "content-eligibility-v1";
+        /**
+         * @description V1 screening domains only; GENERAL_WELLBEING and BOTH_SCREENED_DOMAINS are invalid.
+         * @enum {string}
+         */
+        ScreeningDomain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
+        /** @enum {string} */
+        EligibilityRole: "PRIMARY" | "ADJUNCT";
+        /**
+         * @description PRIMARY_OR_ADJUNCT is valid only for an optional SupportPlan slot.
+         * @enum {string}
+         */
+        RequiredEligibilityRole: "PRIMARY" | "PRIMARY_OR_ADJUNCT";
+        /** @enum {string} */
+        ScreeningInstrument: "PHQ_9" | "GAD_7";
+        /** @enum {string} */
+        ScreeningLevel: "MINIMAL" | "MILD" | "MODERATE" | "MODERATELY_SEVERE" | "SEVERE";
+        /** @enum {string} */
+        SupportTier: "SELF_GUIDED_SUPPORT" | "PROFESSIONAL_SUPPORT_RECOMMENDED" | "SAFETY_FOLLOW_UP_RECOMMENDED";
+        /** @enum {string} */
+        EligibilityPublicationState: "PUBLISHED" | "WITHDRAWN";
+        EligibilityDeclaration: {
+            targetDomain: components["schemas"]["ScreeningDomain"];
+            role: components["schemas"]["EligibilityRole"];
+            instrument: components["schemas"]["ScreeningInstrument"];
+            screeningLevels: components["schemas"]["ScreeningLevel"][];
+            supportTiers: components["schemas"]["SupportTier"][];
+        };
+        PublishResourceEligibilityRequest: {
+            policyVersion: components["schemas"]["EligibilityPolicyVersion"];
+            locale: string;
+            /** Format: date-time */
+            effectiveAt: string;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            declarations: components["schemas"]["EligibilityDeclaration"][];
+        };
+        WithdrawResourceEligibilityRequest: {
+            policyVersion: components["schemas"]["EligibilityPolicyVersion"];
+            /** @enum {string} */
+            reasonCode: "CONTENT_WITHDRAWN" | "POLICY_WITHDRAWN" | "SUPERSEDED";
+        };
+        ResourceEligibilityPublication: {
+            /** Format: uuid */
+            publicationId: string;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            policyVersion: components["schemas"]["EligibilityPolicyVersion"];
+            locale: string;
+            state: components["schemas"]["EligibilityPublicationState"];
+            /** Format: date-time */
+            effectiveAt: string;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            declarations: components["schemas"]["EligibilityDeclaration"][];
+            /** Format: date-time */
+            publishedAt: string;
+            /** Format: date-time */
+            withdrawnAt?: string | null;
+            /** @enum {string|null} */
+            withdrawalReasonCode?: "CONTENT_WITHDRAWN" | "POLICY_WITHDRAWN" | "SUPERSEDED" | null;
+        } & {
+            [key: string]: unknown;
+        };
+        ResourceEligibilityQuery: {
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            targetDomain: components["schemas"]["ScreeningDomain"];
+            requiredRole: components["schemas"]["RequiredEligibilityRole"];
+            instrument: components["schemas"]["ScreeningInstrument"];
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+            supportTier: components["schemas"]["SupportTier"];
+            locale: string;
+        };
+        ResourceEligibilityBatchRequest: {
+            requests: components["schemas"]["ResourceEligibilityQuery"][];
+        };
+        /**
+         * @description UNAVAILABLE is a Care fail-closed fallback and is never emitted in a provider HTTP 200 response.
+         * @enum {string}
+         */
+        ResourceEligibilityOutcome: "ELIGIBLE" | "INELIGIBLE" | "STALE" | "WITHDRAWN" | "NOT_FOUND" | "UNAVAILABLE";
+        /** @enum {string} */
+        ResourceEligibilityReasonCode: "ELIGIBLE_MATCH" | "RESOURCE_NOT_FOUND" | "CONTENT_VERSION_STALE" | "NO_ELIGIBILITY_PUBLICATION" | "DOMAIN_OR_PATHWAY_NOT_ELIGIBLE" | "PRIMARY_REQUIRED" | "NOT_YET_EFFECTIVE" | "EFFECTIVE_WINDOW_ENDED" | "RESOURCE_ARCHIVED" | "RESOURCE_NOT_PUBLISHED" | "LOCALE_MISMATCH" | "ELIGIBILITY_WITHDRAWN" | "DEPENDENCY_UNAVAILABLE";
+        ResourceEligibilityResult: {
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            outcome: components["schemas"]["ResourceEligibilityOutcome"];
+            reasonCode: components["schemas"]["ResourceEligibilityReasonCode"];
+            role?: components["schemas"]["EligibilityRole"] | null;
+            /** Format: uuid */
+            publicationId?: string | null;
+            /** @description Present only for an eligible exact version so Care can persist the approved display snapshot. */
+            category?: components["schemas"]["ResourceCategory"] | null;
+            title?: string | null;
+            summary?: string | null;
+            /** Format: uri */
+            externalUrl?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        ResourceEligibilityBatchResponse: {
+            policyVersion: components["schemas"]["EligibilityPolicyVersion"];
+            /** Format: date-time */
+            resolvedAt: string;
+            results: components["schemas"]["ResourceEligibilityResult"][];
+        } & {
+            [key: string]: unknown;
         };
     };
     responses: {
@@ -401,6 +738,10 @@ export interface components {
         Category: components["schemas"]["ResourceCategory"];
         Limit: number;
         Cursor: string;
+        /** @description Exact non-negative 64-bit content version encoded as a JSON-safe decimal string. */
+        ContentVersion: string;
+        DirectoryEntryId: string;
+        DirectoryVersion: number;
     };
     requestBodies: never;
     headers: never;
@@ -733,6 +1074,286 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    publishResourceEligibility: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Opaque key reused only for an unchanged logical create request by this actor. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["ResourceId"];
+                /** @description Exact non-negative 64-bit content version encoded as a JSON-safe decimal string. */
+                contentVersion: components["parameters"]["ContentVersion"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishResourceEligibilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable eligibility publication created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceEligibilityPublication"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    withdrawResourceEligibility: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Opaque key reused only for an unchanged logical create request by this actor. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["ResourceId"];
+                /** @description Exact non-negative 64-bit content version encoded as a JSON-safe decimal string. */
+                contentVersion: components["parameters"]["ContentVersion"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawResourceEligibilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Eligibility publication withdrawn or an identical command replayed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceEligibilityPublication"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    resolveResourceEligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceEligibilityBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Deterministic exact-version eligibility outcomes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceEligibilityBatchResponse"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listSafetyDirectoryEntriesForAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All current administrative records, including inactive and stale entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryAdminEntry"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createSafetyDirectoryEntry: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Opaque key reused only for an unchanged logical create request by this actor. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyDirectoryEntryWrite"];
+            };
+        };
+        responses: {
+            /** @description Inactive unreviewed record created or identical command replayed */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryAdminEntry"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["IdempotencyConflict"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    updateSafetyDirectoryEntry: {
+        parameters: {
+            query: {
+                version: components["parameters"]["DirectoryVersion"];
+            };
+            header?: never;
+            path: {
+                entryId: components["parameters"]["DirectoryEntryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyDirectoryEntryWrite"];
+            };
+        };
+        responses: {
+            /** @description Record updated, deactivated, and returned to unreviewed state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryAdminEntry"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    reviewSafetyDirectoryEntry: {
+        parameters: {
+            query: {
+                version: components["parameters"]["DirectoryVersion"];
+            };
+            header?: never;
+            path: {
+                entryId: components["parameters"]["DirectoryEntryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact record version reviewed, verified with server time, and activated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryAdminEntry"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    deactivateSafetyDirectoryEntry: {
+        parameters: {
+            query: {
+                version: components["parameters"]["DirectoryVersion"];
+            };
+            header?: never;
+            path: {
+                entryId: components["parameters"]["DirectoryEntryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Record is inactive; repeating against the current inactive version is safe */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryAdminEntry"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    lookupSafetyDirectory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyDirectoryLookupRequest"];
+            };
+        };
+        responses: {
+            /** @description Current records or an explicit empty/invalid-area outcome */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryLookupResponse"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
 }

@@ -20,6 +20,18 @@ Regenerate the synthetic evidence with
 `npx playwright test tests/e2e/journal.spec.ts --project=chromium` after
 `npm run build`; do not label these artifacts as live cross-stack evidence.
 
+MB-368 produces `mb-368-journal-ai-reflection.png`,
+`mb-368-journal-ai-font-vietnamese.png`, and the Lora comparison capture
+`mb-368-journal-ai-font-lora.png`. The controlled
+`fixture-browser` journey proves explicit AI consent, exact-revision async job
+polling, reload restoration, stale-result rejection, provider-failure retry,
+allow-listed action routing, and consent revocation through the same-origin
+BFF. It also verifies that the Journal modal and Reflection headings resolve to
+Lora's Vietnamese subset instead of an unsupported serif fallback.
+The fixture returns normalized synthetic analysis and is not live-provider or
+live cross-stack evidence. Regenerate it with
+`npm run test:e2e -- tests/e2e/journal.spec.ts` after `npm run build`.
+
 MB-272 produces `mb-272-initial-check-questionnaire-desktop.png`,
 `mb-272-initial-check-desktop.png` and `mb-272-initial-check-mobile.png` from
 the guided dashboard-to-result journey.

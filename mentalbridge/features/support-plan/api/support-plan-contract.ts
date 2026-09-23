@@ -15,6 +15,8 @@ export type SupportPlanOccurrenceList =
   care['schemas']['SupportPlanOccurrenceList']
 export type ChangeSupportPlanOccurrenceStateRequest =
   care['schemas']['ChangeSupportPlanOccurrenceStateRequest']
+export type ReplaceSupportPlanOccurrenceEngagementRequest =
+  care['schemas']['ReplaceSupportPlanOccurrenceEngagementRequest']
 export type ChangeSupportPlanStatusRequest =
   care['schemas']['ChangeSupportPlanStatusRequest']
 export type SupportEvaluationV2 = evaluation['schemas']['SupportEvaluationV2']

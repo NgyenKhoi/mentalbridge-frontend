@@ -12,6 +12,7 @@ import type {
   CareProfileUpdate,
   ConsentCollection,
   ConsentDecisionRequest,
+  AiProcessingDisclosure,
   PrivacyDisclosure,
   AssessmentHistoryPage,
   AssessmentProgress,
@@ -22,6 +23,7 @@ import type {
   SupportEvidence,
   SupportReasonCode,
   SupportTier,
+  SafetyDirectoryResponse,
 } from '@/features/assessment/api/care-contract'
 import type {
   ValidationResult,
@@ -95,6 +97,66 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value)
+}
+
+const AREA_WORDING_CONSTANT = 'Cơ sở trong khu vực đã chọn' as const
+const SAFETY_GUIDANCE_CONSTANT =
+  'Nếu bạn cảm thấy mình không an toàn hoặc có nguy cơ gây hại cho bản thân, hãy chủ động liên hệ dịch vụ khẩn cấp hoặc cơ sở y tế phù hợp tại khu vực của bạn.' as const
+const LIMITATION_CONSTANT =
+  'MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.' as const
+
+// States that must never carry directory entries in the response.
+const EMPTY_ENTRY_STATES = new Set(['EMPTY', 'INVALID_AREA', 'UNAVAILABLE'])
+
+export function parseSafetyDirectory(
+  value: unknown,
+): SafetyDirectoryResponse | null {
+  if (!isRecord(value)) return null
+  const states = new Set(['RESULTS', 'EMPTY', 'INVALID_AREA', 'UNAVAILABLE'])
+  const triggers = new Set(['POSITIVE_ITEM_9', 'HELP_NOW'])
+  const state = String(value.state)
+  if (
+    !triggers.has(String(value.trigger)) ||
+    !states.has(state) ||
+    // Enforce the exact approved constant — rejects any "nearest" or other
+    // deviation that would violate ADR 0018 / MB-554.
+    value.areaWording !== AREA_WORDING_CONSTANT ||
+    value.safetyGuidance !== SAFETY_GUIDANCE_CONSTANT ||
+    value.limitation !== LIMITATION_CONSTANT ||
+    !Array.isArray(value.entries)
+  )
+    return null
+
+  // State-entry consistency: non-RESULTS states must not carry entries.
+  if (EMPTY_ENTRY_STATES.has(state) && value.entries.length > 0) return null
+
+  const entries = value.entries.filter(
+    (entry): entry is SafetyDirectoryResponse['entries'][number] => {
+      if (!isRecord(entry)) return false
+      return (
+        typeof entry.directoryEntryId === 'string' &&
+        typeof entry.name === 'string' &&
+        (entry.type === 'FACILITY' || entry.type === 'HOTLINE') &&
+        typeof entry.phone === 'string' &&
+        (entry.address === null || typeof entry.address === 'string') &&
+        Array.isArray(entry.coverage) &&
+        typeof entry.sourceName === 'string' &&
+        typeof entry.sourceReference === 'string' &&
+        typeof entry.reviewedAt === 'string' &&
+        typeof entry.verifiedAt === 'string'
+      )
+    },
+  )
+  if (entries.length !== value.entries.length || entries.length > 100)
+    return null
+  return {
+    trigger: value.trigger as SafetyDirectoryResponse['trigger'],
+    state: value.state as SafetyDirectoryResponse['state'],
+    areaWording: AREA_WORDING_CONSTANT,
+    safetyGuidance: SAFETY_GUIDANCE_CONSTANT,
+    limitation: LIMITATION_CONSTANT,
+    entries,
+  }
 }
 
 function parseRfc3339Instant(value: unknown): PreciseMilliseconds | null {
@@ -333,12 +395,34 @@ export function parsePrivacyDisclosure(
   return value as PrivacyDisclosure
 }
 
+export function parseAiProcessingDisclosure(
+  value: unknown,
+): AiProcessingDisclosure | null {
+  if (
+    !isRecord(value) ||
+    value.consentType !== 'AI_PROCESSING' ||
+    value.version !== 'ai-processing-capstone-v1' ||
+    value.locale !== 'vi-VN' ||
+    typeof value.title !== 'string' ||
+    value.title.length < 1 ||
+    value.title.length > 160 ||
+    typeof value.content !== 'string' ||
+    value.content.length < 1 ||
+    value.content.length > 4000 ||
+    value.capstoneOnly !== true
+  )
+    return null
+  return value as AiProcessingDisclosure
+}
+
 function parseConsentDecision(value: unknown) {
   if (
     !isRecord(value) ||
     !isUuid(value.decisionId) ||
-    value.consentType !== 'PRIVACY_POLICY' ||
+    !['PRIVACY_POLICY', 'AI_PROCESSING'].includes(String(value.consentType)) ||
     typeof value.policyVersion !== 'string' ||
+    value.policyVersion.length < 1 ||
+    value.policyVersion.length > 64 ||
     typeof value.granted !== 'boolean' ||
     !isDateTime(value.decidedAt)
   )
@@ -352,6 +436,7 @@ export function parseConsentCollection(
   if (
     !isRecord(value) ||
     !Array.isArray(value.decisions) ||
+    value.decisions.length > 2 ||
     value.decisions.some((item) => !parseConsentDecision(item))
   )
     return null
@@ -366,8 +451,12 @@ export function parseConsentRequest(
     Object.keys(value).some(
       (key) => !['consentType', 'policyVersion', 'granted'].includes(key),
     ) ||
-    value.consentType !== 'PRIVACY_POLICY' ||
-    value.policyVersion !== 'privacy-capstone-v3' ||
+    !(
+      (value.consentType === 'PRIVACY_POLICY' &&
+        value.policyVersion === 'privacy-capstone-v3') ||
+      (value.consentType === 'AI_PROCESSING' &&
+        value.policyVersion === 'ai-processing-capstone-v1')
+    ) ||
     typeof value.granted !== 'boolean'
   )
     return null

@@ -19,6 +19,7 @@ Story-specific delivery evidence:
 - [MB-177/MB-178/MB-205 Care-backed screening, profile, consent, history, and progress integration](care-assessment-integration.md)
 - [MB-273 initial-check release evidence](initial-check-release-evidence.md)
 - [Story 6201 Journal authoring and draft protection](journal-authoring-story-6201.md)
+- [MB-368 exact-revision Journal AI reflection](mb-368-journal-ai-reflection.md)
 - [MB-362 online specialist availability evidence](mb-362-specialist-availability-evidence.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
@@ -47,6 +48,7 @@ documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
 | GAD-7 runtime and immutable questionnaire history    | Implemented | Story 1102     |
 | Guided initial check and unified support result      | Implemented | MB-272         |
 | Mood-aware Journal authoring and draft protection    | Implemented | Story 6201     |
+| Explicit-consent, exact-revision Journal reflection  | Implemented | MB-368         |
 | Exact 60-minute online specialist availability       | Implemented | MB-362         |
 
 When implementation and a document disagree, do not silently choose one. Check

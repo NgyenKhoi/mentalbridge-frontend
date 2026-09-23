@@ -13,12 +13,14 @@ import type {
   ConsentCollection,
   ConsentDecision,
   ConsentDecisionRequest,
+  AiProcessingDisclosure,
   PrivacyDisclosure,
   AssessmentHistoryPage,
   AssessmentProgress,
   Instrument,
   SupportEvaluation,
   SupportEvaluationRequest,
+  SafetyDirectoryResponse,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
 import type {
@@ -37,6 +39,7 @@ import type {
   SupportPlanOccurrence,
   SupportPlanOccurrenceList,
   ChangeSupportPlanOccurrenceStateRequest,
+  ReplaceSupportPlanOccurrenceEngagementRequest,
   ChangeSupportPlanStatusRequest,
 } from '@/features/support-plan/api/support-plan-contract'
 import {
@@ -51,10 +54,12 @@ import {
   parseQuestionnaire,
   parseProfile,
   parsePrivacyDisclosure,
+  parseAiProcessingDisclosure,
   parseConsentCollection,
   parseAssessmentHistory,
   parseAssessmentProgress,
   parseSupportEvaluation,
+  parseSafetyDirectory,
 } from './care-validation'
 import {
   parseSupportEvaluationV2,
@@ -66,7 +71,7 @@ import {
 } from './support-plan-validation'
 
 type RequestOptions<T> = Readonly<{
-  method: 'GET' | 'POST' | 'PUT'
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   path: string
   correlationId: string
   authorization?: string
@@ -194,12 +199,41 @@ async function careRequest<T>(options: RequestOptions<T>): Promise<T> {
 }
 
 export const careClient = {
+  lookupSafetyDirectory(
+    request: {
+      trigger: 'POSITIVE_ITEM_9' | 'HELP_NOW'
+      provinceCode?: string
+      districtCode?: string
+      manualLocation?: string
+    },
+    correlationId: string,
+  ): Promise<SafetyDirectoryResponse> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v1/safety-directory-lookups',
+      correlationId,
+      body: request,
+      parseSuccess: parseSafetyDirectory,
+    })
+  },
+
   currentPrivacyDisclosure(correlationId: string): Promise<PrivacyDisclosure> {
     return careRequest({
       method: 'GET',
       path: '/api/v1/privacy-disclosures/current?locale=vi-VN',
       correlationId,
       parseSuccess: parsePrivacyDisclosure,
+    })
+  },
+
+  currentAiProcessingDisclosure(
+    correlationId: string,
+  ): Promise<AiProcessingDisclosure> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/ai-processing-disclosures/current?locale=vi-VN',
+      correlationId,
+      parseSuccess: parseAiProcessingDisclosure,
     })
   },
 
@@ -642,6 +676,40 @@ export const careClient = {
       authorization: accessToken,
       ifMatch: version,
       body: request,
+      parseSuccess: parseSupportPlanOccurrence,
+    })
+  },
+
+  replaceSupportPlanOccurrenceEngagement(
+    accessToken: string,
+    occurrenceId: string,
+    version: number,
+    request: ReplaceSupportPlanOccurrenceEngagementRequest,
+    correlationId: string,
+  ): Promise<SupportPlanOccurrence> {
+    return careRequest({
+      method: 'PUT',
+      path: `/api/v1/support-plan-occurrences/${encodeURIComponent(occurrenceId)}/engagement`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      body: request,
+      parseSuccess: parseSupportPlanOccurrence,
+    })
+  },
+
+  deleteSupportPlanOccurrenceEngagement(
+    accessToken: string,
+    occurrenceId: string,
+    version: number,
+    correlationId: string,
+  ): Promise<SupportPlanOccurrence> {
+    return careRequest({
+      method: 'DELETE',
+      path: `/api/v1/support-plan-occurrences/${encodeURIComponent(occurrenceId)}/engagement`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
       parseSuccess: parseSupportPlanOccurrence,
     })
   },

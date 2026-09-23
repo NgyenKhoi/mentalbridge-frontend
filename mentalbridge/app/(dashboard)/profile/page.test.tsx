@@ -64,6 +64,9 @@ describe('Care profile page', () => {
     )
     render(<ProfilePage />)
     await screen.findByDisplayValue('Nguyễn An')
+    expect(
+      screen.getByText(/MentalBridge cung cấp công cụ hỗ trợ tự nhìn lại/i),
+    ).toBeVisible()
     expect(screen.getByTestId('password-change-form')).toBeInTheDocument()
     expect(screen.getByText('Nội dung authoritative từ Care.')).toBeVisible()
     expect(screen.queryByText(/ThS\.|specialist/i)).not.toBeInTheDocument()

@@ -1,4 +1,7 @@
 import type {
+  AnalysisJob,
+  AnalysisResult,
+  AnalysisTerminalReason,
   JournalCreate,
   JournalEntry,
   JournalMood,
@@ -12,6 +15,30 @@ const uuid =
 const rfc3339 =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/
 const moods = new Set<JournalMood>(['GREAT', 'GOOD', 'OKAY', 'LOW', 'VERY_LOW'])
+const analysisStatuses = new Set(['RUNNING', 'SUCCEEDED', 'FAILED'])
+const terminalReasons = new Set<AnalysisTerminalReason>([
+  'CONSENT_REQUIRED',
+  'CONSENT_REVOKED',
+  'CONSENT_UNAVAILABLE',
+  'ENTITLEMENT_UNAVAILABLE',
+  'ENTITLEMENT_CHANGED',
+  'AUTHORIZATION_CONTEXT_LOST',
+  'REVISION_STALE',
+  'JOURNAL_DELETED',
+  'PROVIDER_TIMEOUT',
+  'PROVIDER_UNAVAILABLE',
+  'INVALID_PROVIDER_RESULT',
+  'INTERNAL_ERROR',
+])
+const suggestedActions = new Set([
+  'NONE',
+  'OFFER_RESOURCE_EXPLANATION',
+  'GUIDE_APPROVED_ACTIVITY',
+  'REQUEST_ALLOWED_ALTERNATIVE',
+  'REQUEST_PLAN_REVIEW',
+  'OPEN_PROFESSIONAL_SUPPORT',
+  'OPEN_SAFETY_GUIDANCE',
+])
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 const exact = (value: Record<string, unknown>, keys: string[]) =>
@@ -38,6 +65,154 @@ export const isJournalId = (value: unknown): value is string =>
   typeof value === 'string' && uuid.test(value)
 export const isIdempotencyKey = (value: unknown): value is string =>
   typeof value === 'string' && value.length >= 16 && value.length <= 128
+export const isJournalRevision = (value: unknown): value is number =>
+  Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 200
+
+const boundedStrings = (value: unknown) =>
+  Array.isArray(value) &&
+  value.length <= 12 &&
+  value.every(
+    (item) => typeof item === 'string' && item.length >= 1 && item.length <= 64,
+  )
+
+function parseAnalysisResult(value: unknown): AnalysisResult | null {
+  if (
+    !object(value) ||
+    !exact(value, [
+      'summary',
+      'contextSignals',
+      'emotionIndicators',
+      'themes',
+      'preferenceSignals',
+      'barrierSignals',
+      'sentiment',
+      'modelConfidence',
+      'suggestedAction',
+      'workload',
+      'servicePlan',
+      'entitlementSource',
+      'entitlementPolicyVersion',
+      'entitlementVersion',
+      'routingPolicyVersion',
+      'providerApprovalVersion',
+      'provider',
+      'model',
+      'promptVersion',
+      'schemaVersion',
+      'latencyMs',
+      'inputTokens',
+      'outputTokens',
+      'estimatedCostMicroUsd',
+      'createdAt',
+    ]) ||
+    (value.summary !== undefined &&
+      (typeof value.summary !== 'string' ||
+        value.summary.length < 1 ||
+        value.summary.length > 800)) ||
+    !boundedStrings(value.contextSignals) ||
+    !boundedStrings(value.emotionIndicators) ||
+    !boundedStrings(value.themes) ||
+    !boundedStrings(value.preferenceSignals) ||
+    !boundedStrings(value.barrierSignals) ||
+    (value.sentiment !== undefined &&
+      (typeof value.sentiment !== 'string' ||
+        value.sentiment.length < 1 ||
+        value.sentiment.length > 32)) ||
+    (value.modelConfidence !== undefined &&
+      (typeof value.modelConfidence !== 'number' ||
+        value.modelConfidence < 0 ||
+        value.modelConfidence > 1)) ||
+    typeof value.suggestedAction !== 'string' ||
+    !suggestedActions.has(value.suggestedAction) ||
+    (value.workload !== undefined && value.workload !== 'EXACT_REVISION') ||
+    (value.servicePlan !== undefined &&
+      !['FREE', 'PLUS', 'PREMIUM'].includes(String(value.servicePlan))) ||
+    (value.entitlementSource !== undefined &&
+      !['DEFAULT_FREE', 'DEMO', 'PAID'].includes(
+        String(value.entitlementSource),
+      )) ||
+    !optionalBoundedString(value.entitlementPolicyVersion, 96) ||
+    !optionalNonNegativeInteger(value.entitlementVersion) ||
+    !optionalBoundedString(value.routingPolicyVersion, 96) ||
+    !optionalBoundedString(value.providerApprovalVersion, 96) ||
+    !['DETERMINISTIC_FAKE', 'GEMINI', 'OPENAI'].includes(
+      String(value.provider),
+    ) ||
+    !boundedString(value.model, 128) ||
+    !boundedString(value.promptVersion, 96) ||
+    value.schemaVersion !== 1 ||
+    !optionalNonNegativeInteger(value.latencyMs) ||
+    !optionalNullableNonNegativeInteger(value.inputTokens) ||
+    !optionalNullableNonNegativeInteger(value.outputTokens) ||
+    !optionalNullableNonNegativeInteger(value.estimatedCostMicroUsd) ||
+    !dateTime(value.createdAt)
+  )
+    return null
+  return value as AnalysisResult
+}
+
+const boundedString = (value: unknown, maximum: number) =>
+  typeof value === 'string' && value.length >= 1 && value.length <= maximum
+const optionalBoundedString = (value: unknown, maximum: number) =>
+  value === undefined || boundedString(value, maximum)
+const optionalNonNegativeInteger = (value: unknown) =>
+  value === undefined || (Number.isInteger(value) && Number(value) >= 0)
+const optionalNullableNonNegativeInteger = (value: unknown) =>
+  value === undefined || value === null || optionalNonNegativeInteger(value)
+
+export function parseAnalysisJob(value: unknown): AnalysisJob | null {
+  if (
+    !object(value) ||
+    !exact(value, [
+      'jobId',
+      'journalId',
+      'journalRevision',
+      'status',
+      'attemptCount',
+      'terminalReason',
+      'result',
+      'createdAt',
+      'updatedAt',
+      'completedAt',
+    ]) ||
+    !isJournalId(value.jobId) ||
+    !isJournalId(value.journalId) ||
+    !isJournalRevision(value.journalRevision) ||
+    typeof value.status !== 'string' ||
+    !analysisStatuses.has(value.status) ||
+    !Number.isInteger(value.attemptCount) ||
+    Number(value.attemptCount) < 0 ||
+    Number(value.attemptCount) > 2 ||
+    (value.terminalReason !== undefined &&
+      value.terminalReason !== null &&
+      (typeof value.terminalReason !== 'string' ||
+        !terminalReasons.has(
+          value.terminalReason as AnalysisTerminalReason,
+        ))) ||
+    (value.result !== undefined &&
+      value.result !== null &&
+      !parseAnalysisResult(value.result)) ||
+    !dateTime(value.createdAt) ||
+    !dateTime(value.updatedAt) ||
+    (value.completedAt !== undefined &&
+      value.completedAt !== null &&
+      !dateTime(value.completedAt))
+  )
+    return null
+  const terminalReason = value.terminalReason ?? null
+  const result = value.result ?? null
+  const completedAt = value.completedAt ?? null
+  if (
+    (value.status === 'RUNNING' &&
+      (terminalReason !== null || result !== null || completedAt !== null)) ||
+    (value.status === 'SUCCEEDED' &&
+      (terminalReason !== null || result === null || completedAt === null)) ||
+    (value.status === 'FAILED' &&
+      (terminalReason === null || result !== null || completedAt === null))
+  )
+    return null
+  return value as AnalysisJob
+}
 
 function metadata(value: Record<string, unknown>) {
   return (

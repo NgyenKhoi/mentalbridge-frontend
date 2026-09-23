@@ -51,6 +51,22 @@ Story 211 provides Axios and TanStack Query with these responsibilities:
 Transport details stay in `lib/api` and `lib/auth`; feature query keys, hooks,
 schemas, and UI state stay in the owning `features/<feature>` package.
 
+### Journal AI reflection boundary
+
+MB-368 exposes only two bounded same-origin Journal operations: create an
+analysis job for an explicit journal ID and revision, and read a job by ID. The
+browser never sends Journal text to these handlers, never receives provider
+credentials, and never invents analysis fields when a provider response is
+missing or malformed. AI processing requires the current Care-owned
+`AI_PROCESSING` disclosure and an explicit user decision before a new request.
+
+The UI stores only the journal ID, revision, idempotency key, and returned job
+ID in local storage so a same-browser reload can resume polling. It does not
+store journal text or analysis output. A result renders only when its journal
+ID and revision exactly match the displayed entry. Suggested actions are a
+closed enum routed to existing governed pages; arbitrary URLs or provider copy
+cannot become navigation.
+
 ## Approved Identity session design
 
 Story 212 implements the following design:

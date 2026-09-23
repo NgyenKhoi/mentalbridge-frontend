@@ -190,8 +190,7 @@ export default function DashboardPage() {
           <h2 id="initial-check-cta-title">Hiểu rõ hơn về 14 ngày gần đây</h2>
           <p>
             Hoàn thành PHQ-9 rồi GAD-7 trong một hành trình có hướng dẫn để nhận
-            kết quả và bước hỗ trợ phù hợp. Đây là sàng lọc triệu chứng, không
-            phải chẩn đoán y khoa.
+            kết quả và bước hỗ trợ phù hợp.
           </p>
         </div>
         <Link href="/initial-check">

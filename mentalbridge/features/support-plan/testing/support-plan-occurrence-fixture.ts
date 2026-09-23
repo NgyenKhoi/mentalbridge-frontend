@@ -31,6 +31,12 @@ export function supportPlanOccurrenceFixture(
     completedAt: null,
     skippedAt: null,
     cancelledAt: null,
+    hidden: false,
+    helpfulness: null,
+    barrierCode: null,
+    reflection: null,
+    summaryReuseApproved: false,
+    engagementUpdatedAt: null,
     interpretationCode:
       'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
     ...changes,

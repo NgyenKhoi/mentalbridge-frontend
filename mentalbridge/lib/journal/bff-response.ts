@@ -15,6 +15,8 @@ const titles: Record<string, string> = {
   AUTHENTICATION_REQUIRED: 'Bạn cần đăng nhập để xem nhật ký.',
   RESOURCE_NOT_FOUND: 'Không tìm thấy nhật ký.',
   CONFLICT: 'Yêu cầu này xung đột với dữ liệu hiện tại.',
+  DEPENDENCY_UNAVAILABLE:
+    'Chưa thể xác minh quyền xử lý AI. Không có nội dung nhật ký nào được gửi đi.',
   PRECONDITION_FAILED: 'Nhật ký đã được cập nhật ở nơi khác.',
   JOURNAL_UNAVAILABLE: 'Dịch vụ nhật ký hiện không khả dụng.',
   JOURNAL_MALFORMED_RESPONSE: 'Dịch vụ nhật ký trả về dữ liệu không hợp lệ.',

@@ -333,6 +333,11 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      <p className="settings-scope-note">
+        MentalBridge cung cấp công cụ hỗ trợ tự nhìn lại và sàng lọc, không thay
+        thế chẩn đoán y khoa.
+      </p>
+
       <div className="settings-grid">
         <section className="settings-group">
           <p className="settings-group-label">Thông tin cá nhân</p>

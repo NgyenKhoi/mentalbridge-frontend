@@ -243,16 +243,6 @@ export default function AssessmentsPage() {
           </button>
         )}
       </section>
-      <aside className="assessment-note">
-        <span>i</span>
-        <div>
-          <strong>Một lời nhắc nhẹ nhàng</strong>
-          <p>
-            Kết quả chỉ mang tính hỗ trợ sàng lọc và không thay thế chẩn đoán
-            hoặc tư vấn từ chuyên gia sức khỏe tâm thần.
-          </p>
-        </div>
-      </aside>
     </div>
   )
 }

@@ -248,6 +248,23 @@ export function parseSupportPlanOccurrence(
     ![value.completedAt, value.skippedAt, value.cancelledAt].every(
       (timestamp) => timestamp === null || instant(timestamp),
     ) ||
+    typeof value.hidden !== 'boolean' ||
+    (value.helpfulness !== null &&
+      !['NOT_HELPFUL', 'A_LITTLE_HELPFUL', 'HELPFUL', 'VERY_HELPFUL'].includes(
+        String(value.helpfulness),
+      )) ||
+    (value.barrierCode !== null &&
+      ![
+        'LOW_ENERGY',
+        'NOT_ENOUGH_TIME',
+        'DIFFICULT_TO_START',
+        'NOT_A_GOOD_FIT',
+        'OTHER',
+      ].includes(String(value.barrierCode))) ||
+    (value.reflection !== null && !text(value.reflection, 500)) ||
+    typeof value.summaryReuseApproved !== 'boolean' ||
+    (value.engagementUpdatedAt !== null &&
+      !instant(value.engagementUpdatedAt)) ||
     value.interpretationCode !==
       'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE'
   )

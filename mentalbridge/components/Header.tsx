@@ -62,6 +62,9 @@ export default function Header() {
             </li>
           </ul>
           <div className="nav-cta">
+            <Link href="/safety-directory" className="btn-ghost">
+              Tôi cần hỗ trợ ngay
+            </Link>
             <Link href="/login" className="btn-ghost">
               Đăng nhập
             </Link>
@@ -102,6 +105,13 @@ export default function Header() {
             Cách đọc kết quả
           </a>
           <div className="mobile-nav-actions">
+            <Link
+              href="/safety-directory"
+              className="btn btn-outline"
+              onClick={() => setMenuOpen(false)}
+            >
+              Tôi cần hỗ trợ ngay
+            </Link>
             <Link
               href="/login"
               className="btn btn-outline"
