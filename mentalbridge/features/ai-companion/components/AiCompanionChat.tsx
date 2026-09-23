@@ -37,6 +37,9 @@ const friendlyError = (error: unknown) =>
     ? (errorCopy[error.code] ?? error.message)
     : 'AI Companion tạm thời không khả dụng.'
 
+const refreshAfterSendError =
+  'Tin nhắn đã được gửi nhưng chưa thể tải lại cuộc trò chuyện. Hãy chọn Tải lại để xem lịch sử mới nhất.'
+
 const quotaCopy = (quota: CompanionQuota | null) => {
   if (!quota)
     return 'Hạn mức sẽ được xác nhận bởi máy chủ sau câu trả lời đầu tiên.'
@@ -142,7 +145,27 @@ export default function AiCompanionChat() {
         pendingKey.current,
       )
       setQuota(result.quota)
-      setActive(await companionBrowserClient.get(active.conversationId))
+      setActive({
+        ...active,
+        messages: [
+          ...active.messages,
+          {
+            messageId: result.userMessageId,
+            role: 'USER',
+            content: text,
+            createdAt: result.createdAt,
+            contextKinds: [],
+          },
+          {
+            messageId: result.assistantMessageId,
+            role: 'ASSISTANT',
+            content: result.assistant,
+            createdAt: result.createdAt,
+            contextKinds: [],
+          },
+        ],
+        updatedAt: result.createdAt,
+      })
       setConversations((current) => [
         { ...active, updatedAt: result.createdAt },
         ...current.filter(
@@ -151,6 +174,11 @@ export default function AiCompanionChat() {
       ])
       setMessage('')
       pendingKey.current = null
+      try {
+        setActive(await companionBrowserClient.get(active.conversationId))
+      } catch {
+        setError(refreshAfterSendError)
+      }
     } catch (cause) {
       if (
         cause instanceof CompanionBrowserError &&

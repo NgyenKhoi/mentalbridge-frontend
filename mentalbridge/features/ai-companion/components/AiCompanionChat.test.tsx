@@ -278,4 +278,75 @@ describe('AiCompanionChat', () => {
       vi.mocked(companionBrowserClient.send).mock.calls[1]?.[2],
     )
   })
+
+  it('commits a successful send when the immediate detail refresh fails', async () => {
+    const answered: CompanionConversation = {
+      ...conversation,
+      messages: [
+        {
+          messageId: '44444444-4444-4444-8444-444444444444',
+          role: 'USER',
+          content: 'Chỉ gửi một lần',
+          createdAt: '2026-09-20T08:01:00Z',
+          contextKinds: [],
+        },
+        {
+          messageId: '55555555-5555-4555-8555-555555555555',
+          role: 'ASSISTANT',
+          content: 'Mình đã nhận được tin nhắn.',
+          createdAt: '2026-09-20T08:01:00Z',
+          contextKinds: [],
+        },
+      ],
+      updatedAt: '2026-09-20T08:01:00Z',
+    }
+    vi.mocked(companionBrowserClient.get)
+      .mockResolvedValueOnce(conversation)
+      .mockRejectedValueOnce(
+        new CompanionBrowserError(
+          'malformed detail',
+          'COMPANION_MALFORMED_RESPONSE',
+          502,
+        ),
+      )
+      .mockResolvedValueOnce(answered)
+    vi.mocked(companionBrowserClient.send).mockResolvedValue({
+      conversationId: conversation.conversationId,
+      userMessageId: answered.messages[0]!.messageId,
+      assistantMessageId: answered.messages[1]!.messageId,
+      assistant: answered.messages[1]!.content,
+      createdAt: answered.messages[1]!.createdAt,
+      quota: {
+        plan: 'FREE',
+        policyVersion: 'companion-quota-v1',
+        remaining: 4,
+        resetAt: '2026-09-20T17:00:00Z',
+        limitDisplayed: true,
+      },
+    })
+    const user = userEvent.setup()
+    render(<AiCompanionChat />)
+    const composer = await screen.findByRole('textbox', { name: 'Tin nhắn' })
+    await user.type(composer, 'Chỉ gửi một lần')
+
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Tin nhắn đã được gửi nhưng chưa thể tải lại cuộc trò chuyện',
+    )
+    expect(composer).toHaveValue('')
+    expect(screen.getByText(/Còn 4 lượt/)).toBeVisible()
+    expect(companionBrowserClient.send).toHaveBeenCalledTimes(1)
+    expect(screen.getAllByText('Chỉ gửi một lần')).toHaveLength(1)
+    expect(screen.getAllByText('Mình đã nhận được tin nhắn.')).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: 'Tải lại' }))
+
+    await waitFor(() =>
+      expect(companionBrowserClient.get).toHaveBeenCalledTimes(3),
+    )
+    expect(companionBrowserClient.send).toHaveBeenCalledTimes(1)
+    expect(screen.getAllByText('Chỉ gửi một lần')).toHaveLength(1)
+    expect(screen.getAllByText('Mình đã nhận được tin nhắn.')).toHaveLength(1)
+  })
 })

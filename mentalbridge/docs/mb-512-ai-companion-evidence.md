@@ -18,6 +18,9 @@ Delivered behavior:
 - create a new idempotency key after a terminal provider rejection while
   retaining the key only for an ambiguous transport outcome or an in-progress
   replay;
+- treat a successful message response as the frontend commit point: clear the
+  draft and key, update local messages and quota immediately, and make the
+  detail refresh best-effort so its failure cannot turn into a duplicate send;
 - display `FREE`/`PLUS` remaining responses and reset time from the provider;
 - describe `PREMIUM` truthfully as having no displayed daily response limit
   while token, rate, and fair-use controls still apply;
@@ -46,7 +49,7 @@ boundaries is backend ADR 0021.
 Local verification on 2026-09-23:
 
 - format, lint, typecheck, all generated contract checks: passed;
-- Vitest: 82 files / 402 tests passed;
+- Vitest: 82 files / 403 tests passed;
 - Next.js production build: passed;
 - targeted Playwright production-standalone coverage: both MB-512 mobile
   scenarios passed, including the fail-once retry with a fresh idempotency key.
