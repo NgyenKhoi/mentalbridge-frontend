@@ -128,7 +128,7 @@ test('MB-511 renders reload history, stale resources, synchronous safety, and AI
   await expect(
     page.getByText('Synchronous safety guidance fixture.'),
   ).toBeVisible()
-  await expect(page.getByText(/SupportPlan/).first()).toBeVisible()
+  await expect(page.getByText('Bạn chủ động lựa chọn')).toBeVisible()
   await expect(page.getByRole('status')).toContainText('AI')
   await expect(page.locator('.support-guide-resources li')).toHaveCount(0)
 

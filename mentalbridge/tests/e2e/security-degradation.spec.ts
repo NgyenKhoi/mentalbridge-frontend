@@ -124,7 +124,7 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
     await expect(page).toHaveURL(/\/specialist\/dashboard/)
     // Must not render USER dashboard content
     await expect(
-      page.getByRole('heading', { name: /nhiệm vụ hôm nay/i }),
+      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
     ).toHaveCount(0)
   })
 
@@ -309,7 +309,9 @@ test.describe('AC2: Explicit degradation states', () => {
     // contain any pre-filled data from a Care-owned user profile
     await expect(page.getByLabel('Tên hiển thị')).toHaveValue('')
     // Disclosure section must show unavailable state, not backend-owned content
-    await expect(page.getByText('Disclosure hiện chưa khả dụng')).toBeVisible()
+    await expect(
+      page.getByText('Thông báo quyền riêng tư tạm thời chưa tải được.'),
+    ).toBeVisible()
   })
 
   test('Care service outage on assessments page shows explicit error without mock history', async ({
@@ -423,7 +425,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.goto('/dashboard')
 
     await expect(
-      page.getByRole('heading', { name: /nhiệm vụ hôm nay/i }),
+      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
     ).toBeVisible({ timeout: 10_000 })
 
     const html = await page.evaluate(() => document.body.innerHTML)
@@ -436,7 +438,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
 
     // PHQ result card must show placeholder, not a fake result
     await expect(
-      page.getByText('Chưa có kết quả Care trong phiên này'),
+      page.getByText('Chưa có kết quả sàng lọc nào được hiển thị.'),
     ).toBeVisible()
   })
 
@@ -451,7 +453,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.reload()
 
     await expect(
-      page.getByRole('heading', { name: /nhiệm vụ hôm nay/i }),
+      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
     ).toBeVisible({ timeout: 10_000 })
 
     // PlanGate must show upgrade link for locked features, not pretend they work

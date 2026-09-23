@@ -41,7 +41,7 @@ describe('SupportPlanHistory', () => {
     ).toBeVisible()
     expect(api.getSupportPlan).toHaveBeenCalledWith(completed.supportPlanId)
     expect(screen.getByText('Reviewed primary resource')).toBeVisible()
-    expect(screen.getByText(/không mang ý nghĩa hồi phục/)).toBeVisible()
+    expect(screen.getByText(/không có nghĩa là bạn đã hồi phục/)).toBeVisible()
   })
 
   it('offers retry and bounded pagination only in the matching states', () => {

@@ -19,7 +19,7 @@ const moods = [
 const tasks = [
   'Viết nhật ký hôm nay',
   'Hoàn thành bài tập thở',
-  'Đánh giá tâm trạng tuần này',
+  'Làm bài sàng lọc khi bạn sẵn sàng',
 ]
 const SmallIcon = ({ type }: { type: 'note' | 'check' | 'user' }) => (
   <svg
@@ -169,15 +169,14 @@ export default function DashboardPage() {
         <div>
           <p>
             <i />
-            Thứ Sáu, 14 tháng 8 năm 2026
+            Không gian chăm sóc tinh thần của bạn
           </p>
-          <h1>Chào buổi sáng, Người dùng 👋</h1>
+          <h1>Chào bạn</h1>
           <span>Hôm nay bạn cảm thấy thế nào?</span>
         </div>
         <div className="ref-streak">
-          🔥
           <b>
-            7 ngày<small>liên tiếp</small>
+            Bắt đầu hôm nay<small>Mỗi ghi chép là một bước nhìn lại</small>
           </b>
         </div>
       </section>
@@ -230,8 +229,8 @@ export default function DashboardPage() {
             <h2>Kết quả sàng lọc</h2>
             <i aria-hidden="true">✓</i>
           </header>
-          <p>Chưa có kết quả Care trong phiên này</p>
-          <Link href="/assessment/phq9">Làm PHQ-9 →</Link>
+          <p>Chưa có kết quả sàng lọc nào được hiển thị.</p>
+          <Link href="/assessment/phq9">Làm PHQ-9 để nhận kết quả →</Link>
         </article>
         <PlanGate
           currentPlan={plan}
@@ -240,22 +239,10 @@ export default function DashboardPage() {
         >
           <article className="ref-card ref-trend">
             <header>
-              <h2>Xu hướng 7 ngày</h2>
-              <i aria-hidden="true">📈</i>
+              <h2>Nhìn lại theo thời gian</h2>
             </header>
-            <div role="img" aria-label="Biểu đồ xu hướng cảm xúc trong 7 ngày">
-              {[52, 68, 38, 28, 46, 60, 74].map((h, i) => (
-                <b
-                  key={i}
-                  aria-hidden="true"
-                  className={[1, 5, 6].includes(i) ? 'high' : ''}
-                  style={{ height: `${h}%` }}
-                />
-              ))}
-            </div>
             <footer>
-              <span>T2</span>
-              <span>CN</span>
+              <span>Ghi lại cảm xúc trong nhật ký để có dữ liệu nhìn lại.</span>
             </footer>
           </article>
         </PlanGate>
@@ -268,23 +255,23 @@ export default function DashboardPage() {
         >
           <article className="ref-card ref-appointment">
             <header>
-              <h2>Lịch hẹn sắp tới</h2>
+              <h2>Lịch hẹn</h2>
               <Link href="/appointments">Xem tất cả →</Link>
             </header>
             <div>
-              <b>BS</b>
               <p>
-                <strong>Bs. Nguyễn Văn A</strong>
-                <span>Thứ 6, 15/08 · 10:00 AM</span>
+                <strong>Xem lịch hẹn của bạn</strong>
+                <span>Mở trang lịch hẹn để xem thông tin mới nhất.</span>
               </p>
-              <i>SẮP TỚI</i>
             </div>
-            <footer>Không có lịch hẹn nào khác</footer>
+            <footer>
+              Thông tin lịch hẹn không được tạo mẫu trên trang này.
+            </footer>
           </article>
         </PlanGate>
         <article className="ref-card ref-tasks">
           <header>
-            <h2>Nhiệm vụ hôm nay</h2>
+            <h2>Gợi ý cho hôm nay</h2>
             <b>{done.length}/3</b>
           </header>
           {tasks.map((task, i) => (
@@ -322,8 +309,10 @@ export default function DashboardPage() {
               <SmallIcon type="check" />
             </i>
             <p>
-              <b>Làm bài đánh giá</b>
-              <span>Bài sàng lọc sức khỏe tinh thần PHQ-9</span>
+              <b>Làm bài sàng lọc</b>
+              <span>
+                Nhìn lại trải nghiệm 14 ngày gần đây với PHQ-9 hoặc GAD-7
+              </span>
             </p>
           </Link>
           <Link href="/specialists">
@@ -332,18 +321,17 @@ export default function DashboardPage() {
             </i>
             <p>
               <b>Tìm chuyên gia</b>
-              <span>2 chuyên gia phù hợp với bạn</span>
+              <span>Xem chuyên gia theo lĩnh vực bạn quan tâm</span>
             </p>
           </Link>
         </div>
       </section>
       <section ref={streakRef} className="ref-journal-streak">
-        <i>📖</i>
         <p>
-          <b>Chuỗi viết nhật ký</b>
-          <span>Bạn đã duy trì được 7 ngày liên tiếp!</span>
+          <b>Dành một phút nhìn lại hôm nay</b>
+          <span>Viết điều bạn đang cảm nhận theo cách riêng của mình.</span>
         </p>
-        <strong>🔥 7 ngày</strong>
+        <Link href="/journal">Viết nhật ký →</Link>
       </section>
     </div>
   )

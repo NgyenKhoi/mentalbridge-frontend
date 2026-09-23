@@ -303,12 +303,10 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await page
       .getByRole('checkbox', { name: /tôi đã đọc và xác nhận/i })
       .check()
-    await page
-      .getByRole('button', { name: /Gửi cho Care chấm điểm|Xem kết quả/ })
-      .click()
+    await page.getByRole('button', { name: 'Xem kết quả' }).click()
 
     await expect(
-      page.getByText(/phiên đánh giá ẩn danh đã hết hạn/i),
+      page.getByText(/phiên sàng lọc ẩn danh đã hết hạn/i),
     ).toBeVisible()
   })
 
@@ -343,22 +341,30 @@ test.describe('Care-backed PHQ-9 screening', () => {
     ).toBeVisible()
     await page.getByLabel('Tên hiển thị').fill('Care E2E Updated User')
     await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
-    await expect(page.getByText('Care đã lưu hồ sơ của bạn.')).toBeVisible()
+    await expect(page.getByText('Đã lưu thay đổi hồ sơ.')).toBeVisible()
     await page.reload()
     await expect(page.getByLabel('Tên hiển thị')).toHaveValue(
       'Care E2E Updated User',
     )
-    await page.getByRole('button', { name: 'Tôi đã đọc và xác nhận' }).click()
+    await page
+      .getByRole('button', { name: 'Đồng ý xử lý dữ liệu sàng lọc' })
+      .click()
     await expect(
-      page.getByText('Đã ghi nhận xác nhận quyền riêng tư.'),
+      page.getByText('Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'),
     ).toBeVisible()
     await page
-      .getByRole('button', { name: 'Thu hồi cho lần xử lý mới' })
+      .getByRole('button', {
+        name: 'Dừng xử lý cho các lần sàng lọc mới',
+      })
       .click()
-    await expect(page.getByText('Đã ghi nhận thu hồi')).toBeVisible()
-    await page.getByRole('button', { name: 'Tôi đã đọc và xác nhận' }).click()
     await expect(
-      page.getByText('Đã ghi nhận xác nhận quyền riêng tư.'),
+      page.getByText('Đã dừng xử lý dữ liệu cho các lần sàng lọc mới.'),
+    ).toBeVisible()
+    await page
+      .getByRole('button', { name: 'Đồng ý xử lý dữ liệu sàng lọc' })
+      .click()
+    await expect(
+      page.getByText('Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'),
     ).toBeVisible()
 
     await page.goto('/assessment/phq9')
@@ -370,7 +376,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
 
     await page.goto('/assessments')
     await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(1)
-    await expectProgressFailure(page, 'Chưa đủ dữ liệu tương thích', 1)
+    await expectProgressFailure(page, 'Chưa đủ kết quả để so sánh', 1)
 
     await careControl(request, '/__test/care/clock/advance?duration=PT1H')
 
@@ -390,7 +396,8 @@ test.describe('Care-backed PHQ-9 screening', () => {
     await expect(compareButton).toBeVisible()
     await compareButton.click()
     await expect(page.getByText('Điểm không thay đổi.')).toBeVisible()
-    await expect(page.getByText('Phiên bản chấm điểm')).toBeVisible()
+    await page.getByText('Thông tin kỹ thuật').click()
+    await expect(page.getByText('Cách chấm điểm')).toBeVisible()
     await expect(page.getByText('1 giờ')).toBeVisible()
     if (!useCareFixture) {
       await page.screenshot({
@@ -416,7 +423,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
       request,
       `/__test/care/assessments/${previousAssessmentId}/scoring-version?value=phq9-incompatible-e2e-v1`,
     )
-    await expectProgressFailure(page, 'Chưa đủ dữ liệu tương thích', 2)
+    await expectProgressFailure(page, 'Chưa đủ kết quả để so sánh', 2)
     await careControl(
       request,
       `/__test/care/assessments/${previousAssessmentId}/scoring-version?value=phq9-standard-bands-v1`,
@@ -426,7 +433,7 @@ test.describe('Care-backed PHQ-9 screening', () => {
       request,
       `/__test/care/assessments/${previousAssessmentId}/void`,
     )
-    await expectProgressFailure(page, 'Chưa đủ dữ liệu tương thích', 2)
+    await expectProgressFailure(page, 'Chưa đủ kết quả để so sánh', 2)
     await careControl(
       request,
       `/__test/care/assessments/${previousAssessmentId}/restore`,
@@ -435,9 +442,9 @@ test.describe('Care-backed PHQ-9 screening', () => {
     const injectedFailureCases = [
       ...(useCareFixture
         ? []
-        : ([['TIMEOUT', 'Care phản hồi quá thời gian']] as const)),
-      ['UNAVAILABLE', 'Care tạm thời không khả dụng'],
-      ['MALFORMED', 'Care trả về dữ liệu không hợp lệ'],
+        : ([['TIMEOUT', 'So sánh mất nhiều thời gian hơn dự kiến']] as const)),
+      ['UNAVAILABLE', 'Chưa thể tải so sánh lúc này'],
+      ['MALFORMED', 'Chưa thể xác nhận dữ liệu so sánh'],
     ] as const
     for (const [mode, title] of injectedFailureCases) {
       await careControl(request, `/__test/care/progress-fault?mode=${mode}`)

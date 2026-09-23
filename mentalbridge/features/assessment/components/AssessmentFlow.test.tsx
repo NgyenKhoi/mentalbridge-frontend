@@ -157,7 +157,7 @@ describe('AssessmentFlow', () => {
 
     await screen.findByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' })
     expect(screen.getByText('1')).toBeVisible()
-    expect(screen.getByText('Dương tính theo quy tắc sàng lọc')).toBeVisible()
+    expect(screen.getByText('Có câu trả lời cần bạn lưu ý')).toBeVisible()
     expect(
       screen.getByRole('link', {
         name: 'Xem hỗ trợ trong khu vực đã chọn',
@@ -325,8 +325,10 @@ describe('AssessmentFlow', () => {
     )
 
     await screen.findByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' })
-    await userEvent.click(screen.getByText('Nội dung và thang điểm đã dùng'))
+    await userEvent.click(
+      screen.getByText('Nội dung và thang điểm của bài này'),
+    )
     expect(screen.getByText(oldQuestion)).toBeVisible()
-    expect(screen.getAllByText(/phq9-vi-vn-capstone-v1/i)).toHaveLength(2)
+    expect(screen.getAllByText(/phq9-vi-vn-capstone-v1/i)).toHaveLength(1)
   })
 })

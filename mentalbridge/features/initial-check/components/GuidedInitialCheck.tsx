@@ -201,7 +201,7 @@ function ReadinessStep({
       </h1>
       <p>
         {needsProfile
-          ? 'Bạn cần một hồ sơ để Care lưu đúng các kết quả trong tài khoản của bạn.'
+          ? 'Bạn cần một hồ sơ để lưu các kết quả vào đúng tài khoản của mình.'
           : 'Bạn cần đọc và đồng ý với thông báo xử lý dữ liệu hiện hành trước khi làm bài.'}
       </p>
       <p className="initial-check-privacy-note">
@@ -287,7 +287,7 @@ function SafetyBlock({ evaluation }: { evaluation: SupportEvaluation }) {
             <h2 id="initial-check-safety-title">
               {positive
                 ? 'Ưu tiên xem hướng dẫn an toàn'
-                : 'Mục an toàn không kích hoạt hướng dẫn bổ sung'}
+                : 'Không có câu trả lời cần thêm hướng dẫn an toàn'}
             </h2>
           </div>
         </div>
@@ -297,7 +297,7 @@ function SafetyBlock({ evaluation }: { evaluation: SupportEvaluation }) {
       </header>
       <p>
         {evaluation.safetyGuidance ??
-          'Kết quả PHQ-9 âm tính theo quy tắc sàng lọc của bộ câu hỏi. Điều này không phải là đánh giá toàn diện về nguy cơ hoặc lời khẳng định rằng bạn đang an toàn.'}
+          'Câu trả lời PHQ-9 không kích hoạt hướng dẫn bổ sung. Điều này không phải là đánh giá toàn diện về nguy cơ hoặc lời khẳng định rằng bạn đang an toàn.'}
       </p>
       <p>
         MentalBridge không cung cấp ứng cứu khẩn cấp, không giám sát 24/7 và
@@ -493,7 +493,7 @@ function UnifiedResult({
             </Link>
             <Link className="btn btn-primary" href="/support-guides">
               <JourneyIcon name="spark" />
-              Tạo Hướng dẫn hỗ trợ
+              Xem gợi ý hỗ trợ
             </Link>
           </>
         )}

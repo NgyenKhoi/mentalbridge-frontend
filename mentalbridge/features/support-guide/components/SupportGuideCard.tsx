@@ -25,10 +25,12 @@ export default function SupportGuideCard({ guide }: { guide: SupportGuide }) {
     >
       <header>
         <div>
-          <span className="support-guide-kicker">Hướng dẫn hỗ trợ một lần</span>
-          <h2 id={`guide-${guide.supportGuideId}`}>Hướng dẫn sau sàng lọc</h2>
+          <span className="support-guide-kicker">
+            Dựa trên kết quả gần nhất
+          </span>
+          <h2 id={`guide-${guide.supportGuideId}`}>Gợi ý sau sàng lọc</h2>
         </div>
-        <span className="support-guide-kind">Không phải SupportPlan</span>
+        <span className="support-guide-kind">Bạn chủ động lựa chọn</span>
       </header>
 
       <p className="support-guide-explanation">{guide.explanation.text}</p>
@@ -59,7 +61,6 @@ export default function SupportGuideCard({ guide }: { guide: SupportGuide }) {
                   {resource.domain === 'DEPRESSIVE_SYMPTOMS'
                     ? 'Triệu chứng trầm cảm'
                     : 'Triệu chứng lo âu'}{' '}
-                  · phiên bản {resource.contentVersion}
                 </span>
                 {resource.externalUrl && (
                   <a
@@ -78,13 +79,13 @@ export default function SupportGuideCard({ guide }: { guide: SupportGuide }) {
 
       {guide.phrasing.status === 'AI_UNAVAILABLE_FALLBACK' && (
         <p className="support-guide-fallback" role="status">
-          Nội dung chuẩn đã được Care cung cấp trực tiếp; tính năng diễn đạt
-          bằng AI không khả dụng và không ảnh hưởng đến kết quả.
+          Nội dung đã được chuẩn bị sẵn đang được hiển thị. Việc AI tạm thời
+          không khả dụng không làm thay đổi kết quả sàng lọc.
         </p>
       )}
 
       <details className="support-guide-provenance">
-        <summary>Nguồn và phiên bản</summary>
+        <summary>Thông tin kỹ thuật</summary>
         <dl>
           <div>
             <dt>Chính sách hướng dẫn</dt>

@@ -79,7 +79,9 @@ describe('Assessment history page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Đóng so sánh' }))
     expect(compareButton).toHaveFocus()
     expect(
-      screen.queryByRole('heading', { name: 'Tiến trình assessment đã chọn' }),
+      screen.queryByRole('heading', {
+        name: 'Thay đổi giữa các lần sàng lọc',
+      }),
     ).not.toBeInTheDocument()
   })
 })

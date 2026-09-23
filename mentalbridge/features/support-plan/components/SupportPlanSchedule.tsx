@@ -25,7 +25,7 @@ const stateLabels: Record<SupportPlanOccurrence['displayState'], string> = {
 }
 
 const sourceLabels: Record<SupportPlanOccurrence['source']['type'], string> = {
-  RESOURCE: 'Tài nguyên SupportPlan',
+  RESOURCE: 'Tài nguyên trong kế hoạch',
   JOURNAL_PROMPT: 'Gợi ý viết nhật ký',
   EMOTION_CHECK_IN_PROMPT: 'Gợi ý ghi nhận cảm xúc',
 }
@@ -227,7 +227,7 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
         <div className="support-plan-schedule-heading">
           <h3>Hoạt động của tôi</h3>
         </div>
-        <p role="status">Đang tải lịch hữu hạn…</p>
+        <p role="status">Đang tải lịch hoạt động…</p>
       </section>
     )
   }
@@ -323,8 +323,8 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
             }
           />
           <span>
-            Cho phép dùng các mã trạng thái đã rút gọn trong bản tóm tắt do tôi
-            duyệt. Nội dung ghi chú riêng không được đưa vào sự kiện chia sẻ.
+            Cho phép dùng trạng thái hoạt động (đã làm hoặc bỏ qua) trong bản
+            tóm tắt do tôi duyệt. Nội dung ghi chú riêng không được chia sẻ.
           </span>
         </label>
         <div className="support-plan-occurrence-actions">
@@ -379,7 +379,7 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
             <p className="support-plan-reflection">“{occurrence.reflection}”</p>
           )}
           <details>
-            <summary>Chi tiết nguồn</summary>
+            <summary>Thông tin kỹ thuật</summary>
             <p>
               {sourceLabels[occurrence.source.type]} · lịch{' '}
               {occurrence.scheduleVersion} · SupportPlan{' '}
@@ -547,8 +547,9 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
       <p className="support-plan-schedule-boundary">
         Đây là thông tin bạn tự ghi nhận cho riêng mình, không phải đánh giá
         tuân thủ điều trị, kết quả lâm sàng hay mức độ hồi phục. Chuyên gia
-        không theo dõi trực tiếp danh sách này; chỉ bản tóm tắt hữu hạn do bạn
-        duyệt mới có thể tái sử dụng các mã đã rút gọn.
+        không theo dõi trực tiếp danh sách này. Chỉ trạng thái hoạt động mà bạn
+        cho phép và duyệt mới có thể dùng trong bản tóm tắt; ghi chú riêng không
+        được chia sẻ.
       </p>
       <p role="status" aria-live="polite">
         {message}

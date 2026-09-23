@@ -11,13 +11,13 @@ const plans = [
     id: 'PLUS',
     name: 'Plus',
     credits: 1,
-    description: 'Một consultation credit trong mỗi kỳ dịch vụ đang hoạt động.',
+    description: 'Một lượt tư vấn trong mỗi kỳ dịch vụ đang hoạt động.',
   },
   {
     id: 'PREMIUM',
     name: 'Premium',
     credits: 3,
-    description: 'Ba consultation credit trong mỗi kỳ dịch vụ đang hoạt động.',
+    description: 'Ba lượt tư vấn trong mỗi kỳ dịch vụ đang hoạt động.',
   },
 ] as const
 
@@ -30,8 +30,8 @@ export default function SubscriptionPage() {
           Quyền lợi tư vấn <em>minh bạch</em>
         </h1>
         <p>
-          Số dư bên dưới được tải trực tiếp từ Consultation. Ứng dụng không tự
-          suy ra credit từ tên gói.
+          Xem số lượt tư vấn còn lại, đã dành cho lịch hẹn và đã sử dụng trong
+          kỳ dịch vụ hiện tại.
         </p>
       </header>
 
@@ -39,7 +39,7 @@ export default function SubscriptionPage() {
 
       <section
         className="subscription-plans"
-        aria-label="Chính sách credit theo gói"
+        aria-label="Số lượt tư vấn theo gói"
       >
         {plans.map((plan) => (
           <article
@@ -49,15 +49,15 @@ export default function SubscriptionPage() {
             <h2>{plan.name}</h2>
             <div className="subscription-price">
               <strong>{plan.credits}</strong>
-              <span> credit/kỳ</span>
+              <span> lượt tư vấn mỗi kỳ</span>
             </div>
             <p>{plan.description}</p>
             <ul>
               <li>
-                <span>✓</span>Credit không chuyển sang kỳ sau
+                <span>✓</span>Lượt tư vấn không chuyển sang kỳ sau
               </li>
               <li>
-                <span>✓</span>Một phiên hoàn tất dùng một credit đang giữ
+                <span>✓</span>Một phiên hoàn tất dùng một lượt đã dành trước
               </li>
             </ul>
             <p className="subscription-current">
@@ -73,13 +73,13 @@ export default function SubscriptionPage() {
         <h2>Chính sách hiện tại</h2>
         <article className="open">
           <button type="button" aria-expanded="true">
-            Nâng cấp ảnh hưởng thế nào đến credit?<span>+</span>
+            Nâng cấp ảnh hưởng thế nào đến lượt tư vấn?<span>+</span>
           </button>
           <div>
             <p>
               Trong cùng kỳ, nâng cấp Plus lên Premium chỉ cấp thêm phần chênh
-              lệch để tổng allocation là ba. Luồng này không hỗ trợ hạ gói hoặc
-              hoàn tiền.
+              lệch để tổng số lượt tư vấn trong kỳ là ba. Hiện chưa hỗ trợ hạ
+              gói hoặc hoàn tiền trong kỳ.
             </p>
           </div>
         </article>

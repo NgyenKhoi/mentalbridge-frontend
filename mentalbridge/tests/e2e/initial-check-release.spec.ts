@@ -132,11 +132,13 @@ async function createProfileAndConsent(
   await save.click()
   await expect(page.getByText('Đã tạo hồ sơ của bạn.')).toBeVisible()
 
-  const grant = page.getByRole('button', { name: 'Tôi đồng ý' })
+  const grant = page.getByRole('button', {
+    name: 'Đồng ý xử lý dữ liệu sàng lọc',
+  })
   if (await grant.isVisible().catch(() => false)) {
     await grant.click()
     await expect(
-      page.getByText('Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'),
+      page.getByText('Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'),
     ).toBeVisible()
   }
 }
@@ -220,11 +222,13 @@ async function submitLiveForeignGad(browser: Browser, baseURL: string) {
     ) {
       await createProfileAndConsent(page, 'MB-273 Foreign Evidence', false)
     }
-    const grant = page.getByRole('button', { name: 'Tôi đồng ý' })
+    const grant = page.getByRole('button', {
+      name: 'Đồng ý xử lý dữ liệu sàng lọc',
+    })
     if (await grant.isVisible().catch(() => false)) {
       await grant.click()
       await expect(
-        page.getByText('Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'),
+        page.getByText('Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'),
       ).toBeVisible()
     }
 

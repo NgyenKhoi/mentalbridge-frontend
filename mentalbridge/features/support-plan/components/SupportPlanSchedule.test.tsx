@@ -43,9 +43,9 @@ describe('SupportPlanSchedule', () => {
     expect(
       screen.getByRole('heading', { name: 'Hoạt động của tôi' }),
     ).toBeVisible()
-    fireEvent.click(screen.getByText('Chi tiết nguồn'))
+    fireEvent.click(screen.getByText('Thông tin kỹ thuật'))
     expect(
-      screen.getByText(/Tài nguyên SupportPlan · lịch 1 · SupportPlan 1/),
+      screen.getByText(/Tài nguyên trong kế hoạch · lịch 1 · SupportPlan 1/),
     ).toBeVisible()
     expect(screen.getByText(/Phiên bản tài nguyên 4 · slot/)).toBeVisible()
     expect(

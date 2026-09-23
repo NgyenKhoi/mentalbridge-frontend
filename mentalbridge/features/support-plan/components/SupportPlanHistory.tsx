@@ -8,7 +8,7 @@ import type { SupportPlan } from '../api/support-plan-contract'
 const statusLabel = {
   COMPLETED: 'Đã kết thúc',
   SUPERSEDED: 'Đã được thay thế',
-  DISCARDED: 'Bản nháp đã hủy',
+  DISCARDED: 'Đã hủy trước khi bắt đầu',
 } as const
 
 const reasonLabel = {
@@ -16,6 +16,11 @@ const reasonLabel = {
   PLAN_NO_LONGER_FITS: 'Kế hoạch không còn phù hợp',
   OTHER: 'Lý do khác',
 } as const
+
+const domainLabel: Record<string, string> = {
+  DEPRESSIVE_SYMPTOMS: 'Hỗ trợ dấu hiệu trầm cảm',
+  ANXIETY_SYMPTOMS: 'Hỗ trợ dấu hiệu lo âu',
+}
 
 function terminalAt(plan: SupportPlan) {
   return (
@@ -68,16 +73,16 @@ export default function SupportPlanHistory({
     >
       <header>
         <div>
-          <span>Lịch sử bất biến</span>
-          <h2 id="plan-history-title">SupportPlan trước đây</h2>
+          <span>Lịch sử kế hoạch</span>
+          <h2 id="plan-history-title">Các kế hoạch trước đây</h2>
         </div>
         <p>
-          Chỉ hiển thị dữ liệu Care đã lưu. Kết thúc kế hoạch không mang ý nghĩa
-          hồi phục hoặc kết quả lâm sàng.
+          Kết thúc một kế hoạch không có nghĩa là bạn đã hồi phục hoặc có kết
+          quả lâm sàng.
         </p>
       </header>
 
-      {loading && <p role="status">Đang tải lịch sử SupportPlan…</p>}
+      {loading && <p role="status">Đang tải các kế hoạch trước đây…</p>}
       {!loading && message && (
         <div className="support-plan-history-state" role="alert">
           <p>{message}</p>
@@ -87,7 +92,7 @@ export default function SupportPlanHistory({
         </div>
       )}
       {!loading && !message && items.length === 0 && (
-        <p>Chưa có SupportPlan nào trong lịch sử.</p>
+        <p>Chưa có kế hoạch hỗ trợ nào trong lịch sử.</p>
       )}
       {items.length > 0 && (
         <ol>
@@ -158,24 +163,15 @@ export default function SupportPlanHistory({
                   : 'Không ghi nhận lý do'}
               </dd>
             </div>
-            <div>
-              <dt>Chính sách lựa chọn</dt>
-              <dd>{detail.source.selectionPolicyVersion}</dd>
-            </div>
-            <div>
-              <dt>Phiên bản quyền gói</dt>
-              <dd>{detail.entitlement.version}</dd>
-            </div>
           </dl>
-          <h4>Nội dung trong snapshot</h4>
+          <h4>Nội dung trong kế hoạch đã lưu</h4>
           <ul>
             {detail.slots.flatMap((slot) =>
               slot.selectedResource ? (
                 <li key={slot.slotId}>
                   <strong>{slot.selectedResource.title}</strong>
                   <span>
-                    Phiên bản {slot.selectedResource.contentVersion} ·{' '}
-                    {slot.targetDomain}
+                    {domainLabel[slot.targetDomain] ?? slot.targetDomain}
                   </span>
                 </li>
               ) : (
@@ -183,6 +179,19 @@ export default function SupportPlanHistory({
               ),
             )}
           </ul>
+          <details>
+            <summary>Thông tin kỹ thuật</summary>
+            <dl>
+              <div>
+                <dt>Quy tắc lựa chọn</dt>
+                <dd>{detail.source.selectionPolicyVersion}</dd>
+              </div>
+              <div>
+                <dt>Quyền lợi gói</dt>
+                <dd>{detail.entitlement.version}</dd>
+              </div>
+            </dl>
+          </details>
         </aside>
       )}
     </section>

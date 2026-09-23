@@ -32,7 +32,7 @@ function stateFor(error: unknown): { reason: EmptyReason; message: string } {
       return {
         reason: 'FREE',
         message:
-          'SupportPlan theo dõi dài hạn dành cho gói Plus và Premium. Hướng dẫn hỗ trợ một lần vẫn có sẵn cho gói Free.',
+          'Kế hoạch hỗ trợ dài hạn dành cho gói Plus và Premium. Gợi ý sau sàng lọc vẫn có sẵn cho gói Miễn phí.',
       }
     }
     if (
@@ -42,7 +42,7 @@ function stateFor(error: unknown): { reason: EmptyReason; message: string } {
       return {
         reason: 'STALE',
         message:
-          'Kết quả Kiểm tra ban đầu hiện không còn phù hợp để tạo bản nháp. Hãy hoàn thành lại PHQ-9 và GAD-7.',
+          'Kết quả kiểm tra ban đầu cần được cập nhật trước khi tạo kế hoạch. Hãy hoàn thành lại PHQ-9 và GAD-7.',
       }
     }
     if (
@@ -54,7 +54,7 @@ function stateFor(error: unknown): { reason: EmptyReason; message: string } {
       return {
         reason: 'DEPENDENCY',
         message:
-          'Chưa thể kiểm tra đầy đủ quyền gói hoặc tài nguyên đã duyệt. Không có thay đổi chưa hoàn chỉnh nào được áp dụng.',
+          'Chưa thể kiểm tra đầy đủ quyền lợi gói hoặc nội dung hỗ trợ. Không có thay đổi nào được áp dụng.',
       }
     }
     if (error.status === 401) {
@@ -66,20 +66,20 @@ function stateFor(error: unknown): { reason: EmptyReason; message: string } {
   }
   return {
     reason: 'DEPENDENCY',
-    message: 'Chưa thể tải SupportPlan lúc này. Vui lòng thử lại.',
+    message: 'Chưa thể tải kế hoạch hỗ trợ lúc này. Vui lòng thử lại.',
   }
 }
 
 function mutationMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED') {
-      return 'Gói hiện tại không còn đủ điều kiện. SupportPlan chưa được kích hoạt.'
+      return 'Gói hiện tại không còn đủ điều kiện. Kế hoạch chưa được bắt đầu.'
     }
     if (
       error.code === 'RESOURCE_VERSION_STALE' ||
       error.code === 'SUPPORT_EVALUATION_STALE'
     ) {
-      return 'Kết quả đánh giá hoặc phiên bản nội dung đã thay đổi. Hãy tải lại trước khi tiếp tục.'
+      return 'Kết quả sàng lọc hoặc nội dung hỗ trợ đã thay đổi. Hãy tải lại trước khi tiếp tục.'
     }
     if (error.code === 'SUPPORT_PLAN_INVALID_CHOICE') {
       return 'Lựa chọn này không còn nằm trong danh sách đã được duyệt.'
@@ -89,7 +89,7 @@ function mutationMessage(error: unknown) {
       error.code === 'SUPPORT_PLAN_NOT_DRAFT' ||
       error.code === 'SUPPORT_PLAN_CURRENT_EXISTS'
     ) {
-      return 'SupportPlan đã thay đổi ở nơi khác. Trạng thái mới nhất đang được tải lại.'
+      return 'Kế hoạch đã thay đổi ở nơi khác. Trạng thái mới nhất đang được tải lại.'
     }
     if (error.code === 'RESOURCE_ELIGIBILITY_UNAVAILABLE') {
       return 'Chưa thể kiểm tra lại tài nguyên. Không có thay đổi nào được áp dụng.'
@@ -157,7 +157,7 @@ export default function SupportPlanJourney() {
       setHistoryHasMore(page.hasMore)
     } catch {
       setHistoryMessage(
-        'Chưa thể tải lịch sử SupportPlan. Kế hoạch hiện tại không bị thay đổi.',
+        'Chưa thể tải các kế hoạch trước đây. Kế hoạch hiện tại không bị thay đổi.',
       )
     } finally {
       setHistoryLoading(false)
@@ -216,7 +216,7 @@ export default function SupportPlanJourney() {
           request,
         ),
       )
-      setCommandMessage('Đã lưu lựa chọn đã được Care kiểm tra.')
+      setCommandMessage('Đã lưu lựa chọn của bạn.')
     } catch (error) {
       setCommandMessage(mutationMessage(error))
       await recover()
@@ -274,18 +274,18 @@ export default function SupportPlanJourney() {
   return (
     <div className="support-plan-page">
       <header className="support-plan-page-header">
-        <span>Plus & Premium · Dữ liệu bền vững</span>
-        <h1>SupportPlan của bạn</h1>
+        <span>Dành cho gói Plus & Premium</span>
+        <h1>Kế hoạch hỗ trợ của bạn</h1>
         <p>
-          Chọn trong các nội dung Care đã duyệt và chủ động kích hoạt kế hoạch.
-          Care kiểm tra lại mọi bằng chứng ngay trước khi áp dụng.
+          Chọn nội dung bạn muốn thực hiện, lưu lựa chọn rồi bắt đầu kế hoạch
+          khi đã sẵn sàng.
         </p>
       </header>
 
       {loading && (
         <div className="support-plan-state" role="status">
           <span className="support-plan-loader" aria-hidden="true" />
-          <p>Đang tải SupportPlan hiện tại…</p>
+          <p>Đang tải kế hoạch hỗ trợ hiện tại…</p>
         </div>
       )}
 
@@ -311,25 +311,25 @@ export default function SupportPlanJourney() {
           </div>
           <h2>
             {reason === 'FREE'
-              ? 'SupportPlan chưa thuộc gói hiện tại'
+              ? 'Kế hoạch hỗ trợ chưa thuộc gói hiện tại'
               : reason === 'STALE'
                 ? 'Cần một Kiểm tra ban đầu mới'
                 : reason === 'DEPENDENCY'
-                  ? 'Chưa thể tạo bản nháp'
-                  : 'Chưa có SupportPlan'}
+                  ? 'Chưa thể tạo kế hoạch'
+                  : 'Chưa có kế hoạch hỗ trợ'}
           </h2>
           <p>
             {message ||
-              'Nếu bạn đang dùng Plus hoặc Premium, MentalBridge có thể tạo một bản nháp giới hạn từ kết quả Kiểm tra ban đầu hiện tại.'}
+              'Nếu bạn đang dùng Plus hoặc Premium, MentalBridge có thể tạo kế hoạch từ kết quả kiểm tra ban đầu gần nhất.'}
           </p>
           <div className="support-plan-state-actions">
             {reason === 'FREE' ? (
               <Link className="btn btn-primary" href="/support-guides">
-                Mở Hướng dẫn hỗ trợ
+                Xem gợi ý hỗ trợ
               </Link>
             ) : reason === 'STALE' ? (
               <Link className="btn btn-primary" href="/initial-check">
-                Làm lại Kiểm tra ban đầu
+                Làm lại kiểm tra ban đầu
               </Link>
             ) : (
               <button
@@ -338,7 +338,7 @@ export default function SupportPlanJourney() {
                 disabled={creating}
                 onClick={() => void create()}
               >
-                {creating ? 'Đang tạo bản nháp…' : 'Tạo bản nháp SupportPlan'}
+                {creating ? 'Đang tạo kế hoạch…' : 'Tạo kế hoạch hỗ trợ'}
               </button>
             )}
             {reason === 'DEPENDENCY' && (

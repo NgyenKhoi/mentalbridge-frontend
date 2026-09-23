@@ -61,7 +61,7 @@ describe('SupportPlanJourney', () => {
 
     render(<SupportPlanJourney />)
 
-    expect(await screen.findByText('SupportPlan đang hoạt động')).toBeVisible()
+    expect(await screen.findByText('Kế hoạch đang thực hiện')).toBeVisible()
     expect(api.getCurrentSupportPlan).toHaveBeenCalledTimes(1)
     expect(api.getCurrentSupportPlanDraft).not.toHaveBeenCalled()
   })
@@ -84,7 +84,7 @@ describe('SupportPlanJourney', () => {
     render(<SupportPlanJourney />)
 
     const link = await screen.findByRole('link', {
-      name: 'Mở Hướng dẫn hỗ trợ',
+      name: 'Xem gợi ý hỗ trợ',
     })
     expect(link).toHaveAttribute('href', '/support-guides')
     expect(screen.getByText(/dành cho gói Plus và Premium/)).toBeVisible()
@@ -100,7 +100,7 @@ describe('SupportPlanJourney', () => {
     render(<SupportPlanJourney />)
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'Tạo bản nháp SupportPlan',
+        name: 'Tạo kế hoạch hỗ trợ',
       }),
     )
 
@@ -146,9 +146,7 @@ describe('SupportPlanJourney', () => {
         },
       ),
     )
-    expect(
-      await screen.findByText('Đã lưu lựa chọn đã được Care kiểm tra.'),
-    ).toBeVisible()
+    expect(await screen.findByText('Đã lưu lựa chọn của bạn.')).toBeVisible()
   })
 
   it('activates once and then displays only the reloaded current plan', async () => {
@@ -162,10 +160,10 @@ describe('SupportPlanJourney', () => {
 
     render(<SupportPlanJourney />)
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Kích hoạt SupportPlan' }),
+      await screen.findByRole('button', { name: 'Bắt đầu kế hoạch' }),
     )
 
-    expect(await screen.findByText('SupportPlan đang hoạt động')).toBeVisible()
+    expect(await screen.findByText('Kế hoạch đang thực hiện')).toBeVisible()
     expect(api.activateSupportPlan).toHaveBeenCalledWith(
       draft.supportPlanId,
       0,
@@ -173,7 +171,7 @@ describe('SupportPlanJourney', () => {
     )
     expect(api.getCurrentSupportPlan).toHaveBeenCalledTimes(2)
     expect(
-      screen.queryByRole('button', { name: 'Kích hoạt SupportPlan' }),
+      screen.queryByRole('button', { name: 'Bắt đầu kế hoạch' }),
     ).not.toBeInTheDocument()
   })
 
@@ -185,12 +183,10 @@ describe('SupportPlanJourney', () => {
 
     render(<SupportPlanJourney />)
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Kích hoạt SupportPlan' }),
+      await screen.findByRole('button', { name: 'Bắt đầu kế hoạch' }),
     )
 
-    expect(
-      await screen.findByText(/phiên bản nội dung đã thay đổi/),
-    ).toBeVisible()
+    expect(await screen.findByText(/nội dung hỗ trợ đã thay đổi/)).toBeVisible()
     expect(screen.getByText('Reviewed primary resource')).toBeVisible()
   })
 
@@ -223,7 +219,7 @@ describe('SupportPlanJourney', () => {
     fireEvent.click(
       await screen.findByRole('button', { name: 'Kết thúc kế hoạch' }),
     )
-    await screen.findByRole('dialog', { name: 'Kết thúc SupportPlan?' })
+    await screen.findByRole('dialog', { name: 'Kết thúc kế hoạch?' })
     fireEvent.change(screen.getByLabelText('Lý do (không bắt buộc)'), {
       target: { value: 'PLAN_NO_LONGER_FITS' },
     })
@@ -278,7 +274,7 @@ describe('SupportPlanJourney', () => {
     )
 
     expect(await screen.findByText('Đã kết thúc')).toBeVisible()
-    expect(screen.getByText(/SupportPlan đã thay đổi ở nơi khác/)).toBeVisible()
+    expect(screen.getByText(/Kế hoạch đã thay đổi ở nơi khác/)).toBeVisible()
     expect(
       screen.queryByRole('button', { name: 'Kết thúc kế hoạch' }),
     ).not.toBeInTheDocument()

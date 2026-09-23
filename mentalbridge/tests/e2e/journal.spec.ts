@@ -93,7 +93,7 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     ).toBe(204)
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
     await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
-      'Đã tải phiên bản mới nhất',
+      'Đã tải nội dung mới nhất',
     )
     await expect(page.getByLabel('Nội dung')).toHaveValue(
       'Bản chỉnh sửa không bị mất',
@@ -103,7 +103,7 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     ).toBeChecked()
 
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
-    await expect(page.getByText('Phiên bản 3', { exact: true })).toBeVisible()
+    await expect(page.getByText('Bản chỉnh sửa không bị mất')).toBeVisible()
     await page.screenshot({
       path: 'docs/evidence/story-6201-journal-desktop.png',
       fullPage: true,
@@ -200,16 +200,18 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     await expect(page.getByText(/Kết quả chỉ hỗ trợ tự phản ánh/i)).toHaveCount(
       0,
     )
-    const consent = page.getByLabel(/chủ động đồng ý xử lý đúng phiên bản/i)
+    const consent = page.getByLabel(
+      /tôi đồng ý để AI phân tích nội dung nhật ký này/i,
+    )
     const consentAndAnalyze = page.getByRole('button', {
-      name: 'Đồng ý và phân tích bản này',
+      name: 'Đồng ý và phân tích nhật ký này',
     })
     await expect(consentAndAnalyze).toBeDisabled()
     await consent.check()
     await consentAndAnalyze.click()
     await expect(page.getByText('Yêu cầu đang chờ xử lý')).toBeVisible()
     await expect(
-      page.getByRole('heading', { name: 'Phản ánh cho phiên bản 1' }),
+      page.getByRole('heading', { name: 'Kết quả phân tích nhật ký này' }),
     ).toBeVisible({ timeout: 10_000 })
     await expect(
       page.getByRole('link', { name: 'Mở hướng dẫn hỗ trợ' }),
@@ -218,7 +220,7 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     await page.reload()
     await page.getByRole('button', { name: 'Xem chi tiết' }).click()
     await expect(
-      page.getByRole('heading', { name: 'Phản ánh cho phiên bản 1' }),
+      page.getByRole('heading', { name: 'Kết quả phân tích nhật ký này' }),
     ).toBeVisible()
 
     await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
@@ -226,7 +228,9 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
       .getByLabel('Nội dung')
       .fill('Tôi đã chỉnh sửa nội dung nên phản ánh cũ không còn phù hợp.')
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
-    await expect(page.getByText('Phản ánh trước đã cũ')).toBeVisible()
+    await expect(
+      page.getByText('Kết quả phân tích trước cần cập nhật'),
+    ).toBeVisible()
 
     await expect(
       (
@@ -235,13 +239,13 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
         )
       ).status(),
     ).toBe(204)
-    await page.getByRole('button', { name: 'Phân tích phiên bản này' }).click()
-    await expect(page.getByText('Phản ánh chưa hoàn tất')).toBeVisible({
+    await page.getByRole('button', { name: 'Phân tích nhật ký này' }).click()
+    await expect(page.getByText('Phân tích chưa hoàn tất')).toBeVisible({
       timeout: 10_000,
     })
     await page.getByRole('button', { name: 'Thử phân tích lại' }).click()
     await expect(
-      page.getByRole('heading', { name: 'Phản ánh cho phiên bản 2' }),
+      page.getByRole('heading', { name: 'Kết quả phân tích nhật ký này' }),
     ).toBeVisible({ timeout: 10_000 })
     await page.screenshot({
       path: 'docs/evidence/mb-368-journal-ai-reflection.png',
