@@ -1,6 +1,7 @@
 import type { components } from '@/contracts/content.generated'
 
 export type ResourceSummary = components['schemas']['ResourceSummary']
+export type PublicResourceDetail = components['schemas']['PublicResourceDetail']
 export type AdminResourceDetail = components['schemas']['AdminResourceDetail']
 export type ResourceListResponse = components['schemas']['ResourceListResponse']
 
@@ -58,6 +59,10 @@ function optionalDateTime(value: unknown): boolean {
   return value === undefined || dateTime(value)
 }
 
+function optionalNullableString(value: unknown): boolean {
+  return value === undefined || value === null || typeof value === 'string'
+}
+
 export function isResourceId(value: string): boolean {
   return UUID.test(value)
 }
@@ -83,6 +88,7 @@ export function parseResourceSummary(value: unknown): ResourceSummary | null {
     typeof item.title !== 'string' ||
     typeof item.summary !== 'string' ||
     !optionalNullableHttpUrl(item.externalUrl) ||
+    !optionalNullableString(item.sourceOrganization) ||
     typeof item.status !== 'string' ||
     !STATUSES.has(item.status) ||
     !optionalNullableDateTime(item.reviewedAt) ||
@@ -94,10 +100,30 @@ export function parseResourceSummary(value: unknown): ResourceSummary | null {
   return item as ResourceSummary
 }
 
+export function parsePublicResourceDetail(
+  value: unknown,
+): PublicResourceDetail | null {
+  const summary = parseResourceSummary(value)
+  const item = record(value)
+  if (
+    !summary ||
+    !item ||
+    !(item.contentBody === null || typeof item.contentBody === 'string') ||
+    !optionalNullableString(item.sourceTitle) ||
+    !optionalNullableHttpUrl(item.sourceUrl) ||
+    !optionalNullableString(item.sourceReviewNote) ||
+    !nullableDateTime(item.effectiveAt) ||
+    !nullableDateTime(item.expiresAt)
+  ) {
+    return null
+  }
+  return item as PublicResourceDetail
+}
+
 export function parseAdminResourceDetail(
   value: unknown,
 ): AdminResourceDetail | null {
-  const summary = parseResourceSummary(value)
+  const summary = parsePublicResourceDetail(value)
   const item = record(value)
   if (
     !summary ||

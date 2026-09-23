@@ -421,6 +421,8 @@ export interface components {
             title: string;
             summary: string;
             externalUrl?: string | null;
+            /** @description Simple accountable source label for catalogue cards. */
+            sourceOrganization?: string | null;
             status: components["schemas"]["ResourceStatus"];
             /** Format: date-time */
             reviewedAt?: string | null;
@@ -431,6 +433,10 @@ export interface components {
         };
         PublicResourceDetail: components["schemas"]["ResourceSummary"] & {
             contentBody: string | null;
+            sourceTitle?: string | null;
+            /** Format: uri */
+            sourceUrl?: string | null;
+            sourceReviewNote?: string | null;
             /** Format: date-time */
             effectiveAt: string | null;
             /** Format: date-time */
@@ -464,8 +470,16 @@ export interface components {
             title: string;
             summary: string;
             contentBody?: string | null;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description VIDEO resources require a verified HTTPS YouTube URL.
+             */
             externalUrl?: string | null;
+            sourceOrganization?: string | null;
+            sourceTitle?: string | null;
+            /** Format: uri */
+            sourceUrl?: string | null;
+            sourceReviewNote?: string | null;
             /** Format: date-time */
             effectiveAt?: string | null;
             /** Format: date-time */
@@ -476,8 +490,16 @@ export interface components {
             title?: string;
             summary?: string;
             contentBody?: string | null;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description VIDEO resources require a verified HTTPS YouTube URL.
+             */
             externalUrl?: string | null;
+            sourceOrganization?: string | null;
+            sourceTitle?: string | null;
+            /** Format: uri */
+            sourceUrl?: string | null;
+            sourceReviewNote?: string | null;
             /** Format: date-time */
             effectiveAt?: string | null;
             /** Format: date-time */

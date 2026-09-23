@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 
 import { ApiError } from '@/lib/api/api-error'
 import {
@@ -375,6 +376,14 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
             {stateLabels[occurrence.displayState]}
           </span>
           <h4>{occurrence.source.title}</h4>
+          {occurrence.source.type === 'RESOURCE' && (
+            <Link
+              className="support-plan-resource-link"
+              href={`/resources/${occurrence.source.resourceId}?from=support-plan`}
+            >
+              Mở tài nguyên <span aria-hidden="true">→</span>
+            </Link>
+          )}
           {occurrence.reflection && (
             <p className="support-plan-reflection">“{occurrence.reflection}”</p>
           )}

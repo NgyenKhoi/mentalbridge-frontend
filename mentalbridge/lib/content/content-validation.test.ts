@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseResourceSummary } from './content-validation'
+import {
+  parsePublicResourceDetail,
+  parseResourceSummary,
+} from './content-validation'
 
 const requiredSummary = {
   id: '123e4567-e89b-42d3-a456-426614174000',
@@ -29,6 +32,27 @@ describe('Content response validation', () => {
     ).toBeNull()
     expect(
       parseResourceSummary({ ...requiredSummary, updatedAt: 'not-a-date' }),
+    ).toBeNull()
+  })
+
+  it('accepts structured public detail provenance and rejects unsafe source URLs', () => {
+    const detail = {
+      ...requiredSummary,
+      status: 'PUBLISHED',
+      contentBody: 'Reviewed body',
+      sourceOrganization: 'NHS',
+      sourceTitle: 'Reviewed source',
+      sourceUrl: 'https://www.nhs.uk/mental-health/',
+      sourceReviewNote: 'Reviewed adaptation',
+      effectiveAt: '2026-09-23T00:00:00Z',
+      expiresAt: null,
+    }
+    expect(parsePublicResourceDetail(detail)).toEqual(detail)
+    expect(
+      parsePublicResourceDetail({
+        ...detail,
+        sourceUrl: 'javascript:alert(1)',
+      }),
     ).toBeNull()
   })
 })

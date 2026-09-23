@@ -40,6 +40,10 @@ describe('SupportPlanSchedule', () => {
     expect(
       await screen.findByRole('button', { name: 'Ghi nhận đã làm' }),
     ).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Mở tài nguyên' })).toHaveAttribute(
+      'href',
+      `/resources/${supportPlanOccurrenceFixture().source.resourceId}?from=support-plan`,
+    )
     expect(
       screen.getByRole('heading', { name: 'Hoạt động của tôi' }),
     ).toBeVisible()
