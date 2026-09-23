@@ -197,4 +197,85 @@ describe('AiCompanionChat', () => {
     )
     expect(screen.getByText('Bắt đầu khi bạn sẵn sàng')).toBeVisible()
   })
+
+  it('uses a fresh key when retrying an unchanged draft after terminal provider failure', async () => {
+    vi.mocked(companionBrowserClient.send)
+      .mockRejectedValueOnce(
+        new CompanionBrowserError(
+          'provider failed',
+          'CHAT_PROVIDER_UNAVAILABLE',
+          503,
+        ),
+      )
+      .mockResolvedValueOnce({
+        conversationId: conversation.conversationId,
+        userMessageId: '44444444-4444-4444-8444-444444444444',
+        assistantMessageId: '55555555-5555-4555-8555-555555555555',
+        assistant: 'Mình đang lắng nghe.',
+        createdAt: '2026-09-20T08:01:00Z',
+        quota: {
+          plan: 'FREE',
+          policyVersion: 'companion-quota-v1',
+          remaining: 4,
+          resetAt: '2026-09-20T17:00:00Z',
+          limitDisplayed: true,
+        },
+      })
+    const user = userEvent.setup()
+    render(<AiCompanionChat />)
+    const composer = await screen.findByRole('textbox', { name: 'Tin nhắn' })
+    await user.type(composer, 'Giữ nguyên bản nháp')
+
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+
+    await waitFor(() =>
+      expect(companionBrowserClient.send).toHaveBeenCalledTimes(2),
+    )
+    expect(vi.mocked(companionBrowserClient.send).mock.calls[0]?.[2]).not.toBe(
+      vi.mocked(companionBrowserClient.send).mock.calls[1]?.[2],
+    )
+    await waitFor(() => expect(composer).toHaveValue(''))
+  })
+
+  it('retains the key while an unchanged request is still in progress', async () => {
+    vi.mocked(companionBrowserClient.send)
+      .mockRejectedValueOnce(
+        new CompanionBrowserError(
+          'in progress',
+          'CHAT_REQUEST_IN_PROGRESS',
+          409,
+        ),
+      )
+      .mockResolvedValueOnce({
+        conversationId: conversation.conversationId,
+        userMessageId: '44444444-4444-4444-8444-444444444444',
+        assistantMessageId: '55555555-5555-4555-8555-555555555555',
+        assistant: 'Mình đang lắng nghe.',
+        createdAt: '2026-09-20T08:01:00Z',
+        quota: {
+          plan: 'FREE',
+          policyVersion: 'companion-quota-v1',
+          remaining: 4,
+          resetAt: '2026-09-20T17:00:00Z',
+          limitDisplayed: true,
+        },
+      })
+    const user = userEvent.setup()
+    render(<AiCompanionChat />)
+    const composer = await screen.findByRole('textbox', { name: 'Tin nhắn' })
+    await user.type(composer, 'Giữ cùng khóa gửi')
+
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+
+    await waitFor(() =>
+      expect(companionBrowserClient.send).toHaveBeenCalledTimes(2),
+    )
+    expect(vi.mocked(companionBrowserClient.send).mock.calls[0]?.[2]).toBe(
+      vi.mocked(companionBrowserClient.send).mock.calls[1]?.[2],
+    )
+  })
 })

@@ -33,6 +33,13 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
     updatedAt: messages.length === 0 ? now : '2026-09-22T08:01:00Z',
     expiresAt: '2026-12-21T08:00:00Z',
   })
+  const conversationSummary = () => ({
+    conversationId,
+    title: 'Cuộc trò chuyện mới',
+    createdAt: now,
+    updatedAt: messages.length === 0 ? now : '2026-09-22T08:01:00Z',
+    expiresAt: '2026-12-21T08:00:00Z',
+  })
 
   await page.route('**/api/journals', async (route) => {
     await route.fulfill({
@@ -122,7 +129,7 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ items: deleted ? [] : [conversation()] }),
+      body: JSON.stringify({ items: deleted ? [] : [conversationSummary()] }),
     })
   })
 
@@ -162,7 +169,7 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
   expect(deleted).toBe(true)
 })
 
-test('MB-512 preserves a draft and keeps safety available on provider failure', async ({
+test('MB-512 retries an unchanged draft with a fresh key after provider failure', async ({
   context,
   page,
 }) => {
@@ -184,30 +191,74 @@ test('MB-512 preserves a draft and keeps safety available on provider failure', 
       body: JSON.stringify({ items: [], page: { limit: 20, hasMore: false } }),
     }),
   )
+  let attempts = 0
+  let successes = 0
+  const keys: string[] = []
+  const messages: Array<Record<string, unknown>> = []
   await page.route('**/api/ai-companion/conversations**', async (route) => {
     const request = route.request()
     if (new URL(request.url()).pathname.endsWith('/messages')) {
-      await route.fulfill({
-        status: 503,
-        contentType: 'application/problem+json',
-        body: JSON.stringify({
-          type: 'https://mentalbridge.dev/problems/chat-provider-unavailable',
-          title: 'Provider unavailable',
+      attempts += 1
+      keys.push(request.headers()['idempotency-key'] ?? '')
+      if (attempts === 1) {
+        await route.fulfill({
           status: 503,
-          code: 'CHAT_PROVIDER_UNAVAILABLE',
-          correlationId: 'companion-e2e-provider-failure',
+          contentType: 'application/problem+json',
+          body: JSON.stringify({
+            type: 'https://mentalbridge.dev/problems/chat-provider-unavailable',
+            title: 'Provider unavailable',
+            status: 503,
+            code: 'CHAT_PROVIDER_UNAVAILABLE',
+            correlationId: 'companion-e2e-provider-failure',
+          }),
+        })
+        return
+      }
+      successes += 1
+      messages.push(
+        {
+          messageId: '44444444-4444-4444-8444-444444444444',
+          role: 'USER',
+          content: 'Xin giữ lại nội dung này',
+          createdAt: '2026-09-22T08:01:00Z',
+          contextKinds: [],
+        },
+        {
+          messageId: '55555555-5555-4555-8555-555555555555',
+          role: 'ASSISTANT',
+          content: 'Mình đang lắng nghe.',
+          createdAt: '2026-09-22T08:01:00Z',
+          contextKinds: ['SUPPORT_PLAN'],
+        },
+      )
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          conversationId,
+          userMessageId: messages[0]!.messageId,
+          assistantMessageId: messages[1]!.messageId,
+          assistant: messages[1]!.content,
+          createdAt: messages[1]!.createdAt,
+          quota: {
+            plan: 'FREE',
+            policyVersion: 'companion-quota-v1',
+            remaining: 4,
+            resetAt: '2026-09-22T17:00:00Z',
+            limitDisplayed: true,
+          },
         }),
       })
       return
     }
-    const value = conversationFixture()
+    const value = { ...conversationFixture(), messages }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(
         new URL(request.url()).pathname.endsWith(`/${conversationId}`)
           ? value
-          : { items: [value] },
+          : { items: [conversationSummaryFixture()] },
       ),
     })
   })
@@ -223,6 +274,12 @@ test('MB-512 preserves a draft and keeps safety available on provider failure', 
   await expect(
     page.getByRole('link', { name: 'Cần trợ giúp ngay' }),
   ).toBeVisible()
+  await page.getByRole('button', { name: 'Gửi' }).click()
+  await expect(page.getByText('Mình đang lắng nghe.')).toBeVisible()
+  await expect(composer).toHaveValue('')
+  expect(attempts).toBe(2)
+  expect(successes).toBe(1)
+  expect(keys[0]).not.toBe(keys[1])
 })
 
 function conversationFixture() {
@@ -230,6 +287,16 @@ function conversationFixture() {
     conversationId,
     title: 'Cuộc trò chuyện mới',
     messages: [],
+    createdAt: now,
+    updatedAt: now,
+    expiresAt: '2026-12-21T08:00:00Z',
+  }
+}
+
+function conversationSummaryFixture() {
+  return {
+    conversationId,
+    title: 'Cuộc trò chuyện mới',
     createdAt: now,
     updatedAt: now,
     expiresAt: '2026-12-21T08:00:00Z',

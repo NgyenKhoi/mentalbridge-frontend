@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   CompanionConversation,
+  CompanionConversationSummary,
   CompanionQuota,
 } from '@/lib/companion/companion-contract'
 import type { JournalSummary } from '@/lib/journal/journal-contract'
@@ -26,6 +27,8 @@ const errorCopy: Record<string, string> = {
     'AI Companion đang gián đoạn. Nhật ký, kế hoạch và mục “Cần trợ giúp ngay” vẫn hoạt động độc lập.',
   CHAT_CONTEXT_UNAVAILABLE:
     'Không thể xác minh bối cảnh đã cho phép nên yêu cầu đã dừng an toàn.',
+  COMPANION_OUTCOME_UNKNOWN:
+    'Chưa thể xác nhận lần gửi trước. Hãy thử gửi lại; nội dung sẽ không bị lặp.',
   COMPANION_UNAVAILABLE: 'AI Companion tạm thời không khả dụng.',
 }
 
@@ -51,9 +54,9 @@ const quotaCopy = (quota: CompanionQuota | null) => {
 }
 
 export default function AiCompanionChat() {
-  const [conversations, setConversations] = useState<CompanionConversation[]>(
-    [],
-  )
+  const [conversations, setConversations] = useState<
+    CompanionConversationSummary[]
+  >([])
   const [active, setActive] = useState<CompanionConversation | null>(null)
   const [journals, setJournals] = useState<JournalSummary[]>([])
   const [selectedJournals, setSelectedJournals] = useState<string[]>([])
@@ -149,6 +152,12 @@ export default function AiCompanionChat() {
       setMessage('')
       pendingKey.current = null
     } catch (cause) {
+      if (
+        cause instanceof CompanionBrowserError &&
+        cause.code !== 'CHAT_REQUEST_IN_PROGRESS' &&
+        cause.code !== 'COMPANION_OUTCOME_UNKNOWN'
+      )
+        pendingKey.current = null
       setError(friendlyError(cause))
     } finally {
       setSending(false)

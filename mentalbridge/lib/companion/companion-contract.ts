@@ -17,6 +17,14 @@ export type CompanionConversation = Readonly<{
   expiresAt: string
 }>
 
+export type CompanionConversationSummary = Readonly<{
+  conversationId: string
+  title: string
+  createdAt: string
+  updatedAt: string
+  expiresAt: string
+}>
+
 export type CompanionQuota = Readonly<{
   plan: 'FREE' | 'PLUS' | 'PREMIUM'
   policyVersion: 'companion-quota-v1'

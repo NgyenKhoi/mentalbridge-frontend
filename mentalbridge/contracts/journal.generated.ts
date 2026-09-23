@@ -408,6 +408,17 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
         };
+        AiConversationSummary: {
+            /** Format: uuid */
+            conversationId: string;
+            title: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
         /** @description PREMIUM returns null remaining and no displayed daily cap, while hidden server token/rate/fair-use controls still apply. */
         AiQuota: {
             /** @enum {string} */
@@ -1289,7 +1300,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        items: components["schemas"]["AiConversation"][];
+                        items: components["schemas"]["AiConversationSummary"][];
                     };
                 };
             };

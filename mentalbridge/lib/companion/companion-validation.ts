@@ -1,6 +1,7 @@
 import type {
   CompanionContextKind,
   CompanionConversation,
+  CompanionConversationSummary,
   CompanionQuota,
   CompanionSend,
   CompanionSendInput,
@@ -106,7 +107,7 @@ export const parseConversation = (
 
 export const parseConversationList = (
   value: unknown,
-): Readonly<{ items: CompanionConversation[] }> | null => {
+): Readonly<{ items: CompanionConversationSummary[] }> | null => {
   if (
     !object(value) ||
     !exact(value, ['items']) ||
@@ -114,9 +115,30 @@ export const parseConversationList = (
     value.items.length > 50
   )
     return null
-  const items = value.items.map(parseConversation)
+  const items = value.items.map((item): CompanionConversationSummary | null => {
+    if (
+      !object(item) ||
+      !exact(item, [
+        'conversationId',
+        'title',
+        'createdAt',
+        'updatedAt',
+        'expiresAt',
+      ]) ||
+      typeof item.conversationId !== 'string' ||
+      !uuid.test(item.conversationId) ||
+      typeof item.title !== 'string' ||
+      item.title.length < 1 ||
+      item.title.length > 80 ||
+      !dateTime(item.createdAt) ||
+      !dateTime(item.updatedAt) ||
+      !dateTime(item.expiresAt)
+    )
+      return null
+    return item as CompanionConversationSummary
+  })
   if (items.some((item) => item === null)) return null
-  return { items: items as CompanionConversation[] }
+  return { items: items as CompanionConversationSummary[] }
 }
 
 export const parseSend = (value: unknown): CompanionSend | null => {

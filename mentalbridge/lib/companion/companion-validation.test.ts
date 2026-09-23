@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { parseConversation, parseSend } from './companion-validation'
+import {
+  parseConversation,
+  parseConversationList,
+  parseSend,
+} from './companion-validation'
 
 describe('AI Companion response validation', () => {
   it('accepts the strict normalized contract', () => {
@@ -49,6 +53,22 @@ describe('AI Companion response validation', () => {
         updatedAt: '2026-09-20T08:00:00Z',
         expiresAt: '2026-12-19T08:00:00Z',
       }),
+    ).toBeNull()
+  })
+
+  it('accepts metadata-only history and rejects message bodies in list items', () => {
+    const summary = {
+      conversationId: '11111111-1111-4111-8111-111111111111',
+      title: 'Synthetic',
+      createdAt: '2026-09-20T08:00:00Z',
+      updatedAt: '2026-09-20T08:00:00Z',
+      expiresAt: '2026-12-19T08:00:00Z',
+    }
+    expect(parseConversationList({ items: [summary] })).toEqual({
+      items: [summary],
+    })
+    expect(
+      parseConversationList({ items: [{ ...summary, messages: [] }] }),
     ).toBeNull()
   })
 })

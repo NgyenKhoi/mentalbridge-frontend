@@ -5,6 +5,7 @@ import { isProblemDetails } from '@/lib/api/problem-details'
 import { readJournalServerConfig } from '@/lib/config/server'
 import type {
   CompanionConversation,
+  CompanionConversationSummary,
   CompanionSend,
   CompanionSendInput,
 } from './companion-contract'
@@ -32,10 +33,14 @@ const malformed = (cause?: unknown) =>
     cause,
   })
 
+const maximumCompanionResponseBytes = 8 * 1024 * 1024
+
 async function json(response: Response): Promise<unknown> {
   try {
     const text = await response.text()
-    if (new TextEncoder().encode(text).byteLength > 512 * 1024)
+    if (
+      new TextEncoder().encode(text).byteLength > maximumCompanionResponseBytes
+    )
       throw malformed()
     return JSON.parse(text) as unknown
   } catch (error) {
@@ -90,6 +95,13 @@ async function upstream<T>(options: Options<T>): Promise<T | undefined> {
     return parsed
   } catch (error) {
     if (error instanceof ApiError) throw error
+    if (options.idempotencyKey)
+      throw new ApiError({
+        message: 'The AI Companion send outcome could not be confirmed.',
+        code: 'COMPANION_OUTCOME_UNKNOWN',
+        status: 503,
+        cause: error,
+      })
     throw new ApiError({
       message: 'AI Companion is unavailable.',
       code: 'COMPANION_UNAVAILABLE',
@@ -122,7 +134,7 @@ export const companionClient = {
       accessToken,
       correlationId,
       parse: parseConversationList,
-    }) as Promise<Readonly<{ items: CompanionConversation[] }>>
+    }) as Promise<Readonly<{ items: CompanionConversationSummary[] }>>
   },
   get(accessToken: string, id: string, correlationId: string) {
     return upstream({
