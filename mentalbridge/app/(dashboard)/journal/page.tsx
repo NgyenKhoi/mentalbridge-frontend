@@ -11,6 +11,7 @@ import {
   JOURNAL_PROMPTS,
   journalMood,
 } from '@/features/journal/authoring'
+import { JournalReflection } from '@/features/journal/reflection/JournalReflection'
 import {
   parseJournalEntry,
   parseJournalPage,
@@ -567,10 +568,7 @@ export default function JournalPage() {
           {!loading && !pageError && entries.length === 0 && (
             <div className="journal-status">
               <h3>Chưa có nhật ký</h3>
-              <p>
-                Ghi lại điều bạn muốn lưu giữ. Nội dung không được dùng để diễn
-                giải lâm sàng.
-              </p>
+              <p>Ghi lại điều bạn muốn lưu giữ theo cách riêng của mình.</p>
               <button onClick={openCreate}>Viết nhật ký đầu tiên</button>
             </div>
           )}
@@ -680,6 +678,10 @@ export default function JournalPage() {
                   ))}
                 </div>
                 <small>Phiên bản {selected.currentRevision}</small>
+                <JournalReflection
+                  key={`${selected.id}:${selected.currentRevision}`}
+                  entry={selected}
+                />
                 <footer>
                   <button className="danger" onClick={() => setMode('delete')}>
                     Xóa

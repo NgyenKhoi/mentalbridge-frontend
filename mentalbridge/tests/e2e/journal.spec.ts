@@ -103,7 +103,7 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     ).toBeChecked()
 
     await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
-    await expect(page.getByText('Phiên bản 3')).toBeVisible()
+    await expect(page.getByText('Phiên bản 3', { exact: true })).toBeVisible()
     await page.screenshot({
       path: 'docs/evidence/story-6201-journal-desktop.png',
       fullPage: true,
@@ -154,5 +154,107 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
     ).toBe(true)
+  })
+
+  test('consents, restores exact-revision reflection, retries failure, and rejects stale output', async ({
+    context,
+    page,
+    request,
+  }) => {
+    await resetProvider(request)
+    await expect(
+      (await request.post('http://127.0.0.1:3202/__test/reset')).status(),
+    ).toBe(204)
+    await authenticated(context)
+
+    await page.goto('/journal')
+    await page.locator('.journal-live-hero button').click()
+    await page.getByRole('radio', { name: 'Bình thường' }).check()
+    await page
+      .getByLabel('Nội dung')
+      .fill('Tôi đã dành một khoảng lặng ngắn sau giờ làm việc.')
+    await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
+    await page.getByRole('button', { name: 'Xem chi tiết' }).click()
+
+    const dialogTitle = page.getByRole('heading', {
+      name: 'Chi tiết nhật ký',
+    })
+    const reflectionTitle = page.getByRole('heading', {
+      name: 'AI giúp bạn hiểu rõ hơn những điều mình đã viết',
+    })
+    await expect(dialogTitle).toBeVisible()
+    await expect(reflectionTitle).toBeVisible()
+    expect(
+      await dialogTitle.evaluate(
+        (element) => window.getComputedStyle(element).fontFamily,
+      ),
+    ).toContain('Lora')
+    expect(
+      await reflectionTitle.evaluate(
+        (element) => window.getComputedStyle(element).fontFamily,
+      ),
+    ).toContain('Lora')
+    await expect(
+      page.getByText(/AI có thể tóm tắt nội dung, nhận diện cảm xúc/i),
+    ).toBeVisible()
+    await expect(page.getByText(/Kết quả chỉ hỗ trợ tự phản ánh/i)).toHaveCount(
+      0,
+    )
+    const consent = page.getByLabel(/chủ động đồng ý xử lý đúng phiên bản/i)
+    const consentAndAnalyze = page.getByRole('button', {
+      name: 'Đồng ý và phân tích bản này',
+    })
+    await expect(consentAndAnalyze).toBeDisabled()
+    await consent.check()
+    await consentAndAnalyze.click()
+    await expect(page.getByText('Yêu cầu đang chờ xử lý')).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Phản ánh cho phiên bản 1' }),
+    ).toBeVisible({ timeout: 10_000 })
+    await expect(
+      page.getByRole('link', { name: 'Mở hướng dẫn hỗ trợ' }),
+    ).toHaveAttribute('href', '/support-guides')
+
+    await page.reload()
+    await page.getByRole('button', { name: 'Xem chi tiết' }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Phản ánh cho phiên bản 1' }),
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
+    await page
+      .getByLabel('Nội dung')
+      .fill('Tôi đã chỉnh sửa nội dung nên phản ánh cũ không còn phù hợp.')
+    await page.getByRole('button', { name: 'Lưu nhật ký' }).click()
+    await expect(page.getByText('Phản ánh trước đã cũ')).toBeVisible()
+
+    await expect(
+      (
+        await request.post(
+          `${providerFixtureUrl}/__test/journal/analysis-failure?mode=NEXT_JOB`,
+        )
+      ).status(),
+    ).toBe(204)
+    await page.getByRole('button', { name: 'Phân tích phiên bản này' }).click()
+    await expect(page.getByText('Phản ánh chưa hoàn tất')).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.getByRole('button', { name: 'Thử phân tích lại' }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Phản ánh cho phiên bản 2' }),
+    ).toBeVisible({ timeout: 10_000 })
+    await page.screenshot({
+      path: 'docs/evidence/mb-368-journal-ai-reflection.png',
+      fullPage: true,
+    })
+    await page.getByRole('dialog').screenshot({
+      path: 'docs/evidence/mb-368-journal-ai-font-vietnamese.png',
+    })
+
+    await page.getByRole('button', { name: 'Rút lại đồng ý AI' }).click()
+    await expect(page.getByText('Đồng ý xử lý nhật ký bằng AI')).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Lưu đồng ý AI' }),
+    ).toBeDisabled()
   })
 })

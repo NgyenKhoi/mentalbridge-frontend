@@ -4,6 +4,7 @@ import { ApiError } from '@/lib/api/api-error'
 import { isProblemDetails } from '@/lib/api/problem-details'
 import { readJournalServerConfig } from '@/lib/config/server'
 import type {
+  AnalysisJob,
   JournalCreate,
   JournalEntry,
   JournalPage,
@@ -11,6 +12,7 @@ import type {
   JournalWrite,
 } from './journal-contract'
 import {
+  parseAnalysisJob,
   parseJournalEntry,
   parseJournalPage,
   parseTombstone,
@@ -212,6 +214,35 @@ export const journalClient = {
       correlationId,
       idempotencyKey: key,
       parse: parseTombstone,
+    })
+  },
+  requestAnalysis(
+    accessToken: string,
+    journalId: string,
+    revision: number,
+    key: string,
+    correlationId: string,
+  ): Promise<AnalysisJob> {
+    return request({
+      method: 'POST',
+      path: `/api/v1/journals/${journalId}/revisions/${revision}/analysis-jobs`,
+      accessToken,
+      correlationId,
+      idempotencyKey: key,
+      parse: parseAnalysisJob,
+    })
+  },
+  analysisJob(
+    accessToken: string,
+    jobId: string,
+    correlationId: string,
+  ): Promise<AnalysisJob> {
+    return request({
+      method: 'GET',
+      path: `/api/v1/analysis-jobs/${jobId}`,
+      accessToken,
+      correlationId,
+      parse: parseAnalysisJob,
     })
   },
 }

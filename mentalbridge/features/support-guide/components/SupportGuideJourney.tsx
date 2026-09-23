@@ -96,8 +96,8 @@ export default function SupportGuideJourney({
         <span>Sau sàng lọc · Hướng dẫn một lần</span>
         <h1>Hướng dẫn hỗ trợ</h1>
         <p>
-          Một kết quả hướng dẫn tiêu chuẩn, không chẩn đoán và không tạo
-          SupportPlan theo dõi lâu dài.
+          Một hướng dẫn tiêu chuẩn dùng một lần, không tạo SupportPlan theo dõi
+          lâu dài.
         </p>
         {!supportGuideId && (
           <button

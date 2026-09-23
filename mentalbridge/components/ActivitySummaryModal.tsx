@@ -123,7 +123,7 @@ export default function ActivitySummaryModal({ isOpen, onClose }: Props) {
             </section>}
           </motion.div>
 
-          <aside className="activity-summary-note"><i>i</i><p><strong>Tiến trình được tạo nên từ những bước nhỏ và đều đặn</strong><span>Số liệu này giúp bạn nhìn lại thói quen chăm sóc bản thân, không dùng để đánh giá hay chẩn đoán sức khỏe tâm thần.</span></p></aside>
+          <aside className="activity-summary-note"><i>i</i><p><strong>Tiến trình được tạo nên từ những bước nhỏ và đều đặn</strong><span>Số liệu này giúp bạn nhìn lại nhịp chăm sóc bản thân theo thời gian.</span></p></aside>
         </div>
 
         <footer className="activity-summary-footer"><button type="button" onClick={onClose}>Đóng</button><Link href="/resources">Khám phá hoạt động phù hợp <span>→</span></Link></footer>

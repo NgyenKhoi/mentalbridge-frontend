@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  parseAnalysisJob,
   parseJournalEntry,
   parseJournalPage,
   parseJournalWrite,
@@ -66,6 +67,62 @@ describe('Journal boundary validation', () => {
     ).toBeNull()
     expect(
       parseJournalWrite({ content: { text: 'text' }, tags: ['same', 'same'] }),
+    ).toBeNull()
+  })
+
+  it('accepts only contract-consistent analysis job states', () => {
+    const job = {
+      jobId: '33333333-3333-4333-8333-333333333333',
+      journalId: metadata.id,
+      journalRevision: 1,
+      status: 'RUNNING',
+      attemptCount: 0,
+      terminalReason: null,
+      result: null,
+      createdAt: metadata.createdAt,
+      updatedAt: metadata.updatedAt,
+      completedAt: null,
+    }
+    expect(parseAnalysisJob(job)).toEqual(job)
+    expect(
+      parseAnalysisJob({
+        ...job,
+        status: 'SUCCEEDED',
+        completedAt: metadata.updatedAt,
+        result: {
+          summary: 'Một phản ánh phi lâm sàng.',
+          contextSignals: ['công việc'],
+          emotionIndicators: ['căng thẳng'],
+          themes: ['nghỉ ngơi'],
+          preferenceSignals: [],
+          barrierSignals: [],
+          suggestedAction: 'GUIDE_APPROVED_ACTIVITY',
+          workload: 'EXACT_REVISION',
+          servicePlan: 'FREE',
+          provider: 'DETERMINISTIC_FAKE',
+          model: 'deterministic-reflection-v1',
+          promptVersion: 'exact-revision-v1',
+          schemaVersion: 1,
+          createdAt: metadata.updatedAt,
+        },
+      }),
+    ).not.toBeNull()
+    expect(
+      parseAnalysisJob({
+        ...job,
+        status: 'FAILED',
+        terminalReason: 'PROVIDER_TIMEOUT',
+        completedAt: metadata.updatedAt,
+        result: { diagnosis: 'unsupported' },
+      }),
+    ).toBeNull()
+    expect(
+      parseAnalysisJob({
+        ...job,
+        status: 'SUCCEEDED',
+        completedAt: metadata.updatedAt,
+        result: null,
+      }),
     ).toBeNull()
   })
 })
