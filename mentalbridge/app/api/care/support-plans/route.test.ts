@@ -93,6 +93,8 @@ describe('/api/care/support-plans', () => {
     expect(response.status).toBe(409)
     await expect(response.json()).resolves.toMatchObject({
       code: 'INITIAL_CHECK_INCOMPLETE',
+      title:
+        'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu trước khi tạo kế hoạch hỗ trợ.',
     })
     expect(careMocks.evaluateSupportV2).not.toHaveBeenCalled()
     expect(careMocks.proposeSupportPlanDraft).not.toHaveBeenCalled()

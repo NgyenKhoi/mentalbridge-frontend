@@ -2,6 +2,7 @@
   max-width: 980px;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
+  animation: mb-page-enter var(--motion-medium) var(--ease-standard) both;
 }
 .support-guide-page-header {
   display: grid;
@@ -32,6 +33,10 @@
 .support-guide-list {
   display: grid;
   gap: 1.25rem;
+}
+.support-guide-entry {
+  animation: mb-data-enter var(--motion-medium) var(--entry-delay, 0ms)
+    var(--ease-standard) both;
 }
 .support-guide-card {
   display: grid;
@@ -158,5 +163,12 @@
   }
   .support-guide-provenance dl div {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .support-guide-page,
+  .support-guide-entry {
+    animation: none;
   }
 }

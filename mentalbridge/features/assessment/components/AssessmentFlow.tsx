@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import ResourcesList from '@/components/ResourcesList'
+import { Disclosure } from '@/components/ui/Disclosure'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type {
   AssessmentResult,
@@ -114,7 +116,20 @@ function ResultPanel({
       </div>
 
       <aside className="care-result-disclaimer">
-        <span aria-hidden="true">i</span>
+        <span aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v5" />
+            <path d="M12 8h.01" />
+          </svg>
+        </span>
         <div>
           <strong>Kết quả sàng lọc không phải là chẩn đoán</strong>
           <p>
@@ -125,8 +140,7 @@ function ResultPanel({
         </div>
       </aside>
 
-      <details className="care-provenance">
-        <summary>Thông tin kỹ thuật</summary>
+      <Disclosure className="care-provenance" summary="Thông tin kỹ thuật">
         <dl>
           <div>
             <dt>Bộ câu hỏi</dt>
@@ -141,10 +155,12 @@ function ResultPanel({
             <dd>{result.safetyPolicyVersion ?? 'Không áp dụng'}</dd>
           </div>
         </dl>
-      </details>
+      </Disclosure>
 
-      <details className="care-provenance care-definition-history">
-        <summary>Nội dung và thang điểm của bài này</summary>
+      <Disclosure
+        className="care-provenance care-definition-history"
+        summary="Nội dung và thang điểm của bài này"
+      >
         <p>
           Nội dung dưới đây được lưu cùng kết quả để bạn có thể xem lại đúng bài
           đã thực hiện.
@@ -162,7 +178,7 @@ function ResultPanel({
             </li>
           ))}
         </ul>
-      </details>
+      </Disclosure>
 
       {mode === 'anonymous' && (
         <aside className="care-anonymous-note">
@@ -402,10 +418,21 @@ export default function AssessmentFlow({
 
   if (loading) {
     return (
-      <section className="care-assessment-state" aria-live="polite">
-        <span className="care-loader" aria-hidden="true" />
-        <h1>Đang chuẩn bị bài sàng lọc</h1>
-        <p>MentalBridge đang chuẩn bị nội dung phù hợp cho bạn.</p>
+      <section
+        className="care-assessment-state care-assessment-loading"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="care-assessment-skeleton" aria-hidden="true">
+          <Skeleton width="34%" height={14} />
+          <Skeleton width="72%" height={44} />
+          <Skeleton width="88%" height={18} />
+          <Skeleton width="100%" height={132} />
+        </div>
+        <h1 className="sr-only">Đang chuẩn bị bài sàng lọc</h1>
+        <p className="sr-only">
+          MentalBridge đang chuẩn bị nội dung phù hợp cho bạn.
+        </p>
       </section>
     )
   }
@@ -471,7 +498,14 @@ export default function AssessmentFlow({
         </span>
         <span>{answeredCount} câu đã trả lời</span>
       </div>
-      <div className="care-progress" aria-hidden="true">
+      <div
+        className="care-progress"
+        role="progressbar"
+        aria-label="Tiến độ bài sàng lọc"
+        aria-valuemin={1}
+        aria-valuemax={questions.length}
+        aria-valuenow={step + 1}
+      >
         <i style={{ width: `${((step + 1) / questions.length) * 100}%` }} />
       </div>
 

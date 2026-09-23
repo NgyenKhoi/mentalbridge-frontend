@@ -7,13 +7,13 @@
   margin: 0 auto;
   padding: clamp(28px, 5vw, 52px);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-shell);
   background: rgba(255, 255, 255, 0.92);
-  box-shadow: var(--shadow);
+  box-shadow: var(--elevation-2);
 }
 .care-questionnaire > header,
 .care-result > header {
-  margin-bottom: 32px;
+  margin-bottom: var(--space-8);
 }
 .care-questionnaire h1,
 .care-result h1,
@@ -22,6 +22,7 @@
   color: var(--teal-deep);
   font-size: clamp(32px, 5vw, 48px);
   line-height: 1.08;
+  text-wrap: balance;
 }
 .care-questionnaire header p,
 .care-result header p,
@@ -31,16 +32,16 @@
 .care-progress-copy {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 .care-progress {
   height: 7px;
-  margin-bottom: 34px;
+  margin-bottom: var(--space-8);
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-soft);
 }
 .care-progress i {
@@ -48,7 +49,7 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--teal), var(--teal-deep));
-  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width var(--motion-medium) var(--ease-standard);
 }
 .care-question {
   min-width: 0;
@@ -56,9 +57,9 @@
 }
 .care-question legend {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
   color: var(--ink);
   font:
     500 clamp(22px, 3.2vw, 30px)/1.35 var(--font-fraunces),
@@ -74,23 +75,24 @@
 }
 .care-options {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .care-options label {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-4);
   min-height: 58px;
-  padding: 14px 18px;
+  padding: var(--space-4) var(--space-5);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-panel);
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
   transition:
-    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 0.3s ease,
-    background 0.3s ease;
+    transform var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    background var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
 }
 .care-options label:hover {
   transform: translateX(4px);
@@ -99,6 +101,7 @@
 .care-options label.selected {
   border-color: var(--teal);
   background: var(--teal-pale);
+  box-shadow: var(--focus-ring);
 }
 .care-options input {
   position: absolute;
@@ -129,8 +132,8 @@
 .care-result-actions {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 30px;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
 }
 .care-question-actions button:disabled {
   opacity: 0.45;
@@ -142,14 +145,25 @@
   padding-top: 20px;
   border-top: 1px solid var(--line);
   color: var(--ink-faint);
-  font-size: 12px;
+  font-size: 0.8125rem;
   text-align: center;
 }
+.care-assessment-loading {
+  place-items: stretch;
+  align-content: start;
+  text-align: left;
+}
+.care-assessment-loading > .care-assessment-skeleton {
+  display: grid;
+  width: 100%;
+  gap: var(--space-4);
+  margin: 0;
+}
 .care-disclosure {
-  margin-top: 24px;
-  padding: 20px;
+  margin-top: var(--space-6);
+  padding: var(--space-5);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-panel);
   background: var(--surface-soft);
 }
 .care-disclosure > strong {
@@ -160,22 +174,27 @@
 .care-disclosure > p {
   margin: 8px 0 16px;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 0.9375rem;
   line-height: 1.65;
   white-space: pre-line;
 }
 .care-disclosure > label {
-  display: flex;
+  display: grid;
+  min-height: 48px;
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: flex-start;
-  gap: 10px;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
   color: var(--ink);
-  font-size: 13px;
+  font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
 }
 .care-disclosure input {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   margin-top: 1px;
   accent-color: var(--teal-deep);
 }
@@ -183,7 +202,7 @@
   margin-top: 18px;
   padding: 14px 16px;
   border: 1px solid rgba(199, 123, 92, 0.25);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--terracotta-soft);
   color: #8a4a2e;
   font-size: 14px;
@@ -201,7 +220,7 @@
   min-height: 240px;
   padding: 28px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-panel);
 }
 .care-score-card {
   background: var(--surface-soft);
@@ -211,7 +230,7 @@
   display: block;
   margin-bottom: 10px;
   color: var(--ink-faint);
-  font-size: 12px;
+  font-size: 0.8125rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -252,7 +271,7 @@
 }
 .care-safety-card p {
   margin-top: 24px;
-  font-size: 14px;
+  font-size: 0.9375rem;
 }
 .care-safety-directory-link {
   display: inline-flex;
@@ -266,7 +285,7 @@
   margin-top: 20px;
   padding: 20px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-panel);
   background: var(--surface);
 }
 .care-result-disclaimer > span {
@@ -278,19 +297,23 @@
   border-radius: 50%;
   background: var(--teal-deep);
   color: #fff;
-  font-family: var(--font-fraunces), serif;
+}
+.care-result-disclaimer > span svg {
+  width: 18px;
+  height: 18px;
 }
 .care-result-disclaimer p,
 .care-anonymous-note p {
   margin-top: 4px;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 0.9375rem;
 }
 .care-provenance {
   margin-top: 18px;
   padding: 16px 20px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-soft) 46%, var(--surface));
 }
 .care-provenance summary {
   color: var(--teal-deep);
@@ -305,18 +328,18 @@
 }
 .care-provenance dt {
   color: var(--ink-faint);
-  font-size: 11px;
+  font-size: 0.75rem;
   text-transform: uppercase;
 }
 .care-provenance dd {
   overflow-wrap: anywhere;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 .care-definition-history > p {
   margin-top: 14px;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 .care-definition-history ol,
 .care-definition-history ul {
@@ -325,7 +348,7 @@
   margin-top: 14px;
   padding-left: 22px;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 .care-anonymous-note {
   align-items: center;
@@ -342,7 +365,7 @@
   align-content: center;
   text-align: center;
 }
-.care-assessment-state > span:not(.care-loader) {
+.care-assessment-state.unavailable > span {
   display: grid;
   width: 50px;
   height: 50px;
@@ -358,19 +381,6 @@
   display: flex;
   gap: 12px;
   margin-top: 24px;
-}
-.care-loader {
-  width: 42px;
-  height: 42px;
-  border: 3px solid var(--teal-pale);
-  border-top-color: var(--teal-deep);
-  border-radius: 50%;
-  animation: care-spin 0.8s linear infinite;
-}
-@keyframes care-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 @media (max-width: 700px) {
   .care-result-grid,
@@ -393,8 +403,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .care-progress i,
-  .care-options label,
-  .care-loader {
+  .care-options label {
     transition: none;
     animation: none;
   }
