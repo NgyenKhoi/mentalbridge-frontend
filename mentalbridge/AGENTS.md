@@ -66,3 +66,22 @@ Before completing a UI change, review headings, descriptions, buttons, labels,
 empty/loading/error/success states, badges, consent text, and mobile variants.
 Confirm that each message explains user value or action, uses the terminology
 above, avoids unsupported claims, and contains no developer-facing notes.
+
+## UI engineering constitution
+
+Read `docs/DESIGN_SYSTEM.md` before changing product UI.
+
+- Reuse `components/ui` and `components/motion` before creating a feature-local
+  dialog, disclosure, select, tooltip, tabs, toast, choice control, or skeleton.
+- Abstract shared behavior, not generic appearance. Feature compositions remain
+  feature-owned and should not all become identical bordered cards.
+- Use the semantic tokens in `app/globals.css`; do not invent per-screen motion,
+  radius, shadow, spacing, or color systems.
+- Design every applicable state: default, hover, focus-visible, pressed,
+  disabled, loading, selected/open, error, and empty.
+- Product motion must preserve continuity, use shared tokens, prefer transform
+  and opacity, and honor `prefers-reduced-motion`.
+- All changed screens must support keyboard navigation and be reviewed around
+  375px, 768px, 1280px, and 1440px.
+- Follow the Discover → Audit → Plan → Implement → Verify → Self-review workflow
+  and do not call UI work complete based only on the happy path.
