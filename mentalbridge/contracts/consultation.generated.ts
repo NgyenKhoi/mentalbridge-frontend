@@ -109,6 +109,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bookable-slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists approved specialists' currently selectable exact 60-minute online slots. Disabled video slots and slots already held by an active appointment are excluded. */
+        get: operations["listBookableSlots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists the authenticated user's authoritative appointment snapshots, including request deadline and held credit identity. */
+        get: operations["listOwnAppointments"];
+        put?: never;
+        /** @description Atomically creates a REQUESTED appointment for one exact slot and holds the earliest-expiring credit that covers its start. Exact command replays return the original appointment. */
+        post: operations["requestAppointment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/specialist-profiles": {
         parameters: {
             query?: never;
@@ -326,6 +361,62 @@ export interface components {
             /** @description True only while the reviewed video capability/provider contract gate is enabled. */
             videoPublishingEnabled: boolean;
         };
+        /** @enum {string} */
+        AppointmentModality: "IN_APP_CHAT" | "IN_APP_VIDEO";
+        RequestAppointment: {
+            /** Format: uuid */
+            slotId: string;
+            modality: components["schemas"]["AppointmentModality"];
+        };
+        BookableSlot: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            specialistDisplayName: string;
+            /** Format: date-time */
+            startAt: string;
+            /** Format: date-time */
+            endAt: string;
+            timezone: string;
+            modality: components["schemas"]["AppointmentModality"];
+        };
+        BookableSlotList: {
+            items: components["schemas"]["BookableSlot"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
+            videoEnabled: boolean;
+        };
+        Appointment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            slotId: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            specialistDisplayName: string;
+            /** @enum {string} */
+            status: "REQUESTED" | "CONFIRMED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            modality: components["schemas"]["AppointmentModality"];
+            /** Format: date-time */
+            scheduledStartAt: string;
+            /** Format: date-time */
+            scheduledEndAt: string;
+            timezone: string;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            decisionDeadlineAt: string;
+            /** Format: uuid */
+            heldCreditId: string;
+        };
+        AppointmentList: {
+            items: components["schemas"]["Appointment"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
+        };
         Problem: {
             /** Format: uri-reference */
             type: string;
@@ -345,6 +436,33 @@ export interface components {
         };
     };
     responses: {
+        /** @description USER role or a current PLUS/PREMIUM entitlement is required (PAID_PLAN_REQUIRED). */
+        AppointmentForbiddenProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The selected slot does not exist (APPOINTMENT_SLOT_NOT_FOUND). */
+        AppointmentSlotNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Slot, modality, lead time, video capability, credit, concurrency, or idempotency prevents the request. */
+        AppointmentConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Entitlement period conflicts with an already provisioned immutable credit period */
         CreditConflictProblem: {
             headers: {
@@ -722,6 +840,86 @@ export interface operations {
             409: components["responses"]["AvailabilityConflictProblem"];
             412: components["responses"]["AvailabilityVersionProblem"];
             428: components["responses"]["AvailabilityVersionRequiredProblem"];
+        };
+    };
+    listBookableSlots: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current selectable online slots */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookableSlotList"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["EntitlementForbiddenProblem"];
+        };
+    };
+    listOwnAppointments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User-owned appointment history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["EntitlementForbiddenProblem"];
+        };
+    };
+    requestAppointment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Printable caller key scoped to the authenticated specialist and retained with the slot outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestAppointment"];
+            };
+        };
+        responses: {
+            /** @description Appointment requested or exact replay returned */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Appointment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["AppointmentForbiddenProblem"];
+            404: components["responses"]["AppointmentSlotNotFoundProblem"];
+            409: components["responses"]["AppointmentConflictProblem"];
         };
     };
     listPendingSpecialistProfiles: {
