@@ -22,7 +22,6 @@ export default function SafetyDirectoryFlow({
   trigger: SafetyDirectoryTrigger
 }) {
   const [provinceCode, setProvinceCode] = useState('')
-  const [districtCode, setDistrictCode] = useState('')
   const [manualLocation, setManualLocation] = useState('')
   const [result, setResult] = useState<SafetyDirectoryResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -42,13 +41,7 @@ export default function SafetyDirectoryFlow({
         '/care/safety-directory',
         manualLocation.trim()
           ? { trigger, manualLocation: manualLocation.trim() }
-          : {
-              trigger,
-              provinceCode,
-              ...(districtCode.trim()
-                ? { districtCode: districtCode.trim() }
-                : {}),
-            },
+          : { trigger, provinceCode },
       )
       setResult(response.data)
     } catch {
@@ -88,7 +81,7 @@ export default function SafetyDirectoryFlow({
 
       <form className="safety-directory-form" onSubmit={lookup}>
         <fieldset>
-          <legend>Chọn tỉnh/thành và quận/huyện</legend>
+          <legend>Chọn tỉnh/thành phố</legend>
           <label>
             Tỉnh/thành phố
             <select
@@ -107,33 +100,22 @@ export default function SafetyDirectoryFlow({
               ))}
             </select>
           </label>
-          <label>
-            Mã quận/huyện (không bắt buộc)
-            <input
-              value={districtCode}
-              onChange={(event) => setDistrictCode(event.target.value)}
-              maxLength={32}
-              disabled={!provinceCode || manualLocation.length > 0}
-              placeholder="Ví dụ: 001"
-            />
-          </label>
         </fieldset>
         <div className="safety-directory-or" aria-hidden="true">
           hoặc
         </div>
         <label>
-          Nhập tên khu vực
+          Hoặc nhập tên tỉnh/thành, quận/huyện
           <input
             value={manualLocation}
             onChange={(event) => {
               setManualLocation(event.target.value)
               if (event.target.value) {
                 setProvinceCode('')
-                setDistrictCode('')
               }
             }}
             maxLength={120}
-            placeholder="Ví dụ: Hà Nội"
+            placeholder="Ví dụ: Quận Ba Đình, Hà Nội"
           />
         </label>
         <button
@@ -150,8 +132,8 @@ export default function SafetyDirectoryFlow({
           <div className="safety-directory-state" role="alert">
             <h2>Tra cứu tạm thời chưa khả dụng</h2>
             <p>
-              Không thể kết nối Care lúc này. Nếu bạn cảm thấy không an toàn,
-              hãy chủ động tìm hỗ trợ trực tiếp phù hợp tại khu vực của bạn.
+              Không thể tải danh sách hỗ trợ lúc này. Bạn có thể thử lại hoặc
+              chủ động tìm hỗ trợ trực tiếp tại khu vực của mình.
             </p>
           </div>
         )}

@@ -23,7 +23,7 @@ function message(error: unknown) {
     if (error.status === 404)
       return 'Không tìm thấy hướng dẫn thuộc tài khoản này.'
   }
-  return 'Chưa thể tải Hướng dẫn hỗ trợ. Vui lòng thử lại.'
+  return 'Chưa thể tải gợi ý hỗ trợ. Vui lòng thử lại.'
 }
 
 export default function SupportGuideJourney({
@@ -93,11 +93,11 @@ export default function SupportGuideJourney({
   return (
     <div className="support-guide-page">
       <header className="support-guide-page-header">
-        <span>Sau sàng lọc · Hướng dẫn một lần</span>
-        <h1>Hướng dẫn hỗ trợ</h1>
+        <span>Sau sàng lọc</span>
+        <h1>Gợi ý hỗ trợ</h1>
         <p>
-          Một hướng dẫn tiêu chuẩn dùng một lần, không tạo SupportPlan theo dõi
-          lâu dài.
+          Xem các bước hỗ trợ dựa trên kết quả sàng lọc gần nhất và chủ động
+          chọn điều phù hợp với bạn.
         </p>
         {!supportGuideId && (
           <button
@@ -107,8 +107,8 @@ export default function SupportGuideJourney({
             onClick={() => void create()}
           >
             {generating
-              ? 'Đang tạo hướng dẫn…'
-              : 'Tạo từ Kiểm tra ban đầu gần nhất'}
+              ? 'Đang chuẩn bị gợi ý…'
+              : 'Xem gợi ý từ kết quả gần nhất'}
           </button>
         )}
       </header>
@@ -123,22 +123,19 @@ export default function SupportGuideJourney({
       )}
       {loading && (
         <p className="support-guide-state" aria-live="polite">
-          Đang tải Hướng dẫn hỗ trợ…
+          Đang tải gợi ý hỗ trợ…
         </p>
       )}
       {!loading && !error && items.length === 0 && (
         <div className="support-guide-state">
-          <strong>Chưa có Hướng dẫn hỗ trợ</strong>
-          <p>Hoàn thành Kiểm tra ban đầu để tạo hướng dẫn đầu tiên.</p>
+          <strong>Chưa có gợi ý hỗ trợ</strong>
+          <p>Hoàn thành kiểm tra ban đầu để nhận gợi ý đầu tiên.</p>
           <Link className="btn btn-ghost" href="/initial-check">
-            Đi tới Kiểm tra ban đầu
+            Đi tới kiểm tra ban đầu
           </Link>
         </div>
       )}
-      <section
-        className="support-guide-list"
-        aria-label="Lịch sử Hướng dẫn hỗ trợ"
-      >
+      <section className="support-guide-list" aria-label="Lịch sử gợi ý hỗ trợ">
         {items.map((guide) => (
           <SupportGuideCard key={guide.supportGuideId} guide={guide} />
         ))}
@@ -150,7 +147,7 @@ export default function SupportGuideJourney({
       )}
       {supportGuideId && (
         <Link className="btn btn-ghost" href="/support-guides">
-          Quay lại lịch sử Hướng dẫn hỗ trợ
+          Quay lại lịch sử gợi ý hỗ trợ
         </Link>
       )}
     </div>

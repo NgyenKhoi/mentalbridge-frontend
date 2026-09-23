@@ -70,13 +70,15 @@ describe('Care profile page', () => {
     expect(screen.getByTestId('password-change-form')).toBeInTheDocument()
     expect(screen.getByText('Nội dung authoritative từ Care.')).toBeVisible()
     expect(screen.queryByText(/ThS\.|specialist/i)).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /Tôi đồng ý/ }))
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Đồng ý xử lý dữ liệu sàng lọc' }),
+    )
     expect(decision).toHaveBeenCalledWith({
       consentType: 'PRIVACY_POLICY',
       policyVersion: 'privacy-capstone-v3',
       granted: true,
     })
-    await screen.findByText(/đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc/i)
+    await screen.findByText(/đã bật xử lý dữ liệu cho các lần sàng lọc mới/i)
   })
 
   it('shows first-time onboarding when profile and consent data are empty', async () => {

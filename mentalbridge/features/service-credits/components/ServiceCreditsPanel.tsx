@@ -15,10 +15,10 @@ const PACKAGE_LABELS = {
 } as const
 const EVENT_LABELS = {
   PROVISIONED: 'Đã cấp',
-  HELD: 'Đang giữ cho lịch hẹn',
+  HELD: 'Đã dành cho lịch hẹn',
   CONSUMED: 'Đã sử dụng',
   RELEASED: 'Đã hoàn lại',
-  FORFEITED: 'Đã mất theo chính sách',
+  FORFEITED: 'Đã hết hiệu lực',
 } as const
 
 function formatInstant(value: string | null) {
@@ -33,17 +33,17 @@ function formatInstant(value: string | null) {
 function friendlyError(error: unknown) {
   if (error instanceof ServiceCreditsBrowserError) {
     if (error.code === 'SUBSCRIPTION_DOWNGRADE_NOT_SUPPORTED')
-      return 'Không thể hạ gói trong kỳ hiện tại. Credit hiện có không bị thay đổi.'
+      return 'Không thể hạ gói trong kỳ hiện tại. Số lượt tư vấn hiện có không bị thay đổi.'
     if (error.code === 'UNAUTHENTICATED')
       return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
     if (
       error.code === 'CONSULTATION_UNAVAILABLE' ||
       error.code === 'CONSULTATION_TIMEOUT'
     )
-      return 'Dịch vụ credit đang tạm thời không khả dụng. Số dư không được ước tính trên thiết bị.'
+      return 'Chưa thể tải lượt tư vấn lúc này. Số lượt hiện có không bị thay đổi; vui lòng thử lại.'
     return error.message
   }
-  return 'Không thể tải số dư credit. Vui lòng thử lại.'
+  return 'Không thể tải số lượt tư vấn. Vui lòng thử lại.'
 }
 
 export default function ServiceCreditsPanel() {
@@ -74,7 +74,7 @@ export default function ServiceCreditsPanel() {
   if (loading)
     return (
       <section className={styles.panel} aria-busy="true">
-        <p>Đang tải số dư credit…</p>
+        <p>Đang tải lượt tư vấn…</p>
       </section>
     )
   if (error)
@@ -100,10 +100,10 @@ export default function ServiceCreditsPanel() {
           <h1 id="credit-title">{PACKAGE_LABELS[account.packageCode]}</h1>
           <p>
             {demo
-              ? 'Credit demo có kiểm soát — không phải quyền lợi đã thanh toán.'
+              ? 'Lượt tư vấn dùng thử — không phải quyền lợi đã thanh toán.'
               : paid
-                ? 'Credit từ kỳ dịch vụ đã thanh toán.'
-                : 'Gói miễn phí không có consultation credit.'}
+                ? 'Lượt tư vấn thuộc kỳ dịch vụ đã thanh toán.'
+                : 'Gói miễn phí không bao gồm lượt tư vấn.'}
           </p>
         </div>
         <button type="button" onClick={() => void load()}>
@@ -111,22 +111,22 @@ export default function ServiceCreditsPanel() {
         </button>
       </header>
 
-      <div className={styles.balance} aria-label="Số dư consultation credit">
+      <div className={styles.balance} aria-label="Số lượt tư vấn">
         <div className={styles.primary}>
           <strong>{account.balance.available}</strong>
-          <span>Có thể dùng</span>
+          <span>Còn lại</span>
         </div>
         <div>
           <strong>{account.balance.held}</strong>
-          <span>Đang giữ</span>
+          <span>Đã dành cho lịch hẹn</span>
         </div>
         <div>
           <strong>{account.balance.consumed}</strong>
-          <span>Đã dùng</span>
+          <span>Đã sử dụng</span>
         </div>
         <div>
           <strong>{account.balance.forfeited}</strong>
-          <span>Đã mất</span>
+          <span>Đã hết hiệu lực</span>
         </div>
       </div>
 
@@ -168,9 +168,9 @@ export default function ServiceCreditsPanel() {
       </div>
 
       <div className={styles.history}>
-        <h2>Lịch sử credit</h2>
+        <h2>Lịch sử lượt tư vấn</h2>
         {account.history.length === 0 ? (
-          <p>Chưa có giao dịch credit.</p>
+          <p>Chưa có thay đổi nào về lượt tư vấn.</p>
         ) : (
           <ul>
             {account.history.map((event) => (

@@ -92,8 +92,8 @@ function ResultPanel({
             {!safetyApplicable
               ? 'Không áp dụng cho bộ câu hỏi này'
               : positive
-                ? 'Dương tính theo quy tắc sàng lọc'
-                : 'Âm tính theo quy tắc sàng lọc'}
+                ? 'Có câu trả lời cần bạn lưu ý'
+                : 'Không có câu trả lời cần thêm hướng dẫn an toàn'}
           </strong>
           <p>
             {!safetyApplicable
@@ -126,7 +126,7 @@ function ResultPanel({
       </aside>
 
       <details className="care-provenance">
-        <summary>Thông tin phiên bản</summary>
+        <summary>Thông tin kỹ thuật</summary>
         <dl>
           <div>
             <dt>Bộ câu hỏi</dt>
@@ -144,10 +144,10 @@ function ResultPanel({
       </details>
 
       <details className="care-provenance care-definition-history">
-        <summary>Nội dung và thang điểm đã dùng</summary>
+        <summary>Nội dung và thang điểm của bài này</summary>
         <p>
-          Đây là định nghĩa bất biến <strong>{questionnaire.version}</strong>{' '}
-          được lưu cùng kết quả này.
+          Nội dung dưới đây được lưu cùng kết quả để bạn có thể xem lại đúng bài
+          đã thực hiện.
         </p>
         <ol>
           {questionnaire.questions.map((question) => (
@@ -169,8 +169,8 @@ function ResultPanel({
           <div>
             <strong>Kết quả ẩn danh chỉ tồn tại trong phiên hiện tại</strong>
             <p>
-              Đăng ký không tự động gắn kết quả này vào tài khoản. Các tính năng
-              cá nhân hóa và lịch sử chỉ dành cho người dùng đã đăng nhập.
+              Đăng ký không tự động gắn kết quả này vào tài khoản. Lịch sử sàng
+              lọc chỉ dành cho người dùng đã đăng nhập.
             </p>
           </div>
           <Link href="/register" className="btn btn-outline">

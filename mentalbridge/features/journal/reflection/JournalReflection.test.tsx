@@ -142,11 +142,13 @@ describe('JournalReflection', () => {
     expect(await screen.findByText(disclosure.title)).toBeVisible()
     await user.click(
       screen.getByRole('checkbox', {
-        name: /tôi đã đọc và chủ động đồng ý/i,
+        name: /tôi đồng ý để AI phân tích nội dung nhật ký này/i,
       }),
     )
     await user.click(
-      screen.getByRole('button', { name: 'Đồng ý và phân tích bản này' }),
+      screen.getByRole('button', {
+        name: 'Đồng ý và phân tích nhật ký này',
+      }),
     )
 
     expect(
@@ -157,7 +159,7 @@ describe('JournalReflection', () => {
     expect(
       screen.getByRole('link', { name: 'Mở hướng dẫn hỗ trợ' }),
     ).toHaveAttribute('href', '/support-guides')
-    expect(screen.getByText('Phản ánh cho phiên bản 2')).toBeVisible()
+    expect(screen.getByText('Kết quả phân tích nhật ký này')).toBeVisible()
     const analysisCall = fetchMock.mock.calls.find(([url]) =>
       String(url).endsWith('/revisions/2/analysis-jobs'),
     )
@@ -217,11 +219,9 @@ describe('JournalReflection', () => {
 
     render(<JournalReflection entry={entry()} />)
 
-    expect(await screen.findByText('Phản ánh chưa hoàn tất')).toBeVisible()
+    expect(await screen.findByText('Phân tích chưa hoàn tất')).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Thử phân tích lại' }))
-    expect(
-      await screen.findByText('Đang phân tích phiên bản này'),
-    ).toBeVisible()
+    expect(await screen.findByText('Đang phân tích nhật ký này')).toBeVisible()
   })
 
   it('marks an old result stale and keeps the current journal revision actionable', async () => {
@@ -234,9 +234,11 @@ describe('JournalReflection', () => {
 
     render(<JournalReflection entry={entry('stale')} />)
 
-    expect(await screen.findByText('Phản ánh trước đã cũ')).toBeVisible()
     expect(
-      screen.getByRole('button', { name: 'Phân tích phiên bản này' }),
+      await screen.findByText('Kết quả phân tích trước cần cập nhật'),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Phân tích nhật ký này' }),
     ).toBeEnabled()
   })
 })

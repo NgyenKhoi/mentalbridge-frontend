@@ -49,9 +49,9 @@ function errorState(error: unknown) {
   if (error instanceof ApiError) {
     if (error.code === 'INSUFFICIENT_COMPARABLE_DATA')
       return {
-        title: 'Chưa đủ dữ liệu tương thích',
+        title: 'Chưa đủ kết quả để so sánh',
         message:
-          'Cần ít nhất hai kết quả không bị vô hiệu hóa của cùng bộ câu hỏi và cùng phiên bản chấm điểm.',
+          'Bạn cần ít nhất hai kết quả của cùng một bài sàng lọc được chấm theo cùng cách.',
         retryable: false,
       }
     if (error.status === 401 || error.status === 403 || error.status === 404)
@@ -64,34 +64,35 @@ function errorState(error: unknown) {
     if (error.code === 'VALIDATION_FAILED')
       return {
         title: 'Yêu cầu so sánh không hợp lệ',
-        message: 'Mã assessment đã chọn không đúng định dạng.',
+        message:
+          'Kết quả đã chọn không thể dùng để so sánh. Hãy đóng bảng này và chọn lại.',
         retryable: false,
       }
     if (error.code === 'CARE_TIMEOUT' || error.code === 'REQUEST_TIMEOUT')
       return {
-        title: 'Care phản hồi quá thời gian',
+        title: 'So sánh mất nhiều thời gian hơn dự kiến',
         message:
-          'Kết quả assessment hiện tại không bị thay đổi. Bạn có thể thử lại.',
+          'Kết quả sàng lọc hiện tại không bị thay đổi. Bạn có thể thử lại.',
         retryable: true,
       }
     if (error.code === 'CARE_UNAVAILABLE' || error.code === 'NETWORK_ERROR')
       return {
-        title: 'Care tạm thời không khả dụng',
+        title: 'Chưa thể tải so sánh lúc này',
         message:
-          'Kết quả assessment hiện tại vẫn được giữ nguyên. Bạn có thể thử lại.',
+          'Kết quả sàng lọc hiện tại vẫn được giữ nguyên. Bạn có thể thử lại.',
         retryable: true,
       }
     if (error.code === 'CARE_MALFORMED_RESPONSE')
       return {
-        title: 'Care trả về dữ liệu không hợp lệ',
-        message: 'MentalBridge không hiển thị một so sánh chưa được xác nhận.',
+        title: 'Chưa thể xác nhận dữ liệu so sánh',
+        message:
+          'MentalBridge không hiển thị dữ liệu chưa được xác nhận. Bạn có thể thử lại.',
         retryable: true,
       }
   }
   return {
     title: 'Không thể tải so sánh',
-    message:
-      'Kết quả assessment hiện tại không bị thay đổi. Bạn có thể thử lại.',
+    message: 'Kết quả sàng lọc hiện tại không bị thay đổi. Bạn có thể thử lại.',
     retryable: true,
   }
 }
@@ -111,7 +112,6 @@ function ProgressPoint({
       <time dateTime={point.submittedAt}>
         {new Date(point.submittedAt).toLocaleString('vi-VN')}
       </time>
-      <small>{point.questionnaireVersion}</small>
     </article>
   )
 }
@@ -168,7 +168,7 @@ export default function AssessmentProgressPanel({
         <div>
           <span>So sánh mô tả</span>
           <h3 id="assessment-progress-title" ref={headingRef} tabIndex={-1}>
-            Tiến trình assessment đã chọn
+            Thay đổi giữa các lần sàng lọc
           </h3>
         </div>
         <button type="button" onClick={onClose} aria-label="Đóng so sánh">
@@ -177,7 +177,7 @@ export default function AssessmentProgressPanel({
       </div>
 
       {loading ? (
-        <p className="assessment-progress-status">Đang tải so sánh từ Care…</p>
+        <p className="assessment-progress-status">Đang tải dữ liệu so sánh…</p>
       ) : progress ? (
         <>
           <p className="assessment-progress-direction">
@@ -195,11 +195,24 @@ export default function AssessmentProgressPanel({
               <dt>Khoảng thời gian</dt>
               <dd>{elapsedLabel(progress.elapsedDuration)}</dd>
             </div>
-            <div>
-              <dt>Phiên bản chấm điểm</dt>
-              <dd>{progress.scoringVersion}</dd>
-            </div>
           </dl>
+          <details>
+            <summary>Thông tin kỹ thuật</summary>
+            <dl>
+              <div>
+                <dt>Kết quả trước</dt>
+                <dd>{progress.previous.questionnaireVersion}</dd>
+              </div>
+              <div>
+                <dt>Kết quả được chọn</dt>
+                <dd>{progress.current.questionnaireVersion}</dd>
+              </div>
+              <div>
+                <dt>Cách chấm điểm</dt>
+                <dd>{progress.scoringVersion}</dd>
+              </div>
+            </dl>
+          </details>
           <p className="assessment-progress-boundary">
             Đây chỉ là chênh lệch mô tả giữa hai lần sàng lọc. Kết quả không
             phải chẩn đoán, không xác định nguyên nhân và không cho biết trạng

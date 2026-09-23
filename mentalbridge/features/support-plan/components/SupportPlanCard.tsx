@@ -9,9 +9,16 @@ import type {
 import SupportPlanSchedule from './SupportPlanSchedule'
 
 const domainLabel = {
-  DEPRESSIVE_SYMPTOMS: 'Hỗ trợ theo miền triệu chứng trầm cảm',
-  ANXIETY_SYMPTOMS: 'Hỗ trợ theo miền triệu chứng lo âu',
+  DEPRESSIVE_SYMPTOMS: 'Hỗ trợ dấu hiệu trầm cảm',
+  ANXIETY_SYMPTOMS: 'Hỗ trợ dấu hiệu lo âu',
 } as const
+
+const resourceCategoryLabel: Record<string, string> = {
+  ARTICLE: 'Bài viết',
+  AUDIO: 'Âm thanh',
+  VIDEO: 'Video',
+  EXERCISE: 'Bài thực hành',
+}
 
 const slotLabel: Record<string, string> = {
   CORE: 'Nội dung cốt lõi',
@@ -46,28 +53,28 @@ type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
 
 const lifecycleConfirmation = {
   PAUSED: {
-    title: 'Tạm dừng SupportPlan?',
+    title: 'Tạm dừng kế hoạch?',
     message:
       'Các hoạt động tương lai sẽ được hủy trong lúc tạm dừng. Bạn có thể tiếp tục lại sau.',
     action: 'Xác nhận tạm dừng',
   },
   ACTIVE: {
-    title: 'Tiếp tục SupportPlan?',
+    title: 'Tiếp tục kế hoạch?',
     message:
       'Chỉ các hoạt động vẫn còn ở tương lai mới được khôi phục và lên lịch lại.',
     action: 'Xác nhận tiếp tục',
   },
   COMPLETED: {
-    title: 'Kết thúc SupportPlan?',
+    title: 'Kết thúc kế hoạch?',
     message:
       'Kế hoạch sẽ chuyển vào lịch sử và không thể tiếp tục lại. Thao tác này không có nghĩa là bạn đã hồi phục.',
     action: 'Xác nhận kết thúc',
   },
   DISCARDED: {
-    title: 'Hủy bản nháp SupportPlan?',
+    title: 'Hủy kế hoạch?',
     message:
-      'Bản nháp sẽ chuyển vào lịch sử và không thể kích hoạt. Kế hoạch đang hoạt động, nếu có, không bị thay đổi.',
-    action: 'Xác nhận hủy bản nháp',
+      'Kế hoạch sẽ chuyển vào lịch sử và không thể bắt đầu sau đó. Kế hoạch đang thực hiện, nếu có, không bị thay đổi.',
+    action: 'Xác nhận hủy kế hoạch',
   },
 } as const
 
@@ -90,20 +97,20 @@ export default function SupportPlanCard({
   const isDraft = plan.status === 'DRAFT'
   const safetyPositive = plan.safety.status === 'POSITIVE_SAFETY_SCREEN'
   const statusLabel = {
-    DRAFT: 'Chưa kích hoạt',
+    DRAFT: 'Chưa bắt đầu',
     ACTIVE: 'Đang hoạt động',
     PAUSED: 'Đang tạm dừng',
     COMPLETED: 'Đã kết thúc',
     SUPERSEDED: 'Đã được thay thế',
-    DISCARDED: 'Đã hủy bản nháp',
+    DISCARDED: 'Đã hủy trước khi bắt đầu',
   }[plan.status]
   const titleLabel = {
-    DRAFT: 'SupportPlan đề xuất cho bạn',
-    ACTIVE: 'SupportPlan đang hoạt động',
-    PAUSED: 'SupportPlan đang tạm dừng',
-    COMPLETED: 'SupportPlan đã kết thúc',
-    SUPERSEDED: 'SupportPlan đã được thay thế',
-    DISCARDED: 'Bản nháp SupportPlan đã hủy',
+    DRAFT: 'Kế hoạch hỗ trợ đề xuất cho bạn',
+    ACTIVE: 'Kế hoạch đang thực hiện',
+    PAUSED: 'Kế hoạch đang tạm dừng',
+    COMPLETED: 'Kế hoạch đã kết thúc',
+    SUPERSEDED: 'Kế hoạch đã được thay thế',
+    DISCARDED: 'Kế hoạch đã hủy trước khi bắt đầu',
   }[plan.status]
 
   const dirty = useMemo(
@@ -171,9 +178,7 @@ export default function SupportPlanCard({
     >
       <header className="support-plan-card-header">
         <div>
-          <span>
-            {isDraft ? 'Bản nháp do Care quản lý' : 'Kế hoạch hiện tại'}
-          </span>
+          <span>{isDraft ? 'Kế hoạch chưa bắt đầu' : 'Kế hoạch hiện tại'}</span>
           <h2 id={`support-plan-${plan.supportPlanId}`}>{titleLabel}</h2>
         </div>
         <span
@@ -192,8 +197,7 @@ export default function SupportPlanCard({
         </strong>
         <p>{plan.safety.guidance}</p>
         <small>
-          Safety do chính sách Care quyết định, không phụ thuộc AI hoặc gói dịch
-          vụ.
+          Thông tin an toàn không phụ thuộc vào AI hoặc gói dịch vụ.
         </small>
       </section>
 
@@ -202,7 +206,10 @@ export default function SupportPlanCard({
         <p>{plan.rationale.text}</p>
       </section>
 
-      <section className="support-plan-slots" aria-label="Nội dung SupportPlan">
+      <section
+        className="support-plan-slots"
+        aria-label="Nội dung kế hoạch hỗ trợ"
+      >
         <div className="support-plan-section-heading">
           <div>
             <span>
@@ -261,8 +268,8 @@ export default function SupportPlanCard({
                               <strong>{resource.title}</strong>
                               <small>{resource.summary}</small>
                               <small>
-                                Phiên bản {resource.contentVersion} ·{' '}
-                                {resource.category}
+                                {resourceCategoryLabel[resource.category] ??
+                                  resource.category}
                               </small>
                             </span>
                           </label>
@@ -296,8 +303,9 @@ export default function SupportPlanCard({
                       <h4>{slot.selectedResource.title}</h4>
                       <p>{slot.selectedResource.summary}</p>
                       <small>
-                        Phiên bản {slot.selectedResource.contentVersion} ·{' '}
-                        {slot.selectedResource.category}
+                        {resourceCategoryLabel[
+                          slot.selectedResource.category
+                        ] ?? slot.selectedResource.category}
                       </small>
                       {slot.selectedResource.externalUrl && (
                         <a
@@ -322,14 +330,14 @@ export default function SupportPlanCard({
       {isDraft ? (
         <section
           className="support-plan-actions"
-          aria-label="Xác nhận SupportPlan"
+          aria-label="Xác nhận kế hoạch hỗ trợ"
         >
           <div>
             <strong>Bạn là người quyết định</strong>
             <p>
-              Lưu lựa chọn trước, sau đó kích hoạt kế hoạch. Care sẽ kiểm tra
-              lại quyền gói, kết quả đánh giá và từng phiên bản nội dung ngay
-              trước khi kích hoạt.
+              Lưu lựa chọn trước, sau đó bắt đầu kế hoạch. MentalBridge sẽ kiểm
+              tra lại quyền lợi gói, kết quả sàng lọc và nội dung hỗ trợ trước
+              khi áp dụng.
             </p>
           </div>
           <div className="support-plan-action-buttons">
@@ -341,7 +349,7 @@ export default function SupportPlanCard({
                 requestLifecycle('DISCARDED', event.currentTarget)
               }
             >
-              Hủy bản nháp
+              Hủy kế hoạch
             </button>
             <button
               className="btn btn-ghost"
@@ -357,14 +365,12 @@ export default function SupportPlanCard({
               disabled={dirty || busy !== null}
               onClick={() => void onActivate()}
             >
-              {busy === 'ACTIVATING'
-                ? 'Đang kích hoạt…'
-                : 'Kích hoạt SupportPlan'}
+              {busy === 'ACTIVATING' ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
             </button>
           </div>
           {dirty && (
             <p className="support-plan-action-hint">
-              Hãy lưu lựa chọn mới trước khi kích hoạt.
+              Hãy lưu lựa chọn mới trước khi bắt đầu kế hoạch.
             </p>
           )}
           <p
@@ -378,7 +384,7 @@ export default function SupportPlanCard({
       ) : (
         <>
           <aside className="support-plan-confirmation-note">
-            <strong>Trạng thái do Care quản lý</strong>
+            <strong>Quản lý trạng thái kế hoạch</strong>
             <p>
               Tạm dừng sẽ hủy các lịch tương lai; tiếp tục chỉ khôi phục các mục
               vẫn còn ở tương lai. Kết thúc không mang ý nghĩa phục hồi.
@@ -420,7 +426,7 @@ export default function SupportPlanCard({
       )}
 
       <details className="support-plan-provenance">
-        <summary>Nguồn và phiên bản quyết định</summary>
+        <summary>Thông tin kỹ thuật</summary>
         <dl>
           <div>
             <dt>Đánh giá hỗ trợ</dt>

@@ -34,7 +34,7 @@ describe('SupportPlanCard', () => {
     expect(
       screen.getByText('Safety guidance remains available now.'),
     ).toBeVisible()
-    expect(screen.getByText('Chưa kích hoạt')).toBeVisible()
+    expect(screen.getByText('Chưa bắt đầu')).toBeVisible()
     expect(screen.getByText('Bạn là người quyết định')).toBeVisible()
     expect(screen.getByText(/mb-support-plan-selection-v1/)).toBeInTheDocument()
     expect(container.textContent).not.toMatch(/totalScore|raw answer|journal/i)
@@ -55,7 +55,7 @@ describe('SupportPlanCard', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: /Reviewed alternative/ }))
     expect(
-      screen.getByRole('button', { name: 'Kích hoạt SupportPlan' }),
+      screen.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
     ).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lựa chọn' }))
 
@@ -121,10 +121,10 @@ describe('SupportPlanCard', () => {
     })
 
     expect(screen.getByText('Đang hoạt động')).toBeVisible()
-    expect(screen.getByText('SupportPlan đang hoạt động')).toBeVisible()
+    expect(screen.getByText('Kế hoạch đang thực hiện')).toBeVisible()
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Kích hoạt SupportPlan' }),
+      screen.queryByRole('button', { name: 'Bắt đầu kế hoạch' }),
     ).not.toBeInTheDocument()
     expect(screen.getByTestId('support-plan-schedule')).toBeVisible()
   })
@@ -133,13 +133,11 @@ describe('SupportPlanCard', () => {
     const fixture = supportPlanFixture()
     const { onStatusChange, rerender } = renderCard(fixture)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hủy bản nháp' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy kế hoạch' }))
     expect(onStatusChange).not.toHaveBeenCalled()
-    expect(
-      screen.getByRole('dialog', { name: 'Hủy bản nháp SupportPlan?' }),
-    ).toBeVisible()
+    expect(screen.getByRole('dialog', { name: 'Hủy kế hoạch?' })).toBeVisible()
     fireEvent.click(
-      screen.getByRole('button', { name: 'Xác nhận hủy bản nháp' }),
+      screen.getByRole('button', { name: 'Xác nhận hủy kế hoạch' }),
     )
     await waitFor(() =>
       expect(onStatusChange).toHaveBeenCalledWith('DISCARDED', undefined),
@@ -178,7 +176,7 @@ describe('SupportPlanCard', () => {
         onStatusChange={onStatusChange}
       />,
     )
-    expect(screen.getByText('Bản nháp SupportPlan đã hủy')).toBeVisible()
+    expect(screen.getByText('Kế hoạch đã hủy trước khi bắt đầu')).toBeVisible()
     expect(screen.queryByTestId('support-plan-schedule')).toBeNull()
   })
 

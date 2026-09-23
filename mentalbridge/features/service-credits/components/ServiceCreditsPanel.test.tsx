@@ -49,10 +49,8 @@ describe('ServiceCreditsPanel', () => {
     expect(
       await screen.findByRole('heading', { name: 'Plus' }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/Credit demo có kiểm soát/)).toBeInTheDocument()
-    expect(screen.getByText('Có thể dùng').previousSibling).toHaveTextContent(
-      '1',
-    )
+    expect(screen.getByText(/Lượt tư vấn dùng thử/)).toBeInTheDocument()
+    expect(screen.getByText('Còn lại').previousSibling).toHaveTextContent('1')
     expect(screen.getByText(/chỉ cấp thêm phần chênh lệch/)).toBeInTheDocument()
   })
 

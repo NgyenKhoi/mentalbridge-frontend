@@ -80,7 +80,7 @@ describe('SupportGuideCard', () => {
 
     expect(screen.getByText('Safety guidance is available now.')).toBeVisible()
     expect(screen.getByText('Reviewed resource')).toBeVisible()
-    expect(screen.getByText(/SupportPlan/)).toBeVisible()
+    expect(screen.getByText('Bạn chủ động lựa chọn')).toBeVisible()
     expect(screen.getByRole('status')).toHaveTextContent(/AI/)
     expect(screen.getByRole('link').getAttribute('href')).toBe(
       '/support-guides/10000000-0000-4000-8000-000000000511',

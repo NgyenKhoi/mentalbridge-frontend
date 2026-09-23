@@ -26,10 +26,10 @@ test('MB-377 displays the Consultation-owned demo balance on mobile', async ({
 
   const creditPanel = page.getByRole('region', { name: 'Plus' })
   await expect(creditPanel.getByRole('heading', { name: 'Plus' })).toBeVisible()
-  await expect(creditPanel.getByText(/Credit demo có kiểm soát/)).toBeVisible()
-  await expect(
-    creditPanel.getByText('Có thể dùng').locator('..'),
-  ).toContainText('1')
+  await expect(creditPanel.getByText(/Lượt tư vấn dùng thử/)).toBeVisible()
+  await expect(creditPanel.getByText('Còn lại').locator('..')).toContainText(
+    '1',
+  )
   await expect(
     creditPanel.getByText(/chỉ cấp thêm phần chênh lệch/),
   ).toBeVisible()

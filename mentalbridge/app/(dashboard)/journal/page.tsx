@@ -492,7 +492,7 @@ export default function JournalPage() {
           const authoritative = await fetchJournalEntry(selected.id)
           setSelected(authoritative)
           setModalError(
-            'Đã tải phiên bản mới nhất. Bản nháp của bạn vẫn được giữ; hãy xem lại rồi nhấn Lưu nhật ký để thử lại.',
+            'Đã tải nội dung mới nhất. Bản nháp của bạn vẫn được giữ; hãy xem lại rồi nhấn Lưu nhật ký để thử lại.',
           )
         } catch (refreshError) {
           setModalError(
@@ -677,7 +677,6 @@ export default function JournalPage() {
                     <span key={tag}>#{tag}</span>
                   ))}
                 </div>
-                <small>Phiên bản {selected.currentRevision}</small>
                 <JournalReflection
                   key={`${selected.id}:${selected.currentRevision}`}
                   entry={selected}
@@ -885,9 +884,10 @@ export default function JournalPage() {
             {mode === 'delete' && selected && (
               <div className="journal-delete">
                 <p>
-                  Nhật ký sẽ biến mất khỏi danh sách. Hệ thống lưu một tombstone
-                  theo chính sách dữ liệu; thao tác này không có nghĩa dữ liệu
-                  vật lý được xóa ngay lập tức.
+                  Nhật ký sẽ không còn hiển thị trong danh sách hoặc có thể khôi
+                  phục trong ứng dụng. Hệ thống chỉ giữ thông tin tối thiểu về
+                  việc xóa để đồng bộ và kiểm tra; thao tác này không có nghĩa
+                  dữ liệu vật lý được xóa ngay lập tức.
                 </p>
                 <footer>
                   <button onClick={() => setMode('view')} disabled={working}>

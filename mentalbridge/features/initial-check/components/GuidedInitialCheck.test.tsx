@@ -148,7 +148,11 @@ describe('GuidedInitialCheck', () => {
     expect(
       screen.getByRole('heading', { name: 'GAD-7 — triệu chứng lo âu' }),
     ).toBeVisible()
-    expect(screen.getByRole('heading', { name: /mục an toàn/i })).toBeVisible()
+    expect(
+      screen.getByRole('heading', {
+        name: 'Không có câu trả lời cần thêm hướng dẫn an toàn',
+      }),
+    ).toBeVisible()
     expect(
       screen.getByRole('link', { name: 'Tôi cần hỗ trợ ngay' }),
     ).toHaveAttribute('href', '/safety-directory')

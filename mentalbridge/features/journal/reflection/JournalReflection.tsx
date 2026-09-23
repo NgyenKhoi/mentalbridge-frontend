@@ -58,25 +58,25 @@ const analysisErrorMessage = (problem: Problem | null) =>
       'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
     RESOURCE_NOT_FOUND: 'Không tìm thấy yêu cầu phân tích thuộc tài khoản này.',
     CONFLICT:
-      'Chưa thể bắt đầu phân tích. Hãy kiểm tra lại đồng ý AI và phiên bản nhật ký.',
+      'Chưa thể bắt đầu phân tích vì nội dung hoặc lựa chọn đồng ý đã thay đổi. Hãy kiểm tra lại rồi thử lần nữa.',
     DEPENDENCY_UNAVAILABLE:
       'Chưa thể xác minh đồng ý AI. Nội dung nhật ký chưa được gửi để phân tích.',
     JOURNAL_MUTATION_OUTCOME_UNKNOWN:
       'Chưa xác nhận được yêu cầu đã được tiếp nhận. Bạn có thể thử lại an toàn.',
     JOURNAL_MALFORMED_RESPONSE:
-      'Dịch vụ trả về dữ liệu không đúng hợp đồng nên kết quả không được hiển thị.',
+      'Chưa thể xác nhận kết quả phân tích nên MentalBridge không hiển thị kết quả này.',
     JOURNAL_UNAVAILABLE:
       'Dịch vụ phân tích hiện không khả dụng. Nhật ký vẫn có thể sử dụng bình thường.',
   })[problem?.code ?? ''] ??
   problem?.title ??
-  'Không thể tải phản ánh AI lúc này.'
+  'Không thể tải kết quả phân tích AI lúc này.'
 
 const terminalMessages: Readonly<Record<AnalysisTerminalReason, string>> = {
-  CONSENT_REQUIRED: 'Cần đồng ý xử lý AI hiện hành trước khi tạo phản ánh mới.',
+  CONSENT_REQUIRED: 'Bạn cần đồng ý trước khi AI phân tích nhật ký này.',
   CONSENT_REVOKED:
     'Đồng ý xử lý AI đã được rút lại trước khi phân tích hoàn tất.',
   CONSENT_UNAVAILABLE:
-    'Không thể xác minh đồng ý xử lý AI nên nội dung chưa được gửi tới nhà cung cấp.',
+    'Không thể xác minh lựa chọn đồng ý nên nội dung nhật ký chưa được gửi để phân tích.',
   ENTITLEMENT_UNAVAILABLE:
     'Không thể xác minh quyền sử dụng AI cho tài khoản lúc này.',
   ENTITLEMENT_CHANGED:
@@ -84,20 +84,20 @@ const terminalMessages: Readonly<Record<AnalysisTerminalReason, string>> = {
   AUTHORIZATION_CONTEXT_LOST:
     'Phiên xử lý không còn thông tin xác thực cần thiết. Bạn có thể yêu cầu lại.',
   REVISION_STALE:
-    'Nhật ký đã có phiên bản mới. Kết quả cũ không được dùng cho nội dung đang hiển thị.',
+    'Nhật ký đã được chỉnh sửa. Kết quả cũ không được dùng cho nội dung đang hiển thị.',
   JOURNAL_DELETED: 'Nhật ký nguồn đã bị xóa nên phân tích đã dừng.',
   PROVIDER_TIMEOUT:
     'Dịch vụ AI không phản hồi trong giới hạn thời gian. Bạn có thể thử lại thủ công.',
   PROVIDER_UNAVAILABLE:
     'Dịch vụ AI tạm thời không khả dụng. Bạn có thể thử lại thủ công.',
   INVALID_PROVIDER_RESULT:
-    'Kết quả AI không đạt hợp đồng an toàn nên đã bị loại bỏ.',
+    'Kết quả AI chưa đáp ứng yêu cầu hiển thị nên đã được loại bỏ.',
   INTERNAL_ERROR:
-    'Không thể hoàn tất phản ánh AI. Nhật ký của bạn không bị ảnh hưởng.',
+    'Không thể hoàn tất phân tích AI. Nhật ký của bạn không bị ảnh hưởng.',
 }
 
 const terminalMessage = (reason: AnalysisTerminalReason | null) =>
-  reason ? terminalMessages[reason] : 'Không thể hoàn tất phản ánh AI.'
+  reason ? terminalMessages[reason] : 'Không thể hoàn tất phân tích AI.'
 
 const signalGroups = (job: AnalysisJob) => {
   if (job.status !== 'SUCCEEDED' || !job.result) return []
@@ -397,30 +397,34 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
           AI có thể tóm tắt nội dung, nhận diện cảm xúc, chủ đề nổi bật và gợi ý
           những điều bạn có thể muốn quan tâm tiếp theo.
         </p>
+        <p>
+          Chỉ nội dung nhật ký này được dùng khi bạn chủ động yêu cầu. Kết quả
+          AI không phải chẩn đoán hoặc chỉ dẫn chuyên môn.
+        </p>
       </header>
 
       {restoring && (
         <div className={styles.state} role="status">
-          <p>Đang kiểm tra phản ánh của đúng phiên bản này…</p>
+          <p>Đang kiểm tra kết quả phân tích cho nội dung hiện tại…</p>
         </div>
       )}
 
       {!restoring && !job && entry.analysisState === 'stale' && (
         <div className={styles.state}>
-          <strong>Phản ánh trước đã cũ</strong>
+          <strong>Kết quả phân tích trước cần cập nhật</strong>
           <p>
-            Nhật ký đã được chỉnh sửa. Kết quả cũ không được gắn vào phiên bản
-            {` ${entry.currentRevision}`} đang hiển thị.
+            Nhật ký đã được chỉnh sửa nên kết quả cũ không được gắn vào nội dung
+            đang hiển thị.
           </p>
         </div>
       )}
 
       {!restoring && !job && entry.analysisState === 'current' && (
         <div className={styles.state}>
-          <strong>Đã có phản ánh cho phiên bản này</strong>
+          <strong>Đã có kết quả cho nội dung này</strong>
           <p>
             Liên kết yêu cầu không còn trên trình duyệt này. Chỉ yêu cầu lại khi
-            bạn muốn tạo một lần xử lý mới cho đúng phiên bản đang xem.
+            bạn muốn tạo một lần phân tích mới cho nội dung đang xem.
           </p>
         </div>
       )}
@@ -430,7 +434,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
           <strong>
             {job.attemptCount === 0
               ? 'Yêu cầu đang chờ xử lý'
-              : 'Đang phân tích phiên bản này'}
+              : 'Đang phân tích nhật ký này'}
           </strong>
           <p>
             Bạn có thể đóng cửa sổ và quay lại sau. Nhật ký vẫn dùng được trong
@@ -447,10 +451,10 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
         >
           <strong>
             {isStaleFailure(reason)
-              ? 'Phiên bản không còn hợp lệ'
+              ? 'Nhật ký đã được chỉnh sửa'
               : isConsentFailure(reason)
                 ? 'Cần kiểm tra lại đồng ý AI'
-                : 'Phản ánh chưa hoàn tất'}
+                : 'Phân tích chưa hoàn tất'}
           </strong>
           <p>{terminalMessage(reason)}</p>
         </div>
@@ -458,7 +462,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
 
       {job?.status === 'SUCCEEDED' && job.result && (
         <div className={styles.result}>
-          <h4>Phản ánh cho phiên bản {job.journalRevision}</h4>
+          <h4>Kết quả phân tích nhật ký này</h4>
           {job.result.summary && <p>{job.result.summary}</p>}
           {signalGroups(job).length > 0 && (
             <div className={styles.signals}>
@@ -474,20 +478,24 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
               ))}
             </div>
           )}
-          {job.result.modelConfidence !== undefined && (
-            <p className={styles.confidence}>
-              Độ chắc chắn do mô hình tự báo cáo:{' '}
-              {new Intl.NumberFormat('vi-VN', {
-                style: 'percent',
-                maximumFractionDigits: 0,
-              }).format(job.result.modelConfidence)}
-              .
-            </p>
-          )}
-          <small className={styles.provenance}>
-            Nguồn xử lý: {job.result.provider} · {job.result.model} · schema{' '}
-            {job.result.schemaVersion}
-          </small>
+          <details>
+            <summary>Thông tin kỹ thuật</summary>
+            {job.result.modelConfidence !== undefined && (
+              <p className={styles.confidence}>
+                Độ chắc chắn do mô hình tự báo cáo:{' '}
+                {new Intl.NumberFormat('vi-VN', {
+                  style: 'percent',
+                  maximumFractionDigits: 0,
+                }).format(job.result.modelConfidence)}
+                .
+              </p>
+            )}
+            <small className={styles.provenance}>
+              Lần chỉnh sửa {job.journalRevision} · Nhà cung cấp{' '}
+              {job.result.provider} · Mô hình {job.result.model} · Định dạng{' '}
+              {job.result.schemaVersion}
+            </small>
+          </details>
           {action && (
             <div className={styles.actions}>
               <Link href={action.href}>{action.label}</Link>
@@ -540,10 +548,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
                   checked={accepted}
                   onChange={(event) => setAccepted(event.target.checked)}
                 />
-                <span>
-                  Tôi đã đọc và chủ động đồng ý xử lý đúng phiên bản nhật ký này
-                  theo nội dung trên.
-                </span>
+                <span>Tôi đồng ý để AI phân tích nội dung nhật ký này.</span>
               </label>
               <div className={styles.actions}>
                 <button
@@ -555,7 +560,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
                     ? 'Đang gửi yêu cầu…'
                     : job?.status === 'SUCCEEDED'
                       ? 'Lưu đồng ý AI'
-                      : 'Đồng ý và phân tích bản này'}
+                      : 'Đồng ý và phân tích nhật ký này'}
                 </button>
               </div>
             </>
@@ -575,7 +580,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
                 ? 'Đang gửi yêu cầu…'
                 : job?.status === 'FAILED'
                   ? 'Thử phân tích lại'
-                  : 'Phân tích phiên bản này'}
+                  : 'Phân tích nhật ký này'}
             </button>
           )}
           <button

@@ -194,11 +194,7 @@ export default function ProfilePage() {
       setProfile(saved)
       setForm(profileForm(saved))
       setFieldErrors({})
-      notify(
-        profile
-          ? 'Care đã lưu hồ sơ của bạn. Đã lưu thay đổi hồ sơ.'
-          : 'Đã tạo hồ sơ của bạn.',
-      )
+      notify(profile ? 'Đã lưu thay đổi hồ sơ.' : 'Đã tạo hồ sơ của bạn.')
     } catch (cause) {
       if (cause instanceof ApiError && cause.problem?.violations) {
         const errors = errorsFromViolations(cause.problem.violations)
@@ -232,8 +228,8 @@ export default function ProfilePage() {
       setPrivacyGranted(granted)
       notify(
         granted
-          ? 'Đã ghi nhận xác nhận quyền riêng tư. Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'
-          : 'Đã ghi nhận thu hồi. Đã ghi nhận việc rút lại sự đồng ý cho các lần xử lý mới.',
+          ? 'Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'
+          : 'Đã dừng xử lý dữ liệu cho các lần sàng lọc mới.',
       )
     } catch {
       setError('Không thể ghi nhận lựa chọn về quyền riêng tư lúc này.')
@@ -441,13 +437,13 @@ export default function ProfilePage() {
           <div>
             <article>
               <span className="teal">N</span>
-              <strong>{profile ? '1' : '0'}</strong>
-              <small>Hồ sơ đã lưu</small>
+              <strong>{profile ? 'Đã lưu' : 'Chưa có'}</strong>
+              <small>Trạng thái hồ sơ</small>
             </article>
             <article>
               <span className="amber">✓</span>
-              <strong>{privacyGranted ? '1' : '0'}</strong>
-              <small>Sự đồng ý hiện hành</small>
+              <strong>{privacyGranted ? 'Đang bật' : 'Đang tắt'}</strong>
+              <small>Xử lý dữ liệu sàng lọc</small>
             </article>
           </div>
         </aside>
@@ -468,10 +464,15 @@ export default function ProfilePage() {
                 {privacySaving
                   ? 'Đang ghi nhận…'
                   : privacyGranted
-                    ? 'Thu hồi cho lần xử lý mới — Rút lại sự đồng ý cho lần xử lý mới'
-                    : 'Tôi đã đọc và xác nhận — Tôi đồng ý'}
+                    ? 'Dừng xử lý cho các lần sàng lọc mới'
+                    : 'Đồng ý xử lý dữ liệu sàng lọc'}
               </button>
             </div>
+            <p className="settings-inline-note">
+              {privacyGranted
+                ? 'Bạn đang cho phép xử lý dữ liệu khi gửi bài sàng lọc mới. Dừng lựa chọn này không xóa các kết quả đã lưu.'
+                : 'Nếu đồng ý, MentalBridge sẽ xử lý câu trả lời bạn gửi để tạo kết quả sàng lọc. Bạn có thể dừng cho các lần mới bất cứ lúc nào.'}
+            </p>
             {!profile && (
               <p className="settings-inline-note">
                 Bạn cần tạo hồ sơ trước khi ghi nhận sự đồng ý này.
@@ -480,10 +481,8 @@ export default function ProfilePage() {
           </div>
         ) : (
           <div className="settings-runtime-state">
-            <strong>
-              Disclosure hiện chưa khả dụng (thông báo quyền riêng tư)
-            </strong>
-            <p>Vui lòng thử lại sau.</p>
+            <strong>Thông báo quyền riêng tư tạm thời chưa tải được.</strong>
+            <p>Chưa có lựa chọn nào bị thay đổi. Vui lòng thử lại sau.</p>
           </div>
         )}
       </section>

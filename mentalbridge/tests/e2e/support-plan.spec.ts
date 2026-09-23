@@ -84,7 +84,7 @@ function plan() {
     discardedAt: null as string | null,
     disclaimerCode: 'WELLBEING_SUPPORT_NOT_TREATMENT',
     disclaimer:
-      'SupportPlan hỗ trợ sức khỏe tổng quát và không phải kế hoạch điều trị.',
+      'Kế hoạch hỗ trợ sức khỏe tổng quát và không phải kế hoạch điều trị.',
   }
 }
 
@@ -294,23 +294,24 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   ).toBeVisible()
   await page.getByRole('radio', { name: /Lựa chọn thay thế đã duyệt/ }).click()
   await expect(
-    page.getByRole('button', { name: 'Kích hoạt SupportPlan' }),
+    page.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
   ).toBeDisabled()
   await page.getByRole('button', { name: 'Lưu lựa chọn' }).click()
-  await expect(
-    page.getByText('Đã lưu lựa chọn đã được Care kiểm tra.'),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Kích hoạt SupportPlan' }).click()
+  await expect(page.getByText('Đã lưu lựa chọn của bạn.')).toBeVisible()
+  await page.getByRole('button', { name: 'Bắt đầu kế hoạch' }).click()
 
-  await expect(page.getByText('SupportPlan đang hoạt động')).toBeVisible()
+  await expect(page.getByText('Kế hoạch đang thực hiện')).toBeVisible()
   await expect(
     page
-      .getByRole('region', { name: 'Nội dung SupportPlan' })
+      .getByRole('region', { name: 'Nội dung kế hoạch hỗ trợ' })
       .getByRole('heading', { name: 'Lựa chọn thay thế đã duyệt' }),
   ).toBeVisible()
   await expect(page.getByText('Hoạt động của tôi')).toBeVisible()
   await expect(page.getByText('Asia/Ho_Chi_Minh')).toBeVisible()
-  await page.getByText('Chi tiết nguồn').click()
+  await page
+    .locator('.support-plan-occurrence')
+    .getByText('Thông tin kỹ thuật')
+    .click()
   await expect(page.getByText(/Phiên bản tài nguyên 2/)).toBeVisible()
   await page.getByRole('button', { name: 'Ghi nhận đã làm' }).click()
   await page.getByLabel(/Hoạt động này hữu ích với bạn/).selectOption('HELPFUL')
@@ -329,14 +330,14 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
 
   await page.setViewportSize({ width: 667, height: 375 })
   await page.reload()
-  await expect(page.getByText('SupportPlan đang hoạt động')).toBeVisible()
+  await expect(page.getByText('Kế hoạch đang thực hiện')).toBeVisible()
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true)
   await expect(
-    page.getByRole('button', { name: 'Kích hoạt SupportPlan' }),
+    page.getByRole('button', { name: 'Bắt đầu kế hoạch' }),
   ).toHaveCount(0)
 })
 
@@ -380,7 +381,7 @@ test('MB-373 presents the stable Free entitlement path without a plan', async ({
   await page.goto('/support-plan')
   await expect(page.getByText(/dành cho gói Plus và Premium/)).toBeVisible()
   await expect(
-    page.getByRole('link', { name: 'Mở Hướng dẫn hỗ trợ' }),
+    page.getByRole('link', { name: 'Xem gợi ý hỗ trợ' }),
   ).toHaveAttribute('href', '/support-guides')
   await expect(page.locator('.support-plan-card')).toHaveCount(0)
 })
@@ -498,7 +499,7 @@ test('MB-374 confirms lifecycle commands and reloads immutable completion histor
   await page.goto('/support-plan')
   await page.getByRole('button', { name: 'Tạm dừng kế hoạch' }).click()
   await expect(
-    page.getByRole('dialog', { name: 'Tạm dừng SupportPlan?' }),
+    page.getByRole('dialog', { name: 'Tạm dừng kế hoạch?' }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Quay lại' }).click()
   expect(commands).toEqual([])

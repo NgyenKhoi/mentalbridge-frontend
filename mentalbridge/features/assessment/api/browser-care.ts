@@ -187,10 +187,10 @@ export function assessmentErrorMessage(error: unknown) {
       error.code === 'ANONYMOUS_SESSION_EXPIRED' ||
       error.code === 'INVALID_ANONYMOUS_SESSION'
     ) {
-      return 'Phiên đánh giá ẩn danh đã hết hạn hoặc không còn hợp lệ. Vui lòng bắt đầu một phiên mới.'
+      return 'Phiên sàng lọc ẩn danh đã hết hạn hoặc không còn hợp lệ. Vui lòng bắt đầu một lượt mới.'
     }
     if (error.code === 'FORBIDDEN') {
-      return 'Tài khoản hiện tại không có quyền thực hiện bài đánh giá này.'
+      return 'Tài khoản hiện tại không thể thực hiện bài sàng lọc này.'
     }
     if (error.code === 'PROFILE_NOT_FOUND') {
       return 'Bạn cần tạo hồ sơ trước khi thực hiện bài sàng lọc có lưu lịch sử.'
@@ -205,7 +205,7 @@ export function assessmentErrorMessage(error: unknown) {
       return 'Trình tự kiểm tra đã thay đổi. MentalBridge sẽ tải lại bước chưa hoàn tất để bạn tiếp tục.'
     }
     if (error.status === 409) {
-      return 'Lần gửi này xung đột với một yêu cầu trước đó. Vui lòng bắt đầu lại bài đánh giá.'
+      return 'Lần gửi này trùng với một yêu cầu trước đó. Câu trả lời chưa được lưu; vui lòng bắt đầu lại bài sàng lọc.'
     }
     if (error.status === 429) {
       return 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng chờ một lúc rồi thử lại.'
@@ -225,5 +225,5 @@ export function assessmentErrorMessage(error: unknown) {
     }
   }
 
-  return 'Không thể hoàn tất bài đánh giá lúc này. Vui lòng thử lại.'
+  return 'Không thể hoàn tất bài sàng lọc lúc này. Câu trả lời chưa được xác nhận là đã lưu; vui lòng thử lại.'
 }

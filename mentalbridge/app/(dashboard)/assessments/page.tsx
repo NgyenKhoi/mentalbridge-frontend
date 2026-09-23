@@ -42,7 +42,7 @@ const assessments = [
     id: 'psqi',
     name: 'PSQI',
     fullName: 'Pittsburgh Sleep Quality Index',
-    description: 'Contract và nội dung đã duyệt hiện chưa khả dụng.',
+    description: 'Bài sàng lọc này hiện chưa khả dụng.',
     duration: 'Chưa khả dụng',
     questions: 19,
     available: false,
@@ -96,13 +96,13 @@ export default function AssessmentsPage() {
       <header className="assessment-page-header">
         <div className="assessment-page-title">
           <span className="assessment-kicker">Theo dõi sức khỏe tinh thần</span>
-          <h1>Bài đánh giá</h1>
+          <h1>Bài sàng lọc</h1>
           <p>Thực hiện bài sàng lọc và xem lại các kết quả bạn đã lưu.</p>
         </div>
       </header>
       <section aria-labelledby="available-assessments">
         <h2 id="available-assessments" className="sr-only">
-          Bài đánh giá khả dụng
+          Bài sàng lọc khả dụng
         </h2>
         <div className="assessment-card-grid">
           {assessments.map((assessment, index) => (
@@ -148,7 +148,7 @@ export default function AssessmentsPage() {
         <div className="assessment-section-title">
           <div>
             <span>Lịch sử</span>
-            <h2 id="assessment-history-title">Các lần đánh giá gần đây</h2>
+            <h2 id="assessment-history-title">Các lần sàng lọc gần đây</h2>
           </div>
         </div>
         {error ? (
@@ -161,7 +161,7 @@ export default function AssessmentsPage() {
           </div>
         ) : items.length === 0 && !loading ? (
           <div className="assessment-history-unavailable">
-            <strong>Chưa có lịch sử đánh giá</strong>
+            <strong>Chưa có lịch sử sàng lọc</strong>
             <p>
               Mỗi lần làm lại sẽ tạo một kết quả mới, không ghi đè kết quả cũ.
             </p>
@@ -184,9 +184,7 @@ export default function AssessmentsPage() {
                     <td>
                       {new Date(item.submittedAt).toLocaleString('vi-VN')}
                     </td>
-                    <td>
-                      {item.instrument} · {item.questionnaireVersion}
-                    </td>
+                    <td>{item.instrument}</td>
                     <td>{levelLabels[item.result.screeningLevel]}</td>
                     <td>{item.result.totalScore} điểm</td>
                     <td>

@@ -24,7 +24,7 @@ export const browserServiceCredits = {
       throw new ServiceCreditsBrowserError(
         response.status,
         value.code ?? 'CONSULTATION_DEPENDENCY_FAILED',
-        value.title ?? 'Không thể tải credit tư vấn.',
+        value.title ?? 'Không thể tải lượt tư vấn.',
       )
     }
     return value

@@ -265,14 +265,15 @@ describe('Journal page', () => {
     await user.click(modal.getByRole('button', { name: 'Lưu nhật ký' }))
 
     expect(await modal.findByRole('alert')).toHaveTextContent(
-      'Đã tải phiên bản mới nhất',
+      'Đã tải nội dung mới nhất',
     )
     expect(draft).toHaveValue('bản nháp của tôi')
     await user.click(modal.getByRole('button', { name: 'Lưu nhật ký' }))
 
     await waitFor(() =>
-      expect(screen.getByRole('dialog')).toHaveTextContent('Phiên bản 3'),
+      expect(screen.getByRole('dialog')).toHaveTextContent('bản nháp của tôi'),
     )
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('Phiên bản 3')
     expect(patchHeaders).toEqual(['1', '2'])
   })
 })
