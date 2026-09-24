@@ -21,16 +21,19 @@ const profile = {
   version: 1,
 }
 const api = vi.hoisted(() => ({
-  pending: vi.fn(),
+  profiles: vi.fn(),
   detail: vi.fn(),
   approve: vi.fn(),
+  reject: vi.fn(),
+  suspend: vi.fn(),
+  restore: vi.fn(),
 }))
 vi.mock('../api/browser-client', () => ({ browserConsultation: api }))
 
 describe('AdminSpecialistReviewSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    api.pending.mockResolvedValue({
+    api.profiles.mockResolvedValue({
       data: { items: [profile], count: 1 },
       etag: null,
     })
@@ -41,29 +44,92 @@ describe('AdminSpecialistReviewSection', () => {
     })
   })
 
-  it('inspects and approves a submitted profile without credential claims', async () => {
+  it('inspects and rejects a pending profile with a closed reason', async () => {
     const user = userEvent.setup()
     render(<AdminSpecialistReviewSection />)
     await user.click(await screen.findByRole('button', { name: /Nguyễn An/ }))
-    expect(await screen.findByText('Hỗ trợ phi lâm sàng')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Phê duyệt hồ sơ' }))
+    await user.selectOptions(
+      screen.getByLabelText('Lý do từ chối'),
+      'PROFILE_CONTENT_NOT_APPROVED',
+    )
+    await user.click(screen.getByRole('button', { name: 'Từ chối hồ sơ' }))
+
     await waitFor(() =>
-      expect(api.approve).toHaveBeenCalledWith(profile.accountId, '"1"'),
+      expect(api.reject).toHaveBeenCalledWith(
+        profile.accountId,
+        '"1"',
+        'PROFILE_CONTENT_NOT_APPROVED',
+      ),
     )
     expect(
-      await screen.findByText('Đã phê duyệt hồ sơ chuyên gia.'),
+      await screen.findByText(
+        'Đã từ chối hồ sơ và lưu lý do để chuyên gia chỉnh sửa.',
+      ),
     ).toBeInTheDocument()
   })
 
-  it('renders the real empty queue state', async () => {
-    api.pending.mockResolvedValue({ data: { items: [], count: 0 }, etag: null })
+  it('suspends an approved specialist and reports exact committed outcomes', async () => {
+    const approved = {
+      ...profile,
+      approvalStatus: 'APPROVED' as const,
+      version: 2,
+    }
+    api.profiles.mockImplementation((status: string) =>
+      Promise.resolve({
+        data: {
+          items: status === 'APPROVED' ? [approved] : [profile],
+          count: 1,
+        },
+        etag: null,
+      }),
+    )
+    api.detail.mockResolvedValue({ data: approved, etag: '"2"' })
+    api.suspend.mockResolvedValue({
+      data: {
+        profile: { ...approved, approvalStatus: 'SUSPENDED' },
+        effects: {
+          withdrawnAvailabilitySlots: 2,
+          cancelledAppointments: 1,
+          releasedCredits: 1,
+        },
+      },
+      etag: '"3"',
+    })
+    const user = userEvent.setup()
+    render(<AdminSpecialistReviewSection />)
 
+    await user.click(screen.getByRole('button', { name: 'Đã phê duyệt' }))
+    await user.click(await screen.findByRole('button', { name: /Nguyễn An/ }))
+    await user.click(
+      screen.getByRole('button', { name: 'Tạm ngưng chuyên gia' }),
+    )
+
+    await waitFor(() =>
+      expect(api.suspend).toHaveBeenCalledWith(
+        profile.accountId,
+        '"2"',
+        'QUALITY_REVIEW_REQUIRED',
+      ),
+    )
+    expect(
+      await screen.findByText(/rút 2 lịch, hủy 1 cuộc hẹn và hoàn 1 lượt/),
+    ).toBeInTheDocument()
+  })
+
+  it('loads the selected lifecycle queue instead of only pending profiles', async () => {
+    api.profiles.mockResolvedValue({
+      data: { items: [], count: 0 },
+      etag: null,
+    })
+    const user = userEvent.setup()
     render(<AdminSpecialistReviewSection />)
 
     expect(
-      await screen.findByText('Không có hồ sơ đang chờ.'),
+      await screen.findByText('Không có hồ sơ ở trạng thái này.'),
     ).toBeInTheDocument()
-    expect(api.detail).not.toHaveBeenCalled()
-    expect(api.approve).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Đang tạm ngưng' }))
+    await waitFor(() =>
+      expect(api.profiles).toHaveBeenLastCalledWith('SUSPENDED'),
+    )
   })
 })

@@ -1,14 +1,16 @@
 'use client'
 
 import { FormEvent, useEffect, useState } from 'react'
+import type {
+  SpecialistDecisionReason,
+  SpecialistProfile,
+  SpecialistProfileInput,
+  SupportArea,
+} from '@/lib/consultation/consultation-validation'
 import {
   browserConsultation,
   BrowserConsultationError,
 } from '../api/browser-client'
-import type {
-  SpecialistProfileInput,
-  SupportArea,
-} from '@/lib/consultation/consultation-validation'
 import styles from './SpecialistProfileWorkspace.module.css'
 
 const empty: SpecialistProfileInput = {
@@ -21,12 +23,33 @@ const empty: SpecialistProfileInput = {
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh',
 }
 
+const reasonLabels: Record<SpecialistDecisionReason, string> = {
+  PROFILE_INFORMATION_INCOMPLETE: 'Thông tin hồ sơ chưa đầy đủ.',
+  PROFILE_CONTENT_NOT_APPROVED: 'Nội dung hồ sơ chưa phù hợp để công khai.',
+  OUTSIDE_SUPPORTED_SCOPE: 'Phạm vi hỗ trợ nằm ngoài phạm vi của nền tảng.',
+  POLICY_VIOLATION: 'Tài khoản đang bị tạm ngưng do vi phạm chính sách.',
+  QUALITY_REVIEW_REQUIRED: 'Tài khoản đang được rà soát chất lượng.',
+  ACCOUNT_REVIEW_REQUIRED: 'Tài khoản đang được rà soát vận hành.',
+}
+
+type ViewStatus =
+  | 'NEW'
+  | 'PENDING_DRAFT'
+  | 'PENDING_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'SUSPENDED'
+
+function viewStatus(profile: SpecialistProfile | null): ViewStatus {
+  if (!profile) return 'NEW'
+  if (profile.approvalStatus !== 'PENDING') return profile.approvalStatus
+  return profile.submittedAt ? 'PENDING_REVIEW' : 'PENDING_DRAFT'
+}
+
 export default function SpecialistProfileWorkspace() {
   const [form, setForm] = useState<SpecialistProfileInput>(empty)
+  const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [etag, setEtag] = useState<string | null>(null)
-  const [status, setStatus] = useState<
-    'NEW' | 'PENDING_DRAFT' | 'PENDING_REVIEW' | 'APPROVED'
-  >('NEW')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
@@ -39,24 +62,17 @@ export default function SpecialistProfileWorkspace() {
       .then((result) => {
         if (!active) return
         setForm(result.data)
+        setProfile(result.data)
         setEtag(result.etag)
-        setStatus(
-          result.data.approvalStatus === 'APPROVED'
-            ? 'APPROVED'
-            : result.data.submittedAt
-              ? 'PENDING_REVIEW'
-              : 'PENDING_DRAFT',
-        )
       })
       .catch((cause: unknown) => {
         if (
           active &&
           (!(cause instanceof BrowserConsultationError) || cause.status !== 404)
-        ) {
+        )
           setError(
             cause instanceof Error ? cause.message : 'Không thể tải hồ sơ.',
           )
-        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -66,6 +82,9 @@ export default function SpecialistProfileWorkspace() {
     }
   }, [])
 
+  const status = viewStatus(profile)
+  const locked = status === 'APPROVED' || status === 'SUSPENDED'
+
   function toggleArea(area: SupportArea) {
     setForm((current) => ({
       ...current,
@@ -74,6 +93,7 @@ export default function SpecialistProfileWorkspace() {
         : [...current.supportAreas, area],
     }))
   }
+
   function toggleLanguage(language: string) {
     setForm((current) => ({
       ...current,
@@ -89,14 +109,17 @@ export default function SpecialistProfileWorkspace() {
     setError('')
     setNotice('')
     try {
+      const previous = status
       const result = await browserConsultation.save(form, etag)
       setForm(result.data)
+      setProfile(result.data)
       setEtag(result.etag)
-      setStatus('PENDING_DRAFT')
       setNotice(
-        status === 'PENDING_REVIEW'
-          ? 'Đã lưu thay đổi. Hồ sơ được rút khỏi hàng đợi; hãy gửi lại khi sẵn sàng.'
-          : 'Đã lưu hồ sơ.',
+        previous === 'PENDING_REVIEW'
+          ? 'Đã lưu thay đổi. Hồ sơ đã rời hàng đợi; hãy gửi lại khi sẵn sàng.'
+          : previous === 'REJECTED'
+            ? 'Đã lưu thay đổi. Hãy gửi lại hồ sơ để được xét duyệt.'
+            : 'Đã lưu hồ sơ.',
       )
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể lưu hồ sơ.')
@@ -111,9 +134,13 @@ export default function SpecialistProfileWorkspace() {
     setError('')
     setNotice('')
     try {
-      const result = await browserConsultation.submit(etag)
+      const result =
+        status === 'REJECTED'
+          ? await browserConsultation.resubmit(etag)
+          : await browserConsultation.submit(etag)
+      setForm(result.data)
+      setProfile(result.data)
       setEtag(result.etag)
-      setStatus('PENDING_REVIEW')
       setNotice('Hồ sơ đã được gửi để quản trị viên xét duyệt.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể gửi hồ sơ.')
@@ -128,7 +155,16 @@ export default function SpecialistProfileWorkspace() {
         Đang tải hồ sơ…
       </section>
     )
-  const locked = status === 'APPROVED'
+
+  const statusTitle: Record<ViewStatus, string> = {
+    NEW: 'Chưa tạo hồ sơ',
+    PENDING_DRAFT: 'Bản nháp chờ gửi',
+    PENDING_REVIEW: 'Đang chờ xét duyệt',
+    APPROVED: 'Đã phê duyệt',
+    REJECTED: 'Cần chỉnh sửa và gửi lại',
+    SUSPENDED: 'Đang tạm ngưng',
+  }
+
   return (
     <section className={styles.workspace}>
       <header>
@@ -140,47 +176,46 @@ export default function SpecialistProfileWorkspace() {
         </p>
       </header>
       <div className={styles.status} data-state={status}>
-        <strong>
-          {status === 'NEW'
-            ? 'Chưa tạo hồ sơ'
-            : status === 'PENDING_DRAFT'
-              ? 'Bản nháp chờ gửi'
-              : status === 'PENDING_REVIEW'
-                ? 'Đang chờ xét duyệt'
-                : 'Đã phê duyệt'}
-        </strong>
+        <strong>{statusTitle[status]}</strong>
         <span>
           {status === 'PENDING_REVIEW'
             ? 'Nếu sửa, hồ sơ sẽ rời hàng đợi cho đến khi bạn gửi lại.'
-            : status === 'APPROVED'
-              ? 'Hồ sơ đã khóa trong luồng này và đủ điều kiện cho tính năng khám phá ở story sau.'
-              : 'Lưu bản nháp, kiểm tra lại rồi gửi duyệt.'}
+            : status === 'REJECTED'
+              ? 'Bạn có thể sửa cùng hồ sơ này rồi gửi lại để xét duyệt.'
+              : status === 'SUSPENDED'
+                ? 'Hồ sơ và lịch tương lai đã bị khóa. Quản trị viên cần khôi phục tài khoản.'
+                : status === 'APPROVED'
+                  ? 'Hồ sơ đang hoạt động và chỉ đọc.'
+                  : 'Lưu bản nháp, kiểm tra lại rồi gửi duyệt.'}
         </span>
       </div>
+      {profile?.decisionReasonCode && (
+        <p className={styles.reason} role="status">
+          <strong>Lý do:</strong> {reasonLabels[profile.decisionReasonCode]}
+        </p>
+      )}
       <form className={styles.card} onSubmit={save}>
         <label>
-          {' '}
           Tên hiển thị
           <input
             required
-            minLength={1}
             maxLength={120}
             disabled={locked}
             value={form.displayName}
-            onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+            onChange={(event) =>
+              setForm({ ...form, displayName: event.target.value })
+            }
           />
         </label>
         <label>
-          {' '}
           Giới thiệu
           <textarea
             required
-            minLength={1}
             maxLength={2000}
             rows={6}
             disabled={locked}
             value={form.bio}
-            onChange={(e) => setForm({ ...form, bio: e.target.value })}
+            onChange={(event) => setForm({ ...form, bio: event.target.value })}
           />
         </label>
         <fieldset disabled={locked}>
@@ -190,7 +225,7 @@ export default function SpecialistProfileWorkspace() {
               type="checkbox"
               checked={form.supportAreas.includes('DEPRESSIVE_SYMPTOMS')}
               onChange={() => toggleArea('DEPRESSIVE_SYMPTOMS')}
-            />{' '}
+            />
             Cảm xúc trầm buồn (PHQ-9)
           </label>
           <label>
@@ -198,7 +233,7 @@ export default function SpecialistProfileWorkspace() {
               type="checkbox"
               checked={form.supportAreas.includes('ANXIETY_SYMPTOMS')}
               onChange={() => toggleArea('ANXIETY_SYMPTOMS')}
-            />{' '}
+            />
             Lo âu (GAD-7)
           </label>
         </fieldset>
@@ -209,7 +244,7 @@ export default function SpecialistProfileWorkspace() {
               type="checkbox"
               checked={form.languages.includes('vi')}
               onChange={() => toggleLanguage('vi')}
-            />{' '}
+            />
             Tiếng Việt
           </label>
           <label>
@@ -217,7 +252,7 @@ export default function SpecialistProfileWorkspace() {
               type="checkbox"
               checked={form.languages.includes('en')}
               onChange={() => toggleLanguage('en')}
-            />{' '}
+            />
             English
           </label>
         </fieldset>
@@ -231,8 +266,11 @@ export default function SpecialistProfileWorkspace() {
               required
               disabled={locked}
               value={form.yearsOfExperience}
-              onChange={(e) =>
-                setForm({ ...form, yearsOfExperience: Number(e.target.value) })
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  yearsOfExperience: Number(event.target.value),
+                })
               }
             />
           </label>
@@ -242,7 +280,9 @@ export default function SpecialistProfileWorkspace() {
               required
               disabled={locked}
               value={form.timezone}
-              onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+              onChange={(event) =>
+                setForm({ ...form, timezone: event.target.value })
+              }
             />
           </label>
         </div>
@@ -270,15 +310,17 @@ export default function SpecialistProfileWorkspace() {
                 form.languages.length === 0
               }
             >
-              {busy ? 'Đang xử lý…' : 'Lưu bản nháp'}
+              {busy ? 'Đang xử lý…' : 'Lưu hồ sơ'}
             </button>
             <button
               type="button"
               className={styles.primary}
-              disabled={busy || !etag || status === 'PENDING_REVIEW'}
-              onClick={submit}
+              disabled={
+                busy || !etag || status === 'PENDING_REVIEW' || status === 'NEW'
+              }
+              onClick={() => void submit()}
             >
-              Gửi xét duyệt
+              {status === 'REJECTED' ? 'Gửi lại để xét duyệt' : 'Gửi xét duyệt'}
             </button>
           </div>
         )}

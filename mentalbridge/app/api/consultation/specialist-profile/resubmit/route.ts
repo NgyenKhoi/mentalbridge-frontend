@@ -11,34 +11,37 @@ import {
   localProblem,
 } from '@/lib/consultation/bff-response'
 import { consultationClient } from '@/lib/consultation/consultation-client'
-import { validSpecialistStatus } from '@/lib/consultation/consultation-validation'
+import { validEtag } from '@/lib/consultation/consultation-validation'
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
-  const status = request.nextUrl.searchParams.get('status') ?? 'PENDING'
-  if (!validSpecialistStatus(status))
-    return localProblem(
-      400,
-      'VALIDATION_FAILED',
-      'Trạng thái hồ sơ không hợp lệ.',
-      correlationId,
-    )
   let actor
   try {
     actor = await authenticatedConsultationActor(request, correlationId, [
-      'ADMIN',
+      'SPECIALIST',
     ])
   } catch (error) {
     return consultationAuthenticationFailure(error, correlationId)
   }
+  const etag = request.headers.get('If-Match')
+  if (!validEtag(etag))
+    return carryConsultationSession(
+      localProblem(
+        428,
+        'PROFILE_VERSION_REQUIRED',
+        'Cần phiên bản hồ sơ hiện tại.',
+        correlationId,
+      ),
+      actor,
+    )
   try {
-    const result = await consultationClient.profiles(
+    const result = await consultationClient.resubmit(
       actor.accessToken,
       correlationId,
-      status,
+      etag,
     )
     return carryConsultationSession(
-      consultationSuccess(result.data, correlationId),
+      consultationSuccess(result.data, correlationId, result.etag),
       actor,
     )
   } catch (error) {

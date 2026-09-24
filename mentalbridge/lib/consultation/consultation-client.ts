@@ -8,6 +8,7 @@ import {
   parseProblem,
   parseProfile,
   parseServiceCreditAccount,
+  parseSpecialistSuspensionResult,
   type PendingProfiles,
   type AvailabilitySlot,
   type AvailabilitySlotList,
@@ -15,6 +16,9 @@ import {
   type SpecialistProfile,
   type SpecialistProfileInput,
   type ServiceCreditAccount,
+  type SpecialistApprovalStatus,
+  type SpecialistDecisionReason,
+  type SpecialistSuspensionResult,
 } from './consultation-validation'
 
 const MAX_RESPONSE_BYTES = 128 * 1024
@@ -135,7 +139,7 @@ const profileRequest = (
   path: string,
   token: string,
   correlationId: string,
-  body?: SpecialistProfileInput,
+  body?: unknown,
   ifMatch?: string,
 ) =>
   request<SpecialistProfile>({
@@ -191,10 +195,24 @@ export const consultationClient = {
       etag,
     )
   },
-  pending(token: string, correlationId: string) {
+  resubmit(token: string, correlationId: string, etag: string) {
+    return profileRequest(
+      'POST',
+      '/api/v1/specialist-profile/resubmit',
+      token,
+      correlationId,
+      undefined,
+      etag,
+    )
+  },
+  profiles(
+    token: string,
+    correlationId: string,
+    status: SpecialistApprovalStatus,
+  ) {
     return request<PendingProfiles>({
       method: 'GET',
-      path: '/api/v1/admin/specialist-profiles?limit=100',
+      path: `/api/v1/admin/specialist-profiles?status=${status}&limit=100`,
       token,
       correlationId,
       parse: parsePendingProfiles,
@@ -212,6 +230,49 @@ export const consultationClient = {
     return profileRequest(
       'POST',
       `/api/v1/admin/specialist-profiles/${encodeURIComponent(id)}/approve`,
+      token,
+      correlationId,
+      undefined,
+      etag,
+    )
+  },
+  reject(
+    token: string,
+    correlationId: string,
+    id: string,
+    etag: string,
+    reasonCode: SpecialistDecisionReason,
+  ) {
+    return profileRequest(
+      'POST',
+      `/api/v1/admin/specialist-profiles/${encodeURIComponent(id)}/reject`,
+      token,
+      correlationId,
+      { reasonCode },
+      etag,
+    )
+  },
+  suspend(
+    token: string,
+    correlationId: string,
+    id: string,
+    etag: string,
+    reasonCode: SpecialistDecisionReason,
+  ) {
+    return request<SpecialistSuspensionResult>({
+      method: 'POST',
+      path: `/api/v1/admin/specialist-profiles/${encodeURIComponent(id)}/suspend`,
+      token,
+      correlationId,
+      body: { reasonCode },
+      ifMatch: etag,
+      parse: parseSpecialistSuspensionResult,
+    })
+  },
+  restore(token: string, correlationId: string, id: string, etag: string) {
+    return profileRequest(
+      'POST',
+      `/api/v1/admin/specialist-profiles/${encodeURIComponent(id)}/restore`,
       token,
       correlationId,
       undefined,

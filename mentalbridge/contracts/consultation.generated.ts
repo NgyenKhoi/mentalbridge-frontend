@@ -46,7 +46,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getOwnSpecialistProfile"];
-        /** @description Creates a PENDING unsubmitted profile or replaces an existing PENDING profile draft. Editing a submitted profile clears submittedAt and removes it from the review queue until submitted again. */
+        /** @description Creates a PENDING unsubmitted profile or replaces an existing PENDING or REJECTED profile. Editing a submitted PENDING profile clears submittedAt; editing a REJECTED profile preserves its stable reason until explicit resubmission. */
         put: operations["saveOwnSpecialistProfileDraft"];
         post?: never;
         delete?: never;
@@ -66,6 +66,23 @@ export interface paths {
         put?: never;
         /** @description Places the complete PENDING profile in the administrator review queue. */
         post: operations["submitOwnSpecialistProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/resubmit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Resubmits the same rejected profile after remediation, returns it to PENDING review, and clears the prior decision fields without changing its identity. */
+        post: operations["resubmitOwnSpecialistProfile"];
         delete?: never;
         options?: never;
         head?: never;
@@ -116,8 +133,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns submitted PENDING profiles ordered by oldest submission first. */
-        get: operations["listPendingSpecialistProfiles"];
+        /** @description Returns the requested operational lifecycle state. PENDING returns only submitted profiles ordered oldest first; other states are ordered by most recent update. */
+        get: operations["listSpecialistProfilesForAdmin"];
         put?: never;
         post?: never;
         delete?: never;
@@ -157,6 +174,63 @@ export interface paths {
         put?: never;
         /** @description Approves one submitted PENDING profile. Repeating against the current APPROVED version returns the same profile without another history row. */
         post: operations["approveSpecialistProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/{specialistAccountId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                specialistAccountId: components["parameters"]["SpecialistAccountId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Rejects one submitted PENDING profile with a stable remediation reason. An exact replay against the current matching REJECTED version creates no duplicate audit row. */
+        post: operations["rejectSpecialistProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/{specialistAccountId}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                specialistAccountId: components["parameters"]["SpecialistAccountId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Suspends one APPROVED profile with a stable reason, withdraws future availability, cancels future not-started appointments, and releases each affected held credit exactly once in one owner transaction. */
+        post: operations["suspendSpecialistProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/{specialistAccountId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                specialistAccountId: components["parameters"]["SpecialistAccountId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Restores one SUSPENDED profile to APPROVED. Previously withdrawn availability and cancelled appointments remain unchanged and require new owner actions. */
+        post: operations["restoreSpecialistProfile"];
         delete?: never;
         options?: never;
         head?: never;
@@ -239,6 +313,12 @@ export interface components {
         /** @enum {string} */
         SpecialistApprovalStatus: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
         /** @enum {string} */
+        SpecialistDecisionReasonCode: "PROFILE_INFORMATION_INCOMPLETE" | "PROFILE_CONTENT_NOT_APPROVED" | "OUTSIDE_SUPPORTED_SCOPE" | "POLICY_VIOLATION" | "QUALITY_REVIEW_REQUIRED" | "ACCOUNT_REVIEW_REQUIRED";
+        /** @enum {string} */
+        SpecialistRejectionReasonCode: "PROFILE_INFORMATION_INCOMPLETE" | "PROFILE_CONTENT_NOT_APPROVED" | "OUTSIDE_SUPPORTED_SCOPE";
+        /** @enum {string} */
+        SpecialistSuspensionReasonCode: "POLICY_VIOLATION" | "QUALITY_REVIEW_REQUIRED" | "ACCOUNT_REVIEW_REQUIRED";
+        /** @enum {string} */
         LanguageTag: "vi" | "en";
         SpecialistProfileRequest: {
             displayName: string;
@@ -265,7 +345,7 @@ export interface components {
             reviewedAt: string | null;
             /** Format: uuid */
             reviewedBy: string | null;
-            decisionReasonCode: string | null;
+            decisionReasonCode: components["schemas"]["SpecialistDecisionReasonCode"] | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -273,9 +353,24 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
-        PendingSpecialistProfiles: {
+        SpecialistProfiles: {
             items: components["schemas"]["SpecialistProfile"][];
             count: number;
+        };
+        RejectSpecialistRequest: {
+            reasonCode: components["schemas"]["SpecialistRejectionReasonCode"];
+        };
+        SuspendSpecialistRequest: {
+            reasonCode: components["schemas"]["SpecialistSuspensionReasonCode"];
+        };
+        SpecialistSuspensionEffects: {
+            withdrawnAvailabilitySlots: number;
+            cancelledAppointments: number;
+            releasedCredits: number;
+        };
+        SpecialistSuspensionResult: {
+            profile: components["schemas"]["SpecialistProfile"];
+            effects: components["schemas"]["SpecialistSuspensionEffects"];
         };
         /** @enum {string} */
         AvailabilityModality: "IN_APP_CHAT" | "IN_APP_VIDEO";
@@ -630,6 +725,36 @@ export interface operations {
             428: components["responses"]["VersionRequiredProblem"];
         };
     };
+    resubmitOwnSpecialistProfile: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rejected profile resubmitted for review */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistProfile"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
     listOwnAvailabilitySlots: {
         parameters: {
             query?: {
@@ -724,9 +849,11 @@ export interface operations {
             428: components["responses"]["AvailabilityVersionRequiredProblem"];
         };
     };
-    listPendingSpecialistProfiles: {
+    listSpecialistProfilesForAdmin: {
         parameters: {
             query?: {
+                /** @description Lifecycle state to list. Defaults to the submitted PENDING review queue. */
+                status?: components["schemas"]["SpecialistApprovalStatus"];
                 limit?: number;
             };
             header?: never;
@@ -735,13 +862,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Pending review queue */
+            /** @description Bounded profiles in the requested lifecycle state */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PendingSpecialistProfiles"];
+                    "application/json": components["schemas"]["SpecialistProfiles"];
                 };
             };
             400: components["responses"]["ValidationProblem"];
@@ -790,6 +917,112 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Approved profile */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistProfile"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    rejectSpecialistProfile: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                specialistAccountId: components["parameters"]["SpecialistAccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectSpecialistRequest"];
+            };
+        };
+        responses: {
+            /** @description Rejected profile and safe reason */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistProfile"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    suspendSpecialistProfile: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                specialistAccountId: components["parameters"]["SpecialistAccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuspendSpecialistRequest"];
+            };
+        };
+        responses: {
+            /** @description Suspended profile and committed downstream outcomes */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistSuspensionResult"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    restoreSpecialistProfile: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                specialistAccountId: components["parameters"]["SpecialistAccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored approved profile */
             200: {
                 headers: {
                     ETag: components["headers"]["ProfileETag"];
