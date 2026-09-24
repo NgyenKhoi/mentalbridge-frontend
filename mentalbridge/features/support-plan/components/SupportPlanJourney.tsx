@@ -434,8 +434,8 @@ export default function SupportPlanJourney() {
       await loadHistory()
     } catch (error) {
       const errorMessage = mutationMessage(error)
+      await recover()
       setReplacementMessage(errorMessage)
-      await recover(errorMessage)
     } finally {
       setReplacementLoading(false)
     }

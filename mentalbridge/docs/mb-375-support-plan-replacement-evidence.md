@@ -18,6 +18,6 @@
 
 ## Verification
 
-- Full frontend quality gate passes: formatting, lint, route generation/typecheck, generated contract checks, 94 test files / 439 tests, and the production build.
+- Full frontend quality gate passes: formatting, lint, route generation/typecheck, generated contract checks, 94 test files / 440 tests, and the production build.
 - SupportPlan actor coverage includes keeping the current plan active until explicit confirmation and reconciling terminal concurrency conflicts from authoritative current/history state.
 - Full Care service suite passes 212 tests, including 21 `SupportPlanIntegrationTests` against PostgreSQL/Testcontainers.

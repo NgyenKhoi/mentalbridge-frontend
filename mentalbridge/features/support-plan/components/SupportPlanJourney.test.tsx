@@ -311,6 +311,53 @@ describe('SupportPlanJourney', () => {
     )
   })
 
+  it('keeps a replacement conflict visible after reloading the authoritative review', async () => {
+    const current = activePlan()
+    const draft = {
+      ...supportPlanFixture(),
+      supportPlanId: '10000000-0000-4000-8000-000000000399',
+    }
+    api.getCurrentSupportPlan.mockResolvedValue(current)
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.reviewSupportPlanReplacement.mockResolvedValue({
+      outcome: 'CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE',
+      rationaleCodes: ['CURRENT_PLAN_ADMISSIBLE', 'PROPOSED_SELECTION_DIFFERS'],
+      comparison: [
+        {
+          change: 'CHANGED',
+          currentSlotId: current.slots[0].slotId,
+          currentResource: current.slots[0].selectedResource,
+          proposedSlotId: draft.slots[0].slotId,
+          proposedResource: draft.slots[0].allowedAlternatives[0],
+        },
+      ],
+      currentPlan: current,
+      proposedPlan: draft,
+      reassessmentSummary,
+      reviewedAt: '2026-09-24T00:02:00Z',
+    })
+    api.replaceSupportPlan.mockRejectedValue(
+      problem('SUPPORT_PLAN_VERSION_MISMATCH', 412),
+    )
+
+    render(<SupportPlanJourney />)
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: /phương án mới/,
+      }),
+    )
+
+    await waitFor(() =>
+      expect(api.reviewSupportPlanReplacement).toHaveBeenCalledTimes(2),
+    )
+    expect(screen.getByText(/Kế hoạch đang thực hiện/)).toBeVisible()
+    expect(screen.getByText(/phương án hỗ trợ khác/)).toBeVisible()
+    expect(
+      await screen.findByText(/Kế hoạch đã thay đổi ở nơi khác/),
+    ).toBeVisible()
+  })
+
   it('confirms completion, forwards the optional reason, and reloads current state and history', async () => {
     const active = activePlan()
     const completed = {
