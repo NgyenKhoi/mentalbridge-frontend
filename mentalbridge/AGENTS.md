@@ -69,7 +69,10 @@ above, avoids unsupported claims, and contains no developer-facing notes.
 
 ## UI engineering constitution
 
-Read `docs/DESIGN_SYSTEM.md` before changing product UI.
+Use `docs/README.md` as the documentation router and read the UI or motion
+documents that are relevant to the task. `docs/DESIGN_SYSTEM.md` is the compact
+shared foundation for visual language, tokens, primitives, accessibility, and
+motion decisions; it is not a mandatory standalone gateway for every UI change.
 
 - Reuse `components/ui` and `components/motion` before creating a feature-local
   dialog, disclosure, select, tooltip, tabs, toast, choice control, or skeleton.

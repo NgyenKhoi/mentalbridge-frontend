@@ -1,17 +1,68 @@
 .support-guide-page {
-  max-width: 980px;
+  position: relative;
+  isolation: isolate;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 2rem 1rem 4rem;
+  padding: var(--space-8) var(--space-4) 64px;
+  color: var(--ink);
   animation: mb-page-enter var(--motion-medium) var(--ease-standard) both;
 }
+.support-guide-page::before {
+  position: absolute;
+  z-index: -1;
+  top: -110px;
+  right: -120px;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--amber-soft) 72%, transparent),
+    transparent 68%
+  );
+  content: '';
+  pointer-events: none;
+}
 .support-guide-page-header {
+  position: relative;
+  overflow: hidden;
   display: grid;
   gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
+  padding: clamp(var(--space-6), 4vw, var(--space-10));
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--line));
+  border-radius: var(--radius-shell);
+  background: linear-gradient(
+    118deg,
+    color-mix(in srgb, var(--surface) 96%, transparent),
+    color-mix(in srgb, var(--teal-pale) 66%, var(--surface))
+  );
+  box-shadow: var(--elevation-2);
+}
+.support-guide-page-header::after {
+  position: absolute;
+  top: -84px;
+  right: 4%;
+  width: 230px;
+  height: 230px;
+  border: 1px solid color-mix(in srgb, var(--teal) 18%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 28%, transparent);
+  box-shadow:
+    0 0 0 30px color-mix(in srgb, var(--teal-pale) 32%, transparent),
+    0 0 0 62px color-mix(in srgb, var(--surface) 25%, transparent);
+  content: '';
+  pointer-events: none;
+  animation: support-guide-mark-enter var(--motion-slow) var(--ease-standard)
+    both;
+}
+.support-guide-page-header > * {
+  position: relative;
+  z-index: 1;
 }
 .support-guide-page-header > span,
 .support-guide-kicker {
-  color: #0f766e;
+  color: var(--teal-deep);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -22,13 +73,26 @@
 .support-guide-card h3 {
   margin: 0;
 }
+.support-guide-page-header h1 {
+  font:
+    600 clamp(2rem, 5vw, 3rem) / 1.1 var(--font-fraunces),
+    Georgia,
+    serif;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
 .support-guide-page-header p {
-  max-width: 720px;
+  max-width: 650px;
   margin: 0;
-  color: #475569;
+  color: var(--ink-soft);
+  font-size: 1.0625rem;
+  line-height: 1.65;
 }
 .support-guide-page-header .btn {
   width: fit-content;
+  min-height: 46px;
+  margin-top: var(--space-2);
+  box-shadow: 0 12px 30px -20px var(--teal-deep);
 }
 .support-guide-list {
   display: grid;
@@ -39,13 +103,42 @@
     var(--ease-standard) both;
 }
 .support-guide-card {
+  position: relative;
+  overflow: hidden;
   display: grid;
-  gap: 1rem;
-  padding: 1.4rem;
-  border: 1px solid #dbe7e5;
-  border-radius: 20px;
-  background: #fff;
-  box-shadow: 0 12px 34px rgba(15, 118, 110, 0.08);
+  gap: var(--space-5);
+  padding: clamp(var(--space-5), 3vw, var(--space-8));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-shell);
+  background: var(--surface);
+  box-shadow: var(--elevation-2);
+}
+.support-guide-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--teal),
+    var(--amber),
+    transparent 82%
+  );
+  content: '';
+}
+.support-guide-card > * {
+  animation: mb-data-enter var(--motion-medium) var(--ease-standard) both;
+}
+.support-guide-card > :nth-child(2) {
+  animation-delay: 45ms;
+}
+.support-guide-card > :nth-child(3) {
+  animation-delay: 80ms;
+}
+.support-guide-card > :nth-child(4) {
+  animation-delay: 115ms;
+}
+.support-guide-card > :nth-child(n + 5) {
+  animation-delay: 145ms;
 }
 .support-guide-card > header,
 .support-guide-card > footer {
@@ -55,71 +148,138 @@
   gap: 1rem;
 }
 .support-guide-kind {
+  flex: none;
   padding: 0.4rem 0.7rem;
-  border-radius: 999px;
-  background: #ecfeff;
-  color: #155e75;
+  border-radius: var(--radius-pill);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
   font-size: 0.78rem;
   font-weight: 700;
 }
 .support-guide-explanation {
   margin: 0;
-  font-size: 1.03rem;
-  line-height: 1.65;
+  max-width: 760px;
+  padding-left: var(--space-5);
+  border-left: 2px solid var(--teal-pale);
+  color: var(--ink);
+  font-size: 1.0625rem;
+  line-height: 1.7;
 }
 .support-guide-safety {
-  padding: 1rem;
-  border-left: 4px solid #0f766e;
-  border-radius: 12px;
-  background: #f0fdfa;
+  padding: var(--space-5);
+  border-left: 4px solid var(--teal);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--teal-pale) 68%, var(--surface));
 }
 .support-guide-safety.positive {
-  border-color: #b45309;
-  background: #fffbeb;
+  border-color: var(--amber-deep);
+  background: var(--amber-soft);
 }
 .support-guide-safety p {
   margin: 0.45rem 0;
   line-height: 1.55;
 }
 .support-guide-safety small {
-  color: #475569;
+  color: var(--ink-soft);
+}
+.support-guide-resources {
+  display: grid;
+  gap: var(--space-3);
 }
 .support-guide-resources > p {
-  color: #475569;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
 }
 .support-guide-resources ul {
+  counter-reset: guide-resource;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem;
+  gap: var(--space-3);
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 .support-guide-resources li {
-  padding: 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  position: relative;
+  min-height: 180px;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface) 94%, var(--surface-soft));
+  counter-increment: guide-resource;
+  transition:
+    border-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+}
+.support-guide-resources li::before {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  margin-bottom: var(--space-3);
+  border-radius: 10px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  content: counter(guide-resource, decimal-leading-zero);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.support-guide-resources li:hover,
+.support-guide-resources li:focus-within {
+  border-color: color-mix(in srgb, var(--teal) 34%, var(--line));
+  box-shadow: var(--elevation-1);
+  transform: translateY(-3px);
 }
 .support-guide-resources li p {
   margin: 0.4rem 0;
-  color: #475569;
+  color: var(--ink-soft);
+  line-height: 1.55;
 }
 .support-guide-resources li span {
   display: block;
-  color: #64748b;
+  color: var(--ink-faint);
   font-size: 0.82rem;
 }
 .support-guide-resources li a {
-  display: inline-block;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-2);
   margin-top: 0.65rem;
-  color: #0f766e;
+  color: var(--teal-deep);
   font-weight: 700;
+  text-decoration: none;
+}
+.support-guide-resources li a::after {
+  content: '↗';
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+.support-guide-resources li a:hover::after,
+.support-guide-resources li a:focus-visible::after {
+  transform: translate(2px, -2px);
 }
 .support-guide-fallback {
   margin: 0;
   padding: 0.8rem 1rem;
-  border-radius: 10px;
-  background: #f8fafc;
-  color: #475569;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+}
+.support-guide-provenance {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+.support-guide-provenance summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  width: fit-content;
+  color: var(--teal-deep);
+  font-weight: 750;
+  cursor: pointer;
 }
 .support-guide-provenance dl {
   display: grid;
@@ -135,24 +295,71 @@
   overflow-wrap: anywhere;
 }
 .support-guide-card footer {
-  color: #64748b;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
   font-size: 0.86rem;
 }
 .support-guide-card footer a {
-  color: #0f766e;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--teal-deep);
   font-weight: 700;
 }
 .support-guide-state {
-  padding: 1rem;
-  margin: 1rem 0;
-  border-radius: 12px;
-  background: #f8fafc;
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+  padding: clamp(var(--space-5), 4vw, var(--space-8));
+  border: 1px dashed color-mix(in srgb, var(--teal) 36%, var(--line));
+  border-radius: var(--radius-shell);
+  background: color-mix(in srgb, var(--surface) 92%, var(--surface-soft));
+  color: var(--ink-soft);
+  box-shadow: var(--elevation-1);
+  animation: mb-data-enter var(--motion-medium) var(--ease-standard) both;
+}
+.support-guide-state strong {
+  color: var(--teal-deep);
+  font:
+    600 clamp(1.35rem, 3vw, 1.7rem) / 1.2 var(--font-fraunces),
+    Georgia,
+    serif;
+}
+.support-guide-state p {
+  max-width: 680px;
+  margin: 0;
+  line-height: 1.6;
 }
 .support-guide-state.error {
-  background: #fff7ed;
-  color: #9a3412;
+  border-color: color-mix(in srgb, var(--terracotta) 42%, var(--line));
+  background: var(--terracotta-soft);
+  color: color-mix(in srgb, var(--terracotta) 76%, var(--ink));
+}
+.support-guide-page > .btn {
+  min-height: 44px;
+  margin-top: var(--space-4);
+}
+.support-guide-page :is(a, button, summary):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal) 30%, transparent);
+  outline-offset: 3px;
+}
+
+@keyframes support-guide-mark-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(24px, -16px, 0) scale(0.82);
+  }
 }
 @media (max-width: 680px) {
+  .support-guide-page {
+    padding-top: var(--space-4);
+  }
+  .support-guide-page-header::after {
+    top: -130px;
+    right: -100px;
+  }
   .support-guide-card > header,
   .support-guide-card > footer {
     align-items: flex-start;
@@ -168,7 +375,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .support-guide-page,
-  .support-guide-entry {
+  .support-guide-entry,
+  .support-guide-card > *,
+  .support-guide-page-header::after,
+  .support-guide-state {
     animation: none;
+  }
+  .support-guide-resources li,
+  .support-guide-resources li a::after {
+    transition: none;
   }
 }
