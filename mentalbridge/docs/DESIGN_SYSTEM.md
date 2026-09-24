@@ -8,6 +8,24 @@ phải mang ngôn ngữ MentalBridge.
 Nguyên tắc cốt lõi: **abstract behavior, not appearance**. Primitive là sàn chất
 lượng, không phải trần sáng tạo của feature.
 
+## 0. Phạm vi và nguồn sự thật
+
+Tài liệu này cô đọng foundation bền vững, không phải cổng bắt buộc duy nhất cho
+mọi thay đổi UI và cũng không phải catalog của từng animation. Bắt đầu từ
+[`README.md`](README.md) để chọn tài liệu đúng với task.
+
+Thứ tự ưu tiên khi triển khai:
+
+1. Hành vi người dùng và yêu cầu của task.
+2. Token và primitive đang chạy trong `app/globals.css`, `components/ui`,
+   `components/motion` và `lib/animations/config.ts`.
+3. Contract bền vững trong tài liệu này.
+4. Tài liệu animation lịch sử, prompt và changelog chỉ dùng để hiểu ngữ cảnh.
+
+`CLAUDE.md` chỉ chuyển tiếp đến `AGENTS.md`. Các file `ANIMATION_*`,
+`ANIMATIONS_README.md` và `GSAP_PROMPT.md` không tự động trở thành quy chuẩn chỉ
+vì có ví dụ code hoặc nhãn “production ready”.
+
 ## 1. Ngôn ngữ thiết kế
 
 - Bình tĩnh, ấm áp, gần gũi và có cảm giác con người.
@@ -106,6 +124,62 @@ body text trên mobile ưu tiên từ 16px.
 - GSAP chỉ dành cho landing/storytelling hoặc sequence phức tạp.
 - `prefers-reduced-motion` phải bỏ chuyển động lớn, bounce và parallax.
 
+### 4.1 Chọn công cụ theo phạm vi
+
+| Nhu cầu | Công cụ ưu tiên |
+| ------- | --------------- |
+| Hover, focus, pressed, màu, opacity hoặc transform đơn giản của một control | CSS transition/keyframe dùng motion token |
+| Mount/unmount, dialog, list/page state và transition gắn với state React | Primitive hiện có hoặc Framer Motion |
+| Timeline nhiều bước, scroll choreography, scrub, pin hoặc parallax của landing/storytelling | GSAP + ScrollTrigger |
+| Smooth scrolling | `useLenis` trên route đã được cho phép trong `PUBLIC_SMOOTH_ROUTES` |
+
+Không thêm GSAP cho một fade/slide đơn giản và không thêm Framer Motion nếu CSS
+đã diễn đạt đủ. Product page dùng chuyển động ngắn, nhẹ và có ích cho việc hiểu
+state; bounce, 3D tilt, glow liên tục và parallax chỉ phù hợp khi ngữ cảnh thương
+hiệu thực sự cần chúng.
+
+### 4.2 Ownership và lifecycle
+
+- Một DOM layer chỉ có một owner của `transform`. Khi GSAP reveal và Framer
+  Motion hover cùng tồn tại, dùng wrapper riêng như contract của `TiltCard`.
+- Scope selector vào root/ref của component. Dùng `gsap.context()` hoặc timeline
+  do component sở hữu và `revert()`/`kill()` đúng scope khi unmount. Không gọi
+  `ScrollTrigger.getAll().forEach(kill)` vì sẽ phá animation của feature khác.
+- Đăng ký plugin trong client boundary. Dynamic import phải có cờ disposed hoặc
+  cleanup tương đương để callback đến muộn không gắn listener sau khi unmount.
+- Listener, `requestAnimationFrame`, timer, tween, timeline và subscription phải
+  được dọn bởi chính component đã tạo chúng.
+- `ScrollTrigger.refresh()` chỉ chạy sau thay đổi layout thực sự như font, ảnh,
+  dữ liệu động hoặc preloader; không refresh liên tục trong render/scroll.
+- Lenis và ScrollTrigger phải dùng chung vòng cập nhật qua `useLenis`; không tạo
+  một smooth-scroll instance riêng trong feature.
+
+### 4.3 Progressive enhancement và reduced motion
+
+- Nội dung phải đọc và thao tác được nếu JavaScript hoặc animation không chạy.
+  Không để content mặc định `opacity: 0` mà thiếu no-JS/reduced-motion fallback.
+- Với reduced motion, hiển thị ngay trạng thái cuối; bỏ scrub, parallax, pointer
+  follower, smooth scrolling, chuyển động lớn và loop trang trí. Giữ feedback
+  không chuyển động bằng màu, border, icon hoặc thay đổi nội dung.
+- CSS dùng `@media (prefers-reduced-motion: reduce)`; React dùng
+  `useReducedMotion`/`MotionConfig`; GSAP dùng `gsap.matchMedia()` hoặc kiểm tra
+  media query trước khi tạo timeline.
+- Hover phụ thuộc con trỏ chỉ chạy với `(hover: hover) and (pointer: fine)`;
+  touch và keyboard không được mất chức năng hoặc focus feedback.
+
+### 4.4 Hiệu năng và nhịp chuyển động
+
+- Ưu tiên `transform` và `opacity`; tránh animate layout, blur/filter lớn hoặc
+  shadow nặng trên nhiều phần tử cùng lúc.
+- `will-change` chỉ dùng cho phần tử thật sự chuyển động và nên được giải phóng
+  khi animation kết thúc; không phủ toàn trang để “đảm bảo 60 FPS”.
+- Dùng token CSS cho microinteraction. Landing sequence dùng giá trị chung trong
+  `lib/animations/config.ts`; không tạo duration/easing riêng trong từng feature.
+- Stagger phải có giới hạn để item cuối không xuất hiện quá muộn. Async data và
+  thao tác chính không được chờ animation mới dùng được.
+- “60 FPS”, “không memory leak” hay “production ready” chỉ được ghi nhận sau khi
+  đo trên flow và thiết bị mục tiêu; không suy ra từ việc dùng GSAP/GPU.
+
 ## 5. Accessibility và responsive contract
 
 - Semantic HTML trước, ARIA chỉ bổ sung khi cần.
@@ -119,7 +193,7 @@ body text trên mobile ưu tiên từ 16px.
 - Nội dung dài giới hạn khoảng 60–75 ký tự mỗi dòng ở desktop và cho phép
   `overflow-wrap: anywhere` với ID/URL.
 
-## 6. Quy trình bắt buộc cho thay đổi UI
+## 6. Quy trình áp dụng cho thay đổi UI
 
 1. **Discover** — đọc token, `components/ui`, `components/motion`, Landing/Auth.
 2. **Audit** — ghi nhận hierarchy, primitive trùng, state thiếu, transition gãy,
@@ -130,6 +204,24 @@ body text trên mobile ưu tiên từ 16px.
    loading/error/empty.
 6. **Self-review** — so lại với ngôn ngữ MentalBridge và copy rules trong
    `AGENTS.md`.
+
+Với task nhỏ, các bước có thể ngắn và thực hiện liền nhau; không cần biến thành
+một tài liệu kế hoạch riêng. Điều bắt buộc là đã kiểm tra đúng tác động, không
+phải đã đọc toàn bộ design system hoặc toàn bộ tài liệu animation.
+
+### Kiểm thử motion theo tác động
+
+- Kiểm tra trạng thái đầu/cuối, nội dung async, điều hướng đi-về và mount/unmount;
+  không chỉ xem entrance lần đầu.
+- Bật reduced motion ở hệ điều hành/devtools và xác nhận toàn bộ nội dung hiện
+  ngay, focus/keyboard vẫn hoạt động, không còn scrub/parallax/loop lớn.
+- Kiểm tra touch/coarse pointer và các mốc 375px, 768px, 1280px, 1440px.
+- Dùng Performance panel khi thay đổi choreography hoặc scroll; tìm long task,
+  layout shift và frame drop thay vì dựa vào cảm giác.
+- Kiểm tra console/hydration error và xác nhận selector/ref vẫn tồn tại trong
+  code hiện tại trước khi dùng các script trong `DEBUG_ANIMATIONS.md`.
+- Chạy lint, typecheck và targeted test theo phạm vi. Visual review là bằng chứng
+  bổ sung, không thay thế kiểm tra hành vi.
 
 ## 7. Definition of Done
 

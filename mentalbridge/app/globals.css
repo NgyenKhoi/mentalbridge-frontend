@@ -53,11 +53,13 @@
   --motion-distance-md:8px;
   --motion-scale-enter:.98;
   --focus-ring:0 0 0 3px rgba(61,122,110,.24);
-  --font-fraunces: var(--font-fraunces-variable);
-  --font-be-vietnam: var(--font-be-vietnam-variable);
+  /* next/font exposes these named families; aliases at :root cannot depend on
+     variables that are introduced later by a class on body. */
+  --font-fraunces: "Fraunces", "Fraunces Fallback";
+  --font-be-vietnam: "Be Vietnam Pro", "Be Vietnam Pro Fallback";
   /* Alias cho các dashboard pages */
-  --font-display: var(--font-fraunces-variable);
-  --font-body: var(--font-be-vietnam-variable);
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-be-vietnam);
   --text:#1B2A22;
 }
 

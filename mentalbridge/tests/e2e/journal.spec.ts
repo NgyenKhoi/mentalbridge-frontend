@@ -81,6 +81,12 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
     ).toBeVisible()
     await page.getByRole('button', { name: 'Xem chi tiết' }).click()
     await expect(page.getByRole('dialog')).toContainText('Bạn đã chọn: Tốt')
+    const detailDialogBox = await page.getByRole('dialog').boundingBox()
+    expect(detailDialogBox).not.toBeNull()
+    expect(detailDialogBox?.y).toBeGreaterThanOrEqual(0)
+    expect(
+      (detailDialogBox?.y ?? 0) + (detailDialogBox?.height ?? 0),
+    ).toBeLessThanOrEqual(720)
     await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
     await page.getByRole('radio', { name: 'Không tốt', exact: true }).check()
     await page.getByLabel('Nội dung').fill('Bản chỉnh sửa không bị mất')

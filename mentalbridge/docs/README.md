@@ -13,6 +13,34 @@ how the executable Next.js application is organized and delivered.
 5. [Runtime and environment](runtime-and-environment.md)
 6. [Review and testing](review-and-testing.md)
 
+## UI and motion routing
+
+Do not read every UI document for every task. Start here, then choose the
+smallest relevant set:
+
+| Task | Read |
+| ---- | ---- |
+| Shared visual language, tokens, primitives, accessibility, or responsive behavior | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) |
+| Product-page loading, empty, error, list, dialog, or page-state motion | The motion contract in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), then the owning component and its tests |
+| Landing-page choreography, scroll sequences, parallax, or smooth scrolling | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), current code in `components/motion`, `components/ScrollReveal.tsx`, `hooks/useLenis.ts`, and `lib/animations/config.ts` |
+| Debugging or manually testing an existing animation | [TESTING_ANIMATIONS.md](TESTING_ANIMATIONS.md) and [DEBUG_ANIMATIONS.md](DEBUG_ANIMATIONS.md), after verifying their selectors against current code |
+
+Document status:
+
+- `CLAUDE.md` is only a compatibility pointer to the applicable `AGENTS.md`; it
+  does not define a separate UI system.
+- `GSAP_PROMPT.md` is the original implementation prompt. It is historical
+  input, not a reusable coding standard. In particular, do not copy global
+  cleanup such as killing every `ScrollTrigger` in the application.
+- `ANIMATIONS_README.md`, `ANIMATION_IMPROVEMENTS.md`,
+  `ANIMATION_SUMMARY.md`, and `ANIMATION_CHANGELOG.md` describe the landing-page
+  animation work completed at that time. Treat their exact selectors, timings,
+  version claims, performance claims, and future ideas as history until current
+  code or a new requirement confirms them.
+- Current source code and shared tokens are authoritative for implementation
+  details. If they disagree with a document, investigate the mismatch instead
+  of silently copying either side.
+
 Story-specific delivery evidence:
 
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
@@ -24,8 +52,9 @@ Story-specific delivery evidence:
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
-[`../../CONTRIBUTING.md`](../../CONTRIBUTING.md). The current design language is
-documented in [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md).
+[`../../CONTRIBUTING.md`](../../CONTRIBUTING.md). Shared UI foundations are
+summarized in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md); use the routing table above
+to select any additional task-specific material.
 
 ## Decision status
 

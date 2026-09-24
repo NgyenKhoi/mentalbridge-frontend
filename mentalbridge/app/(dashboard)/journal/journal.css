@@ -1,15 +1,25 @@
 .journal-live {
+  position: relative;
   min-height: 100%;
   padding: clamp(1rem, 3vw, 2.5rem);
   color: var(--ink);
   background:
     radial-gradient(
       circle at 86% 8%,
-      color-mix(in srgb, var(--amber-soft) 50%, transparent),
+      color-mix(in srgb, var(--amber-soft) 72%, transparent),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 8% 42%,
+      color-mix(in srgb, var(--teal-pale) 54%, transparent),
       transparent 28%
     ),
-    linear-gradient(150deg, var(--bg), var(--surface));
-  animation: mb-page-enter var(--motion-medium) var(--ease-standard) both;
+    linear-gradient(150deg, var(--bg), var(--surface-soft));
+  animation: mb-page-enter var(--motion-medium) var(--ease-standard) backwards;
+}
+.journal-page-content {
+  position: relative;
+  z-index: 1;
 }
 .journal-live button {
   display: inline-flex;
@@ -56,6 +66,8 @@
   opacity: 0.6;
 }
 .journal-live-hero {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -63,10 +75,53 @@
   max-width: var(--wrap);
   margin: 0 auto 2rem;
   padding: clamp(1.5rem, 4vw, 2.5rem);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  box-shadow: var(--shadow);
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--line));
+  border-radius: var(--radius-shell);
+  background: linear-gradient(
+    118deg,
+    color-mix(in srgb, var(--surface) 96%, transparent),
+    color-mix(in srgb, var(--teal-pale) 68%, var(--surface))
+  );
+  box-shadow: var(--elevation-2);
+}
+.journal-live-hero::before,
+.journal-live-hero::after {
+  position: absolute;
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
+}
+.journal-live-hero::before {
+  top: -88px;
+  right: 7%;
+  width: 220px;
+  height: 220px;
+  border: 1px solid color-mix(in srgb, var(--teal) 20%, transparent);
+  box-shadow:
+    0 0 0 28px color-mix(in srgb, var(--teal-pale) 36%, transparent),
+    0 0 0 58px color-mix(in srgb, var(--surface) 32%, transparent);
+  animation: journal-orbit-enter var(--motion-slow) var(--ease-standard) both;
+}
+.journal-live-hero::after {
+  right: 20%;
+  bottom: -44px;
+  width: 88px;
+  height: 88px;
+  background: color-mix(in srgb, var(--amber) 18%, transparent);
+  filter: blur(1px);
+  animation: journal-orbit-enter var(--motion-slow) 80ms var(--ease-standard)
+    both reverse;
+}
+.journal-live-hero > * {
+  position: relative;
+  z-index: 1;
+}
+.journal-live-hero > div {
+  animation: mb-data-enter var(--motion-medium) 60ms var(--ease-standard) both;
+}
+.journal-live-hero > button {
+  box-shadow: 0 12px 28px -18px var(--teal-deep);
+  animation: mb-data-enter var(--motion-medium) 130ms var(--ease-standard) both;
 }
 .journal-live-hero span,
 .journal-dialog header span {
@@ -98,7 +153,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0 var(--space-2);
 }
 .journal-live-heading h2 {
   color: var(--teal-deep);
@@ -116,6 +173,8 @@
   gap: 1rem;
 }
 .journal-live-card {
+  position: relative;
+  overflow: hidden;
   display: flex;
   min-height: 230px;
   flex-direction: column;
@@ -132,10 +191,28 @@
     box-shadow 0.3s ease,
     transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+.journal-live-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(var(--teal), var(--amber));
+  content: '';
+  opacity: 0.52;
+  transform: scaleY(0.38);
+  transform-origin: center;
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+}
 .journal-live-card:hover {
   border-color: color-mix(in srgb, var(--teal) 28%, var(--line));
-  box-shadow: var(--shadow);
-  transform: translateY(-3px);
+  box-shadow: var(--elevation-2);
+  transform: translateY(-4px);
+}
+.journal-live-card:hover::before,
+.journal-live-card:focus-within::before {
+  opacity: 1;
+  transform: scaleY(1);
 }
 .journal-live-card > header {
   display: flex;
@@ -197,7 +274,16 @@
   color: var(--teal-deep);
   padding: 0.5rem 0.75rem;
 }
+.journal-live-card button::after {
+  content: '→';
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+.journal-live-card button:hover::after,
+.journal-live-card button:focus-visible::after {
+  transform: translateX(3px);
+}
 .journal-status {
+  position: relative;
   padding: 2.5rem;
   text-align: center;
   border: 1px dashed color-mix(in srgb, var(--teal) 44%, var(--line));
@@ -205,6 +291,20 @@
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   color: var(--ink-soft);
   font-size: 15px;
+  animation: mb-data-enter var(--motion-medium) var(--ease-standard) both;
+}
+.journal-status h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--teal-deep);
+  font:
+    600 clamp(1.45rem, 3vw, 1.8rem) / 1.2 var(--font-fraunces),
+    Georgia,
+    serif;
+}
+.journal-status p {
+  margin: 0 auto var(--space-4);
+  max-width: 520px;
+  line-height: 1.6;
 }
 .journal-save-notice {
   margin: 0 0 1rem;
@@ -238,7 +338,7 @@
 }
 .journal-dialog {
   width: min(760px, 100%);
-  max-height: min(90vh, 800px);
+  max-height: min(calc(100dvh - 2rem), 800px);
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -258,6 +358,12 @@
     opacity: 0;
     transform: translateY(var(--motion-distance-md))
       scale(var(--motion-scale-enter));
+  }
+}
+@keyframes journal-orbit-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(20px, -12px, 0) scale(0.82);
   }
 }
 .journal-dialog > header {
@@ -470,6 +576,13 @@
     flex-direction: column;
     padding: 1.25rem;
   }
+  .journal-live-hero::before {
+    top: -118px;
+    right: -74px;
+  }
+  .journal-live-hero::after {
+    display: none;
+  }
   .journal-live-grid {
     grid-template-columns: 1fr;
   }
@@ -518,5 +631,11 @@
   .journal-live-card,
   .journal-live button {
     transition: none;
+    animation: none;
+  }
+  .journal-live-hero::before,
+  .journal-live-hero::after,
+  .journal-live-hero > * {
+    animation: none;
   }
 }
