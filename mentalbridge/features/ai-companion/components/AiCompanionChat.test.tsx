@@ -140,7 +140,10 @@ describe('AiCompanionChat', () => {
     )
     expect(await screen.findByText('Hãy chọn một bước nhỏ.')).toBeVisible()
     expect(screen.getByText(/Còn 4 lượt/)).toBeVisible()
-    expect(screen.getByText(/JOURNAL, SUPPORT_PLAN/)).toBeVisible()
+    expect(screen.getByText('Thông tin được dùng')).toBeVisible()
+    expect(
+      screen.getByText('Nhật ký bạn đã chọn · Kế hoạch hỗ trợ hiện tại'),
+    ).toBeVisible()
   })
 
   it('shows consent withdrawal separately and retains the draft for retry', async () => {

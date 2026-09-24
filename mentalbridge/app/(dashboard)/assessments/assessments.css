@@ -2,7 +2,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  animation: assessment-enter 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: assessment-enter var(--motion-slow) var(--ease-standard);
 }
 
 .assessment-page-header {
@@ -10,8 +10,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 32px;
-  margin: 0 0 36px;
+  gap: var(--space-8);
+  margin: 0 0 var(--space-10);
   padding: 4px 0 0;
   background: transparent;
   box-shadow: none;
@@ -29,15 +29,15 @@
   gap: 12px;
   padding: 13px 15px;
   border: 1px solid rgba(61, 122, 110, 0.18);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: rgba(229, 237, 224, 0.55);
   color: var(--teal-deep);
   text-align: left;
   transition:
-    transform 0.24s ease,
-    border-color 0.24s ease,
-    background 0.24s ease,
-    box-shadow 0.24s ease;
+    transform var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    background var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
 }
 .assessment-progress-trigger > span {
   display: grid;
@@ -45,7 +45,7 @@
   height: 36px;
   flex: 0 0 36px;
   place-items: center;
-  border-radius: 11px;
+  border-radius: var(--radius-control);
   background: var(--teal-deep);
   color: #fff;
   font-size: 18px;
@@ -55,12 +55,12 @@
   flex-direction: column;
 }
 .assessment-progress-trigger strong {
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 .assessment-progress-trigger small {
   margin-top: 2px;
   color: var(--ink-faint);
-  font-size: 10px;
+  font-size: 0.75rem;
 }
 .assessment-progress-trigger:hover {
   transform: translateY(-2px);
@@ -76,7 +76,7 @@
   display: block;
   margin-bottom: 10px;
   color: var(--teal);
-  font-size: 12px;
+  font-size: 0.8125rem;
   font-weight: 750;
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -99,29 +99,29 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
-  gap: 22px;
+  gap: var(--space-5);
 }
 .assessment-card {
   min-width: 0;
   min-height: 310px;
-  padding: 26px;
+  padding: var(--space-6);
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(27, 42, 34, 0.1);
-  border-radius: 18px;
+  border-radius: var(--radius-panel);
   background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 16px 38px -30px rgba(30, 74, 67, 0.38);
-  animation: assessment-card-in 0.55s var(--delay) cubic-bezier(0.16, 1, 0.3, 1)
-    both;
+  box-shadow: var(--elevation-1);
+  animation: assessment-card-in var(--motion-slow) var(--delay)
+    var(--ease-standard) both;
   transition:
-    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.3s ease,
-    border-color 0.3s ease;
+    transform var(--motion-medium) var(--ease-standard),
+    box-shadow var(--motion-medium) var(--ease-standard),
+    border-color var(--motion-medium) var(--ease-standard);
 }
 .assessment-card:hover {
   transform: translateY(-4px);
   border-color: rgba(61, 122, 110, 0.26);
-  box-shadow: 0 24px 48px -32px rgba(30, 74, 67, 0.48);
+  box-shadow: var(--elevation-2);
 }
 .assessment-card-top {
   display: grid;
@@ -138,9 +138,9 @@
   height: 48px;
   display: grid;
   place-items: center;
-  border-radius: 13px;
-  background: #e3efdf;
-  color: #5f9571;
+  border-radius: var(--radius-control);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
 }
 .assessment-icon svg {
   width: 24px;
@@ -159,11 +159,11 @@
   grid-row: 1;
   align-self: start;
   padding: 7px 12px;
-  border: 1px solid #e3dece;
-  border-radius: 999px;
-  background: #f8f6ef;
-  color: #696f64;
-  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -179,15 +179,15 @@
   display: block;
   margin-bottom: 8px;
   color: var(--ink);
-  font-size: 14px;
+  font-size: 0.9375rem;
   font-weight: 650;
   line-height: 1.4;
 }
 .assessment-card > p {
   max-width: 38ch;
   margin: 0;
-  color: #795f56;
-  font-size: 14px;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
   line-height: 1.6;
   text-wrap: pretty;
 }
@@ -200,8 +200,8 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 14px;
-  color: #748078;
-  font-size: 13px;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
   font-weight: 600;
 }
 .assessment-duration svg {
@@ -215,20 +215,20 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--teal-deep);
   color: #fff;
-  font-size: 14px;
+  font-size: 0.9375rem;
   font-weight: 750;
   box-shadow: 0 12px 24px -18px rgba(30, 74, 67, 0.65);
   transition:
-    transform 0.22s ease,
-    background 0.22s ease,
-    box-shadow 0.22s ease;
+    transform var(--motion-base) var(--ease-standard),
+    background var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
 }
 .assessment-start span {
   font-size: 19px;
-  transition: transform 0.22s ease;
+  transition: transform var(--motion-base) var(--ease-standard);
 }
 .assessment-start:hover {
   background: var(--teal);
@@ -245,7 +245,7 @@
 }
 
 .assessment-history {
-  margin-top: 58px;
+  margin-top: 56px;
 }
 .assessment-section-title {
   display: flex;
@@ -258,7 +258,7 @@
   display: block;
   margin-bottom: 6px;
   color: var(--teal);
-  font-size: 12px;
+  font-size: 0.8125rem;
   font-weight: 750;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -270,16 +270,26 @@
 .assessment-section-title > p {
   max-width: 330px;
   color: var(--ink-faint);
-  font-size: 13px;
+  font-size: 0.9375rem;
   line-height: 1.55;
   text-align: right;
 }
 .assessment-table-wrap {
   overflow: hidden;
   border: 1px solid rgba(27, 42, 34, 0.1);
-  border-radius: 18px;
+  border-radius: var(--radius-panel);
   background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 14px 36px -32px rgba(30, 74, 67, 0.42);
+  box-shadow: var(--elevation-1);
+}
+.assessment-history-skeleton {
+  display: grid;
+  gap: var(--space-3);
+  min-height: 154px;
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
 }
 .assessment-table {
   width: 100%;
@@ -289,7 +299,7 @@
   padding: 15px 24px;
   background: rgba(233, 239, 227, 0.58);
   color: var(--ink-faint);
-  font-size: 11px;
+  font-size: 0.75rem;
   letter-spacing: 0.07em;
   text-align: left;
   text-transform: uppercase;
@@ -298,10 +308,10 @@
   padding: 17px 24px;
   border-top: 1px solid var(--line);
   color: var(--ink-soft);
-  font-size: 14px;
+  font-size: 0.9375rem;
   transition:
-    background 0.2s ease,
-    color 0.2s ease;
+    background var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard);
 }
 .assessment-table th:nth-child(3),
 .assessment-table td:nth-child(3) {
@@ -322,7 +332,7 @@
 .assessment-table td small {
   margin-top: 2px;
   color: var(--ink-faint);
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 .assessment-test-name {
   color: var(--ink);
@@ -338,10 +348,10 @@
 .assessment-level {
   display: inline-flex;
   padding: 6px 11px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-soft);
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -356,22 +366,22 @@
   gap: 8px;
 }
 .assessment-row-action {
-  min-height: 34px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 7px 11px;
+  padding: 9px 13px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--teal-deep);
   font: inherit;
-  font-size: 12px;
+  font-size: 0.8125rem;
   font-weight: 750;
   white-space: nowrap;
   transition:
-    transform 0.22s ease,
-    background 0.22s ease;
+    transform var(--motion-base) var(--ease-standard),
+    background var(--motion-base) var(--ease-standard);
 }
 .assessment-row-action:hover {
   background: var(--teal-pale);
@@ -393,7 +403,7 @@
   margin-top: 20px;
   padding: 24px;
   border: 1px solid rgba(61, 122, 110, 0.2);
-  border-radius: 18px;
+  border-radius: var(--radius-panel);
   background: linear-gradient(145deg, rgba(241, 247, 238, 0.98), #fff);
   box-shadow: 0 18px 42px -34px rgba(30, 74, 67, 0.55);
 }
@@ -405,7 +415,7 @@
 }
 .assessment-progress-heading span {
   color: var(--teal);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -419,8 +429,8 @@
   outline: none;
 }
 .assessment-progress-heading > button {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--line);
   border-radius: 50%;
   background: #fff;
@@ -451,7 +461,7 @@
 .assessment-progress-point {
   padding: 18px;
   border: 1px solid rgba(27, 42, 34, 0.09);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: rgba(255, 255, 255, 0.82);
 }
 .assessment-progress-point > span,
@@ -461,7 +471,7 @@
 }
 .assessment-progress-point > span {
   color: var(--ink-faint);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -483,7 +493,7 @@
 .assessment-progress-point small {
   margin-top: 7px;
   color: var(--ink-faint);
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 .assessment-progress-arrow {
   color: var(--teal);
@@ -497,24 +507,24 @@
 }
 .assessment-progress-meta > div {
   padding: 13px 15px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: rgba(229, 237, 224, 0.58);
 }
 .assessment-progress-meta dt {
   color: var(--ink-faint);
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 .assessment-progress-meta dd {
   margin-top: 3px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 0.875rem;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 .assessment-progress-boundary {
   margin-top: 18px;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 0.875rem;
   line-height: 1.6;
 }
 .assessment-progress-error {
@@ -528,14 +538,14 @@
   max-width: 70ch;
   margin-top: 6px;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 0.875rem;
   line-height: 1.6;
 }
 .assessment-progress-error button {
   margin-top: 14px;
   padding: 9px 15px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--teal-deep);
   color: #fff;
   font-weight: 750;
@@ -551,10 +561,10 @@
 .assessment-unavailable-label {
   display: inline-flex;
   padding: 8px 13px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-soft);
   color: var(--ink-faint);
-  font-size: 12px;
+  font-size: 0.8125rem;
   font-weight: 800;
 }
 .assessment-history-unavailable {

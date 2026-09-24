@@ -1,7 +1,9 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 
+import { Dialog } from '@/components/ui/Dialog'
+import { Disclosure } from '@/components/ui/Disclosure'
 import type {
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
@@ -24,6 +26,11 @@ const slotLabel: Record<string, string> = {
   CORE: 'Nội dung cốt lõi',
   OPTIONAL: 'Nội dung bổ trợ',
 }
+
+const packageLabel = {
+  PLUS: 'Plus',
+  PREMIUM: 'Premium',
+} as const
 
 function resourceKey(
   resource: SupportPlan['slots'][number]['selectedResource'],
@@ -93,7 +100,6 @@ export default function SupportPlanCard({
     null,
   )
   const [completionReason, setCompletionReason] = useState('')
-  const lifecycleTrigger = useRef<HTMLButtonElement | null>(null)
   const isDraft = plan.status === 'DRAFT'
   const safetyPositive = plan.safety.status === 'POSITIVE_SAFETY_SCREEN'
   const statusLabel = {
@@ -145,18 +151,13 @@ export default function SupportPlanCard({
     await onSaveChoices({ slotSelections })
   }
 
-  const requestLifecycle = (
-    status: LifecycleStatus,
-    trigger: HTMLButtonElement,
-  ) => {
-    lifecycleTrigger.current = trigger
+  const requestLifecycle = (status: LifecycleStatus) => {
     setCompletionReason('')
     setPendingStatus(status)
   }
 
   const closeLifecycle = () => {
     setPendingStatus(null)
-    window.setTimeout(() => lifecycleTrigger.current?.focus(), 0)
   }
 
   const confirmLifecycle = async () => {
@@ -217,7 +218,7 @@ export default function SupportPlanCard({
             </span>
             <h3>{plan.selectedResourceCount} nội dung đã được kiểm tra</h3>
           </div>
-          <span>{plan.entitlement.packageCode}</span>
+          <span>{packageLabel[plan.entitlement.packageCode]}</span>
         </div>
         <ol>
           {plan.slots.map((slot, index) => {
@@ -345,9 +346,7 @@ export default function SupportPlanCard({
               className="btn btn-ghost"
               type="button"
               disabled={busy !== null}
-              onClick={(event) =>
-                requestLifecycle('DISCARDED', event.currentTarget)
-              }
+              onClick={() => requestLifecycle('DISCARDED')}
             >
               Hủy kế hoạch
             </button>
@@ -395,10 +394,9 @@ export default function SupportPlanCard({
                   className="btn btn-outline"
                   type="button"
                   disabled={busy !== null}
-                  onClick={(event) =>
+                  onClick={() =>
                     requestLifecycle(
                       plan.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
-                      event.currentTarget,
                     )
                   }
                 >
@@ -410,9 +408,7 @@ export default function SupportPlanCard({
                   className="btn btn-ghost"
                   type="button"
                   disabled={busy !== null}
-                  onClick={(event) =>
-                    requestLifecycle('COMPLETED', event.currentTarget)
-                  }
+                  onClick={() => requestLifecycle('COMPLETED')}
                 >
                   Kết thúc kế hoạch
                 </button>
@@ -425,8 +421,10 @@ export default function SupportPlanCard({
         </>
       )}
 
-      <details className="support-plan-provenance">
-        <summary>Thông tin kỹ thuật</summary>
+      <Disclosure
+        className="support-plan-provenance"
+        summary="Thông tin kỹ thuật"
+      >
         <dl>
           <div>
             <dt>Đánh giá hỗ trợ</dt>
@@ -447,7 +445,7 @@ export default function SupportPlanCard({
             </dd>
           </div>
         </dl>
-      </details>
+      </Disclosure>
 
       <footer>
         <p>{plan.disclaimer}</p>
@@ -456,19 +454,37 @@ export default function SupportPlanCard({
         </time>
       </footer>
 
-      {pendingStatus && (
-        <div className="support-plan-dialog-backdrop">
-          <section
-            className="support-plan-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="support-plan-lifecycle-title"
-          >
-            <span aria-hidden="true">!</span>
+      <Dialog
+        className="support-plan-dialog"
+        open={pendingStatus !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && busy === null) closeLifecycle()
+        }}
+        labelledBy="support-plan-lifecycle-title"
+        describedBy="support-plan-lifecycle-description"
+      >
+        {pendingStatus && (
+          <div className="support-plan-dialog-content">
+            <span className="support-plan-dialog-icon" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 8v5" />
+                <path d="M12 17h.01" />
+                <path d="M10.3 3.7 2.4 18a2 2 0 0 0 1.8 3h15.6a2 2 0 0 0 1.8-3L13.7 3.7a2 2 0 0 0-3.4 0Z" />
+              </svg>
+            </span>
             <h3 id="support-plan-lifecycle-title">
               {lifecycleConfirmation[pendingStatus].title}
             </h3>
-            <p>{lifecycleConfirmation[pendingStatus].message}</p>
+            <p id="support-plan-lifecycle-description">
+              {lifecycleConfirmation[pendingStatus].message}
+            </p>
             {pendingStatus === 'COMPLETED' && (
               <label>
                 Lý do (không bắt buộc)
@@ -507,9 +523,9 @@ export default function SupportPlanCard({
                   : lifecycleConfirmation[pendingStatus].action}
               </button>
             </div>
-          </section>
-        </div>
-      )}
+          </div>
+        )}
+      </Dialog>
     </article>
   )
 }

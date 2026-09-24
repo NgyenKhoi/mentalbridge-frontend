@@ -1,0 +1,28 @@
+.skeleton {
+  display: block;
+  max-width: 100%;
+  min-height: 12px;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: linear-gradient(
+    100deg,
+    rgba(207, 227, 216, 0.5) 20%,
+    rgba(255, 255, 255, 0.9) 42%,
+    rgba(207, 227, 216, 0.5) 64%
+  );
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.5s linear infinite;
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    background-position-x: -220%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    background: rgba(207, 227, 216, 0.62);
+    animation: none;
+  }
+}

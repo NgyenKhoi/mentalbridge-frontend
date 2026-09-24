@@ -17,7 +17,7 @@ import './support-guide.css'
 function message(error: unknown) {
   if (error instanceof ApiError) {
     if (error.code === 'INITIAL_CHECK_INCOMPLETE')
-      return 'Hãy hoàn thành PHQ-9 và GAD-7 trong Kiểm tra ban đầu trước.'
+      return 'Lịch sử sàng lọc của bạn vẫn được giữ nguyên. Để tạo gợi ý hỗ trợ, hãy hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu.'
     if (error.status === 401)
       return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
     if (error.status === 404)
@@ -96,8 +96,8 @@ export default function SupportGuideJourney({
         <span>Sau sàng lọc</span>
         <h1>Gợi ý hỗ trợ</h1>
         <p>
-          Xem các bước hỗ trợ dựa trên kết quả sàng lọc gần nhất và chủ động
-          chọn điều phù hợp với bạn.
+          Xem các bước hỗ trợ dựa trên cặp kết quả PHQ-9 và GAD-7 trong Kiểm tra
+          ban đầu, rồi chủ động chọn điều phù hợp với bạn.
         </p>
         {!supportGuideId && (
           <button
@@ -108,7 +108,7 @@ export default function SupportGuideJourney({
           >
             {generating
               ? 'Đang chuẩn bị gợi ý…'
-              : 'Xem gợi ý từ kết quả gần nhất'}
+              : 'Tạo gợi ý từ Kiểm tra ban đầu'}
           </button>
         )}
       </header>
@@ -129,15 +129,28 @@ export default function SupportGuideJourney({
       {!loading && !error && items.length === 0 && (
         <div className="support-guide-state">
           <strong>Chưa có gợi ý hỗ trợ</strong>
-          <p>Hoàn thành kiểm tra ban đầu để nhận gợi ý đầu tiên.</p>
+          <p>
+            Các bài trong lịch sử không tự động được ghép. Hãy hoàn tất PHQ-9 và
+            GAD-7 trong cùng lượt Kiểm tra ban đầu để nhận gợi ý đầu tiên.
+          </p>
           <Link className="btn btn-ghost" href="/initial-check">
             Đi tới kiểm tra ban đầu
           </Link>
         </div>
       )}
       <section className="support-guide-list" aria-label="Lịch sử gợi ý hỗ trợ">
-        {items.map((guide) => (
-          <SupportGuideCard key={guide.supportGuideId} guide={guide} />
+        {items.map((guide, index) => (
+          <div
+            className="support-guide-entry"
+            key={guide.supportGuideId}
+            style={
+              {
+                '--entry-delay': `${Math.min(index, 7) * 45}ms`,
+              } as React.CSSProperties
+            }
+          >
+            <SupportGuideCard guide={guide} />
+          </div>
         ))}
       </section>
       {hasMore && !loading && (

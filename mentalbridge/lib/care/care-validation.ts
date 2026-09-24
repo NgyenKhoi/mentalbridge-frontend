@@ -19,6 +19,7 @@ import type {
   AssessmentProgressPoint,
   ScoreDirection,
   SupportEvaluation,
+  SupportEvaluationHistoryPage,
   SupportEvaluationRequest,
   SupportEvidence,
   SupportReasonCode,
@@ -832,6 +833,30 @@ export function parseSupportEvaluation(
     safetyGuidance,
     disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
     disclaimer: SUPPORT_DISCLAIMER,
+  }
+}
+
+export function parseSupportEvaluationHistory(
+  value: unknown,
+): SupportEvaluationHistoryPage | null {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.items) ||
+    value.items.length > 50 ||
+    typeof value.hasMore !== 'boolean' ||
+    (value.nextCursor !== undefined &&
+      value.nextCursor !== null &&
+      (typeof value.nextCursor !== 'string' ||
+        value.nextCursor.length < 1 ||
+        value.nextCursor.length > 256))
+  )
+    return null
+  const items = value.items.map((item) => parseSupportEvaluation(item))
+  if (items.some((item) => item === null)) return null
+  return {
+    items: items as SupportEvaluationHistoryPage['items'],
+    nextCursor: value.nextCursor as string | null | undefined,
+    hasMore: value.hasMore,
   }
 }
 

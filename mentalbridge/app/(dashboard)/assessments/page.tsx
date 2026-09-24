@@ -3,12 +3,14 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 
+import { Skeleton } from '@/components/ui/Skeleton'
 import type {
   AssessmentSummary,
   ScreeningLevel,
 } from '@/features/assessment/api/care-contract'
 import { getAssessmentHistory } from '@/features/assessment/api/browser-care'
 import AssessmentProgressPanel from '@/features/assessment/components/AssessmentProgressPanel'
+import { SupportEvaluationHistory } from '@/features/assessment/components/SupportEvaluationHistory'
 
 import './assessments.css'
 
@@ -109,7 +111,7 @@ export default function AssessmentsPage() {
             <article
               className={`assessment-card ${assessment.available ? '' : 'assessment-card-unavailable'}`}
               key={assessment.id}
-              style={{ '--delay': `${index * 70}ms` } as React.CSSProperties}
+              style={{ '--delay': `${index * 45}ms` } as React.CSSProperties}
             >
               <div className="assessment-card-top">
                 <span className="assessment-icon pulse">
@@ -159,7 +161,18 @@ export default function AssessmentsPage() {
               Thử lại
             </button>
           </div>
-        ) : items.length === 0 && !loading ? (
+        ) : items.length === 0 && loading ? (
+          <div
+            className="assessment-history-skeleton"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="sr-only">Đang tải lịch sử sàng lọc…</span>
+            <Skeleton width="32%" height={16} />
+            <Skeleton width="100%" height={54} />
+            <Skeleton width="100%" height={54} />
+          </div>
+        ) : items.length === 0 ? (
           <div className="assessment-history-unavailable">
             <strong>Chưa có lịch sử sàng lọc</strong>
             <p>
@@ -227,9 +240,9 @@ export default function AssessmentsPage() {
             }}
           />
         )}
-        {loading && (
+        {loading && items.length > 0 && (
           <p className="assessment-history-loading" aria-live="polite">
-            Đang tải lịch sử…
+            Đang tải thêm lịch sử…
           </p>
         )}
         {hasMore && !loading && (
@@ -241,6 +254,7 @@ export default function AssessmentsPage() {
           </button>
         )}
       </section>
+      <SupportEvaluationHistory />
     </div>
   )
 }

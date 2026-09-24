@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 
+import { Disclosure } from '@/components/ui/Disclosure'
 import { ApiError } from '@/lib/api/api-error'
 import type {
   AssessmentProgress,
@@ -196,8 +197,7 @@ export default function AssessmentProgressPanel({
               <dd>{elapsedLabel(progress.elapsedDuration)}</dd>
             </div>
           </dl>
-          <details>
-            <summary>Thông tin kỹ thuật</summary>
+          <Disclosure summary="Thông tin kỹ thuật">
             <dl>
               <div>
                 <dt>Kết quả trước</dt>
@@ -212,7 +212,7 @@ export default function AssessmentProgressPanel({
                 <dd>{progress.scoringVersion}</dd>
               </div>
             </dl>
-          </details>
+          </Disclosure>
           <p className="assessment-progress-boundary">
             Đây chỉ là chênh lệch mô tả giữa hai lần sàng lọc. Kết quả không
             phải chẩn đoán, không xác định nguyên nhân và không cho biết trạng

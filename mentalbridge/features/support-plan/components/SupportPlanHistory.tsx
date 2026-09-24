@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 
+import { Disclosure } from '@/components/ui/Disclosure'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { getSupportPlan } from '../api/browser-support-plan'
 import type { SupportPlan } from '../api/support-plan-contract'
 
@@ -82,7 +84,13 @@ export default function SupportPlanHistory({
         </p>
       </header>
 
-      {loading && <p role="status">Đang tải các kế hoạch trước đây…</p>}
+      {loading && (
+        <div className="support-plan-history-loading" role="status">
+          <span className="sr-only">Đang tải các kế hoạch trước đây…</span>
+          <Skeleton width="36%" height={16} />
+          <Skeleton width="100%" height={74} />
+        </div>
+      )}
       {!loading && message && (
         <div className="support-plan-history-state" role="alert">
           <p>{message}</p>
@@ -96,8 +104,15 @@ export default function SupportPlanHistory({
       )}
       {items.length > 0 && (
         <ol>
-          {items.map((plan) => (
-            <li key={plan.supportPlanId}>
+          {items.map((plan, index) => (
+            <li
+              key={plan.supportPlanId}
+              style={
+                {
+                  '--entry-delay': `${Math.min(index, 7) * 45}ms`,
+                } as React.CSSProperties
+              }
+            >
               <div>
                 <strong>
                   {statusLabel[plan.status as keyof typeof statusLabel] ??
@@ -179,8 +194,7 @@ export default function SupportPlanHistory({
               ),
             )}
           </ul>
-          <details>
-            <summary>Thông tin kỹ thuật</summary>
+          <Disclosure summary="Thông tin kỹ thuật">
             <dl>
               <div>
                 <dt>Quy tắc lựa chọn</dt>
@@ -191,7 +205,7 @@ export default function SupportPlanHistory({
                 <dd>{detail.entitlement.version}</dd>
               </div>
             </dl>
-          </details>
+          </Disclosure>
         </aside>
       )}
     </section>

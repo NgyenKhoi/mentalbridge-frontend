@@ -221,7 +221,9 @@ describe('JournalReflection', () => {
 
     expect(await screen.findByText('Phân tích chưa hoàn tất')).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Thử phân tích lại' }))
-    expect(await screen.findByText('Đang phân tích nhật ký này')).toBeVisible()
+    const analyzing = await screen.findByText('Đang phân tích nhật ký này')
+    expect(analyzing).toBeVisible()
+    expect(analyzing.querySelector('[aria-hidden="true"]')).toBeInTheDocument()
   })
 
   it('marks an old result stale and keeps the current journal revision actionable', async () => {

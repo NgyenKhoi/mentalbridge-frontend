@@ -25,6 +25,34 @@
   --shadow:0 20px 50px -20px rgba(30,74,67,.25);
   --radius: 22px;
   --wrap: 1180px;
+  /* MentalBridge UI foundation: shared product rhythm, depth and motion. */
+  --space-1:4px;
+  --space-2:8px;
+  --space-3:12px;
+  --space-4:16px;
+  --space-5:20px;
+  --space-6:24px;
+  --space-8:32px;
+  --space-10:40px;
+  --space-12:48px;
+  --radius-control:12px;
+  --radius-panel:18px;
+  --radius-shell:22px;
+  --radius-pill:999px;
+  --elevation-1:0 14px 36px -30px rgba(30,74,67,.42);
+  --elevation-2:0 18px 44px -32px rgba(30,74,67,.5);
+  --elevation-dialog:0 28px 80px -24px rgba(8,35,28,.62);
+  --motion-instant:120ms;
+  --motion-fast:160ms;
+  --motion-base:220ms;
+  --motion-medium:300ms;
+  --motion-slow:480ms;
+  --ease-standard:cubic-bezier(.16,1,.3,1);
+  --ease-emphasis:cubic-bezier(.34,1.56,.64,1);
+  --motion-distance-sm:4px;
+  --motion-distance-md:8px;
+  --motion-scale-enter:.98;
+  --focus-ring:0 0 0 3px rgba(61,122,110,.24);
   --font-fraunces: var(--font-fraunces-variable);
   --font-be-vietnam: var(--font-be-vietnam-variable);
   /* Alias cho các dashboard pages */
@@ -76,8 +104,17 @@ h1,h2,h3,h4{
 
 ::selection{background:var(--amber-soft);color:var(--teal-deep);}
 
+/* Shared product entrance vocabulary for pages and async data. */
+@keyframes mb-page-enter{
+  from{opacity:0;transform:translateY(var(--motion-distance-md));}
+}
+@keyframes mb-data-enter{
+  from{opacity:0;transform:translateY(var(--motion-distance-sm)) scale(var(--motion-scale-enter));}
+}
+
 /* focus visibility */
-a:focus-visible, button:focus-visible{
+a:focus-visible, button:focus-visible, summary:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible{
   outline:2px solid var(--teal-deep);
   outline-offset:3px;
   border-radius:6px;
