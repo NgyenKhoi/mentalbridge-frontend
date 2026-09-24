@@ -57,6 +57,7 @@ const summary = {
 }
 const fullDetail = {
   ...summary,
+  contentVersion: '0',
   contentBody: 'Body',
   reviewedBy: null,
   effectiveAt: null,

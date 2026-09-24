@@ -39,25 +39,34 @@ function externalActionLabel(category: PublicResourceDetail['category']) {
     : 'Mở tài nguyên tại nguồn'
 }
 
-type Props = Readonly<{ resourceId: string; fromSupportPlan: boolean }>
+type Props = Readonly<{
+  resourceId: string
+  fromSupportPlan: boolean
+  contentVersion?: string
+}>
 
-export default function ResourceDetail({ resourceId, fromSupportPlan }: Props) {
+export default function ResourceDetail({
+  resourceId,
+  fromSupportPlan,
+  contentVersion,
+}: Props) {
+  const requestKey = `${resourceId}:${contentVersion ?? ''}`
   const [result, setResult] = useState<{
-    resourceId: string
+    requestKey: string
     state: 'success' | 'not-found' | 'error'
     resource?: PublicResourceDetail
   }>()
 
   useEffect(() => {
     const controller = new AbortController()
-    void getResourceDetail(resourceId, controller.signal)
+    void getResourceDetail(resourceId, contentVersion, controller.signal)
       .then((value) => {
-        setResult({ resourceId, state: 'success', resource: value })
+        setResult({ requestKey, state: 'success', resource: value })
       })
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === 'AbortError') return
         setResult({
-          resourceId,
+          requestKey,
           state:
             error instanceof ResourceBrowserError && error.status === 404
               ? 'not-found'
@@ -65,23 +74,23 @@ export default function ResourceDetail({ resourceId, fromSupportPlan }: Props) {
         })
       })
     return () => controller.abort()
-  }, [resourceId])
+  }, [contentVersion, requestKey, resourceId])
 
   const backHref = fromSupportPlan ? '/support-plan' : '/resources'
   const backLabel = fromSupportPlan
     ? 'Quay lại kế hoạch hỗ trợ'
     : 'Quay lại thư viện'
-  const state = result?.resourceId === resourceId ? result.state : 'loading'
+  const state = result?.requestKey === requestKey ? result.state : 'loading'
   const resource =
-    result?.resourceId === resourceId ? result.resource : undefined
+    result?.requestKey === requestKey ? result.resource : undefined
 
   if (state === 'loading') {
     return (
       <main className={styles.page} aria-busy="true">
         <section className={styles.state} role="status">
           <span className={styles.loader} aria-hidden="true" />
-          <h1>Đang tải tài nguyên…</h1>
-          <p>Nội dung đã rà soát đang được lấy từ Content service.</p>
+          <h1>Đang tải nội dung…</h1>
+          <p>Tài nguyên đã rà soát đang được chuẩn bị.</p>
         </section>
       </main>
     )
@@ -96,12 +105,14 @@ export default function ResourceDetail({ resourceId, fromSupportPlan }: Props) {
             {notFound ? '○' : '!'}
           </span>
           <h1>
-            {notFound ? 'Không tìm thấy tài nguyên' : 'Chưa thể tải tài nguyên'}
+            {notFound
+              ? 'Không tìm thấy tài nguyên'
+              : 'Tài nguyên này tạm thời chưa tải được'}
           </h1>
           <p>
             {notFound
               ? 'Tài nguyên có thể đã được lưu trữ hoặc không còn trong thời gian phát hành.'
-              : 'Content service đang tạm thời không khả dụng. Vui lòng thử lại sau.'}
+              : 'Vui lòng thử lại sau hoặc quay lại thư viện tài nguyên.'}
           </p>
           <Link className={styles.backButton} href={backHref}>
             {backLabel}
@@ -158,7 +169,7 @@ export default function ResourceDetail({ resourceId, fromSupportPlan }: Props) {
           </a>
         )}
 
-        {(resource.sourceTitle || sourceUrl || resource.sourceReviewNote) && (
+        {(resource.sourceTitle || sourceUrl || resource.sourceOrganization) && (
           <aside
             className={styles.source}
             aria-labelledby="resource-source-title"
@@ -171,9 +182,6 @@ export default function ResourceDetail({ resourceId, fromSupportPlan }: Props) {
             </h2>
             {resource.sourceOrganization && (
               <p>{resource.sourceOrganization}</p>
-            )}
-            {resource.sourceReviewNote && (
-              <p className={styles.reviewNote}>{resource.sourceReviewNote}</p>
             )}
             {sourceUrl && (
               <a href={sourceUrl} target="_blank" rel="noopener noreferrer">

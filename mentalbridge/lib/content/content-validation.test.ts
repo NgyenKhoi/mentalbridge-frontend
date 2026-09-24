@@ -39,6 +39,7 @@ describe('Content response validation', () => {
     const detail = {
       ...requiredSummary,
       status: 'PUBLISHED',
+      contentVersion: '4',
       contentBody: 'Reviewed body',
       sourceOrganization: 'NHS',
       sourceTitle: 'Reviewed source',
@@ -53,6 +54,9 @@ describe('Content response validation', () => {
         ...detail,
         sourceUrl: 'javascript:alert(1)',
       }),
+    ).toBeNull()
+    expect(
+      parsePublicResourceDetail({ ...detail, contentVersion: 'latest' }),
     ).toBeNull()
   })
 })

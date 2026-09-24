@@ -8,6 +8,7 @@ export type ResourceListResponse = components['schemas']['ResourceListResponse']
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
 const LOCALE = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/
+const CONTENT_VERSION = /^(0|[1-9]\d{0,18})$/
 const CATEGORIES = new Set([
   'BREATHING',
   'MEDITATION',
@@ -71,6 +72,10 @@ export function isLocale(value: string): boolean {
   return LOCALE.test(value)
 }
 
+export function isContentVersion(value: string): boolean {
+  return CONTENT_VERSION.test(value)
+}
+
 export function isIdempotencyKey(value: string | null): value is string {
   return value !== null && /^[A-Za-z0-9_-]{1,128}$/.test(value)
 }
@@ -108,6 +113,8 @@ export function parsePublicResourceDetail(
   if (
     !summary ||
     !item ||
+    typeof item.contentVersion !== 'string' ||
+    !CONTENT_VERSION.test(item.contentVersion) ||
     !(item.contentBody === null || typeof item.contentBody === 'string') ||
     !optionalNullableString(item.sourceTitle) ||
     !optionalNullableHttpUrl(item.sourceUrl) ||

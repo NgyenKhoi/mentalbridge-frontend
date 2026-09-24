@@ -134,10 +134,6 @@
   font-weight: 800;
 }
 
-.reviewNote {
-  font-size: 13px;
-}
-
 .boundary {
   margin: 24px 4px 0;
   color: var(--ink-soft, #51635e);

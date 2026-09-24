@@ -38,6 +38,7 @@ const mockResources = [
 
 const mockResourceDetail = {
   ...mockResources[0],
+  contentVersion: '0',
   contentBody: 'Detailed content for draft article',
   reviewedBy: null,
   effectiveAt: null,

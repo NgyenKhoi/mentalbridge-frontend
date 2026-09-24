@@ -205,10 +205,13 @@ async function contentRequest<T>(options: RequestOptions<T>): Promise<T> {
 }
 
 export const contentPublicClient = {
-  detail(id: string, correlationId: string) {
+  detail(id: string, correlationId: string, contentVersion?: string) {
+    const query = new URLSearchParams({ locale: 'vi-VN' })
+    if (contentVersion !== undefined)
+      query.set('contentVersion', contentVersion)
     return contentRequest<PublicResourceDetail>({
       method: 'GET',
-      path: `/api/v1/resources/${encodeURIComponent(id)}?locale=vi-VN`,
+      path: `/api/v1/resources/${encodeURIComponent(id)}?${query.toString()}`,
       expectedStatus: 200,
       correlationId,
       parseSuccess: parsePublicResourceDetail,

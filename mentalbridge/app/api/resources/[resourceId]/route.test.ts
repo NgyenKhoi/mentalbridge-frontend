@@ -11,8 +11,12 @@ vi.mock('@/lib/content/content-client', () => ({
 
 import { GET } from './route'
 
-function request(id = resourceId) {
-  return new NextRequest(`http://localhost/api/resources/${id}`)
+function request(id = resourceId, contentVersion?: string) {
+  const url = new URL(`http://localhost/api/resources/${id}`)
+  if (contentVersion !== undefined) {
+    url.searchParams.set('contentVersion', contentVersion)
+  }
+  return new NextRequest(url)
 }
 
 function context(id = resourceId) {
@@ -30,6 +34,7 @@ describe('GET /api/resources/[resourceId]', () => {
       category: 'VIDEO',
       title: 'Reviewed video',
       sourceOrganization: 'NHS Every Mind Matters',
+      contentVersion: '4',
     })
 
     const response = await GET(request(), context())
@@ -42,11 +47,51 @@ describe('GET /api/resources/[resourceId]', () => {
     expect(contentMocks.detail).toHaveBeenCalledWith(
       resourceId,
       expect.any(String),
+      undefined,
     )
+  })
+
+  it('forwards and verifies an exact SupportPlan content version', async () => {
+    contentMocks.detail.mockResolvedValue({
+      id: resourceId,
+      category: 'VIDEO',
+      title: 'Reviewed video',
+      contentVersion: '4',
+    })
+
+    const response = await GET(request(resourceId, '4'), context())
+
+    expect(response.status).toBe(200)
+    expect(contentMocks.detail).toHaveBeenCalledWith(
+      resourceId,
+      expect.any(String),
+      '4',
+    )
+  })
+
+  it('fails closed when Content returns a different version', async () => {
+    contentMocks.detail.mockResolvedValue({
+      id: resourceId,
+      category: 'VIDEO',
+      title: 'Reviewed video',
+      contentVersion: '5',
+    })
+
+    const response = await GET(request(resourceId, '4'), context())
+
+    expect(response.status).toBe(502)
+    expect((await response.json()).code).toBe('CONTENT_VERSION_MISMATCH')
   })
 
   it('rejects a malformed identifier before calling Content', async () => {
     const response = await GET(request('not-a-uuid'), context('not-a-uuid'))
+
+    expect(response.status).toBe(400)
+    expect(contentMocks.detail).not.toHaveBeenCalled()
+  })
+
+  it('rejects a malformed content version before calling Content', async () => {
+    const response = await GET(request(resourceId, 'latest'), context())
 
     expect(response.status).toBe(400)
     expect(contentMocks.detail).not.toHaveBeenCalled()

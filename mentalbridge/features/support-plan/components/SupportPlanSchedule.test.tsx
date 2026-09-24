@@ -42,7 +42,7 @@ describe('SupportPlanSchedule', () => {
     ).toBeVisible()
     expect(screen.getByRole('link', { name: 'Mở tài nguyên' })).toHaveAttribute(
       'href',
-      `/resources/${supportPlanOccurrenceFixture().source.resourceId}?from=support-plan`,
+      `/resources/${supportPlanOccurrenceFixture().source.resourceId}?from=support-plan&contentVersion=${supportPlanOccurrenceFixture().source.contentVersion}`,
     )
     expect(
       screen.getByRole('heading', { name: 'Hoạt động của tôi' }),

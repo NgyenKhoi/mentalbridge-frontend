@@ -432,6 +432,8 @@ export interface components {
             updatedAt?: string;
         };
         PublicResourceDetail: components["schemas"]["ResourceSummary"] & {
+            /** @description Exact immutable resource version represented by this detail response. */
+            contentVersion: string;
             contentBody: string | null;
             sourceTitle?: string | null;
             /** Format: uri */
@@ -971,6 +973,8 @@ export interface operations {
         parameters: {
             query?: {
                 locale?: components["parameters"]["Locale"];
+                /** @description Exact non-negative content version requested by a persisted consumer reference. When present, a different current version returns 404 rather than substituting content. */
+                contentVersion?: string;
             };
             header?: never;
             path: {
@@ -1049,6 +1053,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
         };
     };
     publishResource: {

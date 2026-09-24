@@ -363,6 +363,12 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
       occurrence.hidden ||
       occurrence.reflection !== null
     const busy = busyId === occurrence.occurrenceId
+    const resourceHref =
+      occurrence.source.type === 'RESOURCE' &&
+      occurrence.source.resourceId !== null &&
+      occurrence.source.contentVersion !== null
+        ? `/resources/${occurrence.source.resourceId}?from=support-plan&contentVersion=${encodeURIComponent(occurrence.source.contentVersion)}`
+        : null
     return (
       <li
         className={`support-plan-occurrence state-${occurrence.displayState.toLowerCase()}`}
@@ -377,11 +383,8 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
             {stateLabels[occurrence.displayState]}
           </span>
           <h4>{occurrence.source.title}</h4>
-          {occurrence.source.type === 'RESOURCE' && (
-            <Link
-              className="support-plan-resource-link"
-              href={`/resources/${occurrence.source.resourceId}?from=support-plan`}
-            >
+          {resourceHref && (
+            <Link className="support-plan-resource-link" href={resourceHref}>
               Mở tài nguyên <span aria-hidden="true">→</span>
             </Link>
           )}
