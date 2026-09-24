@@ -346,6 +346,67 @@ test.describe('AC2: Explicit degradation states', () => {
     await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(0)
   })
 
+  test('assessment history actions keep separate readable hit areas', async ({
+    context,
+    page,
+  }) => {
+    await injectUserSession(context)
+    await page.setViewportSize({ width: 1280, height: 720 })
+
+    await page.route('**/api/care/assessments/history**', (route) => {
+      void route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [
+            {
+              assessmentId: '10000000-0000-4000-8000-000000000003',
+              questionnaireDefinitionId: '10000000-0000-4000-8000-000000000001',
+              instrument: 'PHQ9',
+              questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+              privacyPolicyVersion: 'privacy-capstone-v2',
+              submittedAt: '2026-09-02T00:00:00Z',
+              result: {
+                totalScore: 8,
+                screeningLevel: 'MILD',
+                scoringVersion: 'phq9-standard-bands-v1',
+                safetyStatus: 'NEGATIVE_SAFETY_SCREEN',
+                safetyPolicyVersion: 'MB-SAFETY-PHQ9-001/1.0-capstone',
+                disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
+              },
+            },
+          ],
+          nextCursor: null,
+          hasMore: false,
+        }),
+      })
+    })
+    await page.route('**/api/care/support-evaluations/history**', (route) => {
+      void route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [], nextCursor: null, hasMore: false }),
+      })
+    })
+
+    await page.goto('/assessments')
+
+    const reviewAction = page.getByRole('link', { name: 'Xem lại' })
+    const compareAction = page.getByRole('button', { name: 'So sánh' })
+    await expect(reviewAction).toBeVisible()
+    await expect(compareAction).toBeVisible()
+
+    const reviewActionBox = await reviewAction.boundingBox()
+    const compareActionBox = await compareAction.boundingBox()
+    expect(reviewActionBox).not.toBeNull()
+    expect(compareActionBox).not.toBeNull()
+    expect(reviewActionBox?.width).toBeGreaterThanOrEqual(78)
+    expect(compareActionBox?.width).toBeGreaterThanOrEqual(78)
+    expect(
+      (reviewActionBox?.x ?? 0) + (reviewActionBox?.width ?? 0),
+    ).toBeLessThan(compareActionBox?.x ?? 0)
+  })
+
   test('Care service outage on anonymous PHQ-9 shows explicit unavailable without inventing questions', async ({
     page,
   }) => {

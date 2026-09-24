@@ -1,16 +1,67 @@
 .support-plan-page {
+  position: relative;
+  isolation: isolate;
   width: min(100%, 1040px);
   margin: 0 auto;
   padding: var(--space-8) var(--space-4) 64px;
   color: var(--ink);
   animation: mb-page-enter var(--motion-medium) var(--ease-standard) both;
 }
+.support-plan-page::before {
+  position: absolute;
+  z-index: -1;
+  top: -120px;
+  left: -170px;
+  width: 430px;
+  height: 430px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--teal-pale) 62%, transparent),
+    transparent 68%
+  );
+  content: '';
+  pointer-events: none;
+}
 
 .support-plan-page-header {
+  position: relative;
+  overflow: hidden;
   display: grid;
   gap: var(--space-3);
-  max-width: 760px;
+  max-width: none;
   margin-bottom: var(--space-8);
+  padding: clamp(var(--space-6), 4vw, var(--space-10));
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--line));
+  border-radius: var(--radius-shell);
+  background: linear-gradient(
+    118deg,
+    color-mix(in srgb, var(--surface) 96%, transparent),
+    color-mix(in srgb, var(--amber-soft) 52%, var(--surface))
+  );
+  box-shadow: var(--elevation-2);
+}
+.support-plan-page-header::after {
+  position: absolute;
+  top: -96px;
+  right: 5%;
+  width: 250px;
+  height: 250px;
+  border: 1px solid color-mix(in srgb, var(--amber) 22%, transparent);
+  border-radius: 42% 58% 55% 45%;
+  background: color-mix(in srgb, var(--amber-soft) 42%, transparent);
+  box-shadow:
+    0 0 0 30px color-mix(in srgb, var(--surface) 30%, transparent),
+    0 0 0 62px color-mix(in srgb, var(--teal-pale) 22%, transparent);
+  content: '';
+  pointer-events: none;
+  transform: rotate(18deg);
+  animation: support-plan-mark-enter var(--motion-slow) var(--ease-standard)
+    both;
+}
+.support-plan-page-header > * {
+  position: relative;
+  z-index: 1;
 }
 
 .support-plan-page-header > span,
@@ -43,6 +94,8 @@
 }
 
 .support-plan-card {
+  position: relative;
+  overflow: hidden;
   display: grid;
   gap: var(--space-6);
   padding: clamp(var(--space-5), 3vw, var(--space-8));
@@ -51,6 +104,33 @@
   background: var(--surface);
   box-shadow: var(--elevation-2);
   animation: mb-data-enter var(--motion-medium) var(--ease-standard) both;
+}
+.support-plan-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--teal),
+    var(--amber),
+    transparent 84%
+  );
+  content: '';
+}
+.support-plan-card > * {
+  animation: mb-data-enter var(--motion-medium) var(--ease-standard) both;
+}
+.support-plan-card > :nth-child(2) {
+  animation-delay: 45ms;
+}
+.support-plan-card > :nth-child(3) {
+  animation-delay: 80ms;
+}
+.support-plan-card > :nth-child(4) {
+  animation-delay: 115ms;
+}
+.support-plan-card > :nth-child(n + 5) {
+  animation-delay: 145ms;
 }
 
 .support-plan-card-header,
@@ -137,11 +217,22 @@
 }
 
 .support-plan-slots > ol {
+  position: relative;
   display: grid;
   gap: var(--space-4);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.support-plan-slots > ol::before {
+  position: absolute;
+  top: 28px;
+  bottom: 28px;
+  left: calc(var(--space-5) + 19px);
+  width: 1px;
+  background: linear-gradient(var(--teal-pale), var(--amber-soft));
+  content: '';
+  pointer-events: none;
 }
 
 .support-plan-slots > ol > li {
@@ -154,7 +245,14 @@
   background: color-mix(in srgb, var(--surface) 92%, var(--surface-soft));
   transition:
     border-color var(--motion-base) var(--ease-standard),
-    box-shadow var(--motion-base) var(--ease-standard);
+    box-shadow var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+}
+
+.support-plan-slots > ol > li:hover {
+  border-color: color-mix(in srgb, var(--teal) 30%, var(--line));
+  box-shadow: var(--elevation-1);
+  transform: translateY(-2px);
 }
 
 .support-plan-slots > ol > li:focus-within {
@@ -164,6 +262,8 @@
 
 .support-plan-slot-number,
 .support-plan-state-mark {
+  position: relative;
+  z-index: 1;
   display: grid;
   width: 38px;
   height: 38px;
@@ -256,10 +356,24 @@
 }
 
 .support-plan-slot-content input[type='radio'] {
+  appearance: none;
   width: 20px;
   height: 20px;
   margin: 0.15rem 0 0;
-  accent-color: var(--teal-deep);
+  border: 1.5px solid color-mix(in srgb, var(--teal) 56%, var(--line));
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 5px var(--surface);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.support-plan-slot-content input[type='radio']:checked {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  box-shadow: inset 0 0 0 4px var(--surface);
 }
 
 .support-plan-slot-content fieldset label:has(input:focus-visible) {
@@ -275,6 +389,13 @@
 
 .support-plan-selected-resource h4 {
   margin-top: 0.4rem;
+}
+.support-plan-selected-resource {
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--teal) 26%, var(--line));
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--teal-pale) 28%, var(--surface));
 }
 
 .support-plan-slot-content details {
@@ -386,6 +507,7 @@
 }
 
 .support-plan-dialog-content select {
+  appearance: none;
   min-height: 48px;
   padding: 0.7rem 2.5rem 0.7rem 0.85rem;
   border: 1px solid var(--line);
@@ -468,7 +590,22 @@
   border: 1px solid var(--line);
   border-inline-start: 4px solid var(--teal);
   border-radius: var(--radius-panel);
-  background: var(--surface);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--teal-deep) 50%)
+      calc(100% - 18px) calc(50% - 2px) / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--teal-deep) 50%, transparent 50%)
+      calc(100% - 12px) calc(50% - 2px) / 6px 6px no-repeat,
+    var(--surface);
+  transition:
+    border-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
+}
+.support-plan-occurrence:hover,
+.support-plan-occurrence:focus-within {
+  border-color: color-mix(in srgb, var(--teal) 34%, var(--line));
+  box-shadow: var(--elevation-1);
+  transform: translateY(-2px);
 }
 
 .support-plan-occurrence.state-completed {
@@ -579,10 +716,38 @@
 }
 
 .support-plan-summary-consent input {
+  appearance: none;
+  display: grid;
   width: 20px;
   height: 20px;
   margin: 0.15rem 0 0;
-  accent-color: var(--teal-deep);
+  place-content: center;
+  border: 1.5px solid color-mix(in srgb, var(--teal) 56%, var(--line));
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.support-plan-summary-consent input::before {
+  width: 10px;
+  height: 6px;
+  border-bottom: 2px solid var(--primary-foreground);
+  border-left: 2px solid var(--primary-foreground);
+  content: '';
+  opacity: 0;
+  transform: translateY(-1px) rotate(-45deg) scale(0.7);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.support-plan-summary-consent input:checked {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+}
+
+.support-plan-summary-consent input:checked::before {
+  opacity: 1;
+  transform: translateY(-1px) rotate(-45deg) scale(1);
 }
 
 .support-plan-hidden-items > summary {
@@ -636,13 +801,21 @@
 }
 
 .support-plan-state {
+  position: relative;
+  overflow: hidden;
   display: grid;
   justify-items: start;
   gap: var(--space-4);
   padding: clamp(1.25rem, 4vw, 2rem);
   border: 1px solid var(--line);
   border-radius: var(--radius-shell);
-  background: var(--surface);
+  background:
+    radial-gradient(
+      circle at 92% 10%,
+      color-mix(in srgb, var(--amber-soft) 46%, transparent),
+      transparent 34%
+    ),
+    var(--surface);
   box-shadow: var(--elevation-1);
 }
 
@@ -676,13 +849,31 @@
 }
 
 .support-plan-history {
+  position: relative;
+  overflow: hidden;
   display: grid;
   gap: var(--space-4);
   margin-top: var(--space-8);
   padding: clamp(var(--space-5), 3vw, var(--space-8));
   border: 1px solid var(--line);
   border-radius: var(--radius-shell);
-  background: var(--surface-soft);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--surface-soft) 92%, var(--surface)),
+    color-mix(in srgb, var(--teal-pale) 30%, var(--surface))
+  );
+  animation: mb-data-enter var(--motion-medium) 120ms var(--ease-standard) both;
+}
+
+.support-plan-engagement-form select {
+  appearance: none;
+  padding-right: 2.5rem;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--teal-deep) 50%)
+      calc(100% - 18px) calc(50% - 2px) / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--teal-deep) 50%, transparent 50%)
+      calc(100% - 12px) calc(50% - 2px) / 6px 6px no-repeat,
+    var(--surface);
 }
 
 .support-plan-history > header {
@@ -832,7 +1023,23 @@
   outline-offset: 3px;
 }
 
+@keyframes support-plan-mark-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(26px, -18px, 0) rotate(8deg) scale(0.82);
+  }
+}
+
 @media (max-width: 680px) {
+  .support-plan-page {
+    padding-top: var(--space-4);
+  }
+
+  .support-plan-page-header::after {
+    top: -150px;
+    right: -105px;
+  }
+
   .support-plan-card-header,
   .support-plan-section-heading,
   .support-plan-card > footer {
@@ -871,8 +1078,17 @@
 @media (prefers-reduced-motion: reduce) {
   .support-plan-page,
   .support-plan-card,
+  .support-plan-card > *,
+  .support-plan-page-header::after,
   .support-plan-state,
+  .support-plan-history,
   .support-plan-history > ol > li {
     animation: none;
+  }
+  .support-plan-slots > ol > li,
+  .support-plan-occurrence,
+  .support-plan-slot-content input[type='radio'],
+  .support-plan-summary-consent input::before {
+    transition: none;
   }
 }
