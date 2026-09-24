@@ -3,6 +3,10 @@ import {
   ConsultationInputError,
   parseAvailabilitySlot,
   parseAvailabilitySlotList,
+  parseAppointment,
+  parseAppointmentList,
+  parseAppointmentRequestInput,
+  parseBookableSlotList,
   parseProfile,
   parseProfileInput,
   parsePublishAvailabilityInput,
@@ -131,6 +135,74 @@ describe('Consultation contract validation', () => {
     ).toBeNull()
     expect(
       parseServiceCreditAccount({ ...account, source: 'DEFAULT_FREE' }),
+    ).toBeNull()
+  })
+
+  it('accepts online appointment snapshots and rejects physical or external modes', () => {
+    const appointment = {
+      id: '10a7e5d8-7960-42fb-9706-e642f849b78f',
+      slotId: '43b7dbb4-021e-4c75-ae48-bfa7126c7256',
+      specialistAccountId: '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
+      specialistDisplayName: 'Chuyên gia An',
+      status: 'REQUESTED',
+      modality: 'IN_APP_CHAT',
+      scheduledStartAt: '2026-09-25T02:00:00Z',
+      scheduledEndAt: '2026-09-25T03:00:00Z',
+      timezone: 'Asia/Ho_Chi_Minh',
+      requestedAt: '2026-09-23T02:00:00Z',
+      decisionDeadlineAt: '2026-09-24T02:00:00Z',
+      heldCreditId: '96de7b84-14ae-46cd-bfa1-8314d1366b02',
+    }
+    expect(parseAppointment(appointment)).toEqual(appointment)
+    expect(
+      parseAppointment({ ...appointment, modality: 'IN_PERSON' }),
+    ).toBeNull()
+    expect(
+      parseAppointmentList({
+        items: [appointment],
+        count: 1,
+        generatedAt: '2026-09-23T02:00:01Z',
+      }),
+    ).not.toBeNull()
+    expect(
+      parseAppointmentRequestInput({
+        slotId: appointment.slotId,
+        modality: 'IN_APP_CHAT',
+      }),
+    ).toEqual({ slotId: appointment.slotId, modality: 'IN_APP_CHAT' })
+    expect(() =>
+      parseAppointmentRequestInput({
+        slotId: appointment.slotId,
+        modality: 'PHONE',
+      }),
+    ).toThrow(ConsultationInputError)
+  })
+
+  it('accepts only exact online bookable slots', () => {
+    const slot = {
+      id: '43b7dbb4-021e-4c75-ae48-bfa7126c7256',
+      specialistAccountId: '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
+      specialistDisplayName: 'Chuyên gia An',
+      startAt: '2026-09-25T02:00:00Z',
+      endAt: '2026-09-25T03:00:00Z',
+      timezone: 'Asia/Ho_Chi_Minh',
+      modality: 'IN_APP_CHAT',
+    }
+    expect(
+      parseBookableSlotList({
+        items: [slot],
+        count: 1,
+        generatedAt: '2026-09-23T02:00:00Z',
+        videoEnabled: false,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseBookableSlotList({
+        items: [{ ...slot, modality: 'EXTERNAL_LINK' }],
+        count: 1,
+        generatedAt: '2026-09-23T02:00:00Z',
+        videoEnabled: false,
+      }),
     ).toBeNull()
   })
 })
