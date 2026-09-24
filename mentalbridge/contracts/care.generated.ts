@@ -254,6 +254,158 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reassessment-self-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record explicit current-period reassessment experience
+         * @description Creates one owner-authored, non-diagnostic self-report for a bounded current comparison period. Optional context is private Care-owned evidence and is never inferred from Journal or SupportPlan activity.
+         */
+        post: operations["createOwnReassessmentSelfReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-self-reports/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the latest active self-report */
+        get: operations["getOwnCurrentReassessmentSelfReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-self-reports/{selfReportId}": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                selfReportId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the mutable response for one owned self-report */
+        put: operations["replaceOwnReassessmentSelfReport"];
+        post?: never;
+        /**
+         * Delete mutable self-report content
+         * @description Clears the categorical response and optional contexts while retaining a minimal owner/version/period tombstone. Existing immutable summary snapshots remain unchanged; the deleted source is unavailable to future composition.
+         */
+        delete: operations["deleteOwnReassessmentSelfReport"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List immutable four-dimension reassessment snapshots
+         * @description Results are ordered by composedAt and summaryId descending. Every item is the exact persisted snapshot originally returned by Care.
+         */
+        get: operations["listOwnReassessmentSummaries"];
+        put?: never;
+        /**
+         * Persist one reproducible four-dimension reassessment snapshot
+         * @description Care validates two selected owned PHQ-9/GAD-7 results, calculates their
+         *     standardized trends locally, reads only the minimized Journal/AI projection,
+         *     snapshots explicitly reusable SupportPlan engagement/reflection from the
+         *     same two periods, and separately snapshots an optional explicit owner
+         *     self-report for the exact current period. Journal absence, consent denial, malformed data, timeout,
+         *     or dependency failure is persisted as an explicit UNAVAILABLE journal
+         *     dimension while the local dimensions remain available. Sparse local or
+         *     journal evidence is INSUFFICIENT_DATA. Dimensions are never collapsed into
+         *     a global improvement, recovery, or wellness score.
+         */
+        post: operations["composeOwnReassessmentSummary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-summaries/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve the authoritative inputs and comparison periods for a new reassessment
+         * @description Care selects the latest usable owned PHQ-9 and GAD-7 evidence and issues
+         *     the two adjacent comparison periods defined by its versioned policy. The
+         *     browser displays and submits these facts; it does not infer assessment
+         *     compatibility or calculate period boundaries.
+         */
+        get: operations["getOwnReassessmentContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-summaries/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the latest persisted reassessment snapshot */
+        get: operations["getOwnCurrentReassessmentSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-summaries/{summaryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one owned immutable reassessment snapshot */
+        get: operations["getOwnReassessmentSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/support-evaluations": {
         parameters: {
             query?: never;
@@ -708,6 +860,264 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Half-open UTC period. Canonical v2 periods are issued by the Care reassessment context policy. */
+        ReassessmentPeriod: {
+            /** Format: date-time */
+            startAt: string;
+            /** Format: date-time */
+            endAt: string;
+        };
+        ReassessmentContext: {
+            /** @constant */
+            policyVersion: "reassessment-comparison-v1";
+            /** @enum {string} */
+            state: "READY" | "INCOMPLETE";
+            missingInstruments: components["schemas"]["Instrument"][];
+            /** Format: uuid */
+            phq9AssessmentId: string | null;
+            /** Format: uuid */
+            gad7AssessmentId: string | null;
+            previousPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+        };
+        ReassessmentSummaryCreateRequest: {
+            /** Format: uuid */
+            phq9AssessmentId: string;
+            /** Format: uuid */
+            gad7AssessmentId: string;
+            /**
+             * Format: uuid
+             * @description Deprecated MB-386 v1 compatibility input. Exactly one Journal evidence reference is required.
+             */
+            journalAnalysisId?: string;
+            /**
+             * Format: uuid
+             * @description Canonical v2 input; Care resolves the authoritative Journal job status and result.
+             */
+            journalJobId?: string;
+            previousPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            /**
+             * Format: uuid
+             * @description Optional explicit owner self-report for the exact current period. Omission produces INSUFFICIENT_DATA and is never inferred from other evidence.
+             */
+            selfReportId?: string;
+        } & (unknown | unknown);
+        /**
+         * @description Non-diagnostic comparison of how the current period has felt to the user.
+         * @enum {string}
+         */
+        ReassessmentCurrentExperience: "BETTER" | "ABOUT_THE_SAME" | "MORE_DIFFICULT" | "UNSURE";
+        ReassessmentSelfReportCreateRequest: {
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            helpfulContext?: string | null;
+            difficultContext?: string | null;
+        };
+        ReassessmentSelfReportReplaceRequest: {
+            currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            helpfulContext?: string | null;
+            difficultContext?: string | null;
+        };
+        ReassessmentSelfReport: {
+            /** Format: uuid */
+            selfReportId: string;
+            /** @constant */
+            sourceVersion: "reassessment-self-report-v1";
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            helpfulContext: string | null;
+            difficultContext: string | null;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            authoredAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @enum {string} */
+        ReassessmentDimensionState: "AVAILABLE" | "INSUFFICIENT_DATA" | "UNAVAILABLE";
+        ReassessmentScreeningPoint: {
+            /** Format: uuid */
+            assessmentId: string;
+            questionnaireVersion: string;
+            /** Format: date-time */
+            submittedAt: string;
+            totalScore: number;
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentScreeningTrend: {
+            instrument: components["schemas"]["Instrument"];
+            state: components["schemas"]["ReassessmentDimensionState"];
+            scoringVersion: string;
+            previous: components["schemas"]["ReassessmentScreeningPoint"] | null;
+            current: components["schemas"]["ReassessmentScreeningPoint"];
+            rawDelta: number | null;
+            /** @enum {string} */
+            direction: "INCREASED" | "DECREASED" | "UNCHANGED" | "INSUFFICIENT_DATA";
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentScreeningDimension: {
+            state: components["schemas"]["ReassessmentDimensionState"];
+            trends: components["schemas"]["ReassessmentScreeningTrend"][];
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentJournalSourceRevision: {
+            /** Format: uuid */
+            journalId: string;
+            journalRevision: number;
+            /** @enum {string} */
+            period: "PREVIOUS" | "CURRENT";
+        };
+        ReassessmentJournalChange: {
+            signal: string;
+            /** @enum {string} */
+            direction: "MORE_FREQUENT" | "LESS_FREQUENT" | "SIMILAR" | "INSUFFICIENT_DATA";
+        };
+        ReassessmentJournalCoverage: {
+            previousPeriodJournalEntryCount: number;
+            currentPeriodJournalEntryCount: number;
+            sufficientForComparison: boolean;
+        };
+        ReassessmentJournalProvenance: {
+            /** @enum {string} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI";
+            model: string;
+            promptVersion: string;
+            schemaVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ReassessmentJournalDimension: {
+            state: components["schemas"]["ReassessmentDimensionState"];
+            /** @enum {string|null} */
+            unavailableReason: "SOURCE_NOT_FOUND" | "CONSENT_REQUIRED" | "CONSENT_REVOKED" | "CONSENT_UNAVAILABLE" | "ENTITLEMENT_UNAVAILABLE" | "ENTITLEMENT_CHANGED" | "AUTHORIZATION_CONTEXT_LOST" | "SOURCE_REVISION_CHANGED" | "SOURCE_DELETED" | "PROVIDER_TIMEOUT" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | "INTERNAL_ERROR" | "DEPENDENCY_UNAVAILABLE" | "INVALID_PROJECTION" | null;
+            /**
+             * Format: uuid
+             * @description Present for canonical v2 snapshots, including failed jobs.
+             */
+            jobId: string | null;
+            /**
+             * Format: uuid
+             * @description Present only when Journal produced an analysis (or for a legacy v1 snapshot).
+             */
+            analysisId: string | null;
+            sourceJournalRevisions: components["schemas"]["ReassessmentJournalSourceRevision"][];
+            contextSignals: string[];
+            emotionIndicators: string[];
+            recurringThemes: string[];
+            changesComparedWithPreviousPeriod: components["schemas"]["ReassessmentJournalChange"][];
+            preferences: string[];
+            barriers: string[];
+            helpfulPatterns: string[];
+            dataCoverage: components["schemas"]["ReassessmentJournalCoverage"] | null;
+            provenance: components["schemas"]["ReassessmentJournalProvenance"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentEngagementPeriod: {
+            completedCount: number;
+            skippedCount: number;
+        };
+        ReassessmentEngagementSource: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: uuid */
+            supportPlanId: string;
+            /** Format: int64 */
+            sourcePlanVersion: number;
+            sourceSlotId: string;
+            /** Format: uuid */
+            sourceResourceId: string;
+            /** Format: int64 */
+            sourceContentVersion: number;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            period: "PREVIOUS" | "CURRENT";
+            /** @enum {string} */
+            state: "COMPLETED" | "SKIPPED";
+            /** @enum {string|null} */
+            barrierCode: "LOW_ENERGY" | "NOT_ENOUGH_TIME" | "DIFFICULT_TO_START" | "NOT_A_GOOD_FIT" | "OTHER" | null;
+        };
+        ReassessmentEngagementDimension: {
+            state: components["schemas"]["ReassessmentDimensionState"];
+            previousPeriod: components["schemas"]["ReassessmentEngagementPeriod"];
+            currentPeriod: components["schemas"]["ReassessmentEngagementPeriod"];
+            sources: components["schemas"]["ReassessmentEngagementSource"][];
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentReflectionSource: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** @enum {string} */
+            period: "PREVIOUS" | "CURRENT";
+            /** @enum {string|null} */
+            helpfulness: "NOT_HELPFUL" | "A_LITTLE_HELPFUL" | "HELPFUL" | "VERY_HELPFUL" | null;
+            reflection: string | null;
+            /** Format: date-time */
+            engagementUpdatedAt: string;
+        };
+        ReassessmentReflectionDimension: {
+            state: components["schemas"]["ReassessmentDimensionState"];
+            sources: components["schemas"]["ReassessmentReflectionSource"][];
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentExplicitSelfReport: {
+            /** Format: uuid */
+            selfReportId: string;
+            /** @constant */
+            sourceVersion: "reassessment-self-report-v1";
+            /** Format: int64 */
+            sourceRevision: number;
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            helpfulContext: string | null;
+            difficultContext: string | null;
+            /** Format: date-time */
+            authoredAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ReassessmentSelfReportedExperienceDimension: {
+            state: components["schemas"]["ReassessmentDimensionState"];
+            /** @enum {string|null} */
+            unavailableReason: "NOT_PROVIDED" | "SOURCE_DELETED" | null;
+            source: components["schemas"]["ReassessmentExplicitSelfReport"] | null;
+        };
+        /** @description v1 snapshots expose userReflection; v2 snapshots expose selfReportedExperience and activityReflection as distinct sources. */
+        ReassessmentSummary: {
+            /** Format: uuid */
+            summaryId: string;
+            /** @enum {string} */
+            summaryVersion: "reassessment-summary-v1" | "reassessment-summary-v2";
+            /** Format: date-time */
+            composedAt: string;
+            previousPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            screening: components["schemas"]["ReassessmentScreeningDimension"];
+            journalContext: components["schemas"]["ReassessmentJournalDimension"];
+            supportPlanEngagement: components["schemas"]["ReassessmentEngagementDimension"];
+            selfReportedExperience?: components["schemas"]["ReassessmentSelfReportedExperienceDimension"];
+            activityReflection?: components["schemas"]["ReassessmentReflectionDimension"];
+            /** @description Deprecated MB-386 v1 activity-reflection field retained only on historical snapshots. */
+            userReflection?: components["schemas"]["ReassessmentReflectionDimension"];
+            /** @constant */
+            disclaimerCode: "FOUR_DIMENSIONS_NOT_COMBINED";
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentSummaryHistoryPage: {
+            items: components["schemas"]["ReassessmentSummary"][];
+            nextCursor: string | null;
+            hasMore: boolean;
+        };
         /**
          * @description Presentation provenance only; never a suicide-risk classification
          * @enum {string}
@@ -2068,6 +2478,276 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["InsufficientComparableDataProblem"];
+        };
+    };
+    createOwnReassessmentSelfReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassessmentSelfReportCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created self-report or identical idempotent replay */
+            201: {
+                headers: {
+                    ETag?: string;
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSelfReport"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    getOwnCurrentReassessmentSelfReport: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest active owner self-report */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSelfReport"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    replaceOwnReassessmentSelfReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                "If-Match": string;
+            };
+            path: {
+                selfReportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassessmentSelfReportReplaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Replaced self-report */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSelfReport"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            412: components["responses"]["VersionProblem"];
+        };
+    };
+    deleteOwnReassessmentSelfReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                "If-Match": string;
+            };
+            path: {
+                selfReportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Self-report content deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            412: components["responses"]["VersionProblem"];
+        };
+    };
+    listOwnReassessmentSummaries: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                cursor?: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reassessment snapshot history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSummaryHistoryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    composeOwnReassessmentSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassessmentSummaryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description New snapshot or identical idempotent replay */
+            201: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSummary"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    getOwnReassessmentContext: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current Care-owned reassessment context */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentContext"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getOwnCurrentReassessmentSummary: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest immutable snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getOwnReassessmentSummary: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                summaryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     listOwnScreeningSupportEvaluations: {

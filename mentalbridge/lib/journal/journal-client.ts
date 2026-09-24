@@ -10,12 +10,15 @@ import type {
   JournalPage,
   JournalTombstone,
   JournalWrite,
+  CreateLongitudinalAnalysisRequest,
+  LongitudinalAnalysisJob,
 } from './journal-contract'
 import {
   parseAnalysisJob,
   parseJournalEntry,
   parseJournalPage,
   parseTombstone,
+  parseLongitudinalAnalysisJob,
 } from './journal-validation'
 
 type Options<T> = Readonly<{
@@ -243,6 +246,35 @@ export const journalClient = {
       accessToken,
       correlationId,
       parse: parseAnalysisJob,
+    })
+  },
+  createLongitudinalAnalysis(
+    accessToken: string,
+    body: CreateLongitudinalAnalysisRequest,
+    key: string,
+    correlationId: string,
+  ): Promise<LongitudinalAnalysisJob> {
+    return request({
+      method: 'POST',
+      path: '/api/v1/longitudinal-analysis-jobs',
+      accessToken,
+      correlationId,
+      idempotencyKey: key,
+      body,
+      parse: parseLongitudinalAnalysisJob,
+    })
+  },
+  longitudinalAnalysisJob(
+    accessToken: string,
+    jobId: string,
+    correlationId: string,
+  ): Promise<LongitudinalAnalysisJob> {
+    return request({
+      method: 'GET',
+      path: `/api/v1/longitudinal-analysis-jobs/${jobId}`,
+      accessToken,
+      correlationId,
+      parse: parseLongitudinalAnalysisJob,
     })
   },
 }

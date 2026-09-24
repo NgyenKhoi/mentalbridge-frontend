@@ -25,6 +25,9 @@ import type {
   SupportReasonCode,
   SupportTier,
   SafetyDirectoryResponse,
+  ReassessmentSelfReport,
+  ReassessmentContext,
+  ReassessmentSummary,
 } from '@/features/assessment/api/care-contract'
 import type {
   ValidationResult,
@@ -1072,4 +1075,160 @@ export function isCareIdempotencyKey(value: string | null): value is string {
     value.length <= 128 &&
     /^[!-~]+$/.test(value)
   )
+}
+
+const REASSESSMENT_EXPERIENCES = new Set([
+  'BETTER',
+  'ABOUT_THE_SAME',
+  'MORE_DIFFICULT',
+  'UNSURE',
+])
+
+function isNullableBoundedText(value: unknown) {
+  return (
+    value === null ||
+    (typeof value === 'string' && value.length >= 1 && value.length <= 500)
+  )
+}
+
+export function parseReassessmentSelfReport(
+  value: unknown,
+): ReassessmentSelfReport | null {
+  if (
+    !isRecord(value) ||
+    !isUuid(value.selfReportId) ||
+    value.sourceVersion !== 'reassessment-self-report-v1' ||
+    !isRecord(value.currentPeriod) ||
+    !isDateTime(value.currentPeriod.startAt) ||
+    !isDateTime(value.currentPeriod.endAt) ||
+    new Date(value.currentPeriod.startAt).getTime() >=
+      new Date(value.currentPeriod.endAt).getTime() ||
+    !REASSESSMENT_EXPERIENCES.has(String(value.currentExperience)) ||
+    !isNullableBoundedText(value.helpfulContext) ||
+    !isNullableBoundedText(value.difficultContext) ||
+    !Number.isSafeInteger(value.version) ||
+    Number(value.version) < 0 ||
+    !isDateTime(value.authoredAt) ||
+    !isDateTime(value.updatedAt)
+  )
+    return null
+
+  return value as ReassessmentSelfReport
+}
+
+const REASSESSMENT_STATES = new Set([
+  'AVAILABLE',
+  'INSUFFICIENT_DATA',
+  'UNAVAILABLE',
+])
+
+function isReassessmentPeriod(value: unknown) {
+  return (
+    isRecord(value) &&
+    isDateTime(value.startAt) &&
+    isDateTime(value.endAt) &&
+    Date.parse(value.startAt) < Date.parse(value.endAt)
+  )
+}
+
+export function parseReassessmentContext(
+  value: unknown,
+): ReassessmentContext | null {
+  if (
+    !isRecord(value) ||
+    value.policyVersion !== 'reassessment-comparison-v1' ||
+    !['READY', 'INCOMPLETE'].includes(String(value.state)) ||
+    !Array.isArray(value.missingInstruments) ||
+    value.missingInstruments.length > 2 ||
+    !value.missingInstruments.every((item) =>
+      ['PHQ9', 'GAD7'].includes(String(item)),
+    ) ||
+    (value.phq9AssessmentId !== null && !isUuid(value.phq9AssessmentId)) ||
+    (value.gad7AssessmentId !== null && !isUuid(value.gad7AssessmentId)) ||
+    !isReassessmentPeriod(value.previousPeriod) ||
+    !isReassessmentPeriod(value.currentPeriod)
+  )
+    return null
+  if (
+    (value.state === 'READY' &&
+      (!isUuid(value.phq9AssessmentId) || !isUuid(value.gad7AssessmentId))) ||
+    (value.state === 'INCOMPLETE' && value.missingInstruments.length === 0)
+  )
+    return null
+  return value as ReassessmentContext
+}
+
+const nonNegativeInteger = (value: unknown) =>
+  Number.isSafeInteger(value) && Number(value) >= 0
+
+export function parseReassessmentSummary(
+  value: unknown,
+): ReassessmentSummary | null {
+  if (
+    !isRecord(value) ||
+    !isUuid(value.summaryId) ||
+    !['reassessment-summary-v1', 'reassessment-summary-v2'].includes(
+      String(value.summaryVersion),
+    ) ||
+    !isDateTime(value.composedAt) ||
+    !isReassessmentPeriod(value.previousPeriod) ||
+    !isReassessmentPeriod(value.currentPeriod) ||
+    value.disclaimerCode !== 'FOUR_DIMENSIONS_NOT_COMBINED' ||
+    !isRecord(value.screening) ||
+    !REASSESSMENT_STATES.has(String(value.screening.state)) ||
+    !Array.isArray(value.screening.trends) ||
+    value.screening.trends.length !== 2 ||
+    !value.screening.trends.every(
+      (trend) =>
+        isRecord(trend) &&
+        ['PHQ9', 'GAD7'].includes(String(trend.instrument)) &&
+        REASSESSMENT_STATES.has(String(trend.state)) &&
+        isRecord(trend.current) &&
+        isUuid(trend.current.assessmentId) &&
+        nonNegativeInteger(trend.current.totalScore),
+    ) ||
+    !isRecord(value.journalContext) ||
+    !REASSESSMENT_STATES.has(String(value.journalContext.state)) ||
+    (value.journalContext.jobId !== null &&
+      !isUuid(value.journalContext.jobId)) ||
+    (value.journalContext.analysisId !== null &&
+      !isUuid(value.journalContext.analysisId)) ||
+    !Array.isArray(value.journalContext.changesComparedWithPreviousPeriod) ||
+    !isRecord(value.supportPlanEngagement) ||
+    !REASSESSMENT_STATES.has(String(value.supportPlanEngagement.state)) ||
+    !isRecord(value.supportPlanEngagement.previousPeriod) ||
+    !nonNegativeInteger(
+      value.supportPlanEngagement.previousPeriod.completedCount,
+    ) ||
+    !nonNegativeInteger(
+      value.supportPlanEngagement.previousPeriod.skippedCount,
+    ) ||
+    !isRecord(value.supportPlanEngagement.currentPeriod) ||
+    !nonNegativeInteger(
+      value.supportPlanEngagement.currentPeriod.completedCount,
+    ) ||
+    !nonNegativeInteger(value.supportPlanEngagement.currentPeriod.skippedCount)
+  )
+    return null
+
+  if (value.summaryVersion === 'reassessment-summary-v2') {
+    if (
+      !isRecord(value.selfReportedExperience) ||
+      !REASSESSMENT_STATES.has(String(value.selfReportedExperience.state)) ||
+      !isRecord(value.activityReflection) ||
+      !REASSESSMENT_STATES.has(String(value.activityReflection.state)) ||
+      !Array.isArray(value.activityReflection.sources)
+    )
+      return null
+    const source = value.selfReportedExperience.source
+    if (
+      source !== null &&
+      (!isRecord(source) ||
+        !isUuid(source.selfReportId) ||
+        source.sourceVersion !== 'reassessment-self-report-v1' ||
+        !REASSESSMENT_EXPERIENCES.has(String(source.currentExperience)))
+    )
+      return null
+  }
+  return value as ReassessmentSummary
 }

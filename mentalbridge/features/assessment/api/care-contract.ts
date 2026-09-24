@@ -30,6 +30,19 @@ export type AssessmentHistoryPage = Schemas['AssessmentHistoryPage']
 export type AssessmentProgress = Schemas['AssessmentProgress']
 export type AssessmentProgressPoint = Schemas['AssessmentProgressPoint']
 export type ScoreDirection = Schemas['ScoreDirection']
+export type ReassessmentCurrentExperience =
+  Schemas['ReassessmentCurrentExperience']
+export type ReassessmentSelfReportCreateRequest =
+  Schemas['ReassessmentSelfReportCreateRequest']
+export type ReassessmentSelfReportReplaceRequest =
+  Schemas['ReassessmentSelfReportReplaceRequest']
+export type ReassessmentSelfReport = Schemas['ReassessmentSelfReport']
+export type ReassessmentContext = Schemas['ReassessmentContext']
+export type ReassessmentSummary = Schemas['ReassessmentSummary']
+export type ReassessmentSummaryCreateRequest =
+  Schemas['ReassessmentSummaryCreateRequest']
+export type ReassessmentSummaryHistoryPage =
+  Schemas['ReassessmentSummaryHistoryPage']
 export type SupportEvaluationRequest = Schemas['SupportEvaluationRequest']
 export type SupportEvaluation = Schemas['SupportEvaluation']
 export type SupportEvaluationHistoryPage =
