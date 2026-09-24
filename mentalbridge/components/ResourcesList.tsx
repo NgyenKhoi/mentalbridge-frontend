@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
+import Link from 'next/link'
 import type { ResourcesResponse } from '@/app/api/resources/route'
 import type { components } from '@/contracts/content.generated'
 
@@ -16,19 +17,13 @@ interface ResourcesListProps {
 type LoadingState =
   'idle' | 'loading' | 'success' | 'error' | 'empty' | 'timeout' | 'unavailable'
 
-function safeExternalUrl(value: string | null | undefined): string | null {
-  if (!value) return null
-
-  try {
-    const url = new URL(value)
-    return (url.protocol === 'http:' || url.protocol === 'https:') &&
-      url.username === '' &&
-      url.password === ''
-      ? url.toString()
-      : null
-  } catch {
-    return null
+function actionLabel(resource: ResourceSummary) {
+  if (resource.category === 'VIDEO') return 'Xem video'
+  if (resource.category === 'JOURNALING') return 'Xem câu hỏi'
+  if (resource.category === 'BREATHING' || resource.category === 'MEDITATION') {
+    return 'Xem hướng dẫn'
   }
+  return resource.externalUrl ? 'Mở nguồn' : 'Đọc nội dung'
 }
 
 // Future feature notice component
@@ -321,115 +316,107 @@ export default function ResourcesList({
           gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
         }}
       >
-        {resources.map((resource, index) => {
-          const externalUrl = safeExternalUrl(resource.externalUrl)
-          const isExternalLink = externalUrl !== null
-          const ComponentElement = isExternalLink ? motion.a : motion.div
-
-          const commonProps = {
-            initial: reduceMotion ? false : { opacity: 0, y: 20 },
-            animate: { opacity: 1, y: 0 },
-            transition: {
+        {resources.map((resource, index) => (
+          <motion.article
+            key={resource.id}
+            initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
               duration: reduceMotion ? 0 : 0.2,
               delay: index * 0.05,
-            },
-            style: {
-              display: 'block' as const,
-              background: 'var(--surface-glass)',
-              border: '1px solid var(--line)',
-              borderRadius: 'var(--radius)',
-              padding: '1.5rem',
-              textDecoration: 'none',
-              color: 'inherit',
-              transition: 'all 0.2s ease',
-              cursor: isExternalLink ? 'pointer' : 'default',
-            },
-            whileHover:
-              isExternalLink && !reduceMotion
-                ? {
+            }}
+            whileHover={
+              reduceMotion
+                ? {}
+                : {
                     y: -4,
                     borderColor: 'var(--teal)',
                     boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
                   }
-                : {},
-          }
-
-          const linkProps = isExternalLink
-            ? {
-                href: externalUrl,
-                target: '_blank' as const,
-                rel: 'noopener noreferrer',
-              }
-            : {}
-
-          return (
-            <ComponentElement key={resource.id} {...commonProps} {...linkProps}>
-              <div
+            }
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              background: 'var(--surface-glass)',
+              border: '1px solid var(--line)',
+              borderRadius: 'var(--radius)',
+              padding: '1.5rem',
+              color: 'inherit',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <span
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  marginBottom: '0.75rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--teal)',
+                  opacity: 0.8,
                 }}
               >
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: 'var(--teal)',
-                    opacity: 0.8,
-                  }}
-                >
-                  {getCategoryLabel(resource.category)}
+                {getCategoryLabel(resource.category)}
+              </span>
+              {resource.sourceOrganization && (
+                <span style={{ fontSize: '0.75rem', opacity: 0.65 }}>
+                  {resource.sourceOrganization}
                 </span>
-                {isExternalLink && (
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    style={{ opacity: 0.4 }}
-                  >
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                    <polyline points="15 3 21 3 21 9" />
-                    <line x1="10" y1="14" x2="21" y2="3" />
-                  </svg>
-                )}
-              </div>
+              )}
+            </div>
 
-              <h4
+            <h4
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1rem',
+                marginBottom: '0.5rem',
+                lineHeight: 1.4,
+              }}
+            >
+              {resource.title}
+            </h4>
+
+            {resource.summary && (
+              <p
                 style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: '1rem',
-                  marginBottom: '0.5rem',
-                  lineHeight: 1.4,
+                  fontSize: '0.9rem',
+                  opacity: 0.7,
+                  lineHeight: 1.5,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
                 }}
               >
-                {resource.title}
-              </h4>
-
-              {resource.summary && (
-                <p
-                  style={{
-                    fontSize: '0.9rem',
-                    opacity: 0.7,
-                    lineHeight: 1.5,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {resource.summary}
-                </p>
-              )}
-            </ComponentElement>
-          )
-        })}
+                {resource.summary}
+              </p>
+            )}
+            <Link
+              href={`/resources/${resource.id}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginTop: 'auto',
+                paddingTop: '1rem',
+                color: 'var(--teal-deep)',
+                fontSize: '0.9rem',
+                fontWeight: 800,
+                textDecoration: 'none',
+              }}
+              aria-label={`${actionLabel(resource)}: ${resource.title}`}
+            >
+              {actionLabel(resource)} <span aria-hidden="true">→</span>
+            </Link>
+          </motion.article>
+        ))}
       </div>
 
       <FutureFeatureNotice />

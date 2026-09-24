@@ -421,6 +421,8 @@ export interface components {
             title: string;
             summary: string;
             externalUrl?: string | null;
+            /** @description Simple accountable source label for catalogue cards. */
+            sourceOrganization?: string | null;
             status: components["schemas"]["ResourceStatus"];
             /** Format: date-time */
             reviewedAt?: string | null;
@@ -430,7 +432,13 @@ export interface components {
             updatedAt?: string;
         };
         PublicResourceDetail: components["schemas"]["ResourceSummary"] & {
+            /** @description Exact immutable resource version represented by this detail response. */
+            contentVersion: string;
             contentBody: string | null;
+            sourceTitle?: string | null;
+            /** Format: uri */
+            sourceUrl?: string | null;
+            sourceReviewNote?: string | null;
             /** Format: date-time */
             effectiveAt: string | null;
             /** Format: date-time */
@@ -464,8 +472,16 @@ export interface components {
             title: string;
             summary: string;
             contentBody?: string | null;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description VIDEO resources require a verified HTTPS YouTube URL.
+             */
             externalUrl?: string | null;
+            sourceOrganization?: string | null;
+            sourceTitle?: string | null;
+            /** Format: uri */
+            sourceUrl?: string | null;
+            sourceReviewNote?: string | null;
             /** Format: date-time */
             effectiveAt?: string | null;
             /** Format: date-time */
@@ -476,8 +492,16 @@ export interface components {
             title?: string;
             summary?: string;
             contentBody?: string | null;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description VIDEO resources require a verified HTTPS YouTube URL.
+             */
             externalUrl?: string | null;
+            sourceOrganization?: string | null;
+            sourceTitle?: string | null;
+            /** Format: uri */
+            sourceUrl?: string | null;
+            sourceReviewNote?: string | null;
             /** Format: date-time */
             effectiveAt?: string | null;
             /** Format: date-time */
@@ -949,6 +973,8 @@ export interface operations {
         parameters: {
             query?: {
                 locale?: components["parameters"]["Locale"];
+                /** @description Exact non-negative content version requested by a persisted consumer reference. When present, a different current version returns 404 rather than substituting content. */
+                contentVersion?: string;
             };
             header?: never;
             path: {
@@ -1027,6 +1053,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
         };
     };
     publishResource: {

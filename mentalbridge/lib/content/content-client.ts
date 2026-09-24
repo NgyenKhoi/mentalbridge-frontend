@@ -5,9 +5,11 @@ import {
   parseAdminResourceDetail,
   parseContentProblem,
   parseResourceList,
+  parsePublicResourceDetail,
   parseResourceSummary,
   type AdminResourceDetail,
   type ContentProblem,
+  type PublicResourceDetail,
   type ResourceListResponse,
   type ResourceSummary,
 } from './content-validation'
@@ -18,7 +20,7 @@ type RequestOptions<T> = Readonly<{
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   path: string
   expectedStatus: number
-  accessToken: string
+  accessToken?: string
   correlationId: string
   body?: unknown
   idempotencyKey?: string
@@ -125,7 +127,9 @@ async function contentRequest<T>(options: RequestOptions<T>): Promise<T> {
         signal: controller.signal,
         headers: {
           Accept: 'application/json, application/problem+json',
-          Authorization: `Bearer ${options.accessToken}`,
+          ...(options.accessToken
+            ? { Authorization: `Bearer ${options.accessToken}` }
+            : {}),
           'X-Correlation-Id': options.correlationId,
           ...(options.body === undefined
             ? {}
@@ -198,6 +202,21 @@ async function contentRequest<T>(options: RequestOptions<T>): Promise<T> {
   } finally {
     clearTimeout(timeout)
   }
+}
+
+export const contentPublicClient = {
+  detail(id: string, correlationId: string, contentVersion?: string) {
+    const query = new URLSearchParams({ locale: 'vi-VN' })
+    if (contentVersion !== undefined)
+      query.set('contentVersion', contentVersion)
+    return contentRequest<PublicResourceDetail>({
+      method: 'GET',
+      path: `/api/v1/resources/${encodeURIComponent(id)}?${query.toString()}`,
+      expectedStatus: 200,
+      correlationId,
+      parseSuccess: parsePublicResourceDetail,
+    })
+  },
 }
 
 export const contentAdminClient = {

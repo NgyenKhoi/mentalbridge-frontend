@@ -538,6 +538,25 @@
   min-height: 44px;
 }
 
+.support-plan-resource-link {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--teal) 34%, transparent);
+  border-radius: 10px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.support-plan-resource-link:hover {
+  border-color: var(--teal);
+}
+
 .support-plan-schedule {
   display: grid;
   gap: 1.25rem;

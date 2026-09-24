@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 
 import { Disclosure } from '@/components/ui/Disclosure'
 import { ApiError } from '@/lib/api/api-error'
@@ -362,6 +363,12 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
       occurrence.hidden ||
       occurrence.reflection !== null
     const busy = busyId === occurrence.occurrenceId
+    const resourceHref =
+      occurrence.source.type === 'RESOURCE' &&
+      occurrence.source.resourceId !== null &&
+      occurrence.source.contentVersion !== null
+        ? `/resources/${occurrence.source.resourceId}?from=support-plan&contentVersion=${encodeURIComponent(occurrence.source.contentVersion)}`
+        : null
     return (
       <li
         className={`support-plan-occurrence state-${occurrence.displayState.toLowerCase()}`}
@@ -376,6 +383,11 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
             {stateLabels[occurrence.displayState]}
           </span>
           <h4>{occurrence.source.title}</h4>
+          {resourceHref && (
+            <Link className="support-plan-resource-link" href={resourceHref}>
+              Mở tài nguyên <span aria-hidden="true">→</span>
+            </Link>
+          )}
           {occurrence.reflection && (
             <p className="support-plan-reflection">“{occurrence.reflection}”</p>
           )}
