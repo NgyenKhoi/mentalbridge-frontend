@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('../api/browser-care', () => api)
 
+import { ApiError } from '@/lib/api/api-error'
 import { ReassessmentJourney } from './ReassessmentJourney'
 import type { ReassessmentSummary } from '../api/care-contract'
 
@@ -142,7 +143,13 @@ describe('ReassessmentJourney', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     api.getReassessmentContext.mockResolvedValue(context)
-    api.getCurrentReassessmentSelfReport.mockRejectedValue(new Error('none'))
+    api.getCurrentReassessmentSelfReport.mockRejectedValue(
+      new ApiError({
+        message: 'not found',
+        code: 'REASSESSMENT_SELF_REPORT_NOT_FOUND',
+        status: 404,
+      }),
+    )
     api.createReassessmentSelfReport.mockResolvedValue(report)
     api.replaceReassessmentSelfReport.mockResolvedValue(report)
     api.createLongitudinalAnalysis.mockResolvedValue(job)
@@ -197,6 +204,28 @@ describe('ReassessmentJourney', () => {
     render(<ReassessmentJourney />)
     expect(await screen.findByText(/Cần hoàn tất: GAD7/)).toBeInTheDocument()
     expect(api.createLongitudinalAnalysis).not.toHaveBeenCalled()
+  })
+
+  it('blocks report creation when the current report cannot be loaded', async () => {
+    api.getCurrentReassessmentSelfReport.mockRejectedValue(
+      new ApiError({
+        message: 'dependency unavailable',
+        code: 'HTTP_500',
+        status: 500,
+      }),
+    )
+
+    render(<ReassessmentJourney />)
+
+    expect(
+      await screen.findByText(
+        'Chưa thể tải dữ liệu đánh giá lại. Vui lòng thử lại sau.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Bắt đầu đánh giá lại' }),
+    ).not.toBeInTheDocument()
+    expect(api.createReassessmentSelfReport).not.toHaveBeenCalled()
   })
 
   it('keeps an existing summary visible after deleting its source', async () => {

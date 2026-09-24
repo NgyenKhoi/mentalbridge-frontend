@@ -178,30 +178,29 @@ export function ReassessmentJourney() {
 
   useEffect(() => {
     let active = true
-    void Promise.allSettled([
+    void Promise.all([
       getReassessmentContext(),
-      getCurrentReassessmentSelfReport(),
-    ]).then(([contextResult, reportResult]) => {
-      if (!active) return
-      if (contextResult.status === 'rejected') {
-        setMessage('Chưa thể tải ngữ cảnh đánh giá lại từ Care.')
+      getCurrentReassessmentSelfReport().catch((error: unknown) => {
+        if (error instanceof ApiError && error.status === 404) return undefined
+        throw error
+      }),
+    ])
+      .then(([loadedContext, loadedReport]) => {
+        if (!active) return
+        setContext(loadedContext)
+        if (loadedReport && samePeriod(loadedReport, loadedContext)) {
+          setReport(loadedReport)
+          setExperience(loadedReport.currentExperience)
+          setHelpfulContext(loadedReport.helpfulContext ?? '')
+          setDifficultContext(loadedReport.difficultContext ?? '')
+        }
         setLoading(false)
-        return
-      }
-      const loadedContext = contextResult.value
-      setContext(loadedContext)
-      if (
-        reportResult.status === 'fulfilled' &&
-        samePeriod(reportResult.value, loadedContext)
-      ) {
-        const value = reportResult.value
-        setReport(value)
-        setExperience(value.currentExperience)
-        setHelpfulContext(value.helpfulContext ?? '')
-        setDifficultContext(value.difficultContext ?? '')
-      }
-      setLoading(false)
-    })
+      })
+      .catch(() => {
+        if (!active) return
+        setMessage('Chưa thể tải dữ liệu đánh giá lại. Vui lòng thử lại sau.')
+        setLoading(false)
+      })
     return () => {
       active = false
     }
