@@ -9,10 +9,11 @@ import type {
 import { appointmentBrowserClient } from '../api/browser-client'
 import styles from './AppointmentRequestPanel.module.css'
 
-function format(value: string) {
+function format(value: string, timezone: string) {
   return new Intl.DateTimeFormat('vi-VN', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: timezone,
   }).format(new Date(value))
 }
 
@@ -134,11 +135,11 @@ export default function AppointmentRequestPanel() {
                 <dl>
                   <div>
                     <dt>Thời gian</dt>
-                    <dd>{format(item.scheduledStartAt)}</dd>
+                    <dd>{format(item.scheduledStartAt, item.timezone)}</dd>
                   </div>
                   <div>
                     <dt>Hạn quyết định</dt>
-                    <dd>{format(item.decisionDeadlineAt)}</dd>
+                    <dd>{format(item.decisionDeadlineAt, item.timezone)}</dd>
                   </div>
                   <div>
                     <dt>Credit</dt>
@@ -165,7 +166,8 @@ export default function AppointmentRequestPanel() {
                 </div>
                 <h3>{slot.specialistDisplayName}</h3>
                 <p>
-                  {format(slot.startAt)} – {format(slot.endAt)}
+                  {format(slot.startAt, slot.timezone)} –{' '}
+                  {format(slot.endAt, slot.timezone)}
                 </p>
                 <button
                   type="button"
