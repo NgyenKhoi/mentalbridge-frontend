@@ -15,3 +15,9 @@ export type AnalysisResult = Readonly<
 >
 export type AnalysisTerminalReason = JournalSchemas['AnalysisTerminalReason']
 export type SuggestedAction = AnalysisResult['suggestedAction']
+export type CreateLongitudinalAnalysisRequest = Readonly<
+  JournalSchemas['CreateLongitudinalAnalysisRequest']
+>
+export type LongitudinalAnalysisJob = Readonly<
+  JournalSchemas['LongitudinalAnalysisJob']
+>

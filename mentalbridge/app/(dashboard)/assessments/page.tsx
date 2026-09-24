@@ -11,6 +11,7 @@ import type {
 import { getAssessmentHistory } from '@/features/assessment/api/browser-care'
 import AssessmentProgressPanel from '@/features/assessment/components/AssessmentProgressPanel'
 import { SupportEvaluationHistory } from '@/features/assessment/components/SupportEvaluationHistory'
+import { ReassessmentJourney } from '@/features/assessment/components/ReassessmentJourney'
 
 import './assessments.css'
 
@@ -254,6 +255,7 @@ export default function AssessmentsPage() {
           </button>
         )}
       </section>
+      <ReassessmentJourney />
       <SupportEvaluationHistory />
     </div>
   )

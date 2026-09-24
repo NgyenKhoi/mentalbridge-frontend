@@ -37,6 +37,29 @@ describe('Assessment history page', () => {
       http.get('http://localhost/api/care/support-evaluations/history', () =>
         HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
       ),
+      http.get('http://localhost/api/care/reassessment-self-reports', () =>
+        HttpResponse.json(
+          { code: 'REASSESSMENT_SELF_REPORT_NOT_FOUND' },
+          { status: 404 },
+        ),
+      ),
+      http.get('http://localhost/api/care/reassessment-summaries', () =>
+        HttpResponse.json({
+          policyVersion: 'reassessment-comparison-v1',
+          state: 'INCOMPLETE',
+          missingInstruments: ['GAD7'],
+          phq9AssessmentId: assessmentId,
+          gad7AssessmentId: null,
+          previousPeriod: {
+            startAt: '2026-08-27T00:00:00Z',
+            endAt: '2026-09-10T00:00:00Z',
+          },
+          currentPeriod: {
+            startAt: '2026-09-10T00:00:00Z',
+            endAt: '2026-09-24T00:00:00Z',
+          },
+        }),
+      ),
       http.get(
         `http://localhost/api/care/assessments/by-id/${assessmentId}/progress`,
         () =>

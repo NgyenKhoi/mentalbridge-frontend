@@ -8,6 +8,8 @@ import type {
   JournalPage,
   JournalTombstone,
   JournalWrite,
+  CreateLongitudinalAnalysisRequest,
+  LongitudinalAnalysisJob,
 } from './journal-contract'
 
 const uuid =
@@ -67,6 +69,173 @@ export const isIdempotencyKey = (value: unknown): value is string =>
   typeof value === 'string' && value.length >= 16 && value.length <= 128
 export const isJournalRevision = (value: unknown): value is number =>
   Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 200
+
+const longitudinalPeriod = (value: unknown) =>
+  object(value) &&
+  exact(value, ['startAt', 'endAt']) &&
+  dateTime(value.startAt) &&
+  dateTime(value.endAt) &&
+  Date.parse(value.startAt) < Date.parse(value.endAt)
+
+const longitudinalCoverage = (value: unknown) =>
+  object(value) &&
+  exact(value, [
+    'previousPeriodJournalEntryCount',
+    'currentPeriodJournalEntryCount',
+    'sufficientForComparison',
+  ]) &&
+  Number.isInteger(value.previousPeriodJournalEntryCount) &&
+  Number(value.previousPeriodJournalEntryCount) >= 0 &&
+  Number.isInteger(value.currentPeriodJournalEntryCount) &&
+  Number(value.currentPeriodJournalEntryCount) >= 0 &&
+  typeof value.sufficientForComparison === 'boolean'
+
+const longitudinalSources = (value: unknown) =>
+  Array.isArray(value) &&
+  value.length <= 200 &&
+  value.every(
+    (source) =>
+      object(source) &&
+      exact(source, ['journalId', 'journalRevision', 'period']) &&
+      isJournalId(source.journalId) &&
+      isJournalRevision(source.journalRevision) &&
+      ['PREVIOUS', 'CURRENT'].includes(String(source.period)),
+  )
+
+const longitudinalEvidence = (value: unknown) =>
+  object(value) &&
+  exact(value, [
+    'analysisId',
+    'previousPeriod',
+    'currentPeriod',
+    'sourceJournalRevisions',
+    'contextSignals',
+    'emotionIndicators',
+    'recurringThemes',
+    'changesComparedWithPreviousPeriod',
+    'preferences',
+    'barriers',
+    'helpfulPatterns',
+    'dataCoverage',
+    'provider',
+    'model',
+    'promptVersion',
+    'schemaVersion',
+    'createdAt',
+  ]) &&
+  isJournalId(value.analysisId) &&
+  longitudinalPeriod(value.previousPeriod) &&
+  longitudinalPeriod(value.currentPeriod) &&
+  longitudinalSources(value.sourceJournalRevisions) &&
+  boundedStrings(value.contextSignals) &&
+  boundedStrings(value.emotionIndicators) &&
+  boundedStrings(value.recurringThemes) &&
+  Array.isArray(value.changesComparedWithPreviousPeriod) &&
+  value.changesComparedWithPreviousPeriod.length <= 24 &&
+  value.changesComparedWithPreviousPeriod.every(
+    (change) =>
+      object(change) &&
+      exact(change, ['signal', 'direction']) &&
+      boundedString(change.signal, 64) &&
+      [
+        'MORE_FREQUENT',
+        'LESS_FREQUENT',
+        'SIMILAR',
+        'INSUFFICIENT_DATA',
+      ].includes(String(change.direction)),
+  ) &&
+  boundedStrings(value.preferences) &&
+  boundedStrings(value.barriers) &&
+  boundedStrings(value.helpfulPatterns) &&
+  longitudinalCoverage(value.dataCoverage) &&
+  ['DETERMINISTIC_FAKE', 'GEMINI', 'OPENAI'].includes(String(value.provider)) &&
+  boundedString(value.model, 128) &&
+  value.promptVersion === 'longitudinal-v1' &&
+  value.schemaVersion === 1 &&
+  dateTime(value.createdAt)
+
+export function parseCreateLongitudinalAnalysisRequest(
+  value: unknown,
+): CreateLongitudinalAnalysisRequest | null {
+  if (
+    !object(value) ||
+    !exact(value, ['previousPeriod', 'currentPeriod', 'excludedJournalIds']) ||
+    !longitudinalPeriod(value.previousPeriod) ||
+    !longitudinalPeriod(value.currentPeriod) ||
+    !Array.isArray(value.excludedJournalIds) ||
+    value.excludedJournalIds.length > 200 ||
+    !value.excludedJournalIds.every(isJournalId) ||
+    new Set(value.excludedJournalIds).size !== value.excludedJournalIds.length
+  )
+    return null
+  return value as CreateLongitudinalAnalysisRequest
+}
+
+export function parseLongitudinalAnalysisJob(
+  value: unknown,
+): LongitudinalAnalysisJob | null {
+  if (
+    !object(value) ||
+    !exact(value, [
+      'jobId',
+      'previousPeriod',
+      'currentPeriod',
+      'sourceJournalRevisions',
+      'dataCoverage',
+      'status',
+      'attemptCount',
+      'terminalReason',
+      'result',
+      'createdAt',
+      'updatedAt',
+      'completedAt',
+    ]) ||
+    !isJournalId(value.jobId) ||
+    !longitudinalPeriod(value.previousPeriod) ||
+    !longitudinalPeriod(value.currentPeriod) ||
+    !longitudinalSources(value.sourceJournalRevisions) ||
+    !longitudinalCoverage(value.dataCoverage) ||
+    !analysisStatuses.has(String(value.status)) ||
+    !Number.isInteger(value.attemptCount) ||
+    Number(value.attemptCount) < 0 ||
+    Number(value.attemptCount) > 2 ||
+    !dateTime(value.createdAt) ||
+    !dateTime(value.updatedAt) ||
+    (value.completedAt !== null && !dateTime(value.completedAt))
+  )
+    return null
+  const terminal = value.terminalReason ?? null
+  const result = value.result
+  const longitudinalTerminalReasons = [
+    'CONSENT_REQUIRED',
+    'CONSENT_REVOKED',
+    'CONSENT_UNAVAILABLE',
+    'ENTITLEMENT_UNAVAILABLE',
+    'ENTITLEMENT_CHANGED',
+    'AUTHORIZATION_CONTEXT_LOST',
+    'SOURCE_REVISION_CHANGED',
+    'SOURCE_DELETED',
+    'PROVIDER_TIMEOUT',
+    'PROVIDER_UNAVAILABLE',
+    'INVALID_PROVIDER_RESULT',
+    'INTERNAL_ERROR',
+  ]
+  if (
+    (value.status === 'RUNNING' &&
+      (terminal !== null || result !== null || value.completedAt !== null)) ||
+    (value.status === 'SUCCEEDED' &&
+      (terminal !== null ||
+        !longitudinalEvidence(result) ||
+        value.completedAt === null)) ||
+    (value.status === 'FAILED' &&
+      (typeof terminal !== 'string' ||
+        !longitudinalTerminalReasons.includes(terminal) ||
+        result !== null ||
+        value.completedAt === null))
+  )
+    return null
+  return value as LongitudinalAnalysisJob
+}
 
 const boundedStrings = (value: unknown) =>
   Array.isArray(value) &&
