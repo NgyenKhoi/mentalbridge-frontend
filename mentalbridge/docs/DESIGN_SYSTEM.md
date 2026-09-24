@@ -1,484 +1,148 @@
-# 🎨 MentalBridge Design System
+# MentalBridge UI Foundation
 
-## 📊 CSS Variables (`:root`)
+MentalBridge dùng một lớp UI do chính sản phẩm sở hữu. Không dùng một thư viện
+component có sẵn làm ngôn ngữ thiết kế. Có thể dùng primitive headless cho hành
+vi khó, nhưng màu sắc, typography, khoảng cách, trạng thái và cách ghép màn hình
+phải mang ngôn ngữ MentalBridge.
 
-### Colors - Palette chính
-```css
-/* Background */
---bg: #F1F4EB              /* Sage background chính */
---bg-deep: #E7EDE1         /* Sage đậm hơn */
---surface: #FFFFFF         /* White cho cards */
---surface-soft: #E9EFE3    /* White nhẹ hơn */
+Nguyên tắc cốt lõi: **abstract behavior, not appearance**. Primitive là sàn chất
+lượng, không phải trần sáng tạo của feature.
 
-/* Text */
---ink: #1B2A22             /* Text chính (đậm) */
---ink-soft: #52604F        /* Text secondary */
---ink-faint: #8A9585       /* Text mờ nhất */
+## 1. Ngôn ngữ thiết kế
 
-/* Teal (Primary brand color) */
---teal-deep: #1E4A43       /* Teal đậm - headings, buttons */
---teal: #3D7A6E            /* Teal medium */
---teal-pale: #CFE3D8       /* Teal nhạt - backgrounds */
+- Bình tĩnh, ấm áp, gần gũi và có cảm giác con người.
+- Hình học mềm, khoảng trắng có chủ đích, chiều sâu nhẹ.
+- Fraunces dùng cho tiêu đề mang tính biên tập; Be Vietnam Pro dùng cho nội dung
+  và điều khiển.
+- Teal là màu nhận diện. Amber/terracotta chỉ nhấn thông tin cần chú ý; màu không
+  được là tín hiệu duy nhất.
+- Product UI ưu tiên liên tục và phản hồi rõ ràng. Marketing UI mới được biểu
+  đạt mạnh hơn.
+- Không biến toàn bộ màn hình thành một lưới các card có viền giống nhau. Dùng
+  typography, spacing, alignment và surface để tạo phân cấp trước khi thêm viền.
 
-/* Accent colors */
---amber: #E1A651           /* Amber - CTA, highlights */
---amber-soft: #F5E6C6      /* Amber nhạt */
---terracotta: #C77B5C      /* Terracotta - warnings */
---terracotta-soft: #F0DACC /* Terracotta nhạt */
---lavender: #9A8CAE        /* Lavender - accents */
+Landing và Auth là tham chiếu về chất lượng thương hiệu; các token trong
+`app/globals.css` là nguồn sự thật khi triển khai.
 
-/* Utilities */
---line: rgba(27,42,34,.12) /* Border color */
---shadow: 0 20px 50px -20px rgba(30,74,67,.25)
---radius: 22px
---wrap: 1180px             /* Max content width */
-```
+## 2. Token contract
 
-### Icon color classes (đã có)
-```css
-.fi-teal { background: var(--teal-pale); color: var(--teal-deep); }
-.fi-amber { background: var(--amber-soft); color: #8a5a1f; }
-.fi-terra { background: var(--terracotta-soft); color: #8a4a2e; }
-.fi-lav { background: #E7E1EE; color: var(--lavender); }
-```
-
----
-
-## 🔤 Typography
-
-### Fonts
-```tsx
-// Fraunces - Serif (Headings)
-font-family: var(--font-fraunces), serif
-weights: 300, 400, 500, 600, 700
-styles: normal, italic
-
-// Be Vietnam Pro - Sans (Body)
-font-family: var(--font-be-vietnam), sans-serif
-weights: 300, 400, 500, 600, 700, 800
-```
-
-### Heading styles
-```css
-h1, h2, h3, h4 {
-  font-family: var(--font-fraunces), serif;
-  font-weight: 500;
-  letter-spacing: -.01em;
-  color: var(--teal-deep);
-}
-```
-
----
-
-## 🎯 Component Patterns
-
-### Buttons
-```css
-/* Primary Button */
-.btn-primary {
-  background: var(--teal-deep);
-  color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(30,74,67,.55);
-  /* Shimmer effect on hover */
-}
-
-/* Outline Button */
-.btn-outline {
-  border: 1.5px solid var(--line);
-  color: var(--teal-deep);
-  background: var(--surface);
-}
-
-/* Ghost Button */
-.btn-ghost {
-  color: var(--teal-deep);
-  font-weight: 600;
-  font-size: 15px;
-}
-
-/* Base button styles */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 13px 26px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 15px;
-  transition: transform .3s cubic-bezier(.16,1,.3,1),
-              box-shadow .3s ease,
-              background .3s ease;
-  white-space: nowrap;
-}
-```
-
-### Cards
-```css
-/* Feature Card */
-.feature-card {
-  background: var(--surface);
-  border-radius: 20px;
-  padding: 36px 30px;
-  border: 1px solid var(--line);
-  transition: transform .4s cubic-bezier(.16,1,.3,1),
-              box-shadow .4s ease,
-              border-color .4s ease;
-}
-.feature-card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow);
-  border-color: transparent;
-}
-
-/* Risk Card (3 variants: low, mid, high) */
-.risk-card {
-  border-radius: var(--radius);
-  padding: 38px 32px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  transition: transform .4s cubic-bezier(.16,1,.3,1);
-}
-.risk-card:hover { transform: translateY(-6px); }
-
-/* Float Card (với animation) */
-.float-card {
-  position: absolute;
-  border-radius: 16px;
-  transition: transform .18s linear;
-}
-.float-inner {
-  background: var(--surface);
-  border-radius: 16px;
-  padding: 14px 16px;
-  box-shadow: var(--shadow);
-  animation: float 6s ease-in-out infinite;
-  border: 1px solid var(--line);
-}
-```
-
-### Section Headers
-```css
-.eyebrow {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: var(--teal);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.eyebrow::before {
-  content: "";
-  width: 22px;
-  height: 1px;
-  background: var(--teal);
-}
-
-.section-head {
-  max-width: 640px;
-  margin-bottom: 64px;
-}
-.section-head h2 {
-  font-size: clamp(30px, 3.4vw, 42px);
-  margin-top: 16px;
-  line-height: 1.2;
-}
-```
-
-### Showcase Components (từ phone mockup)
-```css
-/* Chat Bubbles */
-.chat-bubble.bot {
-  background: var(--teal-pale);
-  color: var(--teal-deep);
-  border-bottom-left-radius: 4px;
-}
-.chat-bubble.user {
-  background: var(--teal-deep);
-  color: #fff;
-  border-bottom-right-radius: 4px;
-}
-
-/* Typing Dots */
-.typing-dots span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--teal-deep);
-  animation: dot-bounce 1.2s ease-in-out infinite;
-}
-
-/* Mood Dots */
-.mood-dot {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--surface-soft);
-}
-.mood-dot.active {
-  background: var(--amber);
-  box-shadow: 0 0 0 3px var(--amber-soft);
-}
-
-/* Score Chip */
-.score-chip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--surface-soft);
-  border-radius: 12px;
-  padding: 10px 12px;
-}
-.score-chip .sc-num {
-  font-family: var(--font-fraunces), serif;
-  font-weight: 700;
-  color: var(--teal-deep);
-  font-size: 18px;
-}
-
-/* Streak Chip */
-.streak-chip {
-  background: var(--teal-pale);
-  color: var(--teal-deep);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 8px 12px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Chart Bars */
-.chart-bar {
-  flex: 1;
-  background: linear-gradient(180deg, var(--teal), var(--teal-deep));
-  border-radius: 5px 5px 2px 2px;
-  animation: bar-grow 3.2s ease-in-out infinite;
-  transform-origin: bottom;
-}
-```
-
-### Risk Tags (3 levels)
-```css
-.risk-tag {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  padding: 6px 14px;
-  border-radius: 999px;
-  margin-bottom: 22px;
-}
-
-/* Low level - Teal */
-.risk-card.low .risk-tag {
-  background: var(--teal-pale);
-  color: var(--teal-deep);
-}
-
-/* Mid level - Amber */
-.risk-card.mid .risk-tag {
-  background: var(--amber-soft);
-  color: #8a5a1f;
-}
-
-/* High level - Terracotta */
-.risk-card.high .risk-tag {
-  background: var(--terracotta-soft);
-  color: #8a4a2e;
-}
-```
-
----
-
-## ✨ Animations & Keyframes
-
-### Timing & Easing
-```css
-/* Primary easing curve - dùng cho mọi transition mượt */
-cubic-bezier(.16, 1, .3, 1)
-
-/* Animation durations */
-- Quick: 0.3s
-- Normal: 0.4s - 0.8s
-- Slow: 1.2s - 2s
-```
-
-### Scroll Reveal
-```css
-.reveal {
-  opacity: 0;
-  transform: translateY(28px);
-  transition: opacity .8s cubic-bezier(.16,1,.3,1),
-              transform .8s cubic-bezier(.16,1,.3,1);
-}
-.reveal.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Staggered delays */
-.reveal-d1 { transition-delay: .08s; }
-.reveal-d2 { transition-delay: .16s; }
-.reveal-d3 { transition-delay: .24s; }
-.reveal-d4 { transition-delay: .32s; }
-.reveal-d5 { transition-delay: .4s; }
-```
-
-### Keyframe Animations
-```css
-/* Ambient drifting (blobs) */
-@keyframes driftA {
-  0%, 100% { transform: translate(0,0) scale(1); }
-  50% { transform: translate(70px,90px) scale(1.15); }
-}
-
-/* Breathing (pulsing circle) */
-@keyframes breathe {
-  0%, 100% { transform: scale(.82); }
-  50% { transform: scale(1.05); }
-}
-
-/* Float (cards) */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
-}
-
-/* Dot pulse (logo) */
-@keyframes dot-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: .55; transform: scale(1.25); }
-}
-
-/* Spin (orbits) */
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes spin-rev { to { transform: rotate(-360deg); } }
-
-/* Bar grow (charts) */
-@keyframes bar-grow {
-  0%, 100% { transform: scaleY(.55); }
-  50% { transform: scaleY(1); }
-}
-
-/* Dot bounce (typing) */
-@keyframes dot-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: .5; }
-  30% { transform: translateY(-4px); opacity: 1; }
-}
-```
-
----
-
-## 📱 Responsive Breakpoints
+Không tự tạo duration, easing, radius, shadow hoặc spacing mới trong feature nếu
+token hiện có đáp ứng được.
 
 ```css
-/* Tablet */
-@media (max-width: 980px) {
-  /* Sidebar → Bottom nav hoặc drawer */
-  /* 3 cols → 2 cols */
-  /* Hero grid → 1 col */
-}
+/* Spacing: nhịp 4/8px */
+--space-1: 4px;
+--space-2: 8px;
+--space-3: 12px;
+--space-4: 16px;
+--space-5: 20px;
+--space-6: 24px;
+--space-8: 32px;
+--space-10: 40px;
+--space-12: 48px;
 
-/* Mobile */
-@media (max-width: 640px) {
-  /* 2 cols → 1 col */
-  /* Padding giảm: 32px → 20px */
-  /* Font size clamps */
-}
+/* Shape and depth */
+--radius-control: 12px;
+--radius-panel: 18px;
+--radius-shell: 22px;
+--radius-pill: 999px;
+--elevation-1: 0 14px 36px -30px rgba(30, 74, 67, 0.42);
+--elevation-2: 0 18px 44px -32px rgba(30, 74, 67, 0.5);
+
+/* Motion */
+--motion-instant: 120ms;
+--motion-fast: 160ms;
+--motion-base: 220ms;
+--motion-medium: 300ms;
+--motion-slow: 480ms;
+--ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+--ease-emphasis: cubic-bezier(0.34, 1.56, 0.64, 1);
 ```
 
----
+Giữ palette hiện tại: `--bg`, `--surface`, `--ink`, `--ink-soft`, `--teal-*`,
+`--amber-*`, `--terracotta-*`, `--line`. Không tạo palette riêng cho từng màn.
 
-## 🎭 Prefers Reduced Motion
+## 3. Kiến trúc component
 
-```css
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: .001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .001ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-```
+`components/ui` chứa primitive hành vi dùng lại trong product:
 
----
+- `Dialog`: focus trap của platform, Escape, backdrop, khôi phục focus, motion và
+  reduced motion.
+- `Disclosure`: semantic `details/summary`, target đủ lớn, chevron và motion.
+- `Skeleton`: loading ổn định về bố cục và tôn trọng reduced motion.
+- Các primitive tiếp theo chỉ được thêm khi có hành vi lặp thực sự: Button,
+  Select, Tabs, Toast, Checkbox, Radio, Switch, TextField, TextArea.
 
-## 🔧 Trust Numbers (Stats)
+Không tạo `Card`, `Container`, `Stack` chung chỉ để gom CSS. Assessment result,
+Support evaluation và Support plan là feature composition; chúng được quyền có
+bố cục và cách kể chuyện riêng trong khi dùng chung foundation.
 
-```css
-.trust-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.trust-num {
-  font-family: var(--font-fraunces), serif;
-  font-size: 26px;
-  color: var(--teal-deep);
-  font-weight: 600;
-}
-.trust-label {
-  font-size: 13px;
-  color: var(--ink-faint);
-}
-```
+Trước khi tạo control mới:
 
----
+1. Tìm trong `components/ui`.
+2. Tìm trong `components/motion`.
+3. Tìm implementation tương tự ở feature khác.
+4. Mở rộng primitive hiện có nếu contract hành vi giống nhau.
 
-## 📐 Layout Utilities
+## 4. Interaction và motion contract
 
-```css
-.wrap {
-  max-width: var(--wrap); /* 1180px */
-  margin: 0 auto;
-  padding: 0 32px;
-}
+Mọi điều khiển phải xét default, hover, focus-visible, pressed, disabled,
+loading, selected/open và error khi phù hợp. Target chính tối thiểu 44 × 44px;
+body text trên mobile ưu tiên từ 16px.
 
-.section {
-  padding: 120px 0;
-}
+| Interaction | Enter                   | Exit              | Token gợi ý    |
+| ----------- | ----------------------- | ----------------- | -------------- |
+| Tooltip     | fade + y 4              | fade              | instant–fast   |
+| Dropdown    | fade + y -4 + scale .98 | reverse           | fast–base      |
+| Disclosure  | content fade + y -4     | immediate/native  | base           |
+| Dialog      | fade + y 8 + scale .98  | reverse nhanh hơn | base / instant |
+| Page state  | fade + y 8              | fade              | base–medium    |
+| List item   | fade + y 6              | fade              | fast–base      |
 
-/* Responsive padding */
-@media (max-width: 640px) {
-  .wrap { padding: 0 20px; }
-  .section { padding: 80px 0; }
-}
-```
+- Motion diễn đạt quan hệ nhân quả và sự liên tục, không dùng để trang trí.
+- Ưu tiên `transform` và `opacity`; không làm input bị chặn trong lúc animation.
+- Exit nhanh hơn enter khoảng 15–25%.
+- Không kết hợp scale + glow + shadow + rotation trên control thông thường.
+- GSAP chỉ dành cho landing/storytelling hoặc sequence phức tạp.
+- `prefers-reduced-motion` phải bỏ chuyển động lớn, bounce và parallax.
 
----
+## 5. Accessibility và responsive contract
 
-## ✅ Component Checklist cho màn mới
+- Semantic HTML trước, ARIA chỉ bổ sung khi cần.
+- Focus ring nhìn thấy rõ trên mọi control và không bị sticky UI che.
+- Dialog có Escape, focus containment và trả focus về trigger.
+- Icon trang trí cạnh text có `aria-hidden`; icon-only control có accessible name.
+- Error nói rõ vấn đề và đường phục hồi, đặt gần nơi xảy ra.
+- Empty state giải thích bước tiếp theo, không để vùng trống.
+- Kiểm tra tối thiểu ở 375px, 768px, 1280px và 1440px.
+- Mobile cần xét lại thứ tự thông tin; không chỉ xếp dọc desktop một cách máy móc.
+- Nội dung dài giới hạn khoảng 60–75 ký tự mỗi dòng ở desktop và cho phép
+  `overflow-wrap: anywhere` với ID/URL.
 
-Khi tạo component mới, PHẢI sử dụng:
+## 6. Quy trình bắt buộc cho thay đổi UI
 
-- ✅ Colors: chỉ từ palette đã có
-- ✅ Fonts: Fraunces (headings) + Be Vietnam Pro (body)
-- ✅ Buttons: `.btn-primary`, `.btn-outline`, `.btn-ghost`
-- ✅ Cards: `.feature-card`, `.risk-card` pattern
-- ✅ Animations: `.reveal`, hover `-6px`, easing `cubic-bezier(.16,1,.3,1)`
-- ✅ Icons: SVG line-style, `stroke-width="1.6"`
-- ✅ Spacing: dùng multiples của 8px (16, 24, 32, 40...)
-- ✅ Radius: `var(--radius)` (22px) hoặc `border-radius: 999px` cho pills
-- ✅ Shadow: `var(--shadow)` hoặc variations
-- ✅ Border: `border: 1px solid var(--line)`
+1. **Discover** — đọc token, `components/ui`, `components/motion`, Landing/Auth.
+2. **Audit** — ghi nhận hierarchy, primitive trùng, state thiếu, transition gãy,
+   responsive và accessibility.
+3. **Plan** — tách rõ thay đổi foundation, feature và motion.
+4. **Implement** — sửa primitive trước, feature sử dụng primitive sau.
+5. **Verify** — desktop/tablet/mobile, keyboard, reduced motion và các trạng thái
+   loading/error/empty.
+6. **Self-review** — so lại với ngôn ngữ MentalBridge và copy rules trong
+   `AGENTS.md`.
 
----
+## 7. Definition of Done
 
-## 🚫 KHÔNG ĐƯỢC
+- [ ] Thuộc cùng ngôn ngữ MentalBridge, không sinh palette/style riêng.
+- [ ] Đã tìm và tái sử dụng primitive hiện có.
+- [ ] Có hover, focus-visible, pressed, disabled và loading phù hợp.
+- [ ] Có empty/error state và đường phục hồi.
+- [ ] Keyboard và reduced motion hoạt động.
+- [ ] Đã kiểm tra mobile, tablet, desktop; không có horizontal overflow.
+- [ ] Không layout shift đáng kể khi đổi state.
+- [ ] Không lộ service name, policy/version/ID ngoài `Thông tin kỹ thuật`.
+- [ ] Build, typecheck và targeted tests chạy qua; visual review được ghi nhận.
 
-- ❌ Tạo màu mới ngoài palette
-- ❌ Dùng font khác (Google Fonts khác, system fonts...)
-- ❌ Tạo easing curve mới (dùng `cubic-bezier(.16,1,.3,1)`)
-- ❌ Tạo radius mới (dùng `var(--radius)` hoặc 999px)
-- ❌ Viết CSS trùng lặp (dùng lại class đã có)
-- ❌ Thay đổi timing animations hiện có
-
----
-
-**Principle**: "Cảm giác cùng một sản phẩm" - mọi màn hình mới phải như một phần tự nhiên của landing page.
+Khi cần catalog trực quan, ưu tiên route nội bộ `/dev/ui` trước khi thêm Storybook
+và dependency mới. Chỉ mở rộng foundation sau khi một feature thật chứng minh
+nhu cầu.

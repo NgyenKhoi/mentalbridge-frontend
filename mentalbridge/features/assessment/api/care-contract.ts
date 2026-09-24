@@ -32,6 +32,8 @@ export type AssessmentProgressPoint = Schemas['AssessmentProgressPoint']
 export type ScoreDirection = Schemas['ScoreDirection']
 export type SupportEvaluationRequest = Schemas['SupportEvaluationRequest']
 export type SupportEvaluation = Schemas['SupportEvaluation']
+export type SupportEvaluationHistoryPage =
+  Schemas['SupportEvaluationHistoryPage']
 export type SupportEvidence = Schemas['SupportEvidence']
 export type ScreeningMeaning = Schemas['ScreeningMeaning']
 export type SupportNextStep = Schemas['SupportNextStep']

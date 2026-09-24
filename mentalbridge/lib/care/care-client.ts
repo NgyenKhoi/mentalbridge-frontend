@@ -19,6 +19,7 @@ import type {
   AssessmentProgress,
   Instrument,
   SupportEvaluation,
+  SupportEvaluationHistoryPage,
   SupportEvaluationRequest,
   SafetyDirectoryResponse,
 } from '@/features/assessment/api/care-contract'
@@ -59,6 +60,7 @@ import {
   parseAssessmentHistory,
   parseAssessmentProgress,
   parseSupportEvaluation,
+  parseSupportEvaluationHistory,
   parseSafetyDirectory,
 } from './care-validation'
 import {
@@ -454,6 +456,23 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: (value) => parseSupportEvaluation(value, expected),
+    })
+  },
+
+  supportEvaluationHistory(
+    accessToken: string,
+    cursor: string | undefined,
+    limit: number,
+    correlationId: string,
+  ): Promise<SupportEvaluationHistoryPage> {
+    const query = new URLSearchParams({ limit: String(limit) })
+    if (cursor) query.set('cursor', cursor)
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-evaluations?${query}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportEvaluationHistory,
     })
   },
 

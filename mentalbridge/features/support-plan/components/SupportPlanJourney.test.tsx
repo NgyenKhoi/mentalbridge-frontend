@@ -110,6 +110,29 @@ describe('SupportPlanJourney', () => {
     )
   })
 
+  it('explains that ordinary screening history does not replace the guided pair', async () => {
+    api.getCurrentSupportPlanDraft.mockRejectedValue(
+      problem('SUPPORT_PLAN_DRAFT_NOT_FOUND', 404),
+    )
+    api.proposeSupportPlanDraft.mockRejectedValue(
+      problem('INITIAL_CHECK_INCOMPLETE', 409),
+    )
+
+    render(<SupportPlanJourney />)
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Tạo kế hoạch hỗ trợ',
+      }),
+    )
+
+    expect(
+      await screen.findByText(/Lịch sử sàng lọc của bạn vẫn được giữ nguyên/),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Làm lại kiểm tra ban đầu' }),
+    ).toHaveAttribute('href', '/initial-check')
+  })
+
   it('saves an admitted alternative with the draft version', async () => {
     const draft = supportPlanFixture()
     api.getCurrentSupportPlanDraft.mockResolvedValue(draft)

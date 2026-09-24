@@ -34,6 +34,9 @@ describe('Assessment history page', () => {
           hasMore: false,
         }),
       ),
+      http.get('http://localhost/api/care/support-evaluations/history', () =>
+        HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
+      ),
       http.get(
         `http://localhost/api/care/assessments/by-id/${assessmentId}/progress`,
         () =>

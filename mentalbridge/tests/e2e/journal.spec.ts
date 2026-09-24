@@ -188,12 +188,12 @@ test.describe('Private Journal CRUD through same-origin BFF', () => {
       await dialogTitle.evaluate(
         (element) => window.getComputedStyle(element).fontFamily,
       ),
-    ).toContain('Lora')
+    ).toContain('Fraunces')
     expect(
       await reflectionTitle.evaluate(
         (element) => window.getComputedStyle(element).fontFamily,
       ),
-    ).toContain('Lora')
+    ).toContain('Fraunces')
     await expect(
       page.getByText(/AI có thể tóm tắt nội dung, nhận diện cảm xúc/i),
     ).toBeVisible()

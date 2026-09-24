@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 
+import { Disclosure } from '@/components/ui/Disclosure'
 import { ApiError } from '@/lib/api/api-error'
 import {
   deleteSupportPlanOccurrenceEngagement,
@@ -387,8 +388,7 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
           {occurrence.reflection && (
             <p className="support-plan-reflection">“{occurrence.reflection}”</p>
           )}
-          <details>
-            <summary>Thông tin kỹ thuật</summary>
+          <Disclosure summary="Thông tin kỹ thuật">
             <p>
               {sourceLabels[occurrence.source.type]} · lịch{' '}
               {occurrence.scheduleVersion} · SupportPlan{' '}
@@ -403,7 +403,7 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
             {occurrence.engagementUpdatedAt && (
               <p>Tự ghi nhận được lưu theo phiên bản {occurrence.version}.</p>
             )}
-          </details>
+          </Disclosure>
           {mutable && (
             <div className="support-plan-occurrence-actions">
               {occurrence.state === 'SCHEDULED' ? (
@@ -546,10 +546,12 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
             )}
           </div>
           {hidden.length > 0 && (
-            <details className="support-plan-hidden-items">
-              <summary>Đã ẩn ({hidden.length})</summary>
+            <Disclosure
+              className="support-plan-hidden-items"
+              summary={`Đã ẩn (${hidden.length})`}
+            >
               <ol>{hidden.map(renderItem)}</ol>
-            </details>
+            </Disclosure>
           )}
         </div>
       )}

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import {
   activateSupportPlan,
@@ -25,6 +26,45 @@ import './support-plan.css'
 type EmptyReason = 'NONE' | 'FREE' | 'STALE' | 'DEPENDENCY'
 type Busy = 'SAVING' | 'ACTIVATING' | 'LIFECYCLE' | null
 
+function EmptyStateIcon({ reason }: Readonly<{ reason: EmptyReason }>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {reason === 'FREE' ? (
+        <>
+          <rect x="5" y="10" width="14" height="10" rx="3" />
+          <path d="M8 10V8a4 4 0 0 1 8 0v2" />
+        </>
+      ) : reason === 'STALE' ? (
+        <>
+          <path d="M20 7v5h-5" />
+          <path d="M4 17v-5h5" />
+          <path d="M6.1 8.1A7 7 0 0 1 18.5 7L20 9" />
+          <path d="M17.9 15.9A7 7 0 0 1 5.5 17L4 15" />
+        </>
+      ) : reason === 'DEPENDENCY' ? (
+        <>
+          <path d="M5 5 19 19" />
+          <path d="M7.2 7.3A5 5 0 0 0 6 17h9" />
+          <path d="M10.2 4.3A7 7 0 0 1 19 11a4 4 0 0 1-.7 7.7" />
+        </>
+      ) : (
+        <>
+          <path d="M12 5v14M5 12h14" />
+          <circle cx="12" cy="12" r="9" />
+        </>
+      )}
+    </svg>
+  )
+}
+
 function stateFor(error: unknown): { reason: EmptyReason; message: string } {
   if (error instanceof ApiError) {
     if (error.status === 404) return { reason: 'NONE', message: '' }
@@ -42,7 +82,7 @@ function stateFor(error: unknown): { reason: EmptyReason; message: string } {
       return {
         reason: 'STALE',
         message:
-          'Kết quả kiểm tra ban đầu cần được cập nhật trước khi tạo kế hoạch. Hãy hoàn thành lại PHQ-9 và GAD-7.',
+          'Lịch sử sàng lọc của bạn vẫn được giữ nguyên. Kế hoạch hỗ trợ cần một cặp PHQ-9 và GAD-7 hoàn tất trong cùng lượt Kiểm tra ban đầu.',
       }
     }
     if (
@@ -283,9 +323,12 @@ export default function SupportPlanJourney() {
       </header>
 
       {loading && (
-        <div className="support-plan-state" role="status">
-          <span className="support-plan-loader" aria-hidden="true" />
-          <p>Đang tải kế hoạch hỗ trợ hiện tại…</p>
+        <div className="support-plan-state support-plan-loading" role="status">
+          <span className="sr-only">Đang tải kế hoạch hỗ trợ hiện tại…</span>
+          <Skeleton width="28%" height={14} />
+          <Skeleton width="70%" height={42} />
+          <Skeleton width="92%" height={18} />
+          <Skeleton width="100%" height={154} />
         </div>
       )}
 
@@ -307,13 +350,13 @@ export default function SupportPlanJourney() {
           aria-live="polite"
         >
           <div className="support-plan-state-mark" aria-hidden="true">
-            {reason === 'FREE' ? 'F' : reason === 'STALE' ? '↻' : '＋'}
+            <EmptyStateIcon reason={reason} />
           </div>
           <h2>
             {reason === 'FREE'
               ? 'Kế hoạch hỗ trợ chưa thuộc gói hiện tại'
               : reason === 'STALE'
-                ? 'Cần một Kiểm tra ban đầu mới'
+                ? 'Cần hoàn tất Kiểm tra ban đầu'
                 : reason === 'DEPENDENCY'
                   ? 'Chưa thể tạo kế hoạch'
                   : 'Chưa có kế hoạch hỗ trợ'}

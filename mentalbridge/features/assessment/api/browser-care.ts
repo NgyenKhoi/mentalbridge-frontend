@@ -15,6 +15,7 @@ import type {
   AssessmentProgress,
   Instrument,
   SupportEvaluation,
+  SupportEvaluationHistoryPage,
 } from './care-contract'
 import type { InitialCheckState } from '@/features/initial-check/api/initial-check-contract'
 
@@ -78,6 +79,17 @@ export async function getAssessmentHistory(cursor?: string) {
   return (
     await browserApiClient.get<AssessmentHistoryPage>(
       '/care/assessments/history',
+      {
+        params: { limit: 10, ...(cursor ? { cursor } : {}) },
+      },
+    )
+  ).data
+}
+
+export async function getSupportEvaluationHistory(cursor?: string) {
+  return (
+    await browserApiClient.get<SupportEvaluationHistoryPage>(
+      '/care/support-evaluations/history',
       {
         params: { limit: 10, ...(cursor ? { cursor } : {}) },
       },

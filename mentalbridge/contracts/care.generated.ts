@@ -261,7 +261,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List immutable support evaluations owned by the authenticated caller
+         * @description Results are ordered by evaluatedAt descending and supportEvaluationId
+         *     descending. Each item contains the original evidence meanings, support
+         *     direction, current reviewed meaning copy for the stored policy, safety
+         *     guidance, and next step needed to reopen the result.
+         *     Raw assessment answers and other users' data are never returned.
+         */
+        get: operations["listOwnScreeningSupportEvaluations"];
         put?: never;
         /**
          * Resolve deterministic support from explicitly selected PHQ-9 and GAD-7 results
@@ -1027,6 +1035,11 @@ export interface components {
             /** @constant */
             disclaimer: "Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
         };
+        SupportEvaluationHistoryPage: {
+            items: components["schemas"]["SupportEvaluation"][];
+            nextCursor?: string | null;
+            hasMore: boolean;
+        };
         SupportEvidence: {
             /** Format: uuid */
             assessmentId: string;
@@ -1648,6 +1661,8 @@ export interface components {
         RequiredIfMatch: string;
         /** @description Opaque cursor returned as nextCursor by the preceding page */
         AssessmentCursor: string;
+        /** @description Opaque cursor returned as nextCursor by the preceding support-evaluation page */
+        SupportEvaluationCursor: string;
         PageLimit: number;
     };
     requestBodies: never;
@@ -2055,6 +2070,36 @@ export interface operations {
             409: components["responses"]["InsufficientComparableDataProblem"];
         };
     };
+    listOwnScreeningSupportEvaluations: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned as nextCursor by the preceding support-evaluation page */
+                cursor?: components["parameters"]["SupportEvaluationCursor"];
+                limit?: components["parameters"]["PageLimit"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned support evaluations returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportEvaluationHistoryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     evaluateOwnScreeningSupport: {
         parameters: {
             query?: never;
@@ -2110,7 +2155,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Immutable support evaluation returned with its original policy content */
+            /** @description Immutable support evaluation returned with reviewed content for its stored policy */
             200: {
                 headers: {
                     [name: string]: unknown;
