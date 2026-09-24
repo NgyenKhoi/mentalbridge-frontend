@@ -19,6 +19,12 @@ export type ReplaceSupportPlanOccurrenceEngagementRequest =
   care['schemas']['ReplaceSupportPlanOccurrenceEngagementRequest']
 export type ChangeSupportPlanStatusRequest =
   care['schemas']['ChangeSupportPlanStatusRequest']
+export type ReplaceCurrentSupportPlanRequest =
+  care['schemas']['ReplaceCurrentSupportPlanRequest']
+export type SupportPlanReplacementReview =
+  care['schemas']['SupportPlanReplacementReview']
+export type SupportPlanReplacementComparisonItem =
+  care['schemas']['SupportPlanReplacementComparisonItem']
 export type SupportEvaluationV2 = evaluation['schemas']['SupportEvaluationV2']
 export type SupportEvaluationV2Request =
   evaluation['schemas']['SupportEvaluationV2Request']

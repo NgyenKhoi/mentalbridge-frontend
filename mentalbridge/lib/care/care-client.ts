@@ -48,6 +48,8 @@ import type {
   ChangeSupportPlanOccurrenceStateRequest,
   ReplaceSupportPlanOccurrenceEngagementRequest,
   ChangeSupportPlanStatusRequest,
+  ReplaceCurrentSupportPlanRequest,
+  SupportPlanReplacementReview,
 } from '@/features/support-plan/api/support-plan-contract'
 import {
   parseSupportGuide,
@@ -79,6 +81,7 @@ import {
   parseSupportPlanHistoryPage,
   parseSupportPlanOccurrence,
   parseSupportPlanOccurrenceList,
+  parseSupportPlanReplacementReview,
 } from './support-plan-validation'
 
 type RequestOptions<T> = Readonly<{
@@ -581,6 +584,19 @@ export const careClient = {
     })
   },
 
+  currentReassessmentSummary(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<ReassessmentSummary> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/reassessment-summaries/current',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseReassessmentSummary,
+    })
+  },
+
   generateSupportGuide(
     accessToken: string,
     request: GenerateSupportGuideRequest,
@@ -752,6 +768,44 @@ export const careClient = {
       authorization: accessToken,
       ifMatch: version,
       idempotencyKey,
+      parseSuccess: parseSupportPlan,
+    })
+  },
+
+  reviewSupportPlanReplacement(
+    accessToken: string,
+    supportPlanId: string,
+    version: number,
+    request: ReplaceCurrentSupportPlanRequest,
+    correlationId: string,
+  ): Promise<SupportPlanReplacementReview> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}/replacement-review`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      body: request,
+      parseSuccess: parseSupportPlanReplacementReview,
+    })
+  },
+
+  replaceSupportPlan(
+    accessToken: string,
+    supportPlanId: string,
+    version: number,
+    request: ReplaceCurrentSupportPlanRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}/replace`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      idempotencyKey,
+      body: request,
       parseSuccess: parseSupportPlan,
     })
   },

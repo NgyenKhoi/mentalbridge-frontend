@@ -5,8 +5,10 @@ import type {
   SupportPlanHistoryPage,
   SupportPlanOccurrence,
   SupportPlanOccurrenceList,
+  SupportPlanReplacementReview,
 } from '@/features/support-plan/api/support-plan-contract'
 import { isUuid } from './care-validation'
+import { parseReassessmentSummary } from './care-validation'
 
 function object(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -195,6 +197,48 @@ export function parseSupportPlanHistoryPage(
   )
     return null
   return { ...value, items } as SupportPlanHistoryPage
+}
+
+export function parseSupportPlanReplacementReview(
+  value: unknown,
+): SupportPlanReplacementReview | null {
+  if (!object(value)) return null
+  const currentPlan = parseSupportPlan(value.currentPlan)
+  const proposedPlan = parseSupportPlan(value.proposedPlan)
+  const reassessmentSummary = parseReassessmentSummary(
+    value.reassessmentSummary,
+  )
+  if (
+    !currentPlan ||
+    !proposedPlan ||
+    !reassessmentSummary ||
+    reassessmentSummary.summaryVersion !== 'reassessment-summary-v2' ||
+    ![
+      'CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE',
+      'CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE',
+      'CURRENT_PLAN_NOT_ADMISSIBLE',
+    ].includes(String(value.outcome)) ||
+    !Array.isArray(value.rationaleCodes) ||
+    value.rationaleCodes.length !== 2 ||
+    !value.rationaleCodes.every((code) => text(code, 64)) ||
+    !Array.isArray(value.comparison) ||
+    value.comparison.length < 1 ||
+    value.comparison.length > 10 ||
+    !value.comparison.every(
+      (item) =>
+        object(item) &&
+        ['UNCHANGED', 'CHANGED', 'ADDED', 'REMOVED'].includes(
+          String(item.change),
+        ) &&
+        (item.currentSlotId === null || text(item.currentSlotId, 64)) &&
+        (item.proposedSlotId === null || text(item.proposedSlotId, 64)) &&
+        (item.currentResource === null || resource(item.currentResource)) &&
+        (item.proposedResource === null || resource(item.proposedResource)),
+    ) ||
+    !instant(value.reviewedAt)
+  )
+    return null
+  return value as SupportPlanReplacementReview
 }
 
 export function parseSupportPlanDraft(value: unknown): SupportPlanDraft | null {

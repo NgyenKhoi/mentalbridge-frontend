@@ -12,6 +12,7 @@ how the executable Next.js application is organized and delivered.
 4. [API, query, contract, and test baseline](api-query-and-testing.md)
 5. [Runtime and environment](runtime-and-environment.md)
 6. [Review and testing](review-and-testing.md)
+7. [MB-375 SupportPlan replacement evidence](mb-375-support-plan-replacement-evidence.md)
 
 ## UI and motion routing
 
