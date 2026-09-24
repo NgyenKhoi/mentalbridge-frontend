@@ -200,6 +200,14 @@ export async function composeReassessmentSummary(
   ).data
 }
 
+export async function getCurrentReassessmentSummary() {
+  return (
+    await browserApiClient.get<ReassessmentSummary>(
+      '/care/reassessment-summaries/current',
+    )
+  ).data
+}
+
 export async function startAnonymousAssessmentSession() {
   const response = await browserApiClient.post<{ expiresAt: string }>(
     '/care/anonymous-session',

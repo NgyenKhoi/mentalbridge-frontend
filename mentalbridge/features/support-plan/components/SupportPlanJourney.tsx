@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
+import { getCurrentReassessmentSummary } from '@/features/assessment/api/browser-care'
 import {
   activateSupportPlan,
   changeSupportPlanStatus,
@@ -12,14 +13,18 @@ import {
   getCurrentSupportPlanDraft,
   getSupportPlanHistory,
   proposeSupportPlanDraft,
+  replaceSupportPlan,
   replaceSupportPlanChoices,
+  reviewSupportPlanReplacement,
 } from '../api/browser-support-plan'
 import type {
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
+  SupportPlanReplacementReview,
 } from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
 import SupportPlanHistory from './SupportPlanHistory'
+import SupportPlanReplacementReviewView from './SupportPlanReplacementReview'
 
 import './support-plan.css'
 
@@ -115,6 +120,9 @@ function mutationMessage(error: unknown) {
     if (error.code === 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED') {
       return 'Gói hiện tại không còn đủ điều kiện. Kế hoạch chưa được bắt đầu.'
     }
+    if (error.code === 'REASSESSMENT_SUMMARY_STALE') {
+      return 'Bản đánh giá lại đã cũ. Hãy hoàn tất đánh giá lại trước khi tiếp tục.'
+    }
     if (
       error.code === 'RESOURCE_VERSION_STALE' ||
       error.code === 'SUPPORT_EVALUATION_STALE'
@@ -134,23 +142,33 @@ function mutationMessage(error: unknown) {
     if (error.code === 'RESOURCE_ELIGIBILITY_UNAVAILABLE') {
       return 'Chưa thể kiểm tra lại tài nguyên. Không có thay đổi nào được áp dụng.'
     }
+    if (error.code === 'SUPPORT_PLAN_REPLACEMENT_UNCHANGED') {
+      return 'Phương án mới không thay đổi lựa chọn tài nguyên hiện tại. Kế hoạch hiện tại được giữ nguyên.'
+    }
+    if (error.status === 404) {
+      return 'Chưa có bản tổng hợp đánh giá lại hiện hành. Hãy hoàn tất đánh giá lại trước khi xem phương án mới.'
+    }
   }
   return 'Chưa thể hoàn tất thao tác. Không có thay đổi nào được áp dụng.'
 }
 
-async function readAuthoritativePlan(): Promise<SupportPlan> {
+async function optionalPlan(request: Promise<SupportPlan>) {
   try {
-    return await getCurrentSupportPlan()
+    return await request
   } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      return await getCurrentSupportPlanDraft()
-    }
+    if (error instanceof ApiError && error.status === 404) return undefined
     throw error
   }
 }
 
 export default function SupportPlanJourney() {
   const [plan, setPlan] = useState<SupportPlan>()
+  const [currentPlan, setCurrentPlan] = useState<SupportPlan>()
+  const [replacementDraft, setReplacementDraft] = useState<SupportPlan>()
+  const [replacementReview, setReplacementReview] =
+    useState<SupportPlanReplacementReview>()
+  const [replacementLoading, setReplacementLoading] = useState(false)
+  const [replacementMessage, setReplacementMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [busy, setBusy] = useState<Busy>(null)
@@ -166,22 +184,69 @@ export default function SupportPlanJourney() {
   const [historyMessage, setHistoryMessage] = useState('')
   const creationKey = useRef<string | undefined>(undefined)
   const activationKey = useRef<string | undefined>(undefined)
+  const replacementKey = useRef<string | undefined>(undefined)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setMessage('')
-    try {
-      setPlan(await readAuthoritativePlan())
-      setReason('NONE')
-    } catch (error) {
-      const state = stateFor(error)
-      setPlan(undefined)
-      setReason(state.reason)
-      setMessage(state.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const loadReplacementReview = useCallback(
+    async (current: SupportPlan, draft: SupportPlan) => {
+      setReplacementLoading(true)
+      setReplacementMessage('')
+      try {
+        const summary = await getCurrentReassessmentSummary()
+        const review = await reviewSupportPlanReplacement(
+          draft.supportPlanId,
+          draft.version,
+          {
+            currentSupportPlanId: current.supportPlanId,
+            currentVersion: current.version,
+            reassessmentSummaryId: summary.summaryId,
+          },
+        )
+        setReplacementReview(review)
+      } catch (error) {
+        setReplacementReview(undefined)
+        setReplacementMessage(mutationMessage(error))
+      } finally {
+        setReplacementLoading(false)
+      }
+    },
+    [],
+  )
+
+  const load = useCallback(
+    async (options?: {
+      preserveOnError?: boolean
+      messageAfterLoad?: string
+    }) => {
+      setLoading(true)
+      if (!options?.messageAfterLoad) setMessage('')
+      try {
+        const [current, draft] = await Promise.all([
+          optionalPlan(getCurrentSupportPlan()),
+          optionalPlan(getCurrentSupportPlanDraft()),
+        ])
+        setCurrentPlan(current)
+        setReplacementDraft(current ? draft : undefined)
+        setPlan(current ?? draft)
+        setReason('NONE')
+        if (current && draft) await loadReplacementReview(current, draft)
+        else setReplacementReview(undefined)
+        if (options?.messageAfterLoad) setMessage(options.messageAfterLoad)
+      } catch (error) {
+        const state = stateFor(error)
+        if (!options?.preserveOnError) {
+          setPlan(undefined)
+          setCurrentPlan(undefined)
+          setReplacementDraft(undefined)
+          setReplacementReview(undefined)
+        }
+        setReason(state.reason)
+        setMessage(options?.messageAfterLoad ?? state.message)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [loadReplacementReview],
+  )
 
   const loadHistory = useCallback(async (cursor?: string) => {
     const append = Boolean(cursor)
@@ -218,7 +283,14 @@ export default function SupportPlanJourney() {
     setMessage('')
     creationKey.current ??= crypto.randomUUID()
     try {
-      setPlan(await proposeSupportPlanDraft(creationKey.current))
+      if (currentPlan) await getCurrentReassessmentSummary()
+      const draft = await proposeSupportPlanDraft(creationKey.current)
+      if (currentPlan) {
+        setReplacementDraft(draft)
+        await loadReplacementReview(currentPlan, draft)
+      } else {
+        setPlan(draft)
+      }
       setReason('NONE')
       creationKey.current = undefined
     } catch (error) {
@@ -230,36 +302,34 @@ export default function SupportPlanJourney() {
     }
   }
 
-  const recover = async () => {
-    try {
-      setPlan(await readAuthoritativePlan())
-      setRecoveryVersion((current) => current + 1)
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 404) {
-        setPlan(undefined)
-        setReason('NONE')
-      }
-      // On dependency failure, keep the last complete plan visible.
-    }
+  const recover = async (messageAfterLoad?: string) => {
+    await load({ preserveOnError: true, messageAfterLoad })
+    setRecoveryVersion((current) => current + 1)
     await loadHistory()
   }
 
   const saveChoices = async (request: ReplaceSupportPlanChoicesRequest) => {
-    if (!plan || plan.status !== 'DRAFT') return
+    const draft = currentPlan ? replacementDraft : plan
+    if (!draft || draft.status !== 'DRAFT') return
     setBusy('SAVING')
     setCommandMessage('')
     try {
-      setPlan(
-        await replaceSupportPlanChoices(
-          plan.supportPlanId,
-          plan.version,
-          request,
-        ),
+      const saved = await replaceSupportPlanChoices(
+        draft.supportPlanId,
+        draft.version,
+        request,
       )
+      if (currentPlan) {
+        setReplacementDraft(saved)
+        await loadReplacementReview(currentPlan, saved)
+      } else {
+        setPlan(saved)
+      }
       setCommandMessage('Đã lưu lựa chọn của bạn.')
     } catch (error) {
-      setCommandMessage(mutationMessage(error))
-      await recover()
+      const errorMessage = mutationMessage(error)
+      setCommandMessage(errorMessage)
+      await recover(errorMessage)
     } finally {
       setBusy(null)
     }
@@ -279,8 +349,9 @@ export default function SupportPlanJourney() {
       setPlan(await getCurrentSupportPlan())
       activationKey.current = undefined
     } catch (error) {
-      setCommandMessage(mutationMessage(error))
-      await recover()
+      const errorMessage = mutationMessage(error)
+      setCommandMessage(errorMessage)
+      await recover(errorMessage)
     } finally {
       setBusy(null)
     }
@@ -305,9 +376,68 @@ export default function SupportPlanJourney() {
       const errorMessage = mutationMessage(error)
       setCommandMessage(errorMessage)
       setMessage(errorMessage)
-      await recover()
+      await recover(errorMessage)
     } finally {
       setBusy(null)
+    }
+  }
+
+  const changeReplacementDraftStatus = async (
+    status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED',
+    completionReason?: 'USER_DECISION' | 'PLAN_NO_LONGER_FITS' | 'OTHER',
+  ) => {
+    if (!replacementDraft || status !== 'DISCARDED') return
+    setBusy('LIFECYCLE')
+    try {
+      await changeSupportPlanStatus(
+        replacementDraft.supportPlanId,
+        replacementDraft.version,
+        status,
+        completionReason,
+      )
+      setReplacementDraft(undefined)
+      setReplacementReview(undefined)
+      await loadHistory()
+    } catch (error) {
+      setCommandMessage(mutationMessage(error))
+      await load()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const confirmReplacement = async () => {
+    if (!currentPlan || !replacementDraft || !replacementReview) return
+    setReplacementLoading(true)
+    setReplacementMessage('')
+    replacementKey.current ??= crypto.randomUUID()
+    try {
+      const activated = await replaceSupportPlan(
+        replacementDraft.supportPlanId,
+        replacementDraft.version,
+        {
+          currentSupportPlanId: currentPlan.supportPlanId,
+          currentVersion: currentPlan.version,
+          reassessmentSummaryId:
+            replacementReview.reassessmentSummary.summaryId,
+        },
+        replacementKey.current,
+      )
+      replacementKey.current = undefined
+      setPlan(activated)
+      setCurrentPlan(activated)
+      setReplacementDraft(undefined)
+      setReplacementReview(undefined)
+      setReplacementMessage(
+        'Đã thay thế kế hoạch. Kế hoạch trước được lưu trong lịch sử.',
+      )
+      await loadHistory()
+    } catch (error) {
+      const errorMessage = mutationMessage(error)
+      await recover()
+      setReplacementMessage(errorMessage)
+    } finally {
+      setReplacementLoading(false)
     }
   }
 
@@ -333,15 +463,78 @@ export default function SupportPlanJourney() {
       )}
 
       {!loading && plan && (
-        <SupportPlanCard
-          key={`${plan.supportPlanId}:${plan.version}:${recoveryVersion}`}
-          plan={plan}
-          busy={busy}
-          message={commandMessage}
-          onSaveChoices={saveChoices}
-          onActivate={activate}
-          onStatusChange={changeStatus}
-        />
+        <>
+          <SupportPlanCard
+            key={`${plan.supportPlanId}:${plan.version}:${recoveryVersion}`}
+            plan={plan}
+            busy={busy}
+            message={commandMessage}
+            onSaveChoices={saveChoices}
+            onActivate={activate}
+            onStatusChange={changeStatus}
+          />
+          {currentPlan && !replacementDraft && (
+            <section className="support-plan-reassessment-callout">
+              <div>
+                <span>Sau đánh giá lại</span>
+                <h2>Xem một phương án kế hoạch mới</h2>
+                <p>
+                  Kế hoạch hiện tại vẫn hoạt động trong khi hệ thống kiểm tra và
+                  so sánh phương án mới.
+                </p>
+              </div>
+              <button
+                className="btn btn-outline"
+                type="button"
+                disabled={creating}
+                onClick={() => void create()}
+              >
+                {creating ? 'Đang tạo phương án…' : 'Tạo phương án để xem lại'}
+              </button>
+              {message && <p role="status">{message}</p>}
+            </section>
+          )}
+          {currentPlan && replacementDraft && (
+            <>
+              <SupportPlanCard
+                key={`${replacementDraft.supportPlanId}:${replacementDraft.version}:${recoveryVersion}`}
+                plan={replacementDraft}
+                busy={busy}
+                message={commandMessage}
+                onSaveChoices={saveChoices}
+                onActivate={activate}
+                onStatusChange={changeReplacementDraftStatus}
+                draftAction="REPLACEMENT"
+              />
+              {replacementLoading && !replacementReview && (
+                <div className="support-plan-state" role="status">
+                  Đang kiểm tra lại hai kế hoạch…
+                </div>
+              )}
+              {replacementReview && (
+                <SupportPlanReplacementReviewView
+                  review={replacementReview}
+                  busy={replacementLoading}
+                  message={replacementMessage}
+                  onConfirm={() => void confirmReplacement()}
+                />
+              )}
+              {!replacementLoading &&
+                !replacementReview &&
+                replacementMessage && (
+                  <section
+                    className="support-plan-replacement-error"
+                    role="alert"
+                  >
+                    <p>{replacementMessage}</p>
+                    <Link className="btn btn-outline" href="/assessments">
+                      Hoàn tất đánh giá lại
+                    </Link>
+                  </section>
+                )}
+            </>
+          )}
+        </>
       )}
 
       {!loading && !plan && (

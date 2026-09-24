@@ -15,10 +15,46 @@ const api = vi.hoisted(() => ({
   getSupportPlanHistory: vi.fn(),
   getSupportPlanOccurrences: vi.fn(),
   proposeSupportPlanDraft: vi.fn(),
+  replaceSupportPlan: vi.fn(),
   replaceSupportPlanChoices: vi.fn(),
+  reviewSupportPlanReplacement: vi.fn(),
+}))
+
+const assessmentApi = vi.hoisted(() => ({
+  getCurrentReassessmentSummary: vi.fn(),
 }))
 
 vi.mock('../api/browser-support-plan', () => api)
+vi.mock('@/features/assessment/api/browser-care', () => assessmentApi)
+
+const reassessmentSummary = {
+  summaryId: '40000000-0000-4000-8000-000000000001',
+  summaryVersion: 'reassessment-summary-v2',
+  composedAt: '2026-09-24T00:01:02Z',
+  previousPeriod: {
+    startAt: '2026-08-27T00:00:00Z',
+    endAt: '2026-09-10T00:00:00Z',
+  },
+  currentPeriod: {
+    startAt: '2026-09-10T00:00:00Z',
+    endAt: '2026-09-24T00:00:00Z',
+  },
+  screening: { state: 'AVAILABLE', trends: [] },
+  journalContext: {
+    state: 'UNAVAILABLE',
+    unavailableReason: 'PROVIDER_TIMEOUT',
+    changesComparedWithPreviousPeriod: [],
+    provenance: null,
+  },
+  supportPlanEngagement: {
+    state: 'INSUFFICIENT_DATA',
+    previousPeriod: { completedCount: 0, skippedCount: 0 },
+    currentPeriod: { completedCount: 0, skippedCount: 0 },
+  },
+  selfReportedExperience: null,
+  activityReflection: { state: 'INSUFFICIENT_DATA', sources: [] },
+  disclaimerCode: 'FOUR_DIMENSIONS_NOT_COMBINED',
+}
 
 function problem(code: string, status: number) {
   return new ApiError({ message: code, code, status })
@@ -54,6 +90,9 @@ describe('SupportPlanJourney', () => {
       nextCursor: null,
       hasMore: false,
     })
+    assessmentApi.getCurrentReassessmentSummary.mockResolvedValue(
+      reassessmentSummary,
+    )
   })
 
   it('renders the authoritative current active plan before looking for a draft', async () => {
@@ -63,7 +102,7 @@ describe('SupportPlanJourney', () => {
 
     expect(await screen.findByText('Kế hoạch đang thực hiện')).toBeVisible()
     expect(api.getCurrentSupportPlan).toHaveBeenCalledTimes(1)
-    expect(api.getCurrentSupportPlanDraft).not.toHaveBeenCalled()
+    expect(api.getCurrentSupportPlanDraft).toHaveBeenCalledTimes(1)
   })
 
   it('falls back to the persisted draft without proposing again', async () => {
@@ -211,6 +250,112 @@ describe('SupportPlanJourney', () => {
 
     expect(await screen.findByText(/nội dung hỗ trợ đã thay đổi/)).toBeVisible()
     expect(screen.getByText('Reviewed primary resource')).toBeVisible()
+  })
+
+  it('keeps the current plan usable until replacement is explicitly confirmed', async () => {
+    const current = activePlan()
+    const draft = {
+      ...supportPlanFixture(),
+      supportPlanId: '10000000-0000-4000-8000-000000000399',
+    }
+    const activated = {
+      ...draft,
+      status: 'ACTIVE' as const,
+      version: 2,
+      activatedAt: '2026-09-24T01:00:00Z',
+    }
+    api.getCurrentSupportPlan.mockResolvedValue(current)
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.reviewSupportPlanReplacement.mockResolvedValue({
+      outcome: 'CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE',
+      rationaleCodes: ['CURRENT_PLAN_ADMISSIBLE', 'PROPOSED_SELECTION_DIFFERS'],
+      comparison: [
+        {
+          change: 'CHANGED',
+          currentSlotId: current.slots[0].slotId,
+          currentResource: current.slots[0].selectedResource,
+          proposedSlotId: draft.slots[0].slotId,
+          proposedResource: draft.slots[0].allowedAlternatives[0],
+        },
+      ],
+      currentPlan: current,
+      proposedPlan: draft,
+      reassessmentSummary,
+      reviewedAt: '2026-09-24T00:02:00Z',
+    })
+    api.replaceSupportPlan.mockResolvedValue(activated)
+
+    render(<SupportPlanJourney />)
+
+    expect(
+      await screen.findByText('Có phương án hỗ trợ khác để cân nhắc'),
+    ).toBeVisible()
+    expect(screen.getByText('Kế hoạch đang thực hiện')).toBeVisible()
+    expect(screen.getByText('Phương án thay thế')).toBeVisible()
+    expect(api.replaceSupportPlan).not.toHaveBeenCalled()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Xác nhận dùng phương án mới' }),
+    )
+
+    await waitFor(() => expect(api.replaceSupportPlan).toHaveBeenCalledOnce())
+    expect(api.replaceSupportPlan).toHaveBeenCalledWith(
+      draft.supportPlanId,
+      draft.version,
+      {
+        currentSupportPlanId: current.supportPlanId,
+        currentVersion: current.version,
+        reassessmentSummaryId: reassessmentSummary.summaryId,
+      },
+      expect.stringMatching(/^[0-9a-f-]{36}$/),
+    )
+  })
+
+  it('keeps a replacement conflict visible after reloading the authoritative review', async () => {
+    const current = activePlan()
+    const draft = {
+      ...supportPlanFixture(),
+      supportPlanId: '10000000-0000-4000-8000-000000000399',
+    }
+    api.getCurrentSupportPlan.mockResolvedValue(current)
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.reviewSupportPlanReplacement.mockResolvedValue({
+      outcome: 'CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE',
+      rationaleCodes: ['CURRENT_PLAN_ADMISSIBLE', 'PROPOSED_SELECTION_DIFFERS'],
+      comparison: [
+        {
+          change: 'CHANGED',
+          currentSlotId: current.slots[0].slotId,
+          currentResource: current.slots[0].selectedResource,
+          proposedSlotId: draft.slots[0].slotId,
+          proposedResource: draft.slots[0].allowedAlternatives[0],
+        },
+      ],
+      currentPlan: current,
+      proposedPlan: draft,
+      reassessmentSummary,
+      reviewedAt: '2026-09-24T00:02:00Z',
+    })
+    api.replaceSupportPlan.mockRejectedValue(
+      problem('SUPPORT_PLAN_VERSION_MISMATCH', 412),
+    )
+
+    render(<SupportPlanJourney />)
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: /phương án mới/,
+      }),
+    )
+
+    await waitFor(() =>
+      expect(api.reviewSupportPlanReplacement).toHaveBeenCalledTimes(2),
+    )
+    expect(screen.getByText(/Kế hoạch đang thực hiện/)).toBeVisible()
+    expect(screen.getByText(/phương án hỗ trợ khác/)).toBeVisible()
+    expect(
+      await screen.findByText(/Kế hoạch đã thay đổi ở nơi khác/),
+    ).toBeVisible()
   })
 
   it('confirms completion, forwards the optional reason, and reloads current state and history', async () => {
