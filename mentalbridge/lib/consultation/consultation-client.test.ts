@@ -118,7 +118,7 @@ describe('Consultation server-only client', () => {
       sourceReference: null,
       periodStart: null,
       periodEnd: null,
-      policyVersion: 'consultation-credit-v1',
+      policyVersion: 'consultation-credit-v2',
       balance: {
         available: 0,
         held: 0,
@@ -126,6 +126,11 @@ describe('Consultation server-only client', () => {
         forfeited: 0,
         total: 0,
         releasedTransitions: 0,
+      },
+      reservationCapacity: {
+        active: 0,
+        maximum: 0,
+        remaining: 0,
       },
       history: [],
       generatedAt: '2026-09-20T01:00:00Z',

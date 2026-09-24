@@ -75,6 +75,7 @@ export type AppointmentModality = 'IN_APP_CHAT' | 'IN_APP_VIDEO'
 export type AppointmentRequestInput = Readonly<{
   slotId: string
   modality: AppointmentModality
+  replacesAppointmentId?: string | null
 }>
 export type BookableSlot = Readonly<{
   id: string
@@ -104,6 +105,7 @@ export type Appointment = Readonly<{
   requestedAt: string
   decisionDeadlineAt: string
   heldCreditId: string
+  replacesAppointmentId: string | null
 }>
 export type AppointmentList = Readonly<{
   items: Appointment[]
@@ -113,6 +115,8 @@ export type AppointmentList = Readonly<{
 
 export type ServicePackage = 'FREE' | 'PLUS' | 'PREMIUM'
 export type CreditSource = 'DEFAULT_FREE' | 'DEMO' | 'PAID'
+export type ConsultationCreditPolicyVersion =
+  'consultation-credit-v1' | 'consultation-credit-v2'
 export type CreditEventType =
   'PROVISIONED' | 'HELD' | 'CONSUMED' | 'RELEASED' | 'FORFEITED'
 
@@ -123,7 +127,7 @@ export type ServiceCreditAccount = Readonly<{
   sourceReference: string | null
   periodStart: string | null
   periodEnd: string | null
-  policyVersion: 'consultation-credit-v1'
+  policyVersion: ConsultationCreditPolicyVersion
   balance: Readonly<{
     available: number
     held: number
@@ -132,6 +136,11 @@ export type ServiceCreditAccount = Readonly<{
     total: number
     releasedTransitions: number
   }>
+  reservationCapacity: Readonly<{
+    active: number
+    maximum: number
+    remaining: number
+  }>
   history: ReadonlyArray<
     Readonly<{
       eventId: string
@@ -139,6 +148,7 @@ export type ServiceCreditAccount = Readonly<{
       eventType: CreditEventType
       source: CreditSource
       packageCode: ServicePackage
+      policyVersion: ConsultationCreditPolicyVersion
       appointmentId: string | null
       occurredAt: string
     }>
@@ -293,6 +303,7 @@ export function parseServiceCreditAccount(
 ): ServiceCreditAccount | null {
   const account = record(value)
   const balance = record(account?.balance)
+  const reservationCapacity = record(account?.reservationCapacity)
   if (
     !account ||
     !uuid(account.accountId) ||
@@ -304,7 +315,9 @@ export function parseServiceCreditAccount(
     ) ||
     !instantOrNull(account.periodStart) ||
     !instantOrNull(account.periodEnd) ||
-    account.policyVersion !== 'consultation-credit-v1' ||
+    !['consultation-credit-v1', 'consultation-credit-v2'].includes(
+      String(account.policyVersion),
+    ) ||
     !balance ||
     ![
       'available',
@@ -316,12 +329,27 @@ export function parseServiceCreditAccount(
     ].every(
       (key) => Number.isInteger(balance[key]) && Number(balance[key]) >= 0,
     ) ||
-    Number(balance.total) > 3 ||
+    Number(balance.total) > 10 ||
     Number(balance.available) +
       Number(balance.held) +
       Number(balance.consumed) +
       Number(balance.forfeited) !==
       Number(balance.total) ||
+    !reservationCapacity ||
+    !['active', 'maximum', 'remaining'].every(
+      (key) =>
+        Number.isInteger(reservationCapacity[key]) &&
+        Number(reservationCapacity[key]) >= 0,
+    ) ||
+    Number(reservationCapacity.maximum) > 4 ||
+    Number(reservationCapacity.remaining) >
+      Number(reservationCapacity.maximum) ||
+    Number(reservationCapacity.remaining) !==
+      Math.max(
+        0,
+        Number(reservationCapacity.maximum) -
+          Number(reservationCapacity.active),
+      ) ||
     !Array.isArray(account.history) ||
     account.history.length > 100 ||
     !utcInstant(account.generatedAt)
@@ -338,6 +366,9 @@ export function parseServiceCreditAccount(
       ) ||
       !['DEMO', 'PAID'].includes(String(event.source)) ||
       !['PLUS', 'PREMIUM'].includes(String(event.packageCode)) ||
+      !['consultation-credit-v1', 'consultation-credit-v2'].includes(
+        String(event.policyVersion),
+      ) ||
       !(event.appointmentId === null || uuid(event.appointmentId)) ||
       !utcInstant(event.occurredAt)
     )
@@ -410,7 +441,8 @@ export function parseAppointment(value: unknown): Appointment | null {
     !ianaTimezone(item.timezone) ||
     !utcInstant(item.requestedAt) ||
     !utcInstant(item.decisionDeadlineAt) ||
-    !uuid(item.heldCreditId)
+    !uuid(item.heldCreditId) ||
+    !(item.replacesAppointmentId === null || uuid(item.replacesAppointmentId))
   )
     return null
   return item as Appointment
@@ -435,13 +467,31 @@ export function parseAppointmentRequestInput(
   value: unknown,
 ): AppointmentRequestInput {
   const input = record(value)
-  if (!input || Object.keys(input).length !== 2 || !uuid(input.slotId))
+  if (!input) throw new ConsultationInputError('body')
+  const keys = Object.keys(input)
+  if (
+    keys.length < 2 ||
+    keys.length > 3 ||
+    !keys.every((key) =>
+      ['slotId', 'modality', 'replacesAppointmentId'].includes(key),
+    ) ||
+    !uuid(input.slotId)
+  )
     throw new ConsultationInputError('slotId')
   if (!AVAILABILITY_MODALITIES.includes(input.modality as AppointmentModality))
     throw new ConsultationInputError('modality')
+  if (
+    input.replacesAppointmentId !== undefined &&
+    input.replacesAppointmentId !== null &&
+    !uuid(input.replacesAppointmentId)
+  )
+    throw new ConsultationInputError('replacesAppointmentId')
   return {
     slotId: input.slotId,
     modality: input.modality as AppointmentModality,
+    ...(input.replacesAppointmentId === undefined
+      ? {}
+      : { replacesAppointmentId: input.replacesAppointmentId }),
   }
 }
 

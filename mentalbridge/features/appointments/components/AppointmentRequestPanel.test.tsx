@@ -70,6 +70,7 @@ describe('AppointmentRequestPanel', () => {
           requestedAt: '2099-01-01T00:00:00Z',
           decisionDeadlineAt: decisionDeadline,
           heldCreditId: '123e4567-e89b-42d3-a456-426614174006',
+          replacesAppointmentId: null,
         },
       ],
       count: 1,
