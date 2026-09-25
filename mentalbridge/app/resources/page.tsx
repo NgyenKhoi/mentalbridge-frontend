@@ -4,7 +4,7 @@ import './resources.css'
 
 export default function ResourcesPage() {
   return (
-    <main className="resources-page">
+    <div className="resources-page">
       <section className="resources-hero">
         <div className="resources-hero-copy">
           <span className="resources-eyebrow">Thư viện tự chăm sóc</span>
@@ -17,6 +17,6 @@ export default function ResourcesPage() {
         </div>
       </section>
       <ResourcesList limit={20} />
-    </main>
+    </div>
   )
 }
