@@ -203,6 +203,15 @@ describe('ReassessmentJourney', () => {
     })
     render(<ReassessmentJourney />)
     expect(await screen.findByText(/Cần hoàn tất: GAD7/)).toBeInTheDocument()
+    const action = screen.getByRole('link', {
+      name: 'Bắt đầu lượt đánh giá lại',
+    })
+    expect(action).toHaveAttribute(
+      'href',
+      '/initial-check?purpose=reassessment',
+    )
+    expect(action).toHaveClass('reassessment-secondary-action')
+    expect(action).not.toHaveClass('assessment-row-action')
     expect(api.createLongitudinalAnalysis).not.toHaveBeenCalled()
   })
 

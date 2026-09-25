@@ -89,7 +89,13 @@ describe('SupportPlanSchedule', () => {
     fireEvent.change(screen.getByLabelText(/Ghi chú riêng/), {
       target: { value: '  Dễ bắt đầu hơn.  ' },
     })
-    fireEvent.click(screen.getByRole('checkbox'))
+    const summaryConsent = screen.getByRole('checkbox')
+    const summaryConsentVisual = summaryConsent.nextElementSibling
+    expect(summaryConsentVisual).toHaveAttribute('data-state', 'unchecked')
+    fireEvent.click(summaryConsent)
+    expect(summaryConsent).toBeChecked()
+    expect(summaryConsentVisual).toHaveAttribute('data-state', 'checked')
+    expect(summaryConsentVisual).toHaveTextContent('✓')
     fireEvent.click(screen.getByRole('button', { name: 'Lưu tự ghi nhận' }))
 
     await waitFor(() =>
