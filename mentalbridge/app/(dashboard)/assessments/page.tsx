@@ -103,6 +103,31 @@ export default function AssessmentsPage() {
           <p>Thực hiện bài sàng lọc và xem lại các kết quả bạn đã lưu.</p>
         </div>
       </header>
+      <section
+        className="assessment-guided-check"
+        aria-labelledby="guided-check-title"
+      >
+        <div>
+          <span>PHQ-9 + GAD-7</span>
+          <h2 id="guided-check-title">
+            Nhìn lại tâm trạng và lo âu trong cùng một lượt
+          </h2>
+          <p>
+            Hoàn thành PHQ-9 rồi GAD-7 trong một hành trình có hướng dẫn để xem
+            hai kết quả cạnh nhau và nhận gợi ý hỗ trợ phù hợp.
+          </p>
+          <small>
+            Mỗi bài vẫn có kết quả riêng, không gộp thành một điểm chung. Các
+            bài làm riêng bên dưới sẽ không tự ghép thành lượt này.
+          </small>
+        </div>
+        <Link
+          href="/initial-check"
+          className="assessment-start assessment-guided-check-action"
+        >
+          Bắt đầu PHQ-9 và GAD-7 <span aria-hidden="true">→</span>
+        </Link>
+      </section>
       <section aria-labelledby="available-assessments">
         <h2 id="available-assessments" className="sr-only">
           Bài sàng lọc khả dụng

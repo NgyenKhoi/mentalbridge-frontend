@@ -414,9 +414,8 @@
 }
 
 .support-plan-slot-content fieldset label {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  gap: 0.7rem;
+  position: relative;
+  display: block;
   min-height: 52px;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--line);
@@ -440,24 +439,16 @@
 }
 
 .support-plan-slot-content input[type='radio'] {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  margin: 0.15rem 0 0;
-  border: 1.5px solid color-mix(in srgb, var(--teal) 56%, var(--line));
-  border-radius: 50%;
-  background: var(--surface);
-  box-shadow: inset 0 0 0 5px var(--surface);
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard);
-}
-
-.support-plan-slot-content input[type='radio']:checked {
-  border-color: var(--teal-deep);
-  background: var(--teal-deep);
-  box-shadow: inset 0 0 0 4px var(--surface);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .support-plan-slot-content fieldset label:has(input:focus-visible) {
@@ -810,47 +801,88 @@
 }
 
 .support-plan-summary-consent {
+  position: relative;
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  align-items: start;
-  gap: 0.65rem;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--line));
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--teal-pale) 54%, var(--surface));
+  cursor: pointer;
   color: var(--ink-soft);
   line-height: 1.5;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
 }
 
 .support-plan-summary-consent input {
-  appearance: none;
-  display: grid;
-  width: 20px;
-  height: 20px;
-  margin: 0.15rem 0 0;
-  place-content: center;
-  border: 1.5px solid color-mix(in srgb, var(--teal) 56%, var(--line));
-  border-radius: 6px;
-  background: var(--surface);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
-.support-plan-summary-consent input::before {
-  width: 10px;
-  height: 6px;
-  border-bottom: 2px solid var(--primary-foreground);
-  border-left: 2px solid var(--primary-foreground);
-  content: '';
-  opacity: 0;
-  transform: translateY(-1px) rotate(-45deg) scale(0.7);
+.support-plan-summary-consent-control {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-content: center;
+  border: 1.5px solid color-mix(in srgb, var(--teal) 68%, var(--line));
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--primary-foreground);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
   transition:
-    opacity var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
     transform var(--motion-fast) var(--ease-standard);
 }
 
-.support-plan-summary-consent input:checked {
+.support-plan-summary-consent
+  input:checked
+  + .support-plan-summary-consent-control {
   border-color: var(--teal-deep);
   background: var(--teal-deep);
+  box-shadow: 0 6px 14px -10px var(--teal-deep);
+  transform: scale(1.04);
 }
 
-.support-plan-summary-consent input:checked::before {
-  opacity: 1;
-  transform: translateY(-1px) rotate(-45deg) scale(1);
+.support-plan-summary-consent
+  input:focus-visible
+  + .support-plan-summary-consent-control {
+  box-shadow: var(--focus-ring);
+}
+
+.support-plan-summary-consent:hover {
+  border-color: color-mix(in srgb, var(--teal) 48%, var(--line));
+  background: color-mix(in srgb, var(--teal-pale) 72%, var(--surface));
+}
+
+.support-plan-summary-consent:has(input:checked) {
+  border-color: color-mix(in srgb, var(--teal) 48%, var(--line));
+  background: color-mix(in srgb, var(--teal-pale) 78%, var(--surface));
+}
+
+.support-plan-summary-consent:has(input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+
+.support-plan-summary-consent-copy {
+  background: transparent;
 }
 
 .support-plan-hidden-items > summary {
@@ -1190,8 +1222,8 @@
   }
   .support-plan-slots > ol > li,
   .support-plan-occurrence,
-  .support-plan-slot-content input[type='radio'],
-  .support-plan-summary-consent input::before {
+  .support-plan-summary-consent-control,
+  .support-plan-summary-consent {
     transition: none;
   }
 }

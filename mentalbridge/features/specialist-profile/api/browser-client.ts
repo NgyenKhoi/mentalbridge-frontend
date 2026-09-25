@@ -1,7 +1,10 @@
 import type {
   PendingProfiles,
+  SpecialistApprovalStatus,
+  SpecialistDecisionReason,
   SpecialistProfile,
   SpecialistProfileInput,
+  SpecialistSuspensionResult,
 } from '@/lib/consultation/consultation-validation'
 
 export class BrowserConsultationError extends Error {
@@ -59,8 +62,16 @@ export const browserConsultation = {
       { method: 'POST', headers: { 'If-Match': etag } },
     )
   },
-  pending() {
-    return call<PendingProfiles>('/api/admin/specialist-profiles')
+  resubmit(etag: string) {
+    return call<SpecialistProfile>(
+      '/api/consultation/specialist-profile/resubmit',
+      { method: 'POST', headers: { 'If-Match': etag } },
+    )
+  },
+  profiles(status: SpecialistApprovalStatus) {
+    return call<PendingProfiles>(
+      `/api/admin/specialist-profiles?status=${status}`,
+    )
   },
   detail(id: string) {
     return call<SpecialistProfile>(
@@ -70,6 +81,32 @@ export const browserConsultation = {
   approve(id: string, etag: string) {
     return call<SpecialistProfile>(
       `/api/admin/specialist-profiles/${encodeURIComponent(id)}/approve`,
+      { method: 'POST', headers: { 'If-Match': etag } },
+    )
+  },
+  reject(id: string, etag: string, reasonCode: SpecialistDecisionReason) {
+    return call<SpecialistProfile>(
+      `/api/admin/specialist-profiles/${encodeURIComponent(id)}/reject`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+        body: JSON.stringify({ reasonCode }),
+      },
+    )
+  },
+  suspend(id: string, etag: string, reasonCode: SpecialistDecisionReason) {
+    return call<SpecialistSuspensionResult>(
+      `/api/admin/specialist-profiles/${encodeURIComponent(id)}/suspend`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+        body: JSON.stringify({ reasonCode }),
+      },
+    )
+  },
+  restore(id: string, etag: string) {
+    return call<SpecialistProfile>(
+      `/api/admin/specialist-profiles/${encodeURIComponent(id)}/restore`,
       { method: 'POST', headers: { 'If-Match': etag } },
     )
   },

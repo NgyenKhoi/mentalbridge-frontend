@@ -38,6 +38,24 @@ describe('SupportPlanCard', () => {
     expect(screen.getByText('Bạn là người quyết định')).toBeVisible()
     expect(screen.getByText(/mb-support-plan-selection-v1/)).toBeInTheDocument()
     expect(container.textContent).not.toMatch(/totalScore|raw answer|journal/i)
+    expect(
+      screen.getByText(/Kế hoạch này dựa trên kết quả PHQ-9 và GAD-7/),
+    ).toBeVisible()
+    expect(
+      screen.getByText(
+        /Kế hoạch hỗ trợ này giúp bạn tự chăm sóc sức khỏe tinh thần/,
+      ),
+    ).toBeVisible()
+    expect(
+      screen.queryByText(
+        'A bounded plan based on the reviewed screening domains.',
+      ),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(
+        'This draft is wellbeing support, not diagnosis or treatment.',
+      ),
+    ).not.toBeInTheDocument()
     const safety = container.querySelector('.support-plan-safety')
     const choices = container.querySelector('.support-plan-slots')
     expect(
@@ -48,6 +66,28 @@ describe('SupportPlanCard', () => {
           )
         : false,
     ).toBe(true)
+  })
+
+  it('renders the standard safety reminder with clear Vietnamese copy', () => {
+    const fixture = supportPlanFixture()
+    renderCard({
+      ...fixture,
+      safety: {
+        ...fixture.safety,
+        status: 'NEGATIVE_SAFETY_SCREEN',
+        reasonCode: 'PHQ9_ITEM9_NEGATIVE',
+        guidanceCode: 'STANDARD_SAFETY_REMINDER',
+        guidance: 'Náº¿u tÃ¬nh tráº¡ng cá»§a báº¡n thay Ä‘á»•i.',
+      },
+    })
+
+    expect(
+      screen.getByText(
+        'Nếu tình trạng của bạn thay đổi hoặc bạn cảm thấy không an toàn, hãy chủ động tìm sự hỗ trợ trực tiếp phù hợp tại khu vực của bạn.',
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText(/Náº¿u/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/chính sách Care/i)).not.toBeInTheDocument()
   })
 
   it('saves only the exact admitted alternative and blocks activation while dirty', () => {

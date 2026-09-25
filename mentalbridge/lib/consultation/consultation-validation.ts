@@ -6,6 +6,28 @@ export const LANGUAGES = ['vi', 'en'] as const
 export type SupportArea = (typeof SUPPORT_AREAS)[number]
 export type SpecialistApprovalStatus =
   'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED'
+export const SPECIALIST_APPROVAL_STATUSES = [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'SUSPENDED',
+] as const
+export const SPECIALIST_REJECTION_REASONS = [
+  'PROFILE_INFORMATION_INCOMPLETE',
+  'PROFILE_CONTENT_NOT_APPROVED',
+  'OUTSIDE_SUPPORTED_SCOPE',
+] as const
+export const SPECIALIST_SUSPENSION_REASONS = [
+  'POLICY_VIOLATION',
+  'QUALITY_REVIEW_REQUIRED',
+  'ACCOUNT_REVIEW_REQUIRED',
+] as const
+export type SpecialistRejectionReason =
+  (typeof SPECIALIST_REJECTION_REASONS)[number]
+export type SpecialistSuspensionReason =
+  (typeof SPECIALIST_SUSPENSION_REASONS)[number]
+export type SpecialistDecisionReason =
+  SpecialistRejectionReason | SpecialistSuspensionReason
 
 export type SpecialistProfileInput = Readonly<{
   displayName: string
@@ -23,15 +45,25 @@ export type SpecialistProfile = SpecialistProfileInput &
     submittedAt: string | null
     reviewedAt: string | null
     reviewedBy: string | null
-    decisionReasonCode: string | null
+    decisionReasonCode: SpecialistDecisionReason | null
     createdAt: string
     updatedAt: string
     version: number
   }>
 
-export type PendingProfiles = Readonly<{
+export type SpecialistProfiles = Readonly<{
   items: SpecialistProfile[]
   count: number
+}>
+export type PendingProfiles = SpecialistProfiles
+
+export type SpecialistSuspensionResult = Readonly<{
+  profile: SpecialistProfile
+  effects: Readonly<{
+    withdrawnAvailabilitySlots: number
+    cancelledAppointments: number
+    releasedCredits: number
+  }>
 }>
 
 export const AVAILABILITY_MODALITIES = ['IN_APP_CHAT', 'IN_APP_VIDEO'] as const
@@ -227,16 +259,13 @@ export function parseProfile(value: unknown): SpecialistProfile | null {
     ) ||
     !Number.isInteger(item.yearsOfExperience) ||
     typeof item.timezone !== 'string' ||
-    !['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED'].includes(
-      String(item.approvalStatus),
+    !SPECIALIST_APPROVAL_STATUSES.includes(
+      item.approvalStatus as SpecialistApprovalStatus,
     ) ||
     !instantOrNull(item.submittedAt) ||
     !instantOrNull(item.reviewedAt) ||
     !(item.reviewedBy === null || uuid(item.reviewedBy)) ||
-    !(
-      item.decisionReasonCode === null ||
-      typeof item.decisionReasonCode === 'string'
-    ) ||
+    !validProfileDecisionReason(item.approvalStatus, item.decisionReasonCode) ||
     !instantOrNull(item.createdAt) ||
     !instantOrNull(item.updatedAt) ||
     !Number.isInteger(item.version)
@@ -256,6 +285,49 @@ export function parsePendingProfiles(value: unknown): PendingProfiles | null {
   const items = result.items.map(parseProfile)
   if (items.some((item) => item === null)) return null
   return { items: items as SpecialistProfile[], count: result.count as number }
+}
+
+function validProfileDecisionReason(status: unknown, reason: unknown) {
+  if (status === 'REJECTED')
+    return SPECIALIST_REJECTION_REASONS.includes(
+      reason as SpecialistRejectionReason,
+    )
+  if (status === 'SUSPENDED')
+    return SPECIALIST_SUSPENSION_REASONS.includes(
+      reason as SpecialistSuspensionReason,
+    )
+  return reason === null
+}
+
+export function parseSpecialistSuspensionResult(
+  value: unknown,
+): SpecialistSuspensionResult | null {
+  const result = record(value)
+  const profile = parseProfile(result?.profile)
+  const effects = record(result?.effects)
+  if (
+    !result ||
+    !profile ||
+    profile.approvalStatus !== 'SUSPENDED' ||
+    !effects ||
+    ![
+      'withdrawnAvailabilitySlots',
+      'cancelledAppointments',
+      'releasedCredits',
+    ].every(
+      (key) => Number.isInteger(effects[key]) && Number(effects[key]) >= 0,
+    ) ||
+    effects.cancelledAppointments !== effects.releasedCredits
+  )
+    return null
+  return {
+    profile,
+    effects: {
+      withdrawnAvailabilitySlots: Number(effects.withdrawnAvailabilitySlots),
+      cancelledAppointments: Number(effects.cancelledAppointments),
+      releasedCredits: Number(effects.releasedCredits),
+    },
+  }
 }
 
 export function parseAvailabilitySlot(value: unknown): AvailabilitySlot | null {
@@ -621,6 +693,30 @@ export function parseProfileInput(value: unknown): SpecialistProfileInput {
 
 export function validEtag(value: string | null): value is string {
   return value !== null && /^"\d+"$/.test(value)
+}
+
+export function validSpecialistStatus(
+  value: string | null,
+): value is SpecialistApprovalStatus {
+  return SPECIALIST_APPROVAL_STATUSES.includes(
+    value as SpecialistApprovalStatus,
+  )
+}
+
+export function parseSpecialistDecisionInput(
+  value: unknown,
+  kind: 'REJECTION' | 'SUSPENSION',
+): Readonly<{ reasonCode: SpecialistDecisionReason }> {
+  const input = record(value)
+  if (!input || Object.keys(input).length !== 1)
+    throw new ConsultationInputError('body')
+  const allowed =
+    kind === 'REJECTION'
+      ? SPECIALIST_REJECTION_REASONS
+      : SPECIALIST_SUSPENSION_REASONS
+  if (!allowed.includes(input.reasonCode as never))
+    throw new ConsultationInputError('reasonCode')
+  return { reasonCode: input.reasonCode as SpecialistDecisionReason }
 }
 
 export function validUuid(value: string) {

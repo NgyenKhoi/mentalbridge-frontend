@@ -88,8 +88,34 @@ describe('Assessment history page', () => {
       ),
     )
     render(<AssessmentsPage />)
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Hiểu những thay đổi của bạn qua bốn góc nhìn',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByText(
+        'Đặt kết quả sàng lọc, nhật ký, việc thực hiện kế hoạch và cảm nhận của bạn cạnh nhau để nhận ra thay đổi và chọn bước hỗ trợ phù hợp.',
+      ),
+    ).toBeVisible()
+    expect(
+      screen.queryByText(/Care chọn kết quả|Journal cung cấp/),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', {
+        name: 'Nhìn lại tâm trạng và lo âu trong cùng một lượt',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByText(
+        'Mỗi bài vẫn có kết quả riêng, không gộp thành một điểm chung. Các bài làm riêng bên dưới sẽ không tự ghép thành lượt này.',
+      ),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Bắt đầu PHQ-9 và GAD-7' }),
+    ).toHaveAttribute('href', '/initial-check')
     expect(await screen.findByText('8 điểm')).toBeVisible()
-    expect(screen.getAllByRole('link', { name: /bắt đầu/i })).toHaveLength(3)
+    expect(screen.getAllByRole('link', { name: /bắt đầu/i })).toHaveLength(4)
     expect(
       screen.getByRole('link', { name: 'Bắt đầu lượt đánh giá lại' }),
     ).toHaveAttribute('href', '/initial-check?purpose=reassessment')

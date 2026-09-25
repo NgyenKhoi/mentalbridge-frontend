@@ -11,6 +11,8 @@ import {
   parseProfileInput,
   parsePublishAvailabilityInput,
   parseServiceCreditAccount,
+  parseSpecialistDecisionInput,
+  parseSpecialistSuspensionResult,
 } from './consultation-validation'
 
 const profile = {
@@ -43,6 +45,60 @@ describe('Consultation contract validation', () => {
     expect(() => parseProfileInput({ ...profile, languages: ['fr'] })).toThrow(
       ConsultationInputError,
     )
+  })
+
+  it('enforces state-specific specialist reasons and suspension outcomes', () => {
+    expect(
+      parseProfile({
+        ...profile,
+        approvalStatus: 'REJECTED',
+        decisionReasonCode: 'PROFILE_INFORMATION_INCOMPLETE',
+      }),
+    ).not.toBeNull()
+    expect(
+      parseProfile({
+        ...profile,
+        approvalStatus: 'REJECTED',
+        decisionReasonCode: 'POLICY_VIOLATION',
+      }),
+    ).toBeNull()
+    expect(
+      parseSpecialistDecisionInput(
+        { reasonCode: 'QUALITY_REVIEW_REQUIRED' },
+        'SUSPENSION',
+      ),
+    ).toEqual({ reasonCode: 'QUALITY_REVIEW_REQUIRED' })
+    expect(() =>
+      parseSpecialistDecisionInput(
+        { reasonCode: 'PROFILE_INFORMATION_INCOMPLETE' },
+        'SUSPENSION',
+      ),
+    ).toThrow(ConsultationInputError)
+
+    expect(
+      parseSpecialistSuspensionResult({
+        profile: {
+          ...profile,
+          approvalStatus: 'SUSPENDED',
+          decisionReasonCode: 'QUALITY_REVIEW_REQUIRED',
+        },
+        effects: {
+          withdrawnAvailabilitySlots: 2,
+          cancelledAppointments: 1,
+          releasedCredits: 1,
+        },
+      }),
+    ).not.toBeNull()
+    expect(
+      parseSpecialistSuspensionResult({
+        profile,
+        effects: {
+          withdrawnAvailabilitySlots: 2,
+          cancelledAppointments: 1,
+          releasedCredits: 0,
+        },
+      }),
+    ).toBeNull()
   })
 
   it('accepts exact 60-minute online availability and rejects contract drift', () => {

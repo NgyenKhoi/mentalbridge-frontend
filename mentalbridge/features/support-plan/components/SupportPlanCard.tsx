@@ -32,6 +32,15 @@ const packageLabel = {
   PREMIUM: 'Premium',
 } as const
 
+const domainAwareRationale =
+  'Kế hoạch này dựa trên kết quả PHQ-9 và GAD-7 của bạn. Các nội dung đã được sắp xếp theo từng nhu cầu hỗ trợ để bạn dễ chọn phương án phù hợp trước khi bắt đầu.'
+
+const standardSafetyReminder =
+  'Nếu tình trạng của bạn thay đổi hoặc bạn cảm thấy không an toàn, hãy chủ động tìm sự hỗ trợ trực tiếp phù hợp tại khu vực của bạn.'
+
+const wellbeingSupportDisclaimer =
+  'Kế hoạch hỗ trợ này giúp bạn tự chăm sóc sức khỏe tinh thần. Đây không phải là chẩn đoán, điều trị hoặc kế hoạch điều trị, và không thay thế hướng dẫn an toàn hay hỗ trợ chuyên môn khi bạn cần.'
+
 function resourceKey(
   resource: SupportPlan['slots'][number]['selectedResource'],
 ) {
@@ -120,6 +129,18 @@ export default function SupportPlanCard({
     SUPERSEDED: 'Kế hoạch đã được thay thế',
     DISCARDED: 'Kế hoạch đã hủy trước khi bắt đầu',
   }[plan.status]
+  const rationaleText =
+    plan.rationale.code === 'DOMAIN_AWARE_WELLBEING_SUPPORT'
+      ? domainAwareRationale
+      : plan.rationale.text
+  const safetyGuidance =
+    plan.safety.guidanceCode === 'STANDARD_SAFETY_REMINDER'
+      ? standardSafetyReminder
+      : plan.safety.guidance
+  const disclaimerText =
+    plan.disclaimerCode === 'WELLBEING_SUPPORT_NOT_TREATMENT'
+      ? wellbeingSupportDisclaimer
+      : plan.disclaimer
 
   const dirty = useMemo(
     () =>
@@ -204,7 +225,7 @@ export default function SupportPlanCard({
         <strong>
           {safetyPositive ? 'Ưu tiên hướng dẫn an toàn' : 'Nhắc nhở an toàn'}
         </strong>
-        <p>{plan.safety.guidance}</p>
+        <p>{safetyGuidance}</p>
         <small>
           Thông tin an toàn không phụ thuộc vào AI hoặc gói dịch vụ.
         </small>
@@ -212,7 +233,7 @@ export default function SupportPlanCard({
 
       <section className="support-plan-rationale">
         <span>Vì sao có đề xuất này?</span>
-        <p>{plan.rationale.text}</p>
+        <p>{rationaleText}</p>
       </section>
 
       <section
@@ -458,7 +479,7 @@ export default function SupportPlanCard({
       </Disclosure>
 
       <footer>
-        <p>{plan.disclaimer}</p>
+        <p>{disclaimerText}</p>
         <time dateTime={plan.updatedAt}>
           Cập nhật {new Date(plan.updatedAt).toLocaleString('vi-VN')}
         </time>
