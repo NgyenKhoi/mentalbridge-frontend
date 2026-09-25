@@ -33,6 +33,10 @@
 .status strong {
   color: var(--teal-deep);
 }
+.status[data-state='REJECTED'] strong,
+.status[data-state='SUSPENDED'] strong {
+  color: #8b3a32;
+}
 .status span {
   color: var(--ink-soft);
   font-size: 13px;
@@ -93,6 +97,14 @@
   background: var(--teal-pale);
   color: var(--teal-deep);
   font-size: 13px;
+}
+.reason {
+  margin: 14px 0 0;
+  padding: 14px 18px;
+  border: 1px solid #e7c7c1;
+  border-radius: 12px;
+  background: #fff5f2;
+  color: #7d3028;
 }
 .actions {
   display: flex;

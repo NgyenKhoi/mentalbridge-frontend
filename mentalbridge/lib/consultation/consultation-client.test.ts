@@ -49,6 +49,61 @@ describe('Consultation server-only client', () => {
     })
   })
 
+  it('sends a closed suspension reason and verifies exact downstream effects', async () => {
+    const suspended = {
+      accountId: 'f5297ec9-bbc9-4d51-8212-62778245335c',
+      displayName: 'Nguyễn An',
+      bio: 'Hỗ trợ phi lâm sàng',
+      supportAreas: ['DEPRESSIVE_SYMPTOMS'],
+      languages: ['vi'],
+      yearsOfExperience: 4,
+      timezone: 'Asia/Ho_Chi_Minh',
+      approvalStatus: 'SUSPENDED',
+      submittedAt: '2026-09-14T03:00:00Z',
+      reviewedAt: '2026-09-24T03:00:00Z',
+      reviewedBy: '39405a1c-95c7-41fa-92d5-3915a54a1851',
+      decisionReasonCode: 'QUALITY_REVIEW_REQUIRED',
+      createdAt: '2026-09-14T02:00:00Z',
+      updatedAt: '2026-09-24T03:00:00Z',
+      version: 3,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          profile: suspended,
+          effects: {
+            withdrawnAvailabilitySlots: 2,
+            cancelledAppointments: 1,
+            releasedCredits: 1,
+          },
+        },
+        { headers: { ETag: '"3"' } },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      consultationClient.suspend(
+        'access-token',
+        'correlation-id',
+        suspended.accountId,
+        '"2"',
+        'QUALITY_REVIEW_REQUIRED',
+      ),
+    ).resolves.toMatchObject({
+      data: {
+        effects: { cancelledAppointments: 1, releasedCredits: 1 },
+      },
+      etag: '"3"',
+    })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toContain('/suspend')
+    expect(init.headers).toMatchObject({ 'If-Match': '"2"' })
+    expect(init.body).toBe(
+      JSON.stringify({ reasonCode: 'QUALITY_REVIEW_REQUIRED' }),
+    )
+  })
+
   it('publishes availability through the typed provider boundary with auth and idempotency', async () => {
     const slot = {
       id: '1c12df8c-bdd7-4a14-9cd1-e9ce9d35d7f8',
