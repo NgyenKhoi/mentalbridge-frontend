@@ -1,0 +1,107 @@
+.page {
+  max-width: 1050px;
+  margin: 0 auto;
+  display: grid;
+  gap: 2.5rem;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  align-items: end;
+}
+.header span {
+  color: var(--teal);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.header h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3rem);
+  margin: 0.35rem 0;
+}
+.header p {
+  max-width: 680px;
+  opacity: 0.72;
+}
+.header button,
+.card button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.75rem 1.2rem;
+  background: var(--teal);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+.header button:disabled,
+.card button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 1rem;
+}
+.card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+.card h3 {
+  margin: 0.6rem 0 0.25rem;
+}
+.card p {
+  opacity: 0.72;
+}
+.card dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+}
+.card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.card dt {
+  opacity: 0.65;
+}
+.card dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+}
+.status,
+.mode {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  color: var(--teal);
+  background: var(--teal-pale);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.error {
+  border: 1px solid #e4a2a2;
+  background: #fff1f1;
+  color: #8b2525;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+.empty {
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  padding: 1.25rem;
+  opacity: 0.7;
+}
+@media (max-width: 640px) {
+  .header {
+    align-items: start;
+    flex-direction: column;
+  }
+}

@@ -37,6 +37,29 @@ describe('Assessment history page', () => {
       http.get('http://localhost/api/care/support-evaluations/history', () =>
         HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
       ),
+      http.get('http://localhost/api/care/reassessment-self-reports', () =>
+        HttpResponse.json(
+          { code: 'REASSESSMENT_SELF_REPORT_NOT_FOUND' },
+          { status: 404 },
+        ),
+      ),
+      http.get('http://localhost/api/care/reassessment-summaries', () =>
+        HttpResponse.json({
+          policyVersion: 'reassessment-comparison-v1',
+          state: 'INCOMPLETE',
+          missingInstruments: ['GAD7'],
+          phq9AssessmentId: assessmentId,
+          gad7AssessmentId: null,
+          previousPeriod: {
+            startAt: '2026-08-27T00:00:00Z',
+            endAt: '2026-09-10T00:00:00Z',
+          },
+          currentPeriod: {
+            startAt: '2026-09-10T00:00:00Z',
+            endAt: '2026-09-24T00:00:00Z',
+          },
+        }),
+      ),
       http.get(
         `http://localhost/api/care/assessments/by-id/${assessmentId}/progress`,
         () =>
@@ -66,7 +89,10 @@ describe('Assessment history page', () => {
     )
     render(<AssessmentsPage />)
     expect(await screen.findByText('8 điểm')).toBeVisible()
-    expect(screen.getAllByRole('link', { name: /bắt đầu/i })).toHaveLength(2)
+    expect(screen.getAllByRole('link', { name: /bắt đầu/i })).toHaveLength(3)
+    expect(
+      screen.getByRole('link', { name: 'Bắt đầu lượt đánh giá lại' }),
+    ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
     expect(screen.getByText('Nhẹ')).toBeVisible()
     expect(screen.getByRole('link', { name: 'Xem lại' })).toHaveAttribute(
       'href',

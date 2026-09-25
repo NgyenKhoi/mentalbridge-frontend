@@ -46,6 +46,35 @@ const runningJob = {
   updatedAt: timestamp,
   completedAt: null,
 }
+const longitudinalRequest = {
+  previousPeriod: {
+    startAt: '2026-08-27T00:00:00Z',
+    endAt: '2026-09-10T00:00:00Z',
+  },
+  currentPeriod: {
+    startAt: '2026-09-10T00:00:00Z',
+    endAt: '2026-09-24T00:00:00Z',
+  },
+  excludedJournalIds: [],
+}
+const longitudinalJob = {
+  jobId,
+  previousPeriod: longitudinalRequest.previousPeriod,
+  currentPeriod: longitudinalRequest.currentPeriod,
+  sourceJournalRevisions: [],
+  dataCoverage: {
+    previousPeriodJournalEntryCount: 0,
+    currentPeriodJournalEntryCount: 0,
+    sufficientForComparison: false,
+  },
+  status: 'RUNNING' as const,
+  attemptCount: 0,
+  terminalReason: null,
+  result: null,
+  createdAt: timestamp,
+  updatedAt: timestamp,
+  completedAt: null,
+}
 
 describe('Journal server-only client', () => {
   afterEach(() => vi.unstubAllEnvs())
@@ -114,6 +143,41 @@ describe('Journal server-only client', () => {
     await expect(
       journalClient.analysisJob('access-token', jobId, 'correlation-id'),
     ).resolves.toMatchObject({ jobId, journalRevision: 1, attemptCount: 1 })
+  })
+
+  it('creates and reloads the authoritative longitudinal job', async () => {
+    configure()
+    mockServer.use(
+      http.post(
+        `${baseUrl}/api/v1/longitudinal-analysis-jobs`,
+        async ({ request }) => {
+          expect(request.headers.get('idempotency-key')).toBe(
+            'longitudinal-command-0001',
+          )
+          expect(await request.json()).toEqual(longitudinalRequest)
+          return HttpResponse.json(longitudinalJob, { status: 202 })
+        },
+      ),
+      http.get(`${baseUrl}/api/v1/longitudinal-analysis-jobs/${jobId}`, () =>
+        HttpResponse.json({ ...longitudinalJob, attemptCount: 1 }),
+      ),
+    )
+
+    await expect(
+      journalClient.createLongitudinalAnalysis(
+        'access-token',
+        longitudinalRequest,
+        'longitudinal-command-0001',
+        'correlation-id',
+      ),
+    ).resolves.toEqual(longitudinalJob)
+    await expect(
+      journalClient.longitudinalAnalysisJob(
+        'access-token',
+        jobId,
+        'correlation-id',
+      ),
+    ).resolves.toMatchObject({ jobId, status: 'RUNNING', attemptCount: 1 })
   })
 
   it.each([

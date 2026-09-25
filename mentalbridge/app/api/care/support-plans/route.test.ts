@@ -2,13 +2,9 @@ import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
-import {
-  INITIAL_CHECK_GAD7_COOKIE,
-  INITIAL_CHECK_PHQ9_COOKIE,
-} from '@/lib/care/guided-initial-check-cookies'
 
 const careMocks = vi.hoisted(() => ({
-  evaluateSupportV2: vi.fn(),
+  currentScreeningEpisode: vi.fn(),
   proposeSupportPlanDraft: vi.fn(),
   currentSupportPlanDraft: vi.fn(),
 }))
@@ -30,15 +26,10 @@ const phq9 = '10000000-0000-4000-8000-000000000372'
 const gad7 = '20000000-0000-4000-8000-000000000372'
 const evaluationId = '30000000-0000-4000-8000-000000000372'
 
-function request(method: 'GET' | 'POST', journey = true) {
+function request(method: 'GET' | 'POST', purpose?: string) {
   const cookies = [`${ACCESS_COOKIE_NAME}=identity-access-secret`]
-  if (journey) {
-    cookies.push(
-      `${INITIAL_CHECK_PHQ9_COOKIE}=${phq9}`,
-      `${INITIAL_CHECK_GAD7_COOKIE}=${gad7}`,
-    )
-  }
-  return new NextRequest('http://localhost/api/care/support-plans', {
+  const query = purpose ? `?purpose=${purpose}` : ''
+  return new NextRequest(`http://localhost/api/care/support-plans${query}`, {
     method,
     headers: {
       cookie: cookies.join('; '),
@@ -60,12 +51,15 @@ describe('/api/care/support-plans', () => {
         emailVerified: true,
       },
     })
-  })
-
-  it('derives a v2 evaluation from server-held assessment references', async () => {
-    careMocks.evaluateSupportV2.mockResolvedValue({
+    careMocks.currentScreeningEpisode.mockResolvedValue({
+      status: 'COMPLETED',
+      phq9AssessmentId: phq9,
+      gad7AssessmentId: gad7,
       supportEvaluationId: evaluationId,
     })
+  })
+
+  it('proposes from the evaluation persisted by the completed episode', async () => {
     careMocks.proposeSupportPlanDraft.mockResolvedValue({
       supportPlanId: '50000000-0000-4000-8000-000000000372',
     })
@@ -73,10 +67,30 @@ describe('/api/care/support-plans', () => {
     const response = await POST(request('POST'))
 
     expect(response.status).toBe(201)
-    expect(careMocks.evaluateSupportV2).toHaveBeenCalledWith(
+    expect(careMocks.currentScreeningEpisode).toHaveBeenCalledWith(
       'identity-access-secret',
-      { phq9AssessmentId: phq9, gad7AssessmentId: gad7 },
-      `support-plan-evaluation:${phq9}:${gad7}`,
+      'INITIAL_CHECK',
+      expect.any(String),
+    )
+    expect(careMocks.proposeSupportPlanDraft).toHaveBeenCalledWith(
+      'identity-access-secret',
+      { sourceSupportEvaluationId: evaluationId },
+      'support-plan-browser-0372',
+      expect.any(String),
+    )
+  })
+
+  it('uses the completed reassessment episode for a replacement draft', async () => {
+    careMocks.proposeSupportPlanDraft.mockResolvedValue({
+      supportPlanId: '50000000-0000-4000-8000-000000000373',
+    })
+
+    const response = await POST(request('POST', 'REASSESSMENT'))
+
+    expect(response.status).toBe(201)
+    expect(careMocks.currentScreeningEpisode).toHaveBeenCalledWith(
+      'identity-access-secret',
+      'REASSESSMENT',
       expect.any(String),
     )
     expect(careMocks.proposeSupportPlanDraft).toHaveBeenCalledWith(
@@ -88,7 +102,11 @@ describe('/api/care/support-plans', () => {
   })
 
   it('fails closed without both server-held assessment references', async () => {
-    const response = await POST(request('POST', false))
+    careMocks.currentScreeningEpisode.mockResolvedValue({
+      status: 'IN_PROGRESS',
+      supportEvaluationId: null,
+    })
+    const response = await POST(request('POST'))
 
     expect(response.status).toBe(409)
     await expect(response.json()).resolves.toMatchObject({
@@ -96,7 +114,6 @@ describe('/api/care/support-plans', () => {
       title:
         'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu trước khi tạo kế hoạch hỗ trợ.',
     })
-    expect(careMocks.evaluateSupportV2).not.toHaveBeenCalled()
     expect(careMocks.proposeSupportPlanDraft).not.toHaveBeenCalled()
   })
 
@@ -112,7 +129,7 @@ describe('/api/care/support-plans', () => {
       'identity-access-secret',
       expect.any(String),
     )
-    expect(careMocks.evaluateSupportV2).not.toHaveBeenCalled()
+    expect(careMocks.currentScreeningEpisode).not.toHaveBeenCalled()
     expect(careMocks.proposeSupportPlanDraft).not.toHaveBeenCalled()
   })
 })

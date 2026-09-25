@@ -4,6 +4,9 @@ import { readConsultationServerConfig } from '@/lib/config/server'
 import {
   parseAvailabilitySlot,
   parseAvailabilitySlotList,
+  parseAppointment,
+  parseAppointmentList,
+  parseBookableSlotList,
   parsePendingProfiles,
   parseProblem,
   parseProfile,
@@ -19,6 +22,10 @@ import {
   type SpecialistApprovalStatus,
   type SpecialistDecisionReason,
   type SpecialistSuspensionResult,
+  type Appointment,
+  type AppointmentList,
+  type AppointmentRequestInput,
+  type BookableSlotList,
 } from './consultation-validation'
 
 const MAX_RESPONSE_BYTES = 128 * 1024
@@ -153,6 +160,40 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  bookableSlots(token: string, correlationId: string, query = '') {
+    return request<BookableSlotList>({
+      method: 'GET',
+      path: `/api/v1/bookable-slots${query}`,
+      token,
+      correlationId,
+      parse: parseBookableSlotList,
+    })
+  },
+  appointments(token: string, correlationId: string) {
+    return request<AppointmentList>({
+      method: 'GET',
+      path: '/api/v1/appointments',
+      token,
+      correlationId,
+      parse: parseAppointmentList,
+    })
+  },
+  requestAppointment(
+    token: string,
+    correlationId: string,
+    body: AppointmentRequestInput,
+    idempotencyKey: string,
+  ) {
+    return request<Appointment>({
+      method: 'POST',
+      path: '/api/v1/appointments',
+      token,
+      correlationId,
+      body,
+      idempotencyKey,
+      parse: parseAppointment,
+    })
+  },
   credits(token: string, correlationId: string) {
     return request<ServiceCreditAccount>({
       method: 'GET',

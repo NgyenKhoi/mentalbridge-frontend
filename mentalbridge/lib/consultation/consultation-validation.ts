@@ -103,6 +103,46 @@ export type AvailabilitySlotList = Readonly<{
   videoPublishingEnabled: boolean
 }>
 
+export type AppointmentModality = 'IN_APP_CHAT' | 'IN_APP_VIDEO'
+export type AppointmentRequestInput = Readonly<{
+  slotId: string
+  modality: AppointmentModality
+}>
+export type BookableSlot = Readonly<{
+  id: string
+  specialistAccountId: string
+  specialistDisplayName: string
+  startAt: string
+  endAt: string
+  timezone: string
+  modality: AppointmentModality
+}>
+export type BookableSlotList = Readonly<{
+  items: BookableSlot[]
+  count: number
+  generatedAt: string
+  videoEnabled: boolean
+}>
+export type Appointment = Readonly<{
+  id: string
+  slotId: string
+  specialistAccountId: string
+  specialistDisplayName: string
+  status: 'REQUESTED' | 'CONFIRMED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED'
+  modality: AppointmentModality
+  scheduledStartAt: string
+  scheduledEndAt: string
+  timezone: string
+  requestedAt: string
+  decisionDeadlineAt: string
+  heldCreditId: string
+}>
+export type AppointmentList = Readonly<{
+  items: Appointment[]
+  count: number
+  generatedAt: string
+}>
+
 export type ServicePackage = 'FREE' | 'PLUS' | 'PREMIUM'
 export type CreditSource = 'DEFAULT_FREE' | 'DEMO' | 'PAID'
 export type CreditEventType =
@@ -390,6 +430,91 @@ export function parseServiceCreditAccount(
   )
     return null
   return account as ServiceCreditAccount
+}
+
+function parseBookableSlot(value: unknown): BookableSlot | null {
+  const slot = record(value)
+  if (
+    !slot ||
+    !uuid(slot.id) ||
+    !uuid(slot.specialistAccountId) ||
+    typeof slot.specialistDisplayName !== 'string' ||
+    !utcInstant(slot.startAt) ||
+    !utcInstant(slot.endAt) ||
+    Date.parse(slot.endAt) - Date.parse(slot.startAt) !== 3_600_000 ||
+    !ianaTimezone(slot.timezone) ||
+    !AVAILABILITY_MODALITIES.includes(slot.modality as AppointmentModality)
+  )
+    return null
+  return slot as BookableSlot
+}
+
+export function parseBookableSlotList(value: unknown): BookableSlotList | null {
+  const result = record(value)
+  if (
+    !result ||
+    !Array.isArray(result.items) ||
+    result.items.length > 200 ||
+    result.count !== result.items.length ||
+    !utcInstant(result.generatedAt) ||
+    typeof result.videoEnabled !== 'boolean'
+  )
+    return null
+  const items = result.items.map(parseBookableSlot)
+  if (items.some((item) => item === null)) return null
+  return { ...result, items } as BookableSlotList
+}
+
+export function parseAppointment(value: unknown): Appointment | null {
+  const item = record(value)
+  if (
+    !item ||
+    !uuid(item.id) ||
+    !uuid(item.slotId) ||
+    !uuid(item.specialistAccountId) ||
+    typeof item.specialistDisplayName !== 'string' ||
+    !['REQUESTED', 'CONFIRMED', 'REJECTED', 'EXPIRED', 'CANCELLED'].includes(
+      String(item.status),
+    ) ||
+    !AVAILABILITY_MODALITIES.includes(item.modality as AppointmentModality) ||
+    !utcInstant(item.scheduledStartAt) ||
+    !utcInstant(item.scheduledEndAt) ||
+    !ianaTimezone(item.timezone) ||
+    !utcInstant(item.requestedAt) ||
+    !utcInstant(item.decisionDeadlineAt) ||
+    !uuid(item.heldCreditId)
+  )
+    return null
+  return item as Appointment
+}
+
+export function parseAppointmentList(value: unknown): AppointmentList | null {
+  const result = record(value)
+  if (
+    !result ||
+    !Array.isArray(result.items) ||
+    result.items.length > 100 ||
+    result.count !== result.items.length ||
+    !utcInstant(result.generatedAt)
+  )
+    return null
+  const items = result.items.map(parseAppointment)
+  if (items.some((item) => item === null)) return null
+  return { ...result, items } as AppointmentList
+}
+
+export function parseAppointmentRequestInput(
+  value: unknown,
+): AppointmentRequestInput {
+  const input = record(value)
+  if (!input || Object.keys(input).length !== 2 || !uuid(input.slotId))
+    throw new ConsultationInputError('slotId')
+  if (!AVAILABILITY_MODALITIES.includes(input.modality as AppointmentModality))
+    throw new ConsultationInputError('modality')
+  return {
+    slotId: input.slotId,
+    modality: input.modality as AppointmentModality,
+  }
 }
 
 export function parseProblem(value: unknown, status: number): Problem | null {

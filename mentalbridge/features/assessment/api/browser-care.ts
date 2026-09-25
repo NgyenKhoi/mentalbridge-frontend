@@ -16,8 +16,18 @@ import type {
   Instrument,
   SupportEvaluation,
   SupportEvaluationHistoryPage,
+  ReassessmentSelfReport,
+  ReassessmentSelfReportCreateRequest,
+  ReassessmentSelfReportReplaceRequest,
+  ReassessmentContext,
+  ReassessmentSummary,
+  ReassessmentSummaryCreateRequest,
 } from './care-contract'
 import type { InitialCheckState } from '@/features/initial-check/api/initial-check-contract'
+import type {
+  CreateLongitudinalAnalysisRequest,
+  LongitudinalAnalysisJob,
+} from '@/lib/journal/journal-contract'
 
 export type AssessmentMode = 'anonymous' | 'authenticated'
 export type AssessmentView = Assessment | AnonymousAssessment
@@ -105,6 +115,99 @@ export async function getAssessmentProgress(assessmentId: string) {
   ).data
 }
 
+export async function getCurrentReassessmentSelfReport() {
+  return (
+    await browserApiClient.get<ReassessmentSelfReport>(
+      '/care/reassessment-self-reports',
+    )
+  ).data
+}
+
+export async function createReassessmentSelfReport(
+  request: ReassessmentSelfReportCreateRequest,
+  idempotencyKey: string,
+) {
+  return (
+    await browserApiClient.post<ReassessmentSelfReport>(
+      '/care/reassessment-self-reports',
+      request,
+      { headers: { 'Idempotency-Key': idempotencyKey } },
+    )
+  ).data
+}
+
+export async function replaceReassessmentSelfReport(
+  current: ReassessmentSelfReport,
+  request: ReassessmentSelfReportReplaceRequest,
+) {
+  return (
+    await browserApiClient.put<ReassessmentSelfReport>(
+      `/care/reassessment-self-reports/${encodeURIComponent(current.selfReportId)}`,
+      request,
+      { headers: { 'If-Match': `"${current.version}"` } },
+    )
+  ).data
+}
+
+export async function deleteReassessmentSelfReport(
+  current: ReassessmentSelfReport,
+) {
+  await browserApiClient.delete(
+    `/care/reassessment-self-reports/${encodeURIComponent(current.selfReportId)}`,
+    { headers: { 'If-Match': `"${current.version}"` } },
+  )
+}
+
+export async function getReassessmentContext() {
+  return (
+    await browserApiClient.get<ReassessmentContext>(
+      '/care/reassessment-summaries',
+    )
+  ).data
+}
+
+export async function createLongitudinalAnalysis(
+  request: CreateLongitudinalAnalysisRequest,
+  idempotencyKey: string,
+) {
+  return (
+    await browserApiClient.post<LongitudinalAnalysisJob>(
+      '/journals/longitudinal-analysis-jobs',
+      request,
+      { headers: { 'Idempotency-Key': idempotencyKey } },
+    )
+  ).data
+}
+
+export async function getLongitudinalAnalysisJob(jobId: string) {
+  return (
+    await browserApiClient.get<LongitudinalAnalysisJob>(
+      `/journals/longitudinal-analysis-jobs/${encodeURIComponent(jobId)}`,
+    )
+  ).data
+}
+
+export async function composeReassessmentSummary(
+  request: ReassessmentSummaryCreateRequest,
+  idempotencyKey: string,
+) {
+  return (
+    await browserApiClient.post<ReassessmentSummary>(
+      '/care/reassessment-summaries',
+      request,
+      { headers: { 'Idempotency-Key': idempotencyKey } },
+    )
+  ).data
+}
+
+export async function getCurrentReassessmentSummary() {
+  return (
+    await browserApiClient.get<ReassessmentSummary>(
+      '/care/reassessment-summaries/current',
+    )
+  ).data
+}
+
 export async function startAnonymousAssessmentSession() {
   const response = await browserApiClient.post<{ expiresAt: string }>(
     '/care/anonymous-session',
@@ -137,31 +240,43 @@ export async function submitInitialCheckAssessment(
   instrument: Instrument,
   submission: AssessmentSubmissionRequest,
   idempotencyKey: string,
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT' = 'INITIAL_CHECK',
 ) {
   const response = await browserApiClient.post<Assessment>(
-    `/care/initial-check/assessments/${instrument.toLowerCase()}`,
+    `/care/initial-check/assessments/${instrument.toLowerCase()}?purpose=${purpose}`,
     submission,
     { headers: { 'Idempotency-Key': idempotencyKey } },
   )
   return response.data
 }
 
-export async function getInitialCheckState() {
-  return (await browserApiClient.get<InitialCheckState>('/care/initial-check'))
-    .data
-}
-
-export async function createInitialCheckEvaluation() {
+export async function getInitialCheckState(
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT' = 'INITIAL_CHECK',
+) {
   return (
-    await browserApiClient.post<SupportEvaluation>(
-      '/care/initial-check/evaluation',
+    await browserApiClient.get<InitialCheckState>(
+      `/care/initial-check?purpose=${purpose}`,
     )
   ).data
 }
 
-export async function resetInitialCheck() {
+export async function createInitialCheckEvaluation(
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT' = 'INITIAL_CHECK',
+) {
   return (
-    await browserApiClient.delete<InitialCheckState>('/care/initial-check')
+    await browserApiClient.post<SupportEvaluation>(
+      `/care/initial-check/evaluation?purpose=${purpose}`,
+    )
+  ).data
+}
+
+export async function resetInitialCheck(
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT' = 'INITIAL_CHECK',
+) {
+  return (
+    await browserApiClient.delete<InitialCheckState>(
+      `/care/initial-check?purpose=${purpose}`,
+    )
   ).data
 }
 
