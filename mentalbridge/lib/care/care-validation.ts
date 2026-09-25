@@ -18,6 +18,8 @@ import type {
   AssessmentProgress,
   AssessmentProgressPoint,
   ScoreDirection,
+  ScreeningEpisode,
+  ScreeningEpisodeEvaluationOutcome,
   SupportEvaluation,
   SupportEvaluationHistoryPage,
   SupportEvaluationRequest,
@@ -60,6 +62,12 @@ const SCORE_DIRECTIONS = new Set<ScoreDirection>([
   'INCREASED',
   'DECREASED',
   'UNCHANGED',
+])
+const SCREENING_EPISODE_PURPOSES = new Set(['INITIAL_CHECK', 'REASSESSMENT'])
+const SCREENING_EPISODE_STATUSES = new Set([
+  'IN_PROGRESS',
+  'READY',
+  'COMPLETED',
 ])
 const SUPPORT_TIERS = new Set<SupportTier>([
   'SELF_GUIDED_SUPPORT',
@@ -837,6 +845,55 @@ export function parseSupportEvaluation(
     disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
     disclaimer: SUPPORT_DISCLAIMER,
   }
+}
+
+export function parseScreeningEpisode(value: unknown): ScreeningEpisode | null {
+  if (
+    !isRecord(value) ||
+    !isUuid(value.episodeId) ||
+    !SCREENING_EPISODE_PURPOSES.has(String(value.purpose)) ||
+    !SCREENING_EPISODE_STATUSES.has(String(value.status)) ||
+    (value.phq9AssessmentId !== null &&
+      value.phq9AssessmentId !== undefined &&
+      !isUuid(value.phq9AssessmentId)) ||
+    (value.gad7AssessmentId !== null &&
+      value.gad7AssessmentId !== undefined &&
+      !isUuid(value.gad7AssessmentId)) ||
+    (value.supportEvaluationId !== null &&
+      value.supportEvaluationId !== undefined &&
+      !isUuid(value.supportEvaluationId)) ||
+    (value.presentationEvaluationId !== null &&
+      value.presentationEvaluationId !== undefined &&
+      !isUuid(value.presentationEvaluationId)) ||
+    !isDateTime(value.createdAt) ||
+    !isDateTime(value.updatedAt) ||
+    (value.completedAt !== null &&
+      value.completedAt !== undefined &&
+      !isDateTime(value.completedAt)) ||
+    !Number.isInteger(value.version) ||
+    Number(value.version) < 0
+  ) {
+    return null
+  }
+
+  return value as ScreeningEpisode
+}
+
+export function parseScreeningEpisodeEvaluationOutcome(
+  value: unknown,
+): ScreeningEpisodeEvaluationOutcome | null {
+  if (!isRecord(value)) return null
+  const episode = parseScreeningEpisode(value.episode)
+  if (!episode?.phq9AssessmentId || !episode.gad7AssessmentId) return null
+  const presentationEvaluation = parseSupportEvaluation(
+    value.presentationEvaluation,
+    {
+      phq9AssessmentId: episode.phq9AssessmentId,
+      gad7AssessmentId: episode.gad7AssessmentId,
+    },
+  )
+  if (!presentationEvaluation) return null
+  return { episode, presentationEvaluation }
 }
 
 export function parseSupportEvaluationHistory(

@@ -80,6 +80,13 @@ function stateFor(error: unknown): { reason: EmptyReason; message: string } {
           'Kế hoạch hỗ trợ dài hạn dành cho gói Plus và Premium. Gợi ý sau sàng lọc vẫn có sẵn cho gói Miễn phí.',
       }
     }
+    if (error.code === 'REASSESSMENT_INCOMPLETE') {
+      return {
+        reason: 'STALE',
+        message:
+          'Kế hoạch hiện tại vẫn được giữ nguyên. Hãy hoàn tất PHQ-9 và GAD-7 trong cùng lượt đánh giá lại trước khi tạo phương án thay thế.',
+      }
+    }
     if (
       error.code === 'SUPPORT_EVALUATION_STALE' ||
       error.code === 'INITIAL_CHECK_INCOMPLETE'
@@ -122,6 +129,9 @@ function mutationMessage(error: unknown) {
     }
     if (error.code === 'REASSESSMENT_SUMMARY_STALE') {
       return 'Bản đánh giá lại đã cũ. Hãy hoàn tất đánh giá lại trước khi tiếp tục.'
+    }
+    if (error.code === 'REASSESSMENT_SCREENING_CONTEXT_MISMATCH') {
+      return 'Bản tổng hợp và phương án thay thế không dùng cùng một lượt PHQ-9 và GAD-7. Kế hoạch hiện tại được giữ nguyên; hãy tạo lại phương án từ lượt đánh giá mới nhất.'
     }
     if (
       error.code === 'RESOURCE_VERSION_STALE' ||
@@ -284,7 +294,10 @@ export default function SupportPlanJourney() {
     creationKey.current ??= crypto.randomUUID()
     try {
       if (currentPlan) await getCurrentReassessmentSummary()
-      const draft = await proposeSupportPlanDraft(creationKey.current)
+      const draft = await proposeSupportPlanDraft(
+        creationKey.current,
+        currentPlan ? 'REASSESSMENT' : 'INITIAL_CHECK',
+      )
       if (currentPlan) {
         setReplacementDraft(draft)
         await loadReplacementReview(currentPlan, draft)

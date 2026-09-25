@@ -146,6 +146,7 @@ describe('SupportPlanJourney', () => {
     expect(await screen.findByText('Reviewed primary resource')).toBeVisible()
     expect(api.proposeSupportPlanDraft).toHaveBeenCalledWith(
       expect.stringMatching(/^[0-9a-f-]{36}$/),
+      'INITIAL_CHECK',
     )
   })
 

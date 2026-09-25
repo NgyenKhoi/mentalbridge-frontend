@@ -253,6 +253,7 @@ export default function AssessmentFlow({
   instrument,
   initialAssessmentId,
   workflow = 'standalone',
+  screeningPurpose = 'INITIAL_CHECK',
   onCompleted,
   returnHref,
   completionLabel = 'Xem kết quả',
@@ -262,6 +263,7 @@ export default function AssessmentFlow({
   instrument: Instrument
   initialAssessmentId?: string
   workflow?: 'standalone' | 'initial-check'
+  screeningPurpose?: 'INITIAL_CHECK' | 'REASSESSMENT'
   onCompleted?: () => void
   returnHref?: string
   completionLabel?: string
@@ -402,6 +404,7 @@ export default function AssessmentFlow({
               instrument,
               submission,
               idempotencyKey.current,
+              screeningPurpose,
             )
           : await submitAssessment(mode, submission, idempotencyKey.current)
       if (onCompleted) {
