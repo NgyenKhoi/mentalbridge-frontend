@@ -38,6 +38,113 @@ function SystemLabel({ children = 'Thông tin từ hệ thống' }) {
   )
 }
 
+type AnalysisLoadingPhase = 'requesting' | 'queued' | 'running'
+
+function AnalysisLoadingState({ phase }: { phase: AnalysisLoadingPhase }) {
+  const copy = {
+    requesting: {
+      title: 'Đang gửi nhật ký đến AI',
+      description:
+        'MentalBridge đang chuẩn bị nội dung bạn đã chọn để bắt đầu phân tích.',
+    },
+    queued: {
+      title: 'Yêu cầu đang chờ xử lý',
+      description:
+        'Yêu cầu đã được tiếp nhận và sẽ tự động bắt đầu khi đến lượt.',
+    },
+    running: {
+      title: 'AI đang phân tích nhật ký này',
+      description:
+        'Bạn có thể tiếp tục sử dụng MentalBridge và quay lại xem kết quả sau.',
+    },
+  }[phase]
+
+  return (
+    <div
+      className={`${styles.state} ${styles.analyzingState}`}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div
+        className={styles.analysisLoader}
+        data-testid="journal-analysis-loader"
+        aria-hidden="true"
+      >
+        <span className={styles.analysisOrbit} />
+        <span className={styles.analysisCore}>
+          <svg viewBox="0 0 24 24">
+            <path d="M12 3.5c.6 3.7 2.8 5.9 6.5 6.5-3.7.6-5.9 2.8-6.5 6.5-.6-3.7-2.8-5.9-6.5-6.5 3.7-.6 5.9-2.8 6.5-6.5Z" />
+            <path d="M18.3 15.2c.2 1.5 1.1 2.4 2.6 2.6-1.5.2-2.4 1.1-2.6 2.6-.2-1.5-1.1-2.4-2.6-2.6 1.5-.2 2.4-1.1 2.6-2.6Z" />
+          </svg>
+        </span>
+        <span className={styles.analysisWave}>
+          <span />
+          <span />
+          <span />
+        </span>
+      </div>
+      <div className={styles.analysisCopy}>
+        <SystemLabel>Trạng thái phân tích</SystemLabel>
+        <strong className={styles.analyzingTitle}>
+          {copy.title}
+          <span className={styles.analyzingDots} aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+        </strong>
+        <p>{copy.description}</p>
+        <span className={styles.analysisTrack} aria-hidden="true">
+          <span />
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function TypingText({ text }: { text: string }) {
+  const [visibleLength, setVisibleLength] = useState(0)
+
+  useEffect(() => {
+    const reduceMotion =
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    if (reduceMotion) {
+      setVisibleLength(text.length)
+      return
+    }
+
+    let position = 0
+    setVisibleLength(0)
+    const timer = window.setInterval(() => {
+      position = Math.min(text.length, position + 3)
+      setVisibleLength(position)
+      if (position === text.length) window.clearInterval(timer)
+    }, 18)
+
+    return () => window.clearInterval(timer)
+  }, [text])
+
+  const isTyping = visibleLength < text.length
+
+  return (
+    <span
+      className={styles.typingText}
+      data-testid="journal-ai-typing-text"
+      data-state={isTyping ? 'typing' : 'complete'}
+    >
+      <span className={styles.srOnly}>{text}</span>
+      <span className={styles.typingMeasure} aria-hidden="true">
+        {text}
+      </span>
+      <span className={styles.typingVisible} aria-hidden="true">
+        {text.slice(0, visibleLength)}
+        {isTyping && <span className={styles.typingCaret} />}
+      </span>
+    </span>
+  )
+}
+
 type Problem = Readonly<{ code?: string; title?: string }>
 type ConsentState = 'loading' | 'granted' | 'missing' | 'error'
 
@@ -396,6 +503,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
   const showRequest =
     consentState === 'granted' &&
     !restoring &&
+    !requesting &&
     (!job || (job.status === 'FAILED' && canRetryAnalysis(reason)))
 
   return (
@@ -422,7 +530,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
         </div>
       )}
 
-      {!restoring && !job && entry.analysisState === 'stale' && (
+      {!restoring && !requesting && !job && entry.analysisState === 'stale' && (
         <div className={styles.state}>
           <SystemLabel />
           <strong>Kết quả phân tích trước cần cập nhật</strong>
@@ -433,42 +541,29 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
         </div>
       )}
 
-      {!restoring && !job && entry.analysisState === 'current' && (
-        <div className={styles.state}>
-          <SystemLabel />
-          <strong>Đã có kết quả cho nội dung này</strong>
-          <p>
-            Liên kết yêu cầu không còn trên trình duyệt này. Chỉ yêu cầu lại khi
-            bạn muốn tạo một lần phân tích mới cho nội dung đang xem.
-          </p>
-        </div>
+      {!restoring &&
+        !requesting &&
+        !job &&
+        entry.analysisState === 'current' && (
+          <div className={styles.state}>
+            <SystemLabel />
+            <strong>Đã có kết quả cho nội dung này</strong>
+            <p>
+              Liên kết yêu cầu không còn trên trình duyệt này. Chỉ yêu cầu lại
+              khi bạn muốn tạo một lần phân tích mới cho nội dung đang xem.
+            </p>
+          </div>
+        )}
+
+      {requesting && <AnalysisLoadingState phase="requesting" />}
+
+      {!requesting && job?.status === 'RUNNING' && (
+        <AnalysisLoadingState
+          phase={job.attemptCount === 0 ? 'queued' : 'running'}
+        />
       )}
 
-      {job?.status === 'RUNNING' && (
-        <div className={styles.state} role="status" aria-live="polite">
-          <SystemLabel>Trạng thái phân tích</SystemLabel>
-          <strong>
-            {job.attemptCount === 0 ? (
-              'Yêu cầu đang chờ xử lý'
-            ) : (
-              <span className={styles.analyzingTitle}>
-                Đang phân tích nhật ký này
-                <span className={styles.analyzingDots} aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              </span>
-            )}
-          </strong>
-          <p>
-            Bạn có thể đóng cửa sổ và quay lại sau. Nhật ký vẫn dùng được trong
-            khi xử lý.
-          </p>
-        </div>
-      )}
-
-      {job?.status === 'FAILED' && (
+      {!requesting && job?.status === 'FAILED' && (
         <div
           className={`${styles.state} ${styles.error}`}
           role="alert"
@@ -486,10 +581,14 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
         </div>
       )}
 
-      {job?.status === 'SUCCEEDED' && job.result && (
+      {!requesting && job?.status === 'SUCCEEDED' && job.result && (
         <div className={styles.result}>
           <h4>Kết quả phân tích nhật ký này</h4>
-          {job.result.summary && <p>{job.result.summary}</p>}
+          {job.result.summary && (
+            <p className={styles.typedSummary}>
+              <TypingText text={job.result.summary} />
+            </p>
+          )}
           {signalGroups(job).length > 0 && (
             <div className={styles.signals}>
               {signalGroups(job).map(([label, values]) => (

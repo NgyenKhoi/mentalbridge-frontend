@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -151,11 +151,14 @@ describe('JournalReflection', () => {
       }),
     )
 
+    const typingText = await screen.findByTestId('journal-ai-typing-text')
+    expect(typingText).toHaveAttribute('data-state', 'typing')
+    await waitFor(() =>
+      expect(typingText).toHaveAttribute('data-state', 'complete'),
+    )
     expect(
-      await screen.findByText(
-        'Bạn đang cân nhắc dành thêm thời gian nghỉ ngơi.',
-      ),
-    ).toBeVisible()
+      typingText.querySelector('[aria-hidden="true"]:last-child'),
+    ).toHaveTextContent('Bạn đang cân nhắc dành thêm thời gian nghỉ ngơi.')
     expect(
       screen.getByRole('link', { name: 'Mở hướng dẫn hỗ trợ' }),
     ).toHaveAttribute('href', '/support-guides')
@@ -188,6 +191,11 @@ describe('JournalReflection', () => {
     render(<JournalReflection entry={entry()} />)
 
     expect(await screen.findByText('Yêu cầu đang chờ xử lý')).toBeVisible()
+    expect(screen.getByTestId('journal-analysis-loader')).toBeInTheDocument()
+    expect(screen.getByRole('status', { busy: true })).toHaveAttribute(
+      'aria-live',
+      'polite',
+    )
     expect(fetchMock).toHaveBeenCalledWith(
       `/api/journals/analysis-jobs/${jobId}`,
       { cache: 'no-store' },
@@ -221,9 +229,10 @@ describe('JournalReflection', () => {
 
     expect(await screen.findByText('Phân tích chưa hoàn tất')).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Thử phân tích lại' }))
-    const analyzing = await screen.findByText('Đang phân tích nhật ký này')
-    expect(analyzing).toBeVisible()
-    expect(analyzing.querySelector('[aria-hidden="true"]')).toBeInTheDocument()
+    expect(
+      await screen.findByText('AI đang phân tích nhật ký này'),
+    ).toBeVisible()
+    expect(screen.getByTestId('journal-analysis-loader')).toBeInTheDocument()
   })
 
   it('marks an old result stale and keeps the current journal revision actionable', async () => {
