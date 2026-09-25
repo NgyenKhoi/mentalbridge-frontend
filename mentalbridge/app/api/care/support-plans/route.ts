@@ -15,6 +15,43 @@ import { careClient } from '@/lib/care/care-client'
 
 const IDEMPOTENCY_KEY = /^[!-~]{16,128}$/
 
+type AssessmentPair = {
+  phq9AssessmentId: string
+  gad7AssessmentId: string
+}
+
+async function resolveHistoricalAssessmentPair(
+  accessToken: string,
+  correlationId: string,
+): Promise<AssessmentPair | undefined> {
+  let cursor: string | undefined
+  let phq9AssessmentId: string | undefined
+  let gad7AssessmentId: string | undefined
+
+  do {
+    const page = await careClient.history(
+      accessToken,
+      cursor,
+      50,
+      correlationId,
+    )
+    for (const assessment of page.items) {
+      if (!phq9AssessmentId && assessment.instrument === 'PHQ9') {
+        phq9AssessmentId = assessment.assessmentId
+      }
+      if (!gad7AssessmentId && assessment.instrument === 'GAD7') {
+        gad7AssessmentId = assessment.assessmentId
+      }
+      if (phq9AssessmentId && gad7AssessmentId) {
+        return { phq9AssessmentId, gad7AssessmentId }
+      }
+    }
+    cursor = page.hasMore ? (page.nextCursor ?? undefined) : undefined
+  } while (cursor)
+
+  return undefined
+}
+
 export async function POST(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
   let user: Awaited<ReturnType<typeof authenticatedCareUser>>
@@ -56,11 +93,30 @@ export async function POST(request: NextRequest) {
       purpose,
       correlationId,
     )
-    if (episode.status !== 'COMPLETED' || !episode.supportEvaluationId) {
+    let supportEvaluationId =
+      episode.status === 'COMPLETED' ? episode.supportEvaluationId : null
+
+    if (!supportEvaluationId && purpose === 'INITIAL_CHECK') {
+      const assessmentPair = await resolveHistoricalAssessmentPair(
+        user.accessToken,
+        correlationId,
+      )
+      if (assessmentPair) {
+        const evaluation = await careClient.evaluateSupportV2(
+          user.accessToken,
+          assessmentPair,
+          `support-plan-evaluation:${assessmentPair.phq9AssessmentId}:${assessmentPair.gad7AssessmentId}`,
+          correlationId,
+        )
+        supportEvaluationId = evaluation.supportEvaluationId
+      }
+    }
+
+    if (!supportEvaluationId) {
       const title =
         purpose === 'REASSESSMENT'
           ? 'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt đánh giá lại trước khi tạo kế hoạch thay thế.'
-          : 'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu trước khi tạo kế hoạch hỗ trợ.'
+          : 'Cần có kết quả PHQ-9 và GAD-7 đã hoàn tất trước khi tạo kế hoạch hỗ trợ.'
       return carryCareSession(
         localProblem(
           409,
@@ -73,9 +129,10 @@ export async function POST(request: NextRequest) {
         user,
       )
     }
+
     const draft = await careClient.proposeSupportPlanDraft(
       user.accessToken,
-      { sourceSupportEvaluationId: episode.supportEvaluationId },
+      { sourceSupportEvaluationId: supportEvaluationId },
       key,
       correlationId,
     )

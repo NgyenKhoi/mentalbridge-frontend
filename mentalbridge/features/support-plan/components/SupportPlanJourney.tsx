@@ -94,7 +94,7 @@ function stateFor(error: unknown): { reason: EmptyReason; message: string } {
       return {
         reason: 'STALE',
         message:
-          'Lịch sử sàng lọc của bạn vẫn được giữ nguyên. Kế hoạch hỗ trợ cần một cặp PHQ-9 và GAD-7 hoàn tất trong cùng lượt Kiểm tra ban đầu.',
+          'Kế hoạch hỗ trợ cần kết quả PHQ-9 và GAD-7 hợp lệ. Bạn chỉ cần hoàn tất bài còn thiếu hoặc làm bài mới nếu kết quả hiện tại không còn phù hợp.',
       }
     }
     if (
@@ -562,7 +562,7 @@ export default function SupportPlanJourney() {
             {reason === 'FREE'
               ? 'Kế hoạch hỗ trợ chưa thuộc gói hiện tại'
               : reason === 'STALE'
-                ? 'Cần hoàn tất Kiểm tra ban đầu'
+                ? 'Cần hoàn tất bài sàng lọc'
                 : reason === 'DEPENDENCY'
                   ? 'Chưa thể tạo kế hoạch'
                   : 'Chưa có kế hoạch hỗ trợ'}
@@ -577,8 +577,8 @@ export default function SupportPlanJourney() {
                 Xem gợi ý hỗ trợ
               </Link>
             ) : reason === 'STALE' ? (
-              <Link className="btn btn-primary" href="/initial-check">
-                Làm lại kiểm tra ban đầu
+              <Link className="btn btn-primary" href="/assessments">
+                Xem các bài sàng lọc
               </Link>
             ) : (
               <button

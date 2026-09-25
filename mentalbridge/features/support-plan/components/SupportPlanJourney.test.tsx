@@ -150,7 +150,7 @@ describe('SupportPlanJourney', () => {
     )
   })
 
-  it('explains that ordinary screening history does not replace the guided pair', async () => {
+  it('directs the user to screening history when either required result is unavailable', async () => {
     api.getCurrentSupportPlanDraft.mockRejectedValue(
       problem('SUPPORT_PLAN_DRAFT_NOT_FOUND', 404),
     )
@@ -166,11 +166,11 @@ describe('SupportPlanJourney', () => {
     )
 
     expect(
-      await screen.findByText(/Lịch sử sàng lọc của bạn vẫn được giữ nguyên/),
+      await screen.findByText(/Bạn chỉ cần hoàn tất bài còn thiếu/),
     ).toBeVisible()
     expect(
-      screen.getByRole('link', { name: 'Làm lại kiểm tra ban đầu' }),
-    ).toHaveAttribute('href', '/initial-check')
+      screen.getByRole('link', { name: 'Xem các bài sàng lọc' }),
+    ).toHaveAttribute('href', '/assessments')
   })
 
   it('saves an admitted alternative with the draft version', async () => {

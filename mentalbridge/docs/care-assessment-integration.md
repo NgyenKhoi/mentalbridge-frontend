@@ -161,6 +161,12 @@ tokens and raw answer payloads are never rendered.
   support-evaluation UUIDs in session-scoped HttpOnly cookies. The browser does
   not select results, and the BFF revalidates ownership, instrument, void state
   and evaluation evidence against Care before resuming.
+- Creating the first SupportPlan reuses that guided pair when it is available.
+  If its navigation cookies are absent, the BFF selects the newest completed
+  PHQ-9 and GAD-7 from the authenticated user's owner-scoped Care history and
+  submits both exact identifiers to Care for the same compatibility,
+  ownership, and safety-policy validation. Missing either instrument remains
+  an explicit incomplete state; existing history is never overwritten.
 - Raw answers remain only in the live questionnaire state and submission body.
   They are never placed in a URL, browser storage, log, cookie or result view.
 - The unified screen keeps PHQ-9, GAD-7, safety, support tier, meaning and next
