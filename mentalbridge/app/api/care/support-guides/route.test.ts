@@ -2,12 +2,9 @@ import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
-import {
-  INITIAL_CHECK_GAD7_COOKIE,
-  INITIAL_CHECK_PHQ9_COOKIE,
-} from '@/lib/care/guided-initial-check-cookies'
 
 const careMocks = vi.hoisted(() => ({
+  currentScreeningEpisode: vi.fn(),
   generateSupportGuide: vi.fn(),
   supportGuideHistory: vi.fn(),
 }))
@@ -28,13 +25,8 @@ import { GET, POST } from './route'
 const phq9 = '10000000-0000-4000-8000-000000000511'
 const gad7 = '20000000-0000-4000-8000-000000000511'
 
-function request(method: 'GET' | 'POST', suffix = '', journey = true) {
+function request(method: 'GET' | 'POST', suffix = '') {
   const cookies = [`${ACCESS_COOKIE_NAME}=identity-access-secret`]
-  if (journey)
-    cookies.push(
-      `${INITIAL_CHECK_PHQ9_COOKIE}=${phq9}`,
-      `${INITIAL_CHECK_GAD7_COOKIE}=${gad7}`,
-    )
   return new NextRequest(`http://localhost/api/care/support-guides${suffix}`, {
     method,
     headers: {
@@ -57,6 +49,11 @@ describe('/api/care/support-guides', () => {
         emailVerified: true,
       },
     })
+    careMocks.currentScreeningEpisode.mockResolvedValue({
+      status: 'COMPLETED',
+      phq9AssessmentId: phq9,
+      gad7AssessmentId: gad7,
+    })
   })
 
   it('generates only from server-held exact assessment references', async () => {
@@ -75,7 +72,12 @@ describe('/api/care/support-guides', () => {
   })
 
   it('fails closed when the guided assessment references are absent', async () => {
-    const response = await POST(request('POST', '', false))
+    careMocks.currentScreeningEpisode.mockResolvedValue({
+      status: 'IN_PROGRESS',
+      phq9AssessmentId: null,
+      gad7AssessmentId: null,
+    })
+    const response = await POST(request('POST'))
 
     expect(response.status).toBe(409)
     await expect(response.json()).resolves.toMatchObject({

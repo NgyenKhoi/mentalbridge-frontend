@@ -11,10 +11,13 @@ import type {
   SupportPlanReplacementReview,
 } from './support-plan-contract'
 
-export async function proposeSupportPlanDraft(idempotencyKey: string) {
+export async function proposeSupportPlanDraft(
+  idempotencyKey: string,
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT' = 'INITIAL_CHECK',
+) {
   return (
     await browserApiClient.post<SupportPlanDraft>(
-      '/care/support-plans',
+      `/care/support-plans?purpose=${purpose}`,
       undefined,
       { headers: { 'Idempotency-Key': idempotencyKey } },
     )

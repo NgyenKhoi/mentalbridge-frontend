@@ -89,7 +89,10 @@ describe('Assessment history page', () => {
     )
     render(<AssessmentsPage />)
     expect(await screen.findByText('8 điểm')).toBeVisible()
-    expect(screen.getAllByRole('link', { name: /bắt đầu/i })).toHaveLength(2)
+    expect(screen.getAllByRole('link', { name: /bắt đầu/i })).toHaveLength(3)
+    expect(
+      screen.getByRole('link', { name: 'Bắt đầu lượt đánh giá lại' }),
+    ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
     expect(screen.getByText('Nhẹ')).toBeVisible()
     expect(screen.getByRole('link', { name: 'Xem lại' })).toHaveAttribute(
       'href',

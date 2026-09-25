@@ -12,8 +12,6 @@ import {
   localProblem,
 } from '@/lib/care/bff-response'
 import { careClient } from '@/lib/care/care-client'
-import { readInitialCheckIds } from '@/lib/care/guided-initial-check-cookies'
-import { isUuid } from '@/lib/care/care-validation'
 
 const IDEMPOTENCY_KEY = /^[!-~]{16,128}$/
 
@@ -26,9 +24,6 @@ export async function POST(request: NextRequest) {
     return careAuthenticationFailure(error, correlationId)
   }
   const key = request.headers.get('idempotency-key') ?? ''
-  const { phq9AssessmentId, gad7AssessmentId } = readInitialCheckIds(
-    request.cookies,
-  )
   if (!IDEMPOTENCY_KEY.test(key)) {
     return carryCareSession(
       localProblem(
@@ -40,26 +35,33 @@ export async function POST(request: NextRequest) {
       user,
     )
   }
-  if (
-    !phq9AssessmentId ||
-    !gad7AssessmentId ||
-    !isUuid(phq9AssessmentId) ||
-    !isUuid(gad7AssessmentId)
-  ) {
-    return carryCareSession(
-      localProblem(
-        409,
-        'INITIAL_CHECK_INCOMPLETE',
-        'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu trước khi tạo gợi ý hỗ trợ.',
-        correlationId,
-      ),
-      user,
-    )
-  }
   try {
+    const episode = await careClient.currentScreeningEpisode(
+      user.accessToken,
+      'INITIAL_CHECK',
+      correlationId,
+    )
+    if (
+      episode.status !== 'COMPLETED' ||
+      !episode.phq9AssessmentId ||
+      !episode.gad7AssessmentId
+    ) {
+      return carryCareSession(
+        localProblem(
+          409,
+          'INITIAL_CHECK_INCOMPLETE',
+          'Cần hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu trước khi tạo gợi ý hỗ trợ.',
+          correlationId,
+        ),
+        user,
+      )
+    }
     const guide = await careClient.generateSupportGuide(
       user.accessToken,
-      { phq9AssessmentId, gad7AssessmentId },
+      {
+        phq9AssessmentId: episode.phq9AssessmentId,
+        gad7AssessmentId: episode.gad7AssessmentId,
+      },
       key,
       correlationId,
     )

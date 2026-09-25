@@ -28,6 +28,9 @@ import type {
   ReassessmentContext,
   ReassessmentSummary,
   ReassessmentSummaryCreateRequest,
+  ScreeningEpisode,
+  ScreeningEpisodeEvaluationOutcome,
+  ScreeningEpisodePurpose,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
 import type {
@@ -73,6 +76,8 @@ import {
   parseReassessmentSelfReport,
   parseReassessmentContext,
   parseReassessmentSummary,
+  parseScreeningEpisode,
+  parseScreeningEpisodeEvaluationOutcome,
 } from './care-validation'
 import {
   parseSupportEvaluationV2,
@@ -410,6 +415,68 @@ export const careClient = {
       idempotencyKey,
       body: request,
       parseSuccess: parseAssessment,
+    })
+  },
+
+  startScreeningEpisode(
+    accessToken: string,
+    purpose: ScreeningEpisodePurpose,
+    correlationId: string,
+  ): Promise<ScreeningEpisode> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v1/screening-episodes',
+      correlationId,
+      authorization: accessToken,
+      body: { purpose },
+      parseSuccess: parseScreeningEpisode,
+    })
+  },
+
+  currentScreeningEpisode(
+    accessToken: string,
+    purpose: ScreeningEpisodePurpose,
+    correlationId: string,
+  ): Promise<ScreeningEpisode> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/screening-episodes/current?purpose=${purpose}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseScreeningEpisode,
+    })
+  },
+
+  submitScreeningEpisodeAssessment(
+    accessToken: string,
+    episodeId: string,
+    instrument: Instrument,
+    request: AssessmentSubmissionRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<Assessment> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/screening-episodes/${encodeURIComponent(episodeId)}/assessments/${instrument}`,
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parseAssessment,
+    })
+  },
+
+  evaluateScreeningEpisode(
+    accessToken: string,
+    episodeId: string,
+    correlationId: string,
+  ): Promise<ScreeningEpisodeEvaluationOutcome> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/screening-episodes/${encodeURIComponent(episodeId)}/support-evaluation`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseScreeningEpisodeEvaluationOutcome,
     })
   },
 

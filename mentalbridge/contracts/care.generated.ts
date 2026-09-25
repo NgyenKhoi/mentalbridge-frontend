@@ -254,6 +254,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/screening-episodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start or resume the open guided screening episode for one purpose
+         * @description Care returns the existing IN_PROGRESS or READY episode for the purpose, or
+         *     creates a new one when no open episode exists. Standalone assessment history
+         *     is never attached implicitly.
+         */
+        post: operations["startScreeningEpisode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/screening-episodes/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resume the latest persisted guided screening episode for one purpose */
+        get: operations["getCurrentScreeningEpisode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/screening-episodes/{episodeId}/assessments/{instrument}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit one assessment directly into its exact guided episode
+         * @description PHQ-9 must precede GAD-7. Submission, scoring, and attachment use the same
+         *     Care transaction, so browser cookies and latest-history inference are not
+         *     evidence authority.
+         */
+        post: operations["submitScreeningEpisodeAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/screening-episodes/{episodeId}/support-evaluation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evaluate the exact PHQ-9 and GAD-7 pair attached to a guided episode
+         * @description Care creates the immutable domain-aware SupportEvaluation used by downstream
+         *     support and the v1 presentation evaluation used by the current client. The
+         *     completed episode persists both references and replays them on retry.
+         */
+        post: operations["completeScreeningEpisodeEvaluation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reassessment-self-reports": {
         parameters: {
             query?: never;
@@ -1342,6 +1425,39 @@ export interface components {
             /** @description Exactly one answer for every question in the referenced definition; order is not authoritative */
             answers: components["schemas"]["AssessmentAnswer"][];
         };
+        /** @enum {string} */
+        ScreeningEpisodePurpose: "INITIAL_CHECK" | "REASSESSMENT";
+        /** @enum {string} */
+        ScreeningEpisodeStatus: "IN_PROGRESS" | "READY" | "COMPLETED";
+        ScreeningEpisodeStartRequest: {
+            purpose: components["schemas"]["ScreeningEpisodePurpose"];
+        };
+        ScreeningEpisode: {
+            /** Format: uuid */
+            episodeId: string;
+            purpose: components["schemas"]["ScreeningEpisodePurpose"];
+            status: components["schemas"]["ScreeningEpisodeStatus"];
+            /** Format: uuid */
+            phq9AssessmentId?: string | null;
+            /** Format: uuid */
+            gad7AssessmentId?: string | null;
+            /** Format: uuid */
+            supportEvaluationId?: string | null;
+            /** Format: uuid */
+            presentationEvaluationId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+            /** Format: int64 */
+            version: number;
+        };
+        ScreeningEpisodeEvaluationOutcome: {
+            episode: components["schemas"]["ScreeningEpisode"];
+            presentationEvaluation: components["schemas"]["SupportEvaluation"];
+        };
         AssessmentAnswer: {
             /** Format: uuid */
             questionId: string;
@@ -1994,7 +2110,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The requested lifecycle transition is invalid, reassessment is stale, or replacement is unchanged (SUPPORT_PLAN_TRANSITION_INVALID, REASSESSMENT_SUMMARY_STALE, or SUPPORT_PLAN_REPLACEMENT_UNCHANGED) */
+        /** @description The requested lifecycle transition is invalid, reassessment is stale or uses different screening evidence, or replacement is unchanged (SUPPORT_PLAN_TRANSITION_INVALID, REASSESSMENT_SUMMARY_STALE, REASSESSMENT_SCREENING_CONTEXT_MISMATCH, or SUPPORT_PLAN_REPLACEMENT_UNCHANGED) */
         SupportPlanLifecycleConflictProblem: {
             headers: {
                 [name: string]: unknown;
@@ -2523,6 +2639,132 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["InsufficientComparableDataProblem"];
+        };
+    };
+    startScreeningEpisode: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScreeningEpisodeStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Guided screening episode started or resumed */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreeningEpisode"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getCurrentScreeningEpisode: {
+        parameters: {
+            query: {
+                purpose: components["schemas"]["ScreeningEpisodePurpose"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest guided episode returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreeningEpisode"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    submitScreeningEpisodeAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                episodeId: string;
+                instrument: components["schemas"]["Instrument"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentSubmissionRequest"];
+            };
+        };
+        responses: {
+            /** @description Assessment persisted and attached to the episode */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assessment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    completeScreeningEpisodeEvaluation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                episodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact episode evidence evaluated and persisted */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreeningEpisodeEvaluationOutcome"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
         };
     };
     createOwnReassessmentSelfReport: {

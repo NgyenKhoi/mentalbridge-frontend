@@ -347,6 +347,12 @@ export function ReassessmentJourney() {
 
       {context?.state === 'INCOMPLETE' ? (
         <div className="reassessment-message" role="status">
+          <Link
+            className="assessment-row-action"
+            href="/initial-check?purpose=reassessment"
+          >
+            Bắt đầu lượt đánh giá lại
+          </Link>
           Cần hoàn tất: {context.missingInstruments.join(', ')} trước khi bắt
           đầu.
         </div>
