@@ -46,6 +46,20 @@ function profileForm(profile: CareProfile): FormState {
   }
 }
 
+function disclosureParagraphs(content: string) {
+  const sentences =
+    content
+      .match(/[^.!?]+[.!?]+|[^.!?]+$/g)
+      ?.map((sentence) => sentence.trim())
+      .filter(Boolean) ?? []
+
+  return sentences.reduce<string[]>((paragraphs, sentence, index) => {
+    if (index % 2 === 0) paragraphs.push(sentence)
+    else paragraphs[paragraphs.length - 1] += ` ${sentence}`
+    return paragraphs
+  }, [])
+}
+
 function errorsFromViolations(
   violations: readonly { field: string; code: string }[],
 ): FieldErrors {
@@ -436,12 +450,12 @@ export default function ProfilePage() {
           <h2>Trạng thái</h2>
           <div>
             <article>
-              <span className="teal">N</span>
+              <span className={profile ? 'teal' : 'neutral'}>N</span>
               <strong>{profile ? 'Đã lưu' : 'Chưa có'}</strong>
               <small>Trạng thái hồ sơ</small>
             </article>
             <article>
-              <span className="amber">✓</span>
+              <span className={privacyGranted ? 'teal' : 'neutral'}>✓</span>
               <strong>{privacyGranted ? 'Đang bật' : 'Đang tắt'}</strong>
               <small>Xử lý dữ liệu sàng lọc</small>
             </article>
@@ -454,24 +468,66 @@ export default function ProfilePage() {
         {disclosure ? (
           <div>
             <h2>{disclosure.title}</h2>
-            <p>{disclosure.content}</p>
-            <div className="settings-form-actions">
+            <div className="settings-consent-summary">
+              <p>
+                MentalBridge dùng câu trả lời PHQ-9 hoặc GAD-7 để tính kết quả
+                sàng lọc và cung cấp thông tin hỗ trợ phù hợp. Khi đăng nhập,
+                kết quả được lưu cùng tài khoản để bạn có thể xem lại.
+              </p>
+              <p>
+                Phiên ẩn danh chỉ xử lý dữ liệu trong phiên hiện tại và không
+                gắn kết quả vào hồ sơ tài khoản. Phiên có tài khoản cho phép lưu
+                lịch sử khi bạn đã đồng ý.
+              </p>
+              <p>
+                Lựa chọn này chỉ áp dụng cho xử lý dữ liệu sàng lọc. Nó không
+                bao gồm sử dụng AI, nghiên cứu hoặc marketing; các mục đích đó
+                cần lựa chọn riêng.
+              </p>
+              <p>
+                Bạn có thể dừng xử lý cho các lần sàng lọc mới bất cứ lúc nào.
+                Việc rút lại đồng ý không tự động xóa kết quả đã lưu.
+              </p>
+            </div>
+            <details className="settings-consent-details">
+              <summary>Xem thêm</summary>
+              <div>
+                {disclosureParagraphs(disclosure.content).map(
+                  (paragraph, index) => (
+                    <p key={index}>{paragraph}</p>
+                  ),
+                )}
+              </div>
+            </details>
+            <div className="settings-consent-control">
+              <div>
+                <strong>Xử lý dữ liệu cho các lần sàng lọc mới</strong>
+                <span>
+                  {privacyGranted
+                    ? 'Đang bật — kết quả mới có thể được lưu vào tài khoản.'
+                    : 'Đang tắt — các lần sàng lọc mới sẽ không được xử lý theo lựa chọn này.'}
+                </span>
+              </div>
               <button
-                className={privacyGranted ? 'btn-ghost' : 'btn-primary'}
+                className="settings-privacy-switch"
+                type="button"
+                role="switch"
+                aria-checked={privacyGranted}
+                aria-label={
+                  privacyGranted
+                    ? 'Dừng xử lý dữ liệu cho các lần sàng lọc mới'
+                    : 'Bật xử lý dữ liệu cho các lần sàng lọc mới'
+                }
                 disabled={privacySaving || !profile}
                 onClick={() => void decidePrivacy(!privacyGranted)}
               >
-                {privacySaving
-                  ? 'Đang ghi nhận…'
-                  : privacyGranted
-                    ? 'Dừng xử lý cho các lần sàng lọc mới'
-                    : 'Đồng ý xử lý dữ liệu sàng lọc'}
+                <span aria-hidden="true" />
               </button>
             </div>
             <p className="settings-inline-note">
-              {privacyGranted
-                ? 'Bạn đang cho phép xử lý dữ liệu khi gửi bài sàng lọc mới. Dừng lựa chọn này không xóa các kết quả đã lưu.'
-                : 'Nếu đồng ý, MentalBridge sẽ xử lý câu trả lời bạn gửi để tạo kết quả sàng lọc. Bạn có thể dừng cho các lần mới bất cứ lúc nào.'}
+              {privacySaving
+                ? 'Đang ghi nhận lựa chọn của bạn…'
+                : 'Thay đổi chỉ áp dụng cho các lần sàng lọc mới.'}
             </p>
             {!profile && (
               <p className="settings-inline-note">

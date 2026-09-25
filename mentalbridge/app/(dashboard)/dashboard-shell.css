@@ -32,3 +32,9 @@
 .ref-context span{font-size:10px;letter-spacing:.04em;text-transform:none}.ref-context strong{font:650 14px var(--font-be-vietnam)}.ref-topbar>label{border-radius:10px;background:rgba(255,255,255,.72);box-shadow:none}.ref-topbar>label:focus-within{box-shadow:0 0 0 3px rgba(207,227,216,.72)}.ref-topbar input{font-size:13px}.ref-topbar kbd{font-size:10px}.ref-notify{border-radius:10px}.ref-notify b{border-radius:6px}.ref-avatar{box-shadow:none}
 .ref-notify,.ref-avatar,.ref-mobile{transition:background .18s ease,transform .18s ease}.ref-notify:hover,.ref-mobile:hover{background:var(--surface-soft)}.ref-notify:active,.ref-avatar:active,.ref-mobile:active{transform:scale(.96)}
 @media(max-width:560px){.ref-topbar{height:66px}}
+
+.ref-user-avatar,
+.ref-avatar {
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}

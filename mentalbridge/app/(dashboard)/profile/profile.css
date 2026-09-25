@@ -179,3 +179,172 @@
 .settings-page button:focus-visible,.settings-page input:focus-visible,.settings-page .light-select-trigger:focus-visible{outline:3px solid var(--teal-deep);outline-offset:3px}
 .settings-scope-note{margin:-8px 2px 20px;color:var(--ink-faint);font-size:12px;line-height:1.6}
 @media(max-width:700px){.settings-onboarding{align-items:flex-start;flex-direction:column}.settings-onboarding button{width:100%}}
+
+.settings-page h1,
+.settings-page h2 {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+.settings-hero h1 {
+  font-style: normal;
+}
+
+.settings-profile-summary,
+.settings-activity {
+  padding: 24px;
+}
+
+.settings-accordion-body form,
+.settings-privacy-runtime > div,
+.settings-danger > div {
+  padding-bottom: 24px;
+}
+
+.settings-avatar-wrap svg {
+  stroke: var(--teal);
+}
+
+.settings-activity .neutral {
+  background: var(--surface-soft);
+  color: var(--ink-faint);
+}
+
+.settings-password-info {
+  border-color: var(--line) !important;
+}
+
+.settings-password-info .settings-password-visibility {
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  color: var(--ink-faint) !important;
+  font-size: 0 !important;
+}
+
+.settings-password-info .settings-password-visibility:hover {
+  background: var(--teal-pale) !important;
+  color: var(--teal-deep) !important;
+}
+
+.settings-consent-summary {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.settings-consent-summary p,
+.settings-consent-details p {
+  margin: 0;
+  white-space: normal;
+}
+
+.settings-consent-details {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.settings-consent-details summary {
+  padding: 12px 14px;
+  color: var(--teal-deep);
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.settings-consent-details summary:focus-visible {
+  outline: 3px solid var(--teal-pale);
+  outline-offset: 2px;
+}
+
+.settings-consent-details > div {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.settings-consent-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 18px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-consent-control > div {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-consent-control strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.settings-consent-control span {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-privacy-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  flex: 0 0 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--line);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.settings-privacy-switch > span {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(27, 42, 34, 0.18);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-privacy-switch[aria-checked='true'] {
+  background: var(--teal-deep);
+}
+
+.settings-privacy-switch[aria-checked='true'] > span {
+  transform: translateX(20px);
+}
+
+.settings-privacy-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.settings-privacy-switch:focus-visible {
+  outline: 3px solid var(--teal-pale);
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .settings-consent-control {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-privacy-switch,
+  .settings-privacy-switch > span {
+    transition: none;
+  }
+}
