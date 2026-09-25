@@ -324,7 +324,14 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
               })
             }
           />
-          <span>
+          <span
+            className="support-plan-summary-consent-control"
+            data-state={draft.summaryReuseApproved ? 'checked' : 'unchecked'}
+            aria-hidden="true"
+          >
+            {draft.summaryReuseApproved ? '✓' : null}
+          </span>
+          <span className="support-plan-summary-consent-copy">
             Cho phép dùng trạng thái hoạt động (đã làm hoặc bỏ qua) trong bản
             tóm tắt do tôi duyệt. Nội dung ghi chú riêng không được chia sẻ.
           </span>

@@ -334,27 +334,34 @@ export function ReassessmentJourney() {
       className="reassessment-report"
       aria-labelledby="reassessment-title"
     >
-      <div className="assessment-section-title">
+      <div className="reassessment-heading">
         <div>
           <span>Đánh giá lại</span>
-          <h2 id="reassessment-title">Nhìn lại từ bốn nguồn riêng biệt</h2>
+          <h2 id="reassessment-title">
+            Hiểu những thay đổi của bạn qua bốn góc nhìn
+          </h2>
         </div>
         <p>
-          Care chọn kết quả sàng lọc và giai đoạn hợp lệ; Journal cung cấp trạng
-          thái job có thẩm quyền.
+          Đặt kết quả sàng lọc, nhật ký, việc thực hiện kế hoạch và cảm nhận của
+          bạn cạnh nhau để nhận ra thay đổi và chọn bước hỗ trợ phù hợp.
         </p>
       </div>
 
       {context?.state === 'INCOMPLETE' ? (
-        <div className="reassessment-message" role="status">
+        <div
+          className="reassessment-message reassessment-incomplete"
+          role="status"
+        >
+          <span>
+            Cần hoàn tất: {context.missingInstruments.join(', ')} trước khi bắt
+            đầu.
+          </span>
           <Link
-            className="assessment-row-action"
+            className="reassessment-secondary-action"
             href="/initial-check?purpose=reassessment"
           >
             Bắt đầu lượt đánh giá lại
           </Link>
-          Cần hoàn tất: {context.missingInstruments.join(', ')} trước khi bắt
-          đầu.
         </div>
       ) : context ? (
         <>
@@ -417,7 +424,7 @@ export function ReassessmentJourney() {
               {pendingJob && (
                 <button
                   type="button"
-                  className="assessment-row-action"
+                  className="reassessment-secondary-action"
                   disabled={working}
                   onClick={() => void resume()}
                 >
@@ -427,7 +434,7 @@ export function ReassessmentJourney() {
               {report && (
                 <button
                   type="button"
-                  className="assessment-row-action"
+                  className="reassessment-secondary-action"
                   disabled={working}
                   onClick={() => void removeReport()}
                 >
@@ -448,7 +455,10 @@ export function ReassessmentJourney() {
         <>
           <SummaryCards summary={summary} />
           <div className="reassessment-actions">
-            <Link className="assessment-row-action" href="/support-plan">
+            <Link
+              className="reassessment-secondary-action"
+              href="/support-plan"
+            >
               Xem lại kế hoạch hỗ trợ
             </Link>
           </div>
