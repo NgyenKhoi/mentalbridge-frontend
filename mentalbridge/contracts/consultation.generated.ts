@@ -410,7 +410,7 @@ export interface components {
             specialistAccountId: string;
             specialistDisplayName: string;
             /** @enum {string} */
-            status: "REQUESTED" | "CONFIRMED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED";
             modality: components["schemas"]["AppointmentModality"];
             /** Format: date-time */
             scheduledStartAt: string;

@@ -27,9 +27,9 @@ const demo = {
     releasedTransitions: 0,
   },
   reservationCapacity: {
-    active: 1,
+    active: 2,
     maximum: 2,
-    remaining: 1,
+    remaining: 0,
   },
   history: [
     {
@@ -58,9 +58,9 @@ describe('ServiceCreditsPanel', () => {
     expect(screen.getByText(/Lượt tư vấn dùng thử/)).toBeInTheDocument()
     expect(screen.getByText('Còn lại').previousSibling).toHaveTextContent('4')
     expect(
-      screen.getByRole('heading', { name: '1/2 lịch' }),
+      screen.getByRole('heading', { name: '2/2 lịch' }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/giới hạn riêng/)).toBeInTheDocument()
+    expect(screen.getByText(/đang diễn ra/)).toBeInTheDocument()
     expect(screen.getByText(/chỉ cấp thêm phần chênh lệch/)).toBeInTheDocument()
   })
 

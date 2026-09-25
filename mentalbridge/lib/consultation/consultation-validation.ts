@@ -97,7 +97,13 @@ export type Appointment = Readonly<{
   slotId: string
   specialistAccountId: string
   specialistDisplayName: string
-  status: 'REQUESTED' | 'CONFIRMED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED'
+  status:
+    | 'REQUESTED'
+    | 'CONFIRMED'
+    | 'IN_PROGRESS'
+    | 'REJECTED'
+    | 'EXPIRED'
+    | 'CANCELLED'
   modality: AppointmentModality
   scheduledStartAt: string
   scheduledEndAt: string
@@ -432,9 +438,14 @@ export function parseAppointment(value: unknown): Appointment | null {
     !uuid(item.slotId) ||
     !uuid(item.specialistAccountId) ||
     typeof item.specialistDisplayName !== 'string' ||
-    !['REQUESTED', 'CONFIRMED', 'REJECTED', 'EXPIRED', 'CANCELLED'].includes(
-      String(item.status),
-    ) ||
+    ![
+      'REQUESTED',
+      'CONFIRMED',
+      'IN_PROGRESS',
+      'REJECTED',
+      'EXPIRED',
+      'CANCELLED',
+    ].includes(String(item.status)) ||
     !AVAILABILITY_MODALITIES.includes(item.modality as AppointmentModality) ||
     !utcInstant(item.scheduledStartAt) ||
     !utcInstant(item.scheduledEndAt) ||

@@ -150,7 +150,7 @@ describe('Consultation contract validation', () => {
       slotId: '43b7dbb4-021e-4c75-ae48-bfa7126c7256',
       specialistAccountId: '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
       specialistDisplayName: 'Chuyên gia An',
-      status: 'REQUESTED',
+      status: 'IN_PROGRESS',
       modality: 'IN_APP_CHAT',
       scheduledStartAt: '2026-09-25T02:00:00Z',
       scheduledEndAt: '2026-09-25T03:00:00Z',

@@ -62,7 +62,7 @@ describe('AppointmentRequestPanel', () => {
           slotId: '123e4567-e89b-42d3-a456-426614174004',
           specialistAccountId: '123e4567-e89b-42d3-a456-426614174005',
           specialistDisplayName: 'Appointment specialist',
-          status: 'REQUESTED',
+          status: 'IN_PROGRESS',
           modality: 'IN_APP_CHAT',
           scheduledStartAt: appointmentStart,
           scheduledEndAt: '2099-01-03T05:00:00Z',
@@ -86,6 +86,7 @@ describe('AppointmentRequestPanel', () => {
     }).format(new Date(appointmentStart))
     expect(snapshotStart).not.toBe(deviceStart)
     expect(await screen.findByText(snapshotStart)).toBeInTheDocument()
+    expect(screen.getByText('Đang diễn ra')).toBeInTheDocument()
     expect(
       screen.getByText(formatInSnapshotTimezone(decisionDeadline)),
     ).toBeInTheDocument()

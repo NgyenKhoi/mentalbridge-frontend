@@ -142,7 +142,7 @@ export default function ServiceCreditsPanel() {
           {account.reservationCapacity.maximum === 0
             ? 'Gói hiện tại chưa thể giữ lịch tư vấn.'
             : account.reservationCapacity.remaining === 0
-              ? 'Bạn đã đạt giới hạn lịch đang chờ hoặc đã xác nhận. Lượt tư vấn còn lại không làm tăng giới hạn này.'
+              ? 'Bạn đã đạt giới hạn lịch đang chờ, đã xác nhận hoặc đang diễn ra. Lượt tư vấn còn lại không làm tăng giới hạn này.'
               : `Bạn có thể giữ thêm ${account.reservationCapacity.remaining} lịch. Đây là giới hạn riêng, không phải số lượt tư vấn còn lại.`}
         </p>
       </section>
