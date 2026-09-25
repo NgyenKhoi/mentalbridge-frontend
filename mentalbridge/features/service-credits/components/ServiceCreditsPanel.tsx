@@ -130,6 +130,23 @@ export default function ServiceCreditsPanel() {
         </div>
       </div>
 
+      <section className={styles.capacity} aria-labelledby="capacity-title">
+        <div>
+          <span className={styles.eyebrow}>Giới hạn lịch đang giữ</span>
+          <h2 id="capacity-title">
+            {account.reservationCapacity.active}/
+            {account.reservationCapacity.maximum} lịch
+          </h2>
+        </div>
+        <p>
+          {account.reservationCapacity.maximum === 0
+            ? 'Gói hiện tại chưa thể giữ lịch tư vấn.'
+            : account.reservationCapacity.remaining === 0
+              ? 'Bạn đã đạt giới hạn lịch đang chờ, đã xác nhận hoặc đang diễn ra. Lượt tư vấn còn lại không làm tăng giới hạn này.'
+              : `Bạn có thể giữ thêm ${account.reservationCapacity.remaining} lịch. Đây là giới hạn riêng, không phải số lượt tư vấn còn lại.`}
+        </p>
+      </section>
+
       <dl className={styles.period}>
         <div>
           <dt>Bắt đầu kỳ</dt>

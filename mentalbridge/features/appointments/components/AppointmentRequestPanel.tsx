@@ -24,6 +24,8 @@ function errorMessage(error: unknown) {
     PAID_PLAN_REQUIRED: 'Bạn cần gói Plus hoặc Premium để đặt lịch.',
     APPOINTMENT_CREDIT_UNAVAILABLE:
       'Không còn credit phù hợp cho khung giờ này.',
+    APPOINTMENT_RESERVATION_LIMIT_REACHED:
+      'Bạn đã đạt giới hạn lịch đang chờ, đã xác nhận hoặc đang diễn ra. Hãy hoàn tất, hủy hoặc đổi một lịch hiện có trước khi đặt thêm.',
     APPOINTMENT_SLOT_UNAVAILABLE:
       'Khung giờ vừa được người khác giữ. Hãy chọn khung giờ khác.',
     APPOINTMENT_SLOT_STALE: 'Khung giờ này không còn khả dụng.',
@@ -124,7 +126,9 @@ export default function AppointmentRequestPanel() {
                 <div className={styles.status}>
                   {item.status === 'REQUESTED'
                     ? 'Đang chờ xác nhận'
-                    : item.status}
+                    : item.status === 'IN_PROGRESS'
+                      ? 'Đang diễn ra'
+                      : item.status}
                 </div>
                 <h3>{item.specialistDisplayName}</h3>
                 <p>

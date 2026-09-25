@@ -17,14 +17,19 @@ const demo = {
   sourceReference: 'controlled-demo-377',
   periodStart: '2026-09-20T00:00:00Z',
   periodEnd: '2026-10-20T00:00:00Z',
-  policyVersion: 'consultation-credit-v1' as const,
+  policyVersion: 'consultation-credit-v2' as const,
   balance: {
-    available: 1,
+    available: 4,
     held: 0,
     consumed: 0,
     forfeited: 0,
-    total: 1,
+    total: 4,
     releasedTransitions: 0,
+  },
+  reservationCapacity: {
+    active: 2,
+    maximum: 2,
+    remaining: 0,
   },
   history: [
     {
@@ -33,6 +38,7 @@ const demo = {
       eventType: 'PROVISIONED' as const,
       source: 'DEMO' as const,
       packageCode: 'PLUS' as const,
+      policyVersion: 'consultation-credit-v2' as const,
       appointmentId: null,
       occurredAt: '2026-09-20T01:00:00Z',
     },
@@ -50,7 +56,11 @@ describe('ServiceCreditsPanel', () => {
       await screen.findByRole('heading', { name: 'Plus' }),
     ).toBeInTheDocument()
     expect(screen.getByText(/Lượt tư vấn dùng thử/)).toBeInTheDocument()
-    expect(screen.getByText('Còn lại').previousSibling).toHaveTextContent('1')
+    expect(screen.getByText('Còn lại').previousSibling).toHaveTextContent('4')
+    expect(
+      screen.getByRole('heading', { name: '2/2 lịch' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/đang diễn ra/)).toBeInTheDocument()
     expect(screen.getByText(/chỉ cấp thêm phần chênh lệch/)).toBeInTheDocument()
   })
 

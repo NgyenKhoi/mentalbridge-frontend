@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test'
 import { test } from './test-fixtures'
 
-test('MB-377 displays the Consultation-owned demo balance on mobile', async ({
+test('MB-558 separates Consultation-owned credits from reservation capacity on mobile', async ({
   context,
   page,
 }) => {
@@ -28,8 +28,12 @@ test('MB-377 displays the Consultation-owned demo balance on mobile', async ({
   await expect(creditPanel.getByRole('heading', { name: 'Plus' })).toBeVisible()
   await expect(creditPanel.getByText(/Lượt tư vấn dùng thử/)).toBeVisible()
   await expect(creditPanel.getByText('Còn lại').locator('..')).toContainText(
-    '1',
+    '4',
   )
+  await expect(
+    creditPanel.getByRole('heading', { name: '1/2 lịch' }),
+  ).toBeVisible()
+  await expect(creditPanel.getByText(/giới hạn riêng/)).toBeVisible()
   await expect(
     creditPanel.getByText(/chỉ cấp thêm phần chênh lệch/),
   ).toBeVisible()

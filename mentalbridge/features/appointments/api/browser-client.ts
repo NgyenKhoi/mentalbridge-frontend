@@ -23,11 +23,16 @@ export const appointmentBrowserClient = {
     slotId: string,
     modality: AppointmentModality,
     idempotencyKey: string,
+    replacesAppointmentId?: string,
   ) {
     return (
       await browserApiClient.post<Appointment>(
         '/consultation/appointments',
-        { slotId, modality },
+        {
+          slotId,
+          modality,
+          ...(replacesAppointmentId ? { replacesAppointmentId } : {}),
+        },
         { headers: { 'Idempotency-Key': idempotencyKey } },
       )
     ).data

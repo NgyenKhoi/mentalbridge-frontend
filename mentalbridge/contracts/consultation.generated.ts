@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns the authenticated user's server-authoritative consultation-credit balance and bounded ledger history. Reading provisions any missing credits for the current effective entitlement idempotently; clients must never derive a mutable balance. */
+        /** @description Returns the authenticated user's server-authoritative consultation-credit balance, distinct concurrent reservation capacity, and bounded ledger history. Reading provisions any missing credits for the current effective entitlement idempotently; clients must never derive mutable limits from the package name. */
         get: operations["getOwnServiceCredits"];
         put?: never;
         post?: never;
@@ -153,7 +153,7 @@ export interface paths {
         /** @description Lists the authenticated user's authoritative appointment snapshots, including request deadline and held credit identity. */
         get: operations["listOwnAppointments"];
         put?: never;
-        /** @description Atomically creates a REQUESTED appointment for one exact slot and holds the earliest-expiring credit that covers its start. Exact command replays return the original appointment. */
+        /** @description Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, the active appointment and its held credit are atomically moved to a linked replacement request without temporarily consuming another reservation. Exact command replays return the original appointment. */
         post: operations["requestAppointment"];
         delete?: never;
         options?: never;
@@ -305,6 +305,8 @@ export interface components {
         CreditSource: "DEFAULT_FREE" | "DEMO" | "PAID";
         /** @enum {string} */
         CreditLedgerEventType: "PROVISIONED" | "HELD" | "CONSUMED" | "RELEASED" | "FORFEITED";
+        /** @enum {string} */
+        ConsultationCreditPolicyVersion: "consultation-credit-v1" | "consultation-credit-v2";
         ServiceCreditBalance: {
             available: number;
             held: number;
@@ -312,6 +314,11 @@ export interface components {
             forfeited: number;
             total: number;
             releasedTransitions: number;
+        };
+        AppointmentReservationCapacity: {
+            active: number;
+            maximum: number;
+            remaining: number;
         };
         ServiceCreditLedgerEvent: {
             /** Format: uuid */
@@ -321,6 +328,7 @@ export interface components {
             eventType: components["schemas"]["CreditLedgerEventType"];
             source: components["schemas"]["CreditSource"];
             packageCode: components["schemas"]["ServicePackage"];
+            policyVersion: components["schemas"]["ConsultationCreditPolicyVersion"];
             /** Format: uuid */
             appointmentId: string | null;
             /** Format: date-time */
@@ -336,9 +344,9 @@ export interface components {
             periodStart: string | null;
             /** Format: date-time */
             periodEnd: string | null;
-            /** @constant */
-            policyVersion: "consultation-credit-v1";
+            policyVersion: components["schemas"]["ConsultationCreditPolicyVersion"];
             balance: components["schemas"]["ServiceCreditBalance"];
+            reservationCapacity: components["schemas"]["AppointmentReservationCapacity"];
             history: components["schemas"]["ServiceCreditLedgerEvent"][];
             /** Format: date-time */
             generatedAt: string;
@@ -462,6 +470,11 @@ export interface components {
             /** Format: uuid */
             slotId: string;
             modality: components["schemas"]["AppointmentModality"];
+            /**
+             * Format: uuid
+             * @description Active user-owned appointment atomically replaced by this new request; omit for a normal request.
+             */
+            replacesAppointmentId?: string | null;
         };
         BookableSlot: {
             /** Format: uuid */
@@ -492,7 +505,7 @@ export interface components {
             specialistAccountId: string;
             specialistDisplayName: string;
             /** @enum {string} */
-            status: "REQUESTED" | "CONFIRMED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED";
             modality: components["schemas"]["AppointmentModality"];
             /** Format: date-time */
             scheduledStartAt: string;
@@ -505,6 +518,8 @@ export interface components {
             decisionDeadlineAt: string;
             /** Format: uuid */
             heldCreditId: string;
+            /** Format: uuid */
+            replacesAppointmentId: string | null;
         };
         AppointmentList: {
             items: components["schemas"]["Appointment"][];
@@ -540,7 +555,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The selected slot does not exist (APPOINTMENT_SLOT_NOT_FOUND). */
+        /** @description The selected slot or requested replacement appointment does not exist (APPOINTMENT_SLOT_NOT_FOUND or APPOINTMENT_REPLACEMENT_NOT_FOUND). */
         AppointmentSlotNotFoundProblem: {
             headers: {
                 [name: string]: unknown;
@@ -549,7 +564,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Slot, modality, lead time, video capability, credit, concurrency, or idempotency prevents the request. */
+        /** @description Slot, modality, lead time, video capability, credit, reservation capacity, replacement state, concurrency, or idempotency prevents the request. */
         AppointmentConflictProblem: {
             headers: {
                 [name: string]: unknown;

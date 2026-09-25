@@ -61,6 +61,26 @@
 .balance .primary {
   background: #dff4eb;
 }
+.capacity {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  margin: 0 0 24px;
+  padding: 18px;
+  border: 1px solid #cfe2dc;
+  border-radius: 18px;
+  background: #f8fbfa;
+}
+.capacity h2 {
+  margin: 4px 0 0;
+  color: #173f37;
+  white-space: nowrap;
+}
+.capacity p {
+  max-width: 620px;
+  margin: 0;
+}
 .period {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -120,6 +140,11 @@
   }
   .period {
     grid-template-columns: 1fr;
+  }
+  .capacity {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
   }
   .history li {
     flex-direction: column;

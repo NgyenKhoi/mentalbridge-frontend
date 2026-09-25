@@ -160,14 +160,19 @@ describe('Consultation contract validation', () => {
       sourceReference: 'controlled-demo-377',
       periodStart: '2026-09-20T00:00:00Z',
       periodEnd: '2026-10-20T00:00:00Z',
-      policyVersion: 'consultation-credit-v1',
+      policyVersion: 'consultation-credit-v2',
       balance: {
-        available: 2,
+        available: 9,
         held: 1,
         consumed: 0,
         forfeited: 0,
-        total: 3,
+        total: 10,
         releasedTransitions: 1,
+      },
+      reservationCapacity: {
+        active: 2,
+        maximum: 4,
+        remaining: 2,
       },
       history: [
         {
@@ -176,6 +181,7 @@ describe('Consultation contract validation', () => {
           eventType: 'HELD',
           source: 'DEMO',
           packageCode: 'PREMIUM',
+          policyVersion: 'consultation-credit-v2',
           appointmentId: 'aa310a3a-209b-4698-9c24-42157bc345c7',
           occurredAt: '2026-09-20T01:00:00Z',
         },
@@ -200,7 +206,7 @@ describe('Consultation contract validation', () => {
       slotId: '43b7dbb4-021e-4c75-ae48-bfa7126c7256',
       specialistAccountId: '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
       specialistDisplayName: 'Chuyên gia An',
-      status: 'REQUESTED',
+      status: 'IN_PROGRESS',
       modality: 'IN_APP_CHAT',
       scheduledStartAt: '2026-09-25T02:00:00Z',
       scheduledEndAt: '2026-09-25T03:00:00Z',
@@ -208,6 +214,7 @@ describe('Consultation contract validation', () => {
       requestedAt: '2026-09-23T02:00:00Z',
       decisionDeadlineAt: '2026-09-24T02:00:00Z',
       heldCreditId: '96de7b84-14ae-46cd-bfa1-8314d1366b02',
+      replacesAppointmentId: null,
     }
     expect(parseAppointment(appointment)).toEqual(appointment)
     expect(
@@ -224,8 +231,13 @@ describe('Consultation contract validation', () => {
       parseAppointmentRequestInput({
         slotId: appointment.slotId,
         modality: 'IN_APP_CHAT',
+        replacesAppointmentId: appointment.id,
       }),
-    ).toEqual({ slotId: appointment.slotId, modality: 'IN_APP_CHAT' })
+    ).toEqual({
+      slotId: appointment.slotId,
+      modality: 'IN_APP_CHAT',
+      replacesAppointmentId: appointment.id,
+    })
     expect(() =>
       parseAppointmentRequestInput({
         slotId: appointment.slotId,
