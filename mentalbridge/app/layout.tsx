@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Be_Vietnam_Pro, Fraunces, Lora } from 'next/font/google'
+import CrisisSupportWidget from '../components/crisis-support/CrisisSupportWidget'
 import MotionPreferences from '../components/motion/MotionPreferences'
 import SmoothScroll from '../components/SmoothScroll'
 import { Providers } from './providers'
@@ -52,6 +53,7 @@ export default function RootLayout({
         <MotionPreferences>
           <Providers>{children}</Providers>
         </MotionPreferences>
+        <CrisisSupportWidget />
         <SmoothScroll />
       </body>
     </html>

@@ -1,0 +1,368 @@
+.fab {
+  position: fixed;
+  z-index: 120000;
+  right: calc(24px + env(safe-area-inset-right));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  display: inline-flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 11px 22px 11px 15px;
+  border: 0;
+  border-radius: 999px;
+  background: #b8823d;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(143, 98, 41, 0.28);
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 180ms ease,
+    box-shadow 180ms ease;
+  touch-action: manipulation;
+}
+
+.fab:hover {
+  background: #a37135;
+  box-shadow: 0 9px 22px rgba(143, 98, 41, 0.34);
+  transform: translateY(-2px);
+}
+
+.fab:active {
+  transform: translateY(0);
+}
+
+.fab:focus-visible,
+.panel a:focus-visible,
+.panel button:focus-visible {
+  outline: 3px solid #f2c982;
+  outline-offset: 3px;
+}
+
+.fabIcon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.fabIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.backdrop {
+  position: fixed;
+  z-index: 120001;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: rgba(9, 18, 14, 0.4);
+  backdrop-filter: blur(3px);
+  cursor: default;
+  animation: crisis-backdrop-in 180ms ease-out both;
+}
+
+.panel {
+  position: fixed;
+  z-index: 120002;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  width: min(400px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 24px;
+  background: #fbfcf7;
+  color: #1b2a22;
+  box-shadow: 0 30px 80px -28px rgba(12, 42, 33, 0.72);
+  animation: crisis-panel-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px 22px 22px 24px;
+  background:
+    radial-gradient(circle at 92% 0, rgba(184, 130, 61, 0.24), transparent 44%),
+    #1e4a43;
+  color: #fff;
+}
+
+.header > div > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #e6bd7b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.header h2 {
+  margin: 0;
+  color: #fff;
+  font:
+    600 30px/1.12 var(--font-fraunces),
+    Georgia,
+    serif;
+  letter-spacing: -0.025em;
+}
+
+.header p {
+  max-width: 31ch;
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.close {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 27px;
+  line-height: 1;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.close:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: rotate(4deg);
+}
+
+.body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 20px 10px;
+}
+
+.contacts {
+  display: grid;
+  gap: 10px;
+}
+
+.contact {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 14px 14px 16px;
+  border: 1px solid rgba(184, 130, 61, 0.22);
+  border-radius: 16px;
+  background: #f8eedb;
+}
+
+.contact > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.contact p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #52604f;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.contact p span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(184, 130, 61, 0.13);
+  color: #815a25;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.contact strong {
+  margin-top: 4px;
+  color: #744f20;
+  font:
+    600 29px/1 var(--font-fraunces),
+    Georgia,
+    serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.call {
+  display: inline-flex;
+  min-height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 13px;
+  border-radius: 12px;
+  background: #b8823d;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 850;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.call:hover {
+  background: #9f6d30;
+  transform: translateY(-1px);
+}
+
+.call svg {
+  width: 16px;
+  height: 16px;
+}
+
+.links {
+  display: grid;
+  margin-top: 15px;
+  border-top: 1px solid rgba(27, 42, 34, 0.1);
+}
+
+.links a {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid rgba(27, 42, 34, 0.1);
+  color: #25493d;
+  font-size: 13px;
+  font-weight: 750;
+  transition:
+    color 160ms ease,
+    padding 160ms ease;
+}
+
+.links a:hover {
+  padding-left: 3px;
+  color: #98672e;
+}
+
+.links svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: #8b6838;
+}
+
+.footer {
+  padding: 16px 20px 18px;
+  border-top: 1px solid rgba(27, 42, 34, 0.08);
+  background: #eef2e9;
+  color: #52604f;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+@keyframes crisis-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes crisis-panel-in {
+  from {
+    opacity: 0;
+    transform: translate(20px, 28px) scale(0.97);
+  }
+}
+
+@keyframes crisis-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+@media (max-width: 640px) {
+  .fab {
+    right: calc(16px + env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    min-height: 52px;
+    padding: 10px 19px 10px 12px;
+  }
+
+  .panel {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: min(88dvh, 720px);
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 24px 24px 0 0;
+    animation-name: crisis-sheet-in;
+  }
+
+  .header {
+    padding: 21px 18px 19px 20px;
+  }
+
+  .header h2 {
+    font-size: 28px;
+  }
+
+  .body {
+    padding: 16px 16px 8px;
+  }
+
+  .footer {
+    padding: 15px 16px calc(15px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 380px) {
+  .fab > span:last-child {
+    font-size: 13px;
+  }
+
+  .contact {
+    gap: 10px;
+    padding-left: 14px;
+  }
+
+  .contact strong {
+    font-size: 27px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab,
+  .backdrop,
+  .panel,
+  .close,
+  .call,
+  .links a {
+    animation: none;
+    transition: none;
+  }
+}
