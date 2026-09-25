@@ -28,6 +28,9 @@ import type {
   ReassessmentContext,
   ReassessmentSummary,
   ReassessmentSummaryCreateRequest,
+  ScreeningEpisode,
+  ScreeningEpisodeEvaluationOutcome,
+  ScreeningEpisodePurpose,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
 import type {
@@ -48,6 +51,8 @@ import type {
   ChangeSupportPlanOccurrenceStateRequest,
   ReplaceSupportPlanOccurrenceEngagementRequest,
   ChangeSupportPlanStatusRequest,
+  ReplaceCurrentSupportPlanRequest,
+  SupportPlanReplacementReview,
 } from '@/features/support-plan/api/support-plan-contract'
 import {
   parseSupportGuide,
@@ -71,6 +76,8 @@ import {
   parseReassessmentSelfReport,
   parseReassessmentContext,
   parseReassessmentSummary,
+  parseScreeningEpisode,
+  parseScreeningEpisodeEvaluationOutcome,
 } from './care-validation'
 import {
   parseSupportEvaluationV2,
@@ -79,6 +86,7 @@ import {
   parseSupportPlanHistoryPage,
   parseSupportPlanOccurrence,
   parseSupportPlanOccurrenceList,
+  parseSupportPlanReplacementReview,
 } from './support-plan-validation'
 
 type RequestOptions<T> = Readonly<{
@@ -410,6 +418,68 @@ export const careClient = {
     })
   },
 
+  startScreeningEpisode(
+    accessToken: string,
+    purpose: ScreeningEpisodePurpose,
+    correlationId: string,
+  ): Promise<ScreeningEpisode> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v1/screening-episodes',
+      correlationId,
+      authorization: accessToken,
+      body: { purpose },
+      parseSuccess: parseScreeningEpisode,
+    })
+  },
+
+  currentScreeningEpisode(
+    accessToken: string,
+    purpose: ScreeningEpisodePurpose,
+    correlationId: string,
+  ): Promise<ScreeningEpisode> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/screening-episodes/current?purpose=${purpose}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseScreeningEpisode,
+    })
+  },
+
+  submitScreeningEpisodeAssessment(
+    accessToken: string,
+    episodeId: string,
+    instrument: Instrument,
+    request: AssessmentSubmissionRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<Assessment> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/screening-episodes/${encodeURIComponent(episodeId)}/assessments/${instrument}`,
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parseAssessment,
+    })
+  },
+
+  evaluateScreeningEpisode(
+    accessToken: string,
+    episodeId: string,
+    correlationId: string,
+  ): Promise<ScreeningEpisodeEvaluationOutcome> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/screening-episodes/${encodeURIComponent(episodeId)}/support-evaluation`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseScreeningEpisodeEvaluationOutcome,
+    })
+  },
+
   getAuthenticated(
     accessToken: string,
     assessmentId: string,
@@ -577,6 +647,19 @@ export const careClient = {
       authorization: accessToken,
       idempotencyKey,
       body: request,
+      parseSuccess: parseReassessmentSummary,
+    })
+  },
+
+  currentReassessmentSummary(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<ReassessmentSummary> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/reassessment-summaries/current',
+      correlationId,
+      authorization: accessToken,
       parseSuccess: parseReassessmentSummary,
     })
   },
@@ -752,6 +835,44 @@ export const careClient = {
       authorization: accessToken,
       ifMatch: version,
       idempotencyKey,
+      parseSuccess: parseSupportPlan,
+    })
+  },
+
+  reviewSupportPlanReplacement(
+    accessToken: string,
+    supportPlanId: string,
+    version: number,
+    request: ReplaceCurrentSupportPlanRequest,
+    correlationId: string,
+  ): Promise<SupportPlanReplacementReview> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}/replacement-review`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      body: request,
+      parseSuccess: parseSupportPlanReplacementReview,
+    })
+  },
+
+  replaceSupportPlan(
+    accessToken: string,
+    supportPlanId: string,
+    version: number,
+    request: ReplaceCurrentSupportPlanRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportPlan> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/support-plans/${encodeURIComponent(supportPlanId)}/replace`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      idempotencyKey,
+      body: request,
       parseSuccess: parseSupportPlan,
     })
   },

@@ -200,6 +200,14 @@ export async function composeReassessmentSummary(
   ).data
 }
 
+export async function getCurrentReassessmentSummary() {
+  return (
+    await browserApiClient.get<ReassessmentSummary>(
+      '/care/reassessment-summaries/current',
+    )
+  ).data
+}
+
 export async function startAnonymousAssessmentSession() {
   const response = await browserApiClient.post<{ expiresAt: string }>(
     '/care/anonymous-session',
@@ -232,31 +240,43 @@ export async function submitInitialCheckAssessment(
   instrument: Instrument,
   submission: AssessmentSubmissionRequest,
   idempotencyKey: string,
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT' = 'INITIAL_CHECK',
 ) {
   const response = await browserApiClient.post<Assessment>(
-    `/care/initial-check/assessments/${instrument.toLowerCase()}`,
+    `/care/initial-check/assessments/${instrument.toLowerCase()}?purpose=${purpose}`,
     submission,
     { headers: { 'Idempotency-Key': idempotencyKey } },
   )
   return response.data
 }
 
-export async function getInitialCheckState() {
-  return (await browserApiClient.get<InitialCheckState>('/care/initial-check'))
-    .data
-}
-
-export async function createInitialCheckEvaluation() {
+export async function getInitialCheckState(
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT' = 'INITIAL_CHECK',
+) {
   return (
-    await browserApiClient.post<SupportEvaluation>(
-      '/care/initial-check/evaluation',
+    await browserApiClient.get<InitialCheckState>(
+      `/care/initial-check?purpose=${purpose}`,
     )
   ).data
 }
 
-export async function resetInitialCheck() {
+export async function createInitialCheckEvaluation(
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT' = 'INITIAL_CHECK',
+) {
   return (
-    await browserApiClient.delete<InitialCheckState>('/care/initial-check')
+    await browserApiClient.post<SupportEvaluation>(
+      `/care/initial-check/evaluation?purpose=${purpose}`,
+    )
+  ).data
+}
+
+export async function resetInitialCheck(
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT' = 'INITIAL_CHECK',
+) {
+  return (
+    await browserApiClient.delete<InitialCheckState>(
+      `/care/initial-check?purpose=${purpose}`,
+    )
   ).data
 }
 

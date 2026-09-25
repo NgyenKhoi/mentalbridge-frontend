@@ -30,6 +30,11 @@ export type AssessmentHistoryPage = Schemas['AssessmentHistoryPage']
 export type AssessmentProgress = Schemas['AssessmentProgress']
 export type AssessmentProgressPoint = Schemas['AssessmentProgressPoint']
 export type ScoreDirection = Schemas['ScoreDirection']
+export type ScreeningEpisodePurpose = Schemas['ScreeningEpisodePurpose']
+export type ScreeningEpisodeStatus = Schemas['ScreeningEpisodeStatus']
+export type ScreeningEpisode = Schemas['ScreeningEpisode']
+export type ScreeningEpisodeEvaluationOutcome =
+  Schemas['ScreeningEpisodeEvaluationOutcome']
 export type ReassessmentCurrentExperience =
   Schemas['ReassessmentCurrentExperience']
 export type ReassessmentSelfReportCreateRequest =

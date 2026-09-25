@@ -54,6 +54,7 @@ type Props = Readonly<{
     status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED',
     completionReason?: 'USER_DECISION' | 'PLAN_NO_LONGER_FITS' | 'OTHER',
   ) => Promise<void>
+  draftAction?: 'ACTIVATE' | 'REPLACEMENT'
 }>
 
 type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
@@ -92,6 +93,7 @@ export default function SupportPlanCard({
   onSaveChoices,
   onActivate,
   onStatusChange,
+  draftAction = 'ACTIVATE',
 }: Props) {
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     initialChoices(plan),
@@ -179,7 +181,13 @@ export default function SupportPlanCard({
     >
       <header className="support-plan-card-header">
         <div>
-          <span>{isDraft ? 'Kế hoạch chưa bắt đầu' : 'Kế hoạch hiện tại'}</span>
+          <span>
+            {isDraft && draftAction === 'REPLACEMENT'
+              ? 'Phương án thay thế'
+              : isDraft
+                ? 'Kế hoạch chưa bắt đầu'
+                : 'Kế hoạch hiện tại'}
+          </span>
           <h2 id={`support-plan-${plan.supportPlanId}`}>{titleLabel}</h2>
         </div>
         <span
@@ -336,9 +344,9 @@ export default function SupportPlanCard({
           <div>
             <strong>Bạn là người quyết định</strong>
             <p>
-              Lưu lựa chọn trước, sau đó bắt đầu kế hoạch. MentalBridge sẽ kiểm
-              tra lại quyền lợi gói, kết quả sàng lọc và nội dung hỗ trợ trước
-              khi áp dụng.
+              {draftAction === 'REPLACEMENT'
+                ? 'Bạn có thể điều chỉnh và lưu phương án này trước khi xem lại so sánh. Kế hoạch hiện tại chưa bị thay đổi.'
+                : 'Lưu lựa chọn trước, sau đó bắt đầu kế hoạch. MentalBridge sẽ kiểm tra lại quyền lợi gói, kết quả sàng lọc và nội dung hỗ trợ trước khi áp dụng.'}
             </p>
           </div>
           <div className="support-plan-action-buttons">
@@ -358,14 +366,16 @@ export default function SupportPlanCard({
             >
               {busy === 'SAVING' ? 'Đang lưu…' : 'Lưu lựa chọn'}
             </button>
-            <button
-              className="btn btn-primary"
-              type="button"
-              disabled={dirty || busy !== null}
-              onClick={() => void onActivate()}
-            >
-              {busy === 'ACTIVATING' ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
-            </button>
+            {draftAction === 'ACTIVATE' && (
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={dirty || busy !== null}
+                onClick={() => void onActivate()}
+              >
+                {busy === 'ACTIVATING' ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
+              </button>
+            )}
           </div>
           {dirty && (
             <p className="support-plan-action-hint">

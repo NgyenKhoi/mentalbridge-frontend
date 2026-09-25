@@ -502,7 +502,11 @@ function UnifiedResult({
   )
 }
 
-export default function GuidedInitialCheck() {
+export default function GuidedInitialCheck({
+  purpose = 'INITIAL_CHECK',
+}: {
+  purpose?: 'INITIAL_CHECK' | 'REASSESSMENT'
+}) {
   const [state, setState] = useState<InitialCheckState | null>(null)
   const [loading, setLoading] = useState(true)
   const [evaluating, setEvaluating] = useState(false)
@@ -516,7 +520,7 @@ export default function GuidedInitialCheck() {
     setLoading(true)
     setError(null)
     try {
-      let nextState = await getInitialCheckState()
+      let nextState = await getInitialCheckState(purpose)
       if (requestId !== activeRequest.current) return
       setState(nextState)
       setLoading(false)
@@ -524,8 +528,8 @@ export default function GuidedInitialCheck() {
       if (nextState.phase === 'EVALUATION_PENDING') {
         setEvaluating(true)
         try {
-          await createInitialCheckEvaluation()
-          nextState = await getInitialCheckState()
+          await createInitialCheckEvaluation(purpose)
+          nextState = await getInitialCheckState(purpose)
           if (requestId !== activeRequest.current) return
           setState(nextState)
         } finally {
@@ -538,7 +542,7 @@ export default function GuidedInitialCheck() {
       setLoading(false)
       setEvaluating(false)
     }
-  }, [])
+  }, [purpose])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0)
@@ -552,7 +556,7 @@ export default function GuidedInitialCheck() {
     setRestarting(true)
     setError(null)
     try {
-      setState(await resetInitialCheck())
+      setState(await resetInitialCheck(purpose))
       setConfirmingRestart(false)
     } catch (cause) {
       setError(errorMessage(cause))
@@ -613,6 +617,7 @@ export default function GuidedInitialCheck() {
           mode="authenticated"
           instrument="PHQ9"
           workflow="initial-check"
+          screeningPurpose={purpose}
           returnHref="/dashboard"
           completionLabel="Lưu PHQ-9 và bắt đầu GAD-7"
           completionPendingLabel="Đang lưu PHQ-9…"
@@ -629,6 +634,7 @@ export default function GuidedInitialCheck() {
             mode="authenticated"
             instrument="GAD7"
             workflow="initial-check"
+            screeningPurpose={purpose}
             returnHref="/dashboard"
             onCompleted={() => void load()}
           />

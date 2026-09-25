@@ -3,11 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api/api-error'
 import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
-import {
-  INITIAL_CHECK_EVALUATION_COOKIE,
-  INITIAL_CHECK_GAD7_COOKIE,
-  INITIAL_CHECK_PHQ9_COOKIE,
-} from '@/lib/care/guided-initial-check-cookies'
 
 const careMocks = vi.hoisted(() => ({
   getProfile: vi.fn(),
@@ -15,6 +10,7 @@ const careMocks = vi.hoisted(() => ({
   getConsents: vi.fn(),
   getAuthenticated: vi.fn(),
   getSupportEvaluation: vi.fn(),
+  currentScreeningEpisode: vi.fn(),
 }))
 const sessionMocks = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -96,6 +92,13 @@ describe('GET /api/care/initial-check', () => {
         },
       ],
     })
+    careMocks.currentScreeningEpisode.mockRejectedValue(
+      new ApiError({
+        message: 'Episode not found',
+        code: 'SCREENING_EPISODE_NOT_FOUND',
+        status: 404,
+      }),
+    )
   })
 
   it('returns the profile completion step without exposing account data', async () => {
@@ -113,24 +116,27 @@ describe('GET /api/care/initial-check', () => {
     expect(careMocks.currentPrivacyDisclosure).not.toHaveBeenCalled()
   })
 
-  it('starts with PHQ-9 and clears untrusted downstream journey cookies', async () => {
-    const response = await GET(
-      request([`${INITIAL_CHECK_GAD7_COOKIE}=${gad7AssessmentId}`]),
-    )
+  it('starts with PHQ-9 when Care has no persisted episode', async () => {
+    const response = await GET(request())
 
     expect(await response.json()).toEqual({ phase: 'PHQ9' })
-    expect(response.headers.get('set-cookie')).toContain(
-      INITIAL_CHECK_GAD7_COOKIE,
+    expect(careMocks.currentScreeningEpisode).toHaveBeenCalledWith(
+      'identity-access-secret',
+      'INITIAL_CHECK',
+      expect.any(String),
     )
   })
 
   it('resumes at GAD-7 only after re-reading the exact owned PHQ-9 result', async () => {
     const phq9 = assessment('PHQ9')
+    careMocks.currentScreeningEpisode.mockResolvedValue({
+      status: 'IN_PROGRESS',
+      phq9AssessmentId,
+      gad7AssessmentId: null,
+    })
     careMocks.getAuthenticated.mockResolvedValue(phq9)
 
-    const response = await GET(
-      request([`${INITIAL_CHECK_PHQ9_COOKIE}=${phq9AssessmentId}`]),
-    )
+    const response = await GET(request())
 
     expect(await response.json()).toEqual({ phase: 'GAD7', phq9 })
     expect(careMocks.getAuthenticated).toHaveBeenCalledWith(
@@ -143,6 +149,12 @@ describe('GET /api/care/initial-check', () => {
   it('reopens a completed result only when its evidence matches both saved assessments', async () => {
     const phq9 = assessment('PHQ9')
     const gad7 = assessment('GAD7')
+    careMocks.currentScreeningEpisode.mockResolvedValue({
+      status: 'COMPLETED',
+      phq9AssessmentId,
+      gad7AssessmentId,
+      presentationEvaluationId: supportEvaluationId,
+    })
     careMocks.getAuthenticated
       .mockResolvedValueOnce(phq9)
       .mockResolvedValueOnce(gad7)
@@ -168,13 +180,7 @@ describe('GET /api/care/initial-check', () => {
       ],
     })
 
-    const response = await GET(
-      request([
-        `${INITIAL_CHECK_PHQ9_COOKIE}=${phq9AssessmentId}`,
-        `${INITIAL_CHECK_GAD7_COOKIE}=${gad7AssessmentId}`,
-        `${INITIAL_CHECK_EVALUATION_COOKIE}=${supportEvaluationId}`,
-      ]),
-    )
+    const response = await GET(request())
 
     await expect(response.json()).resolves.toMatchObject({
       phase: 'COMPLETED',

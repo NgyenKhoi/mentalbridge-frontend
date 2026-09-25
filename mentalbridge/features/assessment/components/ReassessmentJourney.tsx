@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 import { ApiError } from '@/lib/api/api-error'
@@ -346,6 +347,12 @@ export function ReassessmentJourney() {
 
       {context?.state === 'INCOMPLETE' ? (
         <div className="reassessment-message" role="status">
+          <Link
+            className="assessment-row-action"
+            href="/initial-check?purpose=reassessment"
+          >
+            Bắt đầu lượt đánh giá lại
+          </Link>
           Cần hoàn tất: {context.missingInstruments.join(', ')} trước khi bắt
           đầu.
         </div>
@@ -437,7 +444,16 @@ export function ReassessmentJourney() {
           {message}
         </p>
       )}
-      {summary && <SummaryCards summary={summary} />}
+      {summary && (
+        <>
+          <SummaryCards summary={summary} />
+          <div className="reassessment-actions">
+            <Link className="assessment-row-action" href="/support-plan">
+              Xem lại kế hoạch hỗ trợ
+            </Link>
+          </div>
+        </>
+      )}
       <p className="assessment-progress-boundary">
         Bốn chiều có thể mâu thuẫn và không được gộp thành điểm số, chẩn đoán
         hay kết luận tổng thể.

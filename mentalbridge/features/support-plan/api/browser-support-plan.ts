@@ -7,12 +7,17 @@ import type {
   SupportPlanOccurrenceList,
   SupportPlanOccurrence,
   ReplaceSupportPlanOccurrenceEngagementRequest,
+  ReplaceCurrentSupportPlanRequest,
+  SupportPlanReplacementReview,
 } from './support-plan-contract'
 
-export async function proposeSupportPlanDraft(idempotencyKey: string) {
+export async function proposeSupportPlanDraft(
+  idempotencyKey: string,
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT' = 'INITIAL_CHECK',
+) {
   return (
     await browserApiClient.post<SupportPlanDraft>(
-      '/care/support-plans',
+      `/care/support-plans?purpose=${purpose}`,
       undefined,
       { headers: { 'Idempotency-Key': idempotencyKey } },
     )
@@ -138,6 +143,40 @@ export async function activateSupportPlan(
     await browserApiClient.post<SupportPlan>(
       `/care/support-plans/${encodeURIComponent(supportPlanId)}/activate`,
       undefined,
+      {
+        headers: {
+          'If-Match': `"${version}"`,
+          'Idempotency-Key': idempotencyKey,
+        },
+      },
+    )
+  ).data
+}
+
+export async function reviewSupportPlanReplacement(
+  supportPlanId: string,
+  version: number,
+  request: ReplaceCurrentSupportPlanRequest,
+) {
+  return (
+    await browserApiClient.post<SupportPlanReplacementReview>(
+      `/care/support-plans/${encodeURIComponent(supportPlanId)}/replacement-review`,
+      request,
+      { headers: { 'If-Match': `"${version}"` } },
+    )
+  ).data
+}
+
+export async function replaceSupportPlan(
+  supportPlanId: string,
+  version: number,
+  request: ReplaceCurrentSupportPlanRequest,
+  idempotencyKey: string,
+) {
+  return (
+    await browserApiClient.post<SupportPlan>(
+      `/care/support-plans/${encodeURIComponent(supportPlanId)}/replace`,
+      request,
       {
         headers: {
           'If-Match': `"${version}"`,

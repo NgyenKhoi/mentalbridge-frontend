@@ -11,12 +11,6 @@ import {
 } from '@/lib/care/authenticated-user'
 import { careErrorResponse, careSuccessResponse } from '@/lib/care/bff-response'
 import { careClient } from '@/lib/care/care-client'
-import {
-  clearInitialCheck,
-  clearInitialCheckAfterPhq9,
-  clearInitialCheckEvaluation,
-  readInitialCheckIds,
-} from '@/lib/care/guided-initial-check-cookies'
 import { isUuid } from '@/lib/care/care-validation'
 
 function isMissingOwnedResource(error: unknown) {
@@ -74,6 +68,10 @@ function evaluationMatchesAssessments(
 
 export async function GET(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
+  const purpose =
+    request.nextUrl.searchParams.get('purpose') === 'REASSESSMENT'
+      ? ('REASSESSMENT' as const)
+      : ('INITIAL_CHECK' as const)
   let user: Awaited<ReturnType<typeof authenticatedCareUser>>
 
   try {
@@ -104,47 +102,47 @@ export async function GET(request: NextRequest) {
       return stateResponse({ phase: 'CONSENT_REQUIRED' }, correlationId, user)
     }
 
-    const ids = readInitialCheckIds(request.cookies)
-    if (!ids.phq9AssessmentId || !isUuid(ids.phq9AssessmentId)) {
-      const response = stateResponse({ phase: 'PHQ9' }, correlationId, user)
-      clearInitialCheck(response)
-      return response
+    let episode
+    try {
+      episode = await careClient.currentScreeningEpisode(
+        user.accessToken,
+        purpose,
+        correlationId,
+      )
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.code === 'SCREENING_EPISODE_NOT_FOUND'
+      ) {
+        return stateResponse({ phase: 'PHQ9' }, correlationId, user)
+      }
+      throw error
+    }
+
+    if (!episode.phq9AssessmentId || !isUuid(episode.phq9AssessmentId)) {
+      return stateResponse({ phase: 'PHQ9' }, correlationId, user)
     }
 
     const phq9 = await readAssessment(
       user.accessToken,
-      ids.phq9AssessmentId,
+      episode.phq9AssessmentId,
       correlationId,
     )
     if (!phq9 || phq9.instrument !== 'PHQ9' || phq9.voidedAt) {
-      const response = stateResponse({ phase: 'PHQ9' }, correlationId, user)
-      clearInitialCheck(response)
-      return response
+      return stateResponse({ phase: 'PHQ9' }, correlationId, user)
     }
 
-    if (!ids.gad7AssessmentId || !isUuid(ids.gad7AssessmentId)) {
-      const response = stateResponse(
-        { phase: 'GAD7', phq9 },
-        correlationId,
-        user,
-      )
-      clearInitialCheckAfterPhq9(response)
-      return response
+    if (!episode.gad7AssessmentId || !isUuid(episode.gad7AssessmentId)) {
+      return stateResponse({ phase: 'GAD7', phq9 }, correlationId, user)
     }
 
     const gad7 = await readAssessment(
       user.accessToken,
-      ids.gad7AssessmentId,
+      episode.gad7AssessmentId,
       correlationId,
     )
     if (!gad7 || gad7.instrument !== 'GAD7' || gad7.voidedAt) {
-      const response = stateResponse(
-        { phase: 'GAD7', phq9 },
-        correlationId,
-        user,
-      )
-      clearInitialCheckAfterPhq9(response)
-      return response
+      return stateResponse({ phase: 'GAD7', phq9 }, correlationId, user)
     }
 
     const pending: InitialCheckState = {
@@ -152,16 +150,18 @@ export async function GET(request: NextRequest) {
       phq9,
       gad7,
     }
-    if (!ids.supportEvaluationId || !isUuid(ids.supportEvaluationId)) {
-      const response = stateResponse(pending, correlationId, user)
-      clearInitialCheckEvaluation(response)
-      return response
+    if (
+      episode.status !== 'COMPLETED' ||
+      !episode.presentationEvaluationId ||
+      !isUuid(episode.presentationEvaluationId)
+    ) {
+      return stateResponse(pending, correlationId, user)
     }
 
     try {
       const evaluation = await careClient.getSupportEvaluation(
         user.accessToken,
-        ids.supportEvaluationId,
+        episode.presentationEvaluationId,
         {
           phq9AssessmentId: phq9.assessmentId,
           gad7AssessmentId: gad7.assessmentId,
@@ -180,9 +180,7 @@ export async function GET(request: NextRequest) {
       )
     } catch (error) {
       if (!isMissingOwnedResource(error)) throw error
-      const response = stateResponse(pending, correlationId, user)
-      clearInitialCheckEvaluation(response)
-      return response
+      return stateResponse(pending, correlationId, user)
     }
   } catch (error) {
     return carryCareSession(careErrorResponse(error, correlationId), user)
@@ -191,6 +189,10 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
+  const purpose =
+    request.nextUrl.searchParams.get('purpose') === 'REASSESSMENT'
+      ? ('REASSESSMENT' as const)
+      : ('INITIAL_CHECK' as const)
   let user: Awaited<ReturnType<typeof authenticatedCareUser>>
 
   try {
@@ -199,7 +201,14 @@ export async function DELETE(request: NextRequest) {
     return careAuthenticationFailure(error, correlationId)
   }
 
-  const response = stateResponse({ phase: 'PHQ9' }, correlationId, user)
-  clearInitialCheck(response)
-  return response
+  try {
+    await careClient.startScreeningEpisode(
+      user.accessToken,
+      purpose,
+      correlationId,
+    )
+    return stateResponse({ phase: 'PHQ9' }, correlationId, user)
+  } catch (error) {
+    return carryCareSession(careErrorResponse(error, correlationId), user)
+  }
 }
