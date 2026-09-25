@@ -220,13 +220,7 @@ export default function AuthenticatedShell({
             </i>
             <span>Hồ sơ và quyền riêng tư</span>
           </Link>
-          <div className="ref-user">
-            <span className="ref-user-avatar">N</span>
-            <div>
-              <strong>Người dùng</strong>
-              <SessionActions compact={collapsed} />
-            </div>
-          </div>
+          <SessionActions compact={collapsed && !mobile} />
         </div>
       </aside>
       <div className="ref-main">
