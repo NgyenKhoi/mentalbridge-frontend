@@ -68,10 +68,13 @@ describe('Care profile page', () => {
       screen.getByText(/MentalBridge cung cấp công cụ hỗ trợ tự nhìn lại/i),
     ).toBeVisible()
     expect(screen.getByTestId('password-change-form')).toBeInTheDocument()
+    await userEvent.click(screen.getByText('Xem thêm'))
     expect(screen.getByText('Nội dung authoritative từ Care.')).toBeVisible()
     expect(screen.queryByText(/ThS\.|specialist/i)).not.toBeInTheDocument()
     await userEvent.click(
-      screen.getByRole('button', { name: 'Đồng ý xử lý dữ liệu sàng lọc' }),
+      screen.getByRole('switch', {
+        name: 'Bật xử lý dữ liệu cho các lần sàng lọc mới',
+      }),
     )
     expect(decision).toHaveBeenCalledWith({
       consentType: 'PRIVACY_POLICY',
