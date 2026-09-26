@@ -1,5 +1,10 @@
 # Synthetic browser evidence
 
+MB-566 integrates the dashboard emotion picker with the persisted MB-510
+daily check-in aggregate. Its contract, BFF, component, local-day and
+fixture-browser coverage is recorded in
+[`mb-566-persisted-dashboard-emotion-picker.md`](mb-566-persisted-dashboard-emotion-picker.md).
+
 MB-563 delivers the server-backed notification inbox and lifecycle. Its
 contract/BFF/component/fixture coverage is recorded in
 [`mb-563-notification-inbox.md`](mb-563-notification-inbox.md).
