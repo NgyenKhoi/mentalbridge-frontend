@@ -215,10 +215,22 @@ describe('Consultation contract validation', () => {
       decisionDeadlineAt: '2026-09-24T02:00:00Z',
       heldCreditId: '96de7b84-14ae-46cd-bfa1-8314d1366b02',
       replacesAppointmentId: null,
+      decidedAt: '2026-09-23T03:00:00Z',
+      decisionReason: 'SPECIALIST_ACCEPTED',
+      creditState: 'HELD',
+      version: 1,
     }
     expect(parseAppointment(appointment)).toEqual(appointment)
     expect(
       parseAppointment({ ...appointment, modality: 'IN_PERSON' }),
+    ).toBeNull()
+    expect(
+      parseAppointment({
+        ...appointment,
+        status: 'REJECTED',
+        decisionReason: 'SPECIALIST_REJECTED',
+        creditState: 'HELD',
+      }),
     ).toBeNull()
     expect(
       parseAppointmentList({

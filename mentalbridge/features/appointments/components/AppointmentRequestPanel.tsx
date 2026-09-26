@@ -18,6 +18,22 @@ function format(value: string, timezone: string) {
   }).format(new Date(value))
 }
 
+const appointmentStatus: Record<Appointment['status'], string> = {
+  REQUESTED: 'Đang chờ xác nhận',
+  CONFIRMED: 'Đã xác nhận',
+  IN_PROGRESS: 'Đang diễn ra',
+  REJECTED: 'Chuyên gia chưa thể nhận lịch',
+  EXPIRED: 'Hết thời gian xác nhận',
+  CANCELLED: 'Đã hủy',
+}
+
+const creditOutcome: Record<Appointment['creditState'], string> = {
+  HELD: 'Lượt tư vấn đang được giữ',
+  AVAILABLE: 'Lượt tư vấn đã được hoàn lại',
+  CONSUMED: 'Lượt tư vấn đã được sử dụng',
+  FORFEITED: 'Lượt tư vấn không được hoàn lại',
+}
+
 function errorMessage(error: unknown) {
   if (!(error instanceof ApiError))
     return 'Không thể gửi yêu cầu. Vui lòng thử lại.'
@@ -130,11 +146,7 @@ export default function AppointmentRequestPanel() {
             {appointments.map((item) => (
               <article className={styles.card} key={item.id}>
                 <div className={styles.status}>
-                  {item.status === 'REQUESTED'
-                    ? 'Đang chờ xác nhận'
-                    : item.status === 'IN_PROGRESS'
-                      ? 'Đang diễn ra'
-                      : item.status}
+                  {appointmentStatus[item.status]}
                 </div>
                 <h3>{item.specialistDisplayName}</h3>
                 <p>
@@ -152,8 +164,8 @@ export default function AppointmentRequestPanel() {
                     <dd>{format(item.decisionDeadlineAt, item.timezone)}</dd>
                   </div>
                   <div>
-                    <dt>Credit</dt>
-                    <dd>Đang được giữ</dd>
+                    <dt>Lượt tư vấn</dt>
+                    <dd>{creditOutcome[item.creditState]}</dd>
                   </div>
                 </dl>
               </article>
