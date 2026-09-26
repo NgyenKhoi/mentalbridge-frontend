@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import PlanGate, { type PlanId } from '@/components/PlanGate'
+import { DailyEmotionCheckIn } from '@/features/emotion-check-in/DailyEmotionCheckIn'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import '../dashboard-page.css'
@@ -9,13 +10,6 @@ import '../dashboard-page.css'
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger)
 }
-const moods = [
-  ['😌', 'Thư giãn'],
-  ['😊', 'Ổn định'],
-  ['😄', 'Vui vẻ'],
-  ['🥱', 'Mệt mỏi'],
-  ['😟', 'Lo lắng'],
-]
 const tasks = [
   'Viết nhật ký hôm nay',
   'Hoàn thành bài tập thở',
@@ -48,7 +42,6 @@ const SmallIcon = ({ type }: { type: 'note' | 'check' | 'user' }) => (
 )
 
 export default function DashboardPage() {
-  const [mood, setMood] = useState(1)
   const [done, setDone] = useState<number[]>([])
   const [plan, setPlan] = useState<PlanId>('free')
   const heroRef = useRef<HTMLElement>(null)
@@ -197,33 +190,7 @@ export default function DashboardPage() {
         </Link>
       </section>
       <section ref={bentoRef} className="ref-bento">
-        <article className="ref-card ref-mood">
-          <header>
-            <div>
-              <h2>Cảm xúc hôm nay</h2>
-              <p>Chọn cảm xúc phù hợp nhất</p>
-            </div>
-            <i aria-hidden="true">🙂</i>
-          </header>
-          <div>
-            {moods.map((x, i) => (
-              <button
-                type="button"
-                key={x[1]}
-                onClick={() => setMood(i)}
-                className={mood === i ? 'active' : ''}
-                aria-label={x[1]}
-                aria-pressed={mood === i}
-              >
-                {x[0]}
-              </button>
-            ))}
-          </div>
-          <footer>
-            Bạn đang cảm thấy <b>{moods[mood][1]}</b>
-            <Link href="/journal">Viết thêm →</Link>
-          </footer>
-        </article>
+        <DailyEmotionCheckIn />
         <article className="ref-card ref-result">
           <header>
             <h2>Kết quả sàng lọc</h2>
