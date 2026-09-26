@@ -288,10 +288,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the authenticated user's persisted notification preferences */
+        get: operations["getNotificationPreferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Partially update the authenticated user's notification preferences */
+        patch: operations["updateNotificationPreferences"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        NotificationChannels: {
+            inApp: boolean;
+            email: boolean;
+            /** @description Persisted preference only; push delivery remains deferred until mobile device registration. */
+            push: boolean;
+        };
+        NotificationChannelsPatch: {
+            inApp?: boolean;
+            email?: boolean;
+            push?: boolean;
+        };
+        NotificationContentGroups: {
+            journalReminder: boolean;
+            emotionCheckIn: boolean;
+            streakMilestone: boolean;
+            screeningReassessment: boolean;
+            appointmentMessage: boolean;
+            resourceSystem: boolean;
+        };
+        NotificationContentGroupsPatch: {
+            journalReminder?: boolean;
+            emotionCheckIn?: boolean;
+            streakMilestone?: boolean;
+            screeningReassessment?: boolean;
+            appointmentMessage?: boolean;
+            resourceSystem?: boolean;
+        };
+        QuietHours: {
+            enabled: boolean;
+            start: string;
+            end: string;
+            /** @description IANA time zone used to evaluate the local-day quiet window, including windows crossing midnight. */
+            timeZone: string;
+        };
+        QuietHoursPatch: {
+            enabled?: boolean;
+            start?: string;
+            end?: string;
+            timeZone?: string;
+        };
+        /** @enum {string} */
+        EmailCadence: "IMMEDIATE" | "DAILY_DIGEST" | "WEEKLY_DIGEST";
+        EmailPreferences: {
+            cadence: components["schemas"]["EmailCadence"];
+            wellbeingDigestEnabled: boolean;
+            resourceRemindersEnabled: boolean;
+        };
+        EmailPreferencesPatch: {
+            cadence?: components["schemas"]["EmailCadence"];
+            wellbeingDigestEnabled?: boolean;
+            resourceRemindersEnabled?: boolean;
+        };
+        NotificationPreferences: {
+            notificationsEnabled: boolean;
+            channels: components["schemas"]["NotificationChannels"];
+            contentGroups: components["schemas"]["NotificationContentGroups"];
+            quietHours: components["schemas"]["QuietHours"];
+            email: components["schemas"]["EmailPreferences"];
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        NotificationPreferencePatch: {
+            notificationsEnabled?: boolean;
+            channels?: components["schemas"]["NotificationChannelsPatch"];
+            contentGroups?: components["schemas"]["NotificationContentGroupsPatch"];
+            quietHours?: components["schemas"]["QuietHoursPatch"];
+            email?: components["schemas"]["EmailPreferencesPatch"];
+        };
         /** @enum {string} */
         SafetyDirectoryEntryType: "FACILITY" | "HOTLINE";
         /** @enum {string} */
@@ -753,6 +841,24 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
+        /** @description If-Match does not equal the current owner preference version */
+        PreferenceVersionMismatch: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description If-Match is required for a preference update */
+        PreferenceVersionRequired: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
     };
     parameters: {
         ResourceId: string;
@@ -766,9 +872,14 @@ export interface components {
         ContentVersion: string;
         DirectoryEntryId: string;
         DirectoryVersion: number;
+        /** @description Strong ETag from the last owner preference read. */
+        NotificationPreferenceIfMatch: string;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Strong ETag containing the current preference version. */
+        NotificationPreferenceETag: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -1380,6 +1491,65 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current preferences, creating the stable defaults when first accessed */
+            200: {
+                headers: {
+                    ETag: components["headers"]["NotificationPreferenceETag"];
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferences"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    updateNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Strong ETag from the last owner preference read. */
+                "If-Match": components["parameters"]["NotificationPreferenceIfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPreferencePatch"];
+            };
+        };
+        responses: {
+            /** @description Persisted preferences */
+            200: {
+                headers: {
+                    ETag: components["headers"]["NotificationPreferenceETag"];
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferences"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            412: components["responses"]["PreferenceVersionMismatch"];
+            422: components["responses"]["ValidationError"];
+            428: components["responses"]["PreferenceVersionRequired"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

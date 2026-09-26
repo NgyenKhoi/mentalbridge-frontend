@@ -4,6 +4,10 @@ export type ResourceSummary = components['schemas']['ResourceSummary']
 export type PublicResourceDetail = components['schemas']['PublicResourceDetail']
 export type AdminResourceDetail = components['schemas']['AdminResourceDetail']
 export type ResourceListResponse = components['schemas']['ResourceListResponse']
+export type NotificationPreferences =
+  components['schemas']['NotificationPreferences']
+export type NotificationPreferencePatch =
+  components['schemas']['NotificationPreferencePatch']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -166,6 +170,165 @@ export function parseResourceList(value: unknown): ResourceListResponse | null {
     return null
   }
   return page as ResourceListResponse
+}
+
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
+const EMAIL_CADENCES = new Set(['IMMEDIATE', 'DAILY_DIGEST', 'WEEKLY_DIGEST'])
+
+function exactKeys(value: Record<string, unknown>, allowed: readonly string[]) {
+  const keys = Object.keys(value)
+  return keys.length > 0 && keys.every((key) => allowed.includes(key))
+}
+
+function booleanObject(
+  value: unknown,
+  allowed: readonly string[],
+  requireAll: boolean,
+): value is Record<string, boolean> {
+  const item = record(value)
+  if (!item || !exactKeys(item, allowed)) return false
+  return (
+    (!requireAll || allowed.every((key) => key in item)) &&
+    Object.values(item).every((entry) => typeof entry === 'boolean')
+  )
+}
+
+export function parseNotificationPreferences(
+  value: unknown,
+): NotificationPreferences | null {
+  const item = record(value)
+  const quietHours = record(item?.quietHours)
+  const email = record(item?.email)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'notificationsEnabled',
+      'channels',
+      'contentGroups',
+      'quietHours',
+      'email',
+      'version',
+      'updatedAt',
+    ]) ||
+    typeof item.notificationsEnabled !== 'boolean' ||
+    !booleanObject(item.channels, ['inApp', 'email', 'push'], true) ||
+    !booleanObject(
+      item.contentGroups,
+      [
+        'journalReminder',
+        'emotionCheckIn',
+        'streakMilestone',
+        'screeningReassessment',
+        'appointmentMessage',
+        'resourceSystem',
+      ],
+      true,
+    ) ||
+    !quietHours ||
+    !exactKeys(quietHours, ['enabled', 'start', 'end', 'timeZone']) ||
+    typeof quietHours.enabled !== 'boolean' ||
+    typeof quietHours.start !== 'string' ||
+    !TIME.test(quietHours.start) ||
+    typeof quietHours.end !== 'string' ||
+    !TIME.test(quietHours.end) ||
+    typeof quietHours.timeZone !== 'string' ||
+    quietHours.timeZone.length < 1 ||
+    quietHours.timeZone.length > 64 ||
+    !email ||
+    !exactKeys(email, [
+      'cadence',
+      'wellbeingDigestEnabled',
+      'resourceRemindersEnabled',
+    ]) ||
+    typeof email.cadence !== 'string' ||
+    !EMAIL_CADENCES.has(email.cadence) ||
+    typeof email.wellbeingDigestEnabled !== 'boolean' ||
+    typeof email.resourceRemindersEnabled !== 'boolean' ||
+    !Number.isSafeInteger(item.version) ||
+    (item.version as number) < 0 ||
+    !dateTime(item.updatedAt)
+  ) {
+    return null
+  }
+  return item as NotificationPreferences
+}
+
+export function parseNotificationPreferencePatch(
+  value: unknown,
+): NotificationPreferencePatch | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'notificationsEnabled',
+      'channels',
+      'contentGroups',
+      'quietHours',
+      'email',
+    ]) ||
+    (item.notificationsEnabled !== undefined &&
+      typeof item.notificationsEnabled !== 'boolean') ||
+    (item.channels !== undefined &&
+      !booleanObject(item.channels, ['inApp', 'email', 'push'], false)) ||
+    (item.contentGroups !== undefined &&
+      !booleanObject(
+        item.contentGroups,
+        [
+          'journalReminder',
+          'emotionCheckIn',
+          'streakMilestone',
+          'screeningReassessment',
+          'appointmentMessage',
+          'resourceSystem',
+        ],
+        false,
+      ))
+  ) {
+    return null
+  }
+
+  if (item.quietHours !== undefined) {
+    const quietHours = record(item.quietHours)
+    if (
+      !quietHours ||
+      !exactKeys(quietHours, ['enabled', 'start', 'end', 'timeZone']) ||
+      (quietHours.enabled !== undefined &&
+        typeof quietHours.enabled !== 'boolean') ||
+      (quietHours.start !== undefined &&
+        (typeof quietHours.start !== 'string' ||
+          !TIME.test(quietHours.start))) ||
+      (quietHours.end !== undefined &&
+        (typeof quietHours.end !== 'string' || !TIME.test(quietHours.end))) ||
+      (quietHours.timeZone !== undefined &&
+        (typeof quietHours.timeZone !== 'string' ||
+          quietHours.timeZone.length < 1 ||
+          quietHours.timeZone.length > 64))
+    ) {
+      return null
+    }
+  }
+
+  if (item.email !== undefined) {
+    const email = record(item.email)
+    if (
+      !email ||
+      !exactKeys(email, [
+        'cadence',
+        'wellbeingDigestEnabled',
+        'resourceRemindersEnabled',
+      ]) ||
+      (email.cadence !== undefined &&
+        (typeof email.cadence !== 'string' ||
+          !EMAIL_CADENCES.has(email.cadence))) ||
+      (email.wellbeingDigestEnabled !== undefined &&
+        typeof email.wellbeingDigestEnabled !== 'boolean') ||
+      (email.resourceRemindersEnabled !== undefined &&
+        typeof email.resourceRemindersEnabled !== 'boolean')
+    ) {
+      return null
+    }
+  }
+  return item as NotificationPreferencePatch
 }
 
 export type ContentProblem = Readonly<{
