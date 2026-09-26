@@ -30,9 +30,7 @@ describe('SessionActions', () => {
       }),
     )
     render(<SessionActions />)
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Mở menu tài khoản' }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: 'Mở menu tài khoản' }))
     const logout = screen.getByRole('menuitem', { name: 'Đăng xuất' })
 
     fireEvent.click(logout)
@@ -46,9 +44,7 @@ describe('SessionActions', () => {
   it('redirects deterministically when backend revocation is unavailable', async () => {
     mocks.terminate.mockRejectedValue(new Error('unavailable'))
     render(<SessionActions />)
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Mở menu tài khoản' }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: 'Mở menu tài khoản' }))
 
     await act(async () => {
       fireEvent.click(
