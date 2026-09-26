@@ -8,6 +8,9 @@ import {
   parsePublicResourceDetail,
   parseResourceSummary,
   parseNotificationPreferences,
+  parseNotification,
+  parseNotificationBulkReadResult,
+  parseNotificationPage,
   type AdminResourceDetail,
   type ContentProblem,
   type PublicResourceDetail,
@@ -15,6 +18,9 @@ import {
   type ResourceSummary,
   type NotificationPreferencePatch,
   type NotificationPreferences,
+  type Notification,
+  type NotificationBulkReadResult,
+  type NotificationPage,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
@@ -278,6 +284,54 @@ export const contentPreferenceClient = {
       },
     })
     return preferenceResult(preferences, etag)
+  },
+}
+
+export const contentNotificationClient = {
+  list(accessToken: string, query: URLSearchParams, correlationId: string) {
+    const suffix = query.size > 0 ? `?${query.toString()}` : ''
+    return contentRequest<NotificationPage>({
+      method: 'GET',
+      path: `/api/v1/notifications${suffix}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseNotificationPage,
+    })
+  },
+  markRead(accessToken: string, id: string, correlationId: string) {
+    return contentRequest<Notification>({
+      method: 'PATCH',
+      path: `/api/v1/notifications/${encodeURIComponent(id)}/read`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: {},
+      parseSuccess: parseNotification,
+      mutation: true,
+    })
+  },
+  markAllRead(accessToken: string, correlationId: string) {
+    return contentRequest<NotificationBulkReadResult>({
+      method: 'POST',
+      path: '/api/v1/notifications/mark-all-read',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: {},
+      parseSuccess: parseNotificationBulkReadResult,
+      mutation: true,
+    })
+  },
+  delete(accessToken: string, id: string, correlationId: string) {
+    return contentRequest<void>({
+      method: 'DELETE',
+      path: `/api/v1/notifications/${encodeURIComponent(id)}`,
+      expectedStatus: 204,
+      accessToken,
+      correlationId,
+      mutation: true,
+    })
   },
 }
 

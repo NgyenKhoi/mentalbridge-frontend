@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import { ApiError } from '@/lib/api/api-error'
 import {
@@ -9,20 +10,39 @@ import {
   type NotificationPreferencePatch,
   type NotificationPreferences,
 } from '@/features/notifications/api/browser-notification-preferences'
+import {
+  deleteNotification,
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type Notification,
+} from '@/features/notifications/api/browser-notifications'
 
 import './notifications.css'
 
 type View = 'inbox' | 'settings'
-type Item = {
-  id: number
-  title: string
-  message: string
-  time: string
-  read: boolean
+
+const typeMeta: Readonly<
+  Record<Notification['kind'], { label: string; icon: string; tone: string }>
+> = {
+  REMINDER: { label: 'Nhắc nhở', icon: '✎', tone: 'amber' },
+  MESSAGE: { label: 'Tin nhắn', icon: '◇', tone: 'teal' },
+  APPOINTMENT: { label: 'Lịch hẹn', icon: '◷', tone: 'lavender' },
+  SYSTEM_RESOURCE: { label: 'Tài nguyên', icon: '✦', tone: 'sage' },
+  ASSESSMENT_REASSESSMENT: {
+    label: 'Sàng lọc',
+    icon: '✓',
+    tone: 'amber',
+  },
+  STREAK_MILESTONE: { label: 'Cột mốc', icon: '↗', tone: 'terra' },
 }
 
-// Durable notification history is delivered by a later story. Do not fabricate activity.
-const inbox: Item[] = []
+function notificationTime(value: string) {
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
 
 const groups = [
   [
@@ -108,8 +128,15 @@ function patchOf(value: NotificationPreferences): NotificationPreferencePatch {
 }
 
 export default function NotificationsPage() {
+  const router = useRouter()
   const [view, setView] = useState<View>('inbox')
-  const [items, setItems] = useState(inbox)
+  const [items, setItems] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [inboxLoading, setInboxLoading] = useState(true)
+  const [inboxLoadingMore, setInboxLoadingMore] = useState(false)
+  const [inboxError, setInboxError] = useState('')
+  const [inboxActionId, setInboxActionId] = useState('')
   const [preferences, setPreferences] = useState<NotificationPreferences>()
   const [saved, setSaved] = useState<NotificationPreferences>()
   const [etag, setEtag] = useState<string>()
@@ -117,6 +144,27 @@ export default function NotificationsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
+
+  const loadInbox = useCallback(async (cursor?: string, append = false) => {
+    if (append) setInboxLoadingMore(true)
+    else setInboxLoading(true)
+    setInboxError('')
+    try {
+      const page = await getNotifications(cursor)
+      setItems((current) => {
+        if (!append) return page.items
+        const known = new Set(current.map((item) => item.id))
+        return [...current, ...page.items.filter((item) => !known.has(item.id))]
+      })
+      setUnreadCount(page.unreadCount)
+      setNextCursor(page.nextCursor)
+    } catch {
+      setInboxError('Hộp thư thông báo tạm thời chưa tải được.')
+    } finally {
+      setInboxLoading(false)
+      setInboxLoadingMore(false)
+    }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -153,7 +201,26 @@ export default function NotificationsPage() {
     }
   }, [])
 
-  const unreadCount = items.filter((item) => !item.read).length
+  useEffect(() => {
+    let active = true
+    void getNotifications()
+      .then((page) => {
+        if (!active) return
+        setItems(page.items)
+        setUnreadCount(page.unreadCount)
+        setNextCursor(page.nextCursor)
+      })
+      .catch(() => {
+        if (active) setInboxError('Hộp thư thông báo tạm thời chưa tải được.')
+      })
+      .finally(() => {
+        if (active) setInboxLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
   const dirty = Boolean(
     preferences &&
     saved &&
@@ -178,6 +245,77 @@ export default function NotificationsPage() {
   function change(next: NotificationPreferences) {
     setPreferences(next)
     setError('')
+  }
+
+  async function openNotification(item: Notification) {
+    if (inboxActionId) return
+    setInboxActionId(item.id)
+    setInboxError('')
+    try {
+      const current = item.read ? item : await markNotificationRead(item.id)
+      if (!item.read) {
+        setItems((values) =>
+          values.map((value) => (value.id === current.id ? current : value)),
+        )
+        setUnreadCount((count) => Math.max(0, count - 1))
+      }
+      if (current.action) router.push(current.action.href)
+    } catch (cause) {
+      if (
+        cause instanceof ApiError &&
+        cause.status !== undefined &&
+        [404, 410].includes(cause.status)
+      ) {
+        setItems((values) => values.filter((value) => value.id !== item.id))
+        if (!item.read) setUnreadCount((count) => Math.max(0, count - 1))
+        setToast('Thông báo này không còn trong hộp thư.')
+      } else {
+        setInboxError('Chưa thể cập nhật thông báo. Vui lòng thử lại.')
+      }
+    } finally {
+      setInboxActionId('')
+    }
+  }
+
+  async function removeNotification(item: Notification) {
+    if (inboxActionId) return
+    setInboxActionId(item.id)
+    setInboxError('')
+    try {
+      await deleteNotification(item.id)
+      setItems((values) => values.filter((value) => value.id !== item.id))
+      if (!item.read) setUnreadCount((count) => Math.max(0, count - 1))
+      setToast('Đã xóa thông báo khỏi hộp thư.')
+    } catch (cause) {
+      if (
+        cause instanceof ApiError &&
+        cause.status !== undefined &&
+        [404, 410].includes(cause.status)
+      ) {
+        setItems((values) => values.filter((value) => value.id !== item.id))
+        if (!item.read) setUnreadCount((count) => Math.max(0, count - 1))
+        setToast('Thông báo này không còn trong hộp thư.')
+      } else {
+        setInboxError('Chưa thể xóa thông báo. Vui lòng thử lại.')
+      }
+    } finally {
+      setInboxActionId('')
+    }
+  }
+
+  async function markAllRead() {
+    if (inboxActionId) return
+    setInboxActionId('all')
+    setInboxError('')
+    try {
+      await markAllNotificationsRead()
+      await loadInbox()
+      setToast('Đã đánh dấu tất cả là đã đọc.')
+    } catch {
+      setInboxError('Chưa thể đánh dấu tất cả là đã đọc. Vui lòng thử lại.')
+    } finally {
+      setInboxActionId('')
+    }
   }
 
   async function savePreferences() {
@@ -645,58 +783,122 @@ export default function NotificationsPage() {
               <p>
                 {unreadCount > 0
                   ? `Bạn còn ${unreadCount} thông báo chưa đọc.`
-                  : 'Bạn chưa có thông báo nào.'}
+                  : 'Bạn đã xem tất cả thông báo.'}
               </p>
             </div>
             {unreadCount > 0 && (
               <button
                 type="button"
-                onClick={() => {
-                  setItems((current) =>
-                    current.map((item) => ({ ...item, read: true })),
-                  )
-                  setToast('Đã đánh dấu tất cả là đã đọc.')
-                }}
+                disabled={inboxActionId !== ''}
+                onClick={() => void markAllRead()}
               >
                 ✓ Đánh dấu đã đọc tất cả
               </button>
             )}
           </div>
-          {items.length === 0 ? (
+          {inboxLoading ? (
+            <section
+              className="notification-settings-state"
+              role="status"
+              aria-busy="true"
+            >
+              <h2>Đang tải thông báo…</h2>
+              <p>Hộp thư đã lưu của bạn đang được đồng bộ.</p>
+            </section>
+          ) : inboxError && items.length === 0 ? (
+            <section className="notification-settings-state" role="alert">
+              <h2>{inboxError}</h2>
+              <button type="button" onClick={() => void loadInbox()}>
+                Thử lại
+              </button>
+            </section>
+          ) : items.length === 0 ? (
             <section className="notification-settings-state" role="status">
               <h2>Chưa có thông báo</h2>
               <p>Các cập nhật đã xác minh sẽ xuất hiện tại đây.</p>
             </section>
           ) : (
-            <div className="notifications-list">
-              {items.map((item) => (
+            <>
+              {inboxError && (
+                <div className="notifications-inline-error" role="alert">
+                  <span>{inboxError}</span>
+                  <button type="button" onClick={() => void loadInbox()}>
+                    Tải lại
+                  </button>
+                </div>
+              )}
+              <div className="notifications-list">
+                {items.map((item) => {
+                  const meta = typeMeta[item.kind]
+                  return (
+                    <article
+                      key={item.id}
+                      className={`notification-item ${item.read ? '' : 'is-unread'}`}
+                    >
+                      <button
+                        type="button"
+                        className="notification-item-open"
+                        disabled={inboxActionId !== ''}
+                        onClick={() => void openNotification(item)}
+                      >
+                        <span
+                          className={`notification-item-icon ${meta.tone}`}
+                          aria-hidden="true"
+                        >
+                          {meta.icon}
+                        </span>
+                        <span className="notification-item-copy">
+                          <span>
+                            <b>{meta.label}</b>
+                            <time dateTime={item.occurredAt}>
+                              {notificationTime(item.occurredAt)}
+                            </time>
+                          </span>
+                          <strong>{item.title}</strong>
+                          <p>{item.body}</p>
+                        </span>
+                        {!item.read && (
+                          <i
+                            className="notification-unread"
+                            aria-label="Chưa đọc"
+                          />
+                        )}
+                        {item.action && (
+                          <span
+                            className="notification-arrow"
+                            aria-hidden="true"
+                          >
+                            →
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="notification-item-delete"
+                        disabled={inboxActionId !== ''}
+                        aria-label={`Xóa thông báo: ${item.title}`}
+                        onClick={() => void removeNotification(item)}
+                      >
+                        Xóa
+                      </button>
+                    </article>
+                  )
+                })}
+              </div>
+              {nextCursor && (
                 <button
                   type="button"
-                  key={item.id}
-                  className={`notification-item ${item.read ? '' : 'is-unread'}`}
-                  onClick={() =>
-                    setItems((current) =>
-                      current.map((value) =>
-                        value.id === item.id ? { ...value, read: true } : value,
-                      ),
-                    )
-                  }
+                  className="notifications-load-more"
+                  disabled={inboxLoadingMore}
+                  onClick={() => void loadInbox(nextCursor, true)}
                 >
-                  <span className="notification-item-icon teal">◇</span>
-                  <span className="notification-item-copy">
-                    <span>
-                      <b>Cập nhật</b>
-                      <time>{item.time}</time>
-                    </span>
-                    <strong>{item.title}</strong>
-                    <p>{item.message}</p>
-                  </span>
-                  {!item.read && (
-                    <i className="notification-unread" aria-label="Chưa đọc" />
-                  )}
+                  {inboxLoadingMore ? 'Đang tải…' : 'Xem thêm thông báo'}
                 </button>
-              ))}
-            </div>
+              )}
+              <p className="notifications-history-note">
+                Thông báo cũ hơn 90 ngày sẽ được tự động xóa khỏi hộp thư.
+              </p>
+            </>
           )}
         </section>
       ) : (

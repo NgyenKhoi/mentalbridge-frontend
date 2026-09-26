@@ -253,12 +253,11 @@ export default function AuthenticatedShell({
             <Link
               href="/notifications"
               className="ref-notify"
-              aria-label="3 thông báo"
+              aria-label="Thông báo"
             >
               <Svg>
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               </Svg>
-              <b>3</b>
             </Link>
             <Link
               href="/profile"

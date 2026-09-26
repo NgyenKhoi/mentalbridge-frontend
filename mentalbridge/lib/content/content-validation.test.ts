@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  parseNotification,
+  parseNotificationPage,
   parseNotificationPreferencePatch,
   parseNotificationPreferences,
   parsePublicResourceDetail,
@@ -41,6 +43,25 @@ const preferences = {
   },
   version: 0,
   updatedAt: '2026-09-26T00:00:00.000Z',
+}
+
+const notification = {
+  id: '223e4567-e89b-42d3-a456-426614174000',
+  kind: 'SYSTEM_RESOURCE',
+  title: 'Tài nguyên mới',
+  body: 'Một tài nguyên đã được cập nhật.',
+  priority: 'NORMAL',
+  occurredAt: '2026-09-26T01:00:00.000Z',
+  createdAt: '2026-09-26T01:00:01.000Z',
+  read: false,
+  readAt: null,
+  action: {
+    type: 'OPEN_RESOURCE',
+    targetId: '323e4567-e89b-42d3-a456-426614174000',
+    href: '/resources/323e4567-e89b-42d3-a456-426614174000',
+  },
+  lifecycleState: 'ACTIVE',
+  expiresAt: '2026-12-25T01:00:01.000Z',
 }
 
 describe('Content response validation', () => {
@@ -118,5 +139,53 @@ describe('Content response validation', () => {
       parseNotificationPreferencePatch({ channels: { sms: true } }),
     ).toBeNull()
     expect(parseNotificationPreferencePatch({})).toBeNull()
+  })
+
+  it('accepts the closed notification shape and rejects arbitrary or mismatched actions', () => {
+    expect(parseNotification(notification)).toEqual(notification)
+    expect(
+      parseNotification({
+        ...notification,
+        action: { ...notification.action, href: 'https://untrusted.example' },
+      }),
+    ).toBeNull()
+    expect(
+      parseNotification({
+        ...notification,
+        action: { ...notification.action, href: '/resources/other' },
+      }),
+    ).toBeNull()
+    expect(
+      parseNotification({
+        ...notification,
+        action: {
+          type: 'OPEN_MESSAGES',
+          targetId: null,
+          href: '/admin',
+        },
+      }),
+    ).toBeNull()
+    expect(
+      parseNotification({ ...notification, read: true, readAt: null }),
+    ).toBeNull()
+  })
+
+  it('requires pagination continuation state to agree', () => {
+    expect(
+      parseNotificationPage({
+        items: [notification],
+        nextCursor: 'next',
+        hasMore: true,
+        unreadCount: 1,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseNotificationPage({
+        items: [notification],
+        nextCursor: null,
+        hasMore: true,
+        unreadCount: 1,
+      }),
+    ).toBeNull()
   })
 })

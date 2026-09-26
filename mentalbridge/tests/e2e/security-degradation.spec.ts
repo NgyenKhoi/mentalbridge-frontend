@@ -565,6 +565,56 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
       version,
       updatedAt: '2026-09-26T00:00:00.000Z',
     }
+    let inboxReadAt: string | null = null
+    let inboxDeleted = false
+    const inboxItem = {
+      id: 'c13e4567-e89b-42d3-a456-426614174000',
+      kind: 'APPOINTMENT',
+      title: 'Lịch tư vấn sắp diễn ra',
+      body: 'Bạn có một lịch tư vấn vào ngày mai.',
+      priority: 'NORMAL',
+      occurredAt: '2026-09-26T01:00:00.000Z',
+      createdAt: '2026-09-26T01:00:01.000Z',
+      action: null,
+      lifecycleState: 'ACTIVE',
+      expiresAt: '2026-12-25T01:00:01.000Z',
+    }
+    await page.route('**/api/notifications?*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: inboxDeleted
+            ? []
+            : [
+                {
+                  ...inboxItem,
+                  read: inboxReadAt !== null,
+                  readAt: inboxReadAt,
+                },
+              ],
+          nextCursor: null,
+          hasMore: false,
+          unreadCount: inboxDeleted || inboxReadAt ? 0 : 1,
+        }),
+      })
+    })
+    await page.route('**/api/notifications/mark-all-read', async (route) => {
+      inboxReadAt = '2026-09-26T02:00:00.000Z'
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ updatedCount: 1 }),
+      })
+    })
+    await page.route('**/api/notifications/*', async (route) => {
+      if (route.request().method() === 'DELETE') {
+        inboxDeleted = true
+        await route.fulfill({ status: 204, body: '' })
+        return
+      }
+      await route.fallback()
+    })
     await page.route('**/api/notifications/preferences', async (route) => {
       if (route.request().method() === 'PATCH') {
         expect(route.request().headers()['if-match']).toBe(`"${version}"`)
@@ -591,6 +641,19 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await expect(
       page.getByRole('heading', { name: 'Thông báo của bạn' }),
     ).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(inboxItem.title)).toBeVisible()
+    await expect(page.getByLabel('Chưa đọc')).toBeVisible()
+    await page.getByRole('button', { name: /Đánh dấu đã đọc tất cả/i }).click()
+    await expect(page.getByText('Bạn đã xem tất cả thông báo.')).toBeVisible()
+    await page.reload()
+    await expect(page.getByText(inboxItem.title)).toBeVisible()
+    await expect(page.getByLabel('Chưa đọc')).toHaveCount(0)
+    await page
+      .getByRole('button', { name: `Xóa thông báo: ${inboxItem.title}` })
+      .click()
+    await expect(page.getByText('Chưa có thông báo')).toBeVisible()
+    await page.reload()
+    await expect(page.getByText('Chưa có thông báo')).toBeVisible()
 
     const html = await page.evaluate(() => document.body.innerHTML)
 
