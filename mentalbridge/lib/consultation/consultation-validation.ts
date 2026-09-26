@@ -144,6 +144,14 @@ export type Appointment = Readonly<{
   decisionDeadlineAt: string
   heldCreditId: string
   replacesAppointmentId: string | null
+  decidedAt: string | null
+  decisionReason:
+    | 'SPECIALIST_ACCEPTED'
+    | 'SPECIALIST_REJECTED'
+    | 'DECISION_DEADLINE_EXPIRED'
+    | null
+  creditState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
+  version: number
 }>
 export type AppointmentList = Readonly<{
   items: Appointment[]
@@ -525,10 +533,53 @@ export function parseAppointment(value: unknown): Appointment | null {
     !utcInstant(item.requestedAt) ||
     !utcInstant(item.decisionDeadlineAt) ||
     !uuid(item.heldCreditId) ||
-    !(item.replacesAppointmentId === null || uuid(item.replacesAppointmentId))
+    !(
+      item.replacesAppointmentId === null || uuid(item.replacesAppointmentId)
+    ) ||
+    !(item.decidedAt === null || utcInstant(item.decidedAt)) ||
+    ![
+      'SPECIALIST_ACCEPTED',
+      'SPECIALIST_REJECTED',
+      'DECISION_DEADLINE_EXPIRED',
+      null,
+    ].includes(item.decisionReason as string | null) ||
+    !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
+      String(item.creditState),
+    ) ||
+    !Number.isInteger(item.version) ||
+    Number(item.version) < 0 ||
+    !validAppointmentOutcome(item)
   )
     return null
   return item as Appointment
+}
+
+function validAppointmentOutcome(item: Record<string, unknown>) {
+  if (item.status === 'REQUESTED')
+    return (
+      item.decidedAt === null &&
+      item.decisionReason === null &&
+      item.creditState === 'HELD'
+    )
+  if (item.status === 'CONFIRMED' || item.status === 'IN_PROGRESS')
+    return (
+      item.decidedAt !== null &&
+      item.decisionReason === 'SPECIALIST_ACCEPTED' &&
+      item.creditState === 'HELD'
+    )
+  if (item.status === 'REJECTED')
+    return (
+      item.decidedAt !== null &&
+      item.decisionReason === 'SPECIALIST_REJECTED' &&
+      item.creditState === 'AVAILABLE'
+    )
+  if (item.status === 'EXPIRED')
+    return (
+      item.decidedAt !== null &&
+      item.decisionReason === 'DECISION_DEADLINE_EXPIRED' &&
+      item.creditState === 'AVAILABLE'
+    )
+  return true
 }
 
 export function parseAppointmentList(value: unknown): AppointmentList | null {

@@ -161,6 +161,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialist/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists appointment snapshots assigned to the authenticated specialist, with decision deadline, current credit state, and optimistic version. */
+        get: operations["listAssignedAppointments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/appointments/{appointmentId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Moves one still-eligible assigned REQUESTED appointment to CONFIRMED while its consultation credit remains HELD. Exact command replay returns the current appointment without duplicate history. */
+        post: operations["acceptAssignedAppointment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/appointments/{appointmentId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Moves one still-eligible assigned REQUESTED appointment to REJECTED and releases its slot and exact held credit once. Exact command replay returns the current appointment without duplicate history or ledger events. */
+        post: operations["rejectAssignedAppointment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/specialist-profiles": {
         parameters: {
             query?: never;
@@ -520,6 +575,14 @@ export interface components {
             heldCreditId: string;
             /** Format: uuid */
             replacesAppointmentId: string | null;
+            /** Format: date-time */
+            decidedAt: string | null;
+            /** @enum {string|null} */
+            decisionReason: "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | null;
+            /** @enum {string} */
+            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            /** Format: int64 */
+            version: number;
         };
         AppointmentList: {
             items: components["schemas"]["Appointment"][];
@@ -566,6 +629,51 @@ export interface components {
         };
         /** @description Slot, modality, lead time, video capability, credit, reservation capacity, replacement state, concurrency, or idempotency prevents the request. */
         AppointmentConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The authenticated specialist is not assigned to this appointment (APPOINTMENT_NOT_ASSIGNED). */
+        AppointmentDecisionForbiddenProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Appointment does not exist (APPOINTMENT_NOT_FOUND). */
+        AppointmentNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The request is terminal, past its decision deadline, has inconsistent held credit, or reuses an idempotency key for another decision. */
+        AppointmentDecisionConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description If-Match does not equal the current appointment version (APPOINTMENT_VERSION_MISMATCH). */
+        AppointmentVersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description If-Match is required for a specialist appointment decision (APPOINTMENT_VERSION_REQUIRED). */
+        AppointmentVersionRequiredProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -698,10 +806,13 @@ export interface components {
         /** @description Quoted current non-negative profile version. */
         RequiredIfMatch: string;
         AvailabilitySlotId: string;
-        /** @description Printable caller key scoped to the authenticated specialist and retained with the slot outcome. */
+        AppointmentId: string;
+        /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
         IdempotencyKey: string;
         /** @description Quoted current non-negative availability slot version. */
         AvailabilitySlotIfMatch: string;
+        /** @description Quoted current non-negative appointment version. */
+        AppointmentIfMatch: string;
     };
     requestBodies: never;
     headers: {
@@ -709,6 +820,8 @@ export interface components {
         ProfileETag: string;
         /** @description Quoted current availability slot version for If-Match. */
         AvailabilitySlotETag: string;
+        /** @description Quoted current appointment version for If-Match. */
+        AppointmentETag: string;
     };
     pathItems: never;
 }
@@ -921,7 +1034,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Printable caller key scoped to the authenticated specialist and retained with the slot outcome. */
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path?: never;
@@ -1034,7 +1147,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Printable caller key scoped to the authenticated specialist and retained with the slot outcome. */
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path?: never;
@@ -1060,6 +1173,96 @@ export interface operations {
             403: components["responses"]["AppointmentForbiddenProblem"];
             404: components["responses"]["AppointmentSlotNotFoundProblem"];
             409: components["responses"]["AppointmentConflictProblem"];
+        };
+    };
+    listAssignedAppointments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Assigned appointment history with decision-eligible requests first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    acceptAssignedAppointment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative appointment version. */
+                "If-Match": components["parameters"]["AppointmentIfMatch"];
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Confirmed appointment or exact replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["AppointmentETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Appointment"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["AppointmentDecisionForbiddenProblem"];
+            404: components["responses"]["AppointmentNotFoundProblem"];
+            409: components["responses"]["AppointmentDecisionConflictProblem"];
+            412: components["responses"]["AppointmentVersionProblem"];
+            428: components["responses"]["AppointmentVersionRequiredProblem"];
+        };
+    };
+    rejectAssignedAppointment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative appointment version. */
+                "If-Match": components["parameters"]["AppointmentIfMatch"];
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rejected appointment or exact replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["AppointmentETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Appointment"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["AppointmentDecisionForbiddenProblem"];
+            404: components["responses"]["AppointmentNotFoundProblem"];
+            409: components["responses"]["AppointmentDecisionConflictProblem"];
+            412: components["responses"]["AppointmentVersionProblem"];
+            428: components["responses"]["AppointmentVersionRequiredProblem"];
         };
     };
     listSpecialistProfilesForAdmin: {
