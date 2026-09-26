@@ -12,6 +12,8 @@ import {
   journalMood,
 } from '@/features/journal/authoring'
 import { JournalReflection } from '@/features/journal/reflection/JournalReflection'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import {
   parseJournalEntry,
   parseJournalPage,
@@ -99,6 +101,7 @@ async function fetchJournalEntry(id: string) {
 }
 
 export default function JournalPage() {
+  const { showActionToast } = useFeedback()
   const [entries, setEntries] = useState<JournalSummary[]>([])
   const [cursor, setCursor] = useState<string>()
   const [hasMore, setHasMore] = useState(false)
@@ -194,7 +197,7 @@ export default function JournalPage() {
   }, [dirty, discardAndClose])
   useEffect(() => {
     if (mode === 'closed') return
-    const overflow = document.body.style.overflow
+    const releaseScrollLock = lockBodyScroll()
     const background = backgroundRef.current
     if (background) {
       background.inert = true
@@ -227,10 +230,9 @@ export default function JournalPage() {
         ;(event.shiftKey ? last : first)?.focus()
       }
     }
-    document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', keyboard)
     return () => {
-      document.body.style.overflow = overflow
+      releaseScrollLock()
       document.removeEventListener('keydown', keyboard)
       if (background) {
         background.inert = false
@@ -449,6 +451,7 @@ export default function JournalPage() {
         parseJournalEntry,
       )
       setPageNotice('Nhật ký đã được lưu.')
+      showActionToast({ title: 'Đã lưu nhật ký' })
       discardAndClose()
       await load()
     } catch (error) {
@@ -481,6 +484,7 @@ export default function JournalPage() {
       setEditorBaseline(null)
       setMode('view')
       setPageNotice('Nhật ký đã được cập nhật.')
+      showActionToast({ title: 'Đã cập nhật nhật ký' })
       await load()
     } catch (error) {
       if (
@@ -520,6 +524,10 @@ export default function JournalPage() {
         parseTombstone,
       )
       setPageNotice('Nhật ký đã được xóa.')
+      showActionToast({
+        title: 'Đã xóa nhật ký',
+        description: 'Nhật ký không còn hiển thị trong danh sách của bạn.',
+      })
       discardAndClose()
       await load()
     } catch (error) {

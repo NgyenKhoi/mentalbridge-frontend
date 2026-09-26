@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import type { LongitudinalAnalysisJob } from '@/lib/journal/journal-contract'
 import {
@@ -166,6 +167,7 @@ function SummaryCards({ summary }: { summary: ReassessmentSummary }) {
 }
 
 export function ReassessmentJourney() {
+  const { confirm, showActionToast, showNotificationToast } = useFeedback()
   const [context, setContext] = useState<ReassessmentContext>()
   const [report, setReport] = useState<ReassessmentSelfReport>()
   const [summary, setSummary] = useState<ReassessmentSummary>()
@@ -227,6 +229,11 @@ export function ReassessmentJourney() {
     setSummary(result)
     setPendingJob(undefined)
     setMessage('Đã tạo bản tổng hợp đánh giá lại từ bốn nguồn riêng biệt.')
+    showNotificationToast({
+      title: 'Bản tổng hợp đánh giá lại đã sẵn sàng',
+      description: 'Bạn có thể xem lại bốn góc nhìn ngay trên trang này.',
+      tone: 'success',
+    })
   }
 
   async function start() {
@@ -303,6 +310,14 @@ export function ReassessmentJourney() {
 
   async function removeReport() {
     if (!report) return
+    const confirmed = await confirm({
+      title: 'Xóa câu trả lời tự báo cáo?',
+      description:
+        'Nguồn tự báo cáo hiện tại sẽ bị xóa. Các bản tổng hợp đã tạo trước đó vẫn được giữ nguyên.',
+      confirmLabel: 'Xóa câu trả lời',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     setWorking(true)
     try {
       await deleteReassessmentSelfReport(report)
@@ -315,6 +330,13 @@ export function ReassessmentJourney() {
           ? 'Đã xóa nguồn tự báo cáo. Bản tổng hợp cũ vẫn là snapshot bất biến.'
           : 'Đã xóa nguồn tự báo cáo.',
       )
+      showActionToast({
+        title: 'Đã xóa câu trả lời tự báo cáo',
+        description: summary
+          ? 'Bản tổng hợp đã tạo trước đó vẫn được giữ nguyên.'
+          : undefined,
+        tone: 'success',
+      })
     } catch (error) {
       setMessage(friendlyError(error))
     } finally {

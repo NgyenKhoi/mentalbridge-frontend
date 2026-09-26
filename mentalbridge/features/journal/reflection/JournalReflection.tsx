@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type { AiProcessingDisclosure } from '@/features/assessment/api/care-contract'
 import type {
   AnalysisJob,
@@ -231,6 +232,7 @@ const signalGroups = (job: AnalysisJob) => {
 }
 
 export function JournalReflection({ entry }: { entry: JournalEntry }) {
+  const { showActionToast, showNotificationToast } = useFeedback()
   const [job, setJob] = useState<AnalysisJob | null>(null)
   const [restoring, setRestoring] = useState(true)
   const [requesting, setRequesting] = useState(false)
@@ -243,6 +245,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
   const [accepted, setAccepted] = useState(false)
   const [consentWorking, setConsentWorking] = useState(false)
   const consentKey = useRef<string | undefined>(undefined)
+  const notifiedJob = useRef<string | undefined>(undefined)
   const storageKey = analysisStorageKey(entry.id, entry.currentRevision)
 
   const loadConsent = useCallback(async () => {
@@ -302,6 +305,17 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
         )
       setJob(parsed)
       setAnalysisError('')
+      if (
+        parsed.status === 'SUCCEEDED' &&
+        notifiedJob.current !== parsed.jobId
+      ) {
+        notifiedJob.current = parsed.jobId
+        showNotificationToast({
+          title: 'Phân tích nhật ký đã sẵn sàng',
+          description: 'Bạn có thể xem phần nhìn lại cùng AI ngay bên dưới.',
+          tone: 'success',
+        })
+      }
       const stored = parseStoredAnalysisRequest(
         window.localStorage.getItem(storageKey),
         entry.id,
@@ -314,7 +328,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
         )
       return parsed
     },
-    [entry.currentRevision, entry.id, storageKey],
+    [entry.currentRevision, entry.id, showNotificationToast, storageKey],
   )
 
   const fetchJob = useCallback(
@@ -474,6 +488,12 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
       consentKey.current = undefined
       setConsentState(granted ? 'granted' : 'missing')
       setAccepted(false)
+      showActionToast({
+        title: granted
+          ? 'Đã cho phép phân tích bằng AI'
+          : 'Đã rút lại đồng ý xử lý bằng AI',
+        tone: 'success',
+      })
       return true
     } catch (error) {
       setConsentError(

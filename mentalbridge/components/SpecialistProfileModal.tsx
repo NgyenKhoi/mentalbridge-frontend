@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import './SpecialistProfileModal.css'
 
 export type SpecialistProfile = {
@@ -48,14 +49,13 @@ function CheckIcon() {
 export default function SpecialistProfileModal({ specialist, onClose }: Props) {
   useEffect(() => {
     if (!specialist) return
-    const previousOverflow = document.body.style.overflow
+    const releaseScrollLock = lockBodyScroll()
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
     }
-    document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', closeOnEscape)
     return () => {
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [onClose, specialist])

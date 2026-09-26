@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
 import ResourcesList from '@/components/ResourcesList'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type {
   Assessment,
   ScreeningLevel,
@@ -507,6 +508,7 @@ export default function GuidedInitialCheck({
 }: {
   purpose?: 'INITIAL_CHECK' | 'REASSESSMENT'
 }) {
+  const { showActionToast } = useFeedback()
   const [state, setState] = useState<InitialCheckState | null>(null)
   const [loading, setLoading] = useState(true)
   const [evaluating, setEvaluating] = useState(false)
@@ -558,6 +560,10 @@ export default function GuidedInitialCheck({
     try {
       setState(await resetInitialCheck(purpose))
       setConfirmingRestart(false)
+      showActionToast({
+        title: 'Đã bắt đầu lượt kiểm tra mới',
+        tone: 'success',
+      })
     } catch (cause) {
       setError(errorMessage(cause))
     } finally {

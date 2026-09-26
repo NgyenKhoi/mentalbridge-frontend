@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock';
 import './ConsultationNotesModal.css';
 
 export interface ConsultationNote {
@@ -52,10 +53,7 @@ export default function ConsultationNotesModal({
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
+    return lockBodyScroll();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

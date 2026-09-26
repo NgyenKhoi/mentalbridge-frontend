@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type {
   CompanionConversation,
   CompanionConversationSummary,
@@ -91,6 +92,7 @@ function CheckMark() {
 }
 
 export default function AiCompanionChat() {
+  const { confirm, showActionToast } = useFeedback()
   const [conversations, setConversations] = useState<
     CompanionConversationSummary[]
   >([])
@@ -144,6 +146,7 @@ export default function AiCompanionChat() {
       setActive(created)
       setQuota(null)
       setMessage('')
+      showActionToast({ title: 'Đã tạo cuộc trò chuyện mới' })
     } catch (cause) {
       setError(friendlyError(cause))
     }
@@ -227,7 +230,14 @@ export default function AiCompanionChat() {
   }
 
   const remove = async () => {
-    if (!active || !window.confirm('Xóa vĩnh viễn cuộc trò chuyện này?')) return
+    if (!active) return
+    const confirmed = await confirm({
+      title: 'Xóa cuộc trò chuyện?',
+      description:
+        'Toàn bộ tin nhắn trong cuộc trò chuyện này sẽ bị xóa vĩnh viễn và không thể khôi phục.',
+      confirmLabel: 'Xóa cuộc trò chuyện',
+    })
+    if (!confirmed) return
     try {
       await companionBrowserClient.remove(active.conversationId)
       const remaining = conversations.filter(
@@ -240,6 +250,10 @@ export default function AiCompanionChat() {
           : null,
       )
       setQuota(null)
+      showActionToast({
+        title: 'Đã xóa cuộc trò chuyện',
+        description: 'Các tin nhắn trong cuộc trò chuyện đã được xóa.',
+      })
     } catch (cause) {
       setError(friendlyError(cause))
     }

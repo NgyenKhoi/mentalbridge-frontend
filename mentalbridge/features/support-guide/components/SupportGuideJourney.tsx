@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ApiError } from '@/lib/api/api-error'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import {
   generateSupportGuide,
   getSupportGuide,
@@ -31,6 +32,7 @@ export default function SupportGuideJourney({
 }: {
   supportGuideId?: string
 }) {
+  const { showActionToast } = useFeedback()
   const [items, setItems] = useState<SupportGuide[]>([])
   const [cursor, setCursor] = useState<string>()
   const [hasMore, setHasMore] = useState(false)
@@ -83,6 +85,10 @@ export default function SupportGuideJourney({
         ),
       ])
       generationKey.current = undefined
+      showActionToast({
+        title: 'Đã tạo gợi ý hỗ trợ',
+        description: 'Bạn có thể xem lại nội dung này bất cứ lúc nào.',
+      })
     } catch (cause) {
       setError(message(cause))
     } finally {

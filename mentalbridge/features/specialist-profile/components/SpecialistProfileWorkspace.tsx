@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useState } from 'react'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type {
   SpecialistDecisionReason,
   SpecialistProfile,
@@ -47,6 +48,7 @@ function viewStatus(profile: SpecialistProfile | null): ViewStatus {
 }
 
 export default function SpecialistProfileWorkspace() {
+  const { showActionToast } = useFeedback()
   const [form, setForm] = useState<SpecialistProfileInput>(empty)
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [etag, setEtag] = useState<string | null>(null)
@@ -114,13 +116,14 @@ export default function SpecialistProfileWorkspace() {
       setForm(result.data)
       setProfile(result.data)
       setEtag(result.etag)
-      setNotice(
+      const successMessage =
         previous === 'PENDING_REVIEW'
           ? 'Đã lưu thay đổi. Hồ sơ đã rời hàng đợi; hãy gửi lại khi sẵn sàng.'
           : previous === 'REJECTED'
             ? 'Đã lưu thay đổi. Hãy gửi lại hồ sơ để được xét duyệt.'
-            : 'Đã lưu hồ sơ.',
-      )
+            : 'Đã lưu hồ sơ.'
+      setNotice(successMessage)
+      showActionToast({ title: successMessage, tone: 'success' })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể lưu hồ sơ.')
     } finally {
@@ -142,6 +145,10 @@ export default function SpecialistProfileWorkspace() {
       setProfile(result.data)
       setEtag(result.etag)
       setNotice('Hồ sơ đã được gửi để quản trị viên xét duyệt.')
+      showActionToast({
+        title: 'Đã gửi hồ sơ để xét duyệt',
+        tone: 'success',
+      })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể gửi hồ sơ.')
     } finally {

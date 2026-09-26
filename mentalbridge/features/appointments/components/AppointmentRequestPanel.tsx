@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import type {
   Appointment,
@@ -41,6 +42,7 @@ function errorMessage(error: unknown) {
 }
 
 export default function AppointmentRequestPanel() {
+  const { showActionToast } = useFeedback()
   const [slots, setSlots] = useState<BookableSlot[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
@@ -88,6 +90,10 @@ export default function AppointmentRequestPanel() {
       )
       setAppointments((items) => [created, ...items])
       setSlots((items) => items.filter((item) => item.id !== slot.id))
+      showActionToast({
+        title: 'Đã gửi yêu cầu đặt lịch',
+        description: 'Yêu cầu đang chờ chuyên gia xác nhận.',
+      })
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
