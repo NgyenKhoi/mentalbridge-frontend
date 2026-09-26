@@ -159,6 +159,9 @@ test('dashboard creates, retries, reloads, and updates the persisted daily emoti
   await page.getByText('Rất tốt', { exact: true }).click()
   await page.getByRole('button', { name: 'Cập nhật ghi nhận' }).click()
   await expect(page.getByText('Đã cập nhật ghi nhận hôm nay.')).toBeVisible()
+  await page.locator('.ref-mood').screenshot({
+    path: 'docs/evidence/mb-566-persisted-dashboard-emotion-picker.png',
+  })
   const finalStored = readStored()
   expect(finalStored).not.toBeNull()
   expect(finalStored?.emotion).toBe('GREAT')

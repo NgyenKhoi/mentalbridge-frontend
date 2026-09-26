@@ -22,7 +22,9 @@ persisted revision on a same-day update.
   expiry, and local-day rollover in the user's IANA timezone.
 - `tests/e2e/emotion-check-in.spec.ts` is a controlled fixture-browser journey
   covering empty state, a failed first save, retry with the same idempotency
-  key, refresh restoration, and revision-aware update from the dashboard.
+  key, refresh restoration, and revision-aware update from the dashboard. It
+  produces `mb-566-persisted-dashboard-emotion-picker.png` with synthetic data
+  after the persisted update is confirmed.
 
 Run the focused checks with:
 
