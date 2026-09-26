@@ -88,8 +88,13 @@ Giữ palette hiện tại: `--bg`, `--surface`, `--ink`, `--ink-soft`, `--teal-
   reduced motion.
 - `Disclosure`: semantic `details/summary`, target đủ lớn, chevron và motion.
 - `Skeleton`: loading ổn định về bố cục và tôn trọng reduced motion.
+- `FeedbackProvider` + `useFeedback`: một hàng đợi feedback toàn ứng dụng;
+  `ActionToast` ở đáy cho kết quả thao tác trực tiếp, `NotificationToast` ở góc
+  phải trên cho kết quả nền/cập nhật mới, và `ConfirmDialog` cho thao tác phá huỷ
+  hoặc làm nội dung biến mất. Feature giữ error/ngữ cảnh tại chỗ; toast không
+  được là nguồn thông tin duy nhất.
 - Các primitive tiếp theo chỉ được thêm khi có hành vi lặp thực sự: Button,
-  Select, Tabs, Toast, Checkbox, Radio, Switch, TextField, TextArea.
+  Select, Tabs, Checkbox, Radio, Switch, TextField, TextArea.
 
 Không tạo `Card`, `Container`, `Stack` chung chỉ để gom CSS. Assessment result,
 Support evaluation và Support plan là feature composition; chúng được quyền có

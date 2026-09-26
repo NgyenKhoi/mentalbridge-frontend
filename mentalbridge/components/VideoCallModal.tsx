@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import type { AppointmentDetail } from './AppointmentDetailModal'
 import './VideoCallModal.css'
 
@@ -41,14 +42,13 @@ export default function VideoCallModal({ appointment, onClose }: Props) {
   const [chatOpen, setChatOpen] = useState(false)
   const [seconds, setSeconds] = useState(0)
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow
+    const releaseScrollLock = lockBodyScroll()
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && stage !== 'call' && stage !== 'connecting') onClose()
     }
-    document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', closeOnEscape)
     return () => {
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [onClose, stage])

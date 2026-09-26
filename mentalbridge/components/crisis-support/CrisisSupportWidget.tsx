@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import { CRISIS_SUPPORT_CONTENT } from './crisis-support-content'
 import styles from './CrisisSupportWidget.module.css'
 
@@ -70,9 +71,8 @@ export default function CrisisSupportWidget() {
   useEffect(() => {
     if (!isOpen) return
 
-    const previousOverflow = document.body.style.overflow
+    const releaseScrollLock = lockBodyScroll()
     const trigger = triggerRef.current
-    document.body.style.overflow = 'hidden'
     closeRef.current?.focus()
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -104,7 +104,7 @@ export default function CrisisSupportWidget() {
     document.addEventListener('keydown', handleKeyDown)
 
     return () => {
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       document.removeEventListener('keydown', handleKeyDown)
       trigger?.focus()
     }

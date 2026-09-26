@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import './ChangePasswordModal.css'
 
 type ChangePasswordModalProps = {
@@ -25,16 +26,15 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
   useEffect(() => {
     if (!isOpen) return
 
-    const previousOverflow = document.body.style.overflow
+    const releaseScrollLock = lockBodyScroll()
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !loading) onClose()
     }
 
-    document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', closeOnEscape)
 
     return () => {
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [isOpen, loading, onClose])

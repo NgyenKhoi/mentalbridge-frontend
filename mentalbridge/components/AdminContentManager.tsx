@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useFeedback } from './ui/FeedbackProvider'
 import {
   adminResourcesApi,
   type ResourceDetail,
@@ -342,6 +343,7 @@ export default function AdminContentManager({
 }: {
   onNotice: (message: string) => void
 }) {
+  const { confirm: confirmAction, showActionToast } = useFeedback()
   const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -409,6 +411,7 @@ export default function AdminContentManager({
         queryKey: ['admin', 'resources', activeId],
       })
       onNotice('Đã lưu trữ tài nguyên thành công')
+      showActionToast({ title: 'Đã lưu trữ tài nguyên', tone: 'success' })
     },
     onError: (mutationError) => {
       onNotice(mutationMessage(mutationError, 'Không thể lưu trữ tài nguyên'))
@@ -426,6 +429,7 @@ export default function AdminContentManager({
       queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
       setSelectedId(null)
       onNotice('Đã xóa tài nguyên thành công')
+      showActionToast({ title: 'Đã xóa tài nguyên', tone: 'success' })
     },
     onError: (mutationError) => {
       onNotice(mutationMessage(mutationError, 'Không thể xóa tài nguyên'))
@@ -450,6 +454,7 @@ export default function AdminContentManager({
       createAttempt.current = null
       setSelectedId(data.id)
       onNotice('Đã tạo tài nguyên mới thành công')
+      showActionToast({ title: 'Đã tạo bản nháp tài nguyên', tone: 'success' })
     },
     onError: (mutationError) =>
       onNotice(mutationMessage(mutationError, 'Không thể tạo tài nguyên mới')),
@@ -471,6 +476,7 @@ export default function AdminContentManager({
         queryKey: ['admin', 'resources', activeId],
       })
       onNotice('Đã cập nhật tài nguyên thành công')
+      showActionToast({ title: 'Đã cập nhật tài nguyên', tone: 'success' })
     },
     onError: async (mutationError, variables) => {
       onNotice(mutationMessage(mutationError, 'Không thể cập nhật tài nguyên'))
@@ -544,6 +550,38 @@ export default function AdminContentManager({
   const closeCreateForm = () => {
     setShowCreateForm(false)
     requestAnimationFrame(() => addButton.current?.focus())
+  }
+
+  const archiveSelected = async () => {
+    if (!selectedResource || typeof detailData?.version !== 'number') return
+    const confirmed = await confirmAction({
+      title: 'Lưu trữ tài nguyên này?',
+      description:
+        'Tài nguyên sẽ không còn hiển thị với người dùng và không thể chỉnh sửa sau khi lưu trữ.',
+      confirmLabel: 'Lưu trữ',
+      tone: 'warning',
+    })
+    if (confirmed)
+      archiveMutation.mutate({
+        id: selectedResource.id,
+        version: detailData.version,
+      })
+  }
+
+  const deleteSelected = async () => {
+    if (!selectedResource || typeof detailData?.version !== 'number') return
+    const confirmed = await confirmAction({
+      title: 'Xóa bản nháp tài nguyên?',
+      description:
+        'Thao tác này không thể hoàn tác. Chỉ tài nguyên đang ở trạng thái bản nháp mới có thể bị xóa.',
+      confirmLabel: 'Xóa bản nháp',
+      tone: 'danger',
+    })
+    if (confirmed)
+      deleteMutation.mutate({
+        id: selectedResource.id,
+        version: detailData.version,
+      })
   }
 
   const handleCreateDialogKeyDown = (
@@ -842,24 +880,8 @@ export default function AdminContentManager({
                 key={`${detailData.id}:${detailData.version}`}
                 resource={selectedResource}
                 detail={detailData}
-                onArchive={() =>
-                  archiveMutation.mutate({
-                    id: selectedResource.id,
-                    version: detailData.version as number,
-                  })
-                }
-                onDelete={() => {
-                  if (
-                    confirm(
-                      'Bạn có chắc chắn muốn xóa tài nguyên này? Chỉ có thể xóa bản nháp.',
-                    )
-                  ) {
-                    deleteMutation.mutate({
-                      id: selectedResource.id,
-                      version: detailData.version as number,
-                    })
-                  }
-                }}
+                onArchive={() => void archiveSelected()}
+                onDelete={() => void deleteSelected()}
                 onUpdate={(data) =>
                   updateMutation.mutate({
                     id: selectedResource.id,

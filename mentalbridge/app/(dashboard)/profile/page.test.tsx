@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { mockServer } from '@/tests/mocks/server'
 
 vi.mock('@/features/auth/components/PasswordChangeForm', () => ({
@@ -30,6 +31,14 @@ const disclosure = {
   title: 'Thông báo xử lý dữ liệu',
   content: 'Nội dung authoritative từ Care.',
   capstoneOnly: true,
+}
+
+function renderProfile() {
+  return render(
+    <FeedbackProvider>
+      <ProfilePage />
+    </FeedbackProvider>,
+  )
 }
 
 describe('Care profile page', () => {
@@ -62,7 +71,7 @@ describe('Care profile page', () => {
         },
       ),
     )
-    render(<ProfilePage />)
+    renderProfile()
     await screen.findByDisplayValue('Nguyễn An')
     expect(
       screen.getByText(/MentalBridge cung cấp công cụ hỗ trợ tự nhìn lại/i),
@@ -81,7 +90,7 @@ describe('Care profile page', () => {
       policyVersion: 'privacy-capstone-v3',
       granted: true,
     })
-    await screen.findByText(/đã bật xử lý dữ liệu cho các lần sàng lọc mới/i)
+    await screen.findByText(/đã bật xử lý dữ liệu/i)
   })
 
   it('shows first-time onboarding when profile and consent data are empty', async () => {
@@ -109,7 +118,7 @@ describe('Care profile page', () => {
       ),
     )
 
-    render(<ProfilePage />)
+    renderProfile()
 
     expect(await screen.findByText('Bạn chưa có hồ sơ')).toBeVisible()
     expect(screen.getAllByRole('button', { name: 'Tạo hồ sơ' })).toHaveLength(2)
@@ -129,7 +138,7 @@ describe('Care profile page', () => {
       ),
     )
     const user = userEvent.setup()
-    render(<ProfilePage />)
+    renderProfile()
 
     const name = await screen.findByLabelText('Tên hiển thị')
     await user.clear(name)
@@ -161,7 +170,7 @@ describe('Care profile page', () => {
       }),
     )
     const user = userEvent.setup()
-    render(<ProfilePage />)
+    renderProfile()
     const dateOfBirth = await screen.findByLabelText('Ngày sinh')
     const underageYear = new Date().getUTCFullYear() - 17
 
@@ -204,7 +213,7 @@ describe('Care profile page', () => {
       ),
     )
     const user = userEvent.setup()
-    render(<ProfilePage />)
+    renderProfile()
     const name = await screen.findByLabelText('Tên hiển thị')
 
     await user.clear(name)

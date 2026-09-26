@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type {
   SpecialistApprovalStatus,
   SpecialistProfile,
@@ -32,6 +33,7 @@ const reasonLabels = {
 } as const
 
 export default function AdminSpecialistReviewSection() {
+  const { confirm, showActionToast } = useFeedback()
   const [filter, setFilter] = useState<SpecialistApprovalStatus>('PENDING')
   const [items, setItems] = useState<SpecialistProfile[]>([])
   const [selected, setSelected] = useState<SpecialistProfile | null>(null)
@@ -96,10 +98,26 @@ export default function AdminSpecialistReviewSection() {
     setSelected(null)
     setEtag(null)
     setNotice(message)
+    showActionToast({ title: message, tone: 'success' })
   }
 
   async function decide(action: 'APPROVE' | 'REJECT' | 'SUSPEND' | 'RESTORE') {
     if (!selected || !etag) return
+    if (action === 'REJECT' || action === 'SUSPEND') {
+      const confirmed = await confirm({
+        title:
+          action === 'REJECT'
+            ? 'Từ chối hồ sơ chuyên gia?'
+            : 'Tạm ngưng chuyên gia?',
+        description:
+          action === 'REJECT'
+            ? 'Lý do đã chọn sẽ được lưu để chuyên gia chỉnh sửa và gửi lại hồ sơ.'
+            : 'Các khung giờ khả dụng sẽ bị rút, cuộc hẹn liên quan bị hủy và lượt tư vấn được hoàn theo chính sách.',
+        confirmLabel: action === 'REJECT' ? 'Từ chối hồ sơ' : 'Tạm ngưng',
+        tone: 'danger',
+      })
+      if (!confirmed) return
+    }
     setBusy(true)
     setError('')
     setNotice('')

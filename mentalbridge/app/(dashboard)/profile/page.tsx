@@ -15,6 +15,7 @@ import {
   recordPrivacyDecision,
   saveCareProfile,
 } from '@/features/assessment/api/browser-care'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import PasswordChangeForm from '@/features/auth/components/PasswordChangeForm'
 import { ApiError } from '@/lib/api/api-error'
 import { validateProfileUpdate } from '@/lib/care/care-validation'
@@ -76,6 +77,7 @@ function errorsFromViolations(
 }
 
 export default function ProfilePage() {
+  const { showActionToast } = useFeedback()
   const [profile, setProfile] = useState<CareProfile | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [disclosure, setDisclosure] = useState<PrivacyDisclosure | null>(null)
@@ -85,7 +87,6 @@ export default function ProfilePage() {
   const [privacySaving, setPrivacySaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
-  const [toast, setToast] = useState('')
   const [returnToInitialCheck, setReturnToInitialCheck] = useState(false)
   const displayNameRef = useRef<HTMLInputElement>(null)
   const dateOfBirthRef = useRef<HTMLInputElement>(null)
@@ -170,11 +171,6 @@ export default function ProfilePage() {
     }
   }, [])
 
-  const notify = (message: string) => {
-    setToast(message)
-    window.setTimeout(() => setToast(''), 6000)
-  }
-
   const updateField = (field: keyof FormState, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
     setFieldErrors((current) => ({ ...current, [field]: undefined }))
@@ -208,7 +204,9 @@ export default function ProfilePage() {
       setProfile(saved)
       setForm(profileForm(saved))
       setFieldErrors({})
-      notify(profile ? 'Đã lưu thay đổi hồ sơ.' : 'Đã tạo hồ sơ của bạn.')
+      showActionToast({
+        title: profile ? 'Đã lưu thay đổi hồ sơ' : 'Đã tạo hồ sơ của bạn',
+      })
     } catch (cause) {
       if (cause instanceof ApiError && cause.problem?.violations) {
         const errors = errorsFromViolations(cause.problem.violations)
@@ -240,11 +238,12 @@ export default function ProfilePage() {
     try {
       await recordPrivacyDecision(granted, disclosure.version)
       setPrivacyGranted(granted)
-      notify(
-        granted
-          ? 'Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'
-          : 'Đã dừng xử lý dữ liệu cho các lần sàng lọc mới.',
-      )
+      showActionToast({
+        title: granted
+          ? 'Đã bật xử lý dữ liệu'
+          : 'Đã dừng xử lý dữ liệu',
+        description: 'Thay đổi áp dụng cho các lần sàng lọc mới.',
+      })
     } catch {
       setError('Không thể ghi nhận lựa chọn về quyền riêng tư lúc này.')
     } finally {
@@ -569,11 +568,6 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      {toast && (
-        <div className="settings-toast" role="status">
-          ✓ {toast}
-        </div>
-      )}
     </div>
   )
 }

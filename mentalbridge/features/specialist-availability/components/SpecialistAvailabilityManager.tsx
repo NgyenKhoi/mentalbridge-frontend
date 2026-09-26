@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import {
   AvailabilityBrowserError,
   browserAvailability,
@@ -151,6 +152,7 @@ function friendlyError(error: unknown, reloaded = false) {
 }
 
 export default function SpecialistAvailabilityManager() {
+  const { confirm, showActionToast } = useFeedback()
   const [form, setForm] = useState<FormState>({
     date: '',
     startTime: '',
@@ -228,6 +230,11 @@ export default function SpecialistAvailabilityManager() {
       idempotencyKey.current = null
       setForm((current) => ({ ...current, date: '', startTime: '' }))
       setNotice('Đã xuất bản khung giờ tư vấn trực tuyến 60 phút.')
+      showActionToast({
+        title: 'Đã xuất bản khung giờ tư vấn',
+        description: 'Khung 60 phút đã sẵn sàng để người dùng đặt lịch.',
+        tone: 'success',
+      })
     } catch (caught) {
       if (
         caught instanceof AvailabilityBrowserError &&
@@ -241,6 +248,14 @@ export default function SpecialistAvailabilityManager() {
   }
 
   const withdraw = async (slot: AvailabilitySlot) => {
+    const confirmed = await confirm({
+      title: 'Rút khung giờ này?',
+      description:
+        'Khung giờ sẽ không còn nhận lượt đặt mới. Các cuộc hẹn đã có không bị thay đổi.',
+      confirmLabel: 'Rút khung giờ',
+      tone: 'warning',
+    })
+    if (!confirmed) return
     setSaving(true)
     setError('')
     setNotice('')
@@ -250,6 +265,11 @@ export default function SpecialistAvailabilityManager() {
         current.map((item) => (item.id === data.id ? data : item)),
       )
       setNotice('Đã rút khung giờ khỏi lịch khả dụng.')
+      showActionToast({
+        title: 'Đã rút khung giờ',
+        description: 'Khung giờ không còn hiển thị để nhận lượt đặt mới.',
+        tone: 'success',
+      })
     } catch (caught) {
       if (
         caught instanceof AvailabilityBrowserError &&

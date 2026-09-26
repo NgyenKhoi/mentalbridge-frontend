@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import { getCurrentReassessmentSummary } from '@/features/assessment/api/browser-care'
 import {
@@ -172,6 +173,7 @@ async function optionalPlan(request: Promise<SupportPlan>) {
 }
 
 export default function SupportPlanJourney() {
+  const { showActionToast } = useFeedback()
   const [plan, setPlan] = useState<SupportPlan>()
   const [currentPlan, setCurrentPlan] = useState<SupportPlan>()
   const [replacementDraft, setReplacementDraft] = useState<SupportPlan>()
@@ -306,6 +308,12 @@ export default function SupportPlanJourney() {
       }
       setReason('NONE')
       creationKey.current = undefined
+      showActionToast({
+        title: currentPlan
+          ? 'Đã tạo bản đề xuất thay thế'
+          : 'Đã tạo kế hoạch hỗ trợ đề xuất',
+        tone: 'success',
+      })
     } catch (error) {
       const state = stateFor(error)
       setReason(state.reason)
@@ -339,6 +347,7 @@ export default function SupportPlanJourney() {
         setPlan(saved)
       }
       setCommandMessage('Đã lưu lựa chọn của bạn.')
+      showActionToast({ title: 'Đã lưu lựa chọn của bạn', tone: 'success' })
     } catch (error) {
       const errorMessage = mutationMessage(error)
       setCommandMessage(errorMessage)
@@ -361,6 +370,10 @@ export default function SupportPlanJourney() {
       )
       setPlan(await getCurrentSupportPlan())
       activationKey.current = undefined
+      showActionToast({
+        title: 'Kế hoạch hỗ trợ đã bắt đầu',
+        tone: 'success',
+      })
     } catch (error) {
       const errorMessage = mutationMessage(error)
       setCommandMessage(errorMessage)
@@ -385,6 +398,13 @@ export default function SupportPlanJourney() {
         completionReason,
       )
       await Promise.all([load(), loadHistory()])
+      const statusMessage = {
+        ACTIVE: 'Đã tiếp tục kế hoạch hỗ trợ',
+        PAUSED: 'Đã tạm dừng kế hoạch hỗ trợ',
+        COMPLETED: 'Đã kết thúc kế hoạch hỗ trợ',
+        DISCARDED: 'Đã bỏ bản nháp kế hoạch',
+      }[status]
+      showActionToast({ title: statusMessage, tone: 'success' })
     } catch (error) {
       const errorMessage = mutationMessage(error)
       setCommandMessage(errorMessage)
@@ -411,6 +431,7 @@ export default function SupportPlanJourney() {
       setReplacementDraft(undefined)
       setReplacementReview(undefined)
       await loadHistory()
+      showActionToast({ title: 'Đã bỏ bản đề xuất thay thế', tone: 'success' })
     } catch (error) {
       setCommandMessage(mutationMessage(error))
       await load()
@@ -444,6 +465,11 @@ export default function SupportPlanJourney() {
       setReplacementMessage(
         'Đã thay thế kế hoạch. Kế hoạch trước được lưu trong lịch sử.',
       )
+      showActionToast({
+        title: 'Đã thay thế kế hoạch hỗ trợ',
+        description: 'Kế hoạch trước vẫn được lưu trong lịch sử.',
+        tone: 'success',
+      })
       await loadHistory()
     } catch (error) {
       const errorMessage = mutationMessage(error)

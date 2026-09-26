@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 
 import { Disclosure } from '@/components/ui/Disclosure'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import {
   deleteSupportPlanOccurrenceEngagement,
@@ -112,6 +113,7 @@ function initialDraft(
 type Props = Readonly<{ planStatus: 'ACTIVE' | 'PAUSED' }>
 
 export default function SupportPlanSchedule({ planStatus }: Props) {
+  const { confirm, showActionToast } = useFeedback()
   const today = useMemo(() => dateInZone(new Date(), DEFAULT_TIMEZONE), [])
   const [schedule, setSchedule] = useState<SupportPlanOccurrenceList>()
   const [loading, setLoading] = useState(true)
@@ -163,6 +165,7 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
     setEditingId(undefined)
     setDraft(undefined)
     setMessage(successMessage)
+    showActionToast({ title: successMessage, tone: 'success' })
   }
 
   const replace = async (
@@ -206,6 +209,14 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
   }
 
   const remove = async (occurrence: SupportPlanOccurrence) => {
+    const confirmed = await confirm({
+      title: 'Xóa phần tự ghi nhận?',
+      description:
+        'Đánh giá và ghi chú của bạn cho hoạt động này sẽ bị xóa. Hoạt động gốc vẫn được giữ trong lịch.',
+      confirmLabel: 'Xóa tự ghi nhận',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     setBusyId(occurrence.occurrenceId)
     setMessage('')
     try {
@@ -221,6 +232,31 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
     } finally {
       setBusyId(undefined)
     }
+  }
+
+  const toggleVisibility = async (occurrence: SupportPlanOccurrence) => {
+    if (!occurrence.hidden) {
+      const confirmed = await confirm({
+        title: 'Ẩn hoạt động này?',
+        description:
+          'Hoạt động sẽ được chuyển khỏi danh sách chính. Bạn vẫn có thể hiện lại sau.',
+        confirmLabel: 'Ẩn hoạt động',
+        tone: 'warning',
+      })
+      if (!confirmed) return
+    }
+    await replace(
+      occurrence,
+      {
+        state: occurrence.state as 'SCHEDULED' | EditableState,
+        hidden: !occurrence.hidden,
+        helpfulness: occurrence.helpfulness,
+        barrierCode: occurrence.barrierCode,
+        reflection: occurrence.reflection,
+        summaryReuseApproved: occurrence.summaryReuseApproved,
+      },
+      occurrence.hidden ? 'Đã hiện lại mục này.' : 'Đã ẩn mục này.',
+    )
   }
 
   if (loading) {
@@ -486,22 +522,7 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
                 className="btn btn-ghost"
                 type="button"
                 disabled={busy}
-                onClick={() =>
-                  void replace(
-                    occurrence,
-                    {
-                      state: occurrence.state as 'SCHEDULED' | EditableState,
-                      hidden: !occurrence.hidden,
-                      helpfulness: occurrence.helpfulness,
-                      barrierCode: occurrence.barrierCode,
-                      reflection: occurrence.reflection,
-                      summaryReuseApproved: occurrence.summaryReuseApproved,
-                    },
-                    occurrence.hidden
-                      ? 'Đã hiện lại mục này.'
-                      : 'Đã ẩn mục này.',
-                  )
-                }
+                onClick={() => void toggleVisibility(occurrence)}
               >
                 {occurrence.hidden ? 'Hiện lại' : 'Ẩn khỏi danh sách'}
               </button>

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import ResourcesList from '@/components/ResourcesList'
 import { Disclosure } from '@/components/ui/Disclosure'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type {
@@ -269,6 +270,7 @@ export default function AssessmentFlow({
   completionLabel?: string
   completionPendingLabel?: string
 }) {
+  const { showActionToast } = useFeedback()
   const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null)
   const [assessment, setAssessment] = useState<AssessmentView | null>(null)
   const [answers, setAnswers] = useState<Record<string, number>>({})
@@ -407,6 +409,10 @@ export default function AssessmentFlow({
               screeningPurpose,
             )
           : await submitAssessment(mode, submission, idempotencyKey.current)
+      showActionToast({
+        title: `Đã lưu bài sàng lọc ${instrument}`,
+        tone: 'success',
+      })
       if (onCompleted) {
         onCompleted()
         return
