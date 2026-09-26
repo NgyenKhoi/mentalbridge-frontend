@@ -110,12 +110,13 @@ function TypingText({ text }: { text: string }) {
     const reduceMotion =
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     if (reduceMotion) {
-      setVisibleLength(text.length)
-      return
+      const frame = window.requestAnimationFrame(() => {
+        setVisibleLength(text.length)
+      })
+      return () => window.cancelAnimationFrame(frame)
     }
 
     let position = 0
-    setVisibleLength(0)
     const timer = window.setInterval(() => {
       position = Math.min(text.length, position + 3)
       setVisibleLength(position)
@@ -586,7 +587,7 @@ export function JournalReflection({ entry }: { entry: JournalEntry }) {
           <h4>Kết quả phân tích nhật ký này</h4>
           {job.result.summary && (
             <p className={styles.typedSummary}>
-              <TypingText text={job.result.summary} />
+              <TypingText key={job.result.summary} text={job.result.summary} />
             </p>
           )}
           {signalGroups(job).length > 0 && (
