@@ -37,4 +37,30 @@ export const appointmentBrowserClient = {
       )
     ).data
   },
+  async assigned() {
+    return (
+      await browserApiClient.get<AppointmentList>(
+        '/consultation/specialist/appointments',
+      )
+    ).data
+  },
+  async decide(
+    appointmentId: string,
+    decision: 'accept' | 'reject',
+    version: number,
+    idempotencyKey: string,
+  ) {
+    return (
+      await browserApiClient.post<Appointment>(
+        `/consultation/specialist/appointments/${encodeURIComponent(appointmentId)}/${decision}`,
+        undefined,
+        {
+          headers: {
+            'If-Match': `"${version}"`,
+            'Idempotency-Key': idempotencyKey,
+          },
+        },
+      )
+    ).data
+  },
 }

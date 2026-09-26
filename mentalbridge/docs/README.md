@@ -50,6 +50,7 @@ Story-specific delivery evidence:
 - [Story 6201 Journal authoring and draft protection](journal-authoring-story-6201.md)
 - [MB-368 exact-revision Journal AI reflection](mb-368-journal-ai-reflection.md)
 - [MB-362 online specialist availability evidence](mb-362-specialist-availability-evidence.md)
+- [MB-379 appointment decisions and expiry evidence](mb-379-appointment-decisions-evidence.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
@@ -80,6 +81,7 @@ to select any additional task-specific material.
 | Mood-aware Journal authoring and draft protection    | Implemented | Story 6201     |
 | Explicit-consent, exact-revision Journal reflection  | Implemented | MB-368         |
 | Exact 60-minute online specialist availability       | Implemented | MB-362         |
+| Specialist appointment decisions and expiry          | Implemented | MB-379         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

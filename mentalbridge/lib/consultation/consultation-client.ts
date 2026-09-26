@@ -194,6 +194,33 @@ export const consultationClient = {
       parse: parseAppointment,
     })
   },
+  assignedAppointments(token: string, correlationId: string) {
+    return request<AppointmentList>({
+      method: 'GET',
+      path: '/api/v1/specialist/appointments',
+      token,
+      correlationId,
+      parse: parseAppointmentList,
+    })
+  },
+  decideAppointment(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+    decision: 'accept' | 'reject',
+    etag: string,
+    idempotencyKey: string,
+  ) {
+    return request<Appointment>({
+      method: 'POST',
+      path: `/api/v1/specialist/appointments/${encodeURIComponent(appointmentId)}/${decision}`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      idempotencyKey,
+      parse: parseAppointment,
+    })
+  },
   credits(token: string, correlationId: string) {
     return request<ServiceCreditAccount>({
       method: 'GET',
