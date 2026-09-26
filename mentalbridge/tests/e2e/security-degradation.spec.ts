@@ -539,6 +539,53 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     page,
   }) => {
     await injectUserSession(context)
+    let version = 0
+    let storedPreferences = {
+      notificationsEnabled: true,
+      channels: { inApp: true, email: false, push: false },
+      contentGroups: {
+        journalReminder: true,
+        emotionCheckIn: true,
+        streakMilestone: true,
+        screeningReassessment: true,
+        appointmentMessage: true,
+        resourceSystem: true,
+      },
+      quietHours: {
+        enabled: true,
+        start: '22:00',
+        end: '07:00',
+        timeZone: 'Asia/Ho_Chi_Minh',
+      },
+      email: {
+        cadence: 'IMMEDIATE',
+        wellbeingDigestEnabled: false,
+        resourceRemindersEnabled: false,
+      },
+      version,
+      updatedAt: '2026-09-26T00:00:00.000Z',
+    }
+    await page.route('**/api/notifications/preferences', async (route) => {
+      if (route.request().method() === 'PATCH') {
+        expect(route.request().headers()['if-match']).toBe(`"${version}"`)
+        const update = route
+          .request()
+          .postDataJSON() as typeof storedPreferences
+        version += 1
+        storedPreferences = {
+          ...storedPreferences,
+          ...update,
+          version,
+          updatedAt: '2026-09-26T00:01:00.000Z',
+        }
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { ETag: `"${version}"` },
+        body: JSON.stringify(storedPreferences),
+      })
+    })
     await page.goto('/notifications')
 
     await expect(
@@ -554,12 +601,21 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     // No claim of continuous monitoring
     expect(html).not.toMatch(/giám sát.*24\/7/i)
 
-    // The safety note must not promise emergency response — only security alerts
+    // Preferences are server-backed, versioned, and survive a browser reload.
+    await page.getByRole('button', { name: /Cài đặt/ }).click()
+    await page.getByRole('switch', { name: 'Thông báo đẩy' }).click()
+    await page.getByLabel('Múi giờ').selectOption('Europe/Paris')
+    await page.getByRole('button', { name: 'Lưu cài đặt' }).click()
+    await expect(page.getByText('Đã lưu cài đặt thông báo.')).toBeVisible()
+    await page.reload()
     await page.getByRole('button', { name: /Cài đặt/ }).click()
     await expect(
-      page.getByText('Thông báo an toàn luôn được ưu tiên'),
+      page.getByRole('switch', { name: 'Thông báo đẩy' }),
+    ).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByLabel('Múi giờ')).toHaveValue('Europe/Paris')
+    await expect(
+      page.getByText('Quyền riêng tư được giữ ở mức tối thiểu'),
     ).toBeVisible()
-    // "An toàn" in this context is account security, not emergency service
     await expect(page.getByText(/dịch vụ ứng cứu/i)).toHaveCount(0)
   })
 

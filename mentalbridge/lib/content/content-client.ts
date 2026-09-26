@@ -7,11 +7,14 @@ import {
   parseResourceList,
   parsePublicResourceDetail,
   parseResourceSummary,
+  parseNotificationPreferences,
   type AdminResourceDetail,
   type ContentProblem,
   type PublicResourceDetail,
   type ResourceListResponse,
   type ResourceSummary,
+  type NotificationPreferencePatch,
+  type NotificationPreferences,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
@@ -24,6 +27,8 @@ type RequestOptions<T> = Readonly<{
   correlationId: string
   body?: unknown
   idempotencyKey?: string
+  ifMatch?: string
+  onSuccessResponse?: (response: Response) => void
   parseSuccess?: (value: unknown) => T | null
   mutation?: boolean
 }>
@@ -137,6 +142,7 @@ async function contentRequest<T>(options: RequestOptions<T>): Promise<T> {
           ...(options.idempotencyKey
             ? { 'Idempotency-Key': options.idempotencyKey }
             : {}),
+          ...(options.ifMatch ? { 'If-Match': options.ifMatch } : {}),
         },
         ...(options.body === undefined
           ? {}
@@ -165,6 +171,7 @@ async function contentRequest<T>(options: RequestOptions<T>): Promise<T> {
         'Content returned an unexpected status.',
       )
     }
+    options.onSuccessResponse?.(response)
     if (response.status === 204) return undefined as T
     const parsed = options.parseSuccess?.(await readJson(response))
     if (!parsed) {
@@ -216,6 +223,61 @@ export const contentPublicClient = {
       correlationId,
       parseSuccess: parsePublicResourceDetail,
     })
+  },
+}
+
+function preferenceResult(
+  preferences: NotificationPreferences,
+  etag: string | undefined,
+) {
+  if (!etag || !/^"(0|[1-9]\d*)"$/.test(etag)) {
+    throw localError(
+      502,
+      'CONTENT_MALFORMED_RESPONSE',
+      'Content returned an invalid preference version.',
+    )
+  }
+  return { preferences, etag }
+}
+
+export const contentPreferenceClient = {
+  async get(accessToken: string, correlationId: string) {
+    let etag: string | undefined
+    const preferences = await contentRequest<NotificationPreferences>({
+      method: 'GET',
+      path: '/api/v1/notification-preferences',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseNotificationPreferences,
+      onSuccessResponse: (response) => {
+        etag = response.headers.get('etag') ?? undefined
+      },
+    })
+    return preferenceResult(preferences, etag)
+  },
+  async update(
+    accessToken: string,
+    patch: NotificationPreferencePatch,
+    etagValue: string,
+    correlationId: string,
+  ) {
+    let etag: string | undefined
+    const preferences = await contentRequest<NotificationPreferences>({
+      method: 'PATCH',
+      path: '/api/v1/notification-preferences',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: patch,
+      ifMatch: etagValue,
+      parseSuccess: parseNotificationPreferences,
+      mutation: true,
+      onSuccessResponse: (response) => {
+        etag = response.headers.get('etag') ?? undefined
+      },
+    })
+    return preferenceResult(preferences, etag)
   },
 }
 
