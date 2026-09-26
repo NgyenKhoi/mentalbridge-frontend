@@ -8,6 +8,10 @@ export type NotificationPreferences =
   components['schemas']['NotificationPreferences']
 export type NotificationPreferencePatch =
   components['schemas']['NotificationPreferencePatch']
+export type Notification = components['schemas']['Notification']
+export type NotificationPage = components['schemas']['NotificationPage']
+export type NotificationBulkReadResult =
+  components['schemas']['NotificationBulkReadResult']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -329,6 +333,125 @@ export function parseNotificationPreferencePatch(
     }
   }
   return item as NotificationPreferencePatch
+}
+
+const NOTIFICATION_KINDS = new Set([
+  'REMINDER',
+  'MESSAGE',
+  'APPOINTMENT',
+  'SYSTEM_RESOURCE',
+  'ASSESSMENT_REASSESSMENT',
+  'STREAK_MILESTONE',
+])
+const NOTIFICATION_PRIORITIES = new Set(['LOW', 'NORMAL', 'HIGH'])
+const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
+  OPEN_JOURNAL: '/journal',
+  OPEN_MESSAGES: '/messages',
+  OPEN_APPOINTMENTS: '/appointments',
+  OPEN_RESOURCES: '/resources',
+  OPEN_ASSESSMENTS: '/assessments',
+}
+
+export function parseNotification(value: unknown): Notification | null {
+  const item = record(value)
+  const action = item?.action === null ? null : record(item?.action)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'id',
+      'kind',
+      'title',
+      'body',
+      'priority',
+      'occurredAt',
+      'createdAt',
+      'read',
+      'readAt',
+      'action',
+      'lifecycleState',
+      'expiresAt',
+    ]) ||
+    typeof item.id !== 'string' ||
+    !UUID.test(item.id) ||
+    typeof item.kind !== 'string' ||
+    !NOTIFICATION_KINDS.has(item.kind) ||
+    typeof item.title !== 'string' ||
+    item.title.length < 1 ||
+    item.title.length > 255 ||
+    typeof item.body !== 'string' ||
+    item.body.length < 1 ||
+    item.body.length > 1000 ||
+    typeof item.priority !== 'string' ||
+    !NOTIFICATION_PRIORITIES.has(item.priority) ||
+    !dateTime(item.occurredAt) ||
+    !dateTime(item.createdAt) ||
+    typeof item.read !== 'boolean' ||
+    !nullableDateTime(item.readAt) ||
+    item.lifecycleState !== 'ACTIVE' ||
+    !dateTime(item.expiresAt)
+  ) {
+    return null
+  }
+  if (item.read !== (item.readAt !== null)) return null
+  if (action !== null) {
+    if (
+      !exactKeys(action, ['type', 'targetId', 'href']) ||
+      typeof action.type !== 'string' ||
+      typeof action.href !== 'string' ||
+      !action.href.startsWith('/') ||
+      action.href.startsWith('//') ||
+      action.href.length > 256
+    ) {
+      return null
+    }
+    if (action.type === 'OPEN_RESOURCE') {
+      if (typeof action.targetId !== 'string' || !UUID.test(action.targetId))
+        return null
+      if (action.href !== `/resources/${action.targetId}`) return null
+    } else if (
+      TARGETLESS_NOTIFICATION_ACTIONS[action.type] !== action.href ||
+      action.targetId !== null
+    ) {
+      return null
+    }
+  }
+  return item as Notification
+}
+
+export function parseNotificationPage(value: unknown): NotificationPage | null {
+  const page = record(value)
+  if (
+    !page ||
+    !exactKeys(page, ['items', 'nextCursor', 'hasMore', 'unreadCount']) ||
+    !Array.isArray(page.items) ||
+    page.items.length > 50 ||
+    !page.items.every((item) => parseNotification(item) !== null) ||
+    !(page.nextCursor === null || typeof page.nextCursor === 'string') ||
+    (typeof page.nextCursor === 'string' &&
+      (page.nextCursor.length < 1 || page.nextCursor.length > 256)) ||
+    typeof page.hasMore !== 'boolean' ||
+    !Number.isSafeInteger(page.unreadCount) ||
+    (page.unreadCount as number) < 0 ||
+    page.hasMore !== (page.nextCursor !== null)
+  ) {
+    return null
+  }
+  return page as NotificationPage
+}
+
+export function parseNotificationBulkReadResult(
+  value: unknown,
+): NotificationBulkReadResult | null {
+  const result = record(value)
+  if (
+    !result ||
+    !exactKeys(result, ['updatedCount']) ||
+    !Number.isSafeInteger(result.updatedCount) ||
+    (result.updatedCount as number) < 0
+  ) {
+    return null
+  }
+  return result as NotificationBulkReadResult
 }
 
 export type ContentProblem = Readonly<{
