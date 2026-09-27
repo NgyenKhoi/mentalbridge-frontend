@@ -35,6 +35,22 @@ const typeMeta: Readonly<
     tone: 'amber',
   },
   STREAK_MILESTONE: { label: 'Cột mốc', icon: '↗', tone: 'terra' },
+  JOURNAL_REMINDER: { label: 'Nhật ký', icon: '✎', tone: 'amber' },
+  EMOTION_CHECKIN_REMINDER: {
+    label: 'Cảm xúc',
+    icon: '♡',
+    tone: 'sage',
+  },
+  JOURNAL_STREAK_MILESTONE: {
+    label: 'Cột mốc nhật ký',
+    icon: '↗',
+    tone: 'terra',
+  },
+  EMOTION_STREAK_MILESTONE: {
+    label: 'Cột mốc cảm xúc',
+    icon: '↗',
+    tone: 'terra',
+  },
 }
 
 function notificationTime(value: string) {
@@ -42,6 +58,19 @@ function notificationTime(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+const materializedWellbeingKinds = new Set<Notification['kind']>([
+  'JOURNAL_REMINDER',
+  'EMOTION_CHECKIN_REMINDER',
+  'JOURNAL_STREAK_MILESTONE',
+  'EMOTION_STREAK_MILESTONE',
+])
+
+function notificationDisplayTime(item: Notification) {
+  return materializedWellbeingKinds.has(item.kind)
+    ? item.createdAt
+    : item.occurredAt
 }
 
 const groups = [
@@ -830,6 +859,7 @@ export default function NotificationsPage() {
               <div className="notifications-list">
                 {items.map((item) => {
                   const meta = typeMeta[item.kind]
+                  const displayTime = notificationDisplayTime(item)
                   return (
                     <article
                       key={item.id}
@@ -850,8 +880,8 @@ export default function NotificationsPage() {
                         <span className="notification-item-copy">
                           <span>
                             <b>{meta.label}</b>
-                            <time dateTime={item.occurredAt}>
-                              {notificationTime(item.occurredAt)}
+                            <time dateTime={displayTime}>
+                              {notificationTime(displayTime)}
                             </time>
                           </span>
                           <strong>{item.title}</strong>
