@@ -218,6 +218,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/notification-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve one owner's minimized activity for the Content reminder scheduler.
+         * @description Requires the configured Content/Notification service credential. The response is note-free and reuses the authoritative emotion progress calculation.
+         */
+        post: operations["resolveNotificationActivityForScheduler"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/journals": {
         parameters: {
             query?: never;
@@ -605,6 +625,11 @@ export interface components {
             completedToday: boolean;
             currentStreak: number;
             longestStreak: number;
+        };
+        NotificationActivityRequest: {
+            /** Format: uuid */
+            ownerAccountId: string;
+            timezone: string;
         };
         NotificationActivity: {
             /** Format: date */
@@ -1226,6 +1251,35 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Independent factual Journal and emotion activity. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationActivity"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    resolveNotificationActivityForScheduler: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationActivityRequest"];
+            };
+        };
         responses: {
             /** @description Independent factual Journal and emotion activity. */
             200: {

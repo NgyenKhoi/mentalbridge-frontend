@@ -146,12 +146,19 @@ describe('Notification preferences page', () => {
       unreadCount: 4,
     })
 
-    render(<NotificationsPage />)
+    const { container } = render(<NotificationsPage />)
 
     expect(await screen.findByText('Nhật ký')).toBeVisible()
     expect(screen.getByText('Cảm xúc')).toBeVisible()
     expect(screen.getByText('Cột mốc nhật ký')).toBeVisible()
     expect(screen.getByText('Cột mốc cảm xúc')).toBeVisible()
+    const renderedTimes = [...container.querySelectorAll('time')]
+    expect(renderedTimes).toHaveLength(4)
+    expect(
+      renderedTimes.every(
+        (time) => time.getAttribute('datetime') === notification.createdAt,
+      ),
+    ).toBe(true)
   })
 
   it('persists bulk read, deletion and cursor continuation', async () => {

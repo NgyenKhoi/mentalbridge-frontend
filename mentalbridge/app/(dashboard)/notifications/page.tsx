@@ -60,6 +60,19 @@ function notificationTime(value: string) {
   }).format(new Date(value))
 }
 
+const materializedWellbeingKinds = new Set<Notification['kind']>([
+  'JOURNAL_REMINDER',
+  'EMOTION_CHECKIN_REMINDER',
+  'JOURNAL_STREAK_MILESTONE',
+  'EMOTION_STREAK_MILESTONE',
+])
+
+function notificationDisplayTime(item: Notification) {
+  return materializedWellbeingKinds.has(item.kind)
+    ? item.createdAt
+    : item.occurredAt
+}
+
 const groups = [
   [
     'journalReminder',
@@ -846,6 +859,7 @@ export default function NotificationsPage() {
               <div className="notifications-list">
                 {items.map((item) => {
                   const meta = typeMeta[item.kind]
+                  const displayTime = notificationDisplayTime(item)
                   return (
                     <article
                       key={item.id}
@@ -866,8 +880,8 @@ export default function NotificationsPage() {
                         <span className="notification-item-copy">
                           <span>
                             <b>{meta.label}</b>
-                            <time dateTime={item.occurredAt}>
-                              {notificationTime(item.occurredAt)}
+                            <time dateTime={displayTime}>
+                              {notificationTime(displayTime)}
                             </time>
                           </span>
                           <strong>{item.title}</strong>
