@@ -143,6 +143,14 @@ describe('Content response validation', () => {
 
   it('accepts the closed notification shape and rejects arbitrary or mismatched actions', () => {
     expect(parseNotification(notification)).toEqual(notification)
+    for (const kind of [
+      'JOURNAL_REMINDER',
+      'EMOTION_CHECKIN_REMINDER',
+      'JOURNAL_STREAK_MILESTONE',
+      'EMOTION_STREAK_MILESTONE',
+    ] as const) {
+      expect(parseNotification({ ...notification, kind })).not.toBeNull()
+    }
     expect(
       parseNotification({
         ...notification,

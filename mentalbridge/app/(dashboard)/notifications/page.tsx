@@ -35,6 +35,22 @@ const typeMeta: Readonly<
     tone: 'amber',
   },
   STREAK_MILESTONE: { label: 'Cột mốc', icon: '↗', tone: 'terra' },
+  JOURNAL_REMINDER: { label: 'Nhật ký', icon: '✎', tone: 'amber' },
+  EMOTION_CHECKIN_REMINDER: {
+    label: 'Cảm xúc',
+    icon: '♡',
+    tone: 'sage',
+  },
+  JOURNAL_STREAK_MILESTONE: {
+    label: 'Cột mốc nhật ký',
+    icon: '↗',
+    tone: 'terra',
+  },
+  EMOTION_STREAK_MILESTONE: {
+    label: 'Cột mốc cảm xúc',
+    icon: '↗',
+    tone: 'terra',
+  },
 }
 
 function notificationTime(value: string) {

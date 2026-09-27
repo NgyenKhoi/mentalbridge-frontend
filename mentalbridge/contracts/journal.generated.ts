@@ -198,6 +198,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notification-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read minimized authoritative Journal and emotion activity for notification policy.
+         * @description Returns dates-derived factual completion and streak values only. It never returns Journal text, emotion note text, a clinical interpretation, an adherence score, or a recovery claim.
+         */
+        get: operations["getNotificationActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/journals": {
         parameters: {
             query?: never;
@@ -580,6 +600,20 @@ export interface components {
             label: "SELF_REPORTED_EMOTION";
             /** @constant */
             interpretation: "FACTUAL_COUNTS_NOT_DIAGNOSIS_OR_RECOVERY";
+        };
+        NotificationActivityStreak: {
+            completedToday: boolean;
+            currentStreak: number;
+            longestStreak: number;
+        };
+        NotificationActivity: {
+            /** Format: date */
+            asOfLocalDate: string;
+            timezone: string;
+            journal: components["schemas"]["NotificationActivityStreak"];
+            emotionCheckIn: components["schemas"]["NotificationActivityStreak"];
+            /** @constant */
+            interpretation: "FACTUAL_ACTIVITY_NOT_ADHERENCE_OR_RECOVERY";
         };
         EmotionCheckInTombstone: {
             /** Format: date */
@@ -1176,6 +1210,34 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    getNotificationActivity: {
+        parameters: {
+            query: {
+                /** @description Current persisted IANA timezone used to derive Journal local dates and the as-of local day. Emotion activity retains its frozen creation local date. */
+                timezone: string;
+            };
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Independent factual Journal and emotion activity. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationActivity"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             503: components["responses"]["DependencyUnavailable"];
         };
     };
