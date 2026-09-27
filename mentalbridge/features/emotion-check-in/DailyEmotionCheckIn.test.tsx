@@ -67,10 +67,11 @@ describe('DailyEmotionCheckIn', () => {
 
   it('starts empty with no default and creates only after emotion and intensity are selected', async () => {
     const user = userEvent.setup()
+    const onPersisted = vi.fn()
     get.mockRejectedValue(notFound())
     create.mockImplementation(async (body) => record(body.localDate))
 
-    render(<DailyEmotionCheckIn />)
+    render(<DailyEmotionCheckIn onPersisted={onPersisted} />)
 
     expect(
       await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.'),
@@ -92,6 +93,7 @@ describe('DailyEmotionCheckIn', () => {
       expect.objectContaining({ emotion: 'GOOD', intensity: 4, note: null }),
       expect.stringMatching(/^emotion-check-in-/),
     )
+    expect(onPersisted).toHaveBeenCalledOnce()
   })
 
   it('restores persisted state after remount and updates the same local-day record', async () => {

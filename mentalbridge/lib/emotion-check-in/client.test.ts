@@ -21,6 +21,24 @@ const checkIn = {
   createdAt: timestamp,
   updatedAt: timestamp,
 }
+const distribution = { GREAT: 0, GOOD: 1, OKAY: 0, LOW: 0, VERY_LOW: 0 }
+const progress = {
+  asOfLocalDate: localDate,
+  timezone: 'Asia/Ho_Chi_Minh',
+  currentEmotion: 'GOOD' as const,
+  currentStreak: 2,
+  longestStreak: 4,
+  windows: [7, 14, 30].map((days) => ({
+    days,
+    startLocalDate: '2026-09-20',
+    endLocalDate: localDate,
+    checkedInDays: 1,
+    totalDays: days,
+    distribution,
+  })),
+  label: 'SELF_REPORTED_EMOTION' as const,
+  interpretation: 'FACTUAL_COUNTS_NOT_DIAGNOSIS_OR_RECOVERY' as const,
+}
 
 describe('Emotion check-in server-only client', () => {
   afterEach(() => vi.unstubAllEnvs())
@@ -48,6 +66,60 @@ describe('Emotion check-in server-only client', () => {
     await expect(
       emotionCheckInClient.get('access-token', localDate, 'correlation-id'),
     ).resolves.toEqual(checkIn)
+  })
+
+  it('loads validated history and authoritative timezone-anchored progress', async () => {
+    configure()
+    mockServer.use(
+      http.get(`${baseUrl}/api/v1/emotion-check-ins`, ({ request }) => {
+        expect(new URL(request.url).searchParams.get('limit')).toBe('30')
+        return HttpResponse.json({
+          items: [checkIn],
+          page: { limit: 30, hasMore: false },
+          label: 'SELF_REPORTED_EMOTION',
+          interpretation: 'NOT_DIAGNOSIS_OR_RECOVERY',
+        })
+      }),
+      http.get(`${baseUrl}/api/v1/emotion-check-in-progress`, ({ request }) => {
+        expect(new URL(request.url).searchParams.get('timezone')).toBe(
+          'Asia/Ho_Chi_Minh',
+        )
+        return HttpResponse.json(progress)
+      }),
+    )
+
+    await expect(
+      emotionCheckInClient.list('access-token', 30, 'correlation-id'),
+    ).resolves.toMatchObject({ items: [checkIn] })
+    await expect(
+      emotionCheckInClient.progress(
+        'access-token',
+        'Asia/Ho_Chi_Minh',
+        'correlation-id',
+      ),
+    ).resolves.toMatchObject({ currentStreak: 2, longestStreak: 4 })
+  })
+
+  it('rejects malformed progress whose distribution does not match coverage', async () => {
+    configure()
+    mockServer.use(
+      http.get(`${baseUrl}/api/v1/emotion-check-in-progress`, () =>
+        HttpResponse.json({
+          ...progress,
+          windows: progress.windows.map((window) => ({
+            ...window,
+            checkedInDays: 2,
+          })),
+        }),
+      ),
+    )
+
+    await expect(
+      emotionCheckInClient.progress('token', 'UTC', 'correlation'),
+    ).rejects.toMatchObject({
+      code: 'EMOTION_CHECK_IN_MALFORMED_RESPONSE',
+      status: 502,
+    })
   })
 
   it('forwards idempotency and exact revision only at the provider boundary', async () => {

@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import PlanGate, { type PlanId } from '@/components/PlanGate'
 import { DailyEmotionCheckIn } from '@/features/emotion-check-in/DailyEmotionCheckIn'
+import { EmotionProgress } from '@/features/emotion-check-in/EmotionProgress'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import '../dashboard-page.css'
@@ -44,6 +45,7 @@ const SmallIcon = ({ type }: { type: 'note' | 'check' | 'user' }) => (
 export default function DashboardPage() {
   const [done, setDone] = useState<number[]>([])
   const [plan, setPlan] = useState<PlanId>('free')
+  const [emotionRefresh, setEmotionRefresh] = useState(0)
   const heroRef = useRef<HTMLElement>(null)
   const bentoRef = useRef<HTMLElement>(null)
   const todayRef = useRef<HTMLElement>(null)
@@ -190,7 +192,9 @@ export default function DashboardPage() {
         </Link>
       </section>
       <section ref={bentoRef} className="ref-bento">
-        <DailyEmotionCheckIn />
+        <DailyEmotionCheckIn
+          onPersisted={() => setEmotionRefresh((value) => value + 1)}
+        />
         <article className="ref-card ref-result">
           <header>
             <h2>Kết quả sàng lọc</h2>
@@ -199,20 +203,7 @@ export default function DashboardPage() {
           <p>Chưa có kết quả sàng lọc nào được hiển thị.</p>
           <Link href="/assessment/phq9">Làm PHQ-9 để nhận kết quả →</Link>
         </article>
-        <PlanGate
-          currentPlan={plan}
-          required="plus"
-          title="Phân tích xu hướng chi tiết"
-        >
-          <article className="ref-card ref-trend">
-            <header>
-              <h2>Nhìn lại theo thời gian</h2>
-            </header>
-            <footer>
-              <span>Ghi lại cảm xúc trong nhật ký để có dữ liệu nhìn lại.</span>
-            </footer>
-          </article>
-        </PlanGate>
+        <EmotionProgress refreshKey={emotionRefresh} />
       </section>
       <section ref={todayRef} className="ref-today">
         <PlanGate
