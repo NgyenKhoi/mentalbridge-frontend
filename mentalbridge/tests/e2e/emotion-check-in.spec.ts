@@ -56,6 +56,48 @@ test('dashboard creates, retries, reloads, and updates the persisted daily emoti
     const localDate = url.pathname.split('/').at(-1) ?? ''
 
     if (method === 'GET') {
+      if (url.pathname.endsWith('/progress')) {
+        const count = stored ? 1 : 0
+        await route.fulfill({
+          status: 200,
+          json: {
+            asOfLocalDate: stored?.localDate ?? '2026-09-27',
+            timezone: url.searchParams.get('timezone') ?? 'UTC',
+            currentEmotion: stored?.emotion ?? null,
+            currentStreak: count,
+            longestStreak: count,
+            windows: [7, 14, 30].map((days) => ({
+              days,
+              startLocalDate: '2026-08-29',
+              endLocalDate: stored?.localDate ?? '2026-09-27',
+              checkedInDays: count,
+              totalDays: days,
+              distribution: {
+                GREAT: stored?.emotion === 'GREAT' ? 1 : 0,
+                GOOD: stored?.emotion === 'GOOD' ? 1 : 0,
+                OKAY: stored?.emotion === 'OKAY' ? 1 : 0,
+                LOW: stored?.emotion === 'LOW' ? 1 : 0,
+                VERY_LOW: stored?.emotion === 'VERY_LOW' ? 1 : 0,
+              },
+            })),
+            label: 'SELF_REPORTED_EMOTION',
+            interpretation: 'FACTUAL_COUNTS_NOT_DIAGNOSIS_OR_RECOVERY',
+          },
+        })
+        return
+      }
+      if (url.pathname === '/api/emotion-check-ins') {
+        await route.fulfill({
+          status: 200,
+          json: {
+            items: stored ? [stored] : [],
+            page: { limit: 30, hasMore: false },
+            label: 'SELF_REPORTED_EMOTION',
+            interpretation: 'NOT_DIAGNOSIS_OR_RECOVERY',
+          },
+        })
+        return
+      }
       if (!stored) {
         await route.fulfill({
           status: 404,
@@ -149,6 +191,12 @@ test('dashboard creates, retries, reloads, and updates the persisted daily emoti
   ).toBeChecked()
   await page.getByRole('button', { name: 'Thử lại' }).click()
   await expect(page.getByText('Đã lưu ghi nhận hôm nay.')).toBeVisible()
+  await expect(
+    page.locator('.ref-trend').getByText('Chuỗi hiện tại'),
+  ).toBeVisible()
+  await expect(
+    page.locator('.ref-trend').getByText('Đã ghi nhận 1/7 ngày'),
+  ).toBeVisible()
   expect(createKeys).toHaveLength(2)
   expect(createKeys[0]).toBe(createKeys[1])
 
@@ -156,11 +204,15 @@ test('dashboard creates, retries, reloads, and updates the persisted daily emoti
   await expect(
     page.getByRole('radio', { name: 'Tốt', exact: true }),
   ).toBeChecked()
-  await page.getByText('Rất tốt', { exact: true }).click()
+  await page.locator('.ref-mood').getByText('Rất tốt', { exact: true }).click()
   await page.getByRole('button', { name: 'Cập nhật ghi nhận' }).click()
   await expect(page.getByText('Đã cập nhật ghi nhận hôm nay.')).toBeVisible()
-  await page.locator('.ref-mood').screenshot({
-    path: 'docs/evidence/mb-566-persisted-dashboard-emotion-picker.png',
+  await expect(
+    page.locator('.ref-trend').getByRole('meter', { name: 'Rất tốt: 1 ngày' }),
+  ).toBeVisible()
+  await page.setViewportSize({ width: 1440, height: 1400 })
+  await page.locator('.ref-trend').screenshot({
+    path: 'docs/evidence/mb-567-emotion-progress.png',
   })
   const finalStored = readStored()
   expect(finalStored).not.toBeNull()

@@ -2,6 +2,8 @@ import type {
   Emotion,
   EmotionCheckIn,
   EmotionCheckInCreate,
+  EmotionCheckInList,
+  EmotionCheckInProgress,
   EmotionCheckInValue,
 } from './contract'
 
@@ -107,4 +109,99 @@ export function parseEmotionCheckIn(value: unknown): EmotionCheckIn | null {
   )
     return null
   return value as EmotionCheckIn
+}
+
+const nonNegativeInteger = (value: unknown) =>
+  Number.isInteger(value) && Number(value) >= 0
+
+export function parseEmotionCheckInList(
+  value: unknown,
+): EmotionCheckInList | null {
+  if (
+    !object(value) ||
+    !exact(value, ['items', 'page', 'label', 'interpretation']) ||
+    !Array.isArray(value.items) ||
+    value.items.length > 90 ||
+    value.items.some((item) => !parseEmotionCheckIn(item)) ||
+    !object(value.page) ||
+    !exact(value.page, ['limit', 'hasMore', 'nextBefore']) ||
+    !Number.isInteger(value.page.limit) ||
+    Number(value.page.limit) < 1 ||
+    Number(value.page.limit) > 90 ||
+    typeof value.page.hasMore !== 'boolean' ||
+    (value.page.nextBefore !== undefined &&
+      !isLocalDate(value.page.nextBefore)) ||
+    value.label !== 'SELF_REPORTED_EMOTION' ||
+    value.interpretation !== 'NOT_DIAGNOSIS_OR_RECOVERY'
+  )
+    return null
+  return value as EmotionCheckInList
+}
+
+export function parseEmotionCheckInProgress(
+  value: unknown,
+): EmotionCheckInProgress | null {
+  if (
+    !object(value) ||
+    !exact(value, [
+      'asOfLocalDate',
+      'timezone',
+      'currentEmotion',
+      'currentStreak',
+      'longestStreak',
+      'windows',
+      'label',
+      'interpretation',
+    ]) ||
+    !isLocalDate(value.asOfLocalDate) ||
+    typeof value.timezone !== 'string' ||
+    value.timezone.length < 1 ||
+    value.timezone.length > 64 ||
+    (value.currentEmotion !== null && !isEmotion(value.currentEmotion)) ||
+    !nonNegativeInteger(value.currentStreak) ||
+    !nonNegativeInteger(value.longestStreak) ||
+    !Array.isArray(value.windows) ||
+    value.windows.length !== 3 ||
+    value.label !== 'SELF_REPORTED_EMOTION' ||
+    value.interpretation !== 'FACTUAL_COUNTS_NOT_DIAGNOSIS_OR_RECOVERY'
+  )
+    return null
+
+  const expectedDays = [7, 14, 30]
+  for (const [index, window] of value.windows.entries()) {
+    if (
+      !object(window) ||
+      !exact(window, [
+        'days',
+        'startLocalDate',
+        'endLocalDate',
+        'checkedInDays',
+        'totalDays',
+        'distribution',
+      ]) ||
+      window.days !== expectedDays[index] ||
+      window.totalDays !== window.days ||
+      !isLocalDate(window.startLocalDate) ||
+      !isLocalDate(window.endLocalDate) ||
+      !nonNegativeInteger(window.checkedInDays) ||
+      Number(window.checkedInDays) > Number(window.days) ||
+      !object(window.distribution) ||
+      !exact(window.distribution, [
+        'GREAT',
+        'GOOD',
+        'OKAY',
+        'LOW',
+        'VERY_LOW',
+      ]) ||
+      Object.values(window.distribution).some(
+        (count) => !nonNegativeInteger(count),
+      ) ||
+      Object.values(window.distribution).reduce<number>(
+        (sum, count) => sum + Number(count),
+        0,
+      ) !== window.checkedInDays
+    )
+      return null
+  }
+  return value as EmotionCheckInProgress
 }

@@ -6,9 +6,15 @@ import { readJournalServerConfig } from '@/lib/config/server'
 import type {
   EmotionCheckIn,
   EmotionCheckInCreate,
+  EmotionCheckInList,
+  EmotionCheckInProgress,
   EmotionCheckInValue,
 } from './contract'
-import { parseEmotionCheckIn } from './validation'
+import {
+  parseEmotionCheckIn,
+  parseEmotionCheckInList,
+  parseEmotionCheckInProgress,
+} from './validation'
 
 type Options = Readonly<{
   method: 'GET' | 'POST' | 'PATCH'
@@ -55,7 +61,10 @@ async function json(response: Response): Promise<unknown> {
   }
 }
 
-async function call(options: Options): Promise<EmotionCheckIn> {
+async function call<T>(
+  options: Options,
+  parse: (value: unknown) => T | null,
+): Promise<T> {
   const config = readJournalServerConfig()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
@@ -107,7 +116,7 @@ async function call(options: Options): Promise<EmotionCheckIn> {
       throw malformed()
     }
     try {
-      const parsed = parseEmotionCheckIn(await json(response))
+      const parsed = parse(await json(response))
       if (!parsed) throw malformed()
       return parsed
     } catch (error) {
@@ -130,12 +139,37 @@ async function call(options: Options): Promise<EmotionCheckIn> {
 
 export const emotionCheckInClient = {
   get(accessToken: string, localDate: string, correlationId: string) {
-    return call({
-      method: 'GET',
-      path: `/api/v1/emotion-check-ins/${localDate}`,
-      accessToken,
-      correlationId,
-    })
+    return call<EmotionCheckIn>(
+      {
+        method: 'GET',
+        path: `/api/v1/emotion-check-ins/${localDate}`,
+        accessToken,
+        correlationId,
+      },
+      parseEmotionCheckIn,
+    )
+  },
+  list(accessToken: string, limit: number, correlationId: string) {
+    return call<EmotionCheckInList>(
+      {
+        method: 'GET',
+        path: `/api/v1/emotion-check-ins?limit=${String(limit)}`,
+        accessToken,
+        correlationId,
+      },
+      parseEmotionCheckInList,
+    )
+  },
+  progress(accessToken: string, timezone: string, correlationId: string) {
+    return call<EmotionCheckInProgress>(
+      {
+        method: 'GET',
+        path: `/api/v1/emotion-check-in-progress?timezone=${encodeURIComponent(timezone)}`,
+        accessToken,
+        correlationId,
+      },
+      parseEmotionCheckInProgress,
+    )
   },
   create(
     accessToken: string,
@@ -143,14 +177,17 @@ export const emotionCheckInClient = {
     key: string,
     correlationId: string,
   ) {
-    return call({
-      method: 'POST',
-      path: '/api/v1/emotion-check-ins',
-      accessToken,
-      correlationId,
-      idempotencyKey: key,
-      body,
-    })
+    return call<EmotionCheckIn>(
+      {
+        method: 'POST',
+        path: '/api/v1/emotion-check-ins',
+        accessToken,
+        correlationId,
+        idempotencyKey: key,
+        body,
+      },
+      parseEmotionCheckIn,
+    )
   },
   update(
     accessToken: string,
@@ -160,14 +197,17 @@ export const emotionCheckInClient = {
     key: string,
     correlationId: string,
   ) {
-    return call({
-      method: 'PATCH',
-      path: `/api/v1/emotion-check-ins/${localDate}`,
-      accessToken,
-      correlationId,
-      idempotencyKey: key,
-      revision,
-      body,
-    })
+    return call<EmotionCheckIn>(
+      {
+        method: 'PATCH',
+        path: `/api/v1/emotion-check-ins/${localDate}`,
+        accessToken,
+        correlationId,
+        idempotencyKey: key,
+        revision,
+        body,
+      },
+      parseEmotionCheckIn,
+    )
   },
 }

@@ -1,5 +1,11 @@
 # Synthetic browser evidence
 
+MB-567 adds authoritative emotion history, current/longest streaks, and factual
+7/14/30-day coverage to the dashboard. Its BFF/component/fixture evidence is
+recorded in
+[`mb-567-emotion-progress.md`](mb-567-emotion-progress.md), with the synthetic
+capture `mb-567-emotion-progress.png`.
+
 MB-566 integrates the dashboard emotion picker with the persisted MB-510
 daily check-in aggregate. Its contract, BFF, component, local-day and
 fixture-browser coverage is recorded in

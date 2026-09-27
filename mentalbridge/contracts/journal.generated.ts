@@ -158,6 +158,26 @@ export interface paths {
         patch: operations["updateEmotionCheckIn"];
         trace?: never;
     };
+    "/api/v1/emotion-check-in-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read authoritative factual emotion check-in streaks and rolling coverage.
+         * @description Counts active owner check-in local dates only. Same-day revisions remain one checked-in day; deleted or missing completed days do not count, while an open current day does not break a streak ending yesterday. The result is self-tracking evidence, not a clinical, adherence, improvement, or recovery claim.
+         */
+        get: operations["getEmotionCheckInProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/emotion-check-in-context": {
         parameters: {
             query?: never;
@@ -360,10 +380,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/support-guide-phrasing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rephrase exact Care-approved Support Guide copy.
+         * @description Care forwards the verified end-user bearer. Journal/AI verifies current AI_PROCESSING consent and may only rephrase the supplied approved text; it cannot add resources, decide safety or eligibility, or mutate Care state.
+         */
+        post: operations["phraseSupportGuideCopy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        SupportGuidePhrasingRequest: {
+            approvedText: string;
+            /** @constant */
+            locale: "vi-VN";
+        };
+        SupportGuidePhrasingResponse: {
+            text: string;
+            /** @enum {string} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI";
+            model: string;
+            /** @constant */
+            promptVersion: "support-guide-phrasing-v1";
+            /** @constant */
+            schemaVersion: 1;
+        };
         CreateAiConversationRequest: {
             title?: string;
         };
@@ -493,6 +548,38 @@ export interface components {
             label: "SELF_REPORTED_EMOTION";
             /** @constant */
             interpretation: "NOT_DIAGNOSIS_OR_RECOVERY";
+        };
+        EmotionDistribution: {
+            GREAT: number;
+            GOOD: number;
+            OKAY: number;
+            LOW: number;
+            VERY_LOW: number;
+        };
+        EmotionProgressWindow: {
+            /** @enum {integer} */
+            days: 7 | 14 | 30;
+            /** Format: date */
+            startLocalDate: string;
+            /** Format: date */
+            endLocalDate: string;
+            checkedInDays: number;
+            /** @enum {integer} */
+            totalDays: 7 | 14 | 30;
+            distribution: components["schemas"]["EmotionDistribution"];
+        };
+        EmotionCheckInProgress: {
+            /** Format: date */
+            asOfLocalDate: string;
+            timezone: string;
+            currentEmotion: components["schemas"]["Emotion"] | null;
+            currentStreak: number;
+            longestStreak: number;
+            windows: components["schemas"]["EmotionProgressWindow"][];
+            /** @constant */
+            label: "SELF_REPORTED_EMOTION";
+            /** @constant */
+            interpretation: "FACTUAL_COUNTS_NOT_DIAGNOSIS_OR_RECOVERY";
         };
         EmotionCheckInTombstone: {
             /** Format: date */
@@ -1035,6 +1122,34 @@ export interface operations {
             503: components["responses"]["DependencyUnavailable"];
         };
     };
+    getEmotionCheckInProgress: {
+        parameters: {
+            query: {
+                /** @description Current valid IANA timezone used to derive the as-of local date and rolling windows. Each stored aggregate keeps its immutable creation timezone. */
+                timezone: string;
+            };
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative current/longest streak and 7/14/30-day factual counts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckInProgress"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
     getEmotionCheckInConsumerContext: {
         parameters: {
             query: {
@@ -1522,6 +1637,36 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    phraseSupportGuideCopy: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportGuidePhrasingRequest"];
+            };
+        };
+        responses: {
+            /** @description A bounded rephrasing and provider provenance were returned. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportGuidePhrasingResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             503: components["responses"]["DependencyUnavailable"];
         };
     };

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api/api-error'
 import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
 
-const client = vi.hoisted(() => ({ create: vi.fn() }))
+const client = vi.hoisted(() => ({ create: vi.fn(), list: vi.fn() }))
 const session = vi.hoisted(() => ({
   resolveSession: vi.fn(),
   ensureRole: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock('@/lib/auth/session-service', () => ({
   ensureRole: session.ensureRole,
 }))
 
-import { POST } from './route'
+import { GET, POST } from './route'
 
 const account = {
   accountId: '10000000-0000-4000-8000-000000000001',
@@ -49,9 +49,36 @@ function request(value: unknown = body, key = 'emotion-command-00000001') {
 describe('/api/emotion-check-ins Route Handler', () => {
   beforeEach(() => {
     client.create.mockReset()
+    client.list.mockReset()
     session.resolveSession.mockReset()
     session.ensureRole.mockReset()
     session.resolveSession.mockResolvedValue({ account })
+  })
+
+  it('lists a bounded authenticated owner history without accepting extra query input', async () => {
+    client.list.mockResolvedValue({ items: [], page: { limit: 30 } })
+    const historyRequest = new NextRequest(
+      'http://localhost/api/emotion-check-ins?limit=30',
+      { headers: { cookie: `${ACCESS_COOKIE_NAME}=access-token` } },
+    )
+
+    const response = await GET(historyRequest)
+
+    expect(response.status).toBe(200)
+    expect(client.list).toHaveBeenCalledWith(
+      'access-token',
+      30,
+      expect.any(String),
+    )
+
+    const invalid = await GET(
+      new NextRequest(
+        'http://localhost/api/emotion-check-ins?limit=91&ownerId=other',
+        { headers: { cookie: `${ACCESS_COOKIE_NAME}=access-token` } },
+      ),
+    )
+    expect(invalid.status).toBe(400)
+    expect(client.list).toHaveBeenCalledTimes(1)
   })
 
   it('creates through the authenticated owner contract without accepting an owner id', async () => {

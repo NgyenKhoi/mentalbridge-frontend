@@ -63,7 +63,9 @@ function messageFor(error: unknown, saving: boolean) {
     : 'Ghi nhận cảm xúc hôm nay tạm thời chưa tải được.'
 }
 
-export function DailyEmotionCheckIn() {
+export function DailyEmotionCheckIn({
+  onPersisted,
+}: Readonly<{ onPersisted?: () => void }>) {
   const timezone = useMemo(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     [],
@@ -164,6 +166,7 @@ export function DailyEmotionCheckIn() {
       setDraft({ emotion: saved.emotion, intensity: saved.intensity })
       mutation.current = null
       setPhase('saved')
+      onPersisted?.()
       setMessage(
         existing ? 'Đã cập nhật ghi nhận hôm nay.' : 'Đã lưu ghi nhận hôm nay.',
       )
