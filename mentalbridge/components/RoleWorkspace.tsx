@@ -8,7 +8,7 @@ import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
 import SpecialistProfileWorkspace from '@/features/specialist-profile/components/SpecialistProfileWorkspace'
 import SpecialistAvailabilityManager from '@/features/specialist-availability/components/SpecialistAvailabilityManager'
-import SpecialistAppointmentsManager from './SpecialistAppointmentsManager'
+import SpecialistAppointmentDecisionPanel from '@/features/appointments/components/SpecialistAppointmentDecisionPanel'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistMessagesManager from './SpecialistMessagesManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
@@ -114,7 +114,6 @@ const adminSections: Record<string, Section> = {
     { id: 'au2', title: 'DATA_EXPORT_REQUEST', meta: 'User U-2048 · 13:18:44', status: 'Đang xử lý', detail: 'Yêu cầu quyền riêng tư được theo dõi theo chính sách hiện hành.' },
   ], tabs: ['Audit log', 'Data retention'] },
 }
-
 const navByRole = {
   specialist: [['dashboard','Dashboard'],['appointments','Appointments'],['availability','Availability'],['clients','Clients'],['messages','Messages'],['follow-up','Follow-up'],['earnings','Earnings'],['notifications','Notifications'],['profile','Profile']],
   admin: [['dashboard','Dashboard'],['users','Users'],['specialists','Specialists'],['assessments','Assessments'],['payments','Subscriptions & Payments'],['payouts','Payouts'],['appointments','Appointments'],['content','Content'],['moderation','Moderation'],['ai','AI Evaluation'],['reports','Reports'],['audit','Audit & Privacy']],
@@ -233,7 +232,7 @@ export default function RoleWorkspace({
         {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboard rows={section.rows} onSelect={setSelected} />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
-        {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentsManager rows={section.rows} onCreate={() => setShowAppointmentModal(true)} onSelect={setSelected} />}
+        {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel />}
         {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager rows={section.rows} />}
         {role === 'specialist' && sectionKey === 'messages' && <SpecialistMessagesManager />}
         {role === 'specialist' && sectionKey === 'earnings' && <SpecialistEarningsManager />}
