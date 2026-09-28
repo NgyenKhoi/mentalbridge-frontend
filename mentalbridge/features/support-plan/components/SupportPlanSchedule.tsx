@@ -120,6 +120,10 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
   const [busyId, setBusyId] = useState<string>()
   const [editingId, setEditingId] = useState<string>()
   const [draft, setDraft] = useState<Draft>()
+  const [expandedUpcomingId, setExpandedUpcomingId] = useState<string | null>(
+    null,
+  )
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false)
   const [message, setMessage] = useState('')
 
   const load = useCallback(
@@ -571,9 +575,80 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
           <div>
             <h4>13 ngày sắp tới</h4>
             {upcoming.length > 0 ? (
-              <ol>{upcoming.map(renderItem)}</ol>
+              <ol className="support-plan-upcoming-list">
+                {(showAllUpcoming ? upcoming : upcoming.slice(0, 3)).map(
+                  (item) => {
+                    const activeUpcomingId =
+                      expandedUpcomingId === '__NONE__'
+                        ? null
+                        : (expandedUpcomingId ?? upcoming[0]?.occurrenceId)
+
+                    const isOpen =
+                      item.occurrenceId === activeUpcomingId ||
+                      editingId === item.occurrenceId
+
+                    if (isOpen) {
+                      return renderItem(item)
+                    }
+
+                    return (
+                      <li
+                        className={`support-plan-occurrence-compact state-${item.displayState.toLowerCase()}`}
+                        key={item.occurrenceId}
+                      >
+                        <button
+                          type="button"
+                          className="support-plan-occurrence-compact-btn"
+                          onClick={() =>
+                            setExpandedUpcomingId(item.occurrenceId)
+                          }
+                          aria-expanded={false}
+                        >
+                          <div className="support-plan-occurrence-compact-time">
+                            <strong>{timeLabel(item)}</strong>
+                            <span>{item.timezone}</span>
+                          </div>
+                          <div className="support-plan-occurrence-compact-title">
+                            <h5>{item.source.title}</h5>
+                          </div>
+                          <div className="support-plan-occurrence-compact-meta">
+                            <span className="support-plan-occurrence-badge">
+                              {stateLabels[item.displayState]}
+                            </span>
+                            <svg
+                              className="support-plan-chevron-icon"
+                              viewBox="0 0 20 20"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="m6 8 4 4 4-4" />
+                            </svg>
+                          </div>
+                        </button>
+                      </li>
+                    )
+                  },
+                )}
+              </ol>
             ) : (
               <p>Không có mục sắp tới đang hiển thị.</p>
+            )}
+            {upcoming.length > 3 && (
+              <div className="support-plan-schedule-more">
+                <button
+                  type="button"
+                  className="support-plan-schedule-more-btn"
+                  onClick={() => setShowAllUpcoming((prev) => !prev)}
+                >
+                  {showAllUpcoming
+                    ? 'Thu gọn danh sách ↑'
+                    : `Còn ${upcoming.length - 3} hoạt động khác · Xem tất cả →`}
+                </button>
+              </div>
             )}
           </div>
           {hidden.length > 0 && (

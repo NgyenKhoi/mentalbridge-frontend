@@ -382,7 +382,69 @@
   gap: 12px;
   margin-top: 24px;
 }
+.care-meaning-card {
+  margin-top: 20px;
+  padding: var(--space-5);
+  border: 1px solid rgba(27, 42, 34, 0.09);
+  border-radius: var(--radius-panel);
+  background: rgba(255, 255, 255, 0.84);
+}
+.care-meaning-card > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.care-meaning-card h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 600 1.125rem/1.35 var(--font-fraunces), serif;
+  font-size: clamp(16px, 2.5vw, 18px);
+}
+.care-meaning-badge {
+  flex: none;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.care-meaning-card > p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+.care-meaning-disclosure {
+  margin-top: 14px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.care-meaning-disclosure summary {
+  min-height: 38px;
+  color: var(--teal);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--motion-base) var(--ease-standard);
+}
+.care-meaning-disclosure summary:hover {
+  color: var(--teal-deep);
+}
+.care-meaning-disclosure p {
+  margin: 8px 0 4px;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
 @media (max-width: 700px) {
+  .care-meaning-card > header {
+    flex-direction: column;
+    gap: 8px;
+  }
   .care-result-grid,
   .care-provenance dl {
     grid-template-columns: 1fr;

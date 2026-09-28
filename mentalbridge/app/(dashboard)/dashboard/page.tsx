@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import PlanGate, { type PlanId } from '@/components/PlanGate'
+import LatestPhq9Result from '@/features/assessment/components/LatestPhq9Result'
 import { DailyEmotionCheckIn } from '@/features/emotion-check-in/DailyEmotionCheckIn'
 import { EmotionProgress } from '@/features/emotion-check-in/EmotionProgress'
 import { gsap } from 'gsap'
@@ -77,7 +78,7 @@ export default function DashboardPage() {
 
       // Bento cards stagger
       if (bentoRef.current) {
-        gsap.from(bentoRef.current.querySelectorAll('.ref-card'), {
+        gsap.from(bentoRef.current.querySelectorAll('.ref-panel-col'), {
           scrollTrigger: {
             trigger: bentoRef.current,
             start: 'top 80%',
@@ -191,19 +192,21 @@ export default function DashboardPage() {
           Bắt đầu kiểm tra ban đầu <strong aria-hidden="true">→</strong>
         </Link>
       </section>
-      <section ref={bentoRef} className="ref-bento">
-        <DailyEmotionCheckIn
-          onPersisted={() => setEmotionRefresh((value) => value + 1)}
-        />
-        <article className="ref-card ref-result">
-          <header>
+      <section ref={bentoRef} className="ref-panel">
+        <div className="ref-panel-col ref-panel-mood">
+          <DailyEmotionCheckIn
+            onPersisted={() => setEmotionRefresh((value) => value + 1)}
+          />
+        </div>
+        <div className="ref-panel-col ref-panel-result">
+          <header className="ref-col-header">
             <h2>Kết quả sàng lọc</h2>
-            <i aria-hidden="true">✓</i>
           </header>
-          <p>Chưa có kết quả sàng lọc nào được hiển thị.</p>
-          <Link href="/assessment/phq9">Làm PHQ-9 để nhận kết quả →</Link>
-        </article>
-        <EmotionProgress refreshKey={emotionRefresh} />
+          <LatestPhq9Result />
+        </div>
+        <div className="ref-panel-col ref-panel-progress">
+          <EmotionProgress refreshKey={emotionRefresh} />
+        </div>
       </section>
       <section ref={todayRef} className="ref-today">
         <PlanGate
@@ -285,11 +288,22 @@ export default function DashboardPage() {
         </div>
       </section>
       <section ref={streakRef} className="ref-journal-streak">
-        <p>
-          <b>Dành một phút nhìn lại hôm nay</b>
-          <span>Viết điều bạn đang cảm nhận theo cách riêng của mình.</span>
-        </p>
-        <Link href="/journal">Viết nhật ký →</Link>
+        <div className="ref-streak-left">
+          <div className="ref-streak-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </div>
+          <div className="ref-streak-text">
+            <h3>Dành một phút nhìn lại hôm nay</h3>
+            <p>Viết điều bạn đang cảm nhận theo cách riêng của mình.</p>
+          </div>
+        </div>
+        <Link href="/journal" className="ref-streak-btn">
+          <span>Viết nhật ký</span>
+          <span className="ref-streak-btn-arrow" aria-hidden="true">→</span>
+        </Link>
       </section>
     </div>
   )

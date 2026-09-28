@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -53,11 +54,16 @@ describe('EmailVerification', () => {
       `/verify-email?challenge=${'x'.repeat(32)}`,
     )
 
-    render(<EmailVerification />)
+    render(
+      <StrictMode>
+        <EmailVerification />
+      </StrictMode>,
+    )
 
     await waitFor(() => {
       expect(screen.getByText(/liên kết không còn hợp lệ/i)).toBeVisible()
     })
+    expect(mocks.verify).toHaveBeenCalledTimes(1)
     expect(
       screen.queryByText(/private challenge detail/i),
     ).not.toBeInTheDocument()
