@@ -15,6 +15,7 @@ import { consultationClient } from '@/lib/consultation/consultation-client'
 import {
   ConsultationInputError,
   parseAppointmentRequestInput,
+  validEtag,
   validIdempotencyKey,
 } from '@/lib/consultation/consultation-validation'
 
@@ -70,11 +71,23 @@ export async function POST(request: NextRequest) {
     const body = parseAppointmentRequestInput(
       await readBoundedJson(request, 2 * 1024),
     )
+    const replacementEtag = request.headers.get('If-Match')
+    if (body.replacesAppointmentId && !validEtag(replacementEtag))
+      return carryConsultationSession(
+        localProblem(
+          428,
+          'APPOINTMENT_VERSION_REQUIRED',
+          'Phiên bản hiện tại của lịch cần đổi là bắt buộc.',
+          correlationId,
+        ),
+        current,
+      )
     const result = await consultationClient.requestAppointment(
       current.accessToken,
       correlationId,
       body,
       key,
+      replacementEtag ?? undefined,
     )
     return carryConsultationSession(
       consultationSuccess(result.data, correlationId, null, 201),

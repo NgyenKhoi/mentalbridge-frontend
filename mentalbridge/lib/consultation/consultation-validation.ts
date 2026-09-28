@@ -104,6 +104,32 @@ export type AvailabilitySlotList = Readonly<{
 }>
 
 export type AppointmentModality = 'IN_APP_CHAT' | 'IN_APP_VIDEO'
+export type AppointmentStatus =
+  | 'REQUESTED'
+  | 'CONFIRMED'
+  | 'IN_PROGRESS'
+  | 'REJECTED'
+  | 'EXPIRED'
+  | 'CANCELLED'
+export type AppointmentCancellationCreditOutcome =
+  'RELEASED' | 'FORFEITED' | 'TRANSFERRED_TO_REPLACEMENT'
+export type AppointmentHistoryEntry = Readonly<{
+  eventId: string
+  fromStatus: AppointmentStatus | null
+  toStatus: AppointmentStatus
+  actorType: 'USER' | 'SPECIALIST' | 'ADMIN' | 'SYSTEM'
+  actorId: string | null
+  reason:
+    | 'APPOINTMENT_REQUESTED'
+    | 'USER_CANCELLED'
+    | 'USER_RESCHEDULED'
+    | 'SPECIALIST_ACCEPTED'
+    | 'SPECIALIST_REJECTED'
+    | 'DECISION_DEADLINE_EXPIRED'
+    | 'SPECIALIST_SUSPENDED'
+  creditOutcome: AppointmentCancellationCreditOutcome | null
+  occurredAt: string
+}>
 export type AppointmentRequestInput = Readonly<{
   slotId: string
   modality: AppointmentModality
@@ -129,13 +155,7 @@ export type Appointment = Readonly<{
   slotId: string
   specialistAccountId: string
   specialistDisplayName: string
-  status:
-    | 'REQUESTED'
-    | 'CONFIRMED'
-    | 'IN_PROGRESS'
-    | 'REJECTED'
-    | 'EXPIRED'
-    | 'CANCELLED'
+  status: AppointmentStatus
   modality: AppointmentModality
   scheduledStartAt: string
   scheduledEndAt: string
@@ -144,13 +164,20 @@ export type Appointment = Readonly<{
   decisionDeadlineAt: string
   heldCreditId: string
   replacesAppointmentId: string | null
+  replacedByAppointmentId: string | null
   decidedAt: string | null
   decisionReason:
     | 'SPECIALIST_ACCEPTED'
     | 'SPECIALIST_REJECTED'
     | 'DECISION_DEADLINE_EXPIRED'
     | null
+  cancelledAt: string | null
+  cancellationReason:
+    'USER_CANCELLED' | 'USER_RESCHEDULED' | 'SPECIALIST_SUSPENDED' | null
+  cancellationActor: 'USER' | 'ADMIN' | null
+  cancellationCreditOutcome: AppointmentCancellationCreditOutcome | null
   creditState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
+  history: AppointmentHistoryEntry[]
   version: number
 }>
 export type AppointmentList = Readonly<{
@@ -536,6 +563,10 @@ export function parseAppointment(value: unknown): Appointment | null {
     !(
       item.replacesAppointmentId === null || uuid(item.replacesAppointmentId)
     ) ||
+    !(
+      item.replacedByAppointmentId === null ||
+      uuid(item.replacedByAppointmentId)
+    ) ||
     !(item.decidedAt === null || utcInstant(item.decidedAt)) ||
     ![
       'SPECIALIST_ACCEPTED',
@@ -543,9 +574,25 @@ export function parseAppointment(value: unknown): Appointment | null {
       'DECISION_DEADLINE_EXPIRED',
       null,
     ].includes(item.decisionReason as string | null) ||
+    !(item.cancelledAt === null || utcInstant(item.cancelledAt)) ||
+    ![
+      'USER_CANCELLED',
+      'USER_RESCHEDULED',
+      'SPECIALIST_SUSPENDED',
+      null,
+    ].includes(item.cancellationReason as string | null) ||
+    !['USER', 'ADMIN', null].includes(
+      item.cancellationActor as string | null,
+    ) ||
+    !['RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT', null].includes(
+      item.cancellationCreditOutcome as string | null,
+    ) ||
     !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
       String(item.creditState),
     ) ||
+    !Array.isArray(item.history) ||
+    item.history.length > 20 ||
+    !item.history.every(validAppointmentHistoryEntry) ||
     !Number.isInteger(item.version) ||
     Number(item.version) < 0 ||
     !validAppointmentOutcome(item)
@@ -555,6 +602,17 @@ export function parseAppointment(value: unknown): Appointment | null {
 }
 
 function validAppointmentOutcome(item: Record<string, unknown>) {
+  const cancellationFields = [
+    item.cancelledAt,
+    item.cancellationReason,
+    item.cancellationActor,
+    item.cancellationCreditOutcome,
+  ]
+  if (item.status === 'CANCELLED') {
+    if (cancellationFields.some((value) => value === null)) return false
+    return true
+  }
+  if (cancellationFields.some((value) => value !== null)) return false
   if (item.status === 'REQUESTED')
     return (
       item.decidedAt === null &&
@@ -580,6 +638,52 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
       item.creditState === 'AVAILABLE'
     )
   return true
+}
+
+function validAppointmentHistoryEntry(value: unknown) {
+  const item = record(value)
+  if (
+    !item ||
+    !uuid(item.eventId) ||
+    ![
+      'REQUESTED',
+      'CONFIRMED',
+      'IN_PROGRESS',
+      'REJECTED',
+      'EXPIRED',
+      'CANCELLED',
+      null,
+    ].includes(item.fromStatus as string | null) ||
+    ![
+      'REQUESTED',
+      'CONFIRMED',
+      'IN_PROGRESS',
+      'REJECTED',
+      'EXPIRED',
+      'CANCELLED',
+    ].includes(String(item.toStatus)) ||
+    !['USER', 'SPECIALIST', 'ADMIN', 'SYSTEM'].includes(
+      String(item.actorType),
+    ) ||
+    !(item.actorId === null || uuid(item.actorId)) ||
+    ![
+      'APPOINTMENT_REQUESTED',
+      'USER_CANCELLED',
+      'USER_RESCHEDULED',
+      'SPECIALIST_ACCEPTED',
+      'SPECIALIST_REJECTED',
+      'DECISION_DEADLINE_EXPIRED',
+      'SPECIALIST_SUSPENDED',
+    ].includes(String(item.reason)) ||
+    !['RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT', null].includes(
+      item.creditOutcome as string | null,
+    ) ||
+    !utcInstant(item.occurredAt)
+  )
+    return false
+  return item.toStatus === 'CANCELLED'
+    ? item.creditOutcome !== null
+    : item.creditOutcome === null
 }
 
 export function parseAppointmentList(value: unknown): AppointmentList | null {
