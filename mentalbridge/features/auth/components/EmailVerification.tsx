@@ -29,38 +29,27 @@ export default function EmailVerification() {
     )
     window.history.replaceState(window.history.state, '', '/verify-email')
     if (!challenge) {
-      let active = true
       queueMicrotask(() => {
-        if (!active) return
         setState('invalid')
         setMessage('Liên kết xác minh không chứa thử thách hợp lệ.')
       })
-      return () => {
-        active = false
-      }
+      return
     }
-    let active = true
 
     void verifyEmailChallenge(challenge)
       .then(() => {
-        if (!active) return
         setState('success')
         setMessage(
           'Email đã được xác minh. Tài khoản của bạn hiện đã sẵn sàng để đăng nhập.',
         )
       })
       .catch((error: unknown) => {
-        if (!active) return
         const nextMessage = verificationErrorMessage(error)
         setState(
           nextMessage.startsWith('Liên kết xác minh') ? 'invalid' : 'error',
         )
         setMessage(nextMessage)
       })
-
-    return () => {
-      active = false
-    }
   }, [])
 
   useEffect(() => {

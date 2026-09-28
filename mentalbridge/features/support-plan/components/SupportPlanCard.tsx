@@ -64,6 +64,7 @@ type Props = Readonly<{
     completionReason?: 'USER_DECISION' | 'PLAN_NO_LONGER_FITS' | 'OTHER',
   ) => Promise<void>
   draftAction?: 'ACTIVATE' | 'REPLACEMENT'
+  activeTab?: 'plan' | 'schedule' | 'manage'
 }>
 
 type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
@@ -103,6 +104,7 @@ export default function SupportPlanCard({
   onActivate,
   onStatusChange,
   draftAction = 'ACTIVATE',
+  activeTab,
 }: Props) {
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     initialChoices(plan),
@@ -111,6 +113,10 @@ export default function SupportPlanCard({
     null,
   )
   const [completionReason, setCompletionReason] = useState('')
+  const [expandedSlotIds, setExpandedSlotIds] = useState<
+    Record<string, boolean>
+  >({})
+  const [isRationaleOpen, setIsRationaleOpen] = useState(true)
   const isDraft = plan.status === 'DRAFT'
   const safetyPositive = plan.safety.status === 'POSITIVE_SAFETY_SCREEN'
   const statusLabel = {
@@ -200,78 +206,186 @@ export default function SupportPlanCard({
       className="support-plan-card"
       aria-labelledby={`support-plan-${plan.supportPlanId}`}
     >
-      <header className="support-plan-card-header">
-        <div>
-          <span>
-            {isDraft && draftAction === 'REPLACEMENT'
-              ? 'Phương án thay thế'
-              : isDraft
-                ? 'Kế hoạch chưa bắt đầu'
-                : 'Kế hoạch hiện tại'}
-          </span>
-          <h2 id={`support-plan-${plan.supportPlanId}`}>{titleLabel}</h2>
-        </div>
-        <span
-          className={`support-plan-status ${plan.status === 'ACTIVE' ? 'active' : ''}`}
-        >
-          {statusLabel}
-        </span>
-      </header>
-
-      <section
-        className={`support-plan-safety ${safetyPositive ? 'attention' : ''}`}
-        aria-label="Hướng dẫn an toàn"
+      {/* ================= TAB 1: KẾ HOẠCH ================= */}
+      <div
+        className={`support-plan-tab-pane ${
+          !activeTab || activeTab === 'plan' ? 'is-active' : 'is-hidden'
+        }`}
+        id="panel-plan"
+        role="tabpanel"
+        aria-labelledby="tab-plan"
       >
-        <strong>
-          {safetyPositive ? 'Ưu tiên hướng dẫn an toàn' : 'Nhắc nhở an toàn'}
-        </strong>
-        <p>{safetyGuidance}</p>
-        <small>
-          Thông tin an toàn không phụ thuộc vào AI hoặc gói dịch vụ.
-        </small>
-      </section>
-
-      <section className="support-plan-rationale">
-        <span>Vì sao có đề xuất này?</span>
-        <p>{rationaleText}</p>
-      </section>
-
-      <section
-        className="support-plan-slots"
-        aria-label="Nội dung kế hoạch hỗ trợ"
-      >
-        <div className="support-plan-section-heading">
+        <header className="support-plan-card-header">
           <div>
             <span>
-              {isDraft ? 'Chọn nội dung phù hợp' : 'Kế hoạch đã xác nhận'}
+              {isDraft && draftAction === 'REPLACEMENT'
+                ? 'Phương án thay thế'
+                : isDraft
+                  ? 'Kế hoạch chưa bắt đầu'
+                  : 'Kế hoạch hiện tại'}
             </span>
-            <h3>{plan.selectedResourceCount} nội dung đã được kiểm tra</h3>
+            <h2 id={`support-plan-${plan.supportPlanId}`}>{titleLabel}</h2>
           </div>
-          <span>{packageLabel[plan.entitlement.packageCode]}</span>
-        </div>
-        <ol>
-          {plan.slots.map((slot, index) => {
-            const resources = [
-              ...(slot.selectedResource ? [slot.selectedResource] : []),
-              ...slot.allowedAlternatives,
-            ].filter(
-              (resource, resourceIndex, all) =>
-                all.findIndex(
-                  (candidate) =>
-                    resourceKey(candidate) === resourceKey(resource),
-                ) === resourceIndex,
-            )
-            return (
-              <li key={slot.slotId}>
-                <div className="support-plan-slot-number" aria-hidden="true">
-                  {index + 1}
-                </div>
-                <div className="support-plan-slot-content">
-                  <div className="support-plan-slot-meta">
-                    <span>{slotLabel[slot.kind]}</span>
-                    <span>{domainLabel[slot.targetDomain]}</span>
+          <span
+            className={`support-plan-status ${plan.status === 'ACTIVE' ? 'active' : ''}`}
+          >
+            {statusLabel}
+          </span>
+        </header>
+
+        {/* Nhắc nhở an toàn thu gọn thành 1 box gọn gàng */}
+        <section
+          className={`support-plan-safety ${safetyPositive ? 'attention' : ''}`}
+          aria-label="Hướng dẫn an toàn"
+        >
+          <strong>
+            {safetyPositive ? 'Ưu tiên hướng dẫn an toàn' : 'Nhắc nhở an toàn'}
+          </strong>
+          <p>{safetyGuidance}</p>
+          <small>
+            Thông tin an toàn không phụ thuộc vào AI hoặc gói dịch vụ.
+          </small>
+        </section>
+
+        {/* Vì sao có đề xuất này dạng expand/collapse */}
+        <Disclosure
+          className="support-plan-evaluation-disclosure"
+          summary="Vì sao có đề xuất này?"
+          open={isRationaleOpen}
+          onToggle={(e) => setIsRationaleOpen(e.currentTarget.open)}
+        >
+          <p>{rationaleText}</p>
+        </Disclosure>
+
+        {/* Khối 3 nội dung đã xác nhận */}
+        <section
+          className="support-plan-slots"
+          aria-label="Nội dung kế hoạch hỗ trợ"
+        >
+          <div className="support-plan-section-heading">
+            <div>
+              <span>
+                {isDraft ? 'Chọn nội dung phù hợp' : 'Kế hoạch đã xác nhận'}
+              </span>
+              <h3>{plan.selectedResourceCount} nội dung đã được kiểm tra</h3>
+            </div>
+            <span>{packageLabel[plan.entitlement.packageCode]}</span>
+          </div>
+
+          <ol>
+            {plan.slots.map((slot, index) => {
+              const resources = [
+                ...(slot.selectedResource ? [slot.selectedResource] : []),
+                ...slot.allowedAlternatives,
+              ].filter(
+                (resource, resourceIndex, all) =>
+                  all.findIndex(
+                    (candidate) =>
+                      resourceKey(candidate) === resourceKey(resource),
+                  ) === resourceIndex,
+              )
+
+              // Khi !isDraft: Đổi 3 "nội dung đã xác nhận" sang dạng ACCORDION ĐÓNG SẴN
+              if (!isDraft) {
+                const isSlotOpen = Boolean(expandedSlotIds[slot.slotId])
+                return (
+                  <li
+                    key={slot.slotId}
+                    className={`support-plan-slot-item ${isSlotOpen ? 'is-open' : 'is-closed'}`}
+                  >
+                    <button
+                      type="button"
+                      className="support-plan-slot-accordion-trigger"
+                      onClick={() =>
+                        setExpandedSlotIds((prev) => ({
+                          ...prev,
+                          [slot.slotId]: !prev[slot.slotId],
+                        }))
+                      }
+                      aria-expanded={isSlotOpen}
+                    >
+                      <div className="support-plan-slot-accordion-lead">
+                        <div
+                          className="support-plan-slot-number"
+                          aria-hidden="true"
+                        >
+                          {index + 1}
+                        </div>
+                        <div className="support-plan-slot-title-group">
+                          <h4>
+                            {slot.selectedResource
+                              ? slot.selectedResource.title
+                              : 'Không chọn nội dung bổ trợ'}
+                          </h4>
+                          <div className="support-plan-slot-meta-inline">
+                            <span>{slotLabel[slot.kind]}</span>
+                            <span>·</span>
+                            <span>{domainLabel[slot.targetDomain]}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="support-plan-slot-accordion-right">
+                        {slot.selectedResource && (
+                          <span className="support-plan-slot-pill">
+                            {resourceCategoryLabel[
+                              slot.selectedResource.category
+                            ] ?? slot.selectedResource.category}
+                          </span>
+                        )}
+                        <svg
+                          className={`support-plan-chevron-icon ${isSlotOpen ? 'rotated' : ''}`}
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="m6 8 4 4 4-4" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {isSlotOpen && (
+                      <div className="support-plan-slot-accordion-body">
+                        {slot.selectedResource ? (
+                          <div className="support-plan-selected-resource-details">
+                            <p>{slot.selectedResource.summary}</p>
+                            {slot.selectedResource.externalUrl && (
+                              <a
+                                href={slot.selectedResource.externalUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="support-plan-resource-link"
+                              >
+                                Bài viết: Mở nội dung đã duyệt{' '}
+                                <span aria-hidden="true">→</span>
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="support-plan-slot-empty">
+                            Không chọn nội dung bổ trợ cho mục này.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                )
+              }
+
+              // Khi isDraft: render form chọn radio
+              return (
+                <li key={slot.slotId}>
+                  <div className="support-plan-slot-number" aria-hidden="true">
+                    {index + 1}
                   </div>
-                  {isDraft ? (
+                  <div className="support-plan-slot-content">
+                    <div className="support-plan-slot-meta">
+                      <span>{slotLabel[slot.kind]}</span>
+                      <span>{domainLabel[slot.targetDomain]}</span>
+                    </div>
                     <fieldset disabled={busy !== null}>
                       <legend>
                         {slot.kind === 'CORE'
@@ -328,163 +442,169 @@ export default function SupportPlanCard({
                         </label>
                       )}
                     </fieldset>
-                  ) : slot.selectedResource ? (
-                    <div className="support-plan-selected-resource">
-                      <h4>{slot.selectedResource.title}</h4>
-                      <p>{slot.selectedResource.summary}</p>
-                      <small>
-                        {resourceCategoryLabel[
-                          slot.selectedResource.category
-                        ] ?? slot.selectedResource.category}
-                      </small>
-                      {slot.selectedResource.externalUrl && (
-                        <a
-                          href={slot.selectedResource.externalUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Mở nội dung đã duyệt
-                        </a>
-                      )}
-                    </div>
-                  ) : (
-                    <p>Không chọn nội dung bổ trợ cho mục này.</p>
-                  )}
-                </div>
-              </li>
-            )
-          })}
-        </ol>
-      </section>
-
-      {isDraft ? (
-        <section
-          className="support-plan-actions"
-          aria-label="Xác nhận kế hoạch hỗ trợ"
-        >
-          <div>
-            <strong>Bạn là người quyết định</strong>
-            <p>
-              {draftAction === 'REPLACEMENT'
-                ? 'Bạn có thể điều chỉnh và lưu phương án này trước khi xem lại so sánh. Kế hoạch hiện tại chưa bị thay đổi.'
-                : 'Lưu lựa chọn trước, sau đó bắt đầu kế hoạch. MentalBridge sẽ kiểm tra lại quyền lợi gói, kết quả sàng lọc và nội dung hỗ trợ trước khi áp dụng.'}
-            </p>
-          </div>
-          <div className="support-plan-action-buttons">
-            <button
-              className="btn btn-ghost"
-              type="button"
-              disabled={busy !== null}
-              onClick={() => requestLifecycle('DISCARDED')}
-            >
-              Hủy kế hoạch
-            </button>
-            <button
-              className="btn btn-ghost"
-              type="button"
-              disabled={!dirty || busy !== null}
-              onClick={() => void submitChoices()}
-            >
-              {busy === 'SAVING' ? 'Đang lưu…' : 'Lưu lựa chọn'}
-            </button>
-            {draftAction === 'ACTIVATE' && (
-              <button
-                className="btn btn-primary"
-                type="button"
-                disabled={dirty || busy !== null}
-                onClick={() => void onActivate()}
-              >
-                {busy === 'ACTIVATING' ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
-              </button>
-            )}
-          </div>
-          {dirty && (
-            <p className="support-plan-action-hint">
-              Hãy lưu lựa chọn mới trước khi bắt đầu kế hoạch.
-            </p>
-          )}
-          <p
-            className="support-plan-action-message"
-            role="status"
-            aria-live="polite"
-          >
-            {message}
-          </p>
+                  </div>
+                </li>
+              )
+            })}
+          </ol>
         </section>
-      ) : (
-        <>
-          <aside className="support-plan-confirmation-note">
-            <strong>Quản lý trạng thái kế hoạch</strong>
-            <p>
-              Tạm dừng sẽ hủy các lịch tương lai; tiếp tục chỉ khôi phục các mục
-              vẫn còn ở tương lai. Kết thúc không mang ý nghĩa phục hồi.
-            </p>
-            {(plan.status === 'ACTIVE' || plan.status === 'PAUSED') && (
-              <div className="support-plan-lifecycle-actions">
+
+        {isDraft && (
+          <section
+            className="support-plan-actions"
+            aria-label="Xác nhận kế hoạch hỗ trợ"
+          >
+            <div>
+              <strong>Bạn là người quyết định</strong>
+              <p>
+                {draftAction === 'REPLACEMENT'
+                  ? 'Bạn có thể điều chỉnh và lưu phương án này trước khi xem lại so sánh. Kế hoạch hiện tại chưa bị thay đổi.'
+                  : 'Lưu lựa chọn trước, sau đó bắt đầu kế hoạch. MentalBridge sẽ kiểm tra lại quyền lợi gói, kết quả sàng lọc và nội dung hỗ trợ trước khi áp dụng.'}
+              </p>
+            </div>
+            <div className="support-plan-action-buttons">
+              <button
+                className="btn btn-ghost"
+                type="button"
+                disabled={busy !== null}
+                onClick={() => requestLifecycle('DISCARDED')}
+              >
+                Hủy kế hoạch
+              </button>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                disabled={!dirty || busy !== null}
+                onClick={() => void submitChoices()}
+              >
+                {busy === 'SAVING' ? 'Đang lưu…' : 'Lưu lựa chọn'}
+              </button>
+              {draftAction === 'ACTIVATE' && (
                 <button
-                  className="btn btn-outline"
+                  className="btn btn-primary"
                   type="button"
-                  disabled={busy !== null}
-                  onClick={() =>
-                    requestLifecycle(
-                      plan.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
-                    )
-                  }
+                  disabled={dirty || busy !== null}
+                  onClick={() => void onActivate()}
                 >
-                  {plan.status === 'ACTIVE'
-                    ? 'Tạm dừng kế hoạch'
-                    : 'Tiếp tục kế hoạch'}
+                  {busy === 'ACTIVATING' ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
                 </button>
-                <button
-                  className="btn btn-ghost"
-                  type="button"
-                  disabled={busy !== null}
-                  onClick={() => requestLifecycle('COMPLETED')}
-                >
-                  Kết thúc kế hoạch
-                </button>
-              </div>
+              )}
+            </div>
+            {dirty && (
+              <p className="support-plan-action-hint">
+                Hãy lưu lựa chọn mới trước khi bắt đầu kế hoạch.
+              </p>
             )}
-          </aside>
-          {(plan.status === 'ACTIVE' || plan.status === 'PAUSED') && (
-            <SupportPlanSchedule planStatus={plan.status} />
-          )}
-        </>
-      )}
+            <p
+              className="support-plan-action-message"
+              role="status"
+              aria-live="polite"
+            >
+              {message}
+            </p>
+          </section>
+        )}
 
-      <Disclosure
-        className="support-plan-provenance"
-        summary="Thông tin kỹ thuật"
+        <Disclosure
+          className="support-plan-provenance"
+          summary="Thông tin kỹ thuật"
+        >
+          <dl>
+            <div>
+              <dt>Đánh giá hỗ trợ</dt>
+              <dd>{plan.source.evaluationPolicyVersion}</dd>
+            </div>
+            <div>
+              <dt>Chính sách chọn nội dung</dt>
+              <dd>{plan.source.selectionPolicyVersion}</dd>
+            </div>
+            <div>
+              <dt>Kiểm tra tài nguyên</dt>
+              <dd>{plan.source.resourceEligibilityPolicyVersion}</dd>
+            </div>
+            <div>
+              <dt>Quyền gói</dt>
+              <dd>
+                {plan.entitlement.policyVersion} · {plan.entitlement.source}
+              </dd>
+            </div>
+          </dl>
+        </Disclosure>
+
+        <footer>
+          <p>{disclaimerText}</p>
+          <time dateTime={plan.updatedAt}>
+            Cập nhật {new Date(plan.updatedAt).toLocaleString('vi-VN')}
+          </time>
+        </footer>
+      </div>
+
+      {/* ================= TAB 2: HOẠT ĐỘNG CỦA TÔI ================= */}
+      <div
+        className={`support-plan-tab-pane ${
+          !activeTab || activeTab === 'schedule' ? 'is-active' : 'is-hidden'
+        }`}
+        id="panel-schedule"
+        role="tabpanel"
+        aria-labelledby="tab-schedule"
       >
-        <dl>
-          <div>
-            <dt>Đánh giá hỗ trợ</dt>
-            <dd>{plan.source.evaluationPolicyVersion}</dd>
+        {plan.status === 'ACTIVE' || plan.status === 'PAUSED' ? (
+          <SupportPlanSchedule planStatus={plan.status} />
+        ) : (
+          <div className="support-plan-schedule-empty-state">
+            <p>
+              Kế hoạch chưa bắt đầu. Hãy chuyển sang tab &quot;Kế hoạch&quot; và
+              nhấn &quot;Bắt đầu kế hoạch&quot; để tạo lịch hoạt động.
+            </p>
           </div>
-          <div>
-            <dt>Chính sách chọn nội dung</dt>
-            <dd>{plan.source.selectionPolicyVersion}</dd>
-          </div>
-          <div>
-            <dt>Kiểm tra tài nguyên</dt>
-            <dd>{plan.source.resourceEligibilityPolicyVersion}</dd>
-          </div>
-          <div>
-            <dt>Quyền gói</dt>
-            <dd>
-              {plan.entitlement.policyVersion} · {plan.entitlement.source}
-            </dd>
-          </div>
-        </dl>
-      </Disclosure>
+        )}
+      </div>
 
-      <footer>
-        <p>{disclaimerText}</p>
-        <time dateTime={plan.updatedAt}>
-          Cập nhật {new Date(plan.updatedAt).toLocaleString('vi-VN')}
-        </time>
-      </footer>
+      {/* ================= TAB 3: QUẢN LÝ & LỊCH SỬ ================= */}
+      <div
+        className={`support-plan-tab-pane ${
+          !activeTab || activeTab === 'manage' ? 'is-active' : 'is-hidden'
+        }`}
+        id="panel-manage"
+        role="tabpanel"
+        aria-labelledby="tab-manage"
+      >
+        <aside className="support-plan-confirmation-note">
+          <strong>Quản lý trạng thái kế hoạch</strong>
+          <p>
+            Tạm dừng sẽ hủy các lịch tương lai; tiếp tục chỉ khôi phục các mục
+            vẫn còn ở tương lai. Kết thúc không mang ý nghĩa phục hồi.
+          </p>
+          {(plan.status === 'ACTIVE' || plan.status === 'PAUSED') && (
+            <div className="support-plan-lifecycle-actions">
+              <button
+                className="btn btn-outline"
+                type="button"
+                disabled={busy !== null}
+                onClick={() =>
+                  requestLifecycle(
+                    plan.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
+                  )
+                }
+              >
+                {plan.status === 'ACTIVE'
+                  ? 'Tạm dừng kế hoạch'
+                  : 'Tiếp tục kế hoạch'}
+              </button>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                disabled={busy !== null}
+                onClick={() => requestLifecycle('COMPLETED')}
+              >
+                Kết thúc kế hoạch
+              </button>
+            </div>
+          )}
+        </aside>
+      </div>
 
+      {/* Confirmation Dialog */}
       <Dialog
         className="support-plan-dialog"
         open={pendingStatus !== null}

@@ -19,6 +19,7 @@ import { useFeedback } from '@/components/ui/FeedbackProvider'
 import PasswordChangeForm from '@/features/auth/components/PasswordChangeForm'
 import { ApiError } from '@/lib/api/api-error'
 import { validateProfileUpdate } from '@/lib/care/care-validation'
+import AccountStatusCard from './AccountStatusCard'
 
 import './profile.css'
 
@@ -207,6 +208,11 @@ export default function ProfilePage() {
       showActionToast({
         title: profile ? 'Đã lưu thay đổi hồ sơ' : 'Đã tạo hồ sơ của bạn',
       })
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('mb:profile-updated', { detail: saved }),
+        )
+      }
     } catch (cause) {
       if (cause instanceof ApiError && cause.problem?.violations) {
         const errors = errorsFromViolations(cause.problem.violations)
@@ -445,21 +451,10 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        <aside className="settings-activity">
-          <h2>Trạng thái</h2>
-          <div>
-            <article>
-              <span className={profile ? 'teal' : 'neutral'}>N</span>
-              <strong>{profile ? 'Đã lưu' : 'Chưa có'}</strong>
-              <small>Trạng thái hồ sơ</small>
-            </article>
-            <article>
-              <span className={privacyGranted ? 'teal' : 'neutral'}>✓</span>
-              <strong>{privacyGranted ? 'Đang bật' : 'Đang tắt'}</strong>
-              <small>Xử lý dữ liệu sàng lọc</small>
-            </article>
-          </div>
-        </aside>
+        <AccountStatusCard
+          profileSaved={Boolean(profile)}
+          screeningEnabled={privacyGranted}
+        />
       </div>
 
       <section className="settings-privacy-runtime">

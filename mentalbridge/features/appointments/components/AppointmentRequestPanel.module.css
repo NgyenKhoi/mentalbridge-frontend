@@ -99,9 +99,113 @@
   padding: 1.25rem;
   opacity: 0.7;
 }
+.relationship {
+  margin-top: 1rem;
+  border-radius: 10px;
+  background: var(--teal-pale);
+  padding: 0.7rem 0.8rem;
+  color: var(--teal-deep);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.audit {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 1rem;
+  border-left: 3px solid var(--teal);
+  padding-left: 0.8rem;
+}
+.audit strong {
+  color: var(--ink);
+  font-size: 0.88rem;
+}
+.audit span {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+.history {
+  margin-top: 1rem;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+.history summary {
+  cursor: pointer;
+  color: var(--teal-deep);
+  font-weight: 750;
+}
+.history ol {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.7rem 0 0;
+  padding-left: 1.2rem;
+}
+.history li {
+  padding-left: 0.2rem;
+}
+.history li span,
+.history li time {
+  display: block;
+}
+.history li time {
+  margin-top: 0.1rem;
+  opacity: 0.7;
+}
+.actions {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+.actions button {
+  flex: 1;
+}
+.secondary {
+  border: 1px solid var(--teal) !important;
+  background: transparent !important;
+  color: var(--teal-deep) !important;
+}
+.danger {
+  background: #8b493f !important;
+}
+.rescheduleNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0;
+  border: 1px solid rgba(61, 122, 110, 0.28);
+  border-radius: 14px;
+  background: var(--teal-pale);
+  padding: 1rem;
+}
+.rescheduleNotice div {
+  display: grid;
+  gap: 0.25rem;
+}
+.rescheduleNotice span {
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+}
+.rescheduleNotice button {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--teal-deep);
+  font-weight: 750;
+  cursor: pointer;
+}
+.card button:focus-visible,
+.rescheduleNotice button:focus-visible,
+.history summary:focus-visible {
+  outline: 3px solid rgba(61, 122, 110, 0.24);
+  outline-offset: 3px;
+}
 @media (max-width: 640px) {
   .header {
     align-items: start;
+    flex-direction: column;
+  }
+  .rescheduleNotice {
+    align-items: flex-start;
     flex-direction: column;
   }
 }

@@ -19,7 +19,12 @@ export default defineConfig({
         url: 'http://localhost/',
       },
     },
-    environmentMatchGlobs: [['lib/care/**/*.test.ts', 'node']],
+    environmentMatchGlobs: [
+      ['lib/care/**/*.test.ts', 'node'],
+      ['lib/companion/companion-client.test.ts', 'node'],
+      ['lib/emotion-check-in/client.test.ts', 'node'],
+      ['lib/journal/journal-client.test.ts', 'node'],
+    ],
     globals: true,
     testTimeout: 15_000,
     setupFiles: ['./tests/setup/vitest.setup.ts'],

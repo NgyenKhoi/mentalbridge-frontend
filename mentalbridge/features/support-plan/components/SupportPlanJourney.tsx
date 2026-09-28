@@ -188,6 +188,9 @@ export default function SupportPlanJourney() {
   const [message, setMessage] = useState('')
   const [commandMessage, setCommandMessage] = useState('')
   const [recoveryVersion, setRecoveryVersion] = useState(0)
+  const [activeTab, setActiveTab] = useState<'plan' | 'schedule' | 'manage'>(
+    'plan',
+  )
   const [history, setHistory] = useState<SupportPlan[]>([])
   const [historyCursor, setHistoryCursor] = useState<string>()
   const [historyHasMore, setHistoryHasMore] = useState(false)
@@ -491,6 +494,47 @@ export default function SupportPlanJourney() {
         </p>
       </header>
 
+      {/* Thanh tab điều hướng 3 tab */}
+      <nav
+        className="support-plan-tabs"
+        role="tablist"
+        aria-label="Phân loại kế hoạch hỗ trợ"
+      >
+        <button
+          type="button"
+          role="tab"
+          id="tab-plan"
+          aria-controls="panel-plan"
+          aria-selected={activeTab === 'plan'}
+          className={`support-plan-tab-btn ${activeTab === 'plan' ? 'is-active' : ''}`}
+          onClick={() => setActiveTab('plan')}
+        >
+          Kế hoạch
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-schedule"
+          aria-controls="panel-schedule"
+          aria-selected={activeTab === 'schedule'}
+          className={`support-plan-tab-btn ${activeTab === 'schedule' ? 'is-active' : ''}`}
+          onClick={() => setActiveTab('schedule')}
+        >
+          Hoạt động của tôi
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-manage"
+          aria-controls="panel-manage"
+          aria-selected={activeTab === 'manage'}
+          className={`support-plan-tab-btn ${activeTab === 'manage' ? 'is-active' : ''}`}
+          onClick={() => setActiveTab('manage')}
+        >
+          Quản lý & Lịch sử
+        </button>
+      </nav>
+
       {loading && (
         <div className="support-plan-state support-plan-loading" role="status">
           <span className="sr-only">Đang tải kế hoạch hỗ trợ hiện tại…</span>
@@ -511,27 +555,34 @@ export default function SupportPlanJourney() {
             onSaveChoices={saveChoices}
             onActivate={activate}
             onStatusChange={changeStatus}
+            activeTab={activeTab}
           />
           {currentPlan && !replacementDraft && (
-            <section className="support-plan-reassessment-callout">
-              <div>
-                <span>Sau đánh giá lại</span>
-                <h2>Xem một phương án kế hoạch mới</h2>
-                <p>
-                  Kế hoạch hiện tại vẫn hoạt động trong khi hệ thống kiểm tra và
-                  so sánh phương án mới.
-                </p>
-              </div>
-              <button
-                className="btn btn-outline"
-                type="button"
-                disabled={creating}
-                onClick={() => void create()}
-              >
-                {creating ? 'Đang tạo phương án…' : 'Tạo phương án để xem lại'}
-              </button>
-              {message && <p role="status">{message}</p>}
-            </section>
+            <div
+              className={`support-plan-tab-pane ${activeTab === 'manage' ? 'is-active' : 'is-hidden'}`}
+            >
+              <section className="support-plan-reassessment-callout">
+                <div>
+                  <span>Sau đánh giá lại</span>
+                  <h2>Xem một phương án kế hoạch mới</h2>
+                  <p>
+                    Kế hoạch hiện tại vẫn hoạt động trong khi hệ thống kiểm tra
+                    và so sánh phương án mới.
+                  </p>
+                </div>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  disabled={creating}
+                  onClick={() => void create()}
+                >
+                  {creating
+                    ? 'Đang tạo phương án…'
+                    : 'Tạo phương án để xem lại'}
+                </button>
+                {message && <p role="status">{message}</p>}
+              </section>
+            </div>
           )}
           {currentPlan && replacementDraft && (
             <>
@@ -577,68 +628,76 @@ export default function SupportPlanJourney() {
       )}
 
       {!loading && !plan && (
-        <section
-          className={`support-plan-state ${message ? 'notice' : ''}`}
-          aria-live="polite"
+        <div
+          className={`support-plan-tab-pane ${activeTab === 'plan' ? 'is-active' : 'is-hidden'}`}
         >
-          <div className="support-plan-state-mark" aria-hidden="true">
-            <EmptyStateIcon reason={reason} />
-          </div>
-          <h2>
-            {reason === 'FREE'
-              ? 'Kế hoạch hỗ trợ chưa thuộc gói hiện tại'
-              : reason === 'STALE'
-                ? 'Cần hoàn tất bài sàng lọc'
-                : reason === 'DEPENDENCY'
-                  ? 'Chưa thể tạo kế hoạch'
-                  : 'Chưa có kế hoạch hỗ trợ'}
-          </h2>
-          <p>
-            {message ||
-              'Nếu bạn đang dùng Plus hoặc Premium, MentalBridge có thể tạo kế hoạch từ kết quả kiểm tra ban đầu gần nhất.'}
-          </p>
-          <div className="support-plan-state-actions">
-            {reason === 'FREE' ? (
-              <Link className="btn btn-primary" href="/support-guides">
-                Xem gợi ý hỗ trợ
-              </Link>
-            ) : reason === 'STALE' ? (
-              <Link className="btn btn-primary" href="/assessments">
-                Xem các bài sàng lọc
-              </Link>
-            ) : (
-              <button
-                className="btn btn-primary"
-                type="button"
-                disabled={creating}
-                onClick={() => void create()}
-              >
-                {creating ? 'Đang tạo kế hoạch…' : 'Tạo kế hoạch hỗ trợ'}
-              </button>
-            )}
-            {reason === 'DEPENDENCY' && (
-              <button
-                className="btn btn-ghost"
-                type="button"
-                disabled={creating}
-                onClick={() => void load()}
-              >
-                Tải lại
-              </button>
-            )}
-          </div>
-        </section>
+          <section
+            className={`support-plan-state ${message ? 'notice' : ''}`}
+            aria-live="polite"
+          >
+            <div className="support-plan-state-mark" aria-hidden="true">
+              <EmptyStateIcon reason={reason} />
+            </div>
+            <h2>
+              {reason === 'FREE'
+                ? 'Kế hoạch hỗ trợ chưa thuộc gói hiện tại'
+                : reason === 'STALE'
+                  ? 'Cần hoàn tất bài sàng lọc'
+                  : reason === 'DEPENDENCY'
+                    ? 'Chưa thể tạo kế hoạch'
+                    : 'Chưa có kế hoạch hỗ trợ'}
+            </h2>
+            <p>
+              {message ||
+                'Nếu bạn đang dùng Plus hoặc Premium, MentalBridge có thể tạo kế hoạch từ kết quả kiểm tra ban đầu gần nhất.'}
+            </p>
+            <div className="support-plan-state-actions">
+              {reason === 'FREE' ? (
+                <Link className="btn btn-primary" href="/support-guides">
+                  Xem gợi ý hỗ trợ
+                </Link>
+              ) : reason === 'STALE' ? (
+                <Link className="btn btn-primary" href="/assessments">
+                  Xem các bài sàng lọc
+                </Link>
+              ) : (
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  disabled={creating}
+                  onClick={() => void create()}
+                >
+                  {creating ? 'Đang tạo kế hoạch…' : 'Tạo kế hoạch hỗ trợ'}
+                </button>
+              )}
+              {reason === 'DEPENDENCY' && (
+                <button
+                  className="btn btn-ghost"
+                  type="button"
+                  disabled={creating}
+                  onClick={() => void load()}
+                >
+                  Tải lại
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
       )}
 
-      <SupportPlanHistory
-        items={history}
-        loading={historyLoading}
-        loadingMore={historyLoadingMore}
-        hasMore={historyHasMore}
-        message={historyMessage}
-        onRetry={() => void loadHistory()}
-        onLoadMore={() => void loadHistory(historyCursor)}
-      />
+      <div
+        className={`support-plan-tab-pane ${activeTab === 'manage' ? 'is-active' : 'is-hidden'}`}
+      >
+        <SupportPlanHistory
+          items={history}
+          loading={historyLoading}
+          loadingMore={historyLoadingMore}
+          hasMore={historyHasMore}
+          message={historyMessage}
+          onRetry={() => void loadHistory()}
+          onLoadMore={() => void loadHistory(historyCursor)}
+        />
+      </div>
     </div>
   )
 }

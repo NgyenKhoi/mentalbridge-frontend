@@ -1,71 +1,117 @@
+/* ── Container ── */
 .card {
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+}
+
+.header {
+  margin: 0;
+}
+
+.title {
+  color: var(--teal-deep);
+  font: 650 16px/1.3 var(--font-be-vietnam);
+  letter-spacing: -0.01em;
+  margin: 0 0 4px 0;
+}
+
+.subtitle {
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .status {
-  min-height: 126px;
+  min-height: 120px;
   display: grid;
   place-items: center;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .form {
-  display: grid;
-  gap: 17px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
-.emotions,
-.intensity {
+/* ── 5 Emoji emotion selector ── */
+.emotions {
   min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
-}
-
-.emotions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
 }
 
-.emotions label {
+.emotionLabel {
   min-width: 0;
-  min-height: 76px;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 3px;
-  padding: 7px 2px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: var(--surface-soft);
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 3px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background: #f4f2ec; /* Nền be nhạt */
   cursor: pointer;
-  transition:
-    border-color 0.18s ease,
-    background 0.18s ease,
-    transform 0.18s ease;
+  transition: all 0.2s ease;
 }
 
-.emotions label:hover {
-  border-color: rgba(61, 122, 110, 0.28);
-  background: #e2eadc;
+.emojiIcon {
+  font-size: 24px;
+  filter: grayscale(0.5) opacity(0.85);
+  transition: all 0.2s ease;
 }
 
-.emotions label:active {
+.emotionText {
+  max-width: 100%;
+  overflow: hidden;
+  color: #717d6f; /* Label xám */
+  font-size: 9.5px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.emotionLabel:hover:not(.selected) {
+  background: #eae7df;
+  border-color: rgba(30, 74, 67, 0.15);
+}
+
+.emotionLabel:hover:not(.selected) .emojiIcon {
+  filter: grayscale(0.2) opacity(0.95);
+  transform: translateY(-1px);
+}
+
+.emotionLabel:active {
   transform: scale(0.97);
 }
 
-.emotions label:has(input:focus-visible),
-.intensity label:has(input:focus-visible) {
-  outline: 3px solid var(--amber);
-  outline-offset: 2px;
+/* KHI ĐƯỢC CHỌN: Nền xanh thương hiệu đậm, icon full màu, label chữ trắng đậm */
+.selected {
+  background: var(--teal-deep) !important;
+  border-color: var(--teal-deep) !important;
+  box-shadow: 0 4px 14px -2px rgba(30, 74, 67, 0.4) !important;
 }
 
-.emotions .selected {
-  border-color: var(--teal);
-  background: var(--teal-pale);
-  box-shadow: inset 0 0 0 1px rgba(61, 122, 110, 0.2);
+.selected .emojiIcon {
+  filter: none !important;
+  transform: scale(1.12);
+}
+
+.selected .emotionText {
+  color: #ffffff !important;
+  font-weight: 700 !important;
 }
 
 .emotions input,
@@ -79,101 +125,133 @@
   white-space: nowrap;
 }
 
-.emotions span {
-  font-size: 24px;
+.emotionLabel:has(input:focus-visible),
+.intensityBtn:has(input:focus-visible) {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
 }
 
-.emotions small {
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--ink-soft);
-  font-size: 9px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* ── Thang mức độ 1-5 ── */
+.intensity {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .intensity legend {
   color: var(--ink);
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 650;
+  margin: 0;
 }
 
-.intensity > p {
-  margin-top: 2px;
+.intensityNote {
   color: var(--ink-soft);
   font-size: 10.5px;
+  margin: 2px 0 8px 0;
+  line-height: 1.35;
 }
 
-.intensity > div {
+.intensityRow {
   display: flex;
-  gap: 7px;
-  margin-top: 8px;
+  gap: 8px;
+  align-items: center;
 }
 
-.intensity label {
+.intensityBtn {
   cursor: pointer;
 }
 
-.intensity label span {
-  width: 31px;
-  height: 31px;
+.intensityBtn span {
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--line);
   border-radius: 50%;
   color: var(--ink-soft);
-  font-size: 11px;
-  font-weight: 700;
-  transition:
-    border-color 0.18s ease,
-    background 0.18s ease;
+  font-size: 11.5px;
+  font-weight: 650;
+  background: #ffffff;
+  transition: all 0.16s ease;
 }
 
-.intensity input:checked + span {
-  border-color: var(--teal-deep);
-  background: var(--teal-deep);
-  color: #fff;
+.intensityBtn:hover:not(.intensitySelected) span {
+  border-color: var(--teal);
+  background: #f0f5f3;
 }
 
+/* KHI ĐƯỢC CHỌN: Tô đầy màu xanh thương hiệu, chữ trắng */
+.intensitySelected span {
+  border-color: var(--teal-deep) !important;
+  background: var(--teal-deep) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(30, 74, 67, 0.3) !important;
+}
+
+/* ── Actions: Nút Lưu ghi nhận + Viết thêm ── */
 .actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-top: 4px;
 }
 
-.actions button {
+.saveBtn {
   min-height: 38px;
-  padding: 8px 13px;
-  border-radius: 8px;
+  padding: 8px 18px;
+  border-radius: 9px;
   background: var(--teal-deep);
-  color: #fff;
-  font-size: 11.5px;
+  color: #ffffff;
+  font-size: 12px;
   font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 10px -1px rgba(30, 74, 67, 0.3);
 }
 
-.actions button:disabled {
+.saveBtn:hover:not(:disabled) {
+  background: #153832;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px -1px rgba(30, 74, 67, 0.4);
+}
+
+.saveBtn:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.45;
+  background: #9aa8a3 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
-.actions a {
-  margin-left: auto;
+.journalLink {
   color: var(--teal-deep);
   font-size: 12px;
   font-weight: 650;
+  text-decoration: none;
+  transition: color 0.15s ease;
 }
 
+.journalLink:hover {
+  color: var(--teal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Status & Feedback ── */
 .feedback {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 15px;
-  padding-top: 13px;
+  gap: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
-  color: #52604f;
-  font-size: 11.5px;
-  line-height: 1.45;
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .feedback span {
@@ -183,21 +261,26 @@
 .feedback button {
   flex: none;
   color: var(--teal-deep);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-underline-offset: 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
 }
 
 .error {
   color: #8b3528;
 }
 
+/* ── Disclaimer 1 dòng ngắn ── */
 .disclaimer {
-  margin-top: 8px;
   color: var(--ink-faint);
-  font-size: 9.5px;
-  line-height: 1.45;
+  font-size: 10px;
+  line-height: 1.4;
+  margin-top: auto;
+  padding-top: 8px;
 }
 
 .srOnly {
@@ -214,23 +297,13 @@
   .emotions {
     gap: 4px;
   }
-
-  .emotions label {
-    min-height: 60px;
+  .emotionLabel {
+    min-height: 58px;
   }
-
-  .emotions span {
-    font-size: 20px;
+  .emojiIcon {
+    font-size: 18px;
   }
-
-  .emotions small {
+  .emotionText {
     display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .emotions label,
-  .intensity label span {
-    transition: none;
   }
 }

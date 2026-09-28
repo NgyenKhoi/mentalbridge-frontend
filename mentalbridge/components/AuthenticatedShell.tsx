@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import { getCareProfile } from '@/features/assessment/api/browser-care'
 import SessionActions from '@/features/auth/components/SessionActions'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
@@ -21,6 +22,7 @@ const Svg = ({ children }: { children: React.ReactNode }) => (
     {children}
   </svg>
 )
+
 const groups = [
   {
     title: 'Tổng quan',
@@ -52,14 +54,6 @@ const groups = [
         'Gợi ý hỗ trợ',
         <Svg key="g">
           <path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h4" />
-        </Svg>,
-      ],
-      [
-        '/safety-directory',
-        'Tôi cần hỗ trợ ngay',
-        <Svg key="safety">
-          <path d="M12 3 5 6v5c0 4.6 2.8 7.7 7 10 4.2-2.3 7-5.4 7-10V6l-7-3Z" />
-          <path d="M12 8v5M12 16h.01" />
         </Svg>,
       ],
       [
@@ -137,6 +131,7 @@ const groups = [
     ],
   },
 ]
+
 const labels: Record<string, string> = {
   '/dashboard': 'Tổng quan',
   '/journal': 'Nhật ký',
@@ -162,8 +157,55 @@ export default function AuthenticatedShell({
   workspaces: readonly Workspace[]
 }) {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false),
-    [mobile, setMobile] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const [mobile, setMobile] = useState(false)
+  const [profile, setProfile] = useState<{ displayName: string } | null>(null)
+
+  useEffect(() => {
+    let active = true
+    const loadProfile = async () => {
+      try {
+        const data = await getCareProfile()
+        if (active && data?.displayName) {
+          setProfile(data)
+        }
+      } catch {
+        // Fallback to default name if profile not found
+      }
+    }
+
+    void loadProfile()
+
+    const handleProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ displayName?: string }>
+      if (customEvent.detail?.displayName) {
+        setProfile({ displayName: customEvent.detail.displayName })
+      } else {
+        void loadProfile()
+      }
+    }
+
+    window.addEventListener('mb:profile-updated', handleProfileUpdate)
+    return () => {
+      active = false
+      window.removeEventListener('mb:profile-updated', handleProfileUpdate)
+    }
+  }, [])
+
+  const displayName = profile?.displayName || 'Người dùng'
+  const initials = useMemo(
+    () =>
+      (
+        profile?.displayName
+          ?.trim()
+          .split(/\s+/)
+          .slice(-2)
+          .map((part) => part[0])
+          .join('') || 'N'
+      ).toUpperCase(),
+    [profile?.displayName],
+  )
+
   return (
     <div
       className={`ref-shell ${collapsed ? 'collapsed' : ''} ${mobile ? 'mobile-open' : ''}`}
@@ -208,19 +250,11 @@ export default function AuthenticatedShell({
         </nav>
         <div className="ref-sidebar-foot">
           <WorkspaceSwitcher workspaces={workspaces} currentRole="USER" />
-          <Link
-            href="/profile"
-            className={pathname === '/profile' ? 'active' : ''}
-          >
-            <i>
-              <Svg>
-                <circle cx="12" cy="8" r="3.4" />
-                <path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6" />
-              </Svg>
-            </i>
-            <span>Hồ sơ và quyền riêng tư</span>
-          </Link>
-          <SessionActions compact={collapsed && !mobile} />
+          <SessionActions
+            compact={collapsed && !mobile}
+            displayName={displayName}
+            avatar={initials}
+          />
         </div>
       </aside>
       <div className="ref-main">
@@ -262,9 +296,9 @@ export default function AuthenticatedShell({
             <Link
               href="/profile"
               className="ref-avatar"
-              aria-label="Hồ sơ người dùng"
+              aria-label={`Hồ sơ ${displayName}`}
             >
-              N
+              {initials}
             </Link>
           </div>
         </header>

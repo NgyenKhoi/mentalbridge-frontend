@@ -133,21 +133,32 @@ export function DailyEmotionCheckIn({
     }
   }, [timezone])
 
-  const complete = draft.emotion !== null && draft.intensity !== null
-  const dirty =
-    complete &&
-    (persisted === null ||
-      persisted.emotion !== draft.emotion ||
-      persisted.intensity !== draft.intensity)
+  // Nút Lưu ghi nhận: Khi user đã chọn đủ cảm xúc + mức độ thì nút sáng rõ, cho phép bấm
+  const isComplete = draft.emotion !== null && draft.intensity !== null
+  const isSubmitting = phase === 'saving'
+  const loadBlocked = phase === 'error' && retryKind === 'load'
+  const isDisabled = !isComplete || isSubmitting || loadBlocked
 
   const save = async () => {
-    if (!draft.emotion || !draft.intensity || !dirty) return
+    if (!draft.emotion || !draft.intensity) return
     const value: EmotionCheckInValue = {
       emotion: draft.emotion,
       intensity: draft.intensity,
       note: null,
     }
     const existing = persisted
+
+    // Nếu giá trị đã trùng với bản đã lưu, thông báo thành công và không cần request lại
+    if (
+      existing &&
+      existing.emotion === draft.emotion &&
+      existing.intensity === draft.intensity
+    ) {
+      setMessage('Đã cập nhật ghi nhận hôm nay.')
+      setPhase('saved')
+      return
+    }
+
     const fingerprint = JSON.stringify({
       localDate,
       revision: existing?.revision ?? 0,
@@ -182,7 +193,6 @@ export function DailyEmotionCheckIn({
             'Ghi nhận đã thay đổi ở nơi khác. Bản mới nhất đã được tải; lựa chọn của bạn chưa được lưu.',
           )
         } catch {
-          // Preserve the known revision and the user's draft if reconciliation fails.
           setMessage(
             'Ghi nhận đã thay đổi ở nơi khác và chưa thể tải bản mới nhất. Lựa chọn của bạn chưa được lưu.',
           )
@@ -204,19 +214,14 @@ export function DailyEmotionCheckIn({
     }
   }
 
-  const loadBlocked = phase === 'error' && retryKind === 'load'
-
   return (
-    <article
-      className={`ref-card ref-mood ${styles.card}`}
+    <div
+      className={styles.card}
       aria-busy={phase === 'loading' || phase === 'saving'}
     >
-      <header>
-        <div>
-          <h2>Cảm xúc hôm nay</h2>
-          <p>Tự chọn cảm xúc phù hợp nhất với bạn</p>
-        </div>
-        <i aria-hidden="true">🙂</i>
+      <header className={styles.header}>
+        <h2 className={styles.title}>Cảm xúc hôm nay</h2>
+        <p className={styles.subtitle}>Tự chọn cảm xúc phù hợp nhất với bạn</p>
       </header>
 
       {phase === 'loading' ? (
@@ -233,54 +238,71 @@ export function DailyEmotionCheckIn({
         >
           <fieldset className={styles.emotions} disabled={loadBlocked}>
             <legend className={styles.srOnly}>Cảm xúc hôm nay</legend>
-            {emotions.map((item) => (
-              <label
-                key={item.value}
-                className={draft.emotion === item.value ? styles.selected : ''}
-              >
-                <input
-                  type="radio"
-                  name="emotion"
-                  value={item.value}
-                  checked={draft.emotion === item.value}
-                  onChange={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      emotion: item.value,
-                    }))
-                  }
-                />
-                <span aria-hidden="true">{item.emoji}</span>
-                <small>{item.label}</small>
-              </label>
-            ))}
+            {emotions.map((item) => {
+              const isSelected = draft.emotion === item.value
+              return (
+                <label
+                  key={item.value}
+                  className={`${styles.emotionLabel} ${isSelected ? styles.selected : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="emotion"
+                    value={item.value}
+                    checked={isSelected}
+                    onChange={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        emotion: item.value,
+                      }))
+                    }
+                  />
+                  <span className={styles.emojiIcon} aria-hidden="true">
+                    {item.emoji}
+                  </span>
+                  <small className={styles.emotionText}>{item.label}</small>
+                </label>
+              )
+            })}
           </fieldset>
 
           <fieldset className={styles.intensity} disabled={loadBlocked}>
             <legend>Mức độ cảm nhận</legend>
-            <p>1 là nhẹ, 5 là mạnh — không phải điểm sức khỏe.</p>
-            <div>
-              {[1, 2, 3, 4, 5].map((value) => (
-                <label key={value}>
-                  <input
-                    type="radio"
-                    name="intensity"
-                    value={value}
-                    checked={draft.intensity === value}
-                    onChange={() =>
-                      setDraft((current) => ({ ...current, intensity: value }))
-                    }
-                  />
-                  <span>{value}</span>
-                </label>
-              ))}
+            <p className={styles.intensityNote}>
+              1 là nhẹ, 5 là mạnh — không phải điểm sức khỏe.
+            </p>
+            <div className={styles.intensityRow}>
+              {[1, 2, 3, 4, 5].map((value) => {
+                const isChecked = draft.intensity === value
+                return (
+                  <label
+                    key={value}
+                    className={`${styles.intensityBtn} ${isChecked ? styles.intensitySelected : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="intensity"
+                      value={value}
+                      checked={isChecked}
+                      onChange={() =>
+                        setDraft((current) => ({
+                          ...current,
+                          intensity: value,
+                        }))
+                      }
+                    />
+                    <span>{value}</span>
+                  </label>
+                )
+              })}
             </div>
           </fieldset>
 
           <div className={styles.actions}>
             <button
               type="submit"
-              disabled={!dirty || phase === 'saving' || loadBlocked}
+              className={styles.saveBtn}
+              disabled={isDisabled}
             >
               {phase === 'saving'
                 ? 'Đang lưu…'
@@ -288,7 +310,9 @@ export function DailyEmotionCheckIn({
                   ? 'Cập nhật ghi nhận'
                   : 'Lưu ghi nhận'}
             </button>
-            <Link href="/journal">Viết thêm →</Link>
+            <Link href="/journal" className={styles.journalLink}>
+              Viết thêm →
+            </Link>
           </div>
         </form>
       )}
@@ -311,6 +335,6 @@ export function DailyEmotionCheckIn({
         Đây là ghi nhận do bạn tự chọn, không phải chẩn đoán hay đánh giá an
         toàn.
       </p>
-    </article>
+    </div>
   )
 }

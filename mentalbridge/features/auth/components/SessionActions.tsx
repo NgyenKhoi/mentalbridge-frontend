@@ -23,7 +23,15 @@ function Icon({ children }: { children: React.ReactNode }) {
   )
 }
 
-export default function SessionActions({ compact = false }) {
+export default function SessionActions({
+  compact = false,
+  displayName = 'Người dùng',
+  avatar = 'N',
+}: {
+  compact?: boolean
+  displayName?: string
+  avatar?: string
+}) {
   const router = useRouter()
   const menuId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -86,9 +94,9 @@ export default function SessionActions({ compact = false }) {
           aria-label="Tài khoản người dùng"
         >
           <div className={styles.menuHeader}>
-            <span className={styles.headerAvatar}>N</span>
+            <span className={styles.headerAvatar}>{avatar}</span>
             <span>
-              <strong>Người dùng</strong>
+              <strong>{displayName}</strong>
               <small>Tài khoản cá nhân</small>
             </span>
           </div>
@@ -172,9 +180,9 @@ export default function SessionActions({ compact = false }) {
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className={styles.avatar}>N</span>
+        <span className={styles.avatar}>{avatar}</span>
         <span className={styles.triggerCopy}>
-          <strong>Người dùng</strong>
+          <strong>{displayName}</strong>
           <small>Tài khoản cá nhân</small>
         </span>
         <svg

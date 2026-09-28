@@ -14,6 +14,7 @@ how the executable Next.js application is organized and delivered.
 6. [Review and testing](review-and-testing.md)
 7. [MB-375 SupportPlan replacement evidence](mb-375-support-plan-replacement-evidence.md)
 8. [MB-363 approved specialist discovery consumer evidence](mb-363-specialist-discovery-evidence.md)
+9. [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
 
 ## UI and motion routing
 
@@ -52,6 +53,7 @@ Story-specific delivery evidence:
 - [MB-368 exact-revision Journal AI reflection](mb-368-journal-ai-reflection.md)
 - [MB-362 online specialist availability evidence](mb-362-specialist-availability-evidence.md)
 - [MB-379 appointment decisions and expiry evidence](mb-379-appointment-decisions-evidence.md)
+- [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
@@ -84,6 +86,7 @@ to select any additional task-specific material.
 | Exact 60-minute online specialist availability       | Implemented | MB-362         |
 | Specialist appointment decisions and expiry          | Implemented | MB-379         |
 | Approved online specialist discovery consumer        | Implemented | MB-363         |
+| Appointment cancellation and linked reschedule       | Implemented | MB-380         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

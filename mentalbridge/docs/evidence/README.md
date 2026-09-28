@@ -1,5 +1,12 @@
 # Synthetic browser evidence
 
+MB-380 produces `mb-380-appointment-changes.png` from the controlled
+appointment cancellation journey. The same focused Playwright file verifies
+that cancellation and replacement commands preserve the exact appointment
+version and idempotency headers. Regenerate it with
+`npm run test:e2e -- tests/e2e/appointment-changes.spec.ts` after
+`npm run build`; the identities and appointment payloads are synthetic.
+
 MB-567 adds authoritative emotion history, current/longest streaks, and factual
 7/14/30-day coverage to the dashboard. Its BFF/component/fixture evidence is
 recorded in

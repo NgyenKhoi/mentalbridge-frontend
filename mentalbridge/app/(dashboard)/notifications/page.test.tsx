@@ -115,6 +115,52 @@ describe('Notification preferences page', () => {
     expect(screen.queryByLabelText('Chưa đọc')).not.toBeInTheDocument()
   })
 
+  it('renders Journal and emotion reminders and milestones as distinct inbox kinds', async () => {
+    inboxApi.get.mockResolvedValueOnce({
+      items: [
+        {
+          ...notification,
+          id: 'a13e4567-e89b-42d3-a456-426614174001',
+          kind: 'JOURNAL_REMINDER',
+        },
+        {
+          ...notification,
+          id: 'a13e4567-e89b-42d3-a456-426614174002',
+          kind: 'EMOTION_CHECKIN_REMINDER',
+          action: null,
+        },
+        {
+          ...notification,
+          id: 'a13e4567-e89b-42d3-a456-426614174003',
+          kind: 'JOURNAL_STREAK_MILESTONE',
+        },
+        {
+          ...notification,
+          id: 'a13e4567-e89b-42d3-a456-426614174004',
+          kind: 'EMOTION_STREAK_MILESTONE',
+          action: null,
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      unreadCount: 4,
+    })
+
+    const { container } = render(<NotificationsPage />)
+
+    expect(await screen.findByText('Nhật ký')).toBeVisible()
+    expect(screen.getByText('Cảm xúc')).toBeVisible()
+    expect(screen.getByText('Cột mốc nhật ký')).toBeVisible()
+    expect(screen.getByText('Cột mốc cảm xúc')).toBeVisible()
+    const renderedTimes = [...container.querySelectorAll('time')]
+    expect(renderedTimes).toHaveLength(4)
+    expect(
+      renderedTimes.every(
+        (time) => time.getAttribute('datetime') === notification.createdAt,
+      ),
+    ).toBe(true)
+  })
+
   it('persists bulk read, deletion and cursor continuation', async () => {
     const user = userEvent.setup()
     const second = {

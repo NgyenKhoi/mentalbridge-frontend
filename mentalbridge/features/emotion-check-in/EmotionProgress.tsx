@@ -68,16 +68,20 @@ export function EmotionProgress({
 
   if (state.phase === 'loading')
     return (
-      <article className={`ref-card ref-trend ${styles.card}`} aria-busy="true">
-        <h2>Nhìn lại cảm xúc</h2>
-        <p role="status">Đang tải lịch sử cảm xúc…</p>
-      </article>
+      <div className={styles.card} aria-busy="true">
+        <header className={styles.heading}>
+          <h2 className={styles.title}>Nhìn lại cảm xúc</h2>
+          <p className={styles.subtitle}>Đang tải lịch sử cảm xúc…</p>
+        </header>
+      </div>
     )
 
   if (state.phase === 'error')
     return (
-      <article className={`ref-card ref-trend ${styles.card}`}>
-        <h2>Nhìn lại cảm xúc</h2>
+      <div className={styles.card}>
+        <header className={styles.heading}>
+          <h2 className={styles.title}>Nhìn lại cảm xúc</h2>
+        </header>
         <div className={styles.error} role="alert">
           <p>Lịch sử cảm xúc tạm thời chưa tải được.</p>
           <button
@@ -90,34 +94,53 @@ export function EmotionProgress({
             Thử lại
           </button>
         </div>
-      </article>
+      </div>
     )
 
-  const window = state.progress.windows.find((item) => item.days === period)
-  if (!window) return null
+  const win = state.progress.windows.find((item) => item.days === period)
+  if (!win) return null
   const empty = state.history.length === 0
+  const pct = win.totalDays > 0 ? (win.checkedInDays / win.totalDays) * 100 : 0
 
   return (
-    <article className={`ref-card ref-trend ${styles.card}`}>
+    <div className={styles.card}>
       <header className={styles.heading}>
         <div>
-          <h2>Nhìn lại cảm xúc</h2>
-          <p>Các con số chỉ phản ánh những ngày bạn đã tự ghi nhận.</p>
+          <h2 className={styles.title}>Nhìn lại cảm xúc</h2>
+          <p className={styles.subtitle}>
+            Các con số chỉ phản ánh những ngày bạn đã tự ghi nhận.
+          </p>
         </div>
-        <span aria-hidden="true">◷</span>
+        <span className={styles.clockBadge} aria-hidden="true">
+          ◷
+        </span>
       </header>
 
+      {/* 2 số liệu Chuỗi: rút ngắn khoảng cách giữa label và giá trị, gắn kết như một cụm */}
       <dl className={styles.streaks} aria-label="Số ngày ghi nhận liên tiếp">
-        <div>
-          <dt>Chuỗi hiện tại</dt>
-          <dd>{state.progress.currentStreak} ngày</dd>
+        <div className={styles.streakItem}>
+          <dt className={styles.streakLabel}>Chuỗi hiện tại</dt>
+          <dd className={styles.streakValue}>
+            {state.progress.currentStreak === 0 && empty ? (
+              <span className={styles.streakEmpty}>Chưa bắt đầu</span>
+            ) : (
+              `${state.progress.currentStreak} ngày`
+            )}
+          </dd>
         </div>
-        <div>
-          <dt>Chuỗi dài nhất</dt>
-          <dd>{state.progress.longestStreak} ngày</dd>
+        <div className={styles.streakItem}>
+          <dt className={styles.streakLabel}>Chuỗi dài nhất</dt>
+          <dd className={styles.streakValue}>
+            {state.progress.longestStreak === 0 && empty ? (
+              <span className={styles.streakEmpty}>Chưa bắt đầu</span>
+            ) : (
+              `${state.progress.longestStreak} ngày`
+            )}
+          </dd>
         </div>
       </dl>
 
+      {/* 3 tab thời gian: pill-segment */}
       <div className={styles.periods} aria-label="Khoảng thời gian">
         {periods.map((days) => (
           <button
@@ -126,24 +149,35 @@ export function EmotionProgress({
             aria-pressed={period === days}
             onClick={() => setPeriod(days)}
           >
-            {days} ngày
+            {`${days} ngày`}
           </button>
         ))}
       </div>
 
+      {/* Coverage & progress bar */}
       <section
         className={styles.coverage}
         aria-labelledby="emotion-coverage-title"
       >
-        <h3 id="emotion-coverage-title">
-          Đã ghi nhận {window.checkedInDays}/{window.totalDays} ngày
-        </h3>
-        {window.checkedInDays === 0 ? (
-          <p>Chưa có ghi nhận trong khoảng thời gian này.</p>
-        ) : (
-          <ul>
+        <div className={styles.coverageHeader}>
+          <h3 id="emotion-coverage-title">
+            Đã ghi nhận {win.checkedInDays}/{win.totalDays} ngày
+          </h3>
+          <div className={styles.progressBar}>
+            <div style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+
+        {win.checkedInDays === 0 && !empty ? (
+          <p className={styles.emptyPeriodText}>
+            Chưa có ghi nhận trong khoảng thời gian này.
+          </p>
+        ) : null}
+
+        {!empty && win.checkedInDays > 0 ? (
+          <ul className={styles.distributionList}>
             {(Object.keys(emotionCopy) as Emotion[]).map((emotion) => {
-              const count = window.distribution[emotion]
+              const count = win.distribution[emotion]
               return (
                 <li key={emotion}>
                   <span>
@@ -154,12 +188,12 @@ export function EmotionProgress({
                     role="meter"
                     aria-label={`${emotionCopy[emotion].label}: ${count} ngày`}
                     aria-valuemin={0}
-                    aria-valuemax={window.checkedInDays}
+                    aria-valuemax={win.checkedInDays}
                     aria-valuenow={count}
                   >
                     <i
                       style={{
-                        width: `${String((count / window.checkedInDays) * 100)}%`,
+                        width: `${String((count / Math.max(win.checkedInDays, 1)) * 100)}%`,
                       }}
                     />
                   </div>
@@ -168,21 +202,27 @@ export function EmotionProgress({
               )
             })}
           </ul>
-        )}
+        ) : null}
       </section>
 
+      {/* History section / Empty state: gộp 2 đoạn text thành 1 câu ngắn gọn */}
       <section
         className={styles.history}
         aria-labelledby="emotion-history-title"
       >
-        <h3 id="emotion-history-title">Lịch sử gần đây</h3>
+        <h3
+          id="emotion-history-title"
+          className={empty ? styles.srOnly : styles.historyTitle}
+        >
+          Lịch sử gần đây
+        </h3>
         {empty ? (
-          <p>
-            Chưa có ngày nào được ghi nhận. Lịch sử sẽ xuất hiện sau lần lưu đầu
-            tiên.
+          <p className={styles.emptyCombinedNote}>
+            <span>Chưa có ghi nhận trong khoảng thời gian này.</span>{' '}
+            <span>Lịch sử sẽ xuất hiện sau lần lưu đầu tiên.</span>
           </p>
         ) : (
-          <ol>
+          <ol className={styles.historyList}>
             {state.history.map((item) => (
               <li key={item.id}>
                 <time dateTime={item.localDate}>
@@ -202,6 +242,6 @@ export function EmotionProgress({
       <p className={styles.disclaimer}>
         Đây không phải chẩn đoán, đánh giá tiến bộ hay mức độ hồi phục.
       </p>
-    </article>
+    </div>
   )
 }

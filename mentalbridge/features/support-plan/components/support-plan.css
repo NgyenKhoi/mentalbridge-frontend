@@ -1227,3 +1227,302 @@
     transition: none;
   }
 }
+
+/* ==========================================================================
+   SUPPORT PLAN 3-TAB SYSTEM & ACCORDIONS
+   ========================================================================== */
+
+/* Tab navigation bar */
+.support-plan-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: var(--space-6);
+  padding: 6px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-soft) 80%, var(--teal-pale));
+  border: 1px solid var(--line);
+  box-shadow: var(--elevation-1);
+}
+
+.support-plan-tab-btn {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.25rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--motion-fast) var(--ease-standard);
+  white-space: nowrap;
+}
+
+.support-plan-tab-btn:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 65%, transparent);
+}
+
+.support-plan-tab-btn.is-active {
+  background: var(--teal-deep);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(45, 90, 80, 0.22);
+}
+
+.support-plan-tab-pane {
+  display: block;
+}
+
+.support-plan-tab-pane.is-hidden {
+  display: none;
+}
+
+/* Accordion for 3 confirmed contents (!isDraft) */
+.support-plan-slot-item {
+  display: block !important;
+  padding: 0 !important;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  transition: border-color var(--motion-fast) var(--ease-standard),
+              box-shadow var(--motion-fast) var(--ease-standard);
+  overflow: hidden;
+}
+
+.support-plan-slot-item:hover {
+  border-color: color-mix(in srgb, var(--teal) 35%, var(--line));
+  box-shadow: var(--elevation-1);
+}
+
+.support-plan-slot-item.is-open {
+  border-color: color-mix(in srgb, var(--teal) 50%, var(--line));
+}
+
+.support-plan-slot-accordion-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: var(--space-4) var(--space-5);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.support-plan-slot-accordion-lead {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.support-plan-slot-title-group {
+  min-width: 0;
+}
+
+.support-plan-slot-title-group h4 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.support-plan-slot-meta-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+.support-plan-slot-accordion-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.support-plan-slot-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 0.8125rem;
+  font-weight: 750;
+}
+
+.support-plan-chevron-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--ink-soft);
+  transition: transform var(--motion-fast) var(--ease-standard);
+  flex-shrink: 0;
+}
+
+.support-plan-chevron-icon.rotated {
+  transform: rotate(180deg);
+}
+
+.support-plan-slot-accordion-body {
+  padding: 0 var(--space-5) var(--space-5) calc(var(--space-5) + 38px + 1rem);
+  border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  padding-top: var(--space-3);
+  animation: mb-data-enter var(--motion-fast) var(--ease-standard) both;
+}
+
+.support-plan-slot-accordion-body p {
+  margin: 0 0 0.5rem;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.support-plan-evaluation-disclosure {
+  margin: var(--space-4) 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--line));
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--teal-pale) 35%, var(--surface));
+}
+
+.support-plan-evaluation-disclosure summary {
+  color: var(--teal-deep);
+  font-weight: 750;
+  font-size: 0.95rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.support-plan-evaluation-disclosure p {
+  margin: 0.5rem 0 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+/* Upcoming activities accordion (13 ngày sắp tới) */
+.support-plan-upcoming-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.support-plan-occurrence-compact {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  transition: border-color var(--motion-fast) var(--ease-standard),
+              background var(--motion-fast) var(--ease-standard);
+}
+
+.support-plan-occurrence-compact:hover {
+  border-color: color-mix(in srgb, var(--teal) 35%, var(--line));
+  background: color-mix(in srgb, var(--teal-pale) 20%, var(--surface));
+}
+
+.support-plan-occurrence-compact-btn {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.15rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.support-plan-occurrence-compact-time {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.support-plan-occurrence-compact-time span {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+.support-plan-occurrence-compact-title h5 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.support-plan-occurrence-compact-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.support-plan-occurrence-badge {
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+}
+
+.support-plan-schedule-more {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.support-plan-schedule-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.25rem;
+  border: 1px dashed color-mix(in srgb, var(--teal) 38%, var(--line));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--teal-pale) 35%, var(--surface));
+  color: var(--teal-deep);
+  font-size: 0.875rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+
+.support-plan-schedule-more-btn:hover {
+  border-style: solid;
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal-pale) 60%, var(--surface));
+}
+
+@media (max-width: 680px) {
+  .support-plan-tabs {
+    flex-direction: column;
+    border-radius: var(--radius-panel);
+  }
+  .support-plan-tab-btn {
+    width: 100%;
+  }
+  .support-plan-occurrence-compact-btn {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+  .support-plan-slot-accordion-body {
+    padding-left: var(--space-5);
+  }
+}

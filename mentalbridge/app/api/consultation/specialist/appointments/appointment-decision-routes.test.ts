@@ -39,9 +39,15 @@ const appointment = {
   decisionDeadlineAt: '2099-09-26T02:00:00Z',
   heldCreditId: '96de7b84-14ae-46cd-bfa1-8314d1366b02',
   replacesAppointmentId: null,
+  replacedByAppointmentId: null,
   decidedAt: null,
   decisionReason: null,
+  cancelledAt: null,
+  cancellationReason: null,
+  cancellationActor: null,
+  cancellationCreditOutcome: null,
   creditState: 'HELD',
+  history: [],
   version: 0,
 }
 

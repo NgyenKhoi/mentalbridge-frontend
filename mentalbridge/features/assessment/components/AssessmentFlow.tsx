@@ -44,10 +44,79 @@ const levelLabels: Record<ScreeningLevel, string> = {
 }
 
 const instrumentLabels: Readonly<
-  Record<Instrument, { shortName: string; resultTitle: string }>
+  Record<Instrument, { shortName: string; resultTitle: string; topic: string }>
 > = {
-  PHQ9: { shortName: 'PHQ-9', resultTitle: 'Kết quả sàng lọc PHQ-9' },
-  GAD7: { shortName: 'GAD-7', resultTitle: 'Kết quả sàng lọc GAD-7' },
+  PHQ9: {
+    shortName: 'PHQ-9',
+    resultTitle: 'Kết quả sàng lọc PHQ-9',
+    topic: 'Dấu hiệu liên quan tâm trạng',
+  },
+  GAD7: {
+    shortName: 'GAD-7',
+    resultTitle: 'Kết quả sàng lọc GAD-7',
+    topic: 'Dấu hiệu lo âu',
+  },
+}
+
+type ScreeningMeaning = Readonly<{ text: string; limitation: string }>
+
+const screeningMeanings: Readonly<
+  Record<Instrument, Record<ScreeningLevel, ScreeningMeaning>>
+> = {
+  PHQ9: {
+    MINIMAL: {
+      text: 'Trong 14 ngày qua, các câu trả lời PHQ-9 của bạn cho thấy ít hoặc không có dấu hiệu đáng kể liên quan đến tâm trạng, hứng thú, giấc ngủ, năng lượng hoặc sinh hoạt. Kết quả cho thấy sức khỏe tinh thần của bạn đang ở trạng thái ổn định.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MILD: {
+      text: 'Trong 14 ngày qua, các câu trả lời PHQ-9 của bạn cho thấy một số dấu hiệu nhẹ liên quan đến tâm trạng, hứng thú, giấc ngủ, năng lượng hoặc sinh hoạt. Những trải nghiệm này có thể đáng để bạn quan tâm hơn, đặc biệt nếu chúng kéo dài.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MODERATE: {
+      text: 'Trong 14 ngày qua, các câu trả lời PHQ-9 của bạn cho thấy nhiều dấu hiệu liên quan đến tâm trạng, hứng thú, giấc ngủ, năng lượng hoặc sinh hoạt ở mức trung bình. Những trải nghiệm này có thể đáng để bạn quan tâm hơn, nhất là khi chúng làm gián đoạn giấc ngủ, khả năng tập trung, công việc, học tập hoặc các mối quan hệ.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MODERATELY_SEVERE: {
+      text: 'Trong 14 ngày qua, các câu trả lời PHQ-9 của bạn cho thấy nhiều dấu hiệu liên quan đến tâm trạng, hứng thú, giấc ngủ, năng lượng hoặc sinh hoạt ở mức khá nặng. Kết quả cho thấy bạn đang ghi nhận khó khăn ở nhiều nội dung của bài sàng lọc; chủ động tìm một người có chuyên môn để trao đổi có thể giúp bạn hiểu rõ hơn điều mình đang trải qua.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    SEVERE: {
+      text: 'Trong 14 ngày qua, các câu trả lời PHQ-9 của bạn cho thấy nhiều dấu hiệu nghiêm trọng liên quan đến tâm trạng, hứng thú, giấc ngủ, năng lượng hoặc sinh hoạt. Kết quả cho thấy bạn đang ghi nhận khó khăn đáng kể ở hầu hết nội dung; việc liên hệ với chuyên gia sức khỏe tinh thần có thể giúp bạn nhận được hỗ trợ kịp thời.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+  },
+  GAD7: {
+    MINIMAL: {
+      text: 'Trong 14 ngày qua, các câu trả lời GAD-7 của bạn cho thấy ít hoặc không có dấu hiệu đáng kể liên quan đến lo lắng, căng thẳng hoặc khó thư giãn. Kết quả cho thấy bạn đang ở trạng thái tương đối bình ổn về mặt lo âu.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MILD: {
+      text: 'Trong 14 ngày qua, các câu trả lời GAD-7 của bạn cho thấy một số dấu hiệu nhẹ liên quan đến lo lắng, căng thẳng hoặc khó thư giãn. Những trải nghiệm này có thể đáng để bạn lưu ý, đặc biệt nếu chúng bắt đầu ảnh hưởng đến giấc ngủ hoặc sinh hoạt hàng ngày.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MODERATE: {
+      text: 'Trong 14 ngày qua, các câu trả lời GAD-7 của bạn cho thấy nhiều dấu hiệu như lo lắng, căng thẳng hoặc khó thư giãn ở mức trung bình. Những trải nghiệm này có thể đáng để bạn quan tâm hơn, nhất là khi chúng làm gián đoạn giấc ngủ, khả năng tập trung, công việc, học tập hoặc các mối quan hệ.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MODERATELY_SEVERE: {
+      text: 'Trong 14 ngày qua, các câu trả lời GAD-7 của bạn cho thấy nhiều dấu hiệu như lo lắng, căng thẳng hoặc khó thư giãn ở mức khá nặng. Kết quả cho thấy bạn đang ghi nhận khó khăn ở nhiều nội dung; chủ động tìm một người có chuyên môn để trao đổi có thể giúp bạn hiểu rõ hơn điều mình đang trải qua.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    SEVERE: {
+      text: 'Trong 14 ngày qua, các câu trả lời GAD-7 của bạn cho thấy nhiều dấu hiệu nghiêm trọng liên quan đến lo lắng, căng thẳng hoặc khó thư giãn. Kết quả cho thấy bạn đang ghi nhận khó khăn đáng kể; việc liên hệ với chuyên gia sức khỏe tinh thần có thể giúp bạn nhận được hỗ trợ kịp thời.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+  },
 }
 
 function ResultPanel({
@@ -115,6 +184,31 @@ function ResultPanel({
           )}
         </article>
       </div>
+
+      <article className="care-meaning-card">
+        <header>
+          <h2>
+            {instrumentLabel.shortName} · {instrumentLabel.topic}
+          </h2>
+          <span className="care-meaning-badge">
+            {levelLabels[result.screeningLevel]}
+          </span>
+        </header>
+        <p>
+          {screeningMeanings[assessment.instrument][result.screeningLevel].text}
+        </p>
+        <Disclosure
+          className="care-meaning-disclosure"
+          summary="Lưu ý về phạm vi và giới hạn kết quả"
+        >
+          <p>
+            {
+              screeningMeanings[assessment.instrument][result.screeningLevel]
+                .limitation
+            }
+          </p>
+        </Disclosure>
+      </article>
 
       <aside className="care-result-disclaimer">
         <span aria-hidden="true">

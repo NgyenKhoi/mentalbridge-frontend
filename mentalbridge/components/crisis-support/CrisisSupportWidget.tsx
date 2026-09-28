@@ -127,7 +127,7 @@ export default function CrisisSupportWidget() {
         <span className={styles.fabIcon}>
           <SupportIcon />
         </span>
-        <span>Cần hỗ trợ ngay</span>
+        <span className={styles.fabLabel}>Cần hỗ trợ ngay</span>
       </button>
 
       {isOpen && (

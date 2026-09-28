@@ -24,6 +24,7 @@ export const appointmentBrowserClient = {
     modality: AppointmentModality,
     idempotencyKey: string,
     replacesAppointmentId?: string,
+    replacesAppointmentVersion?: number,
   ) {
     return (
       await browserApiClient.post<Appointment>(
@@ -33,7 +34,29 @@ export const appointmentBrowserClient = {
           modality,
           ...(replacesAppointmentId ? { replacesAppointmentId } : {}),
         },
-        { headers: { 'Idempotency-Key': idempotencyKey } },
+        {
+          headers: {
+            'Idempotency-Key': idempotencyKey,
+            ...(replacesAppointmentId &&
+            replacesAppointmentVersion !== undefined
+              ? { 'If-Match': `"${replacesAppointmentVersion}"` }
+              : {}),
+          },
+        },
+      )
+    ).data
+  },
+  async cancel(appointmentId: string, version: number, idempotencyKey: string) {
+    return (
+      await browserApiClient.post<Appointment>(
+        `/consultation/appointments/${encodeURIComponent(appointmentId)}/cancel`,
+        undefined,
+        {
+          headers: {
+            'If-Match': `"${version}"`,
+            'Idempotency-Key': idempotencyKey,
+          },
+        },
       )
     ).data
   },
