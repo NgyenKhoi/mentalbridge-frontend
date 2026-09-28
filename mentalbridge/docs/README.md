@@ -13,18 +13,19 @@ how the executable Next.js application is organized and delivered.
 5. [Runtime and environment](runtime-and-environment.md)
 6. [Review and testing](review-and-testing.md)
 7. [MB-375 SupportPlan replacement evidence](mb-375-support-plan-replacement-evidence.md)
+8. [MB-363 approved specialist discovery consumer evidence](mb-363-specialist-discovery-evidence.md)
 
 ## UI and motion routing
 
 Do not read every UI document for every task. Start here, then choose the
 smallest relevant set:
 
-| Task | Read |
-| ---- | ---- |
-| Shared visual language, tokens, primitives, accessibility, or responsive behavior | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) |
-| Product-page loading, empty, error, list, dialog, or page-state motion | The motion contract in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), then the owning component and its tests |
-| Landing-page choreography, scroll sequences, parallax, or smooth scrolling | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), current code in `components/motion`, `components/ScrollReveal.tsx`, `hooks/useLenis.ts`, and `lib/animations/config.ts` |
-| Debugging or manually testing an existing animation | [TESTING_ANIMATIONS.md](TESTING_ANIMATIONS.md) and [DEBUG_ANIMATIONS.md](DEBUG_ANIMATIONS.md), after verifying their selectors against current code |
+| Task                                                                              | Read                                                                                                                                                          |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared visual language, tokens, primitives, accessibility, or responsive behavior | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)                                                                                                                          |
+| Product-page loading, empty, error, list, dialog, or page-state motion            | The motion contract in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), then the owning component and its tests                                                          |
+| Landing-page choreography, scroll sequences, parallax, or smooth scrolling        | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), current code in `components/motion`, `components/ScrollReveal.tsx`, `hooks/useLenis.ts`, and `lib/animations/config.ts` |
+| Debugging or manually testing an existing animation                               | [TESTING_ANIMATIONS.md](TESTING_ANIMATIONS.md) and [DEBUG_ANIMATIONS.md](DEBUG_ANIMATIONS.md), after verifying their selectors against current code           |
 
 Document status:
 
@@ -82,6 +83,7 @@ to select any additional task-specific material.
 | Explicit-consent, exact-revision Journal reflection  | Implemented | MB-368         |
 | Exact 60-minute online specialist availability       | Implemented | MB-362         |
 | Specialist appointment decisions and expiry          | Implemented | MB-379         |
+| Approved online specialist discovery consumer        | Implemented | MB-363         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

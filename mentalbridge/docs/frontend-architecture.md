@@ -51,6 +51,22 @@ Story 211 provides Axios and TanStack Query with these responsibilities:
 Transport details stay in `lib/api` and `lib/auth`; feature query keys, hooks,
 schemas, and UI state stay in the owning `features/<feature>` package.
 
+### Specialist discovery boundary
+
+MB-363 exposes two bounded USER-only same-origin reads under
+`/api/consultation/specialists`: the ranked list and a fresh profile detail.
+Consultation remains authoritative for current approval, ranking, and slot
+eligibility. The frontend validates and minimizes every response, displays the
+returned explanation, and passes the exact selected slot ID and in-app modality
+to the existing MB-378 appointment request operation. It does not re-derive
+specialist approval or slot availability.
+
+FREE users can browse the same approved profiles and selectable slots, but the
+consumer does not expose a booking command. PLUS and PREMIUM users can submit a
+request; MB-378 still rechecks plan and credit authority. Physical location,
+phone, price, credentials, external meeting links, and raw assessment, Journal,
+or chat content are outside this boundary.
+
 ### Journal AI reflection boundary
 
 MB-368 exposes only two bounded same-origin Journal operations: create an
