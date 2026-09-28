@@ -183,6 +183,7 @@ export const consultationClient = {
     correlationId: string,
     body: AppointmentRequestInput,
     idempotencyKey: string,
+    replacementEtag?: string,
   ) {
     return request<Appointment>({
       method: 'POST',
@@ -190,6 +191,24 @@ export const consultationClient = {
       token,
       correlationId,
       body,
+      ifMatch: replacementEtag,
+      idempotencyKey,
+      parse: parseAppointment,
+    })
+  },
+  cancelAppointment(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+    etag: string,
+    idempotencyKey: string,
+  ) {
+    return request<Appointment>({
+      method: 'POST',
+      path: `/api/v1/appointments/${encodeURIComponent(appointmentId)}/cancel`,
+      token,
+      correlationId,
+      ifMatch: etag,
       idempotencyKey,
       parse: parseAppointment,
     })

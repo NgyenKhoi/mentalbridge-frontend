@@ -153,8 +153,27 @@ export interface paths {
         /** @description Lists the authenticated user's authoritative appointment snapshots, including request deadline and held credit identity. */
         get: operations["listOwnAppointments"];
         put?: never;
-        /** @description Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, the active appointment and its held credit are atomically moved to a linked replacement request without temporarily consuming another reservation. Exact command replays return the original appointment. */
+        /** @description Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. Exact command replays return the original appointment. */
         post: operations["requestAppointment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appointments/{appointmentId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Cancels one future user-owned REQUESTED or CONFIRMED appointment. REQUESTED and confirmations at least 24 hours before start release the exact held credit; later confirmed cancellations forfeit it. The command records actor, stable reason, occurrence time, credit outcome, and immutable history exactly once. */
+        post: operations["cancelOwnAppointment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -531,6 +550,25 @@ export interface components {
              */
             replacesAppointmentId?: string | null;
         };
+        /** @enum {string} */
+        AppointmentCancellationCreditOutcome: "RELEASED" | "FORFEITED" | "TRANSFERRED_TO_REPLACEMENT";
+        AppointmentHistoryEntry: {
+            /** Format: uuid */
+            eventId: string;
+            /** @enum {string|null} */
+            fromStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED" | null;
+            /** @enum {string} */
+            toStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            /** @enum {string} */
+            actorType: "USER" | "SPECIALIST" | "ADMIN" | "SYSTEM";
+            /** Format: uuid */
+            actorId: string | null;
+            /** @enum {string} */
+            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED";
+            creditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
+            /** Format: date-time */
+            occurredAt: string;
+        };
         BookableSlot: {
             /** Format: uuid */
             id: string;
@@ -575,12 +613,22 @@ export interface components {
             heldCreditId: string;
             /** Format: uuid */
             replacesAppointmentId: string | null;
+            /** Format: uuid */
+            replacedByAppointmentId: string | null;
             /** Format: date-time */
             decidedAt: string | null;
             /** @enum {string|null} */
             decisionReason: "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            /** @enum {string|null} */
+            cancellationReason: "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_SUSPENDED" | null;
+            /** @enum {string|null} */
+            cancellationActor: "USER" | "ADMIN" | null;
+            cancellationCreditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
             /** @enum {string} */
             creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            history: components["schemas"]["AppointmentHistoryEntry"][];
             /** Format: int64 */
             version: number;
         };
@@ -627,7 +675,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Slot, modality, lead time, video capability, credit, reservation capacity, replacement state, concurrency, or idempotency prevents the request. */
+        /** @description Slot, modality, lead time, video capability, credit, reservation capacity, cancellation/replacement eligibility or time window, concurrency, or idempotency prevents the command. */
         AppointmentConflictProblem: {
             headers: {
                 [name: string]: unknown;
@@ -672,7 +720,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description If-Match is required for a specialist appointment decision (APPOINTMENT_VERSION_REQUIRED). */
+        /** @description If-Match is required for a specialist decision, owner cancellation, or replacement request (APPOINTMENT_VERSION_REQUIRED). */
         AppointmentVersionRequiredProblem: {
             headers: {
                 [name: string]: unknown;
@@ -813,6 +861,8 @@ export interface components {
         AvailabilitySlotIfMatch: string;
         /** @description Quoted current non-negative appointment version. */
         AppointmentIfMatch: string;
+        /** @description Required with replacesAppointmentId and ignored only for a normal non-replacement request. Contains the quoted current version of the appointment being replaced. */
+        OptionalAppointmentIfMatch: string;
     };
     requestBodies: never;
     headers: {
@@ -1149,6 +1199,8 @@ export interface operations {
             header: {
                 /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required with replacesAppointmentId and ignored only for a normal non-replacement request. Contains the quoted current version of the appointment being replaced. */
+                "If-Match"?: components["parameters"]["OptionalAppointmentIfMatch"];
             };
             path?: never;
             cookie?: never;
@@ -1173,6 +1225,42 @@ export interface operations {
             403: components["responses"]["AppointmentForbiddenProblem"];
             404: components["responses"]["AppointmentSlotNotFoundProblem"];
             409: components["responses"]["AppointmentConflictProblem"];
+            412: components["responses"]["AppointmentVersionProblem"];
+            428: components["responses"]["AppointmentVersionRequiredProblem"];
+        };
+    };
+    cancelOwnAppointment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative appointment version. */
+                "If-Match": components["parameters"]["AppointmentIfMatch"];
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled appointment or exact command replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["AppointmentETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Appointment"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["AppointmentForbiddenProblem"];
+            404: components["responses"]["AppointmentNotFoundProblem"];
+            409: components["responses"]["AppointmentConflictProblem"];
+            412: components["responses"]["AppointmentVersionProblem"];
+            428: components["responses"]["AppointmentVersionRequiredProblem"];
         };
     };
     listAssignedAppointments: {

@@ -203,4 +203,74 @@ describe('Consultation server-only client', () => {
       'X-Correlation-Id': 'correlation-id',
     })
   })
+
+  it('forwards exact-version and idempotency headers for appointment changes', async () => {
+    const appointment = {
+      id: '10a7e5d8-7960-42fb-9706-e642f849b78f',
+      slotId: '13b7dbb4-021e-4c75-ae48-bfa7126c7256',
+      specialistAccountId: '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
+      specialistDisplayName: 'Chuyên gia An',
+      status: 'REQUESTED',
+      modality: 'IN_APP_CHAT',
+      scheduledStartAt: '2099-09-27T02:00:00Z',
+      scheduledEndAt: '2099-09-27T03:00:00Z',
+      timezone: 'Asia/Ho_Chi_Minh',
+      requestedAt: '2099-09-25T02:00:00Z',
+      decisionDeadlineAt: '2099-09-26T02:00:00Z',
+      heldCreditId: '96de7b84-14ae-46cd-bfa1-8314d1366b02',
+      replacesAppointmentId: null,
+      replacedByAppointmentId: null,
+      decidedAt: null,
+      decisionReason: null,
+      cancelledAt: null,
+      cancellationReason: null,
+      cancellationActor: null,
+      cancellationCreditOutcome: null,
+      creditState: 'HELD',
+      history: [],
+      version: 0,
+    }
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(
+          Response.json(appointment, { headers: { ETag: '"0"' } }),
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await consultationClient.requestAppointment(
+      'access-token',
+      'correlation-id',
+      {
+        slotId: appointment.slotId,
+        modality: 'IN_APP_CHAT',
+        replacesAppointmentId: '20a7e5d8-7960-42fb-9706-e642f849b78f',
+      },
+      'replacement-key-123456',
+      '"7"',
+    )
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe('http://consultation.test/api/v1/appointments')
+    expect(init.headers).toMatchObject({
+      'If-Match': '"7"',
+      'Idempotency-Key': 'replacement-key-123456',
+    })
+
+    await consultationClient.cancelAppointment(
+      'access-token',
+      'correlation-id',
+      appointment.id,
+      '"0"',
+      'cancel-command-123456',
+    )
+    const [cancelUrl, cancelInit] = fetchMock.mock.calls[1]
+    expect(String(cancelUrl)).toBe(
+      `http://consultation.test/api/v1/appointments/${appointment.id}/cancel`,
+    )
+    expect(cancelInit.headers).toMatchObject({
+      'If-Match': '"0"',
+      'Idempotency-Key': 'cancel-command-123456',
+    })
+  })
 })

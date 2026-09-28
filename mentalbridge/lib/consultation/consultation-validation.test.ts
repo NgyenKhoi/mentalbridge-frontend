@@ -215,9 +215,26 @@ describe('Consultation contract validation', () => {
       decisionDeadlineAt: '2026-09-24T02:00:00Z',
       heldCreditId: '96de7b84-14ae-46cd-bfa1-8314d1366b02',
       replacesAppointmentId: null,
+      replacedByAppointmentId: null,
       decidedAt: '2026-09-23T03:00:00Z',
       decisionReason: 'SPECIALIST_ACCEPTED',
+      cancelledAt: null,
+      cancellationReason: null,
+      cancellationActor: null,
+      cancellationCreditOutcome: null,
       creditState: 'HELD',
+      history: [
+        {
+          eventId: '2b33a40f-f4d8-41a1-83da-65cf6c457766',
+          fromStatus: null,
+          toStatus: 'REQUESTED',
+          actorType: 'USER',
+          actorId: '7fe3a890-3d31-48d0-bf1a-4d81bbcef4b8',
+          reason: 'APPOINTMENT_REQUESTED',
+          creditOutcome: null,
+          occurredAt: '2026-09-23T02:00:00Z',
+        },
+      ],
       version: 1,
     }
     expect(parseAppointment(appointment)).toEqual(appointment)
@@ -230,6 +247,64 @@ describe('Consultation contract validation', () => {
         status: 'REJECTED',
         decisionReason: 'SPECIALIST_REJECTED',
         creditState: 'HELD',
+      }),
+    ).toBeNull()
+    expect(
+      parseAppointment({
+        ...appointment,
+        status: 'CANCELLED',
+        cancelledAt: '2026-09-23T04:00:00Z',
+        cancellationReason: 'USER_CANCELLED',
+        cancellationActor: 'USER',
+        cancellationCreditOutcome: 'RELEASED',
+        creditState: 'AVAILABLE',
+        history: [
+          ...appointment.history,
+          {
+            eventId: '3b33a40f-f4d8-41a1-83da-65cf6c457766',
+            fromStatus: 'CONFIRMED',
+            toStatus: 'CANCELLED',
+            actorType: 'USER',
+            actorId: '7fe3a890-3d31-48d0-bf1a-4d81bbcef4b8',
+            reason: 'USER_CANCELLED',
+            creditOutcome: 'RELEASED',
+            occurredAt: '2026-09-23T04:00:00Z',
+          },
+        ],
+      }),
+    ).not.toBeNull()
+    expect(
+      parseAppointment({
+        ...appointment,
+        status: 'CANCELLED',
+        cancelledAt: '2026-09-23T04:00:00Z',
+        cancellationReason: 'USER_CANCELLED',
+        cancellationActor: 'USER',
+        cancellationCreditOutcome: 'RELEASED',
+        creditState: 'HELD',
+        history: [
+          ...appointment.history,
+          {
+            eventId: '3b33a40f-f4d8-41a1-83da-65cf6c457766',
+            fromStatus: 'CONFIRMED',
+            toStatus: 'CANCELLED',
+            actorType: 'USER',
+            actorId: '7fe3a890-3d31-48d0-bf1a-4d81bbcef4b8',
+            reason: 'USER_CANCELLED',
+            creditOutcome: 'RELEASED',
+            occurredAt: '2026-09-23T04:00:00Z',
+          },
+        ],
+      }),
+    ).not.toBeNull()
+    expect(
+      parseAppointment({
+        ...appointment,
+        status: 'CANCELLED',
+        cancelledAt: '2026-09-23T04:00:00Z',
+        cancellationReason: 'USER_CANCELLED',
+        cancellationActor: 'USER',
+        cancellationCreditOutcome: null,
       }),
     ).toBeNull()
     expect(

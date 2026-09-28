@@ -13,18 +13,19 @@ how the executable Next.js application is organized and delivered.
 5. [Runtime and environment](runtime-and-environment.md)
 6. [Review and testing](review-and-testing.md)
 7. [MB-375 SupportPlan replacement evidence](mb-375-support-plan-replacement-evidence.md)
+8. [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
 
 ## UI and motion routing
 
 Do not read every UI document for every task. Start here, then choose the
 smallest relevant set:
 
-| Task | Read |
-| ---- | ---- |
-| Shared visual language, tokens, primitives, accessibility, or responsive behavior | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) |
-| Product-page loading, empty, error, list, dialog, or page-state motion | The motion contract in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), then the owning component and its tests |
-| Landing-page choreography, scroll sequences, parallax, or smooth scrolling | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), current code in `components/motion`, `components/ScrollReveal.tsx`, `hooks/useLenis.ts`, and `lib/animations/config.ts` |
-| Debugging or manually testing an existing animation | [TESTING_ANIMATIONS.md](TESTING_ANIMATIONS.md) and [DEBUG_ANIMATIONS.md](DEBUG_ANIMATIONS.md), after verifying their selectors against current code |
+| Task                                                                              | Read                                                                                                                                                          |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared visual language, tokens, primitives, accessibility, or responsive behavior | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)                                                                                                                          |
+| Product-page loading, empty, error, list, dialog, or page-state motion            | The motion contract in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), then the owning component and its tests                                                          |
+| Landing-page choreography, scroll sequences, parallax, or smooth scrolling        | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), current code in `components/motion`, `components/ScrollReveal.tsx`, `hooks/useLenis.ts`, and `lib/animations/config.ts` |
+| Debugging or manually testing an existing animation                               | [TESTING_ANIMATIONS.md](TESTING_ANIMATIONS.md) and [DEBUG_ANIMATIONS.md](DEBUG_ANIMATIONS.md), after verifying their selectors against current code           |
 
 Document status:
 
@@ -51,6 +52,7 @@ Story-specific delivery evidence:
 - [MB-368 exact-revision Journal AI reflection](mb-368-journal-ai-reflection.md)
 - [MB-362 online specialist availability evidence](mb-362-specialist-availability-evidence.md)
 - [MB-379 appointment decisions and expiry evidence](mb-379-appointment-decisions-evidence.md)
+- [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
@@ -82,6 +84,7 @@ to select any additional task-specific material.
 | Explicit-consent, exact-revision Journal reflection  | Implemented | MB-368         |
 | Exact 60-minute online specialist availability       | Implemented | MB-362         |
 | Specialist appointment decisions and expiry          | Implemented | MB-379         |
+| Appointment cancellation and linked reschedule       | Implemented | MB-380         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then
