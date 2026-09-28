@@ -142,7 +142,9 @@ test('MB-380 cancels an appointment and renders persisted audit evidence', async
   await dialog.getByRole('button', { name: 'Hủy lịch hẹn' }).click()
 
   await expect(page.getByText('Thông tin hủy lịch')).toBeVisible()
-  await expect(page.getByText('Đã được hoàn lại')).toBeVisible()
+  await expect(
+    page.getByText('Đã được hoàn lại', { exact: true }),
+  ).toBeVisible()
   await expect(page.getByText('Lý do: bạn yêu cầu hủy')).toBeVisible()
   await page.getByText('Lịch sử thay đổi').click()
   await expect(page.getByText('Đã hủy').last()).toBeVisible()

@@ -27,6 +27,36 @@ function isLateConfirmed(appointment: Appointment, generatedAt: string) {
   )
 }
 
+function isChangeable(appointment: Appointment | undefined) {
+  return (
+    appointment?.status === 'REQUESTED' || appointment?.status === 'CONFIRMED'
+  )
+}
+
+function cancellationOutcomeMessage(
+  outcome: Appointment['cancellationCreditOutcome'],
+) {
+  if (outcome === 'FORFEITED') {
+    return 'Lượt tư vấn không được hoàn lại theo mốc 24 giờ.'
+  }
+  if (outcome === 'RELEASED') {
+    return 'Khung giờ và lượt tư vấn đã được hoàn lại.'
+  }
+  return 'Lịch hẹn và lượt tư vấn đã được cập nhật.'
+}
+
+function rescheduleOutcomeMessage(
+  outcome: Appointment['cancellationCreditOutcome'],
+) {
+  if (outcome === 'FORFEITED') {
+    return 'Lượt tư vấn cũ không được hoàn lại theo mốc 24 giờ; lịch mới đã dùng một lượt tư vấn đủ điều kiện khác.'
+  }
+  if (outcome === 'TRANSFERRED_TO_REPLACEMENT') {
+    return 'Lượt tư vấn đã được chuyển sang lịch mới. Lịch cũ vẫn được lưu trong lịch sử.'
+  }
+  return 'Lịch cũ được lưu trong lịch sử. Yêu cầu mới đang chờ xác nhận.'
+}
+
 const appointmentStatus: Record<Appointment['status'], string> = {
   REQUESTED: 'Đang chờ xác nhận',
   CONFIRMED: 'Đã xác nhận',
@@ -91,10 +121,22 @@ export default function AppointmentRequestPanel() {
       setSlots(available.items)
       setAppointments(existing.items)
       setGeneratedAt(existing.generatedAt)
+      return existing
     } catch (caught) {
       setError(errorMessage(caught))
+      return null
     } finally {
       setLoading(false)
+    }
+  }, [])
+
+  const refreshAppointment = useCallback(async (appointmentId: string) => {
+    const existing = await appointmentBrowserClient.list()
+    setAppointments(existing.items)
+    setGeneratedAt(existing.generatedAt)
+    return {
+      appointment: existing.items.find((item) => item.id === appointmentId),
+      generatedAt: existing.generatedAt,
     }
   }, [])
 
@@ -116,26 +158,86 @@ export default function AppointmentRequestPanel() {
     setSubmitting(slot.id)
     setError('')
     try {
+      const replacement = rescheduling
+      let authoritativeReplacement = replacement
+      if (replacement) {
+        const reconciled = await refreshAppointment(replacement.id)
+        if (!isChangeable(reconciled.appointment)) {
+          setRescheduling(null)
+          setError(
+            'Lịch hẹn vừa được cập nhật và không còn có thể đổi. Hãy chọn lại từ trạng thái mới nhất.',
+          )
+          return
+        }
+        authoritativeReplacement = reconciled.appointment ?? null
+        if (
+          authoritativeReplacement &&
+          isLateConfirmed(authoritativeReplacement, reconciled.generatedAt)
+        ) {
+          const accepted = await confirm({
+            title: 'Đổi lịch trong vòng 24 giờ?',
+            description:
+              'Lịch đã được xác nhận và còn dưới 24 giờ. Lượt tư vấn cũ sẽ không được hoàn lại, và lịch mới cần một lượt tư vấn đủ điều kiện khác.',
+            confirmLabel: 'Tiếp tục đổi lịch',
+            cancelLabel: 'Giữ lịch cũ',
+            tone: 'warning',
+          })
+          if (!accepted) return
+        }
+        const precommand = await refreshAppointment(replacement.id)
+        if (!isChangeable(precommand.appointment)) {
+          setRescheduling(null)
+          setError(
+            'Lịch hẹn vừa được cập nhật và không còn có thể đổi. Hãy chọn lại từ trạng thái mới nhất.',
+          )
+          return
+        }
+        if (
+          authoritativeReplacement &&
+          !isLateConfirmed(authoritativeReplacement, reconciled.generatedAt) &&
+          isLateConfirmed(
+            precommand.appointment as Appointment,
+            precommand.generatedAt,
+          )
+        ) {
+          const accepted = await confirm({
+            title: 'Đổi lịch trong vòng 24 giờ?',
+            description:
+              'Lịch vừa đi vào mốc dưới 24 giờ. Lượt tư vấn cũ sẽ không được hoàn lại, và lịch mới cần một lượt tư vấn đủ điều kiện khác.',
+            confirmLabel: 'Tiếp tục đổi lịch',
+            cancelLabel: 'Giữ lịch cũ',
+            tone: 'warning',
+          })
+          if (!accepted) return
+        }
+        authoritativeReplacement = precommand.appointment ?? null
+      }
       const created = await appointmentBrowserClient.request(
         slot.id,
         slot.modality,
         `appointment-${crypto.randomUUID()}`,
-        rescheduling?.id,
-        rescheduling?.version,
+        authoritativeReplacement?.id,
+        authoritativeReplacement?.version,
       )
-      if (rescheduling) {
+      let replacedAppointment: Appointment | undefined
+      if (authoritativeReplacement) {
         setRescheduling(null)
-        await load()
+        const latest = await load()
+        replacedAppointment = latest?.items.find(
+          (item) => item.id === authoritativeReplacement?.id,
+        )
       } else {
         setAppointments((items) => [created, ...items])
         setSlots((items) => items.filter((item) => item.id !== slot.id))
       }
       showActionToast({
-        title: rescheduling
+        title: authoritativeReplacement
           ? 'Đã gửi yêu cầu đổi lịch'
           : 'Đã gửi yêu cầu đặt lịch',
-        description: rescheduling
-          ? 'Lịch cũ được lưu trong lịch sử. Yêu cầu mới đang chờ xác nhận.'
+        description: authoritativeReplacement
+          ? rescheduleOutcomeMessage(
+              replacedAppointment?.cancellationCreditOutcome ?? null,
+            )
           : 'Yêu cầu đang chờ chuyên gia xác nhận.',
       })
     } catch (caught) {
@@ -146,32 +248,68 @@ export default function AppointmentRequestPanel() {
   }
 
   async function cancelAppointment(appointment: Appointment) {
-    const lateConfirmed = isLateConfirmed(appointment, generatedAt)
-    const accepted = await confirm({
-      title: 'Hủy lịch hẹn này?',
-      description: lateConfirmed
-        ? 'Lịch đã được xác nhận và còn dưới 24 giờ. Lượt tư vấn sẽ không được hoàn lại.'
-        : 'Lịch sẽ được hủy và lịch sử thay đổi vẫn được lưu lại.',
-      confirmLabel: 'Hủy lịch hẹn',
-      cancelLabel: 'Giữ lịch',
-      tone: 'danger',
-    })
-    if (!accepted) return
     setSubmitting(appointment.id)
     setError('')
     try {
-      await appointmentBrowserClient.cancel(
-        appointment.id,
-        appointment.version,
+      const reconciled = await refreshAppointment(appointment.id)
+      if (!isChangeable(reconciled.appointment)) {
+        if (rescheduling?.id === appointment.id) setRescheduling(null)
+        setError(
+          'Lịch hẹn vừa được cập nhật và không còn có thể hủy. Hãy kiểm tra trạng thái mới nhất.',
+        )
+        return
+      }
+      const authoritativeAppointment = reconciled.appointment as Appointment
+      const accepted = await confirm({
+        title: 'Hủy lịch hẹn này?',
+        description: isLateConfirmed(
+          authoritativeAppointment,
+          reconciled.generatedAt,
+        )
+          ? 'Lịch đã được xác nhận và còn dưới 24 giờ. Lượt tư vấn sẽ không được hoàn lại.'
+          : 'Lịch sẽ được hủy và lịch sử thay đổi vẫn được lưu lại.',
+        confirmLabel: 'Hủy lịch hẹn',
+        cancelLabel: 'Giữ lịch',
+        tone: 'danger',
+      })
+      if (!accepted) return
+      const precommand = await refreshAppointment(appointment.id)
+      if (!isChangeable(precommand.appointment)) {
+        if (rescheduling?.id === appointment.id) setRescheduling(null)
+        setError(
+          'Lịch hẹn vừa được cập nhật và không còn có thể hủy. Hãy kiểm tra trạng thái mới nhất.',
+        )
+        return
+      }
+      if (
+        !isLateConfirmed(authoritativeAppointment, reconciled.generatedAt) &&
+        isLateConfirmed(
+          precommand.appointment as Appointment,
+          precommand.generatedAt,
+        )
+      ) {
+        const acceptedLateWarning = await confirm({
+          title: 'Lịch vừa đi vào mốc dưới 24 giờ',
+          description: 'Nếu tiếp tục hủy, lượt tư vấn sẽ không được hoàn lại.',
+          confirmLabel: 'Vẫn hủy lịch',
+          cancelLabel: 'Giữ lịch',
+          tone: 'danger',
+        })
+        if (!acceptedLateWarning) return
+      }
+      const appointmentToCancel = precommand.appointment as Appointment
+      const cancelled = await appointmentBrowserClient.cancel(
+        appointmentToCancel.id,
+        appointmentToCancel.version,
         `appointment-cancel-${crypto.randomUUID()}`,
       )
       if (rescheduling?.id === appointment.id) setRescheduling(null)
       await load()
       showActionToast({
         title: 'Đã hủy lịch hẹn',
-        description: lateConfirmed
-          ? 'Lượt tư vấn không được hoàn lại theo mốc 24 giờ.'
-          : 'Khung giờ và lượt tư vấn đã được cập nhật.',
+        description: cancellationOutcomeMessage(
+          cancelled.cancellationCreditOutcome,
+        ),
       })
     } catch (caught) {
       setError(errorMessage(caught))

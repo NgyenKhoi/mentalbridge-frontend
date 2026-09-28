@@ -10,6 +10,7 @@ import {
   vi,
 } from 'vitest'
 
+import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import AppointmentRequestPanel from './AppointmentRequestPanel'
 
 const appointmentClient = vi.hoisted(() => ({
@@ -162,6 +163,16 @@ describe('AppointmentRequestPanel', () => {
         count: 1,
         generatedAt: '2099-01-01T00:00:00Z',
       })
+      .mockResolvedValueOnce({
+        items: [appointment],
+        count: 1,
+        generatedAt: '2099-01-01T00:59:59Z',
+      })
+      .mockResolvedValueOnce({
+        items: [appointment],
+        count: 1,
+        generatedAt: '2099-01-01T00:59:59Z',
+      })
       .mockResolvedValue({
         items: [cancelled],
         count: 1,
@@ -248,6 +259,99 @@ describe('AppointmentRequestPanel', () => {
 
     expect(
       screen.getByText(/lượt tư vấn cũ sẽ không được hoàn lại/),
+    ).toBeInTheDocument()
+  })
+
+  it('reconciles timing after crossing T-24h before submitting a replacement', async () => {
+    const confirmed = {
+      ...appointment,
+      status: 'CONFIRMED' as const,
+      decidedAt: '2099-01-01T00:30:00Z',
+      decisionReason: 'SPECIALIST_ACCEPTED' as const,
+      version: 1,
+    }
+    const reconciled = { ...confirmed, version: 2 }
+    const replacement = {
+      ...appointment,
+      id: '423e4567-e89b-42d3-a456-426614174003',
+      slotId: slot.id,
+      replacesAppointmentId: appointment.id,
+    }
+    const cancelled = {
+      ...reconciled,
+      status: 'CANCELLED' as const,
+      replacedByAppointmentId: replacement.id,
+      cancelledAt: '2099-01-02T04:00:02Z',
+      cancellationReason: 'USER_RESCHEDULED' as const,
+      cancellationActor: 'USER' as const,
+      cancellationCreditOutcome: 'FORFEITED' as const,
+      creditState: 'FORFEITED' as const,
+      version: 3,
+    }
+    appointmentClient.slots.mockResolvedValue({
+      items: [slot],
+      count: 1,
+      generatedAt: '2099-01-02T03:59:59Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list
+      .mockResolvedValueOnce({
+        items: [confirmed],
+        count: 1,
+        generatedAt: '2099-01-02T03:59:59Z',
+      })
+      .mockResolvedValueOnce({
+        items: [reconciled],
+        count: 1,
+        generatedAt: '2099-01-02T04:00:01Z',
+      })
+      .mockResolvedValueOnce({
+        items: [reconciled],
+        count: 1,
+        generatedAt: '2099-01-02T04:00:01Z',
+      })
+      .mockResolvedValue({
+        items: [cancelled, replacement],
+        count: 2,
+        generatedAt: '2099-01-02T04:00:03Z',
+      })
+    appointmentClient.request.mockResolvedValue(replacement)
+    const user = userEvent.setup()
+    render(
+      <FeedbackProvider>
+        <AppointmentRequestPanel />
+      </FeedbackProvider>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Đổi lịch' }))
+    expect(
+      screen.queryByText(/lượt tư vấn cũ sẽ không được hoàn lại/),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Đổi sang giờ này' }))
+
+    expect(
+      await screen.findByText(
+        /Lượt tư vấn cũ sẽ không được hoàn lại, và lịch mới cần một lượt tư vấn đủ điều kiện khác/,
+      ),
+    ).toBeInTheDocument()
+    expect(appointmentClient.request).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Tiếp tục đổi lịch' }))
+
+    await waitFor(() =>
+      expect(appointmentClient.request).toHaveBeenCalledWith(
+        slot.id,
+        slot.modality,
+        expect.stringMatching(/^appointment-/),
+        appointment.id,
+        2,
+      ),
+    )
+    expect(
+      await screen.findByText(
+        'Lượt tư vấn cũ không được hoàn lại theo mốc 24 giờ; lịch mới đã dùng một lượt tư vấn đủ điều kiện khác.',
+      ),
     ).toBeInTheDocument()
   })
 })
