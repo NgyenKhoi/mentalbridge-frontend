@@ -11,6 +11,7 @@ import {
   type CommunityTopicCode,
 } from '@/features/community/api/browser-community'
 import CommunityMedia from './CommunityMedia'
+import CommunityPostComposer from './CommunityPostComposer'
 
 type FeedPost = Omit<CommunityPostDetail, 'content'> & {
   contentPreview: string
@@ -149,6 +150,8 @@ export default function CommunityFeed() {
           </p>
         </aside>
       </header>
+
+      <CommunityPostComposer topics={topics} />
 
       <nav className="community-topics" aria-label="Lọc bảng tin theo chủ đề">
         <button

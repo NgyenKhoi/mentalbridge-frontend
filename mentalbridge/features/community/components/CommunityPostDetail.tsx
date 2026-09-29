@@ -1,14 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import {
+  deleteCommunityPost,
   getCommunityPost,
   getCommunityTopics,
+  updateCommunityPost,
   type CommunityPostDetail as Post,
   type CommunityTopic,
+  type CommunityTopicCode,
 } from '@/features/community/api/browser-community'
 import CommunityMedia from './CommunityMedia'
 
@@ -20,17 +25,36 @@ function communityTime(value: string) {
 }
 
 export default function CommunityPostDetail({ postId }: { postId: string }) {
+  const router = useRouter()
+  const { confirm, showActionToast } = useFeedback()
   const [post, setPost] = useState<Post>()
+  const [version, setVersion] = useState<number | null>(null)
   const [topics, setTopics] = useState<CommunityTopic[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [content, setContent] = useState('')
+  const [selected, setSelected] = useState<CommunityTopicCode[]>([])
+  const [saving, setSaving] = useState(false)
+
+  const loadPost = useCallback(async () => {
+    const result = await getCommunityPost(postId)
+    setPost(result.post)
+    setVersion(result.version)
+    setContent(result.post.content)
+    setSelected(result.post.topics)
+    return result
+  }, [postId])
 
   useEffect(() => {
     let active = true
     void Promise.all([getCommunityPost(postId), getCommunityTopics()])
-      .then(([postValue, topicValues]) => {
+      .then(([result, topicValues]) => {
         if (!active) return
-        setPost(postValue)
+        setPost(result.post)
+        setVersion(result.version)
+        setContent(result.post.content)
+        setSelected(result.post.topics)
         setTopics(topicValues)
       })
       .catch((cause) => {
@@ -49,6 +73,104 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
     }
   }, [postId])
 
+  function toggleTopic(topic: CommunityTopicCode) {
+    setSelected((current) =>
+      current.includes(topic)
+        ? current.filter((value) => value !== topic)
+        : current.length < 3
+          ? [...current, topic]
+          : current,
+    )
+  }
+
+  async function save() {
+    if (!post || version === null) return
+    const normalized = content.trim()
+    if (
+      !normalized ||
+      [...normalized].length > 5000 ||
+      selected.length < 1 ||
+      selected.length > 3
+    ) {
+      setMessage('Hãy nhập nội dung và chọn từ một đến ba chủ đề.')
+      return
+    }
+    setSaving(true)
+    setMessage('')
+    try {
+      const result = await updateCommunityPost(
+        post.postId,
+        {
+          content: normalized,
+          topics: selected,
+          mediaIds: post.media.map((item) => item.mediaId),
+        },
+        version,
+      )
+      setPost(result.post)
+      setVersion(result.version)
+      setEditing(false)
+      showActionToast({ title: 'Đã lưu thay đổi', tone: 'success' })
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 412) {
+        try {
+          await loadPost()
+          setEditing(false)
+          setMessage(
+            'Bài viết vừa được thay đổi ở nơi khác. Nội dung mới nhất đã được tải lại.',
+          )
+        } catch {
+          setMessage('Bài viết này không còn khả dụng.')
+        }
+      } else if (cause instanceof ApiError && cause.status === 404) {
+        setPost(undefined)
+        setMessage('Bài viết này không còn khả dụng.')
+      } else {
+        setMessage('Thay đổi chưa thể lưu lúc này. Bạn có thể thử lại.')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function remove() {
+    if (!post || version === null) return
+    const accepted = await confirm({
+      title: 'Xóa bài viết này?',
+      description:
+        'Bài viết sẽ biến mất khỏi cộng đồng ngay lập tức. Thao tác này không thể hoàn tác.',
+      confirmLabel: 'Xóa bài viết',
+      tone: 'danger',
+    })
+    if (!accepted) return
+    setSaving(true)
+    setMessage('')
+    try {
+      await deleteCommunityPost(post.postId, version)
+      showActionToast({ title: 'Đã xóa bài viết', tone: 'success' })
+      router.push('/community')
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 412) {
+        try {
+          await loadPost()
+          setMessage(
+            'Bài viết vừa được thay đổi. Hãy xem lại nội dung mới nhất trước khi xóa.',
+          )
+        } catch {
+          setPost(undefined)
+          setMessage('Bài viết này không còn khả dụng.')
+        }
+      } else if (cause instanceof ApiError && cause.status === 404) {
+        setPost(undefined)
+        setMessage('Bài viết này không còn khả dụng.')
+      } else {
+        setMessage('Bài viết chưa thể xóa lúc này. Bạn có thể thử lại.')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <section
@@ -60,7 +182,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
       </section>
     )
   }
-  if (!post || message) {
+  if (!post) {
     return (
       <section className="community-state community-detail-state" role="alert">
         <h1>{message || 'Bài viết này không còn khả dụng.'}</h1>
@@ -74,6 +196,11 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
       <Link className="community-back" href="/community">
         ← Trở về bảng tin
       </Link>
+      {message && (
+        <p className="community-detail-message" role="alert">
+          {message}
+        </p>
+      )}
       <article className="community-detail">
         <header>
           <div
@@ -90,30 +217,96 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
               {communityTime(post.publishedAt)}
             </time>
           </div>
+          {version !== null && !editing && (
+            <div className="community-owner-actions">
+              <button type="button" onClick={() => setEditing(true)}>
+                Chỉnh sửa
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void remove()}
+              >
+                Xóa
+              </button>
+            </div>
+          )}
         </header>
-        <div className="community-card-topics">
-          {post.topics.map((topic) => (
-            <span key={topic}>
-              {topics.find((value) => value.code === topic)?.label ?? topic}
-            </span>
-          ))}
-        </div>
-        <p className="community-detail-copy">{post.content}</p>
-        <CommunityMedia media={post.media} />
-        {post.mediaAvailability === 'PARTIAL' && (
-          <p className="community-media-note">
-            Một số nội dung đa phương tiện đang được xử lý.
-          </p>
+        {editing ? (
+          <div className="community-edit-form">
+            <label htmlFor="community-edit-content">Nội dung</label>
+            <textarea
+              id="community-edit-content"
+              rows={8}
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+            />
+            <span>{[...content].length}/5000 ký tự</span>
+            <fieldset>
+              <legend>Chọn 1–3 chủ đề</legend>
+              <div className="community-topic-choices">
+                {topics.map((topic) => (
+                  <label key={topic.code}>
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(topic.code)}
+                      disabled={
+                        !selected.includes(topic.code) && selected.length >= 3
+                      }
+                      onChange={() => toggleTopic(topic.code)}
+                    />
+                    <span>{topic.label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <div className="community-form-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(false)
+                  setContent(post.content)
+                  setSelected(post.topics)
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void save()}
+              >
+                {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="community-card-topics">
+              {post.topics.map((topic) => (
+                <span key={topic}>
+                  {topics.find((value) => value.code === topic)?.label ?? topic}
+                </span>
+              ))}
+            </div>
+            <p className="community-detail-copy">{post.content}</p>
+            <CommunityMedia media={post.media} />
+            {post.mediaAvailability === 'PARTIAL' && (
+              <p className="community-media-note">
+                Một số nội dung đa phương tiện đang được xử lý.
+              </p>
+            )}
+            {post.mediaAvailability === 'UNAVAILABLE' && (
+              <p className="community-media-note">
+                Nội dung đa phương tiện hiện chưa khả dụng.
+              </p>
+            )}
+            <footer>
+              <span>♡ {post.counts.reactions} lượt đồng cảm</span>
+              <span>◇ {post.counts.comments} bình luận</span>
+            </footer>
+          </>
         )}
-        {post.mediaAvailability === 'UNAVAILABLE' && (
-          <p className="community-media-note">
-            Nội dung đa phương tiện hiện chưa khả dụng.
-          </p>
-        )}
-        <footer>
-          <span>♡ {post.counts.reactions} lượt đồng cảm</span>
-          <span>◇ {post.counts.comments} bình luận</span>
-        </footer>
       </article>
       <aside className="community-safety-note">
         <strong>Chia sẻ từ cộng đồng</strong>

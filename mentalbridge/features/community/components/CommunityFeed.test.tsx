@@ -8,10 +8,12 @@ const api = vi.hoisted(() => ({
   feed: vi.fn(),
   topics: vi.fn(),
 }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 vi.mock('@/features/community/api/browser-community', () => ({
   getCommunityFeed: api.feed,
   getCommunityTopics: api.topics,
+  createCommunityPost: vi.fn(),
 }))
 
 import CommunityFeed from './CommunityFeed'

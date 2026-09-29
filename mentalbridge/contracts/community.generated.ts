@@ -518,7 +518,10 @@ export interface components {
         IfMatchOptional: string;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Quoted optimistic-concurrency version for the owner resource. */
+        OwnerVersion: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -568,6 +571,7 @@ export interface operations {
             /** @description Created personal-story post. */
             201: {
                 headers: {
+                    ETag: components["headers"]["OwnerVersion"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -594,6 +598,8 @@ export interface operations {
             /** @description Active post visible to the authenticated USER. */
             200: {
                 headers: {
+                    /** @description Quoted owner-only optimistic-concurrency version. Omitted for non-owners. */
+                    ETag?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -651,6 +657,7 @@ export interface operations {
             /** @description Updated owner post. */
             200: {
                 headers: {
+                    ETag: components["headers"]["OwnerVersion"];
                     [name: string]: unknown;
                 };
                 content: {
