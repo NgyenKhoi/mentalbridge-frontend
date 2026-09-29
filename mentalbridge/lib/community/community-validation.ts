@@ -6,6 +6,7 @@ export type CommunityPostDetail = components['schemas']['CommunityPostDetail']
 export type CommunityTopic = components['schemas']['CommunityTopic']
 export type CommunityTopicCode = components['schemas']['CommunityTopicCode']
 export type CommunityProblem = components['schemas']['Problem']
+export type CommunityPostWrite = components['schemas']['CreatePostRequest']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -152,6 +153,41 @@ export function isCommunityPostId(value: string) {
 
 export function isCommunityTopic(value: string): value is CommunityTopicCode {
   return TOPICS.has(value as CommunityTopicCode)
+}
+
+export function parseCommunityPostWrite(
+  value: unknown,
+): CommunityPostWrite | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['content', 'topics', 'mediaIds']) ||
+    !text(input.content, 1, 5000) ||
+    (input.content as string).trim().length === 0 ||
+    !Array.isArray(input.topics) ||
+    input.topics.length < 1 ||
+    input.topics.length > 3 ||
+    !input.topics.every(
+      (topic) =>
+        typeof topic === 'string' && TOPICS.has(topic as CommunityTopicCode),
+    ) ||
+    new Set(input.topics).size !== input.topics.length ||
+    !Array.isArray(input.mediaIds) ||
+    input.mediaIds.length > 10 ||
+    !input.mediaIds.every((mediaId) =>
+      typeof mediaId === 'string' ? UUID.test(mediaId) : false,
+    ) ||
+    new Set(input.mediaIds).size !== input.mediaIds.length
+  ) {
+    return null
+  }
+  return input as CommunityPostWrite
+}
+
+export function parseOwnerVersion(value: string | null): number | null {
+  if (!value || !/^"(?:0|[1-9]\d*)"$/.test(value)) return null
+  const version = Number(value.slice(1, -1))
+  return Number.isSafeInteger(version) ? version : null
 }
 
 export function parseCommunityFeedPage(

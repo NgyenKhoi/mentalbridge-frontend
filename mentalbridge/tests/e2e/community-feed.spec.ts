@@ -50,4 +50,42 @@ test.describe('Community feed journey', () => {
       page.getByText(/không thay thế tư vấn chuyên môn/),
     ).toBeVisible()
   })
+
+  test('creates, edits and deletes an owned personal story', async ({
+    page,
+    request,
+  }) => {
+    const reset = await request.post(`${identityFixtureUrl}/__test/reset`)
+    expect(reset.status()).toBe(204)
+    await login(page)
+    await page.goto('/community')
+
+    await page.getByRole('button', { name: 'Viết bài' }).click()
+    await page
+      .getByLabel('Nội dung')
+      .fill('Một câu chuyện mới do mình chủ động chia sẻ.')
+    await page
+      .getByRole('group', { name: 'Chọn 1–3 chủ đề' })
+      .getByText('Câu chuyện của tôi')
+      .click()
+    await page.getByRole('button', { name: 'Đăng câu chuyện' }).click()
+
+    await expect(page).toHaveURL(/\/community\/[0-9a-f-]+$/)
+    await expect(
+      page.getByText('Một câu chuyện mới do mình chủ động chia sẻ.'),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
+    await page.getByLabel('Nội dung').fill('Câu chuyện đã được mình cập nhật.')
+    await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
+    await expect(
+      page.getByText('Câu chuyện đã được mình cập nhật.'),
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Xóa' }).click()
+    await page.getByRole('button', { name: 'Xóa bài viết' }).click()
+    await expect(page).toHaveURL(/\/community$/)
+    await expect(
+      page.getByText('Câu chuyện đã được mình cập nhật.'),
+    ).toHaveCount(0)
+  })
 })

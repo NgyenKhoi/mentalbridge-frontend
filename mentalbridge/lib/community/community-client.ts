@@ -5,11 +5,13 @@ import {
   parseCommunityFeedPage,
   parseCommunityPostDetail,
   parseCommunityProblem,
+  parseOwnerVersion,
   parseCommunityTopics,
   type CommunityFeedPage,
   type CommunityPostDetail,
   type CommunityProblem,
   type CommunityTopic,
+  type CommunityPostWrite,
 } from './community-validation'
 
 const MAX_RESPONSE_BYTES = 256 * 1024
@@ -105,7 +107,12 @@ async function request<T>(
   accessToken: string,
   correlationId: string,
   parse: (value: unknown) => T | null,
-): Promise<T> {
+  options: Readonly<{
+    method?: 'GET' | 'POST' | 'PATCH'
+    body?: CommunityPostWrite
+    headers?: Record<string, string>
+  }> = {},
+): Promise<Readonly<{ data: T; etag: string | null }>> {
   const config = readCommunityServerConfig()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
@@ -113,7 +120,7 @@ async function request<T>(
     const response = await fetch(
       new URL(path.replace(/^\//, ''), config.baseUrl),
       {
-        method: 'GET',
+        method: options.method ?? 'GET',
         cache: 'no-store',
         redirect: 'error',
         signal: controller.signal,
@@ -121,7 +128,10 @@ async function request<T>(
           Accept: 'application/json, application/problem+json',
           Authorization: `Bearer ${accessToken}`,
           'X-Correlation-Id': correlationId,
+          ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+          ...options.headers,
         },
+        ...(options.body ? { body: JSON.stringify(options.body) } : {}),
       },
     )
     const raw = await readJson(response)
@@ -144,7 +154,7 @@ async function request<T>(
         'Community returned an invalid response.',
       )
     }
-    return parsed
+    return { data: parsed, etag: response.headers.get('etag') }
   } catch (error) {
     if (error instanceof CommunityServiceError) throw error
     if (controller.signal.aborted) {
@@ -167,29 +177,171 @@ async function request<T>(
 }
 
 export const communityClient = {
-  feed(accessToken: string, query: URLSearchParams, correlationId: string) {
+  async feed(
+    accessToken: string,
+    query: URLSearchParams,
+    correlationId: string,
+  ) {
     const suffix = query.size > 0 ? `?${query.toString()}` : ''
-    return request<CommunityFeedPage>(
-      `/api/v1/community/feed${suffix}`,
-      accessToken,
-      correlationId,
-      parseCommunityFeedPage,
-    )
+    return (
+      await request<CommunityFeedPage>(
+        `/api/v1/community/feed${suffix}`,
+        accessToken,
+        correlationId,
+        parseCommunityFeedPage,
+      )
+    ).data
   },
-  detail(accessToken: string, postId: string, correlationId: string) {
-    return request<CommunityPostDetail>(
+  async detail(accessToken: string, postId: string, correlationId: string) {
+    const response = await request<CommunityPostDetail>(
       `/api/v1/community/posts/${encodeURIComponent(postId)}`,
       accessToken,
       correlationId,
       parseCommunityPostDetail,
     )
+    const version = parseOwnerVersion(response.etag)
+    if (response.etag !== null && version === null) {
+      throw localError(
+        502,
+        'COMMUNITY_MALFORMED_RESPONSE',
+        'Community returned an invalid owner version.',
+      )
+    }
+    return { post: response.data, version }
   },
-  topics(accessToken: string, correlationId: string) {
-    return request<CommunityTopic[]>(
-      '/api/v1/community/topics',
+  async topics(accessToken: string, correlationId: string) {
+    return (
+      await request<CommunityTopic[]>(
+        '/api/v1/community/topics',
+        accessToken,
+        correlationId,
+        parseCommunityTopics,
+      )
+    ).data
+  },
+  async create(
+    accessToken: string,
+    input: CommunityPostWrite,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    const response = await request<CommunityPostDetail>(
+      '/api/v1/community/posts',
       accessToken,
       correlationId,
-      parseCommunityTopics,
+      parseCommunityPostDetail,
+      {
+        method: 'POST',
+        body: input,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      },
+    )
+    const version = parseOwnerVersion(response.etag)
+    if (version === null) {
+      throw localError(
+        502,
+        'COMMUNITY_MALFORMED_RESPONSE',
+        'Community returned an invalid owner version.',
+      )
+    }
+    return { post: response.data, version }
+  },
+  async update(
+    accessToken: string,
+    postId: string,
+    input: CommunityPostWrite,
+    ifMatch: string,
+    correlationId: string,
+  ) {
+    const response = await request<CommunityPostDetail>(
+      `/api/v1/community/posts/${encodeURIComponent(postId)}`,
+      accessToken,
+      correlationId,
+      parseCommunityPostDetail,
+      {
+        method: 'PATCH',
+        body: input,
+        headers: { 'If-Match': ifMatch },
+      },
+    )
+    const version = parseOwnerVersion(response.etag)
+    if (version === null) {
+      throw localError(
+        502,
+        'COMMUNITY_MALFORMED_RESPONSE',
+        'Community returned an invalid owner version.',
+      )
+    }
+    return { post: response.data, version }
+  },
+  delete(
+    accessToken: string,
+    postId: string,
+    ifMatch: string,
+    correlationId: string,
+  ) {
+    return deleteRequest(
+      `/api/v1/community/posts/${encodeURIComponent(postId)}`,
+      accessToken,
+      correlationId,
+      ifMatch,
     )
   },
+}
+
+async function deleteRequest(
+  path: string,
+  accessToken: string,
+  correlationId: string,
+  ifMatch: string,
+) {
+  const config = readCommunityServerConfig()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetch(
+      new URL(path.replace(/^\//, ''), config.baseUrl),
+      {
+        method: 'DELETE',
+        cache: 'no-store',
+        redirect: 'error',
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json, application/problem+json',
+          Authorization: `Bearer ${accessToken}`,
+          'X-Correlation-Id': correlationId,
+          'If-Match': ifMatch,
+        },
+      },
+    )
+    if (response.status === 204) return
+    const raw = await readJson(response)
+    if (!response.ok) {
+      const problem = parseCommunityProblem(raw, response.status)
+      if (problem) throw new CommunityServiceError(problem)
+    }
+    throw localError(
+      502,
+      'COMMUNITY_MALFORMED_RESPONSE',
+      'Community returned an invalid response.',
+    )
+  } catch (error) {
+    if (error instanceof CommunityServiceError) throw error
+    if (controller.signal.aborted) {
+      throw localError(
+        504,
+        'COMMUNITY_TIMEOUT',
+        'Community request timed out.',
+        error,
+      )
+    }
+    throw localError(
+      503,
+      'COMMUNITY_UNAVAILABLE',
+      'Community is unavailable.',
+      error,
+    )
+  } finally {
+    clearTimeout(timeout)
+  }
 }
