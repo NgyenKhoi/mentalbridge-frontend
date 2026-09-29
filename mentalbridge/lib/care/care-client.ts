@@ -88,6 +88,17 @@ import {
   parseSupportPlanOccurrenceList,
   parseSupportPlanReplacementReview,
 } from './support-plan-validation'
+import type {
+  ConsultationBrief,
+  ConsultationBriefDraftRequest,
+  SpecialistConsultationBrief,
+  ConsultationBriefScreeningContextList,
+} from '@/features/appointments/api/consultation-brief-contract'
+import {
+  parseConsultationBrief,
+  parseSpecialistConsultationBrief,
+  parseConsultationBriefScreeningContexts,
+} from './consultation-brief-validation'
 
 type RequestOptions<T> = Readonly<{
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -220,6 +231,98 @@ async function careRequest<T>(options: RequestOptions<T>): Promise<T> {
 }
 
 export const careClient = {
+  consultationBriefScreeningContexts(
+    authorization: string,
+    correlationId: string,
+  ): Promise<ConsultationBriefScreeningContextList> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/consultation-briefs/screening-contexts',
+      authorization,
+      correlationId,
+      parseSuccess: parseConsultationBriefScreeningContexts,
+    })
+  },
+
+  consultationBrief(
+    authorization: string,
+    appointmentId: string,
+    correlationId: string,
+  ): Promise<ConsultationBrief> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/consultation-briefs/${encodeURIComponent(appointmentId)}`,
+      authorization,
+      correlationId,
+      parseSuccess: parseConsultationBrief,
+    })
+  },
+
+  saveConsultationBriefDraft(
+    authorization: string,
+    appointmentId: string,
+    request: ConsultationBriefDraftRequest,
+    version: number | undefined,
+    correlationId: string,
+  ): Promise<ConsultationBrief> {
+    return careRequest({
+      method: 'PUT',
+      path: `/api/v1/consultation-briefs/${encodeURIComponent(appointmentId)}/draft`,
+      authorization,
+      correlationId,
+      ifMatch: version,
+      body: request,
+      parseSuccess: parseConsultationBrief,
+    })
+  },
+
+  consultationBriefAction(
+    authorization: string,
+    appointmentId: string,
+    action: 'approve' | 'revoke',
+    version: number,
+    correlationId: string,
+  ): Promise<ConsultationBrief> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/consultation-briefs/${encodeURIComponent(appointmentId)}/${action}`,
+      authorization,
+      correlationId,
+      ifMatch: version,
+      parseSuccess: parseConsultationBrief,
+    })
+  },
+
+  deleteConsultationBrief(
+    authorization: string,
+    appointmentId: string,
+    version: number,
+    correlationId: string,
+  ): Promise<void> {
+    return careRequest({
+      method: 'DELETE',
+      path: `/api/v1/consultation-briefs/${encodeURIComponent(appointmentId)}`,
+      authorization,
+      correlationId,
+      ifMatch: version,
+      parseSuccess: () => undefined,
+    })
+  },
+
+  specialistConsultationBrief(
+    authorization: string,
+    appointmentId: string,
+    correlationId: string,
+  ): Promise<SpecialistConsultationBrief> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/specialist/consultation-briefs/${encodeURIComponent(appointmentId)}`,
+      authorization,
+      correlationId,
+      parseSuccess: parseSpecialistConsultationBrief,
+    })
+  },
+
   lookupSafetyDirectory(
     request: {
       trigger: 'POSITIVE_ITEM_9' | 'HELP_NOW'

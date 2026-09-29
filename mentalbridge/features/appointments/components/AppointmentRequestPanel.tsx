@@ -8,6 +8,7 @@ import type {
   BookableSlot,
 } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
+import { ConsultationBriefEditor } from './ConsultationBriefEditor'
 import styles from './AppointmentRequestPanel.module.css'
 
 function format(value: string, timezone: string) {
@@ -455,6 +456,9 @@ export default function AppointmentRequestPanel() {
                       {submitting === item.id ? 'Đang hủy…' : 'Hủy lịch'}
                     </button>
                   </div>
+                )}
+                {item.status === 'CONFIRMED' && (
+                  <ConsultationBriefEditor appointmentId={item.id} />
                 )}
               </article>
             ))}

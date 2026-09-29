@@ -7,6 +7,7 @@ import { ApiError } from '@/lib/api/api-error'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
 import styles from './SpecialistAppointmentDecisionPanel.module.css'
+import { SpecialistConsultationBrief } from './SpecialistConsultationBrief'
 
 type Decision = 'accept' | 'reject'
 
@@ -294,6 +295,9 @@ export default function SpecialistAppointmentDecisionPanel() {
                       Từ chối
                     </button>
                   </div>
+                )}
+                {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) && (
+                  <SpecialistConsultationBrief appointmentId={appointment.id} />
                 )}
               </li>
             )

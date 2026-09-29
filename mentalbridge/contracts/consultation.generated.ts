@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/appointments/{appointmentId}/consultation-brief-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns only appointment authority and timing facts required by Care to enforce appointment-scoped ConsultationBrief access. The authenticated actor must own the appointment or be its assigned specialist. */
+        get: operations["getConsultationBriefAppointmentContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile": {
         parameters: {
             query?: never;
@@ -632,6 +649,22 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        ConsultationBriefAppointmentContext: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            /** @enum {string} */
+            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            /** Format: date-time */
+            scheduledStartAt: string;
+            /** Format: date-time */
+            scheduledEndAt: string;
+            /** Format: int64 */
+            version: number;
+        };
         AppointmentList: {
             items: components["schemas"]["Appointment"][];
             count: number;
@@ -920,6 +953,31 @@ export interface operations {
             };
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
+        };
+    };
+    getConsultationBriefAppointmentContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimal authoritative appointment context */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefAppointmentContext"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     getOwnSpecialistProfile: {
