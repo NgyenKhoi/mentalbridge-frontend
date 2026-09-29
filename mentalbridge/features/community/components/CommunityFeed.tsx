@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 import {
@@ -49,14 +49,17 @@ export default function CommunityFeed() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
+  const feedGeneration = useRef(0)
 
   const load = useCallback(
     async (cursor?: string, append = false) => {
+      const requestGeneration = feedGeneration.current
       if (append) setLoadingMore(true)
       else setLoading(true)
       setError('')
       try {
         const page = await getCommunityFeed(selectedTopic, cursor)
+        if (requestGeneration !== feedGeneration.current) return
         setItems((current) => {
           if (!append) return page.items
           const known = new Set(current.map((item) => item.postId))
@@ -67,10 +70,14 @@ export default function CommunityFeed() {
         })
         setNextCursor(page.nextCursor)
       } catch {
-        setError('Bảng tin cộng đồng tạm thời chưa tải được.')
+        if (requestGeneration === feedGeneration.current) {
+          setError('Bảng tin cộng đồng tạm thời chưa tải được.')
+        }
       } finally {
-        setLoading(false)
-        setLoadingMore(false)
+        if (requestGeneration === feedGeneration.current) {
+          setLoading(false)
+          setLoadingMore(false)
+        }
       }
     },
     [selectedTopic],
@@ -92,17 +99,22 @@ export default function CommunityFeed() {
 
   useEffect(() => {
     let active = true
+    const requestGeneration = feedGeneration.current
     void getCommunityFeed(selectedTopic)
       .then((page) => {
-        if (!active) return
+        if (!active || requestGeneration !== feedGeneration.current) return
         setItems(page.items)
         setNextCursor(page.nextCursor)
       })
       .catch(() => {
-        if (active) setError('Bảng tin cộng đồng tạm thời chưa tải được.')
+        if (active && requestGeneration === feedGeneration.current) {
+          setError('Bảng tin cộng đồng tạm thời chưa tải được.')
+        }
       })
       .finally(() => {
-        if (active) setLoading(false)
+        if (active && requestGeneration === feedGeneration.current) {
+          setLoading(false)
+        }
       })
     return () => {
       active = false
@@ -111,7 +123,9 @@ export default function CommunityFeed() {
 
   function selectTopic(topic?: CommunityTopicCode) {
     if (topic === selectedTopic) return
+    feedGeneration.current += 1
     setLoading(true)
+    setLoadingMore(false)
     setError('')
     setSelectedTopic(topic)
   }

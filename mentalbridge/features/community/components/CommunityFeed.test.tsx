@@ -1,6 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { CommunityFeedPage } from '@/lib/community/community-validation'
 
 const api = vi.hoisted(() => ({
   feed: vi.fn(),
@@ -18,7 +20,7 @@ const topics = [
   { code: 'MY_STORY', label: 'Câu chuyện của tôi', description: 'Mô tả' },
   { code: 'SMALL_MILESTONE', label: 'Bước tiến nhỏ', description: 'Mô tả' },
 ]
-const post = {
+const post: CommunityFeedPage['items'][number] = {
   postId: '20000000-0000-4000-8000-000000000009',
   author: {
     communityProfileId: '10000000-0000-4000-8000-000000000002',
@@ -32,6 +34,14 @@ const post = {
   counts: { comments: 2, reactions: 3 },
   publishedAt: '2026-09-29T05:00:00Z',
   updatedAt: '2026-09-29T05:00:00Z',
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
 }
 
 describe('CommunityFeed', () => {
@@ -100,6 +110,64 @@ describe('CommunityFeed', () => {
     expect(await screen.findByText('Một bước tiến nhỏ.')).toBeVisible()
     expect(screen.getAllByText(post.contentPreview)).toHaveLength(1)
     expect(api.feed).toHaveBeenNthCalledWith(2, undefined, 'next-page')
+  })
+
+  it('discards an old pagination response after the topic changes', async () => {
+    const user = userEvent.setup()
+    const oldPage = deferred<CommunityFeedPage>()
+    const topicPost: CommunityFeedPage['items'][number] = {
+      ...post,
+      postId: '20000000-0000-4000-8000-000000000007',
+      contentPreview: 'Câu chuyện thuộc chủ đề mới.',
+      topics: ['SMALL_MILESTONE'],
+    }
+    api.feed
+      .mockResolvedValueOnce({
+        items: [post],
+        nextCursor: 'all-next',
+        hasMore: true,
+      })
+      .mockReturnValueOnce(oldPage.promise)
+      .mockResolvedValueOnce({
+        items: [topicPost],
+        nextCursor: 'topic-next',
+        hasMore: true,
+      })
+      .mockResolvedValueOnce({
+        items: [topicPost],
+        nextCursor: null,
+        hasMore: false,
+      })
+    render(<CommunityFeed />)
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Xem thêm câu chuyện' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Bước tiến nhỏ' }))
+    expect(await screen.findByText(topicPost.contentPreview)).toBeVisible()
+
+    await act(async () => {
+      oldPage.resolve({
+        items: [
+          {
+            ...post,
+            postId: '20000000-0000-4000-8000-000000000006',
+            contentPreview: 'Trang cũ không được trộn vào chủ đề mới.',
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+      })
+      await oldPage.promise
+    })
+
+    expect(
+      screen.queryByText('Trang cũ không được trộn vào chủ đề mới.'),
+    ).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Xem thêm câu chuyện' }),
+    )
+    expect(api.feed).toHaveBeenNthCalledWith(4, 'SMALL_MILESTONE', 'topic-next')
   })
 
   it('renders recoverable failure and explicit empty states', async () => {

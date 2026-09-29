@@ -45,6 +45,50 @@ describe('Community response validation', () => {
     ).not.toBeNull()
   })
 
+  it('measures user text limits by Unicode code point', () => {
+    const emoji = '🙂'
+    expect(
+      parseCommunityFeedPage({
+        items: [
+          {
+            ...post,
+            author: { ...post.author, displayName: emoji.repeat(80) },
+            contentPreview: emoji.repeat(421),
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityPostDetail({ ...post, content: emoji.repeat(5000) }),
+    ).not.toBeNull()
+
+    expect(
+      parseCommunityFeedPage({
+        items: [
+          {
+            ...post,
+            author: { ...post.author, displayName: emoji.repeat(81) },
+            contentPreview: emoji.repeat(421),
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityFeedPage({
+        items: [{ ...post, contentPreview: emoji.repeat(422) }],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityPostDetail({ ...post, content: emoji.repeat(5001) }),
+    ).toBeNull()
+  })
+
   it('rejects unsafe media URLs and inconsistent cursor state', () => {
     expect(
       parseCommunityPostDetail({

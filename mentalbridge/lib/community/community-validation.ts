@@ -45,6 +45,12 @@ function nullablePositiveInteger(value: unknown) {
   return value === null || (Number.isSafeInteger(value) && Number(value) > 0)
 }
 
+function text(value: unknown, minimum: number, maximum: number) {
+  if (typeof value !== 'string') return false
+  const length = [...value].length
+  return length >= minimum && length <= maximum
+}
+
 function httpsUrl(value: unknown): value is string {
   if (typeof value !== 'string' || value.length > 2048) return false
   try {
@@ -62,9 +68,7 @@ function parseAuthor(value: unknown) {
     exactKeys(author, ['communityProfileId', 'displayName', 'state']) &&
     typeof author.communityProfileId === 'string' &&
     UUID.test(author.communityProfileId) &&
-    typeof author.displayName === 'string' &&
-    author.displayName.length >= 1 &&
-    author.displayName.length <= 80 &&
+    text(author.displayName, 1, 80) &&
     (author.state === 'ACTIVE' || author.state === 'DELETED'),
   )
 }
@@ -100,8 +104,7 @@ function parseMedia(value: unknown) {
     nullablePositiveInteger(media.width) &&
     nullablePositiveInteger(media.height) &&
     nullablePositiveInteger(media.durationSeconds) &&
-    (media.altText === null ||
-      (typeof media.altText === 'string' && media.altText.length <= 300)),
+    (media.altText === null || text(media.altText, 0, 300)),
   )
 }
 
@@ -124,9 +127,7 @@ function parsePost(value: unknown, detail: boolean) {
     typeof post.postId === 'string' &&
     UUID.test(post.postId) &&
     parseAuthor(post.author) &&
-    typeof content === 'string' &&
-    content.length >= 1 &&
-    content.length <= (detail ? 5000 : 421) &&
+    text(content, 1, detail ? 5000 : 421) &&
     Array.isArray(post.topics) &&
     post.topics.length >= 1 &&
     post.topics.every(
@@ -189,12 +190,8 @@ export function parseCommunityTopics(value: unknown): CommunityTopic[] | null {
         exactKeys(topic, ['code', 'label', 'description']) &&
         typeof topic.code === 'string' &&
         TOPICS.has(topic.code as CommunityTopicCode) &&
-        typeof topic.label === 'string' &&
-        topic.label.length >= 1 &&
-        topic.label.length <= 80 &&
-        typeof topic.description === 'string' &&
-        topic.description.length >= 1 &&
-        topic.description.length <= 240,
+        text(topic.label, 1, 80) &&
+        text(topic.description, 1, 240),
       )
     }) ||
     new Set(value.map((entry) => (entry as { code: string }).code)).size !== 6
