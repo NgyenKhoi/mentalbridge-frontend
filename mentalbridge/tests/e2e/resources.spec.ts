@@ -46,6 +46,146 @@ test.describe('Resources journey', () => {
     })
   }
 
+  test('supports the daily challenge and interactive video detail journey', async ({
+    context,
+    page,
+  }) => {
+    const consoleErrors: string[] = []
+    page.on('console', (message) => {
+      const sourceUrl = message.location().url
+      const expectedFixtureMiss = sourceUrl.endsWith('/api/care/profile')
+      if (message.type() === 'error' && !expectedFixtureMiss)
+        consoleErrors.push(`${sourceUrl}: ${message.text()}`)
+    })
+    await context.addCookies([
+      {
+        name: 'mentalbridge_access',
+        value: 'synthetic-resource-e2e-access',
+        domain: '127.0.0.1',
+        path: '/',
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ])
+    const resourceId = '00000000-0000-4000-8000-000000000213'
+    const catalogue = [
+      {
+        id: resourceId,
+        category: 'VIDEO',
+        locale: 'vi-VN',
+        title: 'Video thở chánh niệm ngắn',
+        summary: 'Một video thực hành đã được rà soát.',
+        externalUrl: 'https://www.youtube.com/watch?v=wfDTp2GogaQ',
+        sourceOrganization: 'NHS Every Mind Matters',
+        status: 'PUBLISHED',
+        createdAt: '2026-09-23T00:00:00.000Z',
+      },
+    ]
+    await context.route('**/api/resources**', async (route) => {
+      const requestUrl = new URL(route.request().url())
+      if (requestUrl.pathname === '/api/resources/progress') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ items: [] }),
+        })
+        return
+      }
+      if (requestUrl.pathname.startsWith('/api/resources/progress/')) {
+        const parts = requestUrl.pathname.split('/')
+        const body = route.request().postDataJSON() as {
+          status: 'IN_PROGRESS' | 'COMPLETED'
+          completedActionIds: string[]
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            resourceId,
+            localDate: parts.at(-1),
+            contentVersion: '4',
+            ...body,
+            completedAt:
+              body.status === 'COMPLETED' ? '2026-09-29T02:00:00.000Z' : null,
+            updatedAt: '2026-09-29T02:00:00.000Z',
+            version: '1',
+          }),
+        })
+        return
+      }
+      if (requestUrl.pathname === `/api/resources/${resourceId}`) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ...catalogue[0],
+            contentVersion: '4',
+            contentBody: 'Dừng lại và quan sát nhịp thở hiện tại.',
+            sourceTitle: 'Mindful Breathing Exercise',
+            sourceUrl: 'https://www.nhs.uk/mental-health/',
+            sourceReviewNote: 'Đã xác minh nguồn và nội dung.',
+            effectiveAt: '2026-09-23T00:00:00.000Z',
+            expiresAt: null,
+          }),
+        })
+        return
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: catalogue, hasMore: false }),
+      })
+    })
+
+    await page.goto('/resources')
+    await expect(
+      page.getByRole('heading', { name: /một chút bình yên/i }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: /bingo tuần này/i }),
+    ).toBeVisible()
+    await page.getByRole('link', { name: /khám phá/i }).click()
+
+    await expect(
+      page.getByRole('heading', { name: catalogue[0].title }),
+    ).toBeVisible()
+    const video = page.getByTitle(catalogue[0].title)
+    const transcript = page.getByRole('complementary', {
+      name: 'Nội dung video',
+    })
+    await expect(video).toBeVisible()
+    await expect(transcript).toBeVisible()
+    await expect(page.getByText(/phụ đề tiếng Việt:/i)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /tắt phụ đề/i })).toHaveCount(
+      0,
+    )
+    const videoBox = await video.boundingBox()
+    const transcriptBox = await transcript.boundingBox()
+    expect(videoBox).not.toBeNull()
+    expect(transcriptBox).not.toBeNull()
+    expect(transcriptBox!.y).toBeGreaterThan(videoBox!.y + videoBox!.height)
+    expect(Math.abs(transcriptBox!.width - videoBox!.width)).toBeLessThan(4)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    const mobileVideoBox = await video.boundingBox()
+    const mobileTranscriptBox = await transcript.boundingBox()
+    expect(mobileVideoBox).not.toBeNull()
+    expect(mobileTranscriptBox).not.toBeNull()
+    expect(mobileTranscriptBox!.y).toBeGreaterThan(
+      mobileVideoBox!.y + mobileVideoBox!.height,
+    )
+    expect(
+      Math.abs(mobileTranscriptBox!.width - mobileVideoBox!.width),
+    ).toBeLessThan(4)
+
+    await page.getByRole('button', { name: /đánh dấu đã xem xong/i }).click()
+    await page.getByLabel(/dừng lại hoặc giảm cường độ/i).check()
+    await page.getByLabel(/một bước nhỏ, an toàn/i).check()
+    await page.getByRole('button', { name: 'Hoàn tất' }).click()
+    await expect(page.getByText(/một bước nhỏ đã hoàn thành/i)).toBeVisible()
+    expect(consoleErrors).toEqual([])
+  })
+
   test('loads reviewed published resources through the real BFF for an anonymous result', async ({
     page,
   }) => {
@@ -66,10 +206,9 @@ test.describe('Resources journey', () => {
     const link = page.getByRole('link', { name: /published resource/i })
     await expect(link).toHaveAttribute(
       'href',
-      'https://example.com/reviewed-resource',
+      '/resources/30000000-0000-4000-8000-000000000001',
     )
-    await expect(link).toHaveAttribute('target', '_blank')
-    await expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    await expect(link).not.toHaveAttribute('target', '_blank')
     await link.focus()
     await expect(link).toBeFocused()
   })

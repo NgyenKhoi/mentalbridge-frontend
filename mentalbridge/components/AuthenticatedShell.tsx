@@ -8,6 +8,7 @@ import { getCareProfile } from '@/features/assessment/api/browser-care'
 import SessionActions from '@/features/auth/components/SessionActions'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
+import ResourceNavBadge from '@/features/resources/components/ResourceNavBadge'
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
   <svg
@@ -243,6 +244,7 @@ export default function AuthenticatedShell({
                   <i>{item[2]}</i>
                   <span>{item[1]}</span>
                   {item[3] && <b>{item[3]}</b>}
+                  {item[0] === '/resources' && <ResourceNavBadge />}
                 </Link>
               ))}
             </section>
