@@ -417,6 +417,7 @@ export function parseSpecialistDiscoveryItem(
     Number(item.yearsOfExperience) > 80 ||
     !ianaTimezone(item.timezone) ||
     !Array.isArray(item.selectableSlots) ||
+    item.selectableSlots.length < 1 ||
     item.selectableSlots.length > 20
   )
     return null

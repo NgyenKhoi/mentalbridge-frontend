@@ -16,7 +16,8 @@ approval or reconstructs a slot.
 ## Privacy and product boundaries
 
 The strict response parser reconstructs only the approved public discovery
-shape. Unknown upstream properties are discarded before they reach the UI.
+shape and rejects any discovery item with zero selectable slots. Unknown
+upstream properties are discarded before they reach the UI.
 Tests include synthetic prohibited properties for phone, price, credentials,
 practice location, external meeting URL, assessment answers, Journal content,
 and chat content and prove they are absent from the parsed result.
@@ -34,7 +35,7 @@ clinical matching claim.
 | Real list, filter, detail, explanation, and slots | Consultation browser client, bounded BFF routes, `SpecialistDiscovery`, and component tests                                                           |
 | Free versus paid boundary                         | FREE renders browse and upgrade information without booking; PLUS test submits through MB-378                                                         |
 | Exact slot handoff                                | Component test asserts the unchanged slot UUID and `IN_APP_CHAT` modality passed to `appointmentBrowserClient.request`                                |
-| Fail-closed payload                               | Strict parser rejects malformed duration, entitlement drift, and video slots while video is disabled                                                  |
+| Fail-closed payload                               | Strict parser rejects zero-slot items, malformed duration, entitlement drift, and video slots while video is disabled                                |
 | No prohibited content                             | Parser minimization regression and UI assertions use non-sensitive synthetic fields                                                                   |
 | Browser journey                                   | Playwright security/degradation journey intercepts synthetic discovery responses and checks browse-only UI against the production standalone frontend |
 
@@ -55,3 +56,21 @@ clinical matching claim.
 Cross-owner Story verification is recorded in the backend parent evidence. The
 browser run is fixture evidence only; this document does not claim deployed or
 live-service evidence.
+
+## Zero-slot invariant verification on 2026-09-29
+
+The Consultation snapshot now declares `selectableSlots.minItems: 1`, and the
+consumer parser independently rejects a zero-slot item. The existing defensive
+empty-slot rendering remains harmless but is not treated as a normal API state.
+The stale MB-378 error test continues to prove that the selected slot stays
+selected for explicit retry and no replacement slot is submitted.
+
+| Command | Result |
+| --- | --- |
+| `npm.cmd test -- --run lib/consultation/consultation-validation.test.ts features/specialist-discovery/components/SpecialistDiscovery.test.tsx app/api/consultation/specialists/discovery-routes.test.ts` | Pass; 3 files / 19 tests |
+| `npm.cmd test -- --run` | Pass; 114 files / 541 tests |
+| `npm.cmd run lint` | Pass; zero warnings |
+| `npm.cmd run typecheck` | Pass |
+| `$env:CONSULTATION_OPENAPI_SOURCE='..\..\mentalbridge-backend\contracts\openapi\consultation-service-v1.yaml'; node scripts/consultation-contract.mjs --check` | Pass; backend source, frontend snapshot, and generated types agree |
+| `npm.cmd run format:check` | Pass |
+| `git diff --check` | Pass; no whitespace errors |

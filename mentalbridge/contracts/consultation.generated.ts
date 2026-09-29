@@ -167,7 +167,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Rechecks current approval and slot selectability and returns one approved public profile. A suspended, rejected, pending, or missing profile is indistinguishable as SPECIALIST_NOT_DISCOVERABLE. */
+        /** @description Rechecks current approval and slot selectability and returns one approved public profile only when at least one selectable slot remains. A profile that is suspended, rejected, pending, missing, or has no selectable slot is indistinguishable as SPECIALIST_NOT_DISCOVERABLE. */
         get: operations["getApprovedSpecialistDetail"];
         put?: never;
         post?: never;

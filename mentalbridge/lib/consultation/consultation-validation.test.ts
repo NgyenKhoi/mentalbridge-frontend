@@ -437,6 +437,20 @@ describe('Consultation contract validation', () => {
     expect(
       parseSpecialistDiscoveryItem({
         ...discoveryItem,
+        selectableSlots: [],
+        explanation: {
+          ...discoveryItem.explanation,
+          hasSelectableSlot: false,
+          earliestSelectableStartAt: null,
+          codes: discoveryItem.explanation.codes.map((code) =>
+            code === 'SELECTABLE_SLOT_AVAILABLE' ? 'NO_SELECTABLE_SLOT' : code,
+          ),
+        },
+      }),
+    ).toBeNull()
+    expect(
+      parseSpecialistDiscoveryItem({
+        ...discoveryItem,
         selectableSlots: [
           {
             ...discoveryItem.selectableSlots[0],
