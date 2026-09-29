@@ -145,6 +145,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/resource-journeys/{localDate}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Materialize and return a stable plan-aligned daily resource journey
+         * @description The trusted BFF supplies the authenticated owner's current ACTIVE support-plan snapshot. Repeating this request for the same owner, date and plan version returns the same persisted assignment and weekly bingo board.
+         */
+        put: operations["materializeResourceJourney"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/resources/{id}/publish": {
         parameters: {
             query?: never;
@@ -673,10 +693,76 @@ export interface components {
             /** @description Current user-managed checklist selections. These selections remain editable after COMPLETED without reversing the recorded completion. */
             completedActionIds: string[];
         };
+        /** @enum {string} */
+        ResourceKind: "LEARNING" | "PRACTICE" | "HABIT" | "ACTION" | "REFLECTION";
+        /** @enum {string} */
+        ResourceInteractionType: "STRUCTURED_READER" | "VIDEO_TRANSCRIPT" | "BREATHING_PACER" | "GROUNDING_GUIDE" | "PROGRESSIVE_RELAXATION" | "WALK_TIMER" | "STRETCH_SEQUENCE" | "PROBLEM_SOLVING_WORKSHEET" | "BEHAVIORAL_ACTIVATION_PLANNER" | "SELF_COMPASSION_PROMPTS" | "UNHOOKING_PROMPTS" | "PREPARE_FOR_SPECIALIST_CHECKLIST" | "REFLECTION";
+        /** @enum {string} */
+        ResourceRepeatability: "ONE_TIME" | "REPEATABLE";
+        /** @enum {string} */
+        ResourceCompletionMode: "EXPLICIT" | "STEPS" | "TIMED" | "VIDEO_CONFIRMATION";
+        ResourceJourneyRequest: {
+            /** @example Asia/Ho_Chi_Minh */
+            timeZone: string;
+            supportPlan: {
+                /** Format: uuid */
+                supportPlanId: string;
+                version: number;
+                /** @enum {string} */
+                status: "ACTIVE";
+                /** Format: date-time */
+                activatedAt: string;
+                domains: ("DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS")[];
+                selectedResourceIds: string[];
+            };
+        };
+        ResourceJourneyAssignmentItem: {
+            position: number;
+            resource: components["schemas"]["ResourceSummary"];
+            /** @enum {string} */
+            reason: "PLAN_SELECTED" | "PLAN_DOMAIN" | "CONTINUITY" | "BALANCE";
+        };
+        ResourceJourneyProgress: {
+            dailyCompleted: number;
+            dailyTotal: number;
+            learningCompleted: number;
+            learningTotal: number;
+            practiceStreakDays: number;
+        };
+        ResourceJourneyBingoItem: {
+            position: number;
+            /** Format: uuid */
+            resourceId: string;
+            label: string;
+            stamped: boolean;
+        };
+        ResourceJourney: {
+            /** Format: uuid */
+            assignmentId: string;
+            /** Format: date */
+            localDate: string;
+            /** Format: uuid */
+            planId: string;
+            planVersion: number;
+            items: components["schemas"]["ResourceJourneyAssignmentItem"][];
+            progress: components["schemas"]["ResourceJourneyProgress"];
+            /** Format: date */
+            weekStart: string;
+            bingo: components["schemas"]["ResourceJourneyBingoItem"][];
+        };
         ResourceSummary: {
             /** Format: uuid */
             id: string;
             category: components["schemas"]["ResourceCategory"];
+            resourceKind: components["schemas"]["ResourceKind"];
+            interactionType: components["schemas"]["ResourceInteractionType"];
+            repeatability: components["schemas"]["ResourceRepeatability"];
+            completionMode: components["schemas"]["ResourceCompletionMode"];
+            streakEligible: boolean;
+            expectedDurationMinutes: number;
+            cooldownDays: number;
+            recommendedFrequencyPerWeek: number;
+            planTags: string[];
             locale: string;
             title: string;
             summary: string;
@@ -699,6 +785,19 @@ export interface components {
             /** Format: uri */
             sourceUrl?: string | null;
             sourceReviewNote?: string | null;
+            structuredContent: {
+                [key: string]: unknown;
+            };
+            interactionConfig: {
+                [key: string]: unknown;
+            };
+            safetyNotes: string[];
+            /** Format: date-time */
+            sourceRetrievedAt: string | null;
+            sourceContentHash: string | null;
+            contentVersionLabel: string;
+            /** @enum {string} */
+            sourceReviewStatus: "REVIEWED" | "REVIEW_REQUIRED" | "NEEDS_SOURCE_REVIEW";
             /** Format: date-time */
             effectiveAt: string | null;
             /** Format: date-time */
@@ -1407,6 +1506,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResourceProgressItem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    materializeResourceJourney: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                localDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceJourneyRequest"];
+            };
+        };
+        responses: {
+            /** @description Stable daily assignment, progress dimensions and weekly bingo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceJourney"];
                 };
             };
             401: components["responses"]["Unauthorized"];

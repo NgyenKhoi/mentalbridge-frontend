@@ -13,9 +13,11 @@ import {
   type PublicResourceSummary,
 } from '../api/browser-resources'
 import {
-  completedDailyCount,
-  currentStreak,
-  dailyResources,
+  getResourceJourney,
+  ResourceJourneyBrowserError,
+  type ResourceJourney,
+} from '../api/browser-resource-journey'
+import {
   difficultyLabels,
   formatLabels,
   localDate,
@@ -97,9 +99,10 @@ export default function ResourcesExperience() {
   const [format, setFormat] = useState<ViewState['format']>(initial.format)
   const [resources, setResources] = useState<PublicResourceSummary[]>([])
   const [progress, setProgress] = useState<ResourceProgressItem[]>([])
-  const [state, setState] = useState<'loading' | 'ready' | 'empty' | 'error'>(
-    'loading',
-  )
+  const [journeys, setJourneys] = useState<Record<string, ResourceJourney>>({})
+  const [state, setState] = useState<
+    'loading' | 'ready' | 'empty' | 'plan-required' | 'error'
+  >('loading')
   const [pendingId, setPendingId] = useState('')
   const [message, setMessage] = useState('')
   const [reward, setReward] = useState<Reward>(null)
@@ -108,23 +111,45 @@ export default function ResourcesExperience() {
 
   useEffect(() => {
     const controller = new AbortController()
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
     Promise.all([
       getResourceCatalogue(controller.signal),
       getResourceProgress(shiftDate(today, -14), today),
+      Promise.all(
+        dates.map((date) =>
+          getResourceJourney(date, timeZone, controller.signal),
+        ),
+      ),
     ])
-      .then(([catalogue, history]) => {
+      .then(([catalogue, history, dailyJourneys]) => {
         if (catalogue.unavailable) throw new Error('unavailable')
         setResources(catalogue.items)
         setProgress([...history])
-        setState(catalogue.items.length === 0 ? 'empty' : 'ready')
+        setJourneys(
+          Object.fromEntries(
+            dailyJourneys.map((journey) => [journey.localDate, journey]),
+          ),
+        )
+        setState(
+          dailyJourneys.every((journey) => journey.items.length === 0)
+            ? 'empty'
+            : 'ready',
+        )
         window.requestAnimationFrame(() => window.scrollTo(0, initial.scrollY))
       })
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === 'AbortError') return
+        if (
+          error instanceof ResourceJourneyBrowserError &&
+          error.status === 409
+        ) {
+          setState('plan-required')
+          return
+        }
         setState('error')
       })
     return () => controller.abort()
-  }, [initial.scrollY, today])
+  }, [dates, initial.scrollY, today])
 
   useEffect(() => {
     const save = () =>
@@ -143,15 +168,15 @@ export default function ResourcesExperience() {
     }
   }, [difficulty, format, selectedDate])
 
+  const selectedJourney = journeys[selectedDate]
   const selected = useMemo(
-    () => dailyResources(resources, selectedDate),
-    [resources, selectedDate],
+    () => selectedJourney?.items.map((item) => item.resource) ?? [],
+    [selectedJourney],
   )
-  const selectedCompleted = completedDailyCount(
-    resources,
-    progress,
-    selectedDate,
-  )
+  const selectedCompleted = selected.filter(
+    (resource) =>
+      progressFor(progress, resource.id, selectedDate)?.status === 'COMPLETED',
+  ).length
   const nextResource = selected.find(
     (resource) =>
       progressFor(progress, resource.id, selectedDate)?.status !== 'COMPLETED',
@@ -163,7 +188,7 @@ export default function ResourcesExperience() {
       (format === 'ALL' || meta.format === format)
     )
   })
-  const streak = currentStreak(resources, progress, today)
+  const streak = journeys[today]?.progress.practiceStreakDays ?? 0
   const completedRecent = progress
     .filter((entry) => entry.status === 'COMPLETED')
     .sort((left, right) =>
@@ -200,13 +225,21 @@ export default function ResourcesExperience() {
         saved,
       ]
       setProgress(next)
+      const refreshedJourney = await getResourceJourney(
+        selectedDate,
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+      )
+      setJourneys((current) => ({
+        ...current,
+        [selectedDate]: refreshedJourney,
+      }))
       window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
       if (completed) {
-        const completedCount = completedDailyCount(
-          resources,
-          next,
-          selectedDate,
-        )
+        const completedCount = selected.filter(
+          (candidate) =>
+            progressFor(next, candidate.id, selectedDate)?.status ===
+            'COMPLETED',
+        ).length
         setReward(completedCount === selected.length ? 'day' : 'resource')
       }
     } catch {
@@ -246,6 +279,22 @@ export default function ResourcesExperience() {
         <button type="button" onClick={() => window.location.reload()}>
           Thử tải lại
         </button>
+      </section>
+    )
+  }
+
+  if (state === 'plan-required') {
+    return (
+      <section className="resource-journey-state" role="status">
+        <div className="resource-journey-state-sticker">
+          <AnimatedResourceSticker variant="garden" size="large" />
+        </div>
+        <h1>Hãy chọn kế hoạch phù hợp với bạn trước nhé</h1>
+        <p>
+          Thử thách mỗi ngày được sắp xếp từ kế hoạch hỗ trợ đang hoạt động để
+          các gợi ý luôn đúng với điều bạn đã chọn.
+        </p>
+        <Link href="/support-plan">Xem kế hoạch hỗ trợ</Link>
       </section>
     )
   }
@@ -312,8 +361,13 @@ export default function ResourcesExperience() {
         </div>
         <div className="resource-date-strip">
           {dates.map((date) => {
-            const count = completedDailyCount(resources, progress, date)
-            const total = dailyResources(resources, date).length
+            const journey = journeys[date]
+            const total = journey?.items.length ?? 0
+            const count = (journey?.items ?? []).filter(
+              (item) =>
+                progressFor(progress, item.resource.id, date)?.status ===
+                'COMPLETED',
+            ).length
             const complete = total > 0 && count === total
             const instant = new Date(`${date}T12:00:00`)
             return (
@@ -531,24 +585,33 @@ export default function ResourcesExperience() {
           </div>
           <p>Những ô đã hoàn thành sẽ nhận một con dấu nhỏ.</p>
           <div className="resource-bingo-grid">
-            {resources.slice(0, 9).map((resource) => {
-              const stamped = progress.some(
-                (entry) =>
-                  entry.resourceId === resource.id &&
-                  dates.includes(entry.localDate) &&
-                  entry.status === 'COMPLETED',
+            {(selectedJourney?.bingo ?? []).map((bingoItem) => {
+              const resource = resources.find(
+                (candidate) => candidate.id === bingoItem.resourceId,
               )
+              const stamped =
+                bingoItem.stamped ||
+                progress.some(
+                  (entry) =>
+                    entry.resourceId === bingoItem.resourceId &&
+                    dates.includes(entry.localDate) &&
+                    entry.status === 'COMPLETED',
+                )
               return (
                 <div
-                  key={resource.id}
+                  key={bingoItem.resourceId}
                   className={stamped ? 'is-stamped' : ''}
-                  title={resource.title}
+                  title={bingoItem.label}
                 >
                   <AnimatedResourceSticker
-                    variant={resourcePresentation(resource).sticker}
+                    variant={
+                      resource
+                        ? resourcePresentation(resource).sticker
+                        : 'garden'
+                    }
                     size="small"
                   />
-                  <small>{resource.title}</small>
+                  <small>{bingoItem.label}</small>
                   {stamped && <b aria-label="Đã hoàn thành">✓</b>}
                 </div>
               )

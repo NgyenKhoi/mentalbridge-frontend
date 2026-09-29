@@ -31,15 +31,10 @@ import {
   resourcePresentation,
 } from '../model/resource-experience'
 import { vietnameseVideoCues } from '../model/vietnamese-video-cues'
+import { resourceInteraction } from '../model/resource-interactions'
 import { AnimatedResourceSticker } from './AnimatedResourceSticker'
 import { VietnameseCaptionedVideo } from './VietnameseCaptionedVideo'
 import styles from './resource-detail.module.css'
-
-const practicePhases = [
-  { id: 'inhale', label: 'Hít vào', seconds: 4 },
-  { id: 'hold', label: 'Giữ nhẹ', seconds: 4 },
-  { id: 'exhale', label: 'Thở ra', seconds: 6 },
-] as const
 
 function safeHttpUrl(value: string | null | undefined) {
   if (!value) return null
@@ -81,6 +76,13 @@ function videoEmbedUrl(value: string | null | undefined) {
   return null
 }
 
+function isVideoResource(resource: PublicResourceDetail) {
+  return (
+    resource.interactionType === 'VIDEO_TRANSCRIPT' ||
+    (!resource.interactionType && resource.category === 'VIDEO')
+  )
+}
+
 function contentParagraphs(resource: PublicResourceDetail) {
   const paragraphs = resource.contentBody
     ?.split(/\n{2,}/)
@@ -89,37 +91,22 @@ function contentParagraphs(resource: PublicResourceDetail) {
   return paragraphs?.length ? paragraphs : [resource.summary]
 }
 
-function actionIds(resource: PublicResourceDetail) {
-  if (resource.category === 'VIDEO') return ['video-viewed', 'video-reflected']
-  if (resource.category === 'BREATHING' || resource.category === 'MEDITATION') {
-    return practicePhases.map((phase) => phase.id)
+function practicePhaseForElapsed(
+  phases: readonly { label: string; seconds?: number }[],
+  elapsed: number,
+) {
+  const duration = phases.reduce(
+    (total, phase) => total + (phase.seconds ?? 0),
+    0,
+  )
+  if (duration === 0) return phases[0]
+  const cycleElapsed = elapsed % duration
+  let boundary = 0
+  for (const phase of phases) {
+    boundary += phase.seconds ?? 0
+    if (cycleElapsed < boundary) return phase
   }
-  if (resource.category === 'JOURNALING') {
-    return ['settle', 'write', 'reflect']
-  }
-  return ['read', 'takeaway']
-}
-
-function actionLabels(resource: PublicResourceDetail) {
-  if (resource.category === 'JOURNALING') {
-    return [
-      ['settle', 'Dừng lại và gọi tên cảm xúc hiện tại'],
-      ['write', 'Viết tự do trong vài phút, không cần chỉnh sửa'],
-      ['reflect', 'Chọn một điều dịu dàng bạn muốn dành cho mình'],
-    ] as const
-  }
-  return [
-    ['read', 'Đọc nội dung theo nhịp độ của bạn'],
-    ['takeaway', 'Chọn một ý nhỏ bạn muốn mang theo hôm nay'],
-  ] as const
-}
-
-function practicePhaseForElapsed(elapsed: number) {
-  if (elapsed < practicePhases[0].seconds) return practicePhases[0]
-  if (elapsed < practicePhases[0].seconds + practicePhases[1].seconds) {
-    return practicePhases[1]
-  }
-  return practicePhases[2]
+  return phases.at(-1)
 }
 
 type Props = Readonly<{
@@ -168,6 +155,7 @@ export default function ResourceDetail({
     key: number
   } | null>(null)
   const [timer, setTimer] = useState<number | null>(null)
+  const [timerRunning, setTimerRunning] = useState(false)
   const timerRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -207,9 +195,13 @@ export default function ResourceDetail({
     result?.requestKey === requestKey ? result.resource : undefined
   const catalogue =
     result?.requestKey === requestKey ? (result.catalogue ?? []) : []
-  const requiredActions = useMemo(
-    () => (resource ? actionIds(resource) : []),
+  const interaction = useMemo(
+    () => (resource ? resourceInteraction(resource) : null),
     [resource],
+  )
+  const requiredActions = useMemo(
+    () => interaction?.actions.map((action) => action.id) ?? [],
+    [interaction],
   )
   const completionPercent =
     status === 'COMPLETED'
@@ -227,7 +219,7 @@ export default function ResourceDetail({
     if (!resource || typeof IntersectionObserver === 'undefined') return
     const sectionIds = [
       'summary',
-      resource.category === 'VIDEO'
+      isVideoResource(resource)
         ? 'watch'
         : resource.category === 'BREATHING' ||
             resource.category === 'MEDITATION'
@@ -286,10 +278,11 @@ export default function ResourceDetail({
   )
 
   useEffect(() => {
-    if (timer === null) return
+    if (timer === null || !timerRunning) return
     timerRef.current = window.setTimeout(() => {
       if (timer <= 1) {
         setTimer(null)
+        setTimerRunning(false)
         void persistProgress([...requiredActions], 'COMPLETED')
         return
       }
@@ -298,7 +291,7 @@ export default function ResourceDetail({
     return () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current)
     }
-  }, [persistProgress, requiredActions, resource, timer])
+  }, [persistProgress, requiredActions, timer, timerRunning])
 
   const backHref = fromSupportPlan ? '/support-plan' : '/resources'
   const backLabel = fromSupportPlan
@@ -355,14 +348,13 @@ export default function ResourceDetail({
     resourceIndex >= 0 && resourceIndex < catalogue.length - 1
       ? catalogue[resourceIndex + 1]
       : undefined
-  const isPractice =
-    resource.category === 'BREATHING' || resource.category === 'MEDITATION'
-  const totalPracticeSeconds = practicePhases.reduce(
-    (total, phase) => total + phase.seconds,
-    0,
-  )
+  const isBreathing = interaction?.mode === 'breathing'
+  const isTimed = interaction?.mode === 'timed'
+  const isPractice = isBreathing || isTimed
+  const configuredPhases = interaction?.actions ?? []
+  const totalPracticeSeconds = interaction?.durationSeconds ?? 0
   const elapsed = timer === null ? 0 : totalPracticeSeconds - timer
-  const activePhase = practicePhaseForElapsed(elapsed)
+  const activePhase = practicePhaseForElapsed(configuredPhases, elapsed)
   const progressStyle = {
     '--resource-progress': `${completionPercent}%`,
   } as CSSProperties
@@ -384,7 +376,7 @@ export default function ResourceDetail({
   }
 
   async function markComplete() {
-    if (resource?.category === 'VIDEO') {
+    if (interaction?.mode === 'video') {
       if (!completedActionIds.includes('video-viewed')) {
         const saved = await persistProgress(
           [...completedActionIds, 'video-viewed'],
@@ -440,7 +432,7 @@ export default function ResourceDetail({
   ).length
   const tocItems = [
     { id: 'summary', label: 'Tóm tắt' },
-    resource.category === 'VIDEO'
+    interaction?.mode === 'video'
       ? { id: 'watch', label: 'Xem video' }
       : isPractice
         ? { id: 'practice', label: 'Thực hành' }
@@ -466,16 +458,16 @@ export default function ResourceDetail({
   return (
     <main className={styles.page}>
       <article
-        className={`${styles.article} ${resource.category === 'VIDEO' ? styles.videoArticle : ''}`}
+        className={`${styles.article} ${isVideoResource(resource) ? styles.videoArticle : ''}`}
       >
         <div
           className={
-            resource.category === 'VIDEO' ? styles.videoStickyHeader : undefined
+            isVideoResource(resource) ? styles.videoStickyHeader : undefined
           }
         >
           <nav className={styles.breadcrumb} aria-label="Đường dẫn">
             <Link href={backHref}>{backLabel}</Link>
-            {resource.category === 'VIDEO' && (
+            {isVideoResource(resource) && (
               <>
                 <span aria-hidden="true">›</span>
                 <span>Video</span>
@@ -500,7 +492,7 @@ export default function ResourceDetail({
               </div>
               <h1>{resource.title}</h1>
               <p>{resource.summary}</p>
-              {resource.category !== 'VIDEO' && (
+              {!isVideoResource(resource) && (
                 <button
                   type="button"
                   className={styles.completeButton}
@@ -514,7 +506,7 @@ export default function ResourceDetail({
                       : 'Đánh dấu hoàn thành'}
                 </button>
               )}
-              {resource.category === 'VIDEO' && (
+              {isVideoResource(resource) && (
                 <div
                   className={styles.progressOverview}
                   role="progressbar"
@@ -584,7 +576,7 @@ export default function ResourceDetail({
               </aside>
             </section>
 
-            {resource.category === 'VIDEO' && (
+            {isVideoResource(resource) && (
               <section id="watch" className={styles.contentSection}>
                 <span className={styles.eyebrow}>Xem và suy ngẫm</span>
                 <h2>Dành vài phút cho nội dung này</h2>
@@ -618,30 +610,42 @@ export default function ResourceDetail({
               <section id="practice" className={styles.practiceSection}>
                 <div>
                   <span className={styles.eyebrow}>Thực hành tương tác</span>
-                  <h2>Một nhịp thở, thật chậm</h2>
+                  <h2>{interaction?.heading}</h2>
                   <p>
-                    Ngồi hoặc đứng ở tư thế dễ chịu. Dừng lại nếu bạn thấy không
-                    thoải mái.
+                    {isBreathing
+                      ? 'Ngồi hoặc đứng ở tư thế dễ chịu. Không cần hít thật sâu; dừng lại nếu bạn thấy không thoải mái.'
+                      : 'Chọn nhịp vừa sức. Bạn có thể tạm dừng, bỏ qua một bước hoặc kết thúc sớm.'}
                   </p>
                   <button
                     type="button"
-                    disabled={timer !== null || saving}
-                    onClick={() => setTimer(totalPracticeSeconds)}
+                    disabled={saving || totalPracticeSeconds <= 0}
+                    onClick={() => {
+                      if (timer === null) setTimer(totalPracticeSeconds)
+                      setTimerRunning((running) => !running)
+                    }}
                   >
-                    {timer === null ? 'Bắt đầu 14 giây' : 'Đang thực hành…'}
+                    {timer === null
+                      ? `Bắt đầu ${totalPracticeSeconds} giây`
+                      : timerRunning
+                        ? 'Tạm dừng'
+                        : 'Tiếp tục'}
                   </button>
                 </div>
                 <div
-                  className={`${styles.breathOrb} ${timer !== null ? styles.isBreathing : ''}`}
+                  className={`${styles.breathOrb} ${isBreathing && timerRunning ? styles.isBreathing : ''}`}
                   aria-live="polite"
                 >
                   <span>{timer ?? totalPracticeSeconds}</span>
                   <strong>
-                    {timer === null ? 'Sẵn sàng' : activePhase?.label}
+                    {timer === null
+                      ? 'Sẵn sàng'
+                      : timerRunning
+                        ? activePhase?.label
+                        : 'Đã tạm dừng'}
                   </strong>
                 </div>
                 <ol>
-                  {practicePhases.map((phase) => {
+                  {configuredPhases.map((phase) => {
                     const complete = completedActionIds.includes(phase.id)
                     return (
                       <li
@@ -650,7 +654,7 @@ export default function ResourceDetail({
                       >
                         <span aria-hidden="true">{complete ? '✓' : '○'}</span>
                         <b>{phase.label}</b>
-                        <small>{phase.seconds} giây</small>
+                        {phase.seconds && <small>{phase.seconds} giây</small>}
                       </li>
                     )
                   })}
@@ -658,7 +662,7 @@ export default function ResourceDetail({
               </section>
             )}
 
-            {!isPractice && resource.category !== 'VIDEO' && (
+            {!isPractice && !isVideoResource(resource) && (
               <section id="content" className={styles.contentSection}>
                 <span className={styles.eyebrow}>Nội dung hướng dẫn</span>
                 <h2>Thử mang theo một điều nhỏ</h2>
@@ -681,7 +685,7 @@ export default function ResourceDetail({
             <section id="actions" className={styles.actionsSection}>
               <span className={styles.eyebrow}>Các bước nhỏ</span>
               <h2>Theo dõi tiến độ của bạn</h2>
-              {resource.category === 'VIDEO' ? (
+              {isVideoResource(resource) ? (
                 <ul className={styles.videoSteps}>
                   <li>
                     <label>
@@ -734,25 +738,25 @@ export default function ResourceDetail({
                 <p>Bộ đếm sẽ ghi nhận từng nhịp khi bài thực hành kết thúc.</p>
               ) : (
                 <ul>
-                  {actionLabels(resource).map(([id, label]) => (
-                    <li key={id}>
+                  {(interaction?.actions ?? []).map((action) => (
+                    <li key={action.id}>
                       <label>
                         <input
                           type="checkbox"
                           checked={(
                             completionConfirmation ?? completedActionIds
-                          ).includes(id)}
+                          ).includes(action.id)}
                           disabled={saving}
-                          onChange={() => void toggleAction(id)}
+                          onChange={() => void toggleAction(action.id)}
                         />
                         <span aria-hidden="true">
                           {(
                             completionConfirmation ?? completedActionIds
-                          ).includes(id)
+                          ).includes(action.id)
                             ? '✓'
                             : ''}
                         </span>
-                        <b>{label}</b>
+                        <b>{action.label}</b>
                       </label>
                     </li>
                   ))}
@@ -771,7 +775,7 @@ export default function ResourceDetail({
               )}
             </section>
 
-            {resource.category === 'VIDEO' && (
+            {isVideoResource(resource) && (
               <section className={styles.completionPanel}>
                 <div>
                   <span className={styles.eyebrow}>Xác nhận hoàn thành</span>
@@ -818,6 +822,17 @@ export default function ResourceDetail({
                 </a>
               )}
             </aside>
+
+            {(resource.safetyNotes ?? []).length > 0 && (
+              <aside className={styles.callout} aria-label="Lưu ý an toàn">
+                <span aria-hidden="true">ⓘ</span>
+                <div>
+                  {(resource.safetyNotes ?? []).map((note) => (
+                    <p key={note}>{note}</p>
+                  ))}
+                </div>
+              </aside>
+            )}
 
             <p className={styles.boundary}>
               Nội dung này hỗ trợ tự chăm sóc, không dùng để chẩn đoán hoặc thay

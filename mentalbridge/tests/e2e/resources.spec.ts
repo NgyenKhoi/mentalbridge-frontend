@@ -83,6 +83,43 @@ test.describe('Resources journey', () => {
     ]
     await context.route('**/api/resources**', async (route) => {
       const requestUrl = new URL(route.request().url())
+      if (requestUrl.pathname === '/api/resources/journey') {
+        const date = requestUrl.searchParams.get('date') ?? '2026-09-29'
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            assignmentId: '00000000-0000-4000-8000-000000000301',
+            localDate: date,
+            planId: '00000000-0000-4000-8000-000000000302',
+            planVersion: 1,
+            items: [
+              {
+                position: 1,
+                resource: catalogue[0],
+                reason: 'PLAN_SELECTED',
+              },
+            ],
+            progress: {
+              dailyCompleted: 0,
+              dailyTotal: 1,
+              learningCompleted: 0,
+              learningTotal: 1,
+              practiceStreakDays: 0,
+            },
+            weekStart: '2026-09-28',
+            bingo: [
+              {
+                position: 1,
+                resourceId,
+                label: catalogue[0].title,
+                stamped: false,
+              },
+            ],
+          }),
+        })
+        return
+      }
       if (requestUrl.pathname === '/api/resources/progress') {
         await route.fulfill({
           status: 200,

@@ -13,6 +13,7 @@ import {
   parseNotificationPage,
   parseResourceProgressItem,
   parseResourceProgressList,
+  parseResourceJourney,
   type AdminResourceDetail,
   type ContentProblem,
   type PublicResourceDetail,
@@ -26,6 +27,8 @@ import {
   type ResourceProgressItem,
   type ResourceProgressList,
   type ResourceProgressUpdate,
+  type ResourceJourney,
+  type ResourceJourneyRequest,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
@@ -264,6 +267,26 @@ export const contentResourceProgressClient = {
       correlationId,
       body: update,
       parseSuccess: parseResourceProgressItem,
+      mutation: true,
+    })
+  },
+}
+
+export const contentResourceJourneyClient = {
+  materialize(
+    accessToken: string,
+    localDate: string,
+    input: ResourceJourneyRequest,
+    correlationId: string,
+  ) {
+    return contentRequest<ResourceJourney>({
+      method: 'PUT',
+      path: `/api/v1/resource-journeys/${encodeURIComponent(localDate)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: input,
+      parseSuccess: parseResourceJourney,
       mutation: true,
     })
   },
