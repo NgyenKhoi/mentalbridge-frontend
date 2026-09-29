@@ -58,6 +58,54 @@ const contentResources = [
   },
 ]
 
+const communityTopics = [
+  ['MY_STORY', 'Câu chuyện của tôi'],
+  ['SMALL_MILESTONE', 'Bước tiến nhỏ'],
+  ['HELPFUL_REFLECTION', 'Điều mình nhận ra'],
+  ['PEER_QUESTION', 'Hỏi cộng đồng'],
+  ['EXPERIENCE_SHARING', 'Chia sẻ trải nghiệm'],
+  ['HELPFUL_RESOURCE', 'Tài nguyên hữu ích'],
+].map(([code, label]) => ({
+  code,
+  label,
+  description: `Chủ đề cộng đồng: ${label}.`,
+}))
+
+const communityPosts = [
+  {
+    postId: '50000000-0000-4000-8000-000000000002',
+    author: {
+      communityProfileId: '51000000-0000-4000-8000-000000000002',
+      displayName: 'Minh An',
+      state: 'ACTIVE',
+    },
+    content:
+      'Hôm nay mình đã chủ động dành mười phút để đi bộ và cảm thấy nhẹ nhàng hơn. Mình ghi lại điều này như một lời nhắc rằng những bước nhỏ vẫn rất đáng quý.',
+    topics: ['MY_STORY', 'SMALL_MILESTONE'],
+    media: [],
+    mediaAvailability: 'PARTIAL',
+    counts: { comments: 4, reactions: 12 },
+    publishedAt: '2026-09-29T05:00:00Z',
+    updatedAt: '2026-09-29T05:00:00Z',
+  },
+  {
+    postId: '50000000-0000-4000-8000-000000000001',
+    author: {
+      communityProfileId: '51000000-0000-4000-8000-000000000001',
+      displayName: 'Thành viên đã rời cộng đồng',
+      state: 'DELETED',
+    },
+    content:
+      'Một thay đổi nhỏ mình học được là chuẩn bị sẵn một việc dễ làm cho những ngày thiếu năng lượng.',
+    topics: ['HELPFUL_REFLECTION'],
+    media: [],
+    mediaAvailability: 'NONE',
+    counts: { comments: 1, reactions: 8 },
+    publishedAt: '2026-09-28T05:00:00Z',
+    updatedAt: '2026-09-28T05:00:00Z',
+  },
+]
+
 const actors = new Map([
   [
     'user@example.com',
@@ -118,7 +166,18 @@ const actors = new Map([
 ])
 
 const initialContentResources = structuredClone(contentResources)
+const initialCommunityPosts = structuredClone(communityPosts)
 const contentCreateByKey = new Map()
+const communityCreateByKey = new Map()
+const communityPostOwners = new Map([
+  [
+    '50000000-0000-4000-8000-000000000002',
+    actors.get('user@example.com').accountId,
+  ],
+])
+const communityPostVersions = new Map([
+  ['50000000-0000-4000-8000-000000000002', 1],
+])
 
 const accessSessions = new Map()
 const refreshSessions = new Map()
@@ -184,6 +243,19 @@ function reset() {
   availabilitySlots.clear()
   availabilityCommands.clear()
   contentCreateByKey.clear()
+  communityCreateByKey.clear()
+  communityPosts.splice(
+    0,
+    communityPosts.length,
+    ...structuredClone(initialCommunityPosts),
+  )
+  communityPostOwners.clear()
+  communityPostOwners.set(
+    '50000000-0000-4000-8000-000000000002',
+    actors.get('user@example.com').accountId,
+  )
+  communityPostVersions.clear()
+  communityPostVersions.set('50000000-0000-4000-8000-000000000002', 1)
   contentResources.splice(
     0,
     contentResources.length,
@@ -852,6 +924,178 @@ const server = createServer(async (request, response) => {
       json(response, 200, availabilityView(slot), 'application/json', {
         ETag: `"${slot.version}"`,
       })
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/community/topics'
+    ) {
+      if (!journalActor(request, response)) return
+      json(response, 200, communityTopics)
+      return
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/v1/community/feed') {
+      if (!journalActor(request, response)) return
+      const topic = url.searchParams.get('topic')
+      const cursor = url.searchParams.get('cursor')
+      const matching = topic
+        ? communityPosts.filter((post) => post.topics.includes(topic))
+        : communityPosts
+      const offset = cursor === 'community-next' ? 1 : 0
+      const items = matching
+        .slice(offset, offset + 1)
+        .map(({ content, ...post }) => ({
+          ...post,
+          contentPreview: content,
+        }))
+      const hasMore = offset + items.length < matching.length
+      json(response, 200, {
+        items,
+        nextCursor: hasMore ? 'community-next' : null,
+        hasMore,
+      })
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/community/posts'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const key = request.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      const body = await readBody(request)
+      const commandKey = `${actor.accountId}:${key}`
+      const fingerprint = JSON.stringify(body)
+      const existing = communityCreateByKey.get(commandKey)
+      if (existing) {
+        if (existing.fingerprint !== fingerprint) {
+          problem(response, 409, 'IDEMPOTENCY_KEY_REUSED', 'Key was reused')
+          return
+        }
+        json(response, 201, existing.post, 'application/json', {
+          ETag: `"${communityPostVersions.get(existing.post.postId)}"`,
+        })
+        return
+      }
+      const now = new Date().toISOString()
+      const post = {
+        postId: crypto.randomUUID(),
+        author: {
+          communityProfileId: crypto.randomUUID(),
+          displayName: 'Thành viên MentalBridge',
+          state: 'ACTIVE',
+        },
+        content: body.content,
+        topics: body.topics,
+        media: [],
+        mediaAvailability: 'NONE',
+        counts: { comments: 0, reactions: 0 },
+        publishedAt: now,
+        updatedAt: now,
+      }
+      communityPosts.unshift(post)
+      communityPostOwners.set(post.postId, actor.accountId)
+      communityPostVersions.set(post.postId, 1)
+      communityCreateByKey.set(commandKey, { fingerprint, post })
+      json(response, 201, post, 'application/json', { ETag: '"1"' })
+      return
+    }
+
+    const communityPostDetail = url.pathname.match(
+      /^\/api\/v1\/community\/posts\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'GET' && communityPostDetail) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const post = communityPosts.find(
+        ({ postId }) => postId === communityPostDetail[1],
+      )
+      if (!post) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+      } else {
+        const owner = communityPostOwners.get(post.postId)
+        json(
+          response,
+          200,
+          post,
+          'application/json',
+          owner === actor.accountId
+            ? { ETag: `"${communityPostVersions.get(post.postId)}"` }
+            : {},
+        )
+      }
+      return
+    }
+
+    if (request.method === 'PATCH' && communityPostDetail) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const post = communityPosts.find(
+        ({ postId }) => postId === communityPostDetail[1],
+      )
+      if (!post || communityPostOwners.get(post.postId) !== actor.accountId) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+        return
+      }
+      const version = communityPostVersions.get(post.postId)
+      if (request.headers['if-match'] !== `"${version}"`) {
+        problem(
+          response,
+          412,
+          'COMMUNITY_POST_VERSION_MISMATCH',
+          'Post changed',
+        )
+        return
+      }
+      const body = await readBody(request)
+      post.content = body.content
+      post.topics = body.topics
+      post.updatedAt = new Date().toISOString()
+      communityPostVersions.set(post.postId, version + 1)
+      json(response, 200, post, 'application/json', {
+        ETag: `"${version + 1}"`,
+      })
+      return
+    }
+
+    if (request.method === 'DELETE' && communityPostDetail) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const index = communityPosts.findIndex(
+        ({ postId }) => postId === communityPostDetail[1],
+      )
+      const post = communityPosts[index]
+      if (!post || communityPostOwners.get(post.postId) !== actor.accountId) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+        return
+      }
+      const version = communityPostVersions.get(post.postId)
+      if (request.headers['if-match'] !== `"${version}"`) {
+        problem(
+          response,
+          412,
+          'COMMUNITY_POST_VERSION_MISMATCH',
+          'Post changed',
+        )
+        return
+      }
+      communityPosts.splice(index, 1)
+      communityPostOwners.delete(post.postId)
+      communityPostVersions.delete(post.postId)
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
       return
     }
 

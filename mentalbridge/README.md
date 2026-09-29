@@ -19,9 +19,10 @@ docker build --tag mentalbridge/frontend:review1 .
 The backend repository owns the Review 1 Compose topology. With both repositories checked out as sibling directories, run `docker compose --profile demo up --build -d` from the backend repository to start Frontend together with Identity, Care, Content/Notification, and explicit migrations against the shared dev/staging cloud databases. The `full-test` profile adds the Realtime foundation, shared cloud MongoDB, and local ephemeral Redis.
 
 Only port `3000` needs to be user-facing. `IDENTITY_API_BASE_URL`,
-`CARE_API_BASE_URL`, `CONTENT_SERVICE_URL`, and `CONSULTATION_SERVICE_URL` are
-read by the Next.js server at runtime and must point to Compose service names
-inside the stack; they must never use a `NEXT_PUBLIC_` prefix.
+`CARE_API_BASE_URL`, `CONTENT_SERVICE_URL`, `CONSULTATION_SERVICE_URL`, and
+`COMMUNITY_SERVICE_URL` are read by the Next.js server at runtime and must point
+to Compose service names inside the stack; they must never use a `NEXT_PUBLIC_`
+prefix.
 
 ## Runtime
 

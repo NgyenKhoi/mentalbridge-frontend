@@ -1,0 +1,91 @@
+import { expect, type Page } from '@playwright/test'
+
+import { test } from './test-fixtures'
+
+const identityFixtureUrl = 'http://127.0.0.1:3201'
+
+async function login(page: Page) {
+  await page.goto('/login')
+  await page.getByLabel('Email').fill('user@example.com')
+  await page.getByLabel('Mật khẩu').fill('synthetic-e2e-password')
+  await page.getByRole('button', { name: 'Đăng nhập' }).click()
+  await expect(page).toHaveURL(/\/dashboard$/)
+}
+
+test.describe('Community feed journey', () => {
+  test.skip(
+    process.env.E2E_RUNTIME === 'live-cross-stack',
+    'The deterministic Community fixture journey does not run against live data.',
+  )
+
+  test('browses paged posts, filters by an explicit topic and opens full detail', async ({
+    page,
+    request,
+  }) => {
+    const reset = await request.post(`${identityFixtureUrl}/__test/reset`)
+    expect(reset.status()).toBe(204)
+    await login(page)
+
+    await page.goto('/community')
+    await expect(
+      page.getByRole('heading', { name: 'Cộng đồng MentalBridge' }),
+    ).toBeVisible()
+    await expect(page.getByText(/không dùng nhật ký, cảm xúc/)).toBeVisible()
+    await expect(page.getByText('Minh An')).toBeVisible()
+    await expect(page.getByText(/Một số nội dung đa phương tiện/)).toBeVisible()
+
+    await page.getByRole('button', { name: 'Xem thêm câu chuyện' }).click()
+    await expect(page.getByText('Thành viên đã rời cộng đồng')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Bước tiến nhỏ' }).click()
+    await expect(page.getByText('Minh An')).toBeVisible()
+    await expect(page.getByText('Thành viên đã rời cộng đồng')).toHaveCount(0)
+
+    await page.getByRole('link', { name: /Đọc bài viết/ }).click()
+    await expect(page).toHaveURL(
+      /\/community\/50000000-0000-4000-8000-000000000002$/,
+    )
+    await expect(page.getByText(/dành mười phút để đi bộ/)).toBeVisible()
+    await expect(
+      page.getByText(/không thay thế tư vấn chuyên môn/),
+    ).toBeVisible()
+  })
+
+  test('creates, edits and deletes an owned personal story', async ({
+    page,
+    request,
+  }) => {
+    const reset = await request.post(`${identityFixtureUrl}/__test/reset`)
+    expect(reset.status()).toBe(204)
+    await login(page)
+    await page.goto('/community')
+
+    await page.getByRole('button', { name: 'Viết bài' }).click()
+    await page
+      .getByLabel('Nội dung')
+      .fill('Một câu chuyện mới do mình chủ động chia sẻ.')
+    await page
+      .getByRole('group', { name: 'Chọn 1–3 chủ đề' })
+      .getByText('Câu chuyện của tôi')
+      .click()
+    await page.getByRole('button', { name: 'Đăng câu chuyện' }).click()
+
+    await expect(page).toHaveURL(/\/community\/[0-9a-f-]+$/)
+    await expect(
+      page.getByText('Một câu chuyện mới do mình chủ động chia sẻ.'),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
+    await page.getByLabel('Nội dung').fill('Câu chuyện đã được mình cập nhật.')
+    await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
+    await expect(
+      page.getByText('Câu chuyện đã được mình cập nhật.'),
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Xóa' }).click()
+    await page.getByRole('button', { name: 'Xóa bài viết' }).click()
+    await expect(page).toHaveURL(/\/community$/)
+    await expect(
+      page.getByText('Câu chuyện đã được mình cập nhật.'),
+    ).toHaveCount(0)
+  })
+})
