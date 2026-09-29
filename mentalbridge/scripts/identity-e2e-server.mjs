@@ -58,6 +58,54 @@ const contentResources = [
   },
 ]
 
+const communityTopics = [
+  ['MY_STORY', 'Câu chuyện của tôi'],
+  ['SMALL_MILESTONE', 'Bước tiến nhỏ'],
+  ['HELPFUL_REFLECTION', 'Điều mình nhận ra'],
+  ['PEER_QUESTION', 'Hỏi cộng đồng'],
+  ['EXPERIENCE_SHARING', 'Chia sẻ trải nghiệm'],
+  ['HELPFUL_RESOURCE', 'Tài nguyên hữu ích'],
+].map(([code, label]) => ({
+  code,
+  label,
+  description: `Chủ đề cộng đồng: ${label}.`,
+}))
+
+const communityPosts = [
+  {
+    postId: '50000000-0000-4000-8000-000000000002',
+    author: {
+      communityProfileId: '51000000-0000-4000-8000-000000000002',
+      displayName: 'Minh An',
+      state: 'ACTIVE',
+    },
+    content:
+      'Hôm nay mình đã chủ động dành mười phút để đi bộ và cảm thấy nhẹ nhàng hơn. Mình ghi lại điều này như một lời nhắc rằng những bước nhỏ vẫn rất đáng quý.',
+    topics: ['MY_STORY', 'SMALL_MILESTONE'],
+    media: [],
+    mediaAvailability: 'PARTIAL',
+    counts: { comments: 4, reactions: 12 },
+    publishedAt: '2026-09-29T05:00:00Z',
+    updatedAt: '2026-09-29T05:00:00Z',
+  },
+  {
+    postId: '50000000-0000-4000-8000-000000000001',
+    author: {
+      communityProfileId: '51000000-0000-4000-8000-000000000001',
+      displayName: 'Thành viên đã rời cộng đồng',
+      state: 'DELETED',
+    },
+    content:
+      'Một thay đổi nhỏ mình học được là chuẩn bị sẵn một việc dễ làm cho những ngày thiếu năng lượng.',
+    topics: ['HELPFUL_REFLECTION'],
+    media: [],
+    mediaAvailability: 'NONE',
+    counts: { comments: 1, reactions: 8 },
+    publishedAt: '2026-09-28T05:00:00Z',
+    updatedAt: '2026-09-28T05:00:00Z',
+  },
+]
+
 const actors = new Map([
   [
     'user@example.com',
@@ -852,6 +900,54 @@ const server = createServer(async (request, response) => {
       json(response, 200, availabilityView(slot), 'application/json', {
         ETag: `"${slot.version}"`,
       })
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/community/topics'
+    ) {
+      if (!journalActor(request, response)) return
+      json(response, 200, communityTopics)
+      return
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/v1/community/feed') {
+      if (!journalActor(request, response)) return
+      const topic = url.searchParams.get('topic')
+      const cursor = url.searchParams.get('cursor')
+      const matching = topic
+        ? communityPosts.filter((post) => post.topics.includes(topic))
+        : communityPosts
+      const offset = cursor === 'community-next' ? 1 : 0
+      const items = matching
+        .slice(offset, offset + 1)
+        .map(({ content, ...post }) => ({
+          ...post,
+          contentPreview: content,
+        }))
+      const hasMore = offset + items.length < matching.length
+      json(response, 200, {
+        items,
+        nextCursor: hasMore ? 'community-next' : null,
+        hasMore,
+      })
+      return
+    }
+
+    const communityPostDetail = url.pathname.match(
+      /^\/api\/v1\/community\/posts\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'GET' && communityPostDetail) {
+      if (!journalActor(request, response)) return
+      const post = communityPosts.find(
+        ({ postId }) => postId === communityPostDetail[1],
+      )
+      if (!post) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+      } else {
+        json(response, 200, post)
+      }
       return
     }
 
