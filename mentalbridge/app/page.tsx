@@ -9,15 +9,24 @@ import Cta from '@/components/Cta'
 import Footer from '@/components/Footer'
 import ScrollReveal from '../components/ScrollReveal'
 import Preloader from '@/components/Preloader'
+import { cookies } from 'next/headers'
+import {
+  ACCESS_COOKIE_NAME,
+  REFRESH_COOKIE_NAME,
+} from '@/lib/auth/session-cookies'
 
-export default function Home() {
+export default async function Home() {
+  const cookieStore = await cookies()
+  const hasSessionHint =
+    cookieStore.has(ACCESS_COOKIE_NAME) || cookieStore.has(REFRESH_COOKIE_NAME)
+
   return (
     <>
       <Preloader />
       <a className="skip-link" href="#top">
         Bỏ qua đến nội dung chính
       </a>
-      <Header />
+      <Header hasSessionHint={hasSessionHint} />
       <main id="top" className="marketing-page">
         <Hero />
         <Showcase />

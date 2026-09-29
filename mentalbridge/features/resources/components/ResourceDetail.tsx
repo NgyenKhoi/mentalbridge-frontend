@@ -91,22 +91,64 @@ function contentParagraphs(resource: PublicResourceDetail) {
   return paragraphs?.length ? paragraphs : [resource.summary]
 }
 
-function practicePhaseForElapsed(
-  phases: readonly { label: string; seconds?: number }[],
-  elapsed: number,
+type PracticeCue = Readonly<{
+  id: string
+  label: string
+  seconds: number
+  start: number
+  end: number
+}>
+
+function practiceTimeline(
+  phases: readonly { id: string; label: string; seconds?: number }[],
+  totalSeconds: number,
 ) {
-  const duration = phases.reduce(
+  if (phases.length === 0 || totalSeconds <= 0) return []
+  const explicitSeconds = phases.reduce(
     (total, phase) => total + (phase.seconds ?? 0),
     0,
   )
-  if (duration === 0) return phases[0]
-  const cycleElapsed = elapsed % duration
+  const missingCount = phases.filter((phase) => !phase.seconds).length
+  const sharedSeconds =
+    missingCount > 0
+      ? Math.max(1, (totalSeconds - explicitSeconds) / missingCount)
+      : 0
   let boundary = 0
-  for (const phase of phases) {
-    boundary += phase.seconds ?? 0
-    if (cycleElapsed < boundary) return phase
+  return phases.map((phase) => {
+    const seconds = phase.seconds ?? sharedSeconds
+    const start = boundary
+    boundary += seconds
+    return { ...phase, seconds, start, end: boundary } as PracticeCue
+  })
+}
+
+function practiceCueForElapsed(
+  timeline: readonly PracticeCue[],
+  elapsed: number,
+) {
+  const cycleSeconds = timeline.at(-1)?.end ?? 0
+  if (cycleSeconds <= 0) return null
+  const cycleElapsed = elapsed % cycleSeconds
+  const index = timeline.findIndex(
+    (cue) => cycleElapsed >= cue.start && cycleElapsed < cue.end,
+  )
+  const resolvedIndex = index >= 0 ? index : timeline.length - 1
+  const cue = timeline[resolvedIndex]
+  return {
+    cue,
+    index: resolvedIndex,
+    cycle: Math.floor(elapsed / cycleSeconds) + 1,
+    remainingSeconds: Math.max(1, Math.ceil(cue.end - cycleElapsed)),
   }
-  return phases.at(-1)
+}
+
+function practiceDurationLabel(seconds: number) {
+  const rounded = Math.round(seconds)
+  const minutes = Math.floor(rounded / 60)
+  const remainingSeconds = rounded % 60
+  if (minutes === 0) return `${remainingSeconds} giây`
+  if (remainingSeconds === 0) return `${minutes} phút`
+  return `${minutes} phút ${remainingSeconds} giây`
 }
 
 type Props = Readonly<{
@@ -354,7 +396,14 @@ export default function ResourceDetail({
   const configuredPhases = interaction?.actions ?? []
   const totalPracticeSeconds = interaction?.durationSeconds ?? 0
   const elapsed = timer === null ? 0 : totalPracticeSeconds - timer
-  const activePhase = practicePhaseForElapsed(configuredPhases, elapsed)
+  const practiceCues = practiceTimeline(configuredPhases, totalPracticeSeconds)
+  const activePracticeCue =
+    timer === null ? null : practiceCueForElapsed(practiceCues, elapsed)
+  const practiceCycleSeconds = practiceCues.at(-1)?.end ?? 0
+  const practiceCycles =
+    practiceCycleSeconds > 0
+      ? Math.max(1, Math.ceil(totalPracticeSeconds / practiceCycleSeconds))
+      : 1
   const progressStyle = {
     '--resource-progress': `${completionPercent}%`,
   } as CSSProperties
@@ -640,21 +689,54 @@ export default function ResourceDetail({
                     {timer === null
                       ? 'Sẵn sàng'
                       : timerRunning
-                        ? activePhase?.label
+                        ? activePracticeCue?.cue.label
                         : 'Đã tạm dừng'}
                   </strong>
+                  {activePracticeCue && (
+                    <small>
+                      Bước {activePracticeCue.index + 1}/{practiceCues.length}
+                      {practiceCycles > 1
+                        ? ` · vòng ${Math.min(activePracticeCue.cycle, practiceCycles)}/${practiceCycles}`
+                        : ''}
+                    </small>
+                  )}
                 </div>
                 <ol>
-                  {configuredPhases.map((phase) => {
+                  {practiceCues.map((phase, index) => {
                     const complete = completedActionIds.includes(phase.id)
+                    const active = activePracticeCue?.index === index
+                    const passedInSession =
+                      timer !== null &&
+                      practiceCycles === 1 &&
+                      activePracticeCue !== null &&
+                      index < activePracticeCue.index
                     return (
                       <li
                         key={phase.id}
-                        className={complete ? styles.done : ''}
+                        className={[
+                          complete || passedInSession ? styles.done : '',
+                          active ? styles.activePracticeCue : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        aria-current={active ? 'step' : undefined}
                       >
-                        <span aria-hidden="true">{complete ? '✓' : '○'}</span>
+                        <span aria-hidden="true">
+                          {complete || passedInSession
+                            ? '✓'
+                            : active
+                              ? '●'
+                              : '○'}
+                        </span>
                         <b>{phase.label}</b>
-                        {phase.seconds && <small>{phase.seconds} giây</small>}
+                        <small>{practiceDurationLabel(phase.seconds)}</small>
+                        {active && (
+                          <em>
+                            {timerRunning
+                              ? `Đang thực hiện · còn ${activePracticeCue?.remainingSeconds ?? 0} giây`
+                              : 'Đang tạm dừng ở bước này'}
+                          </em>
+                        )}
                       </li>
                     )
                   })}

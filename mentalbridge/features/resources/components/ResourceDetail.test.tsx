@@ -1,6 +1,13 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ResourceBrowserError } from '../api/browser-resources'
 import ResourceDetail from './ResourceDetail'
@@ -106,6 +113,10 @@ describe('ResourceDetail', () => {
         version: '1',
       }),
     )
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders reviewed detail, embedded video, TOC, and catalogue return', async () => {
@@ -286,6 +297,81 @@ describe('ResourceDetail', () => {
     expect(
       screen.getByText(/kết quả hoàn thành đã được ghi nhận/i),
     ).toBeVisible()
+  })
+
+  it('highlights each timed practice cue as the session advances', async () => {
+    const timedResource = {
+      ...resource,
+      category: 'MEDITATION' as const,
+      title: 'Đi bộ nhẹ trong vài phút',
+      externalUrl: null,
+      resourceKind: 'PRACTICE' as const,
+      interactionType: 'WALK_TIMER' as const,
+      repeatability: 'REPEATABLE' as const,
+      completionMode: 'TIMED' as const,
+      streakEligible: true,
+      expectedDurationMinutes: 1,
+      cooldownDays: 0,
+      recommendedFrequencyPerWeek: 4,
+      planTags: [],
+      structuredContent: {},
+      interactionConfig: {
+        durationSeconds: 6,
+        steps: [
+          { id: 'prepare', label: 'Chuẩn bị' },
+          { id: 'walk', label: 'Đi bộ' },
+          { id: 'finish', label: 'Chậm lại' },
+        ],
+      },
+      safetyNotes: [],
+      sourceRetrievedAt: '2026-09-29T00:00:00Z',
+      sourceContentHash: null,
+      contentVersionLabel: 'test',
+      sourceReviewStatus: 'REVIEWED' as const,
+    }
+    api.getResourceDetail.mockResolvedValue(timedResource)
+    api.getResourceCatalogue.mockResolvedValue({
+      items: [timedResource],
+      hasMore: false,
+    })
+
+    render(
+      <ResourceDetail
+        resourceId={timedResource.id}
+        fromSupportPlan={false}
+        activityDate="2026-09-30"
+      />,
+    )
+
+    await screen.findByRole('heading', { name: timedResource.title })
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu 6 giây' }))
+
+    const practice = screen
+      .getByRole('heading', {
+        name: 'Vận động theo nhịp vừa sức',
+      })
+      .closest('section') as HTMLElement
+    const prepare = within(practice)
+      .getByText('Chuẩn bị', { selector: 'b' })
+      .closest('li')
+    const walk = within(practice)
+      .getByText('Đi bộ', { selector: 'b' })
+      .closest('li')
+    expect(prepare).toHaveAttribute('aria-current', 'step')
+    expect(prepare).toHaveTextContent('2 giây')
+    expect(prepare).toHaveTextContent('Đang thực hiện · còn 2 giây')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(prepare).not.toHaveAttribute('aria-current')
+    expect(walk).toHaveAttribute('aria-current', 'step')
+    expect(prepare).toHaveTextContent('✓')
   })
 
   it('returns to Support Plan when opened from an occurrence', async () => {

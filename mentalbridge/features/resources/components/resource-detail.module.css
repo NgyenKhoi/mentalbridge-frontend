@@ -625,21 +625,50 @@
 }
 
 .practiceSection li {
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 2px 9px;
   padding: 15px;
+  border: 1px solid transparent;
   border-radius: 16px;
   background: rgb(255 255 255 / 63%);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
-.practiceSection li small {
+.practiceSection li small,
+.practiceSection li em {
   grid-column: 2;
   color: var(--detail-muted);
 }
 
+.practiceSection li em {
+  margin-top: 5px;
+  color: #27695c;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 850;
+}
+
 .practiceSection li.done {
   background: #cce7d6;
+}
+
+.practiceSection li.activePracticeCue {
+  border-color: #2f7a68;
+  background: #fffdf5;
+  box-shadow:
+    inset 4px 0 #2f7a68,
+    0 16px 32px -28px rgb(31 86 72 / 80%);
+  transform: translateY(-2px);
+}
+
+.practiceSection li.activePracticeCue > span {
+  color: #2f7a68;
 }
 
 .breathOrb {
@@ -667,6 +696,16 @@
 .breathOrb strong {
   color: #326458;
   font-size: 13px;
+}
+
+.breathOrb small {
+  display: block;
+  max-width: 120px;
+  margin-top: 5px;
+  color: #4d6b62;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.35;
 }
 
 .breathOrb.isBreathing {
@@ -1342,7 +1381,12 @@
   }
 
   .contextTranscript li button,
-  .cueWord {
+  .cueWord,
+  .practiceSection li {
     transition: none;
+  }
+
+  .practiceSection li.activePracticeCue {
+    transform: none;
   }
 }
