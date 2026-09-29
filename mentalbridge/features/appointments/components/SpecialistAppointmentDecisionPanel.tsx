@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useFeedback } from '@/components/ui/FeedbackProvider'
@@ -275,6 +276,19 @@ export default function SpecialistAppointmentDecisionPanel() {
                     </p>
                   )}
                 </div>
+                {appointment.modality === 'IN_APP_CHAT' &&
+                  (appointment.status === 'CONFIRMED' ||
+                    appointment.status === 'IN_PROGRESS' ||
+                    appointment.history.some(
+                      (event) => event.toStatus === 'CONFIRMED',
+                    )) && (
+                    <Link
+                      className={styles.chatLink}
+                      href={`/appointments/${appointment.id}/chat`}
+                    >
+                      Vào phòng chat
+                    </Link>
+                  )}
                 {appointment.status === 'REQUESTED' && (
                   <div className={styles.actions}>
                     <button

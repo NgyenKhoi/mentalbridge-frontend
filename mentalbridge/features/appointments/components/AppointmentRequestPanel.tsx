@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
@@ -435,6 +436,19 @@ export default function AppointmentRequestPanel() {
                     </ol>
                   </details>
                 )}
+                {item.modality === 'IN_APP_CHAT' &&
+                  (item.status === 'CONFIRMED' ||
+                    item.status === 'IN_PROGRESS' ||
+                    item.history.some(
+                      (event) => event.toStatus === 'CONFIRMED',
+                    )) && (
+                    <Link
+                      className={styles.chatLink}
+                      href={`/appointments/${item.id}/chat`}
+                    >
+                      Vào phòng chat
+                    </Link>
+                  )}
                 {(item.status === 'REQUESTED' ||
                   item.status === 'CONFIRMED') && (
                   <div className={styles.actions}>

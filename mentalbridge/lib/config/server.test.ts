@@ -4,6 +4,7 @@ import {
   readCareServerConfig,
   readContentServerConfig,
   readConsultationServerConfig,
+  readRealtimeServerConfig,
 } from './server'
 
 describe('readIdentityServerConfig', () => {
@@ -85,6 +86,30 @@ describe('readConsultationServerConfig', () => {
     expect(() => readConsultationServerConfig({})).toThrow(
       'CONSULTATION_SERVICE_URL is required',
     )
+  })
+})
+
+describe('readRealtimeServerConfig', () => {
+  it('separates the internal service URL from the browser socket endpoint', () => {
+    expect(
+      readRealtimeServerConfig({
+        REALTIME_SERVICE_URL: 'http://realtime:3004',
+        REALTIME_PUBLIC_URL: 'https://chat.example.test',
+        REALTIME_SERVICE_TIMEOUT_MS: '2500',
+      }),
+    ).toEqual({
+      baseUrl: 'http://realtime:3004/',
+      publicUrl: 'https://chat.example.test/',
+      timeoutMs: 2500,
+    })
+  })
+
+  it('requires an explicit public endpoint', () => {
+    expect(() =>
+      readRealtimeServerConfig({
+        REALTIME_SERVICE_URL: 'http://realtime:3004',
+      }),
+    ).toThrow('REALTIME_PUBLIC_URL is required')
   })
 })
 

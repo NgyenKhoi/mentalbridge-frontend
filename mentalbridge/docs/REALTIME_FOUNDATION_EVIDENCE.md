@@ -8,18 +8,21 @@ Transport construction is presentation-independent. Socket.IO uses namespace `/r
 
 Lifecycle states are `connecting`, `ready`, `degraded`, `authentication-expired`, `disconnected`, `reconnecting`, `resubscribing`, and `stopped`. Reconnect is capped exponential backoff with bounded jitter and a maximum attempt count. Offline state pauses attempts; explicit `resume()` is required after connectivity returns. Expiry stops the socket and reconnect timer. Deliberate stop removes all socket listeners and timers. Recovery captures its connection generation and verifies it after every asynchronous eligibility/history boundary, so stale work cannot replace the terminal `stopped` state.
 
-Recovery stores the last accepted event boundary per conversation, resends the original stable subscription command, and calls the explicit history adapter. Planned/unavailable history remains `history-unavailable`; it is never reported as recovered. The production eligibility adapter returns unavailable, never allow-all.
+Recovery stores the last accepted event boundary per conversation, resends the original stable subscription command, and calls the explicit history adapter. Unavailable history remains `history-unavailable`; it is never reported as recovered. MB-382 adds the production Consultation eligibility adapter, which fails closed and never falls back to allow-all.
 
 `liveDelivery: not_applicable` maps to `unconfirmed`, not delivered. This foundation makes no receipt or recipient-delivery claim.
 
 ## Production availability
 
-- Browser authentication: **unavailable / fail-closed** pending an approved short-lived socket credential or same-origin termination contract.
-- Consultation eligibility: **unavailable / fail-closed** pending its versioned contract.
-- Conversation history: **planned / unavailable** according to the Realtime provider contract.
-- Production appointment chat: **not delivered by this Story**.
+- Browser authentication: **implemented** through an authenticated same-origin
+  BFF exchange for a one-use Realtime ticket with a maximum 30-second lifetime.
+- Consultation eligibility: **implemented** for participant-bound subscribe,
+  send, and history authorization using server time.
+- Conversation history: **implemented** with bounded cursor pagination.
+- Production appointment chat: **implemented by MB-382** for waiting, active,
+  reconnect/resync, and retained read-only terminal states.
 
-The test-owned `/tests/browser-harness/` UI is a bounded synthetic Browser E2E fixture served by an isolated Vite server. The Next.js `/realtime-diagnostics` route always renders only the fail-closed notice and does not import the fixture. Fixtures contain no real conversation data or production credentials.
+The test-owned `/tests/browser-harness/` UI remains a bounded synthetic Browser E2E fixture served by an isolated Vite server. The Next.js `/realtime-diagnostics` route reports the approved MB-382 boundary and does not expose credentials. Fixtures contain no real conversation data or production credentials.
 
 The required frontend CI workflow runs the generated-contract check, provider-schema comparison, unit suite, controlled Chromium transport suite, and production build.
 
@@ -64,14 +67,20 @@ The integration suite requires its disposable MongoDB/Redis test environment. Re
   findings in Next.js 16.3.0 and its existing Sharp dependency. None of the
   Realtime dependencies added by this foundation is identified in the audit.
 
-The complete frontend unit command has 10 pre-existing failures in the Care
-client and legacy ResourcesList suites on this Windows checkout. Running those
-same failing files directly on unmodified `origin/dev` reproduces all 10
-failures. The two Realtime suites pass independently and the production build
-remains green.
+## Verification result — 2026-09-29 (MB-382 review)
+
+- The complete frontend quality gate passed, including 538 tests across 113
+  files and the production build.
+- Appointment-chat UI coverage passed all 6 waiting, active, terminal,
+  reconnecting, and exhausted-reconnect cases.
+- Realtime provider lint, typecheck, contract validation, 42 tests across 8
+  files, and build passed.
+- Docker-backed provider and Consultation integration tests remain an external
+  gate because no Docker daemon was available during this review.
 
 The browser dev server used fallback fonts when Google Fonts was temporarily unavailable during E2E; this did not affect transport assertions. The separate production build fetched its configured fonts and completed successfully.
 
 ## Explicitly deferred
 
-Consultation/appointment activation, specialist matching, entitlement, production conversation UI, cross-instance fan-out, receipts, moderation, attachments, and production history eligibility remain outside this foundation.
+Specialist matching, cross-instance fan-out, receipts, moderation, attachments,
+and video remain outside this appointment-chat slice.

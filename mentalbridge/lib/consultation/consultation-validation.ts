@@ -104,6 +104,62 @@ export type AvailabilitySlotList = Readonly<{
 }>
 
 export type AppointmentModality = 'IN_APP_CHAT' | 'IN_APP_VIDEO'
+
+export type AppointmentChatPhase =
+  | 'NOT_AVAILABLE'
+  | 'TOO_EARLY'
+  | 'WAITING'
+  | 'ACTIVE'
+  | 'ENDED'
+  | 'CANCELLED'
+  | 'RESCHEDULED'
+
+export type AppointmentChatEligibility = Readonly<{
+  conversationId: string
+  appointmentId: string
+  userAccountId: string
+  specialistAccountId: string
+  phase: AppointmentChatPhase
+  reasonCode: string
+  subscribeAllowed: boolean
+  sendAllowed: boolean
+  historyAllowed: boolean
+  scheduledStartAt: string
+  scheduledEndAt: string
+  serverTime: string
+}>
+
+export function parseAppointmentChatEligibility(
+  value: unknown,
+): AppointmentChatEligibility | null {
+  const candidate = record(value)
+  if (!candidate) return null
+  const phase = candidate.phase
+  if (
+    !uuid(candidate.conversationId) ||
+    !uuid(candidate.appointmentId) ||
+    !uuid(candidate.userAccountId) ||
+    !uuid(candidate.specialistAccountId) ||
+    ![
+      'NOT_AVAILABLE',
+      'TOO_EARLY',
+      'WAITING',
+      'ACTIVE',
+      'ENDED',
+      'CANCELLED',
+      'RESCHEDULED',
+    ].includes(String(phase)) ||
+    typeof candidate.reasonCode !== 'string' ||
+    typeof candidate.subscribeAllowed !== 'boolean' ||
+    typeof candidate.sendAllowed !== 'boolean' ||
+    typeof candidate.historyAllowed !== 'boolean' ||
+    !utcInstant(candidate.scheduledStartAt) ||
+    !utcInstant(candidate.scheduledEndAt) ||
+    !utcInstant(candidate.serverTime)
+  )
+    return null
+  return candidate as AppointmentChatEligibility
+}
 export type AppointmentStatus =
   | 'REQUESTED'
   | 'CONFIRMED'

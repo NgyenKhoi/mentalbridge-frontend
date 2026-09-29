@@ -1,0 +1,123 @@
+.page {
+  display: grid;
+  gap: 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+.header span {
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.header h1 {
+  margin: 0.35rem 0;
+}
+.header p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+.header button,
+.composer button {
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--radius-control);
+  padding: 0.7rem 1rem;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+}
+.notice,
+.error,
+.empty {
+  border-radius: var(--radius-control);
+  padding: 0.85rem 1rem;
+}
+.notice {
+  background: var(--surface-soft);
+}
+.error {
+  background: var(--terracotta-soft);
+  color: var(--terracotta);
+}
+.messages {
+  min-height: 320px;
+  max-height: 58vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+.empty {
+  margin: auto;
+  color: var(--ink-soft);
+}
+.message {
+  max-width: 75%;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-panel);
+  background: var(--surface-soft);
+}
+.message p {
+  margin: 0 0 0.3rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.message time {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+.composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+.composer label {
+  grid-column: 1 / -1;
+  font-weight: 700;
+}
+.composer textarea {
+  min-height: 80px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 0.75rem;
+  font: inherit;
+}
+.composer textarea:focus-visible,
+.header button:focus-visible,
+.composer button:focus-visible {
+  outline: 3px solid var(--teal-pale);
+  outline-offset: 2px;
+}
+.composer button:disabled,
+.composer textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+@media (max-width: 640px) {
+  .page {
+    padding: 1rem;
+  }
+  .header {
+    flex-direction: column;
+  }
+  .composer {
+    grid-template-columns: 1fr;
+  }
+  .message {
+    max-width: 92%;
+  }
+}
