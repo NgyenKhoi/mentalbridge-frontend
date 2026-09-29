@@ -143,6 +143,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns only current APPROVED profiles and their current selectable exact 60-minute online slots. FREE, PLUS, and PREMIUM may browse. Optional personalization reads one exact owned Care SupportEvaluation server-to-server; its health content is never returned or persisted, and unavailable context degrades to a neutral explained rank. */
+        get: operations["discoverApprovedSpecialists"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialists/{specialistAccountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Rechecks current approval and slot selectability and returns one approved public profile only when at least one selectable slot remains. A profile that is suspended, rejected, pending, missing, or has no selectable slot is indistinguishable as SPECIALIST_NOT_DISCOVERABLE. */
+        get: operations["getApprovedSpecialistDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/appointments": {
         parameters: {
             query?: never;
@@ -589,6 +623,68 @@ export interface components {
             generatedAt: string;
             videoEnabled: boolean;
         };
+        /** @enum {string} */
+        DiscoveryContextState: "NOT_REQUESTED" | "APPLIED" | "UNAVAILABLE";
+        /**
+         * @description BROWSE_ONLY forbids starting a booking command. BOOKING_POLICY_CHECK_REQUIRED permits handoff only; MB-378/MB-558 still recheck entitlement, credit, reservation capacity, specialist, and slot.
+         * @enum {string}
+         */
+        BookingHandoff: "BROWSE_ONLY" | "BOOKING_POLICY_CHECK_REQUIRED";
+        /** @enum {string} */
+        DiscoveryCompatibility: "NEUTRAL" | "MATCHED" | "NOT_MATCHED" | "UNAVAILABLE";
+        /** @enum {string} */
+        DiscoveryTimezoneMatch: "NOT_REQUESTED" | "EXACT" | "OFFSET_DISTANCE";
+        DiscoveryExplanation: {
+            compatibility: components["schemas"]["DiscoveryCompatibility"];
+            languageMatched: boolean | null;
+            hasSelectableSlot: boolean;
+            /** Format: date-time */
+            earliestSelectableStartAt: string | null;
+            timezoneMatch: components["schemas"]["DiscoveryTimezoneMatch"];
+            timezoneOffsetDistanceMinutes: number | null;
+            /** @description False until an authoritative eligible rating aggregate exists; never overrides a primary factor. */
+            ratingTieBreakerApplied: boolean;
+            codes: ("SCREENED_SUPPORT_AREA_MATCH" | "NO_SCREENED_SUPPORT_AREA_MATCH" | "NO_SCREENING_CONTEXT" | "SCREENING_CONTEXT_UNAVAILABLE" | "REQUESTED_LANGUAGE_MATCH" | "REQUESTED_LANGUAGE_NOT_MATCHED" | "NO_REQUESTED_LANGUAGE" | "SELECTABLE_SLOT_AVAILABLE" | "NO_SELECTABLE_SLOT" | "EXACT_TIMEZONE_MATCH" | "TIMEZONE_OFFSET_DISTANCE" | "NO_REQUESTED_TIMEZONE" | "RATING_NOT_AVAILABLE")[];
+        };
+        DiscoverySlot: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            /** Format: date-time */
+            startAt: string;
+            /** Format: date-time */
+            endAt: string;
+            timezone: string;
+            modality: components["schemas"]["AppointmentModality"];
+            /** Format: int64 */
+            version: number;
+        };
+        SpecialistDiscoveryItem: {
+            /** Format: uuid */
+            specialistAccountId: string;
+            displayName: string;
+            bio: string;
+            supportAreas: components["schemas"]["SupportArea"][];
+            languages: components["schemas"]["LanguageTag"][];
+            yearsOfExperience: number;
+            timezone: string;
+            explanation: components["schemas"]["DiscoveryExplanation"];
+            selectableSlots: components["schemas"]["DiscoverySlot"][];
+        };
+        SpecialistDiscoveryPage: {
+            items: components["schemas"]["SpecialistDiscoveryItem"][];
+            count: number;
+            nextCursor: string | null;
+            /** @constant */
+            rankingPolicyVersion: "specialist-discovery-v1";
+            /** Format: date-time */
+            generatedAt: string;
+            contextState: components["schemas"]["DiscoveryContextState"];
+            packageCode: components["schemas"]["ServicePackage"];
+            bookingHandoff: components["schemas"]["BookingHandoff"];
+            videoEnabled: boolean;
+        };
         Appointment: {
             /** Format: uuid */
             id: string;
@@ -722,6 +818,24 @@ export interface components {
         };
         /** @description If-Match is required for a specialist decision, owner cancellation, or replacement request (APPOINTMENT_VERSION_REQUIRED). */
         AppointmentVersionRequiredProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The profile is absent or is not currently approved (SPECIALIST_NOT_DISCOVERABLE). */
+        DiscoveryNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The cursor belongs to another criteria set or ranking policy (DISCOVERY_CURSOR_STALE). */
+        DiscoveryCursorConflictProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1169,6 +1283,73 @@ export interface operations {
             400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
+        };
+    };
+    discoverApprovedSpecialists: {
+        parameters: {
+            query?: {
+                supportEvaluationId?: string;
+                supportArea?: components["schemas"]["SupportArea"];
+                language?: components["schemas"]["LanguageTag"];
+                timezone?: string;
+                modality?: components["schemas"]["AppointmentModality"];
+                from?: string;
+                to?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deterministically ranked approved specialist page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistDiscoveryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["EntitlementForbiddenProblem"];
+            409: components["responses"]["DiscoveryCursorConflictProblem"];
+        };
+    };
+    getApprovedSpecialistDetail: {
+        parameters: {
+            query?: {
+                supportEvaluationId?: string;
+                language?: components["schemas"]["LanguageTag"];
+                timezone?: string;
+                modality?: components["schemas"]["AppointmentModality"];
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path: {
+                specialistAccountId: components["parameters"]["SpecialistAccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current approved public specialist detail and selectable slots */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistDiscoveryItem"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["EntitlementForbiddenProblem"];
+            404: components["responses"]["DiscoveryNotFoundProblem"];
         };
     };
     listOwnAppointments: {

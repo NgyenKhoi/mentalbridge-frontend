@@ -13,7 +13,8 @@ how the executable Next.js application is organized and delivered.
 5. [Runtime and environment](runtime-and-environment.md)
 6. [Review and testing](review-and-testing.md)
 7. [MB-375 SupportPlan replacement evidence](mb-375-support-plan-replacement-evidence.md)
-8. [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
+8. [MB-363 approved specialist discovery consumer evidence](mb-363-specialist-discovery-evidence.md)
+9. [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
 
 ## UI and motion routing
 
@@ -84,6 +85,7 @@ to select any additional task-specific material.
 | Explicit-consent, exact-revision Journal reflection  | Implemented | MB-368         |
 | Exact 60-minute online specialist availability       | Implemented | MB-362         |
 | Specialist appointment decisions and expiry          | Implemented | MB-379         |
+| Approved online specialist discovery consumer        | Implemented | MB-363         |
 | Appointment cancellation and linked reschedule       | Implemented | MB-380         |
 
 When implementation and a document disagree, do not silently choose one. Check

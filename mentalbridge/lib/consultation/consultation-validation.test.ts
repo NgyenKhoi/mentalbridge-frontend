@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ConsultationInputError,
+  discoveryQuery,
   parseAvailabilitySlot,
   parseAvailabilitySlotList,
   parseAppointment,
@@ -11,6 +12,8 @@ import {
   parseProfileInput,
   parsePublishAvailabilityInput,
   parseServiceCreditAccount,
+  parseSpecialistDiscoveryItem,
+  parseSpecialistDiscoveryPage,
   parseSpecialistDecisionInput,
   parseSpecialistSuspensionResult,
 } from './consultation-validation'
@@ -31,6 +34,55 @@ const profile = {
   createdAt: '2026-09-14T03:00:00Z',
   updatedAt: '2026-09-14T03:00:00Z',
   version: 0,
+}
+
+const discoveryItem = {
+  specialistAccountId: '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
+  displayName: 'Chuyên gia An',
+  bio: 'Đồng hành trực tuyến bằng phương pháp hỗ trợ phi lâm sàng.',
+  supportAreas: ['ANXIETY_SYMPTOMS'],
+  languages: ['vi'],
+  yearsOfExperience: 6,
+  timezone: 'Asia/Ho_Chi_Minh',
+  explanation: {
+    compatibility: 'MATCHED',
+    languageMatched: true,
+    hasSelectableSlot: true,
+    earliestSelectableStartAt: '2099-01-02T02:00:00Z',
+    timezoneMatch: 'EXACT',
+    timezoneOffsetDistanceMinutes: 0,
+    ratingTieBreakerApplied: false,
+    codes: [
+      'SCREENED_SUPPORT_AREA_MATCH',
+      'REQUESTED_LANGUAGE_MATCH',
+      'SELECTABLE_SLOT_AVAILABLE',
+      'EXACT_TIMEZONE_MATCH',
+      'RATING_NOT_AVAILABLE',
+    ],
+  },
+  selectableSlots: [
+    {
+      id: '43b7dbb4-021e-4c75-ae48-bfa7126c7256',
+      specialistAccountId: '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
+      startAt: '2099-01-02T02:00:00Z',
+      endAt: '2099-01-02T03:00:00Z',
+      timezone: 'Asia/Ho_Chi_Minh',
+      modality: 'IN_APP_CHAT',
+      version: 2,
+    },
+  ],
+}
+
+const discoveryPage = {
+  items: [discoveryItem],
+  count: 1,
+  nextCursor: null,
+  rankingPolicyVersion: 'specialist-discovery-v1',
+  generatedAt: '2099-01-01T00:00:00Z',
+  contextState: 'APPLIED',
+  packageCode: 'FREE',
+  bookingHandoff: 'BROWSE_ONLY',
+  videoEnabled: false,
 }
 
 describe('Consultation contract validation', () => {
@@ -359,5 +411,97 @@ describe('Consultation contract validation', () => {
         videoEnabled: false,
       }),
     ).toBeNull()
+  })
+
+  it('keeps only approved discovery contract fields at the consumer boundary', () => {
+    const parsed = parseSpecialistDiscoveryItem({
+      ...discoveryItem,
+      phone: '0900000000',
+      price: '500000',
+      credentials: ['Không thuộc contract'],
+      practiceLocation: 'Không thuộc contract',
+      assessmentAnswers: ['sensitive'],
+      journalContent: 'sensitive',
+      chatContent: 'sensitive',
+      meetingLink: 'https://example.invalid',
+    })
+
+    expect(parsed).toEqual(discoveryItem)
+    expect(JSON.stringify(parsed)).not.toMatch(
+      /phone|price|credential|practiceLocation|assessmentAnswers|journalContent|chatContent|meetingLink/,
+    )
+    expect(parseSpecialistDiscoveryPage(discoveryPage)).toEqual(discoveryPage)
+  })
+
+  it('fails closed on malformed or stale discovery slots and entitlement drift', () => {
+    expect(
+      parseSpecialistDiscoveryItem({
+        ...discoveryItem,
+        selectableSlots: [],
+        explanation: {
+          ...discoveryItem.explanation,
+          hasSelectableSlot: false,
+          earliestSelectableStartAt: null,
+          codes: discoveryItem.explanation.codes.map((code) =>
+            code === 'SELECTABLE_SLOT_AVAILABLE' ? 'NO_SELECTABLE_SLOT' : code,
+          ),
+        },
+      }),
+    ).toBeNull()
+    expect(
+      parseSpecialistDiscoveryItem({
+        ...discoveryItem,
+        selectableSlots: [
+          {
+            ...discoveryItem.selectableSlots[0],
+            endAt: '2099-01-02T02:30:00Z',
+          },
+        ],
+      }),
+    ).toBeNull()
+    expect(
+      parseSpecialistDiscoveryPage({
+        ...discoveryPage,
+        packageCode: 'FREE',
+        bookingHandoff: 'BOOKING_POLICY_CHECK_REQUIRED',
+      }),
+    ).toBeNull()
+    expect(
+      parseSpecialistDiscoveryPage({
+        ...discoveryPage,
+        items: [
+          {
+            ...discoveryItem,
+            selectableSlots: [
+              {
+                ...discoveryItem.selectableSlots[0],
+                modality: 'IN_APP_VIDEO',
+              },
+            ],
+          },
+        ],
+      }),
+    ).toBeNull()
+  })
+
+  it('forwards only allowlisted discovery filters', () => {
+    expect(
+      discoveryQuery(
+        new URLSearchParams({
+          language: 'vi',
+          timezone: 'Asia/Ho_Chi_Minh',
+          modality: 'IN_APP_CHAT',
+        }),
+      ),
+    ).toBe('?language=vi&timezone=Asia%2FHo_Chi_Minh&modality=IN_APP_CHAT')
+    expect(() => discoveryQuery(new URLSearchParams('phone=true'))).toThrow(
+      ConsultationInputError,
+    )
+    expect(() =>
+      discoveryQuery(new URLSearchParams('language=vi&language=en')),
+    ).toThrow(ConsultationInputError)
+    expect(() =>
+      discoveryQuery(new URLSearchParams('supportArea=ANXIETY_SYMPTOMS'), true),
+    ).toThrow(ConsultationInputError)
   })
 })
