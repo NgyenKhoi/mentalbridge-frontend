@@ -52,13 +52,14 @@ describe('POST /api/ai-companion/conversations/:id/messages', () => {
     sessionMocks.resolveSession.mockResolvedValue({ account })
   })
 
-  it('forwards only validated context with the server-held bearer', async () => {
+  it('forwards only the message with the server-held bearer', async () => {
     companionMocks.send.mockResolvedValue({
       conversationId,
       userMessageId: '33333333-3333-4333-8333-333333333333',
       assistantMessageId: '44444444-4444-4444-8444-444444444444',
       assistant: 'Synthetic answer',
       createdAt: '2026-09-20T08:00:00Z',
+      contextKinds: ['SUPPORT_PLAN'],
       quota: {
         plan: 'FREE',
         policyVersion: 'companion-quota-v1',
@@ -67,14 +68,7 @@ describe('POST /api/ai-companion/conversations/:id/messages', () => {
         limitDisplayed: true,
       },
     })
-    const body = {
-      message: 'Synthetic question',
-      context: {
-        journalIds: ['55555555-5555-4555-8555-555555555555'],
-        includeCurrentSupportPlan: true,
-        includeReminderContext: false,
-      },
-    }
+    const body = { message: 'Synthetic question' }
 
     const response = await POST(sendRequest(body), routeContext)
 

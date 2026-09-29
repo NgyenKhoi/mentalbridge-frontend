@@ -111,6 +111,40 @@ export interface paths {
         patch: operations["updateResource"];
         trace?: never;
     };
+    "/api/v1/resource-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the authenticated owner's resource progress for a bounded local-date range */
+        get: operations["listResourceProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-progress/{resourceId}/{localDate}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace one daily progress item for the authenticated owner */
+        put: operations["saveResourceProgress"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/resources/{id}/publish": {
         parameters: {
             query?: never;
@@ -611,6 +645,34 @@ export interface components {
         ResourceCategory: "BREATHING" | "MEDITATION" | "ARTICLE" | "VIDEO" | "JOURNALING" | "COMMUNITY";
         /** @enum {string} */
         ResourceStatus: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+        /**
+         * @description Daily participation state. COMPLETED is terminal for a resource and local date; later checklist edits cannot return it to IN_PROGRESS.
+         * @enum {string}
+         */
+        ResourceProgressStatus: "IN_PROGRESS" | "COMPLETED";
+        ResourceProgressItem: {
+            /** Format: uuid */
+            resourceId: string;
+            /** Format: date */
+            localDate: string;
+            contentVersion: string;
+            status: components["schemas"]["ResourceProgressStatus"];
+            /** @description Current user-managed checklist selections. These selections remain editable after COMPLETED without reversing the recorded completion. */
+            completedActionIds: string[];
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            version: string;
+        };
+        ResourceProgressList: {
+            items: components["schemas"]["ResourceProgressItem"][];
+        };
+        ResourceProgressUpdate: {
+            status: components["schemas"]["ResourceProgressStatus"];
+            /** @description Current user-managed checklist selections. These selections remain editable after COMPLETED without reversing the recorded completion. */
+            completedActionIds: string[];
+        };
         ResourceSummary: {
             /** Format: uuid */
             id: string;
@@ -1294,6 +1356,63 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    listResourceProgress: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped progress ordered by local date and recent activity */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceProgressList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    saveResourceProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resourceId: string;
+                localDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceProgressUpdate"];
+            };
+        };
+        responses: {
+            /** @description Persisted daily progress */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceProgressItem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     publishResource: {

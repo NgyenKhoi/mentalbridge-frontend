@@ -11,6 +11,15 @@ describe('AI Companion response validation', () => {
       parseConversation({
         conversationId: '11111111-1111-4111-8111-111111111111',
         title: 'Synthetic',
+        context: {
+          sources: {
+            plan: true,
+            diary: false,
+            screening: false,
+            resourceIds: [],
+          },
+          updatedAt: '2026-09-20T08:00:00Z',
+        },
         messages: [],
         createdAt: '2026-09-20T08:00:00Z',
         updatedAt: '2026-09-20T08:00:00Z',

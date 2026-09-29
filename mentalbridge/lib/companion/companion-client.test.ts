@@ -28,6 +28,15 @@ describe('AI Companion server-only client', () => {
     const conversation = {
       conversationId,
       title: 'Bounded history',
+      context: {
+        sources: {
+          plan: true,
+          diary: false,
+          screening: false,
+          resourceIds: [],
+        },
+        updatedAt: timestamp,
+      },
       messages: Array.from({ length: 400 }, (_, index) => message(index)),
       createdAt: timestamp,
       updatedAt: timestamp,

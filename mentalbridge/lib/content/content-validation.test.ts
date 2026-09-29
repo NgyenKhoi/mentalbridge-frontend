@@ -6,6 +6,9 @@ import {
   parseNotificationPreferencePatch,
   parseNotificationPreferences,
   parsePublicResourceDetail,
+  parseResourceProgressItem,
+  parseResourceProgressList,
+  parseResourceProgressUpdate,
   parseResourceSummary,
 } from './content-validation'
 
@@ -106,6 +109,36 @@ describe('Content response validation', () => {
     ).toBeNull()
     expect(
       parsePublicResourceDetail({ ...detail, contentVersion: 'latest' }),
+    ).toBeNull()
+  })
+
+  it('accepts closed resource progress shapes without private reflection text', () => {
+    const progress = {
+      resourceId: requiredSummary.id,
+      localDate: '2026-09-29',
+      contentVersion: '4',
+      status: 'COMPLETED',
+      completedActionIds: ['read', 'takeaway'],
+      completedAt: '2026-09-29T02:00:00.000Z',
+      updatedAt: '2026-09-29T02:00:00.000Z',
+      version: '1',
+    }
+    expect(parseResourceProgressItem(progress)).toEqual(progress)
+    expect(parseResourceProgressList({ items: [progress] })).toEqual({
+      items: [progress],
+    })
+    expect(
+      parseResourceProgressUpdate({
+        status: 'IN_PROGRESS',
+        completedActionIds: ['read'],
+      }),
+    ).toEqual({ status: 'IN_PROGRESS', completedActionIds: ['read'] })
+    expect(
+      parseResourceProgressUpdate({
+        status: 'IN_PROGRESS',
+        completedActionIds: [],
+        reflectionText: 'private',
+      }),
     ).toBeNull()
   })
 
