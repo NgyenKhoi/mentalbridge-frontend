@@ -93,6 +93,14 @@ const groups = [
         </Svg>,
         '3',
       ],
+      [
+        '/community',
+        'Cộng đồng',
+        <Svg key="community">
+          <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM16.5 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+          <path d="M2.5 20c.7-4.2 2.8-6.3 5.5-6.3s4.8 2.1 5.5 6.3M13 15.2c1-.9 2.1-1.3 3.5-1.3 2.5 0 4.2 1.9 4.8 5.6" />
+        </Svg>,
+      ],
     ],
   },
   {
@@ -142,6 +150,7 @@ const labels: Record<string, string> = {
   '/specialists': 'Chuyên gia',
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',
+  '/community': 'Cộng đồng',
   '/resources': 'Tài nguyên',
   '/analytics': 'Phân tích',
   '/subscription': 'Gói dịch vụ',
@@ -237,7 +246,12 @@ export default function AuthenticatedShell({
                   key={item[0] as string}
                   href={item[0] as string}
                   onClick={() => setMobile(false)}
-                  className={pathname === item[0] ? 'active' : ''}
+                  className={
+                    pathname === item[0] ||
+                    pathname.startsWith(`${item[0] as string}/`)
+                      ? 'active'
+                      : ''
+                  }
                   title={collapsed ? (item[1] as string) : undefined}
                 >
                   <i>{item[2]}</i>
@@ -270,7 +284,13 @@ export default function AuthenticatedShell({
           </button>
           <div className="ref-context">
             <span>Không gian của bạn</span>
-            <strong>{labels[pathname] ?? 'MentalBridge'}</strong>
+            <strong>
+              {labels[pathname] ??
+                Object.entries(labels).find((entry) =>
+                  pathname.startsWith(`${entry[0]}/`),
+                )?.[1] ??
+                'MentalBridge'}
+            </strong>
           </div>
           <label>
             <Svg>

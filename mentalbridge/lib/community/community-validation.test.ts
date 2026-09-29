@@ -1,0 +1,98 @@
+import { describe, expect, it } from 'vitest'
+
+import {
+  parseCommunityFeedPage,
+  parseCommunityPostDetail,
+  parseCommunityTopics,
+} from './community-validation'
+
+const post = {
+  postId: '20000000-0000-4000-8000-000000000009',
+  author: {
+    communityProfileId: '10000000-0000-4000-8000-000000000002',
+    displayName: 'Minh An',
+    state: 'ACTIVE',
+  },
+  topics: ['MY_STORY'],
+  media: [
+    {
+      mediaId: '30000000-0000-4000-8000-000000000001',
+      type: 'IMAGE',
+      url: 'https://media.example.test/story.webp',
+      width: 1200,
+      height: 800,
+      durationSeconds: null,
+      altText: 'Hình minh họa',
+    },
+  ],
+  mediaAvailability: 'READY',
+  counts: { comments: 2, reactions: 3 },
+  publishedAt: '2026-09-29T05:00:00Z',
+  updatedAt: '2026-09-29T05:00:00Z',
+}
+
+describe('Community response validation', () => {
+  it('accepts contract-shaped feed and detail payloads', () => {
+    expect(
+      parseCommunityFeedPage({
+        items: [{ ...post, contentPreview: 'Một câu chuyện.' }],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityPostDetail({ ...post, content: 'Nội dung đầy đủ.' }),
+    ).not.toBeNull()
+  })
+
+  it('rejects unsafe media URLs and inconsistent cursor state', () => {
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        content: 'Nội dung đầy đủ.',
+        media: [{ ...post.media[0], url: 'javascript:alert(1)' }],
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityFeedPage({ items: [], nextCursor: null, hasMore: true }),
+    ).toBeNull()
+  })
+
+  it('rejects undeclared fields so private owner or health data cannot cross the BFF', () => {
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        content: 'Nội dung đầy đủ.',
+        accountSubject: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityFeedPage({
+        items: [
+          {
+            ...post,
+            contentPreview: 'Một câu chuyện.',
+            inferredEmotion: 'SAD',
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    ).toBeNull()
+  })
+
+  it('requires the complete unique governed topic catalogue', () => {
+    const topics = [
+      'MY_STORY',
+      'SMALL_MILESTONE',
+      'HELPFUL_REFLECTION',
+      'PEER_QUESTION',
+      'EXPERIENCE_SHARING',
+      'HELPFUL_RESOURCE',
+    ].map((code) => ({ code, label: code, description: `Mô tả ${code}` }))
+
+    expect(parseCommunityTopics(topics)).not.toBeNull()
+    expect(parseCommunityTopics(topics.slice(0, 5))).toBeNull()
+    expect(parseCommunityTopics([...topics.slice(0, 5), topics[0]])).toBeNull()
+  })
+})

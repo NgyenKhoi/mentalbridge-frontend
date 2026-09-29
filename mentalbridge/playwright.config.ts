@@ -85,6 +85,8 @@ export default defineConfig({
             CONTENT_SERVICE_URL: identityFixtureURL,
             CONSULTATION_SERVICE_URL: identityFixtureURL,
             CONSULTATION_SERVICE_TIMEOUT_MS: '3000',
+            COMMUNITY_SERVICE_URL: identityFixtureURL,
+            COMMUNITY_SERVICE_TIMEOUT_MS: '3000',
             HOSTNAME: '127.0.0.1',
             PORT: String(port),
             JOURNAL_AI_SERVICE_URL: identityFixtureURL,
