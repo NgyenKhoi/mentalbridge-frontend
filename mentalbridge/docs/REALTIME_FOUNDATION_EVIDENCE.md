@@ -69,7 +69,7 @@ The integration suite requires its disposable MongoDB/Redis test environment. Re
 
 ## Verification result — 2026-09-29 (MB-382 review)
 
-- The complete frontend quality gate passed, including 538 tests across 113
+- The complete frontend quality gate passed, including 555 tests across 117
   files and the production build.
 - Appointment-chat UI coverage passed all 6 waiting, active, terminal,
   reconnecting, and exhausted-reconnect cases.

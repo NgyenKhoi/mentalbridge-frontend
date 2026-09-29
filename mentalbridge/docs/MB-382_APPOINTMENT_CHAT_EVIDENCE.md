@@ -14,7 +14,7 @@ states and uses the Realtime transport only when subscription is allowed.
 Verification on 2026-09-29:
 
 - `npm run quality` — passed: format, lint, typecheck, Consultation and
-  Realtime contract checks, 538/538 tests across 113 files, and the production
+  Realtime contract checks, 555/555 tests across 117 files, and the production
   build.
 - `AppointmentChatPanel` passed all 6 waiting, active, terminal, reconnecting,
   and exhausted-reconnect cases.

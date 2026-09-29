@@ -6,6 +6,7 @@ const DEFAULT_CONTENT_TIMEOUT_MS = 5_000
 const DEFAULT_JOURNAL_TIMEOUT_MS = 5_000
 const DEFAULT_CONSULTATION_TIMEOUT_MS = 5_000
 const DEFAULT_REALTIME_TIMEOUT_MS = 3_000
+const DEFAULT_COMMUNITY_TIMEOUT_MS = 5_000
 const MIN_IDENTITY_TIMEOUT_MS = 100
 const MAX_IDENTITY_TIMEOUT_MS = 30_000
 
@@ -38,6 +39,11 @@ export type ConsultationServerConfig = Readonly<{
 export type RealtimeServerConfig = Readonly<{
   baseUrl: string
   publicUrl: string
+  timeoutMs: number
+}>
+
+export type CommunityServerConfig = Readonly<{
+  baseUrl: string
   timeoutMs: number
 }>
 
@@ -192,6 +198,22 @@ export function readRealtimeServerConfig(
       'REALTIME_SERVICE_TIMEOUT_MS',
       environment.REALTIME_SERVICE_TIMEOUT_MS,
       DEFAULT_REALTIME_TIMEOUT_MS,
+    ),
+  })
+}
+
+export function readCommunityServerConfig(
+  environment: Environment = process.env,
+): CommunityServerConfig {
+  return Object.freeze({
+    baseUrl: parseBaseUrl(
+      'COMMUNITY_SERVICE_URL',
+      environment.COMMUNITY_SERVICE_URL,
+    ),
+    timeoutMs: parseTimeout(
+      'COMMUNITY_SERVICE_TIMEOUT_MS',
+      environment.COMMUNITY_SERVICE_TIMEOUT_MS,
+      DEFAULT_COMMUNITY_TIMEOUT_MS,
     ),
   })
 }
