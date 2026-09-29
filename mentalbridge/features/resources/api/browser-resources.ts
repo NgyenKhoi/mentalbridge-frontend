@@ -1,12 +1,33 @@
 import type { components } from '@/contracts/content.generated'
 
 export type PublicResourceDetail = components['schemas']['PublicResourceDetail']
+export type PublicResourceSummary = components['schemas']['ResourceSummary']
+
+type ResourceCatalogue = Readonly<{
+  items: PublicResourceSummary[]
+  hasMore: boolean
+  unavailable?: boolean
+  message?: string
+}>
 
 export class ResourceBrowserError extends Error {
   constructor(readonly status: number) {
     super('Resource request failed')
     this.name = 'ResourceBrowserError'
   }
+}
+
+export async function getResourceCatalogue(
+  signal?: AbortSignal,
+): Promise<ResourceCatalogue> {
+  const response = await fetch('/api/resources?limit=100', {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+    signal,
+  })
+  if (!response.ok) throw new ResourceBrowserError(response.status)
+  return (await response.json()) as ResourceCatalogue
 }
 
 export async function getResourceDetail(

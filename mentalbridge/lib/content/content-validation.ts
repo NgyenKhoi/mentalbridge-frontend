@@ -12,6 +12,10 @@ export type Notification = components['schemas']['Notification']
 export type NotificationPage = components['schemas']['NotificationPage']
 export type NotificationBulkReadResult =
   components['schemas']['NotificationBulkReadResult']
+export type ResourceProgressItem = components['schemas']['ResourceProgressItem']
+export type ResourceProgressList = components['schemas']['ResourceProgressList']
+export type ResourceProgressUpdate =
+  components['schemas']['ResourceProgressUpdate']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -26,6 +30,9 @@ const CATEGORIES = new Set([
   'COMMUNITY',
 ])
 const STATUSES = new Set(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
+const PROGRESS_STATUSES = new Set(['IN_PROGRESS', 'COMPLETED'])
+const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/
+const ACTION_ID = /^[A-Za-z0-9:_-]{1,64}$/
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -82,6 +89,15 @@ export function isLocale(value: string): boolean {
 
 export function isContentVersion(value: string): boolean {
   return CONTENT_VERSION.test(value)
+}
+
+export function isLocalDate(value: string): boolean {
+  if (!LOCAL_DATE.test(value)) return false
+  const instant = new Date(`${value}T00:00:00Z`)
+  return (
+    !Number.isNaN(instant.getTime()) &&
+    instant.toISOString().slice(0, 10) === value
+  )
 }
 
 export function isIdempotencyKey(value: string | null): value is string {
@@ -174,6 +190,89 @@ export function parseResourceList(value: unknown): ResourceListResponse | null {
     return null
   }
   return page as ResourceListResponse
+}
+
+export function parseResourceProgressItem(
+  value: unknown,
+): ResourceProgressItem | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'resourceId',
+      'localDate',
+      'contentVersion',
+      'status',
+      'completedActionIds',
+      'completedAt',
+      'updatedAt',
+      'version',
+    ]) ||
+    typeof item.resourceId !== 'string' ||
+    !UUID.test(item.resourceId) ||
+    typeof item.localDate !== 'string' ||
+    !isLocalDate(item.localDate) ||
+    typeof item.contentVersion !== 'string' ||
+    !CONTENT_VERSION.test(item.contentVersion) ||
+    typeof item.status !== 'string' ||
+    !PROGRESS_STATUSES.has(item.status) ||
+    !Array.isArray(item.completedActionIds) ||
+    item.completedActionIds.length > 32 ||
+    !item.completedActionIds.every(
+      (entry) => typeof entry === 'string' && ACTION_ID.test(entry),
+    ) ||
+    new Set(item.completedActionIds).size !== item.completedActionIds.length ||
+    !nullableDateTime(item.completedAt) ||
+    !dateTime(item.updatedAt) ||
+    typeof item.version !== 'string' ||
+    !CONTENT_VERSION.test(item.version)
+  ) {
+    return null
+  }
+  if (
+    item.status === 'COMPLETED'
+      ? item.completedAt === null
+      : item.completedAt !== null
+  ) {
+    return null
+  }
+  return item as ResourceProgressItem
+}
+
+export function parseResourceProgressList(
+  value: unknown,
+): ResourceProgressList | null {
+  const list = record(value)
+  if (
+    !list ||
+    !exactKeys(list, ['items']) ||
+    !Array.isArray(list.items) ||
+    !list.items.every((item) => parseResourceProgressItem(item) !== null)
+  ) {
+    return null
+  }
+  return list as ResourceProgressList
+}
+
+export function parseResourceProgressUpdate(
+  value: unknown,
+): ResourceProgressUpdate | null {
+  const update = record(value)
+  if (
+    !update ||
+    !exactKeys(update, ['status', 'completedActionIds']) ||
+    typeof update.status !== 'string' ||
+    !PROGRESS_STATUSES.has(update.status) ||
+    !Array.isArray(update.completedActionIds) ||
+    update.completedActionIds.length > 32 ||
+    !update.completedActionIds.every(
+      (entry) => typeof entry === 'string' && ACTION_ID.test(entry),
+    ) ||
+    new Set(update.completedActionIds).size !== update.completedActionIds.length
+  ) {
+    return null
+  }
+  return update as ResourceProgressUpdate
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/

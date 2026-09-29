@@ -1,3 +1,5 @@
+import type { components as consultationComponents } from '@/contracts/consultation.generated'
+
 export const SUPPORT_AREAS = [
   'DEPRESSIVE_SYMPTOMS',
   'ANXIETY_SYMPTOMS',
@@ -206,6 +208,14 @@ export type BookableSlotList = Readonly<{
   generatedAt: string
   videoEnabled: boolean
 }>
+
+type ConsultationSchemas = consultationComponents['schemas']
+export type DiscoverySlot = ConsultationSchemas['DiscoverySlot']
+export type DiscoveryExplanation = ConsultationSchemas['DiscoveryExplanation']
+export type SpecialistDiscoveryItem =
+  ConsultationSchemas['SpecialistDiscoveryItem']
+export type SpecialistDiscoveryPage =
+  ConsultationSchemas['SpecialistDiscoveryPage']
 export type Appointment = Readonly<{
   id: string
   slotId: string
@@ -331,6 +341,267 @@ function ianaTimezone(value: unknown): value is string {
   } catch {
     return false
   }
+}
+
+const DISCOVERY_COMPATIBILITY = [
+  'NEUTRAL',
+  'MATCHED',
+  'NOT_MATCHED',
+  'UNAVAILABLE',
+] as const
+const DISCOVERY_TIMEZONE_MATCH = [
+  'NOT_REQUESTED',
+  'EXACT',
+  'OFFSET_DISTANCE',
+] as const
+const DISCOVERY_CODES = [
+  'SCREENED_SUPPORT_AREA_MATCH',
+  'NO_SCREENED_SUPPORT_AREA_MATCH',
+  'NO_SCREENING_CONTEXT',
+  'SCREENING_CONTEXT_UNAVAILABLE',
+  'REQUESTED_LANGUAGE_MATCH',
+  'REQUESTED_LANGUAGE_NOT_MATCHED',
+  'NO_REQUESTED_LANGUAGE',
+  'SELECTABLE_SLOT_AVAILABLE',
+  'NO_SELECTABLE_SLOT',
+  'EXACT_TIMEZONE_MATCH',
+  'TIMEZONE_OFFSET_DISTANCE',
+  'NO_REQUESTED_TIMEZONE',
+  'RATING_NOT_AVAILABLE',
+] as const
+
+function parseDiscoverySlot(
+  value: unknown,
+  specialistAccountId: string,
+): DiscoverySlot | null {
+  const slot = record(value)
+  if (
+    !slot ||
+    !uuid(slot.id) ||
+    slot.specialistAccountId !== specialistAccountId ||
+    !utcInstant(slot.startAt) ||
+    !utcInstant(slot.endAt) ||
+    Date.parse(slot.endAt) - Date.parse(slot.startAt) !== 3_600_000 ||
+    !ianaTimezone(slot.timezone) ||
+    !AVAILABILITY_MODALITIES.includes(slot.modality as AppointmentModality) ||
+    !Number.isSafeInteger(slot.version) ||
+    Number(slot.version) < 0
+  )
+    return null
+  return {
+    id: slot.id,
+    specialistAccountId,
+    startAt: slot.startAt,
+    endAt: slot.endAt,
+    timezone: slot.timezone,
+    modality: slot.modality as AppointmentModality,
+    version: Number(slot.version),
+  }
+}
+
+function parseDiscoveryExplanation(
+  value: unknown,
+  hasSlots: boolean,
+): DiscoveryExplanation | null {
+  const explanation = record(value)
+  if (
+    !explanation ||
+    !DISCOVERY_COMPATIBILITY.includes(explanation.compatibility as never) ||
+    !(
+      explanation.languageMatched === null ||
+      typeof explanation.languageMatched === 'boolean'
+    ) ||
+    explanation.hasSelectableSlot !== hasSlots ||
+    !instantOrNull(explanation.earliestSelectableStartAt) ||
+    !DISCOVERY_TIMEZONE_MATCH.includes(explanation.timezoneMatch as never) ||
+    !(
+      explanation.timezoneOffsetDistanceMinutes === null ||
+      (Number.isSafeInteger(explanation.timezoneOffsetDistanceMinutes) &&
+        Number(explanation.timezoneOffsetDistanceMinutes) >= 0)
+    ) ||
+    typeof explanation.ratingTieBreakerApplied !== 'boolean' ||
+    !Array.isArray(explanation.codes) ||
+    explanation.codes.length > DISCOVERY_CODES.length ||
+    !explanation.codes.every((code) => DISCOVERY_CODES.includes(code as never))
+  )
+    return null
+  if (
+    hasSlots !== (explanation.earliestSelectableStartAt !== null) ||
+    (explanation.timezoneMatch === 'NOT_REQUESTED') !==
+      (explanation.timezoneOffsetDistanceMinutes === null)
+  )
+    return null
+  return {
+    compatibility:
+      explanation.compatibility as DiscoveryExplanation['compatibility'],
+    languageMatched: explanation.languageMatched,
+    hasSelectableSlot: hasSlots,
+    earliestSelectableStartAt: explanation.earliestSelectableStartAt,
+    timezoneMatch:
+      explanation.timezoneMatch as DiscoveryExplanation['timezoneMatch'],
+    timezoneOffsetDistanceMinutes: explanation.timezoneOffsetDistanceMinutes as
+      number | null,
+    ratingTieBreakerApplied: explanation.ratingTieBreakerApplied,
+    codes: [...explanation.codes] as DiscoveryExplanation['codes'],
+  }
+}
+
+export function parseSpecialistDiscoveryItem(
+  value: unknown,
+): SpecialistDiscoveryItem | null {
+  const item = record(value)
+  if (
+    !item ||
+    !uuid(item.specialistAccountId) ||
+    typeof item.displayName !== 'string' ||
+    item.displayName.length < 1 ||
+    item.displayName.length > 120 ||
+    typeof item.bio !== 'string' ||
+    item.bio.length > 2_000 ||
+    !Array.isArray(item.supportAreas) ||
+    item.supportAreas.length < 1 ||
+    !item.supportAreas.every((area) => SUPPORT_AREAS.includes(area as never)) ||
+    new Set(item.supportAreas).size !== item.supportAreas.length ||
+    !Array.isArray(item.languages) ||
+    item.languages.length < 1 ||
+    !item.languages.every((language) =>
+      LANGUAGES.includes(language as never),
+    ) ||
+    new Set(item.languages).size !== item.languages.length ||
+    !Number.isSafeInteger(item.yearsOfExperience) ||
+    Number(item.yearsOfExperience) < 0 ||
+    Number(item.yearsOfExperience) > 80 ||
+    !ianaTimezone(item.timezone) ||
+    !Array.isArray(item.selectableSlots) ||
+    item.selectableSlots.length < 1 ||
+    item.selectableSlots.length > 20
+  )
+    return null
+  const slots = item.selectableSlots.map((slot) =>
+    parseDiscoverySlot(slot, item.specialistAccountId as string),
+  )
+  if (slots.some((slot) => slot === null)) return null
+  const parsedSlots = slots as DiscoverySlot[]
+  if (new Set(parsedSlots.map((slot) => slot.id)).size !== parsedSlots.length)
+    return null
+  const explanation = parseDiscoveryExplanation(
+    item.explanation,
+    parsedSlots.length > 0,
+  )
+  if (!explanation) return null
+  return {
+    specialistAccountId: item.specialistAccountId,
+    displayName: item.displayName,
+    bio: item.bio,
+    supportAreas: [...item.supportAreas] as SupportArea[],
+    languages: [...item.languages] as ('vi' | 'en')[],
+    yearsOfExperience: Number(item.yearsOfExperience),
+    timezone: item.timezone,
+    explanation,
+    selectableSlots: parsedSlots,
+  }
+}
+
+export function parseSpecialistDiscoveryPage(
+  value: unknown,
+): SpecialistDiscoveryPage | null {
+  const page = record(value)
+  if (
+    !page ||
+    !Array.isArray(page.items) ||
+    page.items.length > 50 ||
+    !Number.isSafeInteger(page.count) ||
+    page.count !== page.items.length ||
+    !(
+      page.nextCursor === null ||
+      (typeof page.nextCursor === 'string' && page.nextCursor.length <= 2_048)
+    ) ||
+    page.rankingPolicyVersion !== 'specialist-discovery-v1' ||
+    !utcInstant(page.generatedAt) ||
+    !['NOT_REQUESTED', 'APPLIED', 'UNAVAILABLE'].includes(
+      String(page.contextState),
+    ) ||
+    !['FREE', 'PLUS', 'PREMIUM'].includes(String(page.packageCode)) ||
+    !['BROWSE_ONLY', 'BOOKING_POLICY_CHECK_REQUIRED'].includes(
+      String(page.bookingHandoff),
+    ) ||
+    typeof page.videoEnabled !== 'boolean' ||
+    (page.packageCode === 'FREE') !== (page.bookingHandoff === 'BROWSE_ONLY')
+  )
+    return null
+  const items = page.items.map(parseSpecialistDiscoveryItem)
+  if (items.some((item) => item === null)) return null
+  const parsedItems = items as SpecialistDiscoveryItem[]
+  if (
+    new Set(parsedItems.map((item) => item.specialistAccountId)).size !==
+      parsedItems.length ||
+    (!page.videoEnabled &&
+      parsedItems.some((item) =>
+        item.selectableSlots.some((slot) => slot.modality === 'IN_APP_VIDEO'),
+      ))
+  )
+    return null
+  return {
+    items: parsedItems,
+    count: Number(page.count),
+    nextCursor: page.nextCursor,
+    rankingPolicyVersion: 'specialist-discovery-v1',
+    generatedAt: page.generatedAt,
+    contextState: page.contextState as SpecialistDiscoveryPage['contextState'],
+    packageCode: page.packageCode as SpecialistDiscoveryPage['packageCode'],
+    bookingHandoff:
+      page.bookingHandoff as SpecialistDiscoveryPage['bookingHandoff'],
+    videoEnabled: page.videoEnabled,
+  }
+}
+
+export function discoveryQuery(
+  searchParams: URLSearchParams,
+  detail = false,
+): string {
+  const allowed = new Set([
+    'supportEvaluationId',
+    ...(detail ? [] : ['supportArea']),
+    'language',
+    'timezone',
+    'modality',
+    'from',
+    'to',
+    ...(detail ? [] : ['limit', 'cursor']),
+  ])
+  for (const key of searchParams.keys())
+    if (!allowed.has(key) || searchParams.getAll(key).length !== 1)
+      throw new ConsultationInputError(key)
+  const evaluation = searchParams.get('supportEvaluationId')
+  const supportArea = searchParams.get('supportArea')
+  const language = searchParams.get('language')
+  const timezone = searchParams.get('timezone')
+  const modality = searchParams.get('modality')
+  const from = searchParams.get('from')
+  const to = searchParams.get('to')
+  const limit = searchParams.get('limit')
+  const cursor = searchParams.get('cursor')
+  if (evaluation !== null && !uuid(evaluation))
+    throw new ConsultationInputError('supportEvaluationId')
+  if (supportArea !== null && !SUPPORT_AREAS.includes(supportArea as never))
+    throw new ConsultationInputError('supportArea')
+  if (language !== null && !LANGUAGES.includes(language as never))
+    throw new ConsultationInputError('language')
+  if (timezone !== null && !ianaTimezone(timezone))
+    throw new ConsultationInputError('timezone')
+  if (modality !== null && !AVAILABILITY_MODALITIES.includes(modality as never))
+    throw new ConsultationInputError('modality')
+  if (from !== null && !utcInstant(from))
+    throw new ConsultationInputError('from')
+  if (to !== null && !utcInstant(to)) throw new ConsultationInputError('to')
+  if (
+    limit !== null &&
+    (!/^\d{1,2}$/.test(limit) || Number(limit) < 1 || Number(limit) > 50)
+  )
+    throw new ConsultationInputError('limit')
+  if (cursor !== null && (cursor.length < 1 || cursor.length > 2_048))
+    throw new ConsultationInputError('cursor')
+  return searchParams.size ? `?${searchParams.toString()}` : ''
 }
 
 export function parseProfile(value: unknown): SpecialistProfile | null {

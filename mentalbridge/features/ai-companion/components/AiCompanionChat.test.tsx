@@ -1,12 +1,22 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import type { CompanionConversation } from '@/lib/companion/companion-contract'
 import {
   CompanionBrowserError,
   companionBrowserClient,
 } from '../api/browser-client'
 import AiCompanionChat from './AiCompanionChat'
+
+vi.mock('@/features/resources/api/browser-resources', () => ({
+  getResourceCatalogue: vi
+    .fn()
+    .mockResolvedValue({ items: [], hasMore: false }),
+}))
+vi.mock('@/features/resources/api/browser-resource-progress', () => ({
+  getResourceProgress: vi.fn().mockResolvedValue([]),
+}))
 
 vi.mock('../api/browser-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/browser-client')>()
@@ -17,6 +27,7 @@ vi.mock('../api/browser-client', async (importOriginal) => {
       create: vi.fn(),
       get: vi.fn(),
       send: vi.fn(),
+      updateContext: vi.fn(),
       remove: vi.fn(),
     },
   }
@@ -25,6 +36,15 @@ vi.mock('../api/browser-client', async (importOriginal) => {
 const conversation: CompanionConversation = {
   conversationId: '11111111-1111-4111-8111-111111111111',
   title: 'Cuộc trò chuyện mới',
+  context: {
+    sources: {
+      plan: true,
+      diary: false,
+      screening: false,
+      resourceIds: [],
+    },
+    updatedAt: '2026-09-20T08:00:00Z',
+  },
   messages: [],
   createdAt: '2026-09-20T08:00:00Z',
   updatedAt: '2026-09-20T08:00:00Z',
@@ -63,6 +83,9 @@ describe('AiCompanionChat', () => {
     })
     vi.mocked(companionBrowserClient.get).mockResolvedValue(conversation)
     vi.mocked(companionBrowserClient.create).mockResolvedValue(conversation)
+    vi.mocked(companionBrowserClient.updateContext).mockResolvedValue(
+      conversation,
+    )
     vi.mocked(companionBrowserClient.remove).mockResolvedValue()
     vi.stubGlobal(
       'fetch',
@@ -75,7 +98,7 @@ describe('AiCompanionChat', () => {
     )
   })
 
-  it('loads history and sends only explicitly selected minimized context', async () => {
+  it('persists context per conversation and sends only the message', async () => {
     const answered: CompanionConversation = {
       ...conversation,
       messages: [
@@ -104,6 +127,7 @@ describe('AiCompanionChat', () => {
       assistantMessageId: answered.messages[1]!.messageId,
       assistant: answered.messages[1]!.content,
       createdAt: answered.messages[1]!.createdAt,
+      contextKinds: ['JOURNAL', 'SUPPORT_PLAN'],
       quota: {
         plan: 'FREE',
         policyVersion: 'companion-quota-v1',
@@ -112,11 +136,38 @@ describe('AiCompanionChat', () => {
         limitDisplayed: true,
       },
     })
+    vi.mocked(companionBrowserClient.updateContext).mockResolvedValue({
+      ...conversation,
+      context: {
+        ...conversation.context,
+        sources: { ...conversation.context.sources, diary: true },
+      },
+    })
     const user = userEvent.setup()
     render(<AiCompanionChat />)
 
     await user.click(
-      await screen.findByRole('checkbox', { name: 'Một ngày bình tĩnh hơn' }),
+      await screen.findByRole('button', { name: /Mở nguồn ngữ cảnh/ }),
+    )
+    const dialog = screen.getByRole('dialog', {
+      name: 'Nguồn thông tin cho cuộc trò chuyện này',
+    })
+    await user.click(
+      within(dialog).getByRole('checkbox', { name: 'Bật Nhật ký' }),
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Lưu' }))
+    await waitFor(() =>
+      expect(companionBrowserClient.updateContext).toHaveBeenCalledWith(
+        conversation.conversationId,
+        {
+          sources: {
+            plan: true,
+            diary: true,
+            screening: false,
+            resourceIds: [],
+          },
+        },
+      ),
     )
     await user.type(
       screen.getByRole('textbox', { name: 'Tin nhắn' }),
@@ -127,23 +178,20 @@ describe('AiCompanionChat', () => {
     await waitFor(() =>
       expect(companionBrowserClient.send).toHaveBeenCalledWith(
         conversation.conversationId,
-        {
-          message: 'Mình nên bắt đầu từ đâu?',
-          context: {
-            journalIds: ['22222222-2222-4222-8222-222222222222'],
-            includeCurrentSupportPlan: true,
-            includeReminderContext: false,
-          },
-        },
+        { message: 'Mình nên bắt đầu từ đâu?' },
         expect.any(String),
+        expect.any(AbortSignal),
       ),
     )
-    expect(await screen.findByText('Hãy chọn một bước nhỏ.')).toBeVisible()
-    expect(screen.getByText(/Còn 4 lượt/)).toBeVisible()
-    expect(screen.getByText('Thông tin được dùng')).toBeVisible()
     expect(
-      screen.getByText('Nhật ký bạn đã chọn · Kế hoạch hỗ trợ hiện tại'),
+      await within(
+        screen.getByRole('region', { name: 'AI Companion' }),
+      ).findByText('Hãy chọn một bước nhỏ.'),
     ).toBeVisible()
+    expect(screen.getByText(/Còn 4 lượt/)).toBeVisible()
+    await user.click(screen.getByText('Đã dùng 2 nguồn'))
+    expect(screen.getByText('Nhật ký gần đây')).toBeVisible()
+    expect(screen.getByText('Kế hoạch hỗ trợ hiện tại')).toBeVisible()
   })
 
   it('shows consent withdrawal separately and retains the draft for retry', async () => {
@@ -168,6 +216,7 @@ describe('AiCompanionChat', () => {
       assistantMessageId: '55555555-5555-4555-8555-555555555555',
       assistant: 'Đã hiểu.',
       createdAt: '2026-09-20T08:01:00Z',
+      contextKinds: [],
       quota: {
         plan: 'PREMIUM',
         policyVersion: 'companion-quota-v1',
@@ -216,6 +265,7 @@ describe('AiCompanionChat', () => {
         assistantMessageId: '55555555-5555-4555-8555-555555555555',
         assistant: 'Mình đang lắng nghe.',
         createdAt: '2026-09-20T08:01:00Z',
+        contextKinds: [],
         quota: {
           plan: 'FREE',
           policyVersion: 'companion-quota-v1',
@@ -257,6 +307,7 @@ describe('AiCompanionChat', () => {
         assistantMessageId: '55555555-5555-4555-8555-555555555555',
         assistant: 'Mình đang lắng nghe.',
         createdAt: '2026-09-20T08:01:00Z',
+        contextKinds: [],
         quota: {
           plan: 'FREE',
           policyVersion: 'companion-quota-v1',
@@ -282,7 +333,49 @@ describe('AiCompanionChat', () => {
     )
   })
 
-  it('commits a successful send when the immediate detail refresh fails', async () => {
+  it('warns before switching and restores each conversation draft', async () => {
+    const otherConversation: CompanionConversation = {
+      ...conversation,
+      conversationId: '66666666-6666-4666-8666-666666666666',
+      title: 'Giấc ngủ gần đây',
+      createdAt: '2026-09-20T09:00:00Z',
+      updatedAt: '2026-09-20T09:00:00Z',
+    }
+    vi.mocked(companionBrowserClient.list).mockResolvedValue({
+      items: [conversation, otherConversation],
+    })
+    vi.mocked(companionBrowserClient.get).mockImplementation(async (id) =>
+      id === otherConversation.conversationId
+        ? otherConversation
+        : conversation,
+    )
+    const user = userEvent.setup()
+    render(
+      <FeedbackProvider>
+        <AiCompanionChat />
+      </FeedbackProvider>,
+    )
+
+    const composer = await screen.findByRole('textbox', { name: 'Tin nhắn' })
+    await user.type(composer, 'Bản nháp cần giữ lại')
+    await user.click(screen.getByRole('button', { name: /Giấc ngủ gần đây/ }))
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Bạn còn một tin nhắn chưa gửi',
+      }),
+    ).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Chuyển hội thoại' }))
+    await waitFor(() => expect(composer).toHaveValue(''))
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /Cuộc trò chuyện mới.*Tiếp tục cuộc trò chuyện/,
+      }),
+    )
+    await waitFor(() => expect(composer).toHaveValue('Bản nháp cần giữ lại'))
+  })
+
+  it('commits a successful send without a redundant detail refresh', async () => {
     const answered: CompanionConversation = {
       ...conversation,
       messages: [
@@ -303,22 +396,14 @@ describe('AiCompanionChat', () => {
       ],
       updatedAt: '2026-09-20T08:01:00Z',
     }
-    vi.mocked(companionBrowserClient.get)
-      .mockResolvedValueOnce(conversation)
-      .mockRejectedValueOnce(
-        new CompanionBrowserError(
-          'malformed detail',
-          'COMPANION_MALFORMED_RESPONSE',
-          502,
-        ),
-      )
-      .mockResolvedValueOnce(answered)
+    vi.mocked(companionBrowserClient.get).mockResolvedValueOnce(conversation)
     vi.mocked(companionBrowserClient.send).mockResolvedValue({
       conversationId: conversation.conversationId,
       userMessageId: answered.messages[0]!.messageId,
       assistantMessageId: answered.messages[1]!.messageId,
       assistant: answered.messages[1]!.content,
       createdAt: answered.messages[1]!.createdAt,
+      contextKinds: [],
       quota: {
         plan: 'FREE',
         policyVersion: 'companion-quota-v1',
@@ -334,22 +419,28 @@ describe('AiCompanionChat', () => {
 
     await user.click(screen.getByRole('button', { name: 'Gửi' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Tin nhắn đã được gửi nhưng chưa thể tải lại cuộc trò chuyện',
-    )
+    await waitFor(() => {
+      expect(
+        within(screen.getByRole('region', { name: 'AI Companion' })).getByText(
+          'Mình đã nhận được tin nhắn.',
+        ),
+      ).toBeVisible()
+      expect(screen.getByRole('button', { name: 'Gửi' })).toBeVisible()
+    })
     expect(composer).toHaveValue('')
     expect(screen.getByText(/Còn 4 lượt/)).toBeVisible()
     expect(companionBrowserClient.send).toHaveBeenCalledTimes(1)
-    expect(screen.getAllByText('Chỉ gửi một lần')).toHaveLength(1)
-    expect(screen.getAllByText('Mình đã nhận được tin nhắn.')).toHaveLength(1)
+    const chat = screen.getByRole('region', { name: 'AI Companion' })
+    expect(within(chat).getAllByText('Chỉ gửi một lần')).toHaveLength(1)
+    expect(
+      within(chat).getAllByText('Mình đã nhận được tin nhắn.'),
+    ).toHaveLength(1)
 
-    await user.click(screen.getByRole('button', { name: 'Tải lại' }))
-
-    await waitFor(() =>
-      expect(companionBrowserClient.get).toHaveBeenCalledTimes(3),
-    )
+    expect(companionBrowserClient.get).toHaveBeenCalledTimes(1)
     expect(companionBrowserClient.send).toHaveBeenCalledTimes(1)
-    expect(screen.getAllByText('Chỉ gửi một lần')).toHaveLength(1)
-    expect(screen.getAllByText('Mình đã nhận được tin nhắn.')).toHaveLength(1)
+    expect(within(chat).getAllByText('Chỉ gửi một lần')).toHaveLength(1)
+    expect(
+      within(chat).getAllByText('Mình đã nhận được tin nhắn.'),
+    ).toHaveLength(1)
   })
 })

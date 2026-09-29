@@ -24,10 +24,21 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
   const messages: Array<Record<string, unknown>> = []
   let deleted = false
   let sentBody: Record<string, unknown> | null = null
+  let savedContextBody: Record<string, unknown> | null = null
   let idempotencyKey = ''
+  let contextSources = {
+    plan: true,
+    diary: false,
+    screening: false,
+    resourceIds: [] as string[],
+  }
   const conversation = () => ({
     conversationId,
     title: 'Cuộc trò chuyện mới',
+    context: {
+      sources: contextSources,
+      updatedAt: now,
+    },
     messages,
     createdAt: now,
     updatedAt: messages.length === 0 ? now : '2026-09-22T08:01:00Z',
@@ -102,6 +113,7 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
           assistantMessageId: messages[1]!.messageId,
           assistant: messages[1]!.content,
           createdAt: messages[1]!.createdAt,
+          contextKinds: ['JOURNAL', 'SUPPORT_PLAN'],
           quota: {
             plan: 'FREE',
             policyVersion: 'companion-quota-v1',
@@ -110,6 +122,20 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
             limitDisplayed: true,
           },
         }),
+      })
+      return
+    }
+    if (pathname.endsWith('/context') && request.method() === 'PUT') {
+      savedContextBody = request.postDataJSON() as Record<string, unknown>
+      contextSources = (
+        savedContextBody as {
+          sources: typeof contextSources
+        }
+      ).sources
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(conversation()),
       })
       return
     }
@@ -134,40 +160,52 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
   })
 
   await page.goto('/messages')
-  await expect(page.getByRole('heading', { name: 'Trò chuyện' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Hội thoại' })).toBeVisible()
+  await page
+    .getByRole('button', { name: /Cuộc trò chuyện mới.*Tiếp tục/ })
+    .click()
   await expect(
     page.getByRole('link', { name: 'Cần trợ giúp ngay' }),
   ).toBeVisible()
 
-  await page.getByText('Chọn thông tin để AI hiểu bạn hơn').click()
-  await page.getByRole('checkbox', { name: 'Một ngày bình tĩnh hơn' }).check()
+  await page.getByRole('button', { name: /Mở nguồn ngữ cảnh/ }).click()
+  const contextDialog = page.getByRole('dialog', {
+    name: 'Nguồn thông tin cho cuộc trò chuyện này',
+  })
+  await contextDialog.getByRole('checkbox', { name: 'Bật Nhật ký' }).check()
+  await contextDialog.getByRole('button', { name: 'Lưu' }).click()
   await page
     .getByRole('textbox', { name: 'Tin nhắn' })
     .fill('Mình nên bắt đầu từ đâu?')
   await page.getByRole('button', { name: 'Gửi' }).click()
 
   await expect(
-    page.getByText('Hãy chọn một bước nhỏ và vừa sức.'),
+    page
+      .getByRole('region', { name: 'AI Companion' })
+      .getByText('Hãy chọn một bước nhỏ và vừa sức.'),
   ).toBeVisible()
   await expect(page.getByText(/Còn 4 lượt/)).toBeVisible()
-  await expect(
-    page.getByText('Nhật ký bạn đã chọn · Kế hoạch hỗ trợ hiện tại'),
-  ).toBeVisible()
+  await page.getByText('Đã dùng 2 nguồn').click()
+  await expect(page.getByText('Nhật ký gần đây')).toBeVisible()
+  await expect(page.getByText('Kế hoạch hỗ trợ hiện tại')).toBeVisible()
   expect(idempotencyKey.length).toBeGreaterThanOrEqual(16)
-  expect(sentBody).toEqual({
-    message: 'Mình nên bắt đầu từ đâu?',
-    context: {
-      journalIds: [journalId],
-      includeCurrentSupportPlan: true,
-      includeReminderContext: false,
+  expect(savedContextBody).toEqual({
+    sources: {
+      plan: true,
+      diary: true,
+      screening: false,
+      resourceIds: [],
     },
   })
+  expect(sentBody).toEqual({ message: 'Mình nên bắt đầu từ đâu?' })
 
-  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByLabel('Tùy chọn hội thoại').click()
   await page.getByRole('button', { name: 'Xóa cuộc trò chuyện' }).click()
-  await expect(
-    page.getByRole('heading', { name: 'Bắt đầu khi bạn sẵn sàng' }),
-  ).toBeVisible()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Xóa cuộc trò chuyện' })
+    .click()
+  await expect(page.getByText('Chưa có cuộc trò chuyện nào.')).toBeVisible()
   expect(deleted).toBe(true)
 })
 
@@ -242,6 +280,7 @@ test('MB-512 retries an unchanged draft with a fresh key after provider failure'
           assistantMessageId: messages[1]!.messageId,
           assistant: messages[1]!.content,
           createdAt: messages[1]!.createdAt,
+          contextKinds: ['SUPPORT_PLAN'],
           quota: {
             plan: 'FREE',
             policyVersion: 'companion-quota-v1',
@@ -266,6 +305,9 @@ test('MB-512 retries an unchanged draft with a fresh key after provider failure'
   })
 
   await page.goto('/messages')
+  await page
+    .getByRole('button', { name: /Cuộc trò chuyện mới.*Tiếp tục/ })
+    .click()
   const composer = page.getByRole('textbox', { name: 'Tin nhắn' })
   await composer.fill('Xin giữ lại nội dung này')
   await page.getByRole('button', { name: 'Gửi' }).click()
@@ -277,7 +319,11 @@ test('MB-512 retries an unchanged draft with a fresh key after provider failure'
     page.getByRole('link', { name: 'Cần trợ giúp ngay' }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Gửi' }).click()
-  await expect(page.getByText('Mình đang lắng nghe.')).toBeVisible()
+  await expect(
+    page
+      .getByRole('region', { name: 'AI Companion' })
+      .getByText('Mình đang lắng nghe.'),
+  ).toBeVisible()
   await expect(composer).toHaveValue('')
   expect(attempts).toBe(2)
   expect(successes).toBe(1)
@@ -288,6 +334,15 @@ function conversationFixture() {
   return {
     conversationId,
     title: 'Cuộc trò chuyện mới',
+    context: {
+      sources: {
+        plan: true,
+        diary: false,
+        screening: false,
+        resourceIds: [],
+      },
+      updatedAt: now,
+    },
     messages: [],
     createdAt: now,
     updatedAt: now,

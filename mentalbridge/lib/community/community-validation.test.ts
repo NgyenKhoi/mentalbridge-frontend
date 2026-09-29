@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   parseCommunityFeedPage,
   parseCommunityPostDetail,
+  parseCommunityPostWrite,
   parseCommunityTopics,
+  parseOwnerVersion,
 } from './community-validation'
 
 const post = {
@@ -87,6 +89,27 @@ describe('Community response validation', () => {
     expect(
       parseCommunityPostDetail({ ...post, content: emoji.repeat(5001) }),
     ).toBeNull()
+    expect(
+      parseCommunityPostWrite({
+        content: emoji.repeat(5000),
+        topics: ['MY_STORY'],
+        mediaIds: [],
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityPostWrite({
+        content: emoji.repeat(5001),
+        topics: ['MY_STORY'],
+        mediaIds: [],
+      }),
+    ).toBeNull()
+  })
+
+  it('accepts only quoted safe owner versions', () => {
+    expect(parseOwnerVersion('"0"')).toBe(0)
+    expect(parseOwnerVersion('"42"')).toBe(42)
+    expect(parseOwnerVersion('42')).toBeNull()
+    expect(parseOwnerVersion('"01"')).toBeNull()
   })
 
   it('rejects unsafe media URLs and inconsistent cursor state', () => {

@@ -32,8 +32,25 @@ export function communityErrorResponse(error: unknown, correlationId: string) {
   })
 }
 
-export function communitySuccessResponse<T>(body: T, correlationId: string) {
-  const response = NextResponse.json(body)
+export function communitySuccessResponse<T>(
+  body: T,
+  correlationId: string,
+  headers?: HeadersInit,
+  status = 200,
+) {
+  const response = NextResponse.json(body, { status })
+  response.headers.set(CORRELATION_HEADER, correlationId)
+  response.headers.set('Cache-Control', 'no-store')
+  if (headers) {
+    new Headers(headers).forEach((value, name) =>
+      response.headers.set(name, value),
+    )
+  }
+  return response
+}
+
+export function communityNoContentResponse(correlationId: string) {
+  const response = new NextResponse(null, { status: 204 })
   response.headers.set(CORRELATION_HEADER, correlationId)
   response.headers.set('Cache-Control', 'no-store')
   return response

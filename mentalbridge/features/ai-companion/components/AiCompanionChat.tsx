@@ -2,20 +2,37 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type {
   CompanionConversation,
   CompanionConversationSummary,
+  CompanionContextSources,
   CompanionQuota,
 } from '@/lib/companion/companion-contract'
-import type { JournalSummary } from '@/lib/journal/journal-contract'
-import { parseJournalPage } from '@/lib/journal/journal-validation'
+import {
+  getResourceCatalogue,
+  type PublicResourceSummary,
+} from '@/features/resources/api/browser-resources'
+import { getResourceProgress } from '@/features/resources/api/browser-resource-progress'
+import {
+  localDate,
+  shiftDate,
+} from '@/features/resources/model/resource-experience'
 import {
   CompanionBrowserError,
   companionBrowserClient,
 } from '../api/browser-client'
 import styles from './AiCompanionChat.module.css'
+import CompanionContextDialog from './CompanionContextDialog'
+import StreamingText from './StreamingText'
+
+const starters = [
+  'Mình đang thấy lo âu',
+  'Mình muốn nói về giấc ngủ',
+  'Mình cần ai đó lắng nghe',
+  'Giúp mình bắt đầu bằng một bước nhỏ',
+]
 
 const errorCopy: Record<string, string> = {
   AI_CONSENT_REQUIRED:
@@ -39,55 +56,60 @@ const friendlyError = (error: unknown) =>
     ? (errorCopy[error.code] ?? error.message)
     : 'AI Companion tạm thời không khả dụng.'
 
-const refreshAfterSendError =
-  'Tin nhắn đã được gửi nhưng chưa thể tải lại cuộc trò chuyện. Hãy chọn Tải lại để xem lịch sử mới nhất.'
-
 const quotaCopy = (quota: CompanionQuota | null) => {
-  if (!quota) return 'Số lượt còn lại sẽ hiện sau câu trả lời đầu tiên.'
+  if (!quota) return 'Lượt dùng còn lại sẽ hiện sau câu trả lời đầu tiên.'
   if (quota.plan === 'PREMIUM')
     return 'Premium không hiển thị giới hạn trả lời hằng ngày; giới hạn token, tốc độ và sử dụng hợp lý vẫn áp dụng.'
   return `Còn ${String(quota.remaining)} lượt · đặt lại ${new Intl.DateTimeFormat(
     'vi-VN',
-    {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-    },
+    { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' },
   ).format(new Date(quota.resetAt))}`
 }
 
 const contextLabels: Record<string, string> = {
-  JOURNAL: 'Nhật ký bạn đã chọn',
+  JOURNAL: 'Nhật ký gần đây',
   SUPPORT_PLAN: 'Kế hoạch hỗ trợ hiện tại',
-  REMINDER: 'Lời nhắc của bạn',
+  REASSESSMENT: 'Bài sàng lọc gần đây',
+  RESOURCE: 'Tài nguyên đã chọn',
+}
+
+const formatConversationTime = (value: string) =>
+  new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
+
+function Icon({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      {children}
+    </svg>
+  )
 }
 
 function InfoIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
+    <Icon>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 10.7v5.1M12 7.7h.01" />
-    </svg>
+    </Icon>
   )
 }
 
 function SparkIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
+    <Icon>
       <path d="M12 3.5c.6 4.1 2.4 5.9 6.5 6.5-4.1.6-5.9 2.4-6.5 6.5-.6-4.1-2.4-5.9-6.5-6.5 4.1-.6 5.9-2.4 6.5-6.5Z" />
       <path d="M18.2 15.5c.2 1.7 1.1 2.6 2.8 2.8-1.7.3-2.6 1.1-2.8 2.8-.3-1.7-1.1-2.5-2.8-2.8 1.7-.2 2.5-1.1 2.8-2.8Z" />
-    </svg>
-  )
-}
-
-function CheckMark() {
-  return (
-    <span className={styles.checkboxControl} aria-hidden="true">
-      <svg viewBox="0 0 16 16">
-        <path d="m3.2 8.2 3 3.1 6.7-7" />
-      </svg>
-    </span>
+    </Icon>
   )
 }
 
@@ -97,35 +119,71 @@ export default function AiCompanionChat() {
     CompanionConversationSummary[]
   >([])
   const [active, setActive] = useState<CompanionConversation | null>(null)
-  const [journals, setJournals] = useState<JournalSummary[]>([])
-  const [selectedJournals, setSelectedJournals] = useState<string[]>([])
-  const [includePlan, setIncludePlan] = useState(true)
-  const [message, setMessage] = useState('')
+  const [resources, setResources] = useState<PublicResourceSummary[]>([])
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [quota, setQuota] = useState<CompanionQuota | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
+  const [contextOpen, setContextOpen] = useState(false)
+  const [contextSaving, setContextSaving] = useState(false)
+  const [contextNotice, setContextNotice] = useState<Record<string, string>>({})
+  const [streamingId, setStreamingId] = useState<string | null>(null)
+  const [showScrollButton, setShowScrollButton] = useState(false)
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
   const pendingKey = useRef<string | null>(null)
+  const composerRef = useRef<HTMLTextAreaElement | null>(null)
+  const messagesRef = useRef<HTMLDivElement | null>(null)
+  const nearBottomRef = useRef(true)
+  const streamTextRef = useRef('')
+  const requestControllerRef = useRef<AbortController | null>(null)
+
+  const activeId = active?.conversationId ?? ''
+  const message = activeId ? (drafts[activeId] ?? '') : ''
+  const contextCount = active
+    ? Number(active.context.sources.plan) +
+      Number(active.context.sources.diary) +
+      Number(active.context.sources.screening) +
+      active.context.sources.resourceIds.length
+    : 0
+  const filteredConversations = conversations.filter((conversation) =>
+    conversation.title
+      .toLocaleLowerCase('vi')
+      .includes(search.toLocaleLowerCase('vi')),
+  )
+
+  const setMessage = (value: string) => {
+    if (!activeId) return
+    setDrafts((current) => ({ ...current, [activeId]: value }))
+    pendingKey.current = null
+  }
+
+  const setContextVisibility = (open: boolean) => setContextOpen(open)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const [history, journalResponse] = await Promise.all([
+      const today = localDate()
+      const [history, resourceResult] = await Promise.all([
         companionBrowserClient.list(),
-        fetch('/api/journals', { cache: 'no-store' }),
+        Promise.all([
+          getResourceCatalogue(),
+          getResourceProgress(shiftDate(today, -31), today),
+        ]).catch(() => null),
       ])
       setConversations(history.items)
-      if (history.items[0]) {
-        setActive(
-          await companionBrowserClient.get(history.items[0].conversationId),
-        )
-      } else setActive(null)
-      const journalValue = (await journalResponse.json()) as unknown
-      const journalPage = journalResponse.ok
-        ? parseJournalPage(journalValue)
-        : null
-      setJournals(journalPage?.items ?? [])
+      setActive(
+        history.items[0]
+          ? await companionBrowserClient.get(history.items[0].conversationId)
+          : null,
+      )
+      if (resourceResult) {
+        const [catalogue, progress] = resourceResult
+        const viewed = new Set(progress.map((item) => item.resourceId))
+        setResources(catalogue.items.filter((item) => viewed.has(item.id)))
+      } else setResources([])
     } catch (cause) {
       setError(friendlyError(cause))
     } finally {
@@ -134,18 +192,39 @@ export default function AiCompanionChat() {
   }, [])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 0)
+    const timer = window.setTimeout(() => {
+      void load()
+    }, 0)
     return () => window.clearTimeout(timer)
   }, [load])
 
+  const allowConversationChange = async () => {
+    if (!message.trim()) return true
+    return confirm({
+      title: 'Bạn còn một tin nhắn chưa gửi',
+      description:
+        'Bản nháp sẽ được giữ lại trong hội thoại này. Bạn có muốn chuyển sang hội thoại khác không?',
+      confirmLabel: 'Chuyển hội thoại',
+      cancelLabel: 'Ở lại',
+      tone: 'warning',
+    })
+  }
+
   const createConversation = async () => {
+    if (!(await allowConversationChange())) return
     setError('')
     try {
       const created = await companionBrowserClient.create()
-      setConversations((current) => [created, ...current])
+      setConversations((current) => [
+        created,
+        ...current.filter(
+          (item) => item.conversationId !== created.conversationId,
+        ),
+      ])
       setActive(created)
       setQuota(null)
-      setMessage('')
+      setMobileView('chat')
+      pendingKey.current = null
       showActionToast({ title: 'Đã tạo cuộc trò chuyện mới' })
     } catch (cause) {
       setError(friendlyError(cause))
@@ -153,10 +232,17 @@ export default function AiCompanionChat() {
   }
 
   const selectConversation = async (id: string) => {
+    if (id === activeId) {
+      setMobileView('chat')
+      return
+    }
+    if (!(await allowConversationChange())) return
     setError('')
     try {
       setActive(await companionBrowserClient.get(id))
       setQuota(null)
+      setMobileView('chat')
+      pendingKey.current = null
     } catch (cause) {
       setError(friendlyError(cause))
     }
@@ -168,55 +254,56 @@ export default function AiCompanionChat() {
     setSending(true)
     setError('')
     pendingKey.current ??= crypto.randomUUID()
+    const controller = new AbortController()
+    requestControllerRef.current = controller
+    let animating = false
     try {
       const result = await companionBrowserClient.send(
         active.conversationId,
-        {
-          message: text,
-          context: {
-            journalIds: selectedJournals,
-            includeCurrentSupportPlan: includePlan,
-            includeReminderContext: false,
-          },
-        },
+        { message: text },
         pendingKey.current,
+        controller.signal,
       )
+      if (controller.signal.aborted) return
+      animating = true
       setQuota(result.quota)
-      setActive({
-        ...active,
-        messages: [
-          ...active.messages,
-          {
-            messageId: result.userMessageId,
-            role: 'USER',
-            content: text,
-            createdAt: result.createdAt,
-            contextKinds: [],
-          },
-          {
-            messageId: result.assistantMessageId,
-            role: 'ASSISTANT',
-            content: result.assistant,
-            createdAt: result.createdAt,
-            contextKinds: [],
-          },
-        ],
-        updatedAt: result.createdAt,
-      })
+      streamTextRef.current = ''
+      setStreamingId(result.assistantMessageId)
+      setActive((current) =>
+        current?.conversationId === active.conversationId
+          ? {
+              ...current,
+              messages: [
+                ...current.messages,
+                {
+                  messageId: result.userMessageId,
+                  role: 'USER',
+                  content: text,
+                  createdAt: result.createdAt,
+                  contextKinds: [],
+                },
+                {
+                  messageId: result.assistantMessageId,
+                  role: 'ASSISTANT',
+                  content: result.assistant,
+                  createdAt: result.createdAt,
+                  contextKinds: result.contextKinds,
+                },
+              ],
+              updatedAt: result.createdAt,
+            }
+          : current,
+      )
       setConversations((current) => [
         { ...active, updatedAt: result.createdAt },
         ...current.filter(
           (item) => item.conversationId !== active.conversationId,
         ),
       ])
-      setMessage('')
+      setDrafts((current) => ({ ...current, [active.conversationId]: '' }))
       pendingKey.current = null
-      try {
-        setActive(await companionBrowserClient.get(active.conversationId))
-      } catch {
-        setError(refreshAfterSendError)
-      }
     } catch (cause) {
+      if (controller.signal.aborted) return
       if (
         cause instanceof CompanionBrowserError &&
         cause.code !== 'CHAT_REQUEST_IN_PROGRESS' &&
@@ -225,12 +312,91 @@ export default function AiCompanionChat() {
         pendingKey.current = null
       setError(friendlyError(cause))
     } finally {
-      setSending(false)
+      requestControllerRef.current = null
+      if (!animating) setSending(false)
+    }
+  }
+
+  const stopResponse = () => {
+    requestControllerRef.current?.abort()
+    requestControllerRef.current = null
+    if (streamingId) {
+      const partial = streamTextRef.current
+      setActive((current) =>
+        current
+          ? {
+              ...current,
+              messages: current.messages.map((item) =>
+                item.messageId === streamingId && partial
+                  ? { ...item, content: partial }
+                  : item,
+              ),
+            }
+          : current,
+      )
+    }
+    setStreamingId(null)
+    setSending(false)
+  }
+
+  const finishStreaming = useCallback(() => {
+    setStreamingId(null)
+    setSending(false)
+  }, [])
+
+  const trackStreaming = useCallback((value: string) => {
+    streamTextRef.current = value
+    if (nearBottomRef.current) {
+      window.requestAnimationFrame(() => {
+        const container = messagesRef.current
+        if (container) container.scrollTop = container.scrollHeight
+      })
+    } else setShowScrollButton(true)
+  }, [])
+
+  const saveContext = async (sources: CompanionContextSources) => {
+    if (!active) return
+    setContextSaving(true)
+    setError('')
+    try {
+      const updated = await companionBrowserClient.updateContext(
+        active.conversationId,
+        { sources },
+      )
+      setActive(updated)
+      setConversations((current) =>
+        current.map((item) =>
+          item.conversationId === updated.conversationId
+            ? { ...item, updatedAt: updated.updatedAt }
+            : item,
+        ),
+      )
+      const enabled = [
+        sources.plan ? 'Kế hoạch hỗ trợ' : '',
+        sources.diary ? 'Nhật ký' : '',
+        sources.screening ? 'Bài sàng lọc' : '',
+        sources.resourceIds.length > 0
+          ? `${String(sources.resourceIds.length)} tài nguyên`
+          : '',
+      ].filter(Boolean)
+      setContextNotice((current) => ({
+        ...current,
+        [updated.conversationId]: enabled.length
+          ? `Bạn đã bật ${enabled.join(', ')} cho cuộc trò chuyện này.`
+          : 'Bạn đã tắt tất cả nguồn thông tin cho cuộc trò chuyện này.',
+      }))
+      setContextVisibility(false)
+      showActionToast({ title: 'Đã lưu nguồn thông tin' })
+    } catch (cause) {
+      setError(friendlyError(cause))
+    } finally {
+      setContextSaving(false)
     }
   }
 
   const remove = async () => {
     if (!active) return
+    const removedId = active.conversationId
     const confirmed = await confirm({
       title: 'Xóa cuộc trò chuyện?',
       description:
@@ -239,9 +405,9 @@ export default function AiCompanionChat() {
     })
     if (!confirmed) return
     try {
-      await companionBrowserClient.remove(active.conversationId)
+      await companionBrowserClient.remove(removedId)
       const remaining = conversations.filter(
-        (item) => item.conversationId !== active.conversationId,
+        (item) => item.conversationId !== removedId,
       )
       setConversations(remaining)
       setActive(
@@ -249,7 +415,13 @@ export default function AiCompanionChat() {
           ? await companionBrowserClient.get(remaining[0].conversationId)
           : null,
       )
+      setDrafts((current) => {
+        const next = { ...current }
+        delete next[removedId]
+        return next
+      })
       setQuota(null)
+      setMobileView('list')
       showActionToast({
         title: 'Đã xóa cuộc trò chuyện',
         description: 'Các tin nhắn trong cuộc trò chuyện đã được xóa.',
@@ -259,14 +431,9 @@ export default function AiCompanionChat() {
     }
   }
 
-  const toggleJournal = (id: string) => {
-    setSelectedJournals((current) =>
-      current.includes(id)
-        ? current.filter((candidate) => candidate !== id)
-        : current.length < 3
-          ? [...current, id]
-          : current,
-    )
+  const chooseStarter = (starter: string) => {
+    setMessage(starter)
+    window.setTimeout(() => composerRef.current?.focus(), 0)
   }
 
   if (loading)
@@ -277,32 +444,57 @@ export default function AiCompanionChat() {
     )
 
   return (
-    <main className={styles.page}>
-      <aside className={styles.sidebar} aria-label="Lịch sử trò chuyện">
+    <main className={styles.page} data-mobile-view={mobileView}>
+      <aside className={styles.sidebar} aria-label="Danh sách hội thoại">
         <div className={styles.sidebarHeader}>
           <div>
             <span>AI Companion</span>
-            <h1>Trò chuyện</h1>
+            <h1>Hội thoại</h1>
           </div>
           <button type="button" onClick={() => void createConversation()}>
-            Cuộc trò chuyện mới
+            <span aria-hidden="true">＋</span> Cuộc trò chuyện mới
           </button>
         </div>
-        <aside className={styles.boundary} aria-label="Lưu ý về AI">
-          <span className={styles.noticeIcon}>
+
+        {conversations.length > 4 ? (
+          <label className={styles.search}>
+            <span className="sr-only">Tìm kiếm hội thoại</span>
+            <Icon>
+              <circle cx="10.8" cy="10.8" r="6.3" />
+              <path d="m15.5 15.5 4 4" />
+            </Icon>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tìm hội thoại cũ"
+            />
+          </label>
+        ) : null}
+
+        <details className={styles.aiNote}>
+          <summary>
             <InfoIcon />
-          </span>
-          <span>
-            <strong>Lưu ý về AI</strong>
-            AI hỗ trợ suy ngẫm; không chẩn đoán, chấm điểm, quyết định an toàn
-            hay thay đổi kế hoạch.
-          </span>
-        </aside>
+            <span>AI đồng hành, không thay thế chuyên gia</span>
+          </summary>
+          <p>
+            AI hỗ trợ bạn suy ngẫm; không chẩn đoán, chấm điểm, quyết định an
+            toàn hay tự thay đổi kế hoạch hỗ trợ.
+          </p>
+        </details>
+
         <div className={styles.history}>
-          {conversations.length === 0 ? (
-            <p>Chưa có cuộc trò chuyện.</p>
+          {filteredConversations.length === 0 ? (
+            <div className={styles.historyEmpty}>
+              <SparkIcon />
+              <p>
+                {search
+                  ? 'Không tìm thấy hội thoại phù hợp.'
+                  : 'Chưa có cuộc trò chuyện nào.'}
+              </p>
+            </div>
           ) : (
-            conversations.map((conversation, index) => (
+            filteredConversations.map((conversation, index) => (
               <button
                 type="button"
                 key={conversation.conversationId}
@@ -312,7 +504,7 @@ export default function AiCompanionChat() {
                   } as CSSProperties
                 }
                 className={
-                  active?.conversationId === conversation.conversationId
+                  activeId === conversation.conversationId
                     ? styles.activeConversation
                     : undefined
                 }
@@ -320,13 +512,18 @@ export default function AiCompanionChat() {
                   void selectConversation(conversation.conversationId)
                 }
               >
-                <strong>{conversation.title}</strong>
-                <small>
-                  {new Intl.DateTimeFormat('vi-VN', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                  }).format(new Date(conversation.updatedAt))}
-                </small>
+                <span className={styles.conversationCopy}>
+                  <strong>{conversation.title}</strong>
+                  <small>
+                    {activeId === conversation.conversationId &&
+                    active?.messages.at(-1)
+                      ? active.messages.at(-1)?.content
+                      : 'Tiếp tục cuộc trò chuyện của bạn'}
+                  </small>
+                </span>
+                <time dateTime={conversation.updatedAt}>
+                  {formatConversationTime(conversation.updatedAt)}
+                </time>
               </button>
             ))
           )}
@@ -335,21 +532,68 @@ export default function AiCompanionChat() {
 
       <section className={styles.chat} aria-label="AI Companion">
         <header className={styles.chatHeader}>
-          <div className={styles.accountNotice}>
-            <span className={styles.noticeIcon}>
-              <InfoIcon />
+          <div className={styles.chatIdentity}>
+            <button
+              type="button"
+              className={styles.mobileBack}
+              aria-label="Quay lại danh sách hội thoại"
+              onClick={() => setMobileView('list')}
+            >
+              <Icon>
+                <path d="m15 5-7 7 7 7" />
+              </Icon>
+            </button>
+            <span className={styles.companionMark} aria-hidden="true">
+              <SparkIcon />
             </span>
             <div>
-              <span>Thông tin tài khoản</span>
-              <strong>{quotaCopy(quota)}</strong>
+              <strong>{active?.title ?? 'AI Companion'}</strong>
+              <small>
+                {active
+                  ? `Bắt đầu ${formatConversationTime(active.createdAt)} · ${quotaCopy(quota)}`
+                  : 'Một không gian riêng để bạn chia sẻ'}
+              </small>
             </div>
           </div>
           <div className={styles.headerActions}>
-            <Link href="/initial-check#safety">Cần trợ giúp ngay</Link>
             {active ? (
-              <button type="button" onClick={() => void remove()}>
-                Xóa cuộc trò chuyện
+              <button
+                type="button"
+                className={styles.headerInfoButton}
+                aria-label="Nguồn thông tin AI được đọc"
+                onClick={() => setContextVisibility(true)}
+              >
+                <InfoIcon />
               </button>
+            ) : null}
+            <Link
+              href="/safety-directory"
+              className={styles.safetyAction}
+              aria-label="Cần trợ giúp ngay"
+            >
+              <Icon>
+                <path d="M12 21s-7-4.4-7-11a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 6.6-7 11-7 11Z" />
+                <path d="M9 12h6M12 9v6" />
+              </Icon>
+              <span>Cần trợ giúp ngay</span>
+            </Link>
+            {active ? (
+              <details className={styles.moreMenu}>
+                <summary aria-label="Tùy chọn hội thoại">
+                  <span aria-hidden="true">•••</span>
+                </summary>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setContextVisibility(true)}
+                  >
+                    Nguồn thông tin AI được đọc
+                  </button>
+                  <button type="button" onClick={() => void remove()}>
+                    Xóa cuộc trò chuyện
+                  </button>
+                </div>
+              </details>
             ) : null}
           </div>
         </header>
@@ -365,6 +609,9 @@ export default function AiCompanionChat() {
 
         {!active ? (
           <div className={styles.empty}>
+            <span className={styles.emptyMascot} aria-hidden="true">
+              <SparkIcon />
+            </span>
             <h2>Bắt đầu khi bạn sẵn sàng</h2>
             <p>
               Nội dung trò chuyện được mã hóa và tự xóa theo thời hạn lưu giữ.
@@ -375,24 +622,49 @@ export default function AiCompanionChat() {
           </div>
         ) : (
           <>
-            <div className={styles.messages} aria-live="polite">
+            <div
+              ref={messagesRef}
+              className={styles.messages}
+              aria-live="polite"
+              onScroll={(event) => {
+                const element = event.currentTarget
+                const distance =
+                  element.scrollHeight -
+                  element.scrollTop -
+                  element.clientHeight
+                nearBottomRef.current = distance <= 80
+                if (nearBottomRef.current) setShowScrollButton(false)
+              }}
+            >
               {active.messages.length === 0 ? (
                 <div className={styles.welcome}>
+                  <span className={styles.welcomeMascot} aria-hidden="true">
+                    <SparkIcon />
+                  </span>
+                  <span className={styles.eyebrow}>
+                    Không cần bắt đầu hoàn hảo
+                  </span>
                   <h2>Mình đang lắng nghe</h2>
                   <p>
-                    Bạn có thể chia sẻ điều đang bận tâm hoặc chọn tối đa ba
-                    nhật ký để AI dùng làm bối cảnh cho câu trả lời này.
+                    Chọn một gợi ý hoặc chia sẻ theo cách tự nhiên nhất với bạn.
                   </p>
+                  <div className={styles.starters} aria-label="Gợi ý mở đầu">
+                    {starters.map((starter) => (
+                      <button
+                        type="button"
+                        key={starter}
+                        onClick={() => chooseStarter(starter)}
+                      >
+                        {starter}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 active.messages.map((item) => (
                   <article
                     key={item.messageId}
-                    className={`${styles.messageRow} ${
-                      item.role === 'USER'
-                        ? styles.userMessage
-                        : styles.aiMessage
-                    }`}
+                    className={`${styles.messageRow} ${item.role === 'USER' ? styles.userMessage : styles.aiMessage}`}
                   >
                     <span className={styles.avatar} aria-hidden="true">
                       {item.role === 'USER' ? 'B' : <SparkIcon />}
@@ -409,147 +681,160 @@ export default function AiCompanionChat() {
                           }).format(new Date(item.createdAt))}
                         </time>
                       </header>
-                      <p>{item.content}</p>
+                      <p>
+                        {streamingId === item.messageId ? (
+                          <StreamingText
+                            key={`${item.messageId}:${item.content}`}
+                            text={item.content}
+                            onProgress={trackStreaming}
+                            onComplete={finishStreaming}
+                          />
+                        ) : (
+                          item.content
+                        )}
+                      </p>
                       {item.contextKinds.length > 0 ? (
-                        <aside className={styles.messageSystemInfo}>
-                          <InfoIcon />
-                          <span>
-                            <strong>Thông tin được dùng</strong>
-                            {item.contextKinds
-                              .map((kind) => contextLabels[kind])
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </span>
-                        </aside>
+                        <details className={styles.messageContextChip}>
+                          <summary>
+                            <InfoIcon /> Đã dùng {item.contextKinds.length}{' '}
+                            nguồn
+                          </summary>
+                          <div>
+                            <strong>Nguồn đã dùng cho câu trả lời này</strong>
+                            <ul>
+                              {item.contextKinds.map((kind) => (
+                                <li key={kind}>{contextLabels[kind]}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </details>
                       ) : null}
                     </div>
                   </article>
                 ))
               )}
-              {sending ? (
-                <div className={styles.thinking} role="status">
-                  <span aria-hidden="true">
+              {contextNotice[activeId] ? (
+                <div className={styles.contextTimelineNotice} role="status">
+                  <InfoIcon />
+                  <span>{contextNotice[activeId]}</span>
+                </div>
+              ) : null}
+              {sending && !streamingId ? (
+                <article className={`${styles.messageRow} ${styles.aiMessage}`}>
+                  <span className={styles.avatar} aria-hidden="true">
                     <SparkIcon />
                   </span>
-                  <span>AI Companion đang chuẩn bị câu trả lời</span>
-                  <i aria-hidden="true">
-                    <i />
-                    <i />
-                    <i />
-                  </i>
-                </div>
+                  <div
+                    className={`${styles.messageBubble} ${styles.thinking}`}
+                    role="status"
+                  >
+                    <span>AI Companion đang suy nghĩ</span>
+                    <i aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </i>
+                  </div>
+                </article>
               ) : null}
             </div>
 
-            <details className={styles.context}>
-              <summary>
-                <span className={styles.summaryContent}>
-                  <span className={styles.contextIcon}>
-                    <InfoIcon />
-                  </span>
-                  <span>
-                    <strong>Chọn thông tin để AI hiểu bạn hơn</strong>
-                    <small>
-                      {selectedJournals.length > 0
-                        ? `${selectedJournals.length} nhật ký đã chọn`
-                        : 'Không bắt buộc · bạn luôn kiểm soát nội dung được dùng'}
-                    </small>
-                  </span>
-                </span>
-                <svg
-                  className={styles.chevron}
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path d="m7 9.5 5 5 5-5" />
-                </svg>
-              </summary>
-              <div className={styles.contextBody}>
-                <label className={styles.checkboxOption}>
-                  <input
-                    className={styles.checkboxInput}
-                    type="checkbox"
-                    checked={includePlan}
-                    onChange={(event) => setIncludePlan(event.target.checked)}
-                  />
-                  <CheckMark />
-                  <span>
-                    <strong>Kế hoạch hỗ trợ hiện tại</strong>
-                    <small>Nếu bạn đã có kế hoạch hỗ trợ</small>
-                  </span>
-                </label>
-                <fieldset>
-                  <legend>
-                    Nhật ký muốn chia sẻ{' '}
-                    <span>{selectedJournals.length}/3</span>
-                  </legend>
-                  {journals.length === 0 ? (
-                    <p className={styles.contextEmpty}>
-                      Chưa có nhật ký để chọn.
-                    </p>
-                  ) : (
-                    journals.map((journal) => (
-                      <label className={styles.checkboxOption} key={journal.id}>
-                        <input
-                          className={styles.checkboxInput}
-                          type="checkbox"
-                          checked={selectedJournals.includes(journal.id)}
-                          disabled={
-                            !selectedJournals.includes(journal.id) &&
-                            selectedJournals.length >= 3
-                          }
-                          onChange={() => toggleJournal(journal.id)}
-                        />
-                        <CheckMark />
-                        <span>{journal.content.preview}</span>
-                      </label>
-                    ))
-                  )}
-                </fieldset>
-                <aside className={styles.privacyNote}>
-                  <InfoIcon />
-                  <span>
-                    Chỉ những mục bạn chọn mới được dùng để hỗ trợ câu trả lời.
-                    Nội dung nhắc nhở hiện chưa được sử dụng.
-                  </span>
-                </aside>
-              </div>
-            </details>
+            {showScrollButton ? (
+              <button
+                type="button"
+                className={styles.scrollToBottom}
+                onClick={() => {
+                  const container = messagesRef.current
+                  if (container) container.scrollTop = container.scrollHeight
+                  nearBottomRef.current = true
+                  setShowScrollButton(false)
+                }}
+              >
+                Cuộn xuống ↓
+              </button>
+            ) : null}
 
             <div className={styles.composer}>
-              <label htmlFor="companion-message">Tin nhắn</label>
-              <textarea
-                id="companion-message"
-                value={message}
-                maxLength={2_000}
-                rows={3}
-                disabled={sending}
-                onChange={(event) => {
-                  setMessage(event.target.value)
-                  pendingKey.current = null
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault()
-                    void send()
-                  }
-                }}
-                placeholder="Chia sẻ điều bạn đang nghĩ…"
-              />
-              <div>
-                <small>{message.length}/2000</small>
+              <div className={styles.composerContextRow}>
                 <button
                   type="button"
-                  disabled={sending || message.trim().length === 0}
-                  onClick={() => void send()}
+                  onClick={() => setContextVisibility(true)}
+                  aria-label={`Mở nguồn ngữ cảnh, ${String(contextCount)} nguồn đang bật`}
                 >
-                  {sending ? 'Đang gửi…' : 'Gửi'}
+                  <InfoIcon />
+                  Ngữ cảnh: {contextCount} nguồn
                 </button>
+              </div>
+              <div className={styles.composerBox}>
+                <button
+                  type="button"
+                  className={styles.contextShortcut}
+                  aria-label="Chọn thông tin để AI hiểu bạn hơn"
+                  onClick={() => setContextVisibility(true)}
+                >
+                  <InfoIcon />
+                </button>
+                <label htmlFor="companion-message" className="sr-only">
+                  Tin nhắn
+                </label>
+                <textarea
+                  ref={composerRef}
+                  id="companion-message"
+                  value={message}
+                  maxLength={2_000}
+                  rows={2}
+                  disabled={sending}
+                  onChange={(event) => setMessage(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault()
+                      void send()
+                    }
+                  }}
+                  placeholder="Chia sẻ điều bạn đang nghĩ…"
+                />
+                <button
+                  type="button"
+                  className={styles.sendButton}
+                  aria-label={sending ? 'Dừng phản hồi' : 'Gửi'}
+                  disabled={!sending && message.trim().length === 0}
+                  onClick={() => (sending ? stopResponse() : void send())}
+                >
+                  {sending ? (
+                    <>
+                      <span>Dừng</span>
+                      <span className={styles.stopIcon} aria-hidden="true" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Gửi</span>
+                      <Icon>
+                        <path d="m5 12 14-7-4 14-3-6-7-1Z" />
+                        <path d="m12 13 7-8" />
+                      </Icon>
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className={styles.composerMeta}>
+                <small>
+                  AI có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.
+                </small>
+                <small>{message.length}/2000</small>
               </div>
             </div>
           </>
         )}
       </section>
+      {active && contextOpen ? (
+        <CompanionContextDialog
+          sources={active.context.sources}
+          resources={resources}
+          saving={contextSaving}
+          onClose={() => setContextVisibility(false)}
+          onSave={(sources) => void saveContext(sources)}
+        />
+      ) : null}
     </main>
   )
 }

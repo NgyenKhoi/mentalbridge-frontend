@@ -12,6 +12,8 @@ import {
   parseProblem,
   parseProfile,
   parseServiceCreditAccount,
+  parseSpecialistDiscoveryItem,
+  parseSpecialistDiscoveryPage,
   parseSpecialistSuspensionResult,
   type PendingProfiles,
   type AvailabilitySlot,
@@ -20,6 +22,8 @@ import {
   type SpecialistProfile,
   type SpecialistProfileInput,
   type ServiceCreditAccount,
+  type SpecialistDiscoveryItem,
+  type SpecialistDiscoveryPage,
   type SpecialistApprovalStatus,
   type SpecialistDecisionReason,
   type SpecialistSuspensionResult,
@@ -174,6 +178,29 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseAppointmentChatEligibility,
+    })
+  },
+  discoverSpecialists(token: string, correlationId: string, query = '') {
+    return request<SpecialistDiscoveryPage>({
+      method: 'GET',
+      path: `/api/v1/specialists${query}`,
+      token,
+      correlationId,
+      parse: parseSpecialistDiscoveryPage,
+    })
+  },
+  discoveredSpecialist(
+    token: string,
+    correlationId: string,
+    specialistAccountId: string,
+    query = '',
+  ) {
+    return request<SpecialistDiscoveryItem>({
+      method: 'GET',
+      path: `/api/v1/specialists/${encodeURIComponent(specialistAccountId)}${query}`,
+      token,
+      correlationId,
+      parse: parseSpecialistDiscoveryItem,
     })
   },
   bookableSlots(token: string, correlationId: string, query = '') {

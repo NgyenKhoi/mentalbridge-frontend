@@ -1,0 +1,493 @@
+.page {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 36px 28px 64px;
+  color: var(--ink);
+}
+
+.hero {
+  max-width: 760px;
+  margin-bottom: 28px;
+}
+
+.hero > span {
+  color: var(--teal-deep);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.hero h1 {
+  margin: 8px 0 10px;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.05;
+}
+
+.hero p,
+.timezone,
+.summary,
+.bio,
+.state p,
+.dialogState p,
+.dialogFooter p {
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 14px;
+  align-items: end;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.controls label {
+  display: grid;
+  gap: 7px;
+}
+
+.controls label > span,
+.facts dt,
+.cardFacts dt {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.controls select,
+.controls button,
+.state button,
+.card > button,
+.more,
+.dialog button,
+.dialogFooter a {
+  min-height: 44px;
+  border-radius: 11px;
+  font: inherit;
+}
+
+.controls select {
+  width: 100%;
+  border: 1px solid var(--line);
+  padding: 0 38px 0 12px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.controls button,
+.state button,
+.card > button,
+.more,
+.dialogState button,
+.dialogFooter button {
+  border: 1px solid var(--teal-deep);
+  padding: 0 18px;
+  background: var(--teal-deep);
+  color: #fff;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.controls button:hover,
+.state button:hover,
+.card > button:hover,
+.more:hover,
+.dialogState button:hover,
+.dialogFooter button:hover {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
+.controls button:disabled,
+.more:disabled,
+.dialogFooter button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.controls :is(select, button):focus-visible,
+.state button:focus-visible,
+.card > button:focus-visible,
+.more:focus-visible,
+.dialog :is(button, input, a):focus-visible {
+  outline: 3px solid rgba(61, 122, 110, 0.24);
+  outline-offset: 3px;
+}
+
+.timezone {
+  margin: 10px 2px 18px;
+  font-size: 0.8rem;
+}
+
+.entitlement {
+  margin-bottom: 22px;
+  padding: 14px 16px;
+  border: 1px solid rgba(61, 122, 110, 0.24);
+  border-radius: 14px;
+  background: var(--teal-pale);
+}
+
+.entitlement p {
+  margin: 0;
+  color: var(--teal-deep);
+  line-height: 1.55;
+}
+
+.entitlement p + p {
+  margin-top: 6px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.card,
+.skeletonCard,
+.state {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.card,
+.skeletonCard {
+  min-width: 0;
+  padding: 22px;
+}
+
+.skeletonCard {
+  display: grid;
+  gap: 14px;
+}
+
+.identity {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+}
+
+.identity > span {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-weight: 850;
+}
+
+.identity h2,
+.identity p {
+  margin: 0;
+}
+
+.identity h2 {
+  font-size: 1.1rem;
+}
+
+.identity p {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 18px 0 12px;
+}
+
+.tags span {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.summary {
+  display: -webkit-box;
+  min-height: 78px;
+  margin: 0 0 16px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.cardFacts,
+.facts {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.cardFacts {
+  min-height: 92px;
+  margin-bottom: 18px;
+}
+
+.cardFacts div,
+.facts div {
+  display: grid;
+  gap: 3px;
+}
+
+.cardFacts dd,
+.facts dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.card > button {
+  width: 100%;
+}
+
+.state {
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.state h2,
+.state p {
+  margin-top: 0;
+}
+
+.more {
+  display: block;
+  margin: 24px auto 0;
+}
+
+.dialog {
+  width: min(820px, calc(100vw - 32px));
+  max-height: min(88vh, 900px);
+}
+
+.dialogHeader {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px 26px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.dialogHeader span {
+  color: var(--teal-deep);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dialogHeader h2 {
+  margin: 5px 0 0;
+}
+
+.dialogHeader button {
+  width: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 1.7rem;
+  cursor: pointer;
+}
+
+.dialogLoading,
+.dialogContent,
+.dialogState {
+  padding: 24px 26px 28px;
+}
+
+.dialogLoading {
+  display: grid;
+  gap: 14px;
+}
+
+.dialogState {
+  text-align: center;
+}
+
+.bio {
+  margin-top: 0;
+}
+
+.facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.explanation {
+  margin-top: 22px;
+  padding: 18px;
+  border-left: 4px solid var(--teal);
+  border-radius: 0 12px 12px 0;
+  background: var(--teal-pale);
+}
+
+.explanation h3,
+.slots legend {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.explanation ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.slots legend {
+  grid-column: 1 / -1;
+}
+
+.slots > p {
+  grid-column: 1 / -1;
+  color: var(--ink-soft);
+}
+
+.slots label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.slots label:has(input:checked) {
+  border-color: var(--teal);
+  background: var(--teal-pale);
+}
+
+.slots input {
+  accent-color: var(--teal-deep);
+}
+
+.slots label span {
+  display: grid;
+  gap: 3px;
+}
+
+.slots small {
+  color: var(--ink-soft);
+}
+
+.inlineError {
+  margin: 14px 0 0;
+  color: #91483c;
+  font-weight: 700;
+}
+
+.dialogFooter {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.dialogFooter p {
+  margin: 0;
+}
+
+.dialogFooter a {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0 16px;
+  border: 1px solid var(--teal-deep);
+  color: var(--teal-deep);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  .controls,
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .controls button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 620px) {
+  .page {
+    padding: 24px 16px 48px;
+  }
+
+  .controls,
+  .grid,
+  .facts,
+  .slots {
+    grid-template-columns: 1fr;
+  }
+
+  .cardFacts,
+  .summary {
+    min-height: 0;
+  }
+
+  .dialog {
+    width: calc(100vw - 16px);
+    max-height: 92vh;
+  }
+
+  .dialogHeader,
+  .dialogLoading,
+  .dialogContent,
+  .dialogState {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .dialogFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dialogFooter a,
+  .dialogFooter button {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page *,
+  .dialog * {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms !important;
+  }
+}

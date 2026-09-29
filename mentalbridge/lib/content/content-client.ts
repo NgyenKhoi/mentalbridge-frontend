@@ -11,6 +11,8 @@ import {
   parseNotification,
   parseNotificationBulkReadResult,
   parseNotificationPage,
+  parseResourceProgressItem,
+  parseResourceProgressList,
   type AdminResourceDetail,
   type ContentProblem,
   type PublicResourceDetail,
@@ -21,12 +23,15 @@ import {
   type Notification,
   type NotificationBulkReadResult,
   type NotificationPage,
+  type ResourceProgressItem,
+  type ResourceProgressList,
+  type ResourceProgressUpdate,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
 
 type RequestOptions<T> = Readonly<{
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   path: string
   expectedStatus: number
   accessToken?: string
@@ -228,6 +233,38 @@ export const contentPublicClient = {
       expectedStatus: 200,
       correlationId,
       parseSuccess: parsePublicResourceDetail,
+    })
+  },
+}
+
+export const contentResourceProgressClient = {
+  list(accessToken: string, from: string, to: string, correlationId: string) {
+    const query = new URLSearchParams({ from, to })
+    return contentRequest<ResourceProgressList>({
+      method: 'GET',
+      path: `/api/v1/resource-progress?${query.toString()}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseResourceProgressList,
+    })
+  },
+  save(
+    accessToken: string,
+    resourceId: string,
+    localDate: string,
+    update: ResourceProgressUpdate,
+    correlationId: string,
+  ) {
+    return contentRequest<ResourceProgressItem>({
+      method: 'PUT',
+      path: `/api/v1/resource-progress/${encodeURIComponent(resourceId)}/${encodeURIComponent(localDate)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: update,
+      parseSuccess: parseResourceProgressItem,
+      mutation: true,
     })
   },
 }

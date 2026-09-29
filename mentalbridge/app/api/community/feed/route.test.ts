@@ -8,6 +8,9 @@ const communityMocks = vi.hoisted(() => ({
   feed: vi.fn(),
   detail: vi.fn(),
   topics: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
 }))
 const sessionMocks = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -26,7 +29,12 @@ vi.mock('@/lib/auth/session-service', () => ({
   ensureRole: sessionMocks.ensureRole,
 }))
 
-import { GET as getPost } from '../posts/[postId]/route'
+import {
+  DELETE as deletePost,
+  GET as getPost,
+  PATCH as patchPost,
+} from '../posts/[postId]/route'
+import { POST as createPost } from '../posts/route'
 import { GET as getTopics } from '../topics/route'
 import { GET as getFeed } from './route'
 
@@ -48,9 +56,16 @@ const post = {
   updatedAt: '2026-09-29T05:00:00Z',
 }
 
-function request(url: string) {
+function request(
+  url: string,
+  init: ConstructorParameters<typeof NextRequest>[1] = {},
+) {
   return new NextRequest(url, {
-    headers: { cookie: `${ACCESS_COOKIE_NAME}=identity-access-secret` },
+    ...init,
+    headers: {
+      cookie: `${ACCESS_COOKIE_NAME}=identity-access-secret`,
+      ...Object.fromEntries(new Headers(init.headers).entries()),
+    },
   })
 }
 
@@ -110,7 +125,7 @@ describe('/api/community read BFF', () => {
   })
 
   it('loads post detail and governed topics without accepting an owner identity', async () => {
-    communityMocks.detail.mockResolvedValue(post)
+    communityMocks.detail.mockResolvedValue({ post, version: null })
     communityMocks.topics.mockResolvedValue([
       { code: 'MY_STORY', label: 'Câu chuyện của tôi', description: 'Mô tả' },
     ])
@@ -131,6 +146,106 @@ describe('/api/community read BFF', () => {
       postId,
       expect.any(String),
     )
+  })
+
+  it('forwards idempotency and exact owner versions for post commands', async () => {
+    communityMocks.create.mockResolvedValue({ post, version: 1 })
+    communityMocks.update.mockResolvedValue({
+      post: { ...post, content: 'Nội dung mới.' },
+      version: 2,
+    })
+    communityMocks.delete.mockResolvedValue(undefined)
+    const body = JSON.stringify({
+      content: post.content,
+      topics: ['MY_STORY'],
+      mediaIds: [],
+    })
+
+    const created = await createPost(
+      request('http://localhost/api/community/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': 'browser-create-key-0001',
+        },
+        body,
+      }),
+    )
+    expect(created.status).toBe(201)
+    expect(created.headers.get('etag')).toBe('"1"')
+    expect(communityMocks.create).toHaveBeenCalledWith(
+      'identity-access-secret',
+      expect.objectContaining({ mediaIds: [] }),
+      'browser-create-key-0001',
+      expect.any(String),
+    )
+
+    const updated = await patchPost(
+      request(`http://localhost/api/community/posts/${postId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
+        body: JSON.stringify({
+          content: 'Nội dung mới.',
+          topics: ['MY_STORY'],
+          mediaIds: [],
+        }),
+      }),
+      { params: Promise.resolve({ postId }) },
+    )
+    expect(updated.status).toBe(200)
+    expect(updated.headers.get('etag')).toBe('"2"')
+    expect(communityMocks.update).toHaveBeenCalledWith(
+      'identity-access-secret',
+      postId,
+      expect.objectContaining({ content: 'Nội dung mới.' }),
+      '"1"',
+      expect.any(String),
+    )
+
+    const removed = await deletePost(
+      request(`http://localhost/api/community/posts/${postId}`, {
+        method: 'DELETE',
+        headers: { 'If-Match': '"2"' },
+      }),
+      { params: Promise.resolve({ postId }) },
+    )
+    expect(removed.status).toBe(204)
+    expect(communityMocks.delete).toHaveBeenCalledWith(
+      'identity-access-secret',
+      postId,
+      '"2"',
+      expect.any(String),
+    )
+  })
+
+  it('rejects malformed post commands before calling Community', async () => {
+    const response = await createPost(
+      request('http://localhost/api/community/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': 'too-short',
+        },
+        body: JSON.stringify({ content: '', topics: [], mediaIds: [] }),
+      }),
+    )
+    expect(response.status).toBe(400)
+    expect(communityMocks.create).not.toHaveBeenCalled()
+
+    const staleShape = await patchPost(
+      request(`http://localhost/api/community/posts/${postId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'If-Match': '1' },
+        body: JSON.stringify({
+          content: post.content,
+          topics: ['MY_STORY'],
+          mediaIds: [],
+        }),
+      }),
+      { params: Promise.resolve({ postId }) },
+    )
+    expect(staleShape.status).toBe(400)
+    expect(communityMocks.update).not.toHaveBeenCalled()
   })
 
   it('fails closed for hidden, removed, blocked and unknown posts', async () => {
