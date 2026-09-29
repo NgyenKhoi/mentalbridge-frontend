@@ -1,4 +1,17 @@
-export type CompanionContextKind = 'JOURNAL' | 'SUPPORT_PLAN' | 'REASSESSMENT'
+export type CompanionContextKind =
+  'JOURNAL' | 'SUPPORT_PLAN' | 'REASSESSMENT' | 'RESOURCE'
+
+export type CompanionContextSources = Readonly<{
+  plan: boolean
+  diary: boolean
+  screening: boolean
+  resourceIds: string[]
+}>
+
+export type CompanionConversationContext = Readonly<{
+  sources: CompanionContextSources
+  updatedAt: string
+}>
 
 export type CompanionMessage = Readonly<{
   messageId: string
@@ -11,6 +24,7 @@ export type CompanionMessage = Readonly<{
 export type CompanionConversation = Readonly<{
   conversationId: string
   title: string
+  context: CompanionConversationContext
   messages: CompanionMessage[]
   createdAt: string
   updatedAt: string
@@ -39,15 +53,14 @@ export type CompanionSend = Readonly<{
   assistantMessageId: string
   assistant: string
   createdAt: string
+  contextKinds: CompanionContextKind[]
   quota: CompanionQuota
 }>
 
 export type CompanionSendInput = Readonly<{
   message: string
-  context?: Readonly<{
-    journalIds?: string[]
-    longitudinalAnalysisId?: string
-    includeCurrentSupportPlan?: boolean
-    includeReminderContext?: boolean
-  }>
+}>
+
+export type CompanionContextInput = Readonly<{
+  sources: CompanionContextSources
 }>

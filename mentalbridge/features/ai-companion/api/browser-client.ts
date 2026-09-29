@@ -1,5 +1,6 @@
 import type {
   CompanionConversation,
+  CompanionContextInput,
   CompanionSend,
   CompanionSendInput,
 } from '@/lib/companion/companion-contract'
@@ -79,6 +80,7 @@ export const companionBrowserClient = {
     id: string,
     body: CompanionSendInput,
     key: string,
+    signal?: AbortSignal,
   ): Promise<CompanionSend> {
     return parsed(
       await fetch(`/api/ai-companion/conversations/${id}/messages`, {
@@ -88,8 +90,22 @@ export const companionBrowserClient = {
           'Idempotency-Key': key,
         },
         body: JSON.stringify(body),
+        signal,
       }),
       parseSend,
+    )
+  },
+  async updateContext(
+    id: string,
+    body: CompanionContextInput,
+  ): Promise<CompanionConversation> {
+    return parsed(
+      await fetch(`/api/ai-companion/conversations/${id}/context`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+      parseConversation,
     )
   },
   async remove(id: string) {
