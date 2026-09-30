@@ -2,16 +2,20 @@ import 'server-only'
 
 import { readCommunityServerConfig } from '@/lib/config/server'
 import {
+  isCommunityEtag,
   parseCommunityFeedPage,
+  parseCommunityProfile,
   parseCommunityPostDetail,
   parseCommunityProblem,
   parseOwnerVersion,
   parseCommunityTopics,
   type CommunityFeedPage,
+  type CommunityProfile,
   type CommunityPostDetail,
+  type CommunityPostWrite,
   type CommunityProblem,
   type CommunityTopic,
-  type CommunityPostWrite,
+  type PutCommunityProfileRequest,
 } from './community-validation'
 
 const MAX_RESPONSE_BYTES = 256 * 1024
@@ -102,17 +106,35 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
+type CommunityResult<T> = Readonly<{ data: T; etag: string | null }>
+
+function requireProfileEtag(
+  result: CommunityResult<CommunityProfile>,
+): CommunityResult<CommunityProfile> {
+  if (
+    !isCommunityEtag(result.etag) ||
+    Number(result.etag.slice(1, -1)) !== result.data.version
+  ) {
+    throw localError(
+      502,
+      'COMMUNITY_MALFORMED_RESPONSE',
+      'Community returned an invalid profile version.',
+    )
+  }
+  return result
+}
+
 async function request<T>(
   path: string,
   accessToken: string,
   correlationId: string,
   parse: (value: unknown) => T | null,
   options: Readonly<{
-    method?: 'GET' | 'POST' | 'PATCH'
-    body?: CommunityPostWrite
+    method?: 'GET' | 'POST' | 'PATCH' | 'PUT'
+    body?: unknown
     headers?: Record<string, string>
   }> = {},
-): Promise<Readonly<{ data: T; etag: string | null }>> {
+): Promise<CommunityResult<T>> {
   const config = readCommunityServerConfig()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
@@ -128,10 +150,14 @@ async function request<T>(
           Accept: 'application/json, application/problem+json',
           Authorization: `Bearer ${accessToken}`,
           'X-Correlation-Id': correlationId,
-          ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+          ...(options.body === undefined
+            ? {}
+            : { 'Content-Type': 'application/json' }),
           ...options.headers,
         },
-        ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+        ...(options.body === undefined
+          ? {}
+          : { body: JSON.stringify(options.body) }),
       },
     )
     const raw = await readJson(response)
@@ -285,6 +311,36 @@ export const communityClient = {
       accessToken,
       correlationId,
       ifMatch,
+    )
+  },
+  async profile(accessToken: string, correlationId: string) {
+    return requireProfileEtag(
+      await request<CommunityProfile>(
+        '/api/v1/community/profile',
+        accessToken,
+        correlationId,
+        parseCommunityProfile,
+      ),
+    )
+  },
+  async putProfile(
+    accessToken: string,
+    correlationId: string,
+    input: PutCommunityProfileRequest,
+    ifMatch?: string,
+  ) {
+    return requireProfileEtag(
+      await request<CommunityProfile>(
+        '/api/v1/community/profile',
+        accessToken,
+        correlationId,
+        parseCommunityProfile,
+        {
+          method: 'PUT',
+          body: input,
+          headers: ifMatch ? { 'If-Match': ifMatch } : undefined,
+        },
+      ),
     )
   },
 }

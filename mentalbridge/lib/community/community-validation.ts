@@ -1,10 +1,16 @@
 import type { components } from '@/contracts/community.generated'
 
 export type CommunityFeedPage = components['schemas']['CommunityFeedPage']
+export type CommunityAuthor = components['schemas']['CommunityAuthor']
 export type CommunityPostSummary = components['schemas']['CommunityPostSummary']
 export type CommunityPostDetail = components['schemas']['CommunityPostDetail']
 export type CommunityTopic = components['schemas']['CommunityTopic']
 export type CommunityTopicCode = components['schemas']['CommunityTopicCode']
+export type CommunityProfile = components['schemas']['CommunityProfile']
+export type CommunityAvatarPreset =
+  components['schemas']['CommunityAvatarPreset']
+export type PutCommunityProfileRequest =
+  components['schemas']['PutCommunityProfileRequest']
 export type CommunityProblem = components['schemas']['Problem']
 export type CommunityPostWrite = components['schemas']['CreatePostRequest']
 
@@ -20,6 +26,14 @@ const TOPICS = new Set<CommunityTopicCode>([
 ])
 const MEDIA_TYPES = new Set(['IMAGE', 'VIDEO'])
 const MEDIA_AVAILABILITY = new Set(['NONE', 'READY', 'PARTIAL', 'UNAVAILABLE'])
+const AVATAR_PRESETS = new Set<CommunityAvatarPreset>([
+  'LEAF',
+  'SUNRISE',
+  'WAVE',
+  'LOTUS',
+  'CLOUD',
+  'SPROUT',
+])
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -46,10 +60,22 @@ function nullablePositiveInteger(value: unknown) {
   return value === null || (Number.isSafeInteger(value) && Number(value) > 0)
 }
 
-function text(value: unknown, minimum: number, maximum: number) {
+function text(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): value is string {
   if (typeof value !== 'string') return false
   const length = [...value].length
   return length >= minimum && length <= maximum
+}
+
+function avatarPreset(value: unknown): value is CommunityAvatarPreset | null {
+  return (
+    value === null ||
+    (typeof value === 'string' &&
+      AVATAR_PRESETS.has(value as CommunityAvatarPreset))
+  )
 }
 
 function httpsUrl(value: unknown): value is string {
@@ -62,16 +88,77 @@ function httpsUrl(value: unknown): value is string {
   }
 }
 
-function parseAuthor(value: unknown) {
+function parseAuthor(value: unknown): CommunityAuthor | null {
   const author = record(value)
-  return Boolean(
-    author &&
-    exactKeys(author, ['communityProfileId', 'displayName', 'state']) &&
-    typeof author.communityProfileId === 'string' &&
-    UUID.test(author.communityProfileId) &&
-    text(author.displayName, 1, 80) &&
-    (author.state === 'ACTIVE' || author.state === 'DELETED'),
-  )
+  if (!author) return null
+  const hasAvatarPreset = Object.hasOwn(author, 'avatarPreset')
+  const allowedKeys = hasAvatarPreset
+    ? ['communityProfileId', 'displayName', 'avatarPreset', 'state']
+    : ['communityProfileId', 'displayName', 'state']
+  const normalizedAvatarPreset = hasAvatarPreset ? author.avatarPreset : null
+  if (
+    !exactKeys(author, allowedKeys) ||
+    typeof author.communityProfileId !== 'string' ||
+    !UUID.test(author.communityProfileId) ||
+    !text(author.displayName, 1, 80) ||
+    !avatarPreset(normalizedAvatarPreset) ||
+    (author.state !== 'ACTIVE' && author.state !== 'DELETED')
+  ) {
+    return null
+  }
+  return {
+    communityProfileId: author.communityProfileId,
+    displayName: author.displayName,
+    avatarPreset: normalizedAvatarPreset,
+    state: author.state,
+  }
+}
+
+export function parseCommunityProfile(value: unknown): CommunityProfile | null {
+  const profile = record(value)
+  if (
+    !profile ||
+    !exactKeys(profile, [
+      'communityProfileId',
+      'displayName',
+      'avatarPreset',
+      'status',
+      'version',
+      'createdAt',
+      'updatedAt',
+    ]) ||
+    typeof profile.communityProfileId !== 'string' ||
+    !UUID.test(profile.communityProfileId) ||
+    !text(profile.displayName, 1, 80) ||
+    !avatarPreset(profile.avatarPreset) ||
+    (profile.status !== 'ACTIVE' && profile.status !== 'DELETED') ||
+    !nonNegativeInteger(profile.version) ||
+    !dateTime(profile.createdAt) ||
+    !dateTime(profile.updatedAt)
+  ) {
+    return null
+  }
+  return profile as CommunityProfile
+}
+
+export function parseCommunityProfileInput(
+  value: unknown,
+): PutCommunityProfileRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['displayName', 'avatarPreset']) ||
+    !text(input.displayName, 1, 80) ||
+    input.displayName !== (input.displayName as string).trim() ||
+    !avatarPreset(input.avatarPreset)
+  ) {
+    return null
+  }
+  return input as PutCommunityProfileRequest
+}
+
+export function isCommunityEtag(value: string | null): value is string {
+  return value !== null && /^"(0|[1-9]\d*)"$/.test(value)
 }
 
 function parseCounts(value: unknown) {
@@ -109,12 +196,16 @@ function parseMedia(value: unknown) {
   )
 }
 
-function parsePost(value: unknown, detail: boolean) {
+function parsePost(
+  value: unknown,
+  detail: boolean,
+): CommunityPostSummary | CommunityPostDetail | null {
   const post = record(value)
   const content = detail ? post?.content : post?.contentPreview
-  return Boolean(
-    post &&
-    exactKeys(post, [
+  const author = parseAuthor(post?.author)
+  if (
+    !post ||
+    !exactKeys(post, [
       'postId',
       'author',
       detail ? 'content' : 'contentPreview',
@@ -124,27 +215,30 @@ function parsePost(value: unknown, detail: boolean) {
       'counts',
       'publishedAt',
       'updatedAt',
-    ]) &&
-    typeof post.postId === 'string' &&
-    UUID.test(post.postId) &&
-    parseAuthor(post.author) &&
-    text(content, 1, detail ? 5000 : 421) &&
-    Array.isArray(post.topics) &&
-    post.topics.length >= 1 &&
-    post.topics.every(
+    ]) ||
+    typeof post.postId !== 'string' ||
+    !UUID.test(post.postId) ||
+    !author ||
+    !text(content, 1, detail ? 5000 : 421) ||
+    !Array.isArray(post.topics) ||
+    post.topics.length < 1 ||
+    !post.topics.every(
       (topic) =>
         typeof topic === 'string' && TOPICS.has(topic as CommunityTopicCode),
-    ) &&
-    new Set(post.topics).size === post.topics.length &&
-    Array.isArray(post.media) &&
-    post.media.length <= 10 &&
-    post.media.every(parseMedia) &&
-    typeof post.mediaAvailability === 'string' &&
-    MEDIA_AVAILABILITY.has(post.mediaAvailability) &&
-    parseCounts(post.counts) &&
-    dateTime(post.publishedAt) &&
-    dateTime(post.updatedAt),
-  )
+    ) ||
+    new Set(post.topics).size !== post.topics.length ||
+    !Array.isArray(post.media) ||
+    post.media.length > 10 ||
+    !post.media.every(parseMedia) ||
+    typeof post.mediaAvailability !== 'string' ||
+    !MEDIA_AVAILABILITY.has(post.mediaAvailability) ||
+    !parseCounts(post.counts) ||
+    !dateTime(post.publishedAt) ||
+    !dateTime(post.updatedAt)
+  ) {
+    return null
+  }
+  return { ...post, author } as CommunityPostSummary | CommunityPostDetail
 }
 
 export function isCommunityPostId(value: string) {
@@ -194,11 +288,14 @@ export function parseCommunityFeedPage(
   value: unknown,
 ): CommunityFeedPage | null {
   const page = record(value)
+  const items = Array.isArray(page?.items)
+    ? page.items.map((item) => parsePost(item, false))
+    : null
   if (
     !page ||
     !exactKeys(page, ['items', 'nextCursor', 'hasMore']) ||
-    !Array.isArray(page.items) ||
-    !page.items.every((item) => parsePost(item, false)) ||
+    !items ||
+    items.some((item) => item === null) ||
     !(page.nextCursor === null || typeof page.nextCursor === 'string') ||
     (typeof page.nextCursor === 'string' && page.nextCursor.length > 256) ||
     typeof page.hasMore !== 'boolean' ||
@@ -206,13 +303,13 @@ export function parseCommunityFeedPage(
   ) {
     return null
   }
-  return page as CommunityFeedPage
+  return { ...page, items } as CommunityFeedPage
 }
 
 export function parseCommunityPostDetail(
   value: unknown,
 ): CommunityPostDetail | null {
-  return parsePost(value, true) ? (value as CommunityPostDetail) : null
+  return parsePost(value, true) as CommunityPostDetail | null
 }
 
 export function parseCommunityTopics(value: unknown): CommunityTopic[] | null {

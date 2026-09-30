@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   parseCommunityFeedPage,
+  parseCommunityProfile,
+  parseCommunityProfileInput,
   parseCommunityPostDetail,
   parseCommunityPostWrite,
   parseCommunityTopics,
@@ -12,6 +14,7 @@ const post = {
   postId: '20000000-0000-4000-8000-000000000009',
   author: {
     communityProfileId: '10000000-0000-4000-8000-000000000002',
+    avatarPreset: 'LEAF',
     displayName: 'Minh An',
     state: 'ACTIVE',
   },
@@ -45,6 +48,50 @@ describe('Community response validation', () => {
     expect(
       parseCommunityPostDetail({ ...post, content: 'Nội dung đầy đủ.' }),
     ).not.toBeNull()
+  })
+
+  it('accepts both rollout author shapes and normalizes the legacy avatar', () => {
+    const legacyAuthor = {
+      communityProfileId: post.author.communityProfileId,
+      displayName: post.author.displayName,
+      state: post.author.state,
+    }
+    const legacyFeed = parseCommunityFeedPage({
+      items: [
+        { ...post, author: legacyAuthor, contentPreview: 'Một câu chuyện.' },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    })
+    const currentFeed = parseCommunityFeedPage({
+      items: [{ ...post, contentPreview: 'Một câu chuyện.' }],
+      nextCursor: null,
+      hasMore: false,
+    })
+    const legacyDetail = parseCommunityPostDetail({
+      ...post,
+      author: legacyAuthor,
+      content: 'Nội dung đầy đủ.',
+    })
+    const currentDetail = parseCommunityPostDetail({
+      ...post,
+      content: 'Nội dung đầy đủ.',
+    })
+
+    expect(legacyFeed?.items[0].author.avatarPreset).toBeNull()
+    expect(legacyDetail?.author.avatarPreset).toBeNull()
+    expect(currentFeed?.items[0].author.avatarPreset).toBe('LEAF')
+    expect(currentDetail?.author.avatarPreset).toBe('LEAF')
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        author: {
+          ...legacyAuthor,
+          accountSubject: '00000000-0000-4000-8000-000000000001',
+        },
+        content: 'Nội dung đầy đủ.',
+      }),
+    ).toBeNull()
   })
 
   it('measures user text limits by Unicode code point', () => {
@@ -161,5 +208,36 @@ describe('Community response validation', () => {
     expect(parseCommunityTopics(topics)).not.toBeNull()
     expect(parseCommunityTopics(topics.slice(0, 5))).toBeNull()
     expect(parseCommunityTopics([...topics.slice(0, 5), topics[0]])).toBeNull()
+  })
+
+  it('accepts only the bounded public Community display identity contract', () => {
+    const profile = {
+      communityProfileId: '10000000-0000-4000-8000-000000000002',
+      displayName: '🌿'.repeat(80),
+      avatarPreset: 'LEAF',
+      status: 'ACTIVE',
+      version: 1,
+      createdAt: '2026-09-29T05:00:00Z',
+      updatedAt: '2026-09-29T05:10:00Z',
+    }
+    expect(parseCommunityProfile(profile)).not.toBeNull()
+    expect(
+      parseCommunityProfile({
+        ...profile,
+        accountSubject: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityProfileInput({
+        displayName: 'Mầm Xanh',
+        avatarPreset: null,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityProfileInput({
+        displayName: 'Mầm Xanh',
+        avatarPreset: 'https://example.test/me.png',
+      }),
+    ).toBeNull()
   })
 })

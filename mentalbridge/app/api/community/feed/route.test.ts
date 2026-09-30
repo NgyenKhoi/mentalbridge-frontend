@@ -11,6 +11,8 @@ const communityMocks = vi.hoisted(() => ({
   create: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
+  profile: vi.fn(),
+  putProfile: vi.fn(),
 }))
 const sessionMocks = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -35,6 +37,7 @@ import {
   PATCH as patchPost,
 } from '../posts/[postId]/route'
 import { POST as createPost } from '../posts/route'
+import { GET as getProfile, PUT as putProfile } from '../profile/route'
 import { GET as getTopics } from '../topics/route'
 import { GET as getFeed } from './route'
 
@@ -44,6 +47,7 @@ const post = {
   postId,
   author: {
     communityProfileId: authorId,
+    avatarPreset: null,
     displayName: 'Minh An',
     state: 'ACTIVE' as const,
   },
@@ -288,5 +292,76 @@ describe('/api/community read BFF', () => {
     expect(JSON.stringify(await unavailable.json())).not.toContain(
       'private infrastructure detail',
     )
+  })
+
+  it('proxies only the owner-scoped Community profile and preserves ETag', async () => {
+    const profile = {
+      communityProfileId: authorId,
+      displayName: 'Mầm Xanh',
+      avatarPreset: 'SPROUT' as const,
+      status: 'ACTIVE' as const,
+      version: 2,
+      createdAt: '2026-09-29T05:00:00Z',
+      updatedAt: '2026-09-29T05:10:00Z',
+    }
+    communityMocks.profile.mockResolvedValue({ data: profile, etag: '"2"' })
+    communityMocks.putProfile.mockResolvedValue({
+      data: { ...profile, displayName: 'Lá Nhỏ', version: 3 },
+      etag: '"3"',
+    })
+
+    const loaded = await getProfile(
+      request('http://localhost/api/community/profile'),
+    )
+    expect(loaded.status).toBe(200)
+    expect(loaded.headers.get('etag')).toBe('"2"')
+
+    const saved = await putProfile(
+      new NextRequest('http://localhost/api/community/profile', {
+        method: 'PUT',
+        headers: {
+          cookie: `${ACCESS_COOKIE_NAME}=identity-access-secret`,
+          'content-type': 'application/json',
+          'if-match': '"2"',
+        },
+        body: JSON.stringify({
+          displayName: 'Lá Nhỏ',
+          avatarPreset: 'LEAF',
+        }),
+      }),
+    )
+    expect(saved.status).toBe(200)
+    expect(saved.headers.get('etag')).toBe('"3"')
+    expect(communityMocks.putProfile).toHaveBeenCalledWith(
+      'identity-access-secret',
+      expect.any(String),
+      { displayName: 'Lá Nhỏ', avatarPreset: 'LEAF' },
+      '"2"',
+    )
+  })
+
+  it('rejects account identity and arbitrary avatar fields at the BFF', async () => {
+    for (const body of [
+      {
+        displayName: 'Ẩn danh',
+        avatarPreset: null,
+        accountSubject: '00000000-0000-4000-8000-000000000001',
+      },
+      { displayName: 'Ẩn danh', avatarPreset: 'https://example.test/me.png' },
+    ]) {
+      const response = await putProfile(
+        new NextRequest('http://localhost/api/community/profile', {
+          method: 'PUT',
+          headers: {
+            cookie: `${ACCESS_COOKIE_NAME}=identity-access-secret`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        }),
+      )
+      expect(response.status).toBe(400)
+      expect((await response.json()).code).toBe('VALIDATION_FAILED')
+    }
+    expect(communityMocks.putProfile).not.toHaveBeenCalled()
   })
 })

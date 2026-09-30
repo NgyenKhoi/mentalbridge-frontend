@@ -303,6 +303,7 @@ export interface components {
             /** Format: uuid */
             communityProfileId: string;
             displayName: string;
+            avatarPreset: components["schemas"]["CommunityAvatarPreset"] | null;
             /** @enum {string} */
             state: "ACTIVE" | "DELETED";
         };
@@ -451,11 +452,18 @@ export interface components {
         };
         PutCommunityProfileRequest: {
             displayName: string;
+            avatarPreset: components["schemas"]["CommunityAvatarPreset"] | null;
         };
+        /**
+         * @description Closed, Community-owned visual preset. Arbitrary image URLs and account-profile avatars are never accepted.
+         * @enum {string}
+         */
+        CommunityAvatarPreset: "LEAF" | "SUNRISE" | "WAVE" | "LOTUS" | "CLOUD" | "SPROUT";
         CommunityProfile: {
             /** Format: uuid */
             communityProfileId: string;
             displayName: string;
+            avatarPreset: components["schemas"]["CommunityAvatarPreset"] | null;
             /** @enum {string} */
             status: "ACTIVE" | "DELETED";
             version: number;
@@ -1060,6 +1068,7 @@ export interface operations {
             /** @description Authenticated owner's Community display profile. */
             200: {
                 headers: {
+                    ETag?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1068,6 +1077,7 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     putOwnCommunityProfile: {
@@ -1088,6 +1098,18 @@ export interface operations {
             /** @description Current Community display profile. */
             200: {
                 headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityProfile"];
+                };
+            };
+            /** @description Community display profile created for the authenticated owner. */
+            201: {
+                headers: {
+                    ETag?: string;
+                    Location?: string;
                     [name: string]: unknown;
                 };
                 content: {

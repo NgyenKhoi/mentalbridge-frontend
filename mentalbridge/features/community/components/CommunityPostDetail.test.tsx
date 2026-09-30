@@ -32,6 +32,7 @@ const post = {
   postId: '20000000-0000-4000-8000-000000000009',
   author: {
     communityProfileId: '10000000-0000-4000-8000-000000000002',
+    avatarPreset: 'LEAF',
     displayName: 'Minh An',
     state: 'ACTIVE',
   },

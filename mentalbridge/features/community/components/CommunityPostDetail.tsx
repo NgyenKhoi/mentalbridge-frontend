@@ -16,6 +16,7 @@ import {
   type CommunityTopicCode,
 } from '@/features/community/api/browser-community'
 import CommunityMedia from './CommunityMedia'
+import CommunityAvatar from './CommunityAvatar'
 
 function communityTime(value: string) {
   return new Intl.DateTimeFormat('vi-VN', {
@@ -203,14 +204,11 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
       )}
       <article className="community-detail">
         <header>
-          <div
-            className={`community-avatar ${post.author.state === 'DELETED' ? 'is-deleted' : ''}`}
-            aria-hidden="true"
-          >
-            {post.author.state === 'DELETED'
-              ? '—'
-              : post.author.displayName.slice(0, 1).toUpperCase()}
-          </div>
+          <CommunityAvatar
+            displayName={post.author.displayName}
+            avatarPreset={post.author.avatarPreset}
+            deleted={post.author.state === 'DELETED'}
+          />
           <div>
             <strong>{post.author.displayName}</strong>
             <time dateTime={post.publishedAt}>
