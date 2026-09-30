@@ -1,0 +1,625 @@
+.dashboard {
+  --assessment: #d89a3d;
+  --journal: #2f7167;
+  --emotion: #7766a0;
+  --support: #c87554;
+  --appointment: #66a39b;
+  display: grid;
+  gap: 20px;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.kpi,
+.panel,
+.empty {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18px 42px -40px rgba(24, 86, 79, 0.62);
+}
+
+.kpi {
+  min-width: 0;
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  animation: activity-rise var(--motion-slow) var(--ease-standard) both;
+}
+
+.kpiIcon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.kpiIcon svg {
+  width: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.kpi[data-tone='emotion'] .kpiIcon {
+  color: var(--emotion);
+  background: rgba(119, 102, 160, 0.13);
+}
+
+.kpi[data-tone='assessment'] .kpiIcon {
+  color: var(--assessment);
+  background: rgba(216, 154, 61, 0.16);
+}
+
+.kpi[data-tone='support'] .kpiIcon {
+  color: var(--support);
+  background: rgba(200, 117, 84, 0.14);
+}
+
+.kpi[data-tone='appointment'] .kpiIcon {
+  color: var(--appointment);
+  background: rgba(102, 163, 155, 0.15);
+}
+
+.kpiBody {
+  min-width: 0;
+}
+
+.kpiBody > p {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kpiBody > strong {
+  display: block;
+  margin: 9px 0 7px;
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces);
+  font-size: clamp(29px, 3vw, 36px);
+  font-weight: 600;
+  line-height: 0.92;
+}
+
+.kpiBody > strong small {
+  margin-left: 5px;
+  color: var(--ink-faint);
+  font-family: var(--font-be-vietnam);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.kpiBody > span {
+  display: block;
+  overflow: hidden;
+  color: var(--ink-faint);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kpiBody > a {
+  display: inline-block;
+  margin-top: 7px;
+  color: var(--teal-deep);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 20px;
+}
+
+.panel {
+  min-width: 0;
+  border-radius: 20px;
+  padding: 22px;
+}
+
+.emotionPanel,
+.mixPanel {
+  min-height: 380px;
+}
+
+.panelHeader {
+  min-height: 53px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.panelHeader span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panelHeader h2 {
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces);
+  font-size: 21px;
+}
+
+.panelHeader > p {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.emotionChart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.gridLine {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.axisLabel,
+.dateLabel {
+  fill: var(--ink-faint);
+  font: 12px var(--font-be-vietnam);
+}
+
+.emotionArea {
+  opacity: 0;
+  animation: chart-fade 0.5s 0.2s forwards;
+}
+
+.emotionLine {
+  fill: none;
+  stroke: var(--emotion);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.emotionPoint {
+  fill: var(--emotion);
+  stroke: #fff;
+  stroke-width: 2.5;
+}
+
+.sparseState {
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.sparseState > span {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 13px;
+  border-radius: 50%;
+  background: rgba(119, 102, 160, 0.13);
+  color: var(--emotion);
+  font-size: 24px;
+}
+
+.sparseState strong {
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces);
+  font-size: 18px;
+}
+
+.sparseState p {
+  margin: 6px 0 15px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.sparseState a,
+.empty a {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 15px;
+  border-radius: var(--radius-control);
+  background: var(--teal-deep);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mixBody {
+  display: grid;
+  justify-items: center;
+  gap: 22px;
+}
+
+.donut {
+  width: 164px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(var(--activity-ring));
+}
+
+.donut > div {
+  width: 104px;
+  aspect-ratio: 1;
+  display: grid;
+  place-content: center;
+  border-radius: 50%;
+  background: #fff;
+  text-align: center;
+}
+
+.donut span {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.donut strong {
+  margin-top: 3px;
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces);
+  font-size: 18px;
+}
+
+.mixLegend {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.mixLegend li {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 22px;
+}
+
+.mixLegend li > span {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+.mixLegend p,
+.mixLegend strong {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.mixLegend strong {
+  color: var(--ink);
+}
+
+.rhythmPanel {
+  overflow: hidden;
+  padding-bottom: 28px;
+}
+
+.kindLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 15px;
+  margin: -3px 0 22px;
+}
+
+.kindLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.kindLegend span::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--kind-color);
+  content: '';
+}
+
+.heatmap {
+  display: grid;
+  grid-template-columns: repeat(30, minmax(0, 1fr));
+  gap: 6px;
+  padding-bottom: 25px;
+}
+
+.heatCell {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(47, 113, 103, calc(0.08 + var(--strength) * 0.2));
+  border-radius: 6px;
+  background: rgba(47, 113, 103, calc(0.06 + var(--strength) * 0.72));
+  color: color-mix(in srgb, var(--teal-deep) 72%, white);
+  font-size: 12px;
+  font-weight: 800;
+  outline: none;
+}
+
+.heatCell:hover,
+.heatCell:focus-visible {
+  z-index: 3;
+  border-color: var(--teal-deep);
+  box-shadow: 0 0 0 3px rgba(47, 113, 103, 0.14);
+}
+
+.heatCell::after {
+  position: absolute;
+  z-index: 5;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  width: max-content;
+  max-width: min(270px, 80vw);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--teal-deep);
+  color: #fff;
+  content: attr(data-tooltip);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: 0.16s ease;
+}
+
+.heatCell:hover::after,
+.heatCell:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.heatCell small {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.heatCell:last-child small {
+  right: 0;
+  left: auto;
+}
+
+.stackedChart {
+  height: 245px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 18px;
+  padding: 5px 14px 0;
+  border-bottom: 1px solid var(--line);
+  background-image: linear-gradient(
+    to bottom,
+    var(--line) 1px,
+    transparent 1px
+  );
+  background-size: 100% 25%;
+}
+
+.dayColumn {
+  display: grid;
+  grid-template-rows: 22px 188px 30px;
+  text-align: center;
+}
+
+.dayColumn > strong,
+.dayColumn > span {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.barTrack {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.bar {
+  width: min(34px, 70%);
+  min-height: 2px;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow: hidden;
+  border-radius: 8px 8px 2px 2px;
+}
+
+.bar > span {
+  min-height: 3px;
+}
+
+.dayColumn > span {
+  padding-top: 8px;
+}
+
+.empty {
+  min-height: 430px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  padding: 40px 20px;
+  border-radius: 20px;
+  text-align: center;
+}
+
+.empty > span {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 17px;
+  border-radius: 18px;
+  background: var(--teal-pale);
+  color: var(--teal);
+  font-size: 25px;
+}
+
+.empty h2 {
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces);
+  font-size: 23px;
+}
+
+.empty p {
+  max-width: 480px;
+  margin: 9px 0 20px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.empty > div {
+  display: flex;
+  gap: 10px;
+}
+
+.empty a + a {
+  border: 1px solid var(--teal-deep);
+  background: transparent;
+  color: var(--teal-deep);
+}
+
+@keyframes activity-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes chart-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1120px) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .emotionPanel,
+  .mixPanel {
+    min-height: auto;
+  }
+
+  .mixBody {
+    grid-template-columns: 170px minmax(0, 1fr);
+    align-items: center;
+    justify-items: stretch;
+  }
+
+  .heatmap {
+    grid-template-columns: repeat(15, minmax(0, 1fr));
+    row-gap: 28px;
+  }
+}
+
+@media (max-width: 620px) {
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .panel,
+  .kpi {
+    padding: 17px;
+  }
+
+  .panelHeader {
+    min-height: auto;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .panelHeader > p {
+    white-space: normal;
+  }
+
+  .emotionChart {
+    margin-left: -6px;
+    width: calc(100% + 6px);
+  }
+
+  .axisLabel {
+    font-size: 10px;
+  }
+
+  .mixBody {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .mixLegend {
+    width: 100%;
+  }
+
+  .heatmap {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 5px;
+    row-gap: 28px;
+  }
+
+  .heatCell::after {
+    display: none;
+  }
+
+  .stackedChart {
+    gap: 7px;
+    padding-inline: 2px;
+  }
+
+  .empty > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi,
+  .emotionArea {
+    animation: none;
+    opacity: 1;
+  }
+}

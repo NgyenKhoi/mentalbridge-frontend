@@ -88,6 +88,9 @@ import {
   parseSupportPlanOccurrenceList,
   parseSupportPlanReplacementReview,
 } from './support-plan-validation'
+import type { ActivityDashboard } from '@/features/analytics/api/activity-dashboard-contract'
+import type { AnalyticsRange } from '@/features/analytics/api/activity-dashboard-contract'
+import { parseActivityDashboard } from '@/features/analytics/api/activity-dashboard-contract'
 import type {
   ConsultationBrief,
   ConsultationBriefDraftRequest,
@@ -231,6 +234,22 @@ async function careRequest<T>(options: RequestOptions<T>): Promise<T> {
 }
 
 export const careClient = {
+  activityDashboard(
+    accessToken: string,
+    timezone: string,
+    range: AnalyticsRange,
+    correlationId: string,
+  ): Promise<ActivityDashboard> {
+    const query = new URLSearchParams({ timezone, range: String(range) })
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/activity-dashboard?${query}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseActivityDashboard,
+    })
+  },
+
   consultationBriefScreeningContexts(
     authorization: string,
     correlationId: string,

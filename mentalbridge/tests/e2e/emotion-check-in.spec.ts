@@ -220,7 +220,7 @@ test('dashboard creates, retries, reloads, and updates the persisted daily emoti
   expect(finalStored?.revision).toBe(2)
 })
 
-test('analytics shows authoritative emotion progress without private notes or inferred trends', async ({
+test('analytics shows one responsive dashboard without private notes or duplicate fetches', async ({
   context,
   page,
 }) => {
@@ -246,27 +246,81 @@ test('analytics shows authoritative emotion progress without private notes or in
     updatedAt: `${String(localDate)}T02:00:00.000Z`,
   }))
 
-  await page.route('**/api/analytics/overview**', async (route) => {
+  let analyticsRequests = 0
+  await page.route('**/api/analytics?**', async (route) => {
+    analyticsRequests += 1
+    const requestedRange = Number(
+      new URL(route.request().url()).searchParams.get('range'),
+    )
+    expect([7, 30, 90]).toContain(requestedRange)
+    const start = new Date('2026-09-30T00:00:00.000Z')
+    start.setUTCDate(start.getUTCDate() - requestedRange + 1)
+    const daily = Array.from({ length: requestedRange }, (_, index) => {
+      const date = new Date(start)
+      date.setUTCDate(date.getUTCDate() + index)
+      const localDate = date.toISOString().slice(0, 10)
+      const isEmotion = [
+        '2026-09-24',
+        '2026-09-26',
+        '2026-09-28',
+        '2026-09-29',
+      ].includes(localDate)
+      return {
+        localDate,
+        assessments: localDate === '2026-09-29' ? 4 : 0,
+        journals: localDate === '2026-09-29' ? 1 : 0,
+        emotions: isEmotion ? 1 : 0,
+        emotionLevel:
+          localDate === '2026-09-24' || localDate === '2026-09-29'
+            ? 4
+            : localDate === '2026-09-26'
+              ? 3
+              : localDate === '2026-09-28'
+                ? 2
+                : null,
+        supportCompleted: 0,
+        supportSkipped: 0,
+        appointments: 0,
+        total: (localDate === '2026-09-29' ? 5 : 0) + (isEmotion ? 1 : 0),
+      }
+    })
     await route.fulfill({
       status: 200,
       json: {
         asOfLocalDate: '2026-09-30',
+        startLocalDate: daily[0].localDate,
         timezone: 'Asia/Ho_Chi_Minh',
-        emotion: {
-          state: 'available',
-          data: { currentStreak: 2, checkedInDays: 4, windowDays: 30 },
+        summary: {
+          totalActivities: 9,
+          activeDays: 4,
+          assessmentSubmissions: 4,
+          journalEntries: 1,
+          journalActiveDays: 1,
+          emotionCheckIns: 4,
+          emotionActiveDays: 4,
+          supportCompleted: 0,
+          supportSkipped: 0,
+          appointmentEvents: 0,
+          currentEmotionStreak: 0,
+          latestAssessmentInstrument: 'PHQ9',
+          latestAssessmentSubmittedAt: '2026-09-29T02:00:00.000Z',
         },
-        assessments: {
-          state: 'available',
-          data: {
-            count: 3,
-            countIsLowerBound: false,
-            latestSubmittedAt: '2026-09-27T02:00:00.000Z',
-            latestInstrument: 'PHQ9',
-          },
+        daily,
+        sources: {
+          assessments: 'available',
+          journals: 'available',
+          emotions: 'available',
+          supportPlans: 'empty',
+          appointments: 'empty',
         },
-        supportActivities: { state: 'empty' },
-        appointments: { state: 'unavailable' },
+        partial: false,
+        bounded: {
+          windowDays: requestedRange,
+          assessmentLimit: 50,
+          journalLimit: 50,
+          emotionLimit: 90,
+          appointmentLimit: 100,
+        },
       },
     })
   })
@@ -324,32 +378,74 @@ test('analytics shows authoritative emotion progress without private notes or in
 
   await page.goto('/analytics')
   await expect(page.getByText('Chuỗi ghi nhận cảm xúc')).toBeVisible()
-  await expect(page.getByText('4/30 ngày gần nhất có ghi nhận.')).toBeVisible()
-  await expect(page.getByText('3', { exact: true })).toBeVisible()
-  await expect(
-    page.getByText('Chưa có kế hoạch hỗ trợ hiện tại.'),
-  ).toBeVisible()
-  await expect(
-    page.getByText('Tạm thời chưa tải được dữ liệu này.'),
-  ).toBeVisible()
+  await expect(page.getByText('4/30 ngày có ghi nhận')).toBeVisible()
+  await expect(page.getByText('Gần nhất: PHQ-9 · 29/09/2026')).toBeVisible()
   await expect(page.getByText(/trung bình tâm trạng/i)).toHaveCount(0)
   await expect(page.getByText(/tích cực hơn/i)).toHaveCount(0)
-  await page.getByRole('button', { name: 'Xem chi tiết' }).click()
-
-  const dialog = page.getByRole('dialog', { name: 'Tiến trình cảm xúc' })
-  await expect(dialog).toBeVisible()
-  await expect(dialog.getByText('4/7 ngày')).toBeVisible()
   await expect(
-    dialog.getByRole('button', {
-      name: /25 tháng 9, chưa ghi nhận/i,
+    page.getByRole('img', {
+      name: 'Bản đồ nhiệt hoạt động từng ngày trong 30 ngày',
     }),
   ).toBeVisible()
   await expect(
-    dialog.getByText('ghi chú riêng tư không được hiển thị'),
+    page.getByText('ghi chú riêng tư không được hiển thị'),
   ).toHaveCount(0)
-  await expect(dialog.getByText(/trung bình/i)).toHaveCount(0)
-  await expect(dialog.getByRole('button', { name: '90 ngày' })).toHaveCount(0)
+  await expect(page.getByText(/Tạm gián đoạn|Đã tải/)).toHaveCount(0)
+  await expect(page.getByText('Số ngày có ghi nhận')).toHaveCount(0)
 
-  await dialog.getByRole('button', { name: '14 ngày' }).click()
-  await expect(dialog.getByText('4/14 ngày')).toBeVisible()
+  await page.getByRole('button', { name: '7 ngày' }).click()
+  await expect(page).toHaveURL(/range=7/)
+  await expect(
+    page.getByRole('img', { name: 'Biểu đồ cột chồng hoạt động trong 7 ngày' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: '90 ngày' }).click()
+  await expect(page).toHaveURL(/range=90/)
+  await expect(
+    page.getByRole('img', {
+      name: 'Bản đồ nhiệt hoạt động từng ngày trong 90 ngày',
+    }),
+  ).toBeVisible()
+
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    const layout = await page.locator('.analytics-page').evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      rect: element.getBoundingClientRect().toJSON(),
+      computed: {
+        boxSizing: getComputedStyle(element).boxSizing,
+        width: getComputedStyle(element).width,
+        padding: getComputedStyle(element).padding,
+        overflow: getComputedStyle(element).overflow,
+      },
+      directChildren: Array.from(element.children).map((child) => ({
+        className: child.className,
+        clientWidth: (child as HTMLElement).clientWidth,
+        scrollWidth: (child as HTMLElement).scrollWidth,
+        rect: child.getBoundingClientRect().toJSON(),
+      })),
+      internallyOverflowingChildren: Array.from(element.querySelectorAll<HTMLElement>('*'))
+        .filter((child) => child.scrollWidth > child.clientWidth + 1)
+        .slice(0, 10)
+        .map((child) => ({
+          className: child.className,
+          clientWidth: child.clientWidth,
+          scrollWidth: child.scrollWidth,
+          overflow: getComputedStyle(child).overflow,
+        })),
+      overflowingChildren: Array.from(element.querySelectorAll<HTMLElement>('*'))
+        .filter((child) => child.getBoundingClientRect().right > element.getBoundingClientRect().right + 1)
+        .slice(0, 5)
+        .map((child) => ({
+          className: child.className,
+          right: child.getBoundingClientRect().right,
+          scrollWidth: child.scrollWidth,
+        })),
+    }))
+    expect(
+      layout.scrollWidth <= layout.clientWidth + 1,
+      `analytics content overflows at ${width}px: ${JSON.stringify(layout)}`,
+    ).toBe(true)
+  }
+  expect(analyticsRequests).toBe(3)
 })

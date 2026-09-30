@@ -88,6 +88,7 @@ to select any additional task-specific material.
 | Approved online specialist discovery consumer        | Implemented | MB-363         |
 | Appointment cancellation and linked reschedule       | Implemented | MB-380         |
 | Owner-scoped factual personal analytics overview     | Implemented | MB-570         |
+| Owner-scoped cross-feature activity dashboard        | Implemented | MB-571, MB-610 |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then
