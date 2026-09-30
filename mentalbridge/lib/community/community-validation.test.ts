@@ -50,6 +50,50 @@ describe('Community response validation', () => {
     ).not.toBeNull()
   })
 
+  it('accepts both rollout author shapes and normalizes the legacy avatar', () => {
+    const legacyAuthor = {
+      communityProfileId: post.author.communityProfileId,
+      displayName: post.author.displayName,
+      state: post.author.state,
+    }
+    const legacyFeed = parseCommunityFeedPage({
+      items: [
+        { ...post, author: legacyAuthor, contentPreview: 'Một câu chuyện.' },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    })
+    const currentFeed = parseCommunityFeedPage({
+      items: [{ ...post, contentPreview: 'Một câu chuyện.' }],
+      nextCursor: null,
+      hasMore: false,
+    })
+    const legacyDetail = parseCommunityPostDetail({
+      ...post,
+      author: legacyAuthor,
+      content: 'Nội dung đầy đủ.',
+    })
+    const currentDetail = parseCommunityPostDetail({
+      ...post,
+      content: 'Nội dung đầy đủ.',
+    })
+
+    expect(legacyFeed?.items[0].author.avatarPreset).toBeNull()
+    expect(legacyDetail?.author.avatarPreset).toBeNull()
+    expect(currentFeed?.items[0].author.avatarPreset).toBe('LEAF')
+    expect(currentDetail?.author.avatarPreset).toBe('LEAF')
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        author: {
+          ...legacyAuthor,
+          accountSubject: '00000000-0000-4000-8000-000000000001',
+        },
+        content: 'Nội dung đầy đủ.',
+      }),
+    ).toBeNull()
+  })
+
   it('measures user text limits by Unicode code point', () => {
     const emoji = '🙂'
     expect(
