@@ -85,20 +85,26 @@ cannot become navigation.
 
 ### Personal analytics overview boundary
 
-MB-570 exposes one owner-only same-origin read at
-`/api/analytics/overview`. The BFF authenticates the user once, then composes
-independent factual projections through the existing Care, Journal/AI, and
-Consultation HTTP clients. It never reads another service database and never
-returns raw journal text, assessment answers, support-plan reflections, or
-appointment details.
+MB-570 introduced the owner-only factual analytics boundary. MB-571 and MB-610
+supersede its initial overview projection with the same-origin `/api/analytics`
+read. A single browser request selects a 7, 30, or 90-day range; Care
+aggregates assessment submissions, Journal metadata, emotion check-ins, recent
+SupportPlan occurrence outcomes, and created appointments into the same
+zero-filled local-date buckets. The browser receives counts, assessment recency,
+and the five-point self-reported emotion level needed for the owner's chart. It
+does not receive source record IDs, Journal text, assessment results or answers,
+emotion notes, SupportPlan reflections, specialist identity, chat content, or
+AI payload.
 
-Each source has its own `available`, `empty`, or `unavailable` state. A failed
-dependency therefore cannot become a fabricated zero, trend, average mood,
-global wellbeing score, recovery verdict, adherence score, diagnosis, or
-causal explanation. Assessment totals are explicitly lower-bounded when the
-first authoritative page reports more data; support-plan facts remain bounded
-to a 30-day local-date window; and appointment facts use only contract-owned
-counts and lifecycle states.
+Each dependency reports `available`, `empty`, `limited`, or `unavailable`;
+partial responses stay visibly partial instead of filling missing sources.
+Source reads are bounded (50 assessments, 50 journals, 90 emotion dates, at
+most 100 appointments, and the selected SupportPlan occurrence window). The
+analytics page runs the response through one pure `buildAnalytics` projection,
+then passes that model to the KPI, emotion trend, activity mix, and daily rhythm
+views. Components do not fetch or independently recalculate business totals.
+Care, Journal/AI, and Consultation retain lifecycle and deletion ownership, and
+the BFF does not read their databases directly.
 
 ## Approved Identity session design
 

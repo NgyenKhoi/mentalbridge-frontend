@@ -1072,6 +1072,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/activity-dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read factual cross-feature activity aggregates for a selected recent window
+         * @description Returns zero-filled local-date buckets and summary counts assembled from authoritative
+         *     domain APIs. It never returns source record identifiers, assessment scores or answers,
+         *     journal content, emotion notes, chat content, or specialist-private data. The daily
+         *     emotion level is a five-point self-reported category used only for the owner's chart.
+         *     Counts are activity facts only and are not adherence, diagnosis, improvement, or recovery.
+         *     An unavailable source is named explicitly and makes partial true; remaining sources are
+         *     still returned. A limited source means the bounded upstream read may have older facts
+         *     outside this response.
+         */
+        get: operations["getOwnActivityDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2071,6 +2098,68 @@ export interface components {
             resourceId: string | null;
             contentVersion: string | null;
             title: string;
+        };
+        ActivityDashboard: {
+            /** Format: date */
+            asOfLocalDate: string;
+            /** Format: date */
+            startLocalDate: string;
+            timezone: string;
+            summary: components["schemas"]["ActivityDashboardSummary"];
+            daily: components["schemas"]["ActivityDashboardDailyBucket"][];
+            sources: components["schemas"]["ActivityDashboardSources"];
+            partial: boolean;
+            bounded: components["schemas"]["ActivityDashboardBounds"];
+        };
+        ActivityDashboardSummary: {
+            totalActivities: number;
+            activeDays: number;
+            assessmentSubmissions: number;
+            journalEntries: number;
+            journalActiveDays: number;
+            emotionCheckIns: number;
+            emotionActiveDays: number;
+            supportCompleted: number;
+            supportSkipped: number;
+            appointmentEvents: number;
+            currentEmotionStreak: number;
+            /** @enum {string|null} */
+            latestAssessmentInstrument: "PHQ9" | "GAD7" | null;
+            /** Format: date-time */
+            latestAssessmentSubmittedAt: string | null;
+        };
+        ActivityDashboardDailyBucket: {
+            /** Format: date */
+            localDate: string;
+            assessments: number;
+            journals: number;
+            emotions: number;
+            emotionLevel: number | null;
+            supportCompleted: number;
+            supportSkipped: number;
+            appointments: number;
+            total: number;
+        };
+        ActivityDashboardSources: {
+            assessments: components["schemas"]["ActivityDashboardSourceState"];
+            journals: components["schemas"]["ActivityDashboardSourceState"];
+            emotions: components["schemas"]["ActivityDashboardSourceState"];
+            supportPlans: components["schemas"]["ActivityDashboardSourceState"];
+            appointments: components["schemas"]["ActivityDashboardSourceState"];
+        };
+        /** @enum {string} */
+        ActivityDashboardSourceState: "available" | "empty" | "limited" | "unavailable";
+        ActivityDashboardBounds: {
+            /** @enum {integer} */
+            windowDays: 7 | 30 | 90;
+            /** @constant */
+            assessmentLimit: 50;
+            /** @constant */
+            journalLimit: 50;
+            /** @constant */
+            emotionLimit: 90;
+            /** @constant */
+            appointmentLimit: 100;
         };
         Problem: {
             /** Format: uri-reference */
@@ -4098,6 +4187,39 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationProblem"];
+        };
+    };
+    getOwnActivityDashboard: {
+        parameters: {
+            query: {
+                /** @description IANA timezone used to place immutable timestamps into local-date buckets. */
+                timezone: string;
+                /** @description Number of recent local dates included in every aggregate and chart. */
+                range: 7 | 30 | 90;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Factual bounded activity aggregates returned */
+            200: {
+                headers: {
+                    "X-Correlation-Id"?: string;
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityDashboard"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
 }
