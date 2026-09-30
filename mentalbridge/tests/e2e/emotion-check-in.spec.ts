@@ -408,40 +408,50 @@ test('analytics shows one responsive dashboard without private notes or duplicat
 
   for (const width of [1440, 1024, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    const layout = await page.locator('.analytics-page').evaluate((element) => ({
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-      rect: element.getBoundingClientRect().toJSON(),
-      computed: {
-        boxSizing: getComputedStyle(element).boxSizing,
-        width: getComputedStyle(element).width,
-        padding: getComputedStyle(element).padding,
-        overflow: getComputedStyle(element).overflow,
-      },
-      directChildren: Array.from(element.children).map((child) => ({
-        className: child.className,
-        clientWidth: (child as HTMLElement).clientWidth,
-        scrollWidth: (child as HTMLElement).scrollWidth,
-        rect: child.getBoundingClientRect().toJSON(),
-      })),
-      internallyOverflowingChildren: Array.from(element.querySelectorAll<HTMLElement>('*'))
-        .filter((child) => child.scrollWidth > child.clientWidth + 1)
-        .slice(0, 10)
-        .map((child) => ({
+    const layout = await page
+      .locator('.analytics-page')
+      .evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        rect: element.getBoundingClientRect().toJSON(),
+        computed: {
+          boxSizing: getComputedStyle(element).boxSizing,
+          width: getComputedStyle(element).width,
+          padding: getComputedStyle(element).padding,
+          overflow: getComputedStyle(element).overflow,
+        },
+        directChildren: Array.from(element.children).map((child) => ({
           className: child.className,
-          clientWidth: child.clientWidth,
-          scrollWidth: child.scrollWidth,
-          overflow: getComputedStyle(child).overflow,
+          clientWidth: (child as HTMLElement).clientWidth,
+          scrollWidth: (child as HTMLElement).scrollWidth,
+          rect: child.getBoundingClientRect().toJSON(),
         })),
-      overflowingChildren: Array.from(element.querySelectorAll<HTMLElement>('*'))
-        .filter((child) => child.getBoundingClientRect().right > element.getBoundingClientRect().right + 1)
-        .slice(0, 5)
-        .map((child) => ({
-          className: child.className,
-          right: child.getBoundingClientRect().right,
-          scrollWidth: child.scrollWidth,
-        })),
-    }))
+        internallyOverflowingChildren: Array.from(
+          element.querySelectorAll<HTMLElement>('*'),
+        )
+          .filter((child) => child.scrollWidth > child.clientWidth + 1)
+          .slice(0, 10)
+          .map((child) => ({
+            className: child.className,
+            clientWidth: child.clientWidth,
+            scrollWidth: child.scrollWidth,
+            overflow: getComputedStyle(child).overflow,
+          })),
+        overflowingChildren: Array.from(
+          element.querySelectorAll<HTMLElement>('*'),
+        )
+          .filter(
+            (child) =>
+              child.getBoundingClientRect().right >
+              element.getBoundingClientRect().right + 1,
+          )
+          .slice(0, 5)
+          .map((child) => ({
+            className: child.className,
+            right: child.getBoundingClientRect().right,
+            scrollWidth: child.scrollWidth,
+          })),
+      }))
     expect(
       layout.scrollWidth <= layout.clientWidth + 1,
       `analytics content overflows at ${width}px: ${JSON.stringify(layout)}`,
