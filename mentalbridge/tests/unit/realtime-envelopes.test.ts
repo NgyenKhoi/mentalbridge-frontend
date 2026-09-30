@@ -13,11 +13,12 @@ const commandId = '11111111-1111-4111-8111-111111111111'
 const conversationId = '22222222-2222-4222-8222-222222222222'
 const correlationId = '33333333-3333-4333-8333-333333333333'
 const timestamp = '2026-09-04T12:00:00Z'
+const credential = 's'.repeat(43)
 
 describe('realtime v1 envelope adapters', () => {
   it('accepts strict handshake, command, acknowledgement, safe error and server event envelopes', () => {
     expect(
-      parseHandshakeV1({ schemaVersion: 1, accessToken: 'synthetic-only' }).ok,
+      parseHandshakeV1({ schemaVersion: 1, accessToken: credential }).ok,
     ).toBe(true)
     expect(
       parseCommandV1({
@@ -66,10 +67,10 @@ describe('realtime v1 envelope adapters', () => {
   })
 
   it.each([
-    ['unknown version', { schemaVersion: 2, accessToken: 'synthetic-only' }],
+    ['unknown version', { schemaVersion: 2, accessToken: credential }],
     [
       'unknown field',
-      { schemaVersion: 1, accessToken: 'synthetic-only', tokenType: 'bearer' },
+      { schemaVersion: 1, accessToken: credential, tokenType: 'bearer' },
     ],
     ['empty token', { schemaVersion: 1, accessToken: '' }],
   ])('rejects incompatible handshake: %s', (_name, input) => {

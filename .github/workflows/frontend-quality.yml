@@ -42,11 +42,23 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Resolve Realtime provider contract ref
+        id: realtime-provider
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          provider_ref=dev
+          if [[ -n "$HEAD_REF" ]] && git ls-remote --exit-code --heads https://github.com/NgyenKhoi/mentalbridge-backend.git "refs/heads/$HEAD_REF" >/dev/null 2>&1; then
+            provider_ref="$HEAD_REF"
+          fi
+          echo "ref=$provider_ref" >> "$GITHUB_OUTPUT"
+
       - name: Check out Realtime provider contracts
         uses: actions/checkout@v4
         with:
           repository: NgyenKhoi/mentalbridge-backend
-          ref: dev
+          ref: ${{ steps.realtime-provider.outputs.ref }}
           path: realtime-provider
           sparse-checkout: contracts/websocket/realtime
 

@@ -4,7 +4,10 @@ import {
   createMessageCommand,
   createSubscribeCommand,
 } from '@/lib/realtime/commands'
-import { createProductionRealtimeBoundary } from '@/lib/realtime/production'
+import {
+  createProductionRealtimeBoundary,
+  currentBrowserHandshakeDecision,
+} from '@/lib/realtime/production'
 import type { RealtimeSocket, SocketListener } from '@/lib/realtime/socket'
 import {
   RealtimeTransport,
@@ -111,7 +114,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),
@@ -162,7 +165,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),
@@ -207,7 +210,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),
@@ -255,7 +258,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 60_000,
         },
       }),
@@ -311,7 +314,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),
@@ -370,7 +373,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),
@@ -396,6 +399,10 @@ describe('RealtimeTransport', () => {
     if (boundary.status !== 'fail-closed')
       throw new Error('Expected fail-closed production boundary')
     expect(() => boundary.connect()).toThrow('No approved credential strategy.')
+    expect(currentBrowserHandshakeDecision).toEqual({
+      kind: 'short-lived-socket-credential',
+      architectureDecisionId: 'MB-382/ADR_REALTIME_BROWSER_HANDSHAKE',
+    })
   })
 
   it('keeps planned history visible as a non-success recovery state', async () => {
@@ -410,7 +417,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 60_000,
         },
       }),
@@ -452,7 +459,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 60_000,
         },
       }),
@@ -494,7 +501,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),

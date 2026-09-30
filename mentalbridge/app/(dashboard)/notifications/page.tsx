@@ -6,9 +6,11 @@ import { useRouter } from 'next/navigation'
 import { ApiError } from '@/lib/api/api-error'
 import {
   getNotificationPreferences,
+  getWellbeingDigestPreview,
   saveNotificationPreferences,
   type NotificationPreferencePatch,
   type NotificationPreferences,
+  type WellbeingDigestPreview,
 } from '@/features/notifications/api/browser-notification-preferences'
 import {
   deleteNotification,
@@ -173,6 +175,8 @@ export default function NotificationsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
+  const [digestPreview, setDigestPreview] = useState<WellbeingDigestPreview>()
+  const [digestPreviewError, setDigestPreviewError] = useState('')
 
   const loadInbox = useCallback(async (cursor?: string, append = false) => {
     if (append) setInboxLoadingMore(true)
@@ -247,6 +251,16 @@ export default function NotificationsPage() {
       })
     return () => {
       active = false
+    }
+  }, [])
+
+  const loadDigestPreview = useCallback(async () => {
+    try {
+      const preview = await getWellbeingDigestPreview()
+      setDigestPreviewError('')
+      setDigestPreview(preview)
+    } catch {
+      setDigestPreviewError('Chưa thể tải bản xem trước email lúc này.')
     }
   }, [])
 
@@ -367,6 +381,7 @@ export default function NotificationsPage() {
       setSaved(result.preferences)
       setEtag(result.etag)
       setToast('Đã lưu cài đặt thông báo.')
+      void loadDigestPreview()
       window.setTimeout(() => setToast(''), 2600)
     } catch (cause) {
       setError(
@@ -645,6 +660,42 @@ export default function NotificationsPage() {
                   <option value="WEEKLY_DIGEST">Tổng hợp mỗi tuần</option>
                 </select>
               </label>
+              <label>
+                <span>Giờ gửi tổng hợp ngày</span>
+                <input
+                  aria-label="Giờ gửi tổng hợp ngày"
+                  type="time"
+                  value={preferences.email.dailyDigestTime}
+                  onChange={(event) =>
+                    change({
+                      ...preferences,
+                      email: {
+                        ...preferences.email,
+                        dailyDigestTime: event.target.value,
+                      },
+                    })
+                  }
+                  disabled={disabled || !preferences.channels.email}
+                />
+              </label>
+              <label>
+                <span>Giờ nhắc tài nguyên</span>
+                <input
+                  aria-label="Giờ nhắc tài nguyên"
+                  type="time"
+                  value={preferences.email.resourceReminderTime}
+                  onChange={(event) =>
+                    change({
+                      ...preferences,
+                      email: {
+                        ...preferences.email,
+                        resourceReminderTime: event.target.value,
+                      },
+                    })
+                  }
+                  disabled={disabled || !preferences.channels.email}
+                />
+              </label>
             </div>
             <div className="notification-category-list">
               {(
@@ -675,6 +726,10 @@ export default function NotificationsPage() {
                         email: {
                           ...preferences.email,
                           [key]: !preferences.email[key],
+                          ...(key === 'wellbeingDigestEnabled' &&
+                          !preferences.email.wellbeingDigestEnabled
+                            ? { cadence: 'DAILY_DIGEST' as const }
+                            : {}),
                         },
                       })
                     }
@@ -684,6 +739,51 @@ export default function NotificationsPage() {
                 </article>
               ))}
             </div>
+            <section className="notification-digest-preview" aria-live="polite">
+              <header>
+                <div>
+                  <span aria-hidden="true">☀</span>
+                  <div>
+                    <strong>Bản xem trước tổng hợp hôm nay</strong>
+                    <small>
+                      Chỉ hiển thị tiêu đề tài nguyên và lời nhắc chung; không
+                      dùng nội dung nhật ký.
+                    </small>
+                  </div>
+                </div>
+                <button type="button" onClick={() => void loadDigestPreview()}>
+                  Làm mới
+                </button>
+              </header>
+              {digestPreviewError ? (
+                <p role="alert">{digestPreviewError}</p>
+              ) : !digestPreview ? (
+                <p>Đang chuẩn bị bản xem trước…</p>
+              ) : digestPreview.empty ? (
+                <p>
+                  Hôm nay bạn không còn mục nào đang chờ — hệ thống sẽ không gửi
+                  email rỗng.
+                </p>
+              ) : (
+                <ul>
+                  {digestPreview.resourceItems.map((resource) => (
+                    <li key={resource.id}>Tài nguyên: {resource.title}</li>
+                  ))}
+                  {digestPreview.includeJournalPrompt && (
+                    <li>Nhắc dành vài phút cho nhật ký</li>
+                  )}
+                  {digestPreview.includeEmotionPrompt && (
+                    <li>Nhắc ghi nhận cảm xúc hôm nay</li>
+                  )}
+                </ul>
+              )}
+              {digestPreview && (
+                <small>
+                  Lịch gửi {digestPreview.scheduledTime} ·{' '}
+                  {digestPreview.timeZone}
+                </small>
+              )}
+            </section>
           </section>
         </main>
 
@@ -797,7 +897,10 @@ export default function NotificationsPage() {
         <button
           type="button"
           className={view === 'settings' ? 'is-active' : ''}
-          onClick={() => setView('settings')}
+          onClick={() => {
+            setView('settings')
+            if (view !== 'settings') void loadDigestPreview()
+          }}
         >
           <span>Cài đặt</span>
           <i>Điều chỉnh</i>

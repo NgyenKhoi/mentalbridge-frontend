@@ -669,6 +669,62 @@
   border-radius: 13px;
   background: rgba(245, 230, 198, 0.55);
 }
+
+.notification-digest-preview {
+  margin-top: 1.25rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid
+    color-mix(in srgb, var(--color-primary, #28695d) 24%, transparent);
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, #fff8e7, #edf7ef);
+  color: #213c35;
+}
+
+.notification-digest-preview > header,
+.notification-digest-preview > header > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.notification-digest-preview > header {
+  justify-content: space-between;
+}
+
+.notification-digest-preview > header span {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 999px;
+  background: #ffd98f;
+}
+
+.notification-digest-preview strong,
+.notification-digest-preview small {
+  display: block;
+}
+
+.notification-digest-preview ul {
+  margin: 1rem 0;
+  padding-left: 1.25rem;
+}
+
+.notification-digest-preview button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  background: #28695d;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notification-digest-preview button:focus-visible {
+  outline: 3px solid #e7a847;
+  outline-offset: 2px;
+}
 .notification-safety-note > span {
   display: grid;
   width: 22px;

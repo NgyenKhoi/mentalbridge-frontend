@@ -561,6 +561,8 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
         cadence: 'IMMEDIATE',
         wellbeingDigestEnabled: false,
         resourceRemindersEnabled: false,
+        dailyDigestTime: '19:00',
+        resourceReminderTime: '18:30',
       },
       version,
       updatedAt: '2026-09-26T00:00:00.000Z',
@@ -682,29 +684,100 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await expect(page.getByText(/dịch vụ ứng cứu/i)).toHaveCount(0)
   })
 
-  test('specialists page does not claim live booking or guaranteed availability', async ({
+  test('specialists page uses approved online discovery without fabricated affordances', async ({
     context,
     page,
   }) => {
     await injectUserSession(context)
+    const specialistId = '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8'
+    const item = {
+      specialistAccountId: specialistId,
+      displayName: 'Chuyên gia An',
+      bio: 'Hồ sơ tổng hợp dùng cho kiểm thử giao diện.',
+      supportAreas: ['ANXIETY_SYMPTOMS'],
+      languages: ['vi'],
+      yearsOfExperience: 6,
+      timezone: 'Asia/Ho_Chi_Minh',
+      explanation: {
+        compatibility: 'NEUTRAL',
+        languageMatched: null,
+        hasSelectableSlot: true,
+        earliestSelectableStartAt: '2099-01-02T02:00:00Z',
+        timezoneMatch: 'OFFSET_DISTANCE',
+        timezoneOffsetDistanceMinutes: 0,
+        ratingTieBreakerApplied: false,
+        codes: [
+          'NO_SCREENING_CONTEXT',
+          'NO_REQUESTED_LANGUAGE',
+          'SELECTABLE_SLOT_AVAILABLE',
+          'TIMEZONE_OFFSET_DISTANCE',
+          'RATING_NOT_AVAILABLE',
+        ],
+      },
+      selectableSlots: [
+        {
+          id: '43b7dbb4-021e-4c75-ae48-bfa7126c7256',
+          specialistAccountId: specialistId,
+          startAt: '2099-01-02T02:00:00Z',
+          endAt: '2099-01-02T03:00:00Z',
+          timezone: 'Asia/Ho_Chi_Minh',
+          modality: 'IN_APP_CHAT',
+          version: 1,
+        },
+      ],
+    }
+    await page.route('**/api/consultation/specialists**', async (route) => {
+      const isDetail = new URL(route.request().url()).pathname.endsWith(
+        `/${specialistId}`,
+      )
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          isDetail
+            ? item
+            : {
+                items: [item],
+                count: 1,
+                nextCursor: null,
+                rankingPolicyVersion: 'specialist-discovery-v1',
+                generatedAt: '2099-01-01T00:00:00Z',
+                contextState: 'NOT_REQUESTED',
+                packageCode: 'FREE',
+                bookingHandoff: 'BROWSE_ONLY',
+                videoEnabled: false,
+              },
+        ),
+      })
+    })
     await page.goto('/specialists')
 
     await expect(
       page.getByRole('heading', { name: 'Chuyên gia tư vấn' }),
     ).toBeVisible({ timeout: 10_000 })
 
-    const html = await page.evaluate(() => document.body.innerHTML)
+    await expect(page.getByText('Chuyên gia An')).toBeVisible()
+    await expect(page.getByText(/Bạn đang dùng gói Free/)).toBeVisible()
+    await page.getByRole('button', { name: 'Xem hồ sơ và khung giờ' }).click()
+    await expect(page.getByText('Vì sao hồ sơ này xuất hiện?')).toBeVisible()
+    await expect(page.getByRole('radio')).toBeVisible()
+
+    const bodyText = await page.evaluate(() => document.body.innerText)
 
     // No emergency dispatch or monitoring claim
-    expect(html).not.toMatch(/ứng cứu khẩn cấp/i)
-    expect(html).not.toMatch(/cấp cứu/i)
-    expect(html).not.toMatch(/hotline/i)
-    expect(html).not.toMatch(/giám sát.*24\/7/i)
+    expect(bodyText).not.toMatch(/ứng cứu khẩn cấp/i)
+    expect(bodyText).not.toMatch(/cấp cứu/i)
+    expect(bodyText).not.toMatch(/hotline/i)
+    expect(bodyText).not.toMatch(/giám sát.*24\/7/i)
 
-    // Unavailable specialists must be clearly marked, not shown as available
-    await expect(page.getByText('Đang bận')).toBeVisible()
+    // No unsupported or fabricated specialist affordance.
+    expect(bodyText).not.toMatch(/phí tư vấn|địa điểm|điện thoại|chứng chỉ/i)
+    expect(bodyText).not.toMatch(/google meet|zoom|meeting link/i)
     await expect(
-      page.getByRole('button', { name: 'Chưa có lịch trống' }),
+      page.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByRole('link', { name: 'Xem quyền lợi các gói' }),
     ).toBeVisible()
   })
 

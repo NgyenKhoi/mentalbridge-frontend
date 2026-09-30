@@ -5,7 +5,12 @@ import {
   parseNotificationPage,
   parseNotificationPreferencePatch,
   parseNotificationPreferences,
+  parseWellbeingDigestPreview,
   parsePublicResourceDetail,
+  parseResourceJourney,
+  parseResourceProgressItem,
+  parseResourceProgressList,
+  parseResourceProgressUpdate,
   parseResourceSummary,
 } from './content-validation'
 
@@ -40,6 +45,8 @@ const preferences = {
     cadence: 'IMMEDIATE',
     wellbeingDigestEnabled: false,
     resourceRemindersEnabled: false,
+    dailyDigestTime: '19:00',
+    resourceReminderTime: '18:30',
   },
   version: 0,
   updatedAt: '2026-09-26T00:00:00.000Z',
@@ -109,6 +116,86 @@ describe('Content response validation', () => {
     ).toBeNull()
   })
 
+  it('accepts closed resource progress shapes without private reflection text', () => {
+    const progress = {
+      resourceId: requiredSummary.id,
+      localDate: '2026-09-29',
+      contentVersion: '4',
+      status: 'COMPLETED',
+      completedActionIds: ['read', 'takeaway'],
+      completedAt: '2026-09-29T02:00:00.000Z',
+      updatedAt: '2026-09-29T02:00:00.000Z',
+      version: '1',
+    }
+    expect(parseResourceProgressItem(progress)).toEqual(progress)
+    expect(parseResourceProgressList({ items: [progress] })).toEqual({
+      items: [progress],
+    })
+    expect(
+      parseResourceProgressUpdate({
+        status: 'IN_PROGRESS',
+        completedActionIds: ['read'],
+      }),
+    ).toEqual({ status: 'IN_PROGRESS', completedActionIds: ['read'] })
+    const practiceSessionId = '323e4567-e89b-42d3-a456-426614174000'
+    expect(
+      parseResourceProgressUpdate({
+        status: 'COMPLETED',
+        completedActionIds: ['practice'],
+        practiceSessionId,
+        practiceStartedAt: '2026-09-29T01:58:00.000Z',
+        practiceDurationSeconds: 120,
+      }),
+    ).toEqual({
+      status: 'COMPLETED',
+      completedActionIds: ['practice'],
+      practiceSessionId,
+      practiceStartedAt: '2026-09-29T01:58:00.000Z',
+      practiceDurationSeconds: 120,
+    })
+    expect(
+      parseResourceProgressUpdate({
+        status: 'COMPLETED',
+        completedActionIds: ['practice'],
+        practiceDurationSeconds: 120,
+      }),
+    ).toBeNull()
+    expect(
+      parseResourceProgressUpdate({
+        status: 'IN_PROGRESS',
+        completedActionIds: [],
+        reflectionText: 'private',
+      }),
+    ).toBeNull()
+  })
+
+  it('requires the support-plan day and stage in a resource journey', () => {
+    const journey = {
+      assignmentId: '323e4567-e89b-42d3-a456-426614174000',
+      localDate: '2026-09-29',
+      planId: '423e4567-e89b-42d3-a456-426614174000',
+      planVersion: 4,
+      planDay: 10,
+      planStage: 'MAINTENANCE',
+      items: [],
+      progress: {
+        dailyCompleted: 0,
+        dailyTotal: 0,
+        learningCompleted: 0,
+        learningTotal: 0,
+        practiceStreakDays: 3,
+      },
+      weekStart: '2026-09-28',
+      bingo: [],
+    }
+
+    expect(parseResourceJourney(journey)).toEqual(journey)
+    expect(parseResourceJourney({ ...journey, planDay: 15 })).toBeNull()
+    expect(
+      parseResourceJourney({ ...journey, planStage: undefined }),
+    ).toBeNull()
+  })
+
   it('accepts the complete preference aggregate and rejects malformed provider fields', () => {
     expect(parseNotificationPreferences(preferences)).toEqual(preferences)
     expect(
@@ -139,6 +226,28 @@ describe('Content response validation', () => {
       parseNotificationPreferencePatch({ channels: { sms: true } }),
     ).toBeNull()
     expect(parseNotificationPreferencePatch({})).toBeNull()
+  })
+
+  it('accepts only bounded privacy-safe wellbeing digest previews', () => {
+    const preview = {
+      localDate: '2026-09-30',
+      timeZone: 'Asia/Ho_Chi_Minh',
+      scheduledTime: '19:00',
+      eligibleNow: true,
+      resourceItems: [
+        { id: '323e4567-e89b-42d3-a456-426614174000', title: 'Thở chậm' },
+      ],
+      includeJournalPrompt: true,
+      includeEmotionPrompt: false,
+      empty: false,
+    }
+    expect(parseWellbeingDigestPreview(preview)).toEqual(preview)
+    expect(
+      parseWellbeingDigestPreview({ ...preview, journalBody: 'private' }),
+    ).toBeNull()
+    expect(
+      parseWellbeingDigestPreview({ ...preview, scheduledTime: '25:00' }),
+    ).toBeNull()
   })
 
   it('accepts the closed notification shape and rejects arbitrary or mismatched actions', () => {

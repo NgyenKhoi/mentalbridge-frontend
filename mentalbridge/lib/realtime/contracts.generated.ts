@@ -4,7 +4,7 @@ import type { FromSchema } from 'json-schema-to-ts'
 export const handshakeV1Schema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $id: 'https://mentalbridge.dev/contracts/websocket/realtime/handshake-v1.schema.json',
-  title: 'Realtime authenticated handshake v1',
+  title: 'Realtime one-use socket credential handshake v1',
   type: 'object',
   additionalProperties: false,
   required: ['schemaVersion', 'accessToken'],
@@ -14,8 +14,10 @@ export const handshakeV1Schema = {
     },
     accessToken: {
       type: 'string',
-      minLength: 1,
-      maxLength: 8192,
+      minLength: 32,
+      maxLength: 128,
+      description:
+        'One-use, short-lived Realtime socket credential issued through the authenticated same-origin BFF; never a general Identity bearer token.',
     },
     correlationId: {
       type: 'string',
@@ -267,6 +269,12 @@ export const errorV1Schema = {
         'RATE_LIMITED',
         'ACCESS_DENIED',
         'CHAT_ELIGIBILITY_UNAVAILABLE',
+        'APPOINTMENT_NOT_CONFIRMED',
+        'CHAT_NOT_STARTED',
+        'CHAT_ENDED',
+        'CHAT_CANCELLED',
+        'CHAT_RESCHEDULED',
+        'CONVERSATION_BINDING_CONFLICT',
         'IDEMPOTENCY_CONFLICT',
         'DEPENDENCY_UNAVAILABLE',
         'INTERNAL_ERROR',

@@ -6,6 +6,7 @@ import { readJournalServerConfig } from '@/lib/config/server'
 import type {
   CompanionConversation,
   CompanionConversationSummary,
+  CompanionContextInput,
   CompanionSend,
   CompanionSendInput,
 } from './companion-contract'
@@ -16,7 +17,7 @@ import {
 } from './companion-validation'
 
 type Options<T> = Readonly<{
-  method: 'GET' | 'POST' | 'DELETE'
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   path: string
   accessToken: string
   correlationId: string
@@ -161,6 +162,21 @@ export const companionClient = {
       body,
       parse: parseSend,
     }) as Promise<CompanionSend>
+  },
+  updateContext(
+    accessToken: string,
+    id: string,
+    body: CompanionContextInput,
+    correlationId: string,
+  ) {
+    return upstream({
+      method: 'PUT',
+      path: `/api/v1/ai-companion/conversations/${id}/context`,
+      accessToken,
+      correlationId,
+      body,
+      parse: parseConversation,
+    }) as Promise<CompanionConversation>
   },
   async remove(accessToken: string, id: string, correlationId: string) {
     await upstream({

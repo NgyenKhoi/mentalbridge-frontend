@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api/api-error'
 
-const api = vi.hoisted(() => ({ get: vi.fn(), save: vi.fn() }))
+const api = vi.hoisted(() => ({
+  get: vi.fn(),
+  save: vi.fn(),
+  preview: vi.fn(),
+}))
 const inboxApi = vi.hoisted(() => ({
   get: vi.fn(),
   read: vi.fn(),
@@ -19,6 +23,7 @@ vi.mock(
   '@/features/notifications/api/browser-notification-preferences',
   () => ({
     getNotificationPreferences: api.get,
+    getWellbeingDigestPreview: api.preview,
     saveNotificationPreferences: api.save,
   }),
 )
@@ -52,6 +57,8 @@ const preferences = {
     cadence: 'IMMEDIATE' as const,
     wellbeingDigestEnabled: false,
     resourceRemindersEnabled: false,
+    dailyDigestTime: '19:00',
+    resourceReminderTime: '18:30',
   },
   version: 0,
   updatedAt: '2026-09-26T00:00:00.000Z',
@@ -80,6 +87,16 @@ describe('Notification preferences page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     api.get.mockResolvedValue({ preferences, etag: '"0"' })
+    api.preview.mockResolvedValue({
+      localDate: '2026-09-30',
+      timeZone: 'Asia/Ho_Chi_Minh',
+      scheduledTime: '19:00',
+      eligibleNow: false,
+      resourceItems: [],
+      includeJournalPrompt: false,
+      includeEmotionPrompt: false,
+      empty: true,
+    })
     inboxApi.get.mockResolvedValue({
       items: [],
       nextCursor: null,

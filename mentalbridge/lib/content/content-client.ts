@@ -11,6 +11,10 @@ import {
   parseNotification,
   parseNotificationBulkReadResult,
   parseNotificationPage,
+  parseWellbeingDigestPreview,
+  parseResourceProgressItem,
+  parseResourceProgressList,
+  parseResourceJourney,
   type AdminResourceDetail,
   type ContentProblem,
   type PublicResourceDetail,
@@ -21,12 +25,18 @@ import {
   type Notification,
   type NotificationBulkReadResult,
   type NotificationPage,
+  type WellbeingDigestPreview,
+  type ResourceProgressItem,
+  type ResourceProgressList,
+  type ResourceProgressUpdate,
+  type ResourceJourney,
+  type ResourceJourneyRequest,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
 
 type RequestOptions<T> = Readonly<{
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   path: string
   expectedStatus: number
   accessToken?: string
@@ -232,6 +242,58 @@ export const contentPublicClient = {
   },
 }
 
+export const contentResourceProgressClient = {
+  list(accessToken: string, from: string, to: string, correlationId: string) {
+    const query = new URLSearchParams({ from, to })
+    return contentRequest<ResourceProgressList>({
+      method: 'GET',
+      path: `/api/v1/resource-progress?${query.toString()}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseResourceProgressList,
+    })
+  },
+  save(
+    accessToken: string,
+    resourceId: string,
+    localDate: string,
+    update: ResourceProgressUpdate,
+    correlationId: string,
+  ) {
+    return contentRequest<ResourceProgressItem>({
+      method: 'PUT',
+      path: `/api/v1/resource-progress/${encodeURIComponent(resourceId)}/${encodeURIComponent(localDate)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: update,
+      parseSuccess: parseResourceProgressItem,
+      mutation: true,
+    })
+  },
+}
+
+export const contentResourceJourneyClient = {
+  materialize(
+    accessToken: string,
+    localDate: string,
+    input: ResourceJourneyRequest,
+    correlationId: string,
+  ) {
+    return contentRequest<ResourceJourney>({
+      method: 'PUT',
+      path: `/api/v1/resource-journeys/${encodeURIComponent(localDate)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: input,
+      parseSuccess: parseResourceJourney,
+      mutation: true,
+    })
+  },
+}
+
 function preferenceResult(
   preferences: NotificationPreferences,
   etag: string | undefined,
@@ -284,6 +346,19 @@ export const contentPreferenceClient = {
       },
     })
     return preferenceResult(preferences, etag)
+  },
+}
+
+export const contentWellbeingDigestClient = {
+  preview(accessToken: string, correlationId: string) {
+    return contentRequest<WellbeingDigestPreview>({
+      method: 'GET',
+      path: '/api/v1/wellbeing-digest/preview',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseWellbeingDigestPreview,
+    })
   },
 }
 

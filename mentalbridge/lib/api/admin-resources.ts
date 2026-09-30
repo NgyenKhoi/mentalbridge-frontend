@@ -6,7 +6,34 @@ export type ResourceDetail = components['schemas']['AdminResourceDetail']
 export type ResourceCategory = components['schemas']['ResourceCategory']
 export type ResourceStatus = components['schemas']['ResourceStatus']
 
-export type CreateResourceRequest = {
+type ResourceExperienceInput = Partial<
+  Pick<
+    components['schemas']['UpdateResourceRequest'],
+    | 'resourceKind'
+    | 'interactionType'
+    | 'repeatability'
+    | 'completionMode'
+    | 'streakEligible'
+    | 'expectedDurationMinutes'
+    | 'cooldownDays'
+    | 'recommendedFrequencyPerWeek'
+    | 'planTags'
+    | 'structuredContent'
+    | 'interactionConfig'
+    | 'safetyNotes'
+    | 'catalogueVisibility'
+    | 'contentVersionLabel'
+    | 'sourceReviewStatus'
+    | 'sourceOrganization'
+    | 'sourceTitle'
+    | 'sourceUrl'
+    | 'sourceReviewNote'
+    | 'sourceRetrievedAt'
+    | 'sourceContentHash'
+  >
+>
+
+export type CreateResourceRequest = ResourceExperienceInput & {
   category: ResourceCategory
   locale?: string
   title: string
@@ -17,7 +44,7 @@ export type CreateResourceRequest = {
   expiresAt?: string | null
 }
 
-export type UpdateResourceRequest = {
+export type UpdateResourceRequest = ResourceExperienceInput & {
   locale?: string
   title?: string
   summary?: string

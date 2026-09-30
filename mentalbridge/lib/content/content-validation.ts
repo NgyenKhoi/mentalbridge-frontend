@@ -8,10 +8,19 @@ export type NotificationPreferences =
   components['schemas']['NotificationPreferences']
 export type NotificationPreferencePatch =
   components['schemas']['NotificationPreferencePatch']
+export type WellbeingDigestPreview =
+  components['schemas']['WellbeingDigestPreview']
 export type Notification = components['schemas']['Notification']
 export type NotificationPage = components['schemas']['NotificationPage']
 export type NotificationBulkReadResult =
   components['schemas']['NotificationBulkReadResult']
+export type ResourceProgressItem = components['schemas']['ResourceProgressItem']
+export type ResourceProgressList = components['schemas']['ResourceProgressList']
+export type ResourceProgressUpdate =
+  components['schemas']['ResourceProgressUpdate']
+export type ResourceJourney = components['schemas']['ResourceJourney']
+export type ResourceJourneyRequest =
+  components['schemas']['ResourceJourneyRequest']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -26,6 +35,37 @@ const CATEGORIES = new Set([
   'COMMUNITY',
 ])
 const STATUSES = new Set(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
+const PROGRESS_STATUSES = new Set(['IN_PROGRESS', 'COMPLETED'])
+const RESOURCE_KINDS = new Set([
+  'LEARNING',
+  'PRACTICE',
+  'HABIT',
+  'ACTION',
+  'REFLECTION',
+])
+const INTERACTION_TYPES = new Set([
+  'STRUCTURED_READER',
+  'VIDEO_TRANSCRIPT',
+  'BREATHING_PACER',
+  'GROUNDING_GUIDE',
+  'PROGRESSIVE_RELAXATION',
+  'WALK_TIMER',
+  'STRETCH_SEQUENCE',
+  'PROBLEM_SOLVING_WORKSHEET',
+  'BEHAVIORAL_ACTIVATION_PLANNER',
+  'SELF_COMPASSION_PROMPTS',
+  'UNHOOKING_PROMPTS',
+  'PREPARE_FOR_SPECIALIST_CHECKLIST',
+  'REFLECTION',
+])
+const COMPLETION_MODES = new Set([
+  'EXPLICIT',
+  'STEPS',
+  'TIMED',
+  'VIDEO_CONFIRMATION',
+])
+const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/
+const ACTION_ID = /^[A-Za-z0-9:_-]{1,64}$/
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -72,6 +112,47 @@ function optionalNullableString(value: unknown): boolean {
   return value === undefined || value === null || typeof value === 'string'
 }
 
+function validResourceExperience(item: Record<string, unknown>) {
+  if (item.resourceKind === undefined) return true
+  return (
+    typeof item.resourceKind === 'string' &&
+    RESOURCE_KINDS.has(item.resourceKind) &&
+    typeof item.interactionType === 'string' &&
+    INTERACTION_TYPES.has(item.interactionType) &&
+    (item.repeatability === 'ONE_TIME' ||
+      item.repeatability === 'REPEATABLE') &&
+    typeof item.completionMode === 'string' &&
+    COMPLETION_MODES.has(item.completionMode) &&
+    typeof item.streakEligible === 'boolean' &&
+    Number.isSafeInteger(item.expectedDurationMinutes) &&
+    (item.expectedDurationMinutes as number) >= 1 &&
+    Number.isSafeInteger(item.cooldownDays) &&
+    (item.cooldownDays as number) >= 0 &&
+    Number.isSafeInteger(item.recommendedFrequencyPerWeek) &&
+    (item.recommendedFrequencyPerWeek as number) >= 1 &&
+    Array.isArray(item.planTags) &&
+    item.planTags.every((tag) => typeof tag === 'string')
+  )
+}
+
+function validOptionalResourceDetailExperience(item: Record<string, unknown>) {
+  if (item.structuredContent === undefined) return true
+  return (
+    record(item.structuredContent) !== null &&
+    record(item.interactionConfig) !== null &&
+    Array.isArray(item.safetyNotes) &&
+    item.safetyNotes.every((note) => typeof note === 'string') &&
+    nullableDateTime(item.sourceRetrievedAt) &&
+    (item.sourceContentHash === null ||
+      (typeof item.sourceContentHash === 'string' &&
+        /^[a-f0-9]{64}$/.test(item.sourceContentHash))) &&
+    typeof item.contentVersionLabel === 'string' &&
+    ['REVIEWED', 'REVIEW_REQUIRED', 'NEEDS_SOURCE_REVIEW'].includes(
+      item.sourceReviewStatus as string,
+    )
+  )
+}
+
 export function isResourceId(value: string): boolean {
   return UUID.test(value)
 }
@@ -82,6 +163,15 @@ export function isLocale(value: string): boolean {
 
 export function isContentVersion(value: string): boolean {
   return CONTENT_VERSION.test(value)
+}
+
+export function isLocalDate(value: string): boolean {
+  if (!LOCAL_DATE.test(value)) return false
+  const instant = new Date(`${value}T00:00:00Z`)
+  return (
+    !Number.isNaN(instant.getTime()) &&
+    instant.toISOString().slice(0, 10) === value
+  )
 }
 
 export function isIdempotencyKey(value: string | null): value is string {
@@ -96,6 +186,7 @@ export function parseResourceSummary(value: unknown): ResourceSummary | null {
     !UUID.test(item.id) ||
     typeof item.category !== 'string' ||
     !CATEGORIES.has(item.category) ||
+    !validResourceExperience(item) ||
     typeof item.locale !== 'string' ||
     !LOCALE.test(item.locale) ||
     typeof item.title !== 'string' ||
@@ -127,6 +218,7 @@ export function parsePublicResourceDetail(
     !optionalNullableString(item.sourceTitle) ||
     !optionalNullableHttpUrl(item.sourceUrl) ||
     !optionalNullableString(item.sourceReviewNote) ||
+    !validOptionalResourceDetailExperience(item) ||
     !nullableDateTime(item.effectiveAt) ||
     !nullableDateTime(item.expiresAt)
   ) {
@@ -174,6 +266,184 @@ export function parseResourceList(value: unknown): ResourceListResponse | null {
     return null
   }
   return page as ResourceListResponse
+}
+
+export function parseResourceProgressItem(
+  value: unknown,
+): ResourceProgressItem | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'resourceId',
+      'localDate',
+      'contentVersion',
+      'status',
+      'completedActionIds',
+      'completedAt',
+      'updatedAt',
+      'version',
+    ]) ||
+    typeof item.resourceId !== 'string' ||
+    !UUID.test(item.resourceId) ||
+    typeof item.localDate !== 'string' ||
+    !isLocalDate(item.localDate) ||
+    typeof item.contentVersion !== 'string' ||
+    !CONTENT_VERSION.test(item.contentVersion) ||
+    typeof item.status !== 'string' ||
+    !PROGRESS_STATUSES.has(item.status) ||
+    !Array.isArray(item.completedActionIds) ||
+    item.completedActionIds.length > 32 ||
+    !item.completedActionIds.every(
+      (entry) => typeof entry === 'string' && ACTION_ID.test(entry),
+    ) ||
+    new Set(item.completedActionIds).size !== item.completedActionIds.length ||
+    !nullableDateTime(item.completedAt) ||
+    !dateTime(item.updatedAt) ||
+    typeof item.version !== 'string' ||
+    !CONTENT_VERSION.test(item.version)
+  ) {
+    return null
+  }
+  if (
+    item.status === 'COMPLETED'
+      ? item.completedAt === null
+      : item.completedAt !== null
+  ) {
+    return null
+  }
+  return item as ResourceProgressItem
+}
+
+export function parseResourceJourney(value: unknown): ResourceJourney | null {
+  const journey = record(value)
+  if (
+    !journey ||
+    typeof journey.assignmentId !== 'string' ||
+    !UUID.test(journey.assignmentId) ||
+    typeof journey.localDate !== 'string' ||
+    !isLocalDate(journey.localDate) ||
+    typeof journey.planId !== 'string' ||
+    !UUID.test(journey.planId) ||
+    !Number.isSafeInteger(journey.planVersion) ||
+    (journey.planVersion as number) < 1 ||
+    !Number.isSafeInteger(journey.planDay) ||
+    (journey.planDay as number) < 1 ||
+    (journey.planDay as number) > 14 ||
+    ![
+      'ORIENTATION',
+      'CORE_PRACTICE',
+      'REINFORCEMENT',
+      'MAINTENANCE',
+      'REVIEW',
+    ].includes(journey.planStage as string) ||
+    !Array.isArray(journey.items) ||
+    journey.items.length > 4 ||
+    !journey.items.every((entry) => {
+      const item = record(entry)
+      return (
+        item !== null &&
+        Number.isSafeInteger(item.position) &&
+        typeof item.reason === 'string' &&
+        ['PLAN_SELECTED', 'PLAN_DOMAIN', 'CONTINUITY', 'BALANCE'].includes(
+          item.reason,
+        ) &&
+        parseResourceSummary(item.resource) !== null
+      )
+    }) ||
+    typeof journey.weekStart !== 'string' ||
+    !isLocalDate(journey.weekStart) ||
+    !Array.isArray(journey.bingo) ||
+    journey.bingo.length > 9 ||
+    !journey.bingo.every((entry) => {
+      const item = record(entry)
+      return (
+        item !== null &&
+        Number.isSafeInteger(item.position) &&
+        typeof item.resourceId === 'string' &&
+        UUID.test(item.resourceId) &&
+        typeof item.label === 'string' &&
+        typeof item.stamped === 'boolean'
+      )
+    })
+  ) {
+    return null
+  }
+  const progress = record(journey.progress)
+  if (
+    !progress ||
+    ![
+      progress.dailyCompleted,
+      progress.dailyTotal,
+      progress.learningCompleted,
+      progress.learningTotal,
+      progress.practiceStreakDays,
+    ].every((entry) => Number.isSafeInteger(entry) && (entry as number) >= 0)
+  ) {
+    return null
+  }
+  return journey as ResourceJourney
+}
+
+export function parseResourceProgressList(
+  value: unknown,
+): ResourceProgressList | null {
+  const list = record(value)
+  if (
+    !list ||
+    !exactKeys(list, ['items']) ||
+    !Array.isArray(list.items) ||
+    !list.items.every((item) => parseResourceProgressItem(item) !== null)
+  ) {
+    return null
+  }
+  return list as ResourceProgressList
+}
+
+export function parseResourceProgressUpdate(
+  value: unknown,
+): ResourceProgressUpdate | null {
+  const update = record(value)
+  if (
+    !update ||
+    !exactKeys(update, [
+      'status',
+      'completedActionIds',
+      'practiceSessionId',
+      'practiceStartedAt',
+      'practiceDurationSeconds',
+    ]) ||
+    typeof update.status !== 'string' ||
+    !PROGRESS_STATUSES.has(update.status) ||
+    !Array.isArray(update.completedActionIds) ||
+    update.completedActionIds.length > 32 ||
+    !update.completedActionIds.every(
+      (entry) => typeof entry === 'string' && ACTION_ID.test(entry),
+    ) ||
+    new Set(update.completedActionIds).size !==
+      update.completedActionIds.length ||
+    !(
+      update.practiceSessionId === undefined ||
+      (typeof update.practiceSessionId === 'string' &&
+        UUID.test(update.practiceSessionId))
+    ) ||
+    !(
+      update.practiceStartedAt === undefined ||
+      dateTime(update.practiceStartedAt)
+    ) ||
+    !(
+      update.practiceDurationSeconds === undefined ||
+      (Number.isSafeInteger(update.practiceDurationSeconds) &&
+        (update.practiceDurationSeconds as number) >= 1 &&
+        (update.practiceDurationSeconds as number) <= 7_200)
+    ) ||
+    ((update.practiceStartedAt !== undefined ||
+      update.practiceDurationSeconds !== undefined) &&
+      update.practiceSessionId === undefined)
+  ) {
+    return null
+  }
+  return update as ResourceProgressUpdate
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -243,11 +513,17 @@ export function parseNotificationPreferences(
       'cadence',
       'wellbeingDigestEnabled',
       'resourceRemindersEnabled',
+      'dailyDigestTime',
+      'resourceReminderTime',
     ]) ||
     typeof email.cadence !== 'string' ||
     !EMAIL_CADENCES.has(email.cadence) ||
     typeof email.wellbeingDigestEnabled !== 'boolean' ||
     typeof email.resourceRemindersEnabled !== 'boolean' ||
+    typeof email.dailyDigestTime !== 'string' ||
+    !TIME.test(email.dailyDigestTime) ||
+    typeof email.resourceReminderTime !== 'string' ||
+    !TIME.test(email.resourceReminderTime) ||
     !Number.isSafeInteger(item.version) ||
     (item.version as number) < 0 ||
     !dateTime(item.updatedAt)
@@ -320,6 +596,8 @@ export function parseNotificationPreferencePatch(
         'cadence',
         'wellbeingDigestEnabled',
         'resourceRemindersEnabled',
+        'dailyDigestTime',
+        'resourceReminderTime',
       ]) ||
       (email.cadence !== undefined &&
         (typeof email.cadence !== 'string' ||
@@ -327,12 +605,64 @@ export function parseNotificationPreferencePatch(
       (email.wellbeingDigestEnabled !== undefined &&
         typeof email.wellbeingDigestEnabled !== 'boolean') ||
       (email.resourceRemindersEnabled !== undefined &&
-        typeof email.resourceRemindersEnabled !== 'boolean')
+        typeof email.resourceRemindersEnabled !== 'boolean') ||
+      (email.dailyDigestTime !== undefined &&
+        (typeof email.dailyDigestTime !== 'string' ||
+          !TIME.test(email.dailyDigestTime))) ||
+      (email.resourceReminderTime !== undefined &&
+        (typeof email.resourceReminderTime !== 'string' ||
+          !TIME.test(email.resourceReminderTime)))
     ) {
       return null
     }
   }
   return item as NotificationPreferencePatch
+}
+
+export function parseWellbeingDigestPreview(
+  value: unknown,
+): WellbeingDigestPreview | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'localDate',
+      'timeZone',
+      'scheduledTime',
+      'eligibleNow',
+      'resourceItems',
+      'includeJournalPrompt',
+      'includeEmotionPrompt',
+      'empty',
+    ]) ||
+    typeof item.localDate !== 'string' ||
+    !isLocalDate(item.localDate) ||
+    typeof item.timeZone !== 'string' ||
+    item.timeZone.length < 1 ||
+    item.timeZone.length > 64 ||
+    typeof item.scheduledTime !== 'string' ||
+    !TIME.test(item.scheduledTime) ||
+    typeof item.eligibleNow !== 'boolean' ||
+    typeof item.includeJournalPrompt !== 'boolean' ||
+    typeof item.includeEmotionPrompt !== 'boolean' ||
+    typeof item.empty !== 'boolean' ||
+    !Array.isArray(item.resourceItems) ||
+    item.resourceItems.length > 8 ||
+    !item.resourceItems.every((entry) => {
+      const resource = record(entry)
+      return (
+        resource &&
+        exactKeys(resource, ['id', 'title']) &&
+        typeof resource.id === 'string' &&
+        UUID.test(resource.id) &&
+        typeof resource.title === 'string' &&
+        resource.title.length > 0 &&
+        resource.title.length <= 255
+      )
+    })
+  )
+    return null
+  return item as WellbeingDigestPreview
 }
 
 const NOTIFICATION_KINDS = new Set([

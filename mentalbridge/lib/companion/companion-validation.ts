@@ -1,5 +1,7 @@
 import type {
   CompanionContextKind,
+  CompanionContextInput,
+  CompanionContextSources,
   CompanionConversation,
   CompanionConversationSummary,
   CompanionQuota,
@@ -23,7 +25,26 @@ const contextKinds = new Set<CompanionContextKind>([
   'JOURNAL',
   'SUPPORT_PLAN',
   'REASSESSMENT',
+  'RESOURCE',
 ])
+
+const parseContextSources = (
+  value: unknown,
+): CompanionContextSources | null => {
+  if (
+    !object(value) ||
+    !exact(value, ['plan', 'diary', 'screening', 'resourceIds']) ||
+    typeof value.plan !== 'boolean' ||
+    typeof value.diary !== 'boolean' ||
+    typeof value.screening !== 'boolean' ||
+    !Array.isArray(value.resourceIds) ||
+    value.resourceIds.length > 20 ||
+    new Set(value.resourceIds).size !== value.resourceIds.length ||
+    !value.resourceIds.every((id) => typeof id === 'string' && uuid.test(id))
+  )
+    return null
+  return value as CompanionContextSources
+}
 
 const parseQuota = (value: unknown): CompanionQuota | null => {
   if (
@@ -58,6 +79,7 @@ export const parseConversation = (
     !exact(value, [
       'conversationId',
       'title',
+      'context',
       'messages',
       'createdAt',
       'updatedAt',
@@ -68,6 +90,10 @@ export const parseConversation = (
     typeof value.title !== 'string' ||
     value.title.length < 1 ||
     value.title.length > 80 ||
+    !object(value.context) ||
+    !exact(value.context, ['sources', 'updatedAt']) ||
+    !parseContextSources(value.context.sources) ||
+    !dateTime(value.context.updatedAt) ||
     !Array.isArray(value.messages) ||
     value.messages.length > 400 ||
     !dateTime(value.createdAt) ||
@@ -93,7 +119,7 @@ export const parseConversation = (
       message.content.length > 2_000 ||
       !dateTime(message.createdAt) ||
       !Array.isArray(message.contextKinds) ||
-      message.contextKinds.length > 3 ||
+      message.contextKinds.length > 4 ||
       !message.contextKinds.every(
         (kind) =>
           typeof kind === 'string' &&
@@ -150,6 +176,7 @@ export const parseSend = (value: unknown): CompanionSend | null => {
       'assistantMessageId',
       'assistant',
       'createdAt',
+      'contextKinds',
       'quota',
     ]) ||
     typeof value.conversationId !== 'string' ||
@@ -162,6 +189,13 @@ export const parseSend = (value: unknown): CompanionSend | null => {
     value.assistant.length < 1 ||
     value.assistant.length > 500 ||
     !dateTime(value.createdAt) ||
+    !Array.isArray(value.contextKinds) ||
+    value.contextKinds.length > 4 ||
+    !value.contextKinds.every(
+      (kind) =>
+        typeof kind === 'string' &&
+        contextKinds.has(kind as CompanionContextKind),
+    ) ||
     !parseQuota(value.quota)
   )
     return null
@@ -171,52 +205,21 @@ export const parseSend = (value: unknown): CompanionSend | null => {
 export const parseSendInput = (value: unknown): CompanionSendInput | null => {
   if (
     !object(value) ||
-    !exact(value, ['message', 'context']) ||
+    !exact(value, ['message']) ||
     typeof value.message !== 'string' ||
     value.message.trim().length < 1 ||
     value.message.length > 2_000
   )
     return null
-  if (value.context === undefined) return { message: value.message.trim() }
-  if (
-    !object(value.context) ||
-    !exact(value.context, [
-      'journalIds',
-      'longitudinalAnalysisId',
-      'includeCurrentSupportPlan',
-      'includeReminderContext',
-    ])
-  )
-    return null
-  const journalIds = value.context.journalIds
-  if (
-    journalIds !== undefined &&
-    (!Array.isArray(journalIds) ||
-      journalIds.length > 3 ||
-      new Set(journalIds).size !== journalIds.length ||
-      !journalIds.every((id) => typeof id === 'string' && uuid.test(id)))
-  )
-    return null
-  if (
-    value.context.longitudinalAnalysisId !== undefined &&
-    (typeof value.context.longitudinalAnalysisId !== 'string' ||
-      !uuid.test(value.context.longitudinalAnalysisId))
-  )
-    return null
-  if (
-    value.context.includeCurrentSupportPlan !== undefined &&
-    typeof value.context.includeCurrentSupportPlan !== 'boolean'
-  )
-    return null
-  if (
-    value.context.includeReminderContext !== undefined &&
-    typeof value.context.includeReminderContext !== 'boolean'
-  )
-    return null
-  return {
-    message: value.message.trim(),
-    context: value.context as CompanionSendInput['context'],
-  }
+  return { message: value.message.trim() }
+}
+
+export const parseContextInput = (
+  value: unknown,
+): CompanionContextInput | null => {
+  if (!object(value) || !exact(value, ['sources'])) return null
+  const sources = parseContextSources(value.sources)
+  return sources ? { sources } : null
 }
 
 export const isConversationId = (value: unknown): value is string =>

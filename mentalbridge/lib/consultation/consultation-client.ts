@@ -6,11 +6,14 @@ import {
   parseAvailabilitySlotList,
   parseAppointment,
   parseAppointmentList,
+  parseAppointmentChatEligibility,
   parseBookableSlotList,
   parsePendingProfiles,
   parseProblem,
   parseProfile,
   parseServiceCreditAccount,
+  parseSpecialistDiscoveryItem,
+  parseSpecialistDiscoveryPage,
   parseSpecialistSuspensionResult,
   type PendingProfiles,
   type AvailabilitySlot,
@@ -19,11 +22,14 @@ import {
   type SpecialistProfile,
   type SpecialistProfileInput,
   type ServiceCreditAccount,
+  type SpecialistDiscoveryItem,
+  type SpecialistDiscoveryPage,
   type SpecialistApprovalStatus,
   type SpecialistDecisionReason,
   type SpecialistSuspensionResult,
   type Appointment,
   type AppointmentList,
+  type AppointmentChatEligibility,
   type AppointmentRequestInput,
   type BookableSlotList,
 } from './consultation-validation'
@@ -160,6 +166,43 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  chatEligibility(
+    token: string,
+    correlationId: string,
+    conversationId: string,
+    operation: 'SUBSCRIBE' | 'SEND' | 'HISTORY',
+  ) {
+    return request<AppointmentChatEligibility>({
+      method: 'GET',
+      path: `/internal/v1/appointments/${encodeURIComponent(conversationId)}/chat-eligibility?operation=${operation}`,
+      token,
+      correlationId,
+      parse: parseAppointmentChatEligibility,
+    })
+  },
+  discoverSpecialists(token: string, correlationId: string, query = '') {
+    return request<SpecialistDiscoveryPage>({
+      method: 'GET',
+      path: `/api/v1/specialists${query}`,
+      token,
+      correlationId,
+      parse: parseSpecialistDiscoveryPage,
+    })
+  },
+  discoveredSpecialist(
+    token: string,
+    correlationId: string,
+    specialistAccountId: string,
+    query = '',
+  ) {
+    return request<SpecialistDiscoveryItem>({
+      method: 'GET',
+      path: `/api/v1/specialists/${encodeURIComponent(specialistAccountId)}${query}`,
+      token,
+      correlationId,
+      parse: parseSpecialistDiscoveryItem,
+    })
+  },
   bookableSlots(token: string, correlationId: string, query = '') {
     return request<BookableSlotList>({
       method: 'GET',

@@ -147,6 +147,20 @@ describe('Content admin BFF boundary', () => {
       title: 'Draft',
       summary: 'Summary',
       contentBody: 'Body',
+      resourceKind: 'ACTION',
+      interactionType: 'PROBLEM_SOLVING_WORKSHEET',
+      repeatability: 'REPEATABLE',
+      completionMode: 'STEPS',
+      streakEligible: true,
+      expectedDurationMinutes: 8,
+      cooldownDays: 1,
+      recommendedFrequencyPerWeek: 3,
+      planTags: ['ANXIETY_SYMPTOMS'],
+      structuredContent: { overview: 'Reviewed overview' },
+      interactionConfig: {
+        steps: [{ id: 'define', label: 'Define the problem' }],
+      },
+      sourceReviewStatus: 'REVIEWED',
     }
 
     expect(
@@ -178,6 +192,13 @@ describe('Content admin BFF boundary', () => {
         }),
       }),
     )
+    const request = fetchMock.mock.calls.at(-1)?.[1]
+    expect(JSON.parse(String(request?.body))).toMatchObject({
+      resourceKind: 'ACTION',
+      interactionType: 'PROBLEM_SOLVING_WORKSHEET',
+      recommendedFrequencyPerWeek: 3,
+      structuredContent: { overview: 'Reviewed overview' },
+    })
   })
 
   it('validates malformed requests before contacting Content', async () => {
@@ -227,12 +248,23 @@ describe('Content admin BFF boundary', () => {
       (await update(
         req(`/api/admin/resources/${RESOURCE_ID}?version=0`, {
           method: 'PATCH',
-          body: JSON.stringify({ title: 'Updated' }),
+          body: JSON.stringify({
+            title: 'Updated',
+            interactionType: 'SELF_COMPASSION_PROMPTS',
+            recommendedFrequencyPerWeek: 4,
+          }),
           headers: { 'content-type': 'application/json' },
         }),
         context,
       ))!.status,
     ).toBe(200)
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+    ).toMatchObject({
+      title: 'Updated',
+      interactionType: 'SELF_COMPASSION_PROMPTS',
+      recommendedFrequencyPerWeek: 4,
+    })
     expect(
       (await remove(
         req(`/api/admin/resources/${RESOURCE_ID}?version=0`, {

@@ -155,6 +155,24 @@
   gap: 0.65rem;
   margin-top: 1rem;
 }
+
+.chatLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+  padding: 0.7rem 1rem;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.chatLink:focus-visible {
+  outline: 3px solid var(--teal-pale);
+  outline-offset: 2px;
+}
 .actions button {
   flex: 1;
 }
