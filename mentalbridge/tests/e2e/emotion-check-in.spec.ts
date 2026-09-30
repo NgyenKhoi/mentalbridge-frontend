@@ -7,7 +7,7 @@ type StoredCheckIn = {
   timezone: string
   emotion: 'GREAT' | 'GOOD' | 'OKAY' | 'LOW' | 'VERY_LOW'
   intensity: number
-  note: null
+  note: string | null
   sourceLabel: 'SELF_REPORTED_EMOTION'
   clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER'
   revision: number
@@ -218,4 +218,102 @@ test('dashboard creates, retries, reloads, and updates the persisted daily emoti
   expect(finalStored).not.toBeNull()
   expect(finalStored?.emotion).toBe('GREAT')
   expect(finalStored?.revision).toBe(2)
+})
+
+test('analytics shows authoritative emotion progress without private notes or inferred trends', async ({
+  context,
+  page,
+}) => {
+  await authenticated(context)
+
+  const entries: StoredCheckIn[] = [
+    ['2026-09-29', 'GOOD', 5],
+    ['2026-09-28', 'LOW', 2],
+    ['2026-09-26', 'OKAY', 3],
+    ['2026-09-24', 'GOOD', 4],
+  ].map(([localDate, emotion, intensity], index) => ({
+    id: `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    localDate: String(localDate),
+    timezone: 'Asia/Ho_Chi_Minh',
+    emotion: emotion as StoredCheckIn['emotion'],
+    intensity: Number(intensity),
+    note: 'ghi chú riêng tư không được hiển thị',
+    sourceLabel: 'SELF_REPORTED_EMOTION',
+    clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',
+    revision: 1,
+    recordedAt: `${String(localDate)}T02:00:00.000Z`,
+    createdAt: `${String(localDate)}T02:00:00.000Z`,
+    updatedAt: `${String(localDate)}T02:00:00.000Z`,
+  }))
+
+  await page.route('**/api/emotion-check-ins**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname.endsWith('/progress')) {
+      await route.fulfill({
+        status: 200,
+        json: {
+          asOfLocalDate: '2026-09-30',
+          timezone: 'Asia/Ho_Chi_Minh',
+          currentEmotion: null,
+          currentStreak: 2,
+          longestStreak: 5,
+          windows: [7, 14, 30].map((days) => ({
+            days,
+            startLocalDate:
+              days === 7
+                ? '2026-09-24'
+                : days === 14
+                  ? '2026-09-17'
+                  : '2026-09-01',
+            endLocalDate: '2026-09-30',
+            checkedInDays: 4,
+            totalDays: days,
+            distribution: {
+              GREAT: 0,
+              GOOD: 2,
+              OKAY: 1,
+              LOW: 1,
+              VERY_LOW: 0,
+            },
+          })),
+          label: 'SELF_REPORTED_EMOTION',
+          interpretation: 'FACTUAL_COUNTS_NOT_DIAGNOSIS_OR_RECOVERY',
+        },
+      })
+      return
+    }
+    if (url.pathname === '/api/emotion-check-ins') {
+      await route.fulfill({
+        status: 200,
+        json: {
+          items: entries,
+          page: { limit: 30, hasMore: false },
+          label: 'SELF_REPORTED_EMOTION',
+          interpretation: 'NOT_DIAGNOSIS_OR_RECOVERY',
+        },
+      })
+      return
+    }
+    await route.abort()
+  })
+
+  await page.goto('/analytics')
+  await page.getByRole('button', { name: 'Xem chi tiết' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Tiến trình cảm xúc' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText('4/7 ngày')).toBeVisible()
+  await expect(
+    dialog.getByRole('button', {
+      name: /25 tháng 9, chưa ghi nhận/i,
+    }),
+  ).toBeVisible()
+  await expect(
+    dialog.getByText('ghi chú riêng tư không được hiển thị'),
+  ).toHaveCount(0)
+  await expect(dialog.getByText(/trung bình/i)).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: '90 ngày' })).toHaveCount(0)
+
+  await dialog.getByRole('button', { name: '14 ngày' }).click()
+  await expect(dialog.getByText('4/14 ngày')).toBeVisible()
 })

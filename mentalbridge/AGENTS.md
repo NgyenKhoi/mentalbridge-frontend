@@ -57,6 +57,11 @@ is explicitly working in an audit or technical context.
 - Show privacy, consent, screening, and safety explanations at the point where
   they affect a decision. Avoid repeating the same disclaimer across every
   card or screen; keep one clear canonical explanation where practical.
+- For self-reported emotion data, keep the non-diagnostic interpretation note
+  only in the Dashboard overview. Analytics charts, detail dialogs, and other
+  secondary views must not repeat it as an alert, notification, or disclaimer
+  card. Contract interpretation fields remain validated but are not rendered
+  repeatedly.
 - State exactly what data is used when asking for consent. Buttons and consent
   labels must name the action in terms the user can understand.
 
