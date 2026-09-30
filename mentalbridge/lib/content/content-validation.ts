@@ -8,6 +8,8 @@ export type NotificationPreferences =
   components['schemas']['NotificationPreferences']
 export type NotificationPreferencePatch =
   components['schemas']['NotificationPreferencePatch']
+export type WellbeingDigestPreview =
+  components['schemas']['WellbeingDigestPreview']
 export type Notification = components['schemas']['Notification']
 export type NotificationPage = components['schemas']['NotificationPage']
 export type NotificationBulkReadResult =
@@ -511,11 +513,17 @@ export function parseNotificationPreferences(
       'cadence',
       'wellbeingDigestEnabled',
       'resourceRemindersEnabled',
+      'dailyDigestTime',
+      'resourceReminderTime',
     ]) ||
     typeof email.cadence !== 'string' ||
     !EMAIL_CADENCES.has(email.cadence) ||
     typeof email.wellbeingDigestEnabled !== 'boolean' ||
     typeof email.resourceRemindersEnabled !== 'boolean' ||
+    typeof email.dailyDigestTime !== 'string' ||
+    !TIME.test(email.dailyDigestTime) ||
+    typeof email.resourceReminderTime !== 'string' ||
+    !TIME.test(email.resourceReminderTime) ||
     !Number.isSafeInteger(item.version) ||
     (item.version as number) < 0 ||
     !dateTime(item.updatedAt)
@@ -588,6 +596,8 @@ export function parseNotificationPreferencePatch(
         'cadence',
         'wellbeingDigestEnabled',
         'resourceRemindersEnabled',
+        'dailyDigestTime',
+        'resourceReminderTime',
       ]) ||
       (email.cadence !== undefined &&
         (typeof email.cadence !== 'string' ||
@@ -595,12 +605,64 @@ export function parseNotificationPreferencePatch(
       (email.wellbeingDigestEnabled !== undefined &&
         typeof email.wellbeingDigestEnabled !== 'boolean') ||
       (email.resourceRemindersEnabled !== undefined &&
-        typeof email.resourceRemindersEnabled !== 'boolean')
+        typeof email.resourceRemindersEnabled !== 'boolean') ||
+      (email.dailyDigestTime !== undefined &&
+        (typeof email.dailyDigestTime !== 'string' ||
+          !TIME.test(email.dailyDigestTime))) ||
+      (email.resourceReminderTime !== undefined &&
+        (typeof email.resourceReminderTime !== 'string' ||
+          !TIME.test(email.resourceReminderTime)))
     ) {
       return null
     }
   }
   return item as NotificationPreferencePatch
+}
+
+export function parseWellbeingDigestPreview(
+  value: unknown,
+): WellbeingDigestPreview | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'localDate',
+      'timeZone',
+      'scheduledTime',
+      'eligibleNow',
+      'resourceItems',
+      'includeJournalPrompt',
+      'includeEmotionPrompt',
+      'empty',
+    ]) ||
+    typeof item.localDate !== 'string' ||
+    !isLocalDate(item.localDate) ||
+    typeof item.timeZone !== 'string' ||
+    item.timeZone.length < 1 ||
+    item.timeZone.length > 64 ||
+    typeof item.scheduledTime !== 'string' ||
+    !TIME.test(item.scheduledTime) ||
+    typeof item.eligibleNow !== 'boolean' ||
+    typeof item.includeJournalPrompt !== 'boolean' ||
+    typeof item.includeEmotionPrompt !== 'boolean' ||
+    typeof item.empty !== 'boolean' ||
+    !Array.isArray(item.resourceItems) ||
+    item.resourceItems.length > 8 ||
+    !item.resourceItems.every((entry) => {
+      const resource = record(entry)
+      return (
+        resource &&
+        exactKeys(resource, ['id', 'title']) &&
+        typeof resource.id === 'string' &&
+        UUID.test(resource.id) &&
+        typeof resource.title === 'string' &&
+        resource.title.length > 0 &&
+        resource.title.length <= 255
+      )
+    })
+  )
+    return null
+  return item as WellbeingDigestPreview
 }
 
 const NOTIFICATION_KINDS = new Set([

@@ -5,6 +5,7 @@ import {
   parseNotificationPage,
   parseNotificationPreferencePatch,
   parseNotificationPreferences,
+  parseWellbeingDigestPreview,
   parsePublicResourceDetail,
   parseResourceJourney,
   parseResourceProgressItem,
@@ -44,6 +45,8 @@ const preferences = {
     cadence: 'IMMEDIATE',
     wellbeingDigestEnabled: false,
     resourceRemindersEnabled: false,
+    dailyDigestTime: '19:00',
+    resourceReminderTime: '18:30',
   },
   version: 0,
   updatedAt: '2026-09-26T00:00:00.000Z',
@@ -223,6 +226,28 @@ describe('Content response validation', () => {
       parseNotificationPreferencePatch({ channels: { sms: true } }),
     ).toBeNull()
     expect(parseNotificationPreferencePatch({})).toBeNull()
+  })
+
+  it('accepts only bounded privacy-safe wellbeing digest previews', () => {
+    const preview = {
+      localDate: '2026-09-30',
+      timeZone: 'Asia/Ho_Chi_Minh',
+      scheduledTime: '19:00',
+      eligibleNow: true,
+      resourceItems: [
+        { id: '323e4567-e89b-42d3-a456-426614174000', title: 'Thở chậm' },
+      ],
+      includeJournalPrompt: true,
+      includeEmotionPrompt: false,
+      empty: false,
+    }
+    expect(parseWellbeingDigestPreview(preview)).toEqual(preview)
+    expect(
+      parseWellbeingDigestPreview({ ...preview, journalBody: 'private' }),
+    ).toBeNull()
+    expect(
+      parseWellbeingDigestPreview({ ...preview, scheduledTime: '25:00' }),
+    ).toBeNull()
   })
 
   it('accepts the closed notification shape and rejects arbitrary or mismatched actions', () => {

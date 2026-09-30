@@ -11,6 +11,7 @@ import {
   parseNotification,
   parseNotificationBulkReadResult,
   parseNotificationPage,
+  parseWellbeingDigestPreview,
   parseResourceProgressItem,
   parseResourceProgressList,
   parseResourceJourney,
@@ -24,6 +25,7 @@ import {
   type Notification,
   type NotificationBulkReadResult,
   type NotificationPage,
+  type WellbeingDigestPreview,
   type ResourceProgressItem,
   type ResourceProgressList,
   type ResourceProgressUpdate,
@@ -344,6 +346,19 @@ export const contentPreferenceClient = {
       },
     })
     return preferenceResult(preferences, etag)
+  },
+}
+
+export const contentWellbeingDigestClient = {
+  preview(accessToken: string, correlationId: string) {
+    return contentRequest<WellbeingDigestPreview>({
+      method: 'GET',
+      path: '/api/v1/wellbeing-digest/preview',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseWellbeingDigestPreview,
+    })
   },
 }
 
