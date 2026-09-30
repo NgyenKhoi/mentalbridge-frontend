@@ -489,6 +489,115 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/consultation-briefs/{appointmentId}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Create or replace the appointment owner's draft
+         * @description The request contains only minimized user-authored context and an exact Care-owned support-evaluation reference. Updating an existing draft requires its current version.
+         */
+        put: operations["saveConsultationBriefDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/screening-contexts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List bounded Care-owned screening contexts available for explicit selection */
+        get: operations["listOwnConsultationBriefScreeningContexts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the appointment owner's current draft or approved state */
+        get: operations["getOwnConsultationBrief"];
+        put?: never;
+        post?: never;
+        /** Delete brief content and revoke any future specialist access */
+        delete: operations["deleteOwnConsultationBrief"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve the exact current draft snapshot for the assigned specialist */
+        post: operations["approveConsultationBriefSnapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke all future reads of the currently approved snapshot */
+        post: operations["revokeConsultationBriefAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/consultation-briefs/{appointmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the immutable approved snapshot within its appointment-scoped window
+         * @description Fails closed for the wrong specialist, wrong appointment state, an early or expired window, revoked access, or a deleted brief/source. Every allowed or denied read is audited without brief content.
+         */
+        get: operations["getAssignedSpecialistConsultationBrief"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/support-evaluations": {
         parameters: {
             query?: never;
@@ -967,6 +1076,76 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ConsultationBriefDraftRequest: {
+            currentSituation: string;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            userGoals: string[];
+        };
+        ConsultationBriefScreeningContext: {
+            /** @enum {string} */
+            instrument: "PHQ9" | "GAD7";
+            /** @enum {string} */
+            domain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
+            /** @enum {string} */
+            screeningLevel: "MINIMAL" | "MILD" | "MODERATE" | "MODERATELY_SEVERE" | "SEVERE";
+            questionnaireVersion: string;
+            scoringVersion: string;
+            /** Format: date-time */
+            evaluatedAt: string;
+            policyVersion: string;
+        };
+        ConsultationBrief: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** @enum {string} */
+            status: "DRAFT" | "APPROVED";
+            currentSituation: string;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            screeningContext: components["schemas"]["ConsultationBriefScreeningContext"][];
+            userGoals: string[];
+            /** Format: uuid */
+            approvedSnapshotId: string | null;
+            /** @enum {string} */
+            sharingStatus: "NONE" | "ACTIVE" | "REVOKED";
+            /** Format: date-time */
+            accessStartAt: string | null;
+            /** Format: date-time */
+            accessEndAt: string | null;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ConsultationBriefScreeningContextChoice: {
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** Format: date-time */
+            evaluatedAt: string;
+            screeningContext: components["schemas"]["ConsultationBriefScreeningContext"][];
+        };
+        ConsultationBriefScreeningContextList: {
+            items: components["schemas"]["ConsultationBriefScreeningContextChoice"][];
+            count: number;
+        };
+        SpecialistConsultationBrief: {
+            /** Format: uuid */
+            snapshotId: string;
+            /** Format: uuid */
+            appointmentId: string;
+            currentSituation: string;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            screeningContext: components["schemas"]["ConsultationBriefScreeningContext"][];
+            userGoals: string[];
+            /** Format: int64 */
+            snapshotVersion: number;
+            /** Format: date-time */
+            approvedAt: string;
+        };
         /** @description Half-open UTC period. Canonical v2 periods are issued by the Care reassessment context policy. */
         ReassessmentPeriod: {
             /** Format: date-time */
@@ -2193,8 +2372,17 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description If-Match is missing for an existing profile or does not match its current version (PROFILE_VERSION_MISMATCH) */
+        /** @description If-Match does not match the current resource version */
         VersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description A quoted current resource version is required in If-Match */
+        VersionRequiredProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2216,6 +2404,7 @@ export interface components {
     parameters: {
         AssessmentId: string;
         DefinitionId: string;
+        AppointmentId: string;
         SupportEvaluationId: string;
         SupportPlanId: string;
         OccurrenceId: string;
@@ -3035,6 +3224,226 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    saveConsultationBriefDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @example "3" */
+                "If-Match"?: components["parameters"]["OptionalIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsultationBriefDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted draft */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBrief"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    listOwnConsultationBriefScreeningContexts: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to twenty newest domain-aware screening contexts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefScreeningContextList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getOwnConsultationBrief: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current owner view */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBrief"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    deleteOwnConsultationBrief: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Brief content deleted and active access revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    approveConsultationBriefSnapshot: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable snapshot approved with an appointment-scoped access window */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBrief"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    revokeConsultationBriefAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Specialist access revoked */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBrief"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    getAssignedSpecialistConsultationBrief: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact approved snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistConsultationBrief"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            410: components["responses"]["ConflictProblem"];
         };
     };
     listOwnScreeningSupportEvaluations: {

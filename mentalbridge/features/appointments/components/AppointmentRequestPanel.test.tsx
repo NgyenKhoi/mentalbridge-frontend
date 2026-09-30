@@ -24,6 +24,12 @@ vi.mock('../api/browser-client', () => ({
   appointmentBrowserClient: appointmentClient,
 }))
 
+vi.mock('./ConsultationBriefEditor', () => ({
+  ConsultationBriefEditor: ({ appointmentId }: { appointmentId: string }) => (
+    <div data-testid={`consultation-brief-${appointmentId}`} />
+  ),
+}))
+
 const timezone = 'Asia/Ho_Chi_Minh'
 const slotStart = '2099-01-02T02:00:00Z'
 const slotEnd = '2099-01-02T03:00:00Z'

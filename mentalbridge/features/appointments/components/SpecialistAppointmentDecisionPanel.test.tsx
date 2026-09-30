@@ -15,6 +15,14 @@ vi.mock('../api/browser-client', () => ({
   appointmentBrowserClient: api,
 }))
 
+vi.mock('./SpecialistConsultationBrief', () => ({
+  SpecialistConsultationBrief: ({
+    appointmentId,
+  }: {
+    appointmentId: string
+  }) => <div data-testid={`specialist-brief-${appointmentId}`} />,
+}))
+
 const requested = {
   id: '10a7e5d8-7960-42fb-9706-e642f849b78f',
   slotId: '43b7dbb4-021e-4c75-ae48-bfa7126c7256',
