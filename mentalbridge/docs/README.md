@@ -87,6 +87,7 @@ to select any additional task-specific material.
 | Specialist appointment decisions and expiry          | Implemented | MB-379         |
 | Approved online specialist discovery consumer        | Implemented | MB-363         |
 | Appointment cancellation and linked reschedule       | Implemented | MB-380         |
+| Owner-scoped factual personal analytics overview     | Implemented | MB-570         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then
