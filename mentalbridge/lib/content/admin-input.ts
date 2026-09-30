@@ -10,6 +10,60 @@ const httpUrl = z.url().refine((value) => {
   )
 })
 const nullableDate = z.iso.datetime({ offset: true }).nullable().optional()
+const nullableText = z.string().nullable().optional()
+const resourceKind = z.enum([
+  'LEARNING',
+  'PRACTICE',
+  'HABIT',
+  'ACTION',
+  'REFLECTION',
+])
+const interactionType = z.enum([
+  'STRUCTURED_READER',
+  'VIDEO_TRANSCRIPT',
+  'BREATHING_PACER',
+  'GROUNDING_GUIDE',
+  'PROGRESSIVE_RELAXATION',
+  'WALK_TIMER',
+  'STRETCH_SEQUENCE',
+  'PROBLEM_SOLVING_WORKSHEET',
+  'BEHAVIORAL_ACTIVATION_PLANNER',
+  'SELF_COMPASSION_PROMPTS',
+  'UNHOOKING_PROMPTS',
+  'PREPARE_FOR_SPECIALIST_CHECKLIST',
+  'REFLECTION',
+])
+const experienceFields = {
+  resourceKind: resourceKind.optional(),
+  interactionType: interactionType.optional(),
+  repeatability: z.enum(['ONE_TIME', 'REPEATABLE']).optional(),
+  completionMode: z
+    .enum(['EXPLICIT', 'STEPS', 'TIMED', 'VIDEO_CONFIRMATION'])
+    .optional(),
+  streakEligible: z.boolean().optional(),
+  expectedDurationMinutes: z.number().int().min(1).max(120).optional(),
+  cooldownDays: z.number().int().min(0).max(30).optional(),
+  recommendedFrequencyPerWeek: z.number().int().min(1).max(7).optional(),
+  planTags: z.array(z.string().min(1).max(64)).min(1).max(12).optional(),
+  structuredContent: z.record(z.string(), z.unknown()).optional(),
+  interactionConfig: z.record(z.string(), z.unknown()).optional(),
+  safetyNotes: z.array(z.string().min(1).max(500)).max(12).optional(),
+  catalogueVisibility: z.enum(['LISTED', 'DIRECT_ONLY']).optional(),
+  contentVersionLabel: z.string().min(1).max(64).optional(),
+  sourceReviewStatus: z
+    .enum(['REVIEWED', 'REVIEW_REQUIRED', 'NEEDS_SOURCE_REVIEW'])
+    .optional(),
+  sourceOrganization: z.string().min(1).max(200).nullable().optional(),
+  sourceTitle: z.string().min(1).max(500).nullable().optional(),
+  sourceUrl: httpUrl.nullable().optional(),
+  sourceReviewNote: nullableText,
+  sourceRetrievedAt: nullableDate,
+  sourceContentHash: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable()
+    .optional(),
+}
 
 function validDates(value: {
   effectiveAt?: string | null
@@ -37,6 +91,7 @@ export const createResourceSchema = z
     summary: z.string().min(1),
     contentBody: z.string().min(1).nullable().optional(),
     externalUrl: httpUrl.nullable().optional(),
+    ...experienceFields,
     effectiveAt: nullableDate,
     expiresAt: nullableDate,
   })
@@ -53,6 +108,7 @@ export const updateResourceSchema = z
     summary: z.string().min(1).optional(),
     contentBody: z.string().min(1).nullable().optional(),
     externalUrl: httpUrl.nullable().optional(),
+    ...experienceFields,
     effectiveAt: nullableDate,
     expiresAt: nullableDate,
   })

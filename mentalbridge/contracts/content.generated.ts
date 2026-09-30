@@ -679,6 +679,18 @@ export interface components {
             status: components["schemas"]["ResourceProgressStatus"];
             /** @description Current user-managed checklist selections. These selections remain editable after COMPLETED without reversing the recorded completion. */
             completedActionIds: string[];
+            /**
+             * Format: uuid
+             * @description Client-generated idempotency key for one completed repeatable practice session. Omit for ordinary checklist edits and one-time learning resources.
+             */
+            practiceSessionId?: string;
+            /**
+             * Format: date-time
+             * @description Optional start instant for the practice session.
+             */
+            practiceStartedAt?: string;
+            /** @description Optional measured duration for the practice session. */
+            practiceDurationSeconds?: number;
             /** Format: date-time */
             completedAt: string | null;
             /** Format: date-time */
@@ -744,6 +756,9 @@ export interface components {
             /** Format: uuid */
             planId: string;
             planVersion: number;
+            planDay: number;
+            /** @enum {string} */
+            planStage: "ORIENTATION" | "CORE_PRACTICE" | "REINFORCEMENT" | "MAINTENANCE" | "REVIEW";
             items: components["schemas"]["ResourceJourneyAssignmentItem"][];
             progress: components["schemas"]["ResourceJourneyProgress"];
             /** Format: date */
@@ -836,11 +851,44 @@ export interface components {
              * @description VIDEO resources require a verified HTTPS YouTube URL.
              */
             externalUrl?: string | null;
+            resourceKind?: components["schemas"]["ResourceKind"];
+            interactionType?: components["schemas"]["ResourceInteractionType"];
+            repeatability?: components["schemas"]["ResourceRepeatability"];
+            completionMode?: components["schemas"]["ResourceCompletionMode"];
+            streakEligible?: boolean;
+            expectedDurationMinutes?: number;
+            cooldownDays?: number;
+            recommendedFrequencyPerWeek?: number;
+            planTags?: string[];
+            /** @default {} */
+            structuredContent: {
+                [key: string]: unknown;
+            };
+            /** @default {} */
+            interactionConfig: {
+                [key: string]: unknown;
+            };
+            safetyNotes?: string[];
+            /**
+             * @default DIRECT_ONLY
+             * @enum {string}
+             */
+            catalogueVisibility: "LISTED" | "DIRECT_ONLY";
+            /** @default draft-v1 */
+            contentVersionLabel: string;
+            /**
+             * @default NEEDS_SOURCE_REVIEW
+             * @enum {string}
+             */
+            sourceReviewStatus: "REVIEWED" | "REVIEW_REQUIRED" | "NEEDS_SOURCE_REVIEW";
             sourceOrganization?: string | null;
             sourceTitle?: string | null;
             /** Format: uri */
             sourceUrl?: string | null;
             sourceReviewNote?: string | null;
+            /** Format: date-time */
+            sourceRetrievedAt?: string | null;
+            sourceContentHash?: string | null;
             /** Format: date-time */
             effectiveAt?: string | null;
             /** Format: date-time */
@@ -856,11 +904,35 @@ export interface components {
              * @description VIDEO resources require a verified HTTPS YouTube URL.
              */
             externalUrl?: string | null;
+            resourceKind?: components["schemas"]["ResourceKind"];
+            interactionType?: components["schemas"]["ResourceInteractionType"];
+            repeatability?: components["schemas"]["ResourceRepeatability"];
+            completionMode?: components["schemas"]["ResourceCompletionMode"];
+            streakEligible?: boolean;
+            expectedDurationMinutes?: number;
+            cooldownDays?: number;
+            recommendedFrequencyPerWeek?: number;
+            planTags?: string[];
+            structuredContent?: {
+                [key: string]: unknown;
+            };
+            interactionConfig?: {
+                [key: string]: unknown;
+            };
+            safetyNotes?: string[];
+            /** @enum {string} */
+            catalogueVisibility?: "LISTED" | "DIRECT_ONLY";
+            contentVersionLabel?: string;
+            /** @enum {string} */
+            sourceReviewStatus?: "REVIEWED" | "REVIEW_REQUIRED" | "NEEDS_SOURCE_REVIEW";
             sourceOrganization?: string | null;
             sourceTitle?: string | null;
             /** Format: uri */
             sourceUrl?: string | null;
             sourceReviewNote?: string | null;
+            /** Format: date-time */
+            sourceRetrievedAt?: string | null;
+            sourceContentHash?: string | null;
             /** Format: date-time */
             effectiveAt?: string | null;
             /** Format: date-time */

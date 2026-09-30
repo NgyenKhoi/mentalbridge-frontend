@@ -116,22 +116,35 @@ export default function ResourcesExperience() {
       getResourceCatalogue(controller.signal),
       getResourceProgress(shiftDate(today, -14), today),
       Promise.all(
-        dates.map((date) =>
-          getResourceJourney(date, timeZone, controller.signal),
-        ),
+        dates.map(async (date) => {
+          try {
+            return await getResourceJourney(date, timeZone, controller.signal)
+          } catch (error) {
+            if (
+              error instanceof ResourceJourneyBrowserError &&
+              error.status === 404
+            ) {
+              return null
+            }
+            throw error
+          }
+        }),
       ),
     ])
       .then(([catalogue, history, dailyJourneys]) => {
         if (catalogue.unavailable) throw new Error('unavailable')
+        const availableJourneys = dailyJourneys.filter(
+          (journey): journey is ResourceJourney => journey !== null,
+        )
         setResources(catalogue.items)
         setProgress([...history])
         setJourneys(
           Object.fromEntries(
-            dailyJourneys.map((journey) => [journey.localDate, journey]),
+            availableJourneys.map((journey) => [journey.localDate, journey]),
           ),
         )
         setState(
-          dailyJourneys.every((journey) => journey.items.length === 0)
+          availableJourneys.every((journey) => journey.items.length === 0)
             ? 'empty'
             : 'ready',
         )

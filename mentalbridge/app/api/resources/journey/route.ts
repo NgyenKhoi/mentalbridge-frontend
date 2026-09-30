@@ -16,7 +16,15 @@ import { isLocalDate } from '@/lib/content/content-validation'
 import { careErrorResponse } from '@/lib/care/bff-response'
 import { careClient } from '@/lib/care/care-client'
 
-const TIME_ZONE = /^[A-Za-z_]+(?:\/[A-Za-z0-9_+.-]+)+$/
+function validTimeZone(value: string) {
+  if (value.length < 1 || value.length > 64) return false
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value }).format()
+    return true
+  } catch {
+    return false
+  }
+}
 
 export async function GET(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
@@ -33,8 +41,7 @@ export async function GET(request: NextRequest) {
     !localDate ||
     !isLocalDate(localDate) ||
     !timeZone ||
-    timeZone.length > 64 ||
-    !TIME_ZONE.test(timeZone)
+    !validTimeZone(timeZone)
   ) {
     return carryContentSession(
       localProblem(

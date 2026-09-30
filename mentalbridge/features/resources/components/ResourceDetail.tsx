@@ -32,7 +32,9 @@ import {
 } from '../model/resource-experience'
 import { vietnameseVideoCues } from '../model/vietnamese-video-cues'
 import { resourceInteraction } from '../model/resource-interactions'
+import { structuredResourceContent } from '../model/structured-resource-content'
 import { AnimatedResourceSticker } from './AnimatedResourceSticker'
+import { PurposeShapedActions } from './PurposeShapedActions'
 import { VietnameseCaptionedVideo } from './VietnameseCaptionedVideo'
 import styles from './resource-detail.module.css'
 
@@ -84,6 +86,11 @@ function isVideoResource(resource: PublicResourceDetail) {
 }
 
 function contentParagraphs(resource: PublicResourceDetail) {
+  const structured = structuredResourceContent(resource)
+  const reviewedParagraphs = [structured.overview].filter(
+    (paragraph): paragraph is string => Boolean(paragraph),
+  )
+  if (reviewedParagraphs.length > 0) return reviewedParagraphs
   const paragraphs = resource.contentBody
     ?.split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
@@ -98,6 +105,18 @@ type PracticeCue = Readonly<{
   start: number
   end: number
 }>
+
+type PracticeSessionDraft = Readonly<{
+  practiceSessionId: string
+  practiceStartedAt: string
+}>
+
+function newPracticeSession(): PracticeSessionDraft {
+  return {
+    practiceSessionId: crypto.randomUUID(),
+    practiceStartedAt: new Date().toISOString(),
+  }
+}
 
 function practiceTimeline(
   phases: readonly { id: string; label: string; seconds?: number }[],
@@ -198,7 +217,10 @@ export default function ResourceDetail({
   } | null>(null)
   const [timer, setTimer] = useState<number | null>(null)
   const [timerRunning, setTimerRunning] = useState(false)
+  const [recordingPracticeSession, setRecordingPracticeSession] =
+    useState(false)
   const timerRef = useRef<number | null>(null)
+  const practiceSessionRef = useRef<PracticeSessionDraft | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -261,10 +283,9 @@ export default function ResourceDetail({
     if (!resource || typeof IntersectionObserver === 'undefined') return
     const sectionIds = [
       'summary',
-      isVideoResource(resource)
+      interaction?.mode === 'video'
         ? 'watch'
-        : resource.category === 'BREATHING' ||
-            resource.category === 'MEDITATION'
+        : interaction?.mode === 'breathing' || interaction?.mode === 'timed'
           ? 'practice'
           : 'content',
       'actions',
@@ -292,10 +313,16 @@ export default function ResourceDetail({
       if (section) observer.observe(section)
     }
     return () => observer.disconnect()
-  }, [resource])
+  }, [interaction?.mode, resource])
 
   const persistProgress = useCallback(
-    async (nextActions: string[], nextStatus: 'IN_PROGRESS' | 'COMPLETED') => {
+    async (
+      nextActions: string[],
+      nextStatus: 'IN_PROGRESS' | 'COMPLETED',
+      practice?: PracticeSessionDraft & {
+        practiceDurationSeconds?: number
+      },
+    ) => {
       if (!resource || saving) return false
       setSaving(true)
       setMessage('')
@@ -303,6 +330,7 @@ export default function ResourceDetail({
         const saved = await saveResourceProgress(resource.id, date, {
           status: nextStatus,
           completedActionIds: nextActions,
+          ...practice,
         })
         setCompletedActionIds(saved.completedActionIds)
         setStatus(saved.status)
@@ -325,7 +353,18 @@ export default function ResourceDetail({
       if (timer <= 1) {
         setTimer(null)
         setTimerRunning(false)
-        void persistProgress([...requiredActions], 'COMPLETED')
+        const practice = practiceSessionRef.current
+        practiceSessionRef.current = null
+        void persistProgress(
+          [...requiredActions],
+          'COMPLETED',
+          practice
+            ? {
+                ...practice,
+                practiceDurationSeconds: interaction?.durationSeconds,
+              }
+            : undefined,
+        )
         return
       }
       setTimer(timer - 1)
@@ -333,7 +372,13 @@ export default function ResourceDetail({
     return () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current)
     }
-  }, [persistProgress, requiredActions, timer, timerRunning])
+  }, [
+    interaction?.durationSeconds,
+    persistProgress,
+    requiredActions,
+    timer,
+    timerRunning,
+  ])
 
   const backHref = fromSupportPlan ? '/support-plan' : '/resources'
   const backLabel = fromSupportPlan
@@ -378,8 +423,10 @@ export default function ResourceDetail({
     )
   }
 
+  const loadedResource = resource
   const meta = resourcePresentation(resource)
   const paragraphs = contentParagraphs(resource)
+  const structured = structuredResourceContent(resource)
   const midpoint = Math.max(1, Math.ceil(paragraphs.length / 2))
   const externalUrl = safeHttpUrl(resource.externalUrl)
   const sourceUrl = safeHttpUrl(resource.sourceUrl)
@@ -409,10 +456,17 @@ export default function ResourceDetail({
   } as CSSProperties
 
   async function toggleAction(actionId: string) {
+    if (
+      loadedResource.repeatability === 'REPEATABLE' &&
+      (status !== 'COMPLETED' || recordingPracticeSession) &&
+      practiceSessionRef.current === null
+    ) {
+      practiceSessionRef.current = newPracticeSession()
+    }
     const nextActions = completedActionIds.includes(actionId)
       ? completedActionIds.filter((id) => id !== actionId)
       : [...completedActionIds, actionId]
-    if (status === 'COMPLETED') {
+    if (status === 'COMPLETED' && !recordingPracticeSession) {
       await persistProgress(nextActions, 'COMPLETED')
       return
     }
@@ -421,7 +475,10 @@ export default function ResourceDetail({
       setCompletionConfirmation(nextActions)
       return
     }
-    await persistProgress(nextActions, 'IN_PROGRESS')
+    await persistProgress(
+      nextActions,
+      status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS',
+    )
   }
 
   async function markComplete() {
@@ -436,13 +493,37 @@ export default function ResourceDetail({
       setQuizOpen(true)
       return
     }
+    if (
+      loadedResource.repeatability === 'REPEATABLE' &&
+      practiceSessionRef.current === null
+    ) {
+      practiceSessionRef.current = newPracticeSession()
+    }
     setCompletionConfirmation([...requiredActions])
   }
 
   async function confirmCompletion() {
     if (!completionConfirmation) return
-    const saved = await persistProgress(completionConfirmation, 'COMPLETED')
-    if (saved) setCompletionConfirmation(null)
+    const practice =
+      loadedResource.repeatability === 'REPEATABLE'
+        ? (practiceSessionRef.current ?? newPracticeSession())
+        : undefined
+    const saved = await persistProgress(
+      completionConfirmation,
+      'COMPLETED',
+      practice,
+    )
+    if (saved) {
+      practiceSessionRef.current = null
+      setRecordingPracticeSession(false)
+      setCompletionConfirmation(null)
+    }
+  }
+
+  function startAnotherPractice() {
+    practiceSessionRef.current = newPracticeSession()
+    setRecordingPracticeSession(true)
+    setCompletedActionIds([])
   }
 
   async function submitQuiz() {
@@ -616,6 +697,50 @@ export default function ResourceDetail({
               {paragraphs.slice(0, midpoint).map((paragraph) => (
                 <p key={paragraph}>{paragraph}</p>
               ))}
+              {structured.whenUseful && (
+                <aside className={styles.callout}>
+                  <span aria-hidden="true">✦</span>
+                  <div>
+                    <strong>Khi nào nội dung này có thể hữu ích?</strong>
+                    <p>{structured.whenUseful}</p>
+                  </div>
+                </aside>
+              )}
+              {structured.keyIdeas.length > 0 && (
+                <div className={styles.keyIdeas}>
+                  <strong>Những ý chính</strong>
+                  <ul>
+                    {structured.keyIdeas.map((idea) => (
+                      <li key={idea}>{idea}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {structured.steps.length > 0 && (
+                <div className={styles.structuredSteps}>
+                  <strong>Hướng dẫn từng bước</strong>
+                  <ol>
+                    {structured.steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              {structured.cautions.length > 0 && (
+                <aside className={styles.cautions}>
+                  <strong>Lưu ý an toàn</strong>
+                  <ul>
+                    {structured.cautions.map((caution) => (
+                      <li key={caution}>{caution}</li>
+                    ))}
+                  </ul>
+                </aside>
+              )}
+              {structured.nextStep && (
+                <p className={styles.nextStep}>
+                  <strong>Bước tiếp theo:</strong> {structured.nextStep}
+                </p>
+              )}
               <aside className={styles.callout}>
                 <span aria-hidden="true">🌱</span>
                 <p>
@@ -669,7 +794,10 @@ export default function ResourceDetail({
                     type="button"
                     disabled={saving || totalPracticeSeconds <= 0}
                     onClick={() => {
-                      if (timer === null) setTimer(totalPracticeSeconds)
+                      if (timer === null) {
+                        setTimer(totalPracticeSeconds)
+                        practiceSessionRef.current = newPracticeSession()
+                      }
                       setTimerRunning((running) => !running)
                     }}
                   >
@@ -819,30 +947,15 @@ export default function ResourceDetail({
               ) : isPractice ? (
                 <p>Bộ đếm sẽ ghi nhận từng nhịp khi bài thực hành kết thúc.</p>
               ) : (
-                <ul>
-                  {(interaction?.actions ?? []).map((action) => (
-                    <li key={action.id}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={(
-                            completionConfirmation ?? completedActionIds
-                          ).includes(action.id)}
-                          disabled={saving}
-                          onChange={() => void toggleAction(action.id)}
-                        />
-                        <span aria-hidden="true">
-                          {(
-                            completionConfirmation ?? completedActionIds
-                          ).includes(action.id)
-                            ? '✓'
-                            : ''}
-                        </span>
-                        <b>{action.label}</b>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
+                <PurposeShapedActions
+                  interactionType={resource.interactionType}
+                  actions={interaction?.actions ?? []}
+                  selectedActionIds={
+                    completionConfirmation ?? completedActionIds
+                  }
+                  disabled={saving}
+                  onToggle={(actionId) => void toggleAction(actionId)}
+                />
               )}
               {message && (
                 <p className={styles.error} role="alert">
@@ -855,6 +968,19 @@ export default function ResourceDetail({
                   các dấu tick mà không làm mất kết quả này.
                 </p>
               )}
+              {status === 'COMPLETED' &&
+                resource.repeatability === 'REPEATABLE' &&
+                !isPractice &&
+                !recordingPracticeSession && (
+                  <button
+                    type="button"
+                    className={styles.repeatPracticeButton}
+                    disabled={saving}
+                    onClick={startAnotherPractice}
+                  >
+                    Thực hành lại và ghi một lần mới
+                  </button>
+                )}
             </section>
 
             {isVideoResource(resource) && (

@@ -82,6 +82,8 @@ describe('ResourcesExperience', () => {
       localDate: date,
       planId: '00000000-0000-4000-8000-000000000302',
       planVersion: 1,
+      planDay: 10,
+      planStage: 'MAINTENANCE',
       items: resources.map((resource, index) => ({
         position: index + 1,
         resource,

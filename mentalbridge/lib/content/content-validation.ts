@@ -325,6 +325,16 @@ export function parseResourceJourney(value: unknown): ResourceJourney | null {
     !UUID.test(journey.planId) ||
     !Number.isSafeInteger(journey.planVersion) ||
     (journey.planVersion as number) < 1 ||
+    !Number.isSafeInteger(journey.planDay) ||
+    (journey.planDay as number) < 1 ||
+    (journey.planDay as number) > 14 ||
+    ![
+      'ORIENTATION',
+      'CORE_PRACTICE',
+      'REINFORCEMENT',
+      'MAINTENANCE',
+      'REVIEW',
+    ].includes(journey.planStage as string) ||
     !Array.isArray(journey.items) ||
     journey.items.length > 4 ||
     !journey.items.every((entry) => {
@@ -394,7 +404,13 @@ export function parseResourceProgressUpdate(
   const update = record(value)
   if (
     !update ||
-    !exactKeys(update, ['status', 'completedActionIds']) ||
+    !exactKeys(update, [
+      'status',
+      'completedActionIds',
+      'practiceSessionId',
+      'practiceStartedAt',
+      'practiceDurationSeconds',
+    ]) ||
     typeof update.status !== 'string' ||
     !PROGRESS_STATUSES.has(update.status) ||
     !Array.isArray(update.completedActionIds) ||
@@ -402,7 +418,26 @@ export function parseResourceProgressUpdate(
     !update.completedActionIds.every(
       (entry) => typeof entry === 'string' && ACTION_ID.test(entry),
     ) ||
-    new Set(update.completedActionIds).size !== update.completedActionIds.length
+    new Set(update.completedActionIds).size !==
+      update.completedActionIds.length ||
+    !(
+      update.practiceSessionId === undefined ||
+      (typeof update.practiceSessionId === 'string' &&
+        UUID.test(update.practiceSessionId))
+    ) ||
+    !(
+      update.practiceStartedAt === undefined ||
+      dateTime(update.practiceStartedAt)
+    ) ||
+    !(
+      update.practiceDurationSeconds === undefined ||
+      (Number.isSafeInteger(update.practiceDurationSeconds) &&
+        (update.practiceDurationSeconds as number) >= 1 &&
+        (update.practiceDurationSeconds as number) <= 7_200)
+    ) ||
+    ((update.practiceStartedAt !== undefined ||
+      update.practiceDurationSeconds !== undefined) &&
+      update.practiceSessionId === undefined)
   ) {
     return null
   }

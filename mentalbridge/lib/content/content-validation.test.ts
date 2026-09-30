@@ -6,6 +6,7 @@ import {
   parseNotificationPreferencePatch,
   parseNotificationPreferences,
   parsePublicResourceDetail,
+  parseResourceJourney,
   parseResourceProgressItem,
   parseResourceProgressList,
   parseResourceProgressUpdate,
@@ -133,12 +134,62 @@ describe('Content response validation', () => {
         completedActionIds: ['read'],
       }),
     ).toEqual({ status: 'IN_PROGRESS', completedActionIds: ['read'] })
+    const practiceSessionId = '323e4567-e89b-42d3-a456-426614174000'
+    expect(
+      parseResourceProgressUpdate({
+        status: 'COMPLETED',
+        completedActionIds: ['practice'],
+        practiceSessionId,
+        practiceStartedAt: '2026-09-29T01:58:00.000Z',
+        practiceDurationSeconds: 120,
+      }),
+    ).toEqual({
+      status: 'COMPLETED',
+      completedActionIds: ['practice'],
+      practiceSessionId,
+      practiceStartedAt: '2026-09-29T01:58:00.000Z',
+      practiceDurationSeconds: 120,
+    })
+    expect(
+      parseResourceProgressUpdate({
+        status: 'COMPLETED',
+        completedActionIds: ['practice'],
+        practiceDurationSeconds: 120,
+      }),
+    ).toBeNull()
     expect(
       parseResourceProgressUpdate({
         status: 'IN_PROGRESS',
         completedActionIds: [],
         reflectionText: 'private',
       }),
+    ).toBeNull()
+  })
+
+  it('requires the support-plan day and stage in a resource journey', () => {
+    const journey = {
+      assignmentId: '323e4567-e89b-42d3-a456-426614174000',
+      localDate: '2026-09-29',
+      planId: '423e4567-e89b-42d3-a456-426614174000',
+      planVersion: 4,
+      planDay: 10,
+      planStage: 'MAINTENANCE',
+      items: [],
+      progress: {
+        dailyCompleted: 0,
+        dailyTotal: 0,
+        learningCompleted: 0,
+        learningTotal: 0,
+        practiceStreakDays: 3,
+      },
+      weekStart: '2026-09-28',
+      bingo: [],
+    }
+
+    expect(parseResourceJourney(journey)).toEqual(journey)
+    expect(parseResourceJourney({ ...journey, planDay: 15 })).toBeNull()
+    expect(
+      parseResourceJourney({ ...journey, planStage: undefined }),
     ).toBeNull()
   })
 

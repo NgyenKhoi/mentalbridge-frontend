@@ -35,12 +35,12 @@ paths:
       summary: Liveness probe
       operationId: getLive
       responses:
-        '200':
+        "200":
           description: Service is alive
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LiveResponse'
+                $ref: "#/components/schemas/LiveResponse"
               example:
                 status: ok
 
@@ -51,21 +51,21 @@ paths:
       summary: Readiness probe — checks database connectivity
       operationId: getReady
       responses:
-        '200':
+        "200":
           description: Service is ready
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReadyResponse'
+                $ref: "#/components/schemas/ReadyResponse"
               example:
                 status: ok
                 db: connected
-        '503':
+        "503":
           description: Service unavailable — database unreachable
           content:
             application/problem+json:
               schema:
-                $ref: '#/components/schemas/ProblemDetails'
+                $ref: "#/components/schemas/ProblemDetails"
               example:
                 type: https://mentalbridge.io/errors/DEPENDENCY_UNAVAILABLE
                 title: Dependency unavailable
@@ -88,7 +88,7 @@ paths:
         - name: category
           in: query
           schema:
-            $ref: '#/components/schemas/ResourceCategory'
+            $ref: "#/components/schemas/ResourceCategory"
         - name: limit
           in: query
           schema:
@@ -102,7 +102,7 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: >
             Published reviewed resources. Returns empty array when none match.
             Returns fallback: unavailable with neutral message when service is unreachable.
@@ -110,7 +110,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourceListResponse'
+                $ref: "#/components/schemas/ResourceListResponse"
               examples:
                 published:
                   value:
@@ -122,9 +122,9 @@ paths:
                         summary: Kỹ thuật thở giúp giảm căng thẳng
                         externalUrl: null
                         status: PUBLISHED
-                        reviewedAt: '2024-01-15T10:00:00Z'
-                        createdAt: '2024-01-15T09:00:00Z'
-                        updatedAt: '2024-01-15T10:00:00Z'
+                        reviewedAt: "2024-01-15T10:00:00Z"
+                        createdAt: "2024-01-15T09:00:00Z"
+                        updatedAt: "2024-01-15T10:00:00Z"
                     count: 1
                 empty:
                   value:
@@ -136,8 +136,8 @@ paths:
                     count: 0
                     fallback: unavailable
                     message: Tài nguyên hỗ trợ tạm thời không khả dụng. Vui lòng thử lại sau.
-        '400':
-          $ref: '#/components/responses/RequestRejected'
+        "400":
+          $ref: "#/components/responses/RequestRejected"
 
     post:
       x-mentalbridge-operation-status: implemented
@@ -147,20 +147,20 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateResourceRequest'
+              $ref: "#/components/schemas/CreateResourceRequest"
       responses:
-        '201':
+        "201":
           description: Resource created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourceSummary'
+                $ref: "#/components/schemas/ResourceSummary"
               example:
                 id: 123e4567-e89b-12d3-a456-426614174000
                 category: BREATHING
@@ -170,14 +170,14 @@ paths:
                 externalUrl: null
                 status: DRAFT
                 reviewedAt: null
-                createdAt: '2024-01-15T10:00:00Z'
-                updatedAt: '2024-01-15T10:00:00Z'
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/IdempotencyConflict' }
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                createdAt: "2024-01-15T10:00:00Z"
+                updatedAt: "2024-01-15T10:00:00Z"
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/IdempotencyConflict" }
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /api/v1/resources/admin/list:
     x-mentalbridge-status: implemented
@@ -188,23 +188,23 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/Locale'
-        - $ref: '#/components/parameters/Category'
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/Category"
         - name: status
           in: query
-          schema: { $ref: '#/components/schemas/ResourceStatus' }
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
+          schema: { $ref: "#/components/schemas/ResourceStatus" }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
-        '200':
+        "200":
           description: One page of admin-visible resources
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ResourceListResponse' }
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+              schema: { $ref: "#/components/schemas/ResourceListResponse" }
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/resources/admin/{id}:
     x-mentalbridge-status: implemented
@@ -215,17 +215,17 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/ResourceId'
+        - $ref: "#/components/parameters/ResourceId"
       responses:
-        '200':
+        "200":
           description: Full admin resource detail
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/AdminResourceDetail' }
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema: { $ref: "#/components/schemas/AdminResourceDetail" }
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/resources/{id}:
     x-mentalbridge-status: implemented
@@ -242,7 +242,7 @@ paths:
       summary: Get an active reviewed resource for one locale
       operationId: getResource
       parameters:
-        - $ref: '#/components/parameters/Locale'
+        - $ref: "#/components/parameters/Locale"
         - name: contentVersion
           in: query
           required: false
@@ -251,17 +251,17 @@ paths:
             When present, a different current version returns 404 rather than substituting content.
           schema:
             type: string
-            pattern: '^(0|[1-9][0-9]*)$'
+            pattern: "^(0|[1-9][0-9]*)$"
             maxLength: 19
       responses:
-        '200':
+        "200":
           description: Resource detail
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PublicResourceDetail'
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/PublicResourceDetail"
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
     patch:
       tags: [Resources]
@@ -281,21 +281,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateResourceRequest'
+              $ref: "#/components/schemas/UpdateResourceRequest"
       responses:
-        '200':
+        "200":
           description: Updated resource
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourceSummary'
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/ResourceSummary"
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
     delete:
       tags: [Resources]
@@ -311,13 +311,13 @@ paths:
             type: integer
             minimum: 0
       responses:
-        '204':
+        "204":
           description: Deleted
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409':
-          $ref: '#/components/responses/Conflict'
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          $ref: "#/components/responses/Conflict"
 
   /api/v1/resource-progress:
     x-mentalbridge-status: implemented
@@ -341,15 +341,15 @@ paths:
             type: string
             format: date
       responses:
-        '200':
+        "200":
           description: Owner-scoped progress ordered by local date and recent activity
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourceProgressList'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+                $ref: "#/components/schemas/ResourceProgressList"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/resource-progress/{resourceId}/{localDate}:
     x-mentalbridge-status: implemented
@@ -377,18 +377,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceProgressUpdate'
+              $ref: "#/components/schemas/ResourceProgressUpdate"
       responses:
-        '200':
+        "200":
           description: Persisted daily progress
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourceProgressItem'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+                $ref: "#/components/schemas/ResourceProgressItem"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/resource-journeys/{localDate}:
     x-mentalbridge-status: implemented
@@ -414,18 +414,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceJourneyRequest'
+              $ref: "#/components/schemas/ResourceJourneyRequest"
       responses:
-        '200':
+        "200":
           description: Stable daily assignment, progress dimensions and weekly bingo
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourceJourney'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+                $ref: "#/components/schemas/ResourceJourney"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/resources/{id}/publish:
     x-mentalbridge-status: implemented
@@ -449,10 +449,10 @@ paths:
             type: integer
             minimum: 0
       responses:
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/ReviewApprovalRequired' }
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/ReviewApprovalRequired" }
 
   /api/v1/resources/{id}/archive:
     x-mentalbridge-status: implemented
@@ -476,17 +476,17 @@ paths:
             type: integer
             minimum: 0
       responses:
-        '200':
+        "200":
           description: Resource archived
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourceSummary'
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409':
-          $ref: '#/components/responses/Conflict'
+                $ref: "#/components/schemas/ResourceSummary"
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          $ref: "#/components/responses/Conflict"
 
   /api/v1/resources/{id}/versions/{contentVersion}/eligibility-publications:
     x-mentalbridge-status: implemented
@@ -497,29 +497,29 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/ResourceId'
-        - $ref: '#/components/parameters/ContentVersion'
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/ContentVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PublishResourceEligibilityRequest'
+              $ref: "#/components/schemas/PublishResourceEligibilityRequest"
       responses:
-        '201':
+        "201":
           description: Immutable eligibility publication created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourceEligibilityPublication'
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+                $ref: "#/components/schemas/ResourceEligibilityPublication"
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/resources/{id}/versions/{contentVersion}/eligibility-publications/withdrawal:
     x-mentalbridge-status: implemented
@@ -530,29 +530,29 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/ResourceId'
-        - $ref: '#/components/parameters/ContentVersion'
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/ContentVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WithdrawResourceEligibilityRequest'
+              $ref: "#/components/schemas/WithdrawResourceEligibilityRequest"
       responses:
-        '200':
+        "200":
           description: Eligibility publication withdrawn or an identical command replayed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourceEligibilityPublication'
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+                $ref: "#/components/schemas/ResourceEligibilityPublication"
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /internal/v1/resource-eligibility:resolve:
     x-mentalbridge-status: implemented
@@ -573,19 +573,19 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResourceEligibilityBatchRequest'
+              $ref: "#/components/schemas/ResourceEligibilityBatchRequest"
       responses:
-        '200':
+        "200":
           description: Deterministic exact-version eligibility outcomes
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResourceEligibilityBatchResponse'
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+                $ref: "#/components/schemas/ResourceEligibilityBatchResponse"
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/safety-directory/admin/entries:
     x-mentalbridge-status: implemented
@@ -596,17 +596,17 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: All current administrative records, including inactive and stale entries
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  { $ref: '#/components/schemas/SafetyDirectoryAdminEntry' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+                  { $ref: "#/components/schemas/SafetyDirectoryAdminEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
     post:
       tags: [Safety directory]
       summary: Create an inactive unreviewed directory record
@@ -614,24 +614,24 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/SafetyDirectoryEntryWrite' }
+            schema: { $ref: "#/components/schemas/SafetyDirectoryEntryWrite" }
       responses:
-        '201':
+        "201":
           description: Inactive unreviewed record created or identical command replayed
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/SafetyDirectoryAdminEntry' }
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/IdempotencyConflict' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+              schema: { $ref: "#/components/schemas/SafetyDirectoryAdminEntry" }
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/IdempotencyConflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/safety-directory/admin/entries/{entryId}:
     x-mentalbridge-status: implemented
@@ -642,25 +642,25 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/DirectoryEntryId'
-        - $ref: '#/components/parameters/DirectoryVersion'
+        - $ref: "#/components/parameters/DirectoryEntryId"
+        - $ref: "#/components/parameters/DirectoryVersion"
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/SafetyDirectoryEntryWrite' }
+            schema: { $ref: "#/components/schemas/SafetyDirectoryEntryWrite" }
       responses:
-        '200':
+        "200":
           description: Record updated, deactivated, and returned to unreviewed state
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/SafetyDirectoryAdminEntry' }
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+              schema: { $ref: "#/components/schemas/SafetyDirectoryAdminEntry" }
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/safety-directory/admin/entries/{entryId}/review:
     x-mentalbridge-status: implemented
@@ -671,19 +671,19 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/DirectoryEntryId'
-        - $ref: '#/components/parameters/DirectoryVersion'
+        - $ref: "#/components/parameters/DirectoryEntryId"
+        - $ref: "#/components/parameters/DirectoryVersion"
       responses:
-        '200':
+        "200":
           description: Exact record version reviewed, verified with server time, and activated
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/SafetyDirectoryAdminEntry' }
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+              schema: { $ref: "#/components/schemas/SafetyDirectoryAdminEntry" }
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/safety-directory/admin/entries/{entryId}/deactivate:
     x-mentalbridge-status: implemented
@@ -694,19 +694,19 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/DirectoryEntryId'
-        - $ref: '#/components/parameters/DirectoryVersion'
+        - $ref: "#/components/parameters/DirectoryEntryId"
+        - $ref: "#/components/parameters/DirectoryVersion"
       responses:
-        '200':
+        "200":
           description: Record is inactive; repeating against the current inactive version is safe
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/SafetyDirectoryAdminEntry' }
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+              schema: { $ref: "#/components/schemas/SafetyDirectoryAdminEntry" }
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/safety-directory:lookup:
     x-mentalbridge-status: implemented
@@ -722,9 +722,9 @@ paths:
         content:
           application/json:
             schema:
-              { $ref: '#/components/schemas/SafetyDirectoryLookupRequest' }
+              { $ref: "#/components/schemas/SafetyDirectoryLookupRequest" }
       responses:
-        '200':
+        "200":
           description: Current records or an explicit empty/invalid-area outcome
           headers:
             Cache-Control:
@@ -732,9 +732,9 @@ paths:
           content:
             application/json:
               schema:
-                { $ref: '#/components/schemas/SafetyDirectoryLookupResponse' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+                { $ref: "#/components/schemas/SafetyDirectoryLookupResponse" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/notification-preferences:
     x-mentalbridge-status: implemented
@@ -745,17 +745,17 @@ paths:
       operationId: getNotificationPreferences
       security: [{ BearerAuth: [] }]
       responses:
-        '200':
+        "200":
           description: Current preferences, creating the stable defaults when first accessed
           headers:
-            ETag: { $ref: '#/components/headers/NotificationPreferenceETag' }
+            ETag: { $ref: "#/components/headers/NotificationPreferenceETag" }
             Cache-Control:
-              schema: { type: string, const: 'private, no-store' }
+              schema: { type: string, const: "private, no-store" }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/NotificationPreferences' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+              schema: { $ref: "#/components/schemas/NotificationPreferences" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
     patch:
       x-mentalbridge-operation-status: implemented
       tags: [Notification preferences]
@@ -763,28 +763,28 @@ paths:
       operationId: updateNotificationPreferences
       security: [{ BearerAuth: [] }]
       parameters:
-        - $ref: '#/components/parameters/NotificationPreferenceIfMatch'
+        - $ref: "#/components/parameters/NotificationPreferenceIfMatch"
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/NotificationPreferencePatch' }
+            schema: { $ref: "#/components/schemas/NotificationPreferencePatch" }
       responses:
-        '200':
+        "200":
           description: Persisted preferences
           headers:
-            ETag: { $ref: '#/components/headers/NotificationPreferenceETag' }
+            ETag: { $ref: "#/components/headers/NotificationPreferenceETag" }
             Cache-Control:
-              schema: { type: string, const: 'private, no-store' }
+              schema: { type: string, const: "private, no-store" }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/NotificationPreferences' }
-        '400': { $ref: '#/components/responses/RequestRejected' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '412': { $ref: '#/components/responses/PreferenceVersionMismatch' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '428': { $ref: '#/components/responses/PreferenceVersionRequired' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+              schema: { $ref: "#/components/schemas/NotificationPreferences" }
+        "400": { $ref: "#/components/responses/RequestRejected" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "412": { $ref: "#/components/responses/PreferenceVersionMismatch" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "428": { $ref: "#/components/responses/PreferenceVersionRequired" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/notifications:
     x-mentalbridge-status: implemented
@@ -803,17 +803,17 @@ paths:
           description: Opaque continuation token returned by the previous page.
           schema: { type: string, minLength: 1, maxLength: 256 }
       responses:
-        '200':
+        "200":
           description: Active, non-expired notifications owned by the authenticated user
           headers:
             Cache-Control:
-              schema: { type: string, const: 'private, no-store' }
+              schema: { type: string, const: "private, no-store" }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/NotificationPage' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+              schema: { $ref: "#/components/schemas/NotificationPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/notifications/{notificationId}/read:
     x-mentalbridge-status: implemented
@@ -824,21 +824,21 @@ paths:
       operationId: markNotificationRead
       security: [{ BearerAuth: [] }]
       parameters:
-        - $ref: '#/components/parameters/NotificationId'
+        - $ref: "#/components/parameters/NotificationId"
       responses:
-        '200':
+        "200":
           description: Current notification with the original or newly assigned read time
           headers:
             Cache-Control:
-              schema: { type: string, const: 'private, no-store' }
+              schema: { type: string, const: "private, no-store" }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Notification' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotificationNotFound' }
-        '410': { $ref: '#/components/responses/NotificationGone' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+              schema: { $ref: "#/components/schemas/Notification" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotificationNotFound" }
+        "410": { $ref: "#/components/responses/NotificationGone" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/notifications/mark-all-read:
     x-mentalbridge-status: implemented
@@ -849,14 +849,14 @@ paths:
       operationId: markAllNotificationsRead
       security: [{ BearerAuth: [] }]
       responses:
-        '200':
+        "200":
           description: Number of notifications changed by this idempotent operation
           content:
             application/json:
               schema:
-                { $ref: '#/components/schemas/NotificationBulkReadResult' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+                { $ref: "#/components/schemas/NotificationBulkReadResult" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
   /api/v1/notifications/{notificationId}:
     x-mentalbridge-status: implemented
@@ -867,13 +867,13 @@ paths:
       operationId: deleteNotification
       security: [{ BearerAuth: [] }]
       parameters:
-        - $ref: '#/components/parameters/NotificationId'
+        - $ref: "#/components/parameters/NotificationId"
       responses:
-        '204': { description: Notification is deleted or was already deleted }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotificationNotFound' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        "204": { description: Notification is deleted or was already deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotificationNotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 
 components:
   parameters:
@@ -891,18 +891,18 @@ components:
         type: string
         minLength: 1
         maxLength: 128
-        pattern: '^[A-Za-z0-9_-]+$'
+        pattern: "^[A-Za-z0-9_-]+$"
     Locale:
       name: locale
       in: query
       schema:
         type: string
-        pattern: '^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$'
+        pattern: "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
         default: vi-VN
     Category:
       name: category
       in: query
-      schema: { $ref: '#/components/schemas/ResourceCategory' }
+      schema: { $ref: "#/components/schemas/ResourceCategory" }
     Limit:
       name: limit
       in: query
@@ -918,7 +918,7 @@ components:
       description: Exact non-negative 64-bit content version encoded as a JSON-safe decimal string.
       schema:
         type: string
-        pattern: '^(0|[1-9][0-9]*)$'
+        pattern: "^(0|[1-9][0-9]*)$"
         maxLength: 19
     DirectoryEntryId:
       name: entryId
@@ -959,33 +959,33 @@ components:
       description: Authentication is required or the credential is invalid
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          schema: { $ref: "#/components/schemas/ProblemDetails" }
     Forbidden:
       description: Authenticated actor is not an administrator
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          schema: { $ref: "#/components/schemas/ProblemDetails" }
     ServiceUnavailable:
       description: Resource administration is temporarily unavailable
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          schema: { $ref: "#/components/schemas/ProblemDetails" }
     IdempotencyConflict:
       description: The actor reused an idempotency key with a different create payload
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          schema: { $ref: "#/components/schemas/ProblemDetails" }
     ReviewApprovalRequired:
       description: Publish is unavailable until an approved MB-251 review decision is recorded
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          schema: { $ref: "#/components/schemas/ProblemDetails" }
     NotFound:
       description: Resource not found
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
+            $ref: "#/components/schemas/ProblemDetails"
           example:
             type: https://mentalbridge.io/errors/RESOURCE_NOT_FOUND
             title: Resource not found
@@ -997,7 +997,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
+            $ref: "#/components/schemas/ProblemDetails"
           example:
             type: https://mentalbridge.io/errors/INVALID_STATE_TRANSITION
             title: Cannot modify published resource
@@ -1009,7 +1009,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
+            $ref: "#/components/schemas/ProblemDetails"
           example:
             type: https://mentalbridge.io/errors/VALIDATION_ERROR
             title: Validation failed
@@ -1026,7 +1026,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
+            $ref: "#/components/schemas/ProblemDetails"
           example:
             type: https://mentalbridge.io/errors/REQUEST_REJECTED
             title: Request rejected
@@ -1037,22 +1037,22 @@ components:
       description: If-Match does not equal the current owner preference version
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          schema: { $ref: "#/components/schemas/ProblemDetails" }
     PreferenceVersionRequired:
       description: If-Match is required for a preference update
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          schema: { $ref: "#/components/schemas/ProblemDetails" }
     NotificationNotFound:
       description: The notification does not exist for the authenticated owner
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          schema: { $ref: "#/components/schemas/ProblemDetails" }
     NotificationGone:
       description: The owned notification was deleted or expired before the read command
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/ProblemDetails' }
+          schema: { $ref: "#/components/schemas/ProblemDetails" }
 
   schemas:
     NotificationKind:
@@ -1089,12 +1089,12 @@ components:
       additionalProperties: false
       required: [type, targetId, href]
       properties:
-        type: { $ref: '#/components/schemas/NotificationActionType' }
-        targetId: { type: [string, 'null'], format: uuid }
+        type: { $ref: "#/components/schemas/NotificationActionType" }
+        targetId: { type: [string, "null"], format: uuid }
         href:
           type: string
           description: Server-derived relative route from the approved action type; never a producer URL.
-          pattern: '^/'
+          pattern: "^/"
           maxLength: 256
     Notification:
       type: object
@@ -1116,18 +1116,18 @@ components:
         ]
       properties:
         id: { type: string, format: uuid }
-        kind: { $ref: '#/components/schemas/NotificationKind' }
+        kind: { $ref: "#/components/schemas/NotificationKind" }
         title: { type: string, minLength: 1, maxLength: 255 }
         body: { type: string, minLength: 1, maxLength: 1000 }
-        priority: { $ref: '#/components/schemas/NotificationPriority' }
+        priority: { $ref: "#/components/schemas/NotificationPriority" }
         occurredAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
         read: { type: boolean }
-        readAt: { type: [string, 'null'], format: date-time }
+        readAt: { type: [string, "null"], format: date-time }
         action:
           oneOf:
-            - $ref: '#/components/schemas/NotificationAction'
-            - type: 'null'
+            - $ref: "#/components/schemas/NotificationAction"
+            - type: "null"
         lifecycleState: { type: string, const: ACTIVE }
         expiresAt: { type: string, format: date-time }
     NotificationPage:
@@ -1138,8 +1138,8 @@ components:
         items:
           type: array
           maxItems: 50
-          items: { $ref: '#/components/schemas/Notification' }
-        nextCursor: { type: [string, 'null'], maxLength: 256 }
+          items: { $ref: "#/components/schemas/Notification" }
+        nextCursor: { type: [string, "null"], maxLength: 256 }
         hasMore: { type: boolean }
         unreadCount: { type: integer, minimum: 0 }
     NotificationBulkReadResult:
@@ -1202,8 +1202,8 @@ components:
       required: [enabled, start, end, timeZone]
       properties:
         enabled: { type: boolean }
-        start: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
-        end: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        start: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        end: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
         timeZone:
           type: string
           minLength: 1
@@ -1215,8 +1215,8 @@ components:
       minProperties: 1
       properties:
         enabled: { type: boolean }
-        start: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
-        end: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        start: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        end: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
         timeZone: { type: string, minLength: 1, maxLength: 64 }
     EmailCadence:
       type: string
@@ -1226,7 +1226,7 @@ components:
       additionalProperties: false
       required: [cadence, wellbeingDigestEnabled, resourceRemindersEnabled]
       properties:
-        cadence: { $ref: '#/components/schemas/EmailCadence' }
+        cadence: { $ref: "#/components/schemas/EmailCadence" }
         wellbeingDigestEnabled: { type: boolean }
         resourceRemindersEnabled: { type: boolean }
     EmailPreferencesPatch:
@@ -1234,7 +1234,7 @@ components:
       additionalProperties: false
       minProperties: 1
       properties:
-        cadence: { $ref: '#/components/schemas/EmailCadence' }
+        cadence: { $ref: "#/components/schemas/EmailCadence" }
         wellbeingDigestEnabled: { type: boolean }
         resourceRemindersEnabled: { type: boolean }
     NotificationPreferences:
@@ -1252,11 +1252,11 @@ components:
         ]
       properties:
         notificationsEnabled: { type: boolean }
-        channels: { $ref: '#/components/schemas/NotificationChannels' }
+        channels: { $ref: "#/components/schemas/NotificationChannels" }
         contentGroups:
-          { $ref: '#/components/schemas/NotificationContentGroups' }
-        quietHours: { $ref: '#/components/schemas/QuietHours' }
-        email: { $ref: '#/components/schemas/EmailPreferences' }
+          { $ref: "#/components/schemas/NotificationContentGroups" }
+        quietHours: { $ref: "#/components/schemas/QuietHours" }
+        email: { $ref: "#/components/schemas/EmailPreferences" }
         version: { type: integer, format: int64, minimum: 0 }
         updatedAt: { type: string, format: date-time }
     NotificationPreferencePatch:
@@ -1265,11 +1265,11 @@ components:
       minProperties: 1
       properties:
         notificationsEnabled: { type: boolean }
-        channels: { $ref: '#/components/schemas/NotificationChannelsPatch' }
+        channels: { $ref: "#/components/schemas/NotificationChannelsPatch" }
         contentGroups:
-          { $ref: '#/components/schemas/NotificationContentGroupsPatch' }
-        quietHours: { $ref: '#/components/schemas/QuietHoursPatch' }
-        email: { $ref: '#/components/schemas/EmailPreferencesPatch' }
+          { $ref: "#/components/schemas/NotificationContentGroupsPatch" }
+        quietHours: { $ref: "#/components/schemas/QuietHoursPatch" }
+        email: { $ref: "#/components/schemas/EmailPreferencesPatch" }
     SafetyDirectoryEntryType:
       type: string
       enum: [FACILITY, HOTLINE]
@@ -1281,11 +1281,11 @@ components:
       additionalProperties: false
       required: [level, provinceCode, provinceName, districtCode, districtName]
       properties:
-        level: { $ref: '#/components/schemas/SafetyDirectoryCoverageLevel' }
-        provinceCode: { type: [string, 'null'], minLength: 1, maxLength: 32 }
-        provinceName: { type: [string, 'null'], minLength: 1, maxLength: 120 }
-        districtCode: { type: [string, 'null'], minLength: 1, maxLength: 32 }
-        districtName: { type: [string, 'null'], minLength: 1, maxLength: 120 }
+        level: { $ref: "#/components/schemas/SafetyDirectoryCoverageLevel" }
+        provinceCode: { type: [string, "null"], minLength: 1, maxLength: 32 }
+        provinceName: { type: [string, "null"], minLength: 1, maxLength: 120 }
+        districtCode: { type: [string, "null"], minLength: 1, maxLength: 32 }
+        districtName: { type: [string, "null"], minLength: 1, maxLength: 120 }
     SafetyDirectoryEntryWrite:
       type: object
       additionalProperties: false
@@ -1302,18 +1302,18 @@ components:
         ]
       properties:
         name: { type: string, minLength: 1, maxLength: 200 }
-        type: { $ref: '#/components/schemas/SafetyDirectoryEntryType' }
+        type: { $ref: "#/components/schemas/SafetyDirectoryEntryType" }
         phone: { type: string, minLength: 1, maxLength: 64 }
-        address: { type: [string, 'null'], maxLength: 500 }
+        address: { type: [string, "null"], maxLength: 500 }
         coverage:
           type: array
           minItems: 1
           maxItems: 100
-          items: { $ref: '#/components/schemas/SafetyDirectoryCoverage' }
+          items: { $ref: "#/components/schemas/SafetyDirectoryCoverage" }
         sourceName: { type: string, minLength: 1, maxLength: 200 }
         sourceReference: { type: string, minLength: 1, maxLength: 2000 }
         sourceRetrievedAt: { type: string, format: date-time }
-        sourceChecksum: { type: [string, 'null'], pattern: '^[0-9a-f]{64}$' }
+        sourceChecksum: { type: [string, "null"], pattern: "^[0-9a-f]{64}$" }
     SafetyDirectoryReviewState:
       type: string
       enum: [UNREVIEWED, CURRENT, STALE, INACTIVE]
@@ -1336,19 +1336,19 @@ components:
       properties:
         directoryEntryId: { type: string, format: uuid }
         name: { type: string }
-        type: { $ref: '#/components/schemas/SafetyDirectoryEntryType' }
+        type: { $ref: "#/components/schemas/SafetyDirectoryEntryType" }
         phone: { type: string }
-        address: { type: [string, 'null'] }
+        address: { type: [string, "null"] }
         coverage:
           type: array
-          items: { $ref: '#/components/schemas/SafetyDirectoryCoverage' }
+          items: { $ref: "#/components/schemas/SafetyDirectoryCoverage" }
         sourceName: { type: string }
         sourceReference: { type: string }
         reviewedAt: { type: string, format: date-time }
         verifiedAt: { type: string, format: date-time }
     SafetyDirectoryAdminEntry:
       allOf:
-        - $ref: '#/components/schemas/SafetyDirectoryPublicEntry'
+        - $ref: "#/components/schemas/SafetyDirectoryPublicEntry"
         - type: object
           additionalProperties: true
           required:
@@ -1368,13 +1368,13 @@ components:
             recordVersion: { type: integer, format: int64, minimum: 0 }
             active: { type: boolean }
             reviewState:
-              { $ref: '#/components/schemas/SafetyDirectoryReviewState' }
-            reviewedBy: { type: [string, 'null'], format: uuid }
-            verifiedBy: { type: [string, 'null'], format: uuid }
+              { $ref: "#/components/schemas/SafetyDirectoryReviewState" }
+            reviewedBy: { type: [string, "null"], format: uuid }
+            verifiedBy: { type: [string, "null"], format: uuid }
             sourceRetrievedAt: { type: string, format: date-time }
             sourceChecksum:
-              { type: [string, 'null'], pattern: '^[0-9a-f]{64}$' }
-            seedKey: { type: [string, 'null'], maxLength: 128, readOnly: true }
+              { type: [string, "null"], pattern: "^[0-9a-f]{64}$" }
+            seedKey: { type: [string, "null"], maxLength: 128, readOnly: true }
             createdAt: { type: string, format: date-time }
             updatedAt: { type: string, format: date-time }
     SafetyDirectoryLookupRequest:
@@ -1396,14 +1396,14 @@ components:
       required:
         [state, wording, resolvedProvinceCode, resolvedDistrictCode, entries]
       properties:
-        state: { $ref: '#/components/schemas/SafetyDirectoryLookupState' }
+        state: { $ref: "#/components/schemas/SafetyDirectoryLookupState" }
         wording: { type: string, const: Cơ sở trong khu vực đã chọn }
-        resolvedProvinceCode: { type: [string, 'null'] }
-        resolvedDistrictCode: { type: [string, 'null'] }
+        resolvedProvinceCode: { type: [string, "null"] }
+        resolvedDistrictCode: { type: [string, "null"] }
         entries:
           type: array
           maxItems: 100
-          items: { $ref: '#/components/schemas/SafetyDirectoryPublicEntry' }
+          items: { $ref: "#/components/schemas/SafetyDirectoryPublicEntry" }
     LiveResponse:
       type: object
       required: [status]
@@ -1495,10 +1495,10 @@ components:
           format: date
         contentVersion:
           type: string
-          pattern: '^(0|[1-9][0-9]*)$'
+          pattern: "^(0|[1-9][0-9]*)$"
           maxLength: 19
         status:
-          $ref: '#/components/schemas/ResourceProgressStatus'
+          $ref: "#/components/schemas/ResourceProgressStatus"
         completedActionIds:
           type: array
           description: >-
@@ -1510,7 +1510,22 @@ components:
             type: string
             minLength: 1
             maxLength: 64
-            pattern: '^[A-Za-z0-9:_-]+$'
+            pattern: "^[A-Za-z0-9:_-]+$"
+        practiceSessionId:
+          type: string
+          format: uuid
+          description: >-
+            Client-generated idempotency key for one completed repeatable practice
+            session. Omit for ordinary checklist edits and one-time learning resources.
+        practiceStartedAt:
+          type: string
+          format: date-time
+          description: Optional start instant for the practice session.
+        practiceDurationSeconds:
+          type: integer
+          minimum: 1
+          maximum: 7200
+          description: Optional measured duration for the practice session.
         completedAt:
           type: string
           format: date-time
@@ -1520,7 +1535,7 @@ components:
           format: date-time
         version:
           type: string
-          pattern: '^(0|[1-9][0-9]*)$'
+          pattern: "^(0|[1-9][0-9]*)$"
           maxLength: 19
 
     ResourceProgressList:
@@ -1530,7 +1545,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/ResourceProgressItem'
+            $ref: "#/components/schemas/ResourceProgressItem"
 
     ResourceProgressUpdate:
       type: object
@@ -1538,7 +1553,7 @@ components:
       required: [status, completedActionIds]
       properties:
         status:
-          $ref: '#/components/schemas/ResourceProgressStatus'
+          $ref: "#/components/schemas/ResourceProgressStatus"
         completedActionIds:
           type: array
           description: >-
@@ -1550,7 +1565,7 @@ components:
             type: string
             minLength: 1
             maxLength: 64
-            pattern: '^[A-Za-z0-9:_-]+$'
+            pattern: "^[A-Za-z0-9:_-]+$"
 
     ResourceKind:
       type: string
@@ -1640,7 +1655,7 @@ components:
           minimum: 1
           maximum: 4
         resource:
-          $ref: '#/components/schemas/ResourceSummary'
+          $ref: "#/components/schemas/ResourceSummary"
         reason:
           type: string
           enum: [PLAN_SELECTED, PLAN_DOMAIN, CONTINUITY, BALANCE]
@@ -1697,6 +1712,8 @@ components:
           localDate,
           planId,
           planVersion,
+          planDay,
+          planStage,
           items,
           progress,
           weekStart,
@@ -1715,13 +1732,20 @@ components:
         planVersion:
           type: integer
           minimum: 1
+        planDay:
+          type: integer
+          minimum: 1
+          maximum: 14
+        planStage:
+          type: string
+          enum: [ORIENTATION, CORE_PRACTICE, REINFORCEMENT, MAINTENANCE, REVIEW]
         items:
           type: array
           maxItems: 4
           items:
-            $ref: '#/components/schemas/ResourceJourneyAssignmentItem'
+            $ref: "#/components/schemas/ResourceJourneyAssignmentItem"
         progress:
-          $ref: '#/components/schemas/ResourceJourneyProgress'
+          $ref: "#/components/schemas/ResourceJourneyProgress"
         weekStart:
           type: string
           format: date
@@ -1729,7 +1753,7 @@ components:
           type: array
           maxItems: 9
           items:
-            $ref: '#/components/schemas/ResourceJourneyBingoItem'
+            $ref: "#/components/schemas/ResourceJourneyBingoItem"
 
     ResourceSummary:
       type: object
@@ -1755,15 +1779,15 @@ components:
           type: string
           format: uuid
         category:
-          $ref: '#/components/schemas/ResourceCategory'
+          $ref: "#/components/schemas/ResourceCategory"
         resourceKind:
-          $ref: '#/components/schemas/ResourceKind'
+          $ref: "#/components/schemas/ResourceKind"
         interactionType:
-          $ref: '#/components/schemas/ResourceInteractionType'
+          $ref: "#/components/schemas/ResourceInteractionType"
         repeatability:
-          $ref: '#/components/schemas/ResourceRepeatability'
+          $ref: "#/components/schemas/ResourceRepeatability"
         completionMode:
-          $ref: '#/components/schemas/ResourceCompletionMode'
+          $ref: "#/components/schemas/ResourceCompletionMode"
         streakEligible:
           type: boolean
         expectedDurationMinutes:
@@ -1794,7 +1818,7 @@ components:
           nullable: true
           description: Simple accountable source label for catalogue cards.
         status:
-          $ref: '#/components/schemas/ResourceStatus'
+          $ref: "#/components/schemas/ResourceStatus"
         reviewedAt:
           type: string
           format: date-time
@@ -1808,7 +1832,7 @@ components:
 
     PublicResourceDetail:
       allOf:
-        - $ref: '#/components/schemas/ResourceSummary'
+        - $ref: "#/components/schemas/ResourceSummary"
         - type: object
           required:
             - contentVersion
@@ -1825,7 +1849,7 @@ components:
           properties:
             contentVersion:
               type: string
-              pattern: '^(0|[1-9][0-9]*)$'
+              pattern: "^(0|[1-9][0-9]*)$"
               maxLength: 19
               description: Exact immutable resource version represented by this detail response.
             contentBody:
@@ -1837,7 +1861,7 @@ components:
             sourceUrl:
               type: string
               format: uri
-              pattern: '^https?://'
+              pattern: "^https?://"
               nullable: true
             sourceReviewNote:
               type: string
@@ -1858,7 +1882,7 @@ components:
               nullable: true
             sourceContentHash:
               type: string
-              pattern: '^[a-f0-9]{64}$'
+              pattern: "^[a-f0-9]{64}$"
               nullable: true
             contentVersionLabel:
               type: string
@@ -1876,7 +1900,7 @@ components:
 
     AdminResourceDetail:
       allOf:
-        - $ref: '#/components/schemas/PublicResourceDetail'
+        - $ref: "#/components/schemas/PublicResourceDetail"
         - type: object
           required: [reviewedBy, version]
           properties:
@@ -1894,7 +1918,7 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/ResourceSummary'
+            $ref: "#/components/schemas/ResourceSummary"
         count:
           type: integer
         nextCursor:
@@ -1913,10 +1937,13 @@ components:
 
     CreateResourceRequest:
       type: object
-      required: [category, title, summary]
+      required:
+        - category
+        - title
+        - summary
       properties:
         category:
-          $ref: '#/components/schemas/ResourceCategory'
+          $ref: "#/components/schemas/ResourceCategory"
         locale:
           type: string
           default: vi-VN
@@ -1931,9 +1958,62 @@ components:
         externalUrl:
           type: string
           format: uri
-          pattern: '^https?://'
+          pattern: "^https?://"
           nullable: true
           description: VIDEO resources require a verified HTTPS YouTube URL.
+        resourceKind:
+          $ref: "#/components/schemas/ResourceKind"
+        interactionType:
+          $ref: "#/components/schemas/ResourceInteractionType"
+        repeatability:
+          $ref: "#/components/schemas/ResourceRepeatability"
+        completionMode:
+          $ref: "#/components/schemas/ResourceCompletionMode"
+        streakEligible:
+          type: boolean
+        expectedDurationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 120
+        cooldownDays:
+          type: integer
+          minimum: 0
+          maximum: 30
+        recommendedFrequencyPerWeek:
+          type: integer
+          minimum: 1
+          maximum: 7
+        planTags:
+          type: array
+          minItems: 1
+          maxItems: 12
+          uniqueItems: true
+          items:
+            type: string
+        structuredContent:
+          type: object
+          additionalProperties: true
+          default: {}
+        interactionConfig:
+          type: object
+          additionalProperties: true
+          default: {}
+        safetyNotes:
+          type: array
+          maxItems: 12
+          items:
+            type: string
+        catalogueVisibility:
+          type: string
+          enum: [LISTED, DIRECT_ONLY]
+          default: DIRECT_ONLY
+        contentVersionLabel:
+          type: string
+          default: draft-v1
+        sourceReviewStatus:
+          type: string
+          enum: [REVIEWED, REVIEW_REQUIRED, NEEDS_SOURCE_REVIEW]
+          default: NEEDS_SOURCE_REVIEW
         sourceOrganization:
           type: string
           maxLength: 200
@@ -1945,10 +2025,18 @@ components:
         sourceUrl:
           type: string
           format: uri
-          pattern: '^https?://'
+          pattern: "^https?://"
           nullable: true
         sourceReviewNote:
           type: string
+          nullable: true
+        sourceRetrievedAt:
+          type: string
+          format: date-time
+          nullable: true
+        sourceContentHash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
           nullable: true
         effectiveAt:
           type: string
@@ -1964,7 +2052,7 @@ components:
       properties:
         locale:
           type: string
-          pattern: '^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$'
+          pattern: "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
         title:
           type: string
           maxLength: 255
@@ -1976,9 +2064,57 @@ components:
         externalUrl:
           type: string
           format: uri
-          pattern: '^https?://'
+          pattern: "^https?://"
           nullable: true
           description: VIDEO resources require a verified HTTPS YouTube URL.
+        resourceKind:
+          $ref: "#/components/schemas/ResourceKind"
+        interactionType:
+          $ref: "#/components/schemas/ResourceInteractionType"
+        repeatability:
+          $ref: "#/components/schemas/ResourceRepeatability"
+        completionMode:
+          $ref: "#/components/schemas/ResourceCompletionMode"
+        streakEligible:
+          type: boolean
+        expectedDurationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 120
+        cooldownDays:
+          type: integer
+          minimum: 0
+          maximum: 30
+        recommendedFrequencyPerWeek:
+          type: integer
+          minimum: 1
+          maximum: 7
+        planTags:
+          type: array
+          minItems: 1
+          maxItems: 12
+          uniqueItems: true
+          items:
+            type: string
+        structuredContent:
+          type: object
+          additionalProperties: true
+        interactionConfig:
+          type: object
+          additionalProperties: true
+        safetyNotes:
+          type: array
+          maxItems: 12
+          items:
+            type: string
+        catalogueVisibility:
+          type: string
+          enum: [LISTED, DIRECT_ONLY]
+        contentVersionLabel:
+          type: string
+        sourceReviewStatus:
+          type: string
+          enum: [REVIEWED, REVIEW_REQUIRED, NEEDS_SOURCE_REVIEW]
         sourceOrganization:
           type: string
           maxLength: 200
@@ -1990,10 +2126,18 @@ components:
         sourceUrl:
           type: string
           format: uri
-          pattern: '^https?://'
+          pattern: "^https?://"
           nullable: true
         sourceReviewNote:
           type: string
+          nullable: true
+        sourceRetrievedAt:
+          type: string
+          format: date-time
+          nullable: true
+        sourceContentHash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
           nullable: true
         effectiveAt:
           type: string
@@ -2049,23 +2193,23 @@ components:
       required: [targetDomain, role, instrument, screeningLevels, supportTiers]
       properties:
         targetDomain:
-          $ref: '#/components/schemas/ScreeningDomain'
+          $ref: "#/components/schemas/ScreeningDomain"
         role:
-          $ref: '#/components/schemas/EligibilityRole'
+          $ref: "#/components/schemas/EligibilityRole"
         instrument:
-          $ref: '#/components/schemas/ScreeningInstrument'
+          $ref: "#/components/schemas/ScreeningInstrument"
         screeningLevels:
           type: array
           minItems: 1
           uniqueItems: true
           items:
-            $ref: '#/components/schemas/ScreeningLevel'
+            $ref: "#/components/schemas/ScreeningLevel"
         supportTiers:
           type: array
           minItems: 1
           uniqueItems: true
           items:
-            $ref: '#/components/schemas/SupportTier'
+            $ref: "#/components/schemas/SupportTier"
 
     PublishResourceEligibilityRequest:
       type: object
@@ -2073,10 +2217,10 @@ components:
       required: [policyVersion, locale, effectiveAt, declarations]
       properties:
         policyVersion:
-          $ref: '#/components/schemas/EligibilityPolicyVersion'
+          $ref: "#/components/schemas/EligibilityPolicyVersion"
         locale:
           type: string
-          pattern: '^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$'
+          pattern: "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
         effectiveAt:
           type: string
           format: date-time
@@ -2089,7 +2233,7 @@ components:
           minItems: 1
           maxItems: 8
           items:
-            $ref: '#/components/schemas/EligibilityDeclaration'
+            $ref: "#/components/schemas/EligibilityDeclaration"
 
     WithdrawResourceEligibilityRequest:
       type: object
@@ -2097,7 +2241,7 @@ components:
       required: [policyVersion, reasonCode]
       properties:
         policyVersion:
-          $ref: '#/components/schemas/EligibilityPolicyVersion'
+          $ref: "#/components/schemas/EligibilityPolicyVersion"
         reasonCode:
           type: string
           enum: [CONTENT_WITHDRAWN, POLICY_WITHDRAWN, SUPERSEDED]
@@ -2126,13 +2270,13 @@ components:
           format: uuid
         contentVersion:
           type: string
-          pattern: '^(0|[1-9][0-9]*)$'
+          pattern: "^(0|[1-9][0-9]*)$"
         policyVersion:
-          $ref: '#/components/schemas/EligibilityPolicyVersion'
+          $ref: "#/components/schemas/EligibilityPolicyVersion"
         locale:
           type: string
         state:
-          $ref: '#/components/schemas/EligibilityPublicationState'
+          $ref: "#/components/schemas/EligibilityPublicationState"
         effectiveAt:
           type: string
           format: date-time
@@ -2143,7 +2287,7 @@ components:
         declarations:
           type: array
           items:
-            $ref: '#/components/schemas/EligibilityDeclaration'
+            $ref: "#/components/schemas/EligibilityDeclaration"
         publishedAt:
           type: string
           format: date-time
@@ -2180,21 +2324,21 @@ components:
           format: uuid
         contentVersion:
           type: string
-          pattern: '^(0|[1-9][0-9]*)$'
+          pattern: "^(0|[1-9][0-9]*)$"
           maxLength: 19
         targetDomain:
-          $ref: '#/components/schemas/ScreeningDomain'
+          $ref: "#/components/schemas/ScreeningDomain"
         requiredRole:
-          $ref: '#/components/schemas/RequiredEligibilityRole'
+          $ref: "#/components/schemas/RequiredEligibilityRole"
         instrument:
-          $ref: '#/components/schemas/ScreeningInstrument'
+          $ref: "#/components/schemas/ScreeningInstrument"
         screeningLevel:
-          $ref: '#/components/schemas/ScreeningLevel'
+          $ref: "#/components/schemas/ScreeningLevel"
         supportTier:
-          $ref: '#/components/schemas/SupportTier'
+          $ref: "#/components/schemas/SupportTier"
         locale:
           type: string
-          pattern: '^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$'
+          pattern: "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
 
     ResourceEligibilityBatchRequest:
       type: object
@@ -2206,7 +2350,7 @@ components:
           minItems: 1
           maxItems: 50
           items:
-            $ref: '#/components/schemas/ResourceEligibilityQuery'
+            $ref: "#/components/schemas/ResourceEligibilityQuery"
 
     ResourceEligibilityOutcome:
       type: string
@@ -2244,12 +2388,12 @@ components:
         contentVersion:
           type: string
         outcome:
-          $ref: '#/components/schemas/ResourceEligibilityOutcome'
+          $ref: "#/components/schemas/ResourceEligibilityOutcome"
         reasonCode:
-          $ref: '#/components/schemas/ResourceEligibilityReasonCode'
+          $ref: "#/components/schemas/ResourceEligibilityReasonCode"
         role:
           allOf:
-            - $ref: '#/components/schemas/EligibilityRole'
+            - $ref: "#/components/schemas/EligibilityRole"
           nullable: true
         publicationId:
           type: string
@@ -2257,7 +2401,7 @@ components:
           nullable: true
         category:
           allOf:
-            - $ref: '#/components/schemas/ResourceCategory'
+            - $ref: "#/components/schemas/ResourceCategory"
           nullable: true
           description: Present only for an eligible exact version so Care can persist the approved display snapshot.
         title:
@@ -2272,7 +2416,7 @@ components:
           format: uri
           nullable: true
           maxLength: 2048
-          pattern: '^https?://'
+          pattern: "^https?://"
 
     ResourceEligibilityBatchResponse:
       type: object
@@ -2280,11 +2424,11 @@ components:
       required: [policyVersion, resolvedAt, results]
       properties:
         policyVersion:
-          $ref: '#/components/schemas/EligibilityPolicyVersion'
+          $ref: "#/components/schemas/EligibilityPolicyVersion"
         resolvedAt:
           type: string
           format: date-time
         results:
           type: array
           items:
-            $ref: '#/components/schemas/ResourceEligibilityResult'
+            $ref: "#/components/schemas/ResourceEligibilityResult"

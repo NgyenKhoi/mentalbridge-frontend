@@ -96,4 +96,36 @@ describe('GET /api/resources/journey', () => {
     expect(response.status).toBe(409)
     expect(journeyMocks.materialize).not.toHaveBeenCalled()
   })
+
+  it('accepts UTC as a valid IANA time zone', async () => {
+    careMocks.currentSupportPlan.mockResolvedValue({
+      supportPlanId: '10000000-0000-4000-8000-000000000373',
+      version: 4,
+      status: 'ACTIVE',
+      activatedAt: '2026-09-20T00:00:00.000Z',
+      templateFamilies: [],
+      slots: [],
+    })
+    journeyMocks.materialize.mockResolvedValue({
+      assignmentId: '00000000-0000-4000-8000-000000000301',
+      localDate: '2026-09-29',
+      items: [],
+      bingo: [],
+    })
+
+    const response = await GET(
+      new NextRequest(
+        'http://localhost/api/resources/journey?date=2026-09-29&timeZone=UTC',
+        { headers: { cookie: `${ACCESS_COOKIE_NAME}=identity-access-secret` } },
+      ),
+    )
+
+    expect(response.status).toBe(200)
+    expect(journeyMocks.materialize).toHaveBeenCalledWith(
+      'identity-access-secret',
+      '2026-09-29',
+      expect.objectContaining({ timeZone: 'UTC' }),
+      expect.any(String),
+    )
+  })
 })
