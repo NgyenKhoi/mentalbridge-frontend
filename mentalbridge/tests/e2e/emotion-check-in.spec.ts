@@ -246,6 +246,31 @@ test('analytics shows authoritative emotion progress without private notes or in
     updatedAt: `${String(localDate)}T02:00:00.000Z`,
   }))
 
+  await page.route('**/api/analytics/overview**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      json: {
+        asOfLocalDate: '2026-09-30',
+        timezone: 'Asia/Ho_Chi_Minh',
+        emotion: {
+          state: 'available',
+          data: { currentStreak: 2, checkedInDays: 4, windowDays: 30 },
+        },
+        assessments: {
+          state: 'available',
+          data: {
+            count: 3,
+            countIsLowerBound: false,
+            latestSubmittedAt: '2026-09-27T02:00:00.000Z',
+            latestInstrument: 'PHQ9',
+          },
+        },
+        supportActivities: { state: 'empty' },
+        appointments: { state: 'unavailable' },
+      },
+    })
+  })
+
   await page.route('**/api/emotion-check-ins**', async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname.endsWith('/progress')) {
@@ -298,6 +323,17 @@ test('analytics shows authoritative emotion progress without private notes or in
   })
 
   await page.goto('/analytics')
+  await expect(page.getByText('Chuỗi ghi nhận cảm xúc')).toBeVisible()
+  await expect(page.getByText('4/30 ngày gần nhất có ghi nhận.')).toBeVisible()
+  await expect(page.getByText('3', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText('Chưa có kế hoạch hỗ trợ hiện tại.'),
+  ).toBeVisible()
+  await expect(
+    page.getByText('Tạm thời chưa tải được dữ liệu này.'),
+  ).toBeVisible()
+  await expect(page.getByText(/trung bình tâm trạng/i)).toHaveCount(0)
+  await expect(page.getByText(/tích cực hơn/i)).toHaveCount(0)
   await page.getByRole('button', { name: 'Xem chi tiết' }).click()
 
   const dialog = page.getByRole('dialog', { name: 'Tiến trình cảm xúc' })

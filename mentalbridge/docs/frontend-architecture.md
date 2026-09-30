@@ -83,6 +83,23 @@ ID and revision exactly match the displayed entry. Suggested actions are a
 closed enum routed to existing governed pages; arbitrary URLs or provider copy
 cannot become navigation.
 
+### Personal analytics overview boundary
+
+MB-570 exposes one owner-only same-origin read at
+`/api/analytics/overview`. The BFF authenticates the user once, then composes
+independent factual projections through the existing Care, Journal/AI, and
+Consultation HTTP clients. It never reads another service database and never
+returns raw journal text, assessment answers, support-plan reflections, or
+appointment details.
+
+Each source has its own `available`, `empty`, or `unavailable` state. A failed
+dependency therefore cannot become a fabricated zero, trend, average mood,
+global wellbeing score, recovery verdict, adherence score, diagnosis, or
+causal explanation. Assessment totals are explicitly lower-bounded when the
+first authoritative page reports more data; support-plan facts remain bounded
+to a 30-day local-date window; and appointment facts use only contract-owned
+counts and lifecycle states.
+
 ## Approved Identity session design
 
 Story 212 implements the following design:
