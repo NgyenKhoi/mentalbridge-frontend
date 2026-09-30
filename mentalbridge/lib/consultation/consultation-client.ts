@@ -6,6 +6,7 @@ import {
   parseAvailabilitySlotList,
   parseAppointment,
   parseAppointmentList,
+  parseAppointmentChatEligibility,
   parseBookableSlotList,
   parsePendingProfiles,
   parseProblem,
@@ -28,6 +29,7 @@ import {
   type SpecialistSuspensionResult,
   type Appointment,
   type AppointmentList,
+  type AppointmentChatEligibility,
   type AppointmentRequestInput,
   type BookableSlotList,
 } from './consultation-validation'
@@ -164,6 +166,20 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  chatEligibility(
+    token: string,
+    correlationId: string,
+    conversationId: string,
+    operation: 'SUBSCRIBE' | 'SEND' | 'HISTORY',
+  ) {
+    return request<AppointmentChatEligibility>({
+      method: 'GET',
+      path: `/internal/v1/appointments/${encodeURIComponent(conversationId)}/chat-eligibility?operation=${operation}`,
+      token,
+      correlationId,
+      parse: parseAppointmentChatEligibility,
+    })
+  },
   discoverSpecialists(token: string, correlationId: string, query = '') {
     return request<SpecialistDiscoveryPage>({
       method: 'GET',

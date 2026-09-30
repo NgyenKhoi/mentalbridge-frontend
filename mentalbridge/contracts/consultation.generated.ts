@@ -38,6 +38,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/appointments/{conversationId}/chat-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The appointment UUID is the stable one-to-one conversation identifier. */
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Returns the authenticated assigned participant's server-authoritative appointment chat phase and operation permissions. Waiting-room entry opens ten minutes before the exact confirmed IN_APP_CHAT interval; sending is allowed only in the half-open scheduled interval. Ended or cancelled conversations remain history-only when a conversation exists. */
+        get: operations["getAppointmentChatEligibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile": {
         parameters: {
             query?: never;
@@ -623,6 +643,29 @@ export interface components {
             generatedAt: string;
             videoEnabled: boolean;
         };
+        AppointmentChatEligibility: {
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            /** @enum {string} */
+            phase: "NOT_AVAILABLE" | "TOO_EARLY" | "WAITING" | "ACTIVE" | "ENDED" | "CANCELLED" | "RESCHEDULED";
+            /** @enum {string} */
+            reasonCode: "APPOINTMENT_NOT_CONFIRMED" | "CHAT_ENTRY_TOO_EARLY" | "APPOINTMENT_WAITING" | "APPOINTMENT_ACTIVE" | "APPOINTMENT_ENDED" | "APPOINTMENT_CANCELLED" | "APPOINTMENT_RESCHEDULED";
+            subscribeAllowed: boolean;
+            sendAllowed: boolean;
+            historyAllowed: boolean;
+            /** Format: date-time */
+            scheduledStartAt: string;
+            /** Format: date-time */
+            scheduledEndAt: string;
+            /** Format: date-time */
+            serverTime: string;
+        };
         /** @enum {string} */
         DiscoveryContextState: "NOT_REQUESTED" | "APPLIED" | "UNAVAILABLE";
         /**
@@ -1034,6 +1077,34 @@ export interface operations {
             };
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
+        };
+    };
+    getAppointmentChatEligibility: {
+        parameters: {
+            query: {
+                operation: "SUBSCRIBE" | "SEND" | "HISTORY";
+            };
+            header?: never;
+            path: {
+                /** @description The appointment UUID is the stable one-to-one conversation identifier. */
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current appointment-scoped chat decision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentChatEligibility"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["AppointmentNotFoundProblem"];
         };
     };
     getOwnSpecialistProfile: {

@@ -146,7 +146,7 @@ export function SyntheticRealtimeHarness() {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic-browser-fixture',
+          accessToken: 's'.repeat(43),
           correlationId: 'synthetic-browser',
           expiresAtEpochMs: Date.now() + 60_000,
         },
