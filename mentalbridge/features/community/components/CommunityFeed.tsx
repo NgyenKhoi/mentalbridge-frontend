@@ -12,6 +12,7 @@ import {
 } from '@/features/community/api/browser-community'
 import CommunityMedia from './CommunityMedia'
 import CommunityPostComposer from './CommunityPostComposer'
+import CommunityAvatar from './CommunityAvatar'
 
 type FeedPost = Omit<CommunityPostDetail, 'content'> & {
   contentPreview: string
@@ -148,6 +149,9 @@ export default function CommunityFeed() {
             Bảng tin chỉ dùng chủ đề bạn chọn, không dùng nhật ký, cảm xúc hay
             kết quả sàng lọc để xếp hạng.
           </p>
+          <Link className="community-profile-link" href="/community/profile">
+            Quản lý tên hiển thị cộng đồng
+          </Link>
         </aside>
       </header>
 
@@ -207,14 +211,11 @@ export default function CommunityFeed() {
             {items.map((post) => (
               <article className="community-card" key={post.postId}>
                 <header>
-                  <div
-                    className={`community-avatar ${post.author.state === 'DELETED' ? 'is-deleted' : ''}`}
-                    aria-hidden="true"
-                  >
-                    {post.author.state === 'DELETED'
-                      ? '—'
-                      : post.author.displayName.slice(0, 1).toUpperCase()}
-                  </div>
+                  <CommunityAvatar
+                    displayName={post.author.displayName}
+                    avatarPreset={post.author.avatarPreset}
+                    deleted={post.author.state === 'DELETED'}
+                  />
                   <div>
                     <strong>{post.author.displayName}</strong>
                     <time dateTime={post.publishedAt}>

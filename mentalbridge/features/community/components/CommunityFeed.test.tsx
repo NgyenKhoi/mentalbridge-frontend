@@ -26,6 +26,7 @@ const post: CommunityFeedPage['items'][number] = {
   postId: '20000000-0000-4000-8000-000000000009',
   author: {
     communityProfileId: '10000000-0000-4000-8000-000000000002',
+    avatarPreset: null,
     displayName: 'Thành viên đã rời cộng đồng',
     state: 'DELETED',
   },

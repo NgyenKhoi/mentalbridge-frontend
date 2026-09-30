@@ -1,19 +1,25 @@
 import { browserApiClient } from '@/lib/api/browser-client'
 import { parseOwnerVersion } from '@/lib/community/community-validation'
 import type {
+  CommunityAvatarPreset,
   CommunityFeedPage,
+  CommunityProfile,
   CommunityPostDetail,
+  CommunityPostWrite,
   CommunityTopic,
   CommunityTopicCode,
-  CommunityPostWrite,
+  PutCommunityProfileRequest,
 } from '@/lib/community/community-validation'
 
 export type {
+  CommunityAvatarPreset,
   CommunityFeedPage,
+  CommunityProfile,
   CommunityPostDetail,
+  CommunityPostWrite,
   CommunityTopic,
   CommunityTopicCode,
-  CommunityPostWrite,
+  PutCommunityProfileRequest,
 }
 
 export type VersionedCommunityPost = Readonly<{
@@ -90,4 +96,22 @@ export async function deleteCommunityPost(postId: string, version: number) {
     `/community/posts/${encodeURIComponent(postId)}`,
     { headers: { 'If-Match': `"${version}"` } },
   )
+}
+
+export async function getCommunityProfile() {
+  const response =
+    await browserApiClient.get<CommunityProfile>('/community/profile')
+  return { data: response.data, etag: response.headers.etag ?? null }
+}
+
+export async function putCommunityProfile(
+  input: PutCommunityProfileRequest,
+  etag: string | null,
+) {
+  const response = await browserApiClient.put<CommunityProfile>(
+    '/community/profile',
+    input,
+    { headers: etag ? { 'If-Match': etag } : undefined },
+  )
+  return { data: response.data, etag: response.headers.etag ?? null }
 }

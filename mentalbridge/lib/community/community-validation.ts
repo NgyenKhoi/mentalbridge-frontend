@@ -5,6 +5,11 @@ export type CommunityPostSummary = components['schemas']['CommunityPostSummary']
 export type CommunityPostDetail = components['schemas']['CommunityPostDetail']
 export type CommunityTopic = components['schemas']['CommunityTopic']
 export type CommunityTopicCode = components['schemas']['CommunityTopicCode']
+export type CommunityProfile = components['schemas']['CommunityProfile']
+export type CommunityAvatarPreset =
+  components['schemas']['CommunityAvatarPreset']
+export type PutCommunityProfileRequest =
+  components['schemas']['PutCommunityProfileRequest']
 export type CommunityProblem = components['schemas']['Problem']
 export type CommunityPostWrite = components['schemas']['CreatePostRequest']
 
@@ -20,6 +25,14 @@ const TOPICS = new Set<CommunityTopicCode>([
 ])
 const MEDIA_TYPES = new Set(['IMAGE', 'VIDEO'])
 const MEDIA_AVAILABILITY = new Set(['NONE', 'READY', 'PARTIAL', 'UNAVAILABLE'])
+const AVATAR_PRESETS = new Set<CommunityAvatarPreset>([
+  'LEAF',
+  'SUNRISE',
+  'WAVE',
+  'LOTUS',
+  'CLOUD',
+  'SPROUT',
+])
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -52,6 +65,14 @@ function text(value: unknown, minimum: number, maximum: number) {
   return length >= minimum && length <= maximum
 }
 
+function avatarPreset(value: unknown): value is CommunityAvatarPreset | null {
+  return (
+    value === null ||
+    (typeof value === 'string' &&
+      AVATAR_PRESETS.has(value as CommunityAvatarPreset))
+  )
+}
+
 function httpsUrl(value: unknown): value is string {
   if (typeof value !== 'string' || value.length > 2048) return false
   try {
@@ -66,12 +87,65 @@ function parseAuthor(value: unknown) {
   const author = record(value)
   return Boolean(
     author &&
-    exactKeys(author, ['communityProfileId', 'displayName', 'state']) &&
+    exactKeys(author, [
+      'communityProfileId',
+      'displayName',
+      'avatarPreset',
+      'state',
+    ]) &&
     typeof author.communityProfileId === 'string' &&
     UUID.test(author.communityProfileId) &&
     text(author.displayName, 1, 80) &&
+    avatarPreset(author.avatarPreset) &&
     (author.state === 'ACTIVE' || author.state === 'DELETED'),
   )
+}
+
+export function parseCommunityProfile(value: unknown): CommunityProfile | null {
+  const profile = record(value)
+  if (
+    !profile ||
+    !exactKeys(profile, [
+      'communityProfileId',
+      'displayName',
+      'avatarPreset',
+      'status',
+      'version',
+      'createdAt',
+      'updatedAt',
+    ]) ||
+    typeof profile.communityProfileId !== 'string' ||
+    !UUID.test(profile.communityProfileId) ||
+    !text(profile.displayName, 1, 80) ||
+    !avatarPreset(profile.avatarPreset) ||
+    (profile.status !== 'ACTIVE' && profile.status !== 'DELETED') ||
+    !nonNegativeInteger(profile.version) ||
+    !dateTime(profile.createdAt) ||
+    !dateTime(profile.updatedAt)
+  ) {
+    return null
+  }
+  return profile as CommunityProfile
+}
+
+export function parseCommunityProfileInput(
+  value: unknown,
+): PutCommunityProfileRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['displayName', 'avatarPreset']) ||
+    !text(input.displayName, 1, 80) ||
+    input.displayName !== (input.displayName as string).trim() ||
+    !avatarPreset(input.avatarPreset)
+  ) {
+    return null
+  }
+  return input as PutCommunityProfileRequest
+}
+
+export function isCommunityEtag(value: string | null): value is string {
+  return value !== null && /^"(0|[1-9]\d*)"$/.test(value)
 }
 
 function parseCounts(value: unknown) {

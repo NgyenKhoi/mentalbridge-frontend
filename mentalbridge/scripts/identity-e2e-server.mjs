@@ -77,6 +77,7 @@ const communityPosts = [
     author: {
       communityProfileId: '51000000-0000-4000-8000-000000000002',
       displayName: 'Minh An',
+      avatarPreset: 'LEAF',
       state: 'ACTIVE',
     },
     content:
@@ -93,6 +94,7 @@ const communityPosts = [
     author: {
       communityProfileId: '51000000-0000-4000-8000-000000000001',
       displayName: 'Thành viên đã rời cộng đồng',
+      avatarPreset: null,
       state: 'DELETED',
     },
     content:
@@ -208,6 +210,7 @@ let contentFault = null
 let journalConflictOnce = false
 let journalCreateFailureOnce = false
 let journalAnalysisFailureOnce = false
+const communityProfiles = new Map()
 accessSessions.set(careAccessToken, careActor)
 accessSessions.set(otherCareAccessToken, otherCareActor)
 accessSessions.set(resourceAccessToken, resourceActor)
@@ -240,6 +243,7 @@ function reset() {
   journalEntries.clear()
   journalCommands.clear()
   journalAnalysisJobs.clear()
+  communityProfiles.clear()
   availabilitySlots.clear()
   availabilityCommands.clear()
   contentCreateByKey.clear()
@@ -934,6 +938,60 @@ const server = createServer(async (request, response) => {
       if (!journalActor(request, response)) return
       json(response, 200, communityTopics)
       return
+    }
+
+    if (url.pathname === '/api/v1/community/profile') {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const current = communityProfiles.get(actor.accountId)
+      if (request.method === 'GET') {
+        if (!current) {
+          problem(
+            response,
+            404,
+            'COMMUNITY_PROFILE_NOT_FOUND',
+            'Community profile was not found',
+          )
+          return
+        }
+        json(response, 200, current, 'application/json', {
+          ETag: `"${current.version}"`,
+        })
+        return
+      }
+      if (request.method === 'PUT') {
+        const expected = current ? `"${current.version}"` : undefined
+        if (
+          (current && request.headers['if-match'] !== expected) ||
+          (!current && request.headers['if-match'])
+        ) {
+          problem(
+            response,
+            412,
+            'COMMUNITY_PROFILE_VERSION_MISMATCH',
+            'Community profile changed',
+          )
+          return
+        }
+        const body = await readBody(request)
+        const now = new Date().toISOString()
+        const saved = {
+          communityProfileId:
+            current?.communityProfileId ??
+            '51000000-0000-4000-8000-000000000099',
+          displayName: body.displayName,
+          avatarPreset: body.avatarPreset,
+          status: 'ACTIVE',
+          version: current ? current.version + 1 : 0,
+          createdAt: current?.createdAt ?? now,
+          updatedAt: now,
+        }
+        communityProfiles.set(actor.accountId, saved)
+        json(response, current ? 200 : 201, saved, 'application/json', {
+          ETag: `"${saved.version}"`,
+        })
+        return
+      }
     }
 
     if (request.method === 'GET' && url.pathname === '/api/v1/community/feed') {

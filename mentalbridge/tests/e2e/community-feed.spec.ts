@@ -88,4 +88,35 @@ test.describe('Community feed journey', () => {
       page.getByText('Câu chuyện đã được mình cập nhật.'),
     ).toHaveCount(0)
   })
+
+  test('creates and updates a private Community display identity', async ({
+    page,
+    request,
+  }) => {
+    const reset = await request.post(`${identityFixtureUrl}/__test/reset`)
+    expect(reset.status()).toBe(204)
+    await login(page)
+
+    await page.goto('/community/profile')
+    await expect(
+      page.getByRole('heading', { name: 'Bạn muốn xuất hiện như thế nào?' }),
+    ).toBeVisible()
+    await expect(
+      page.getByText(/không hiển thị email hay mã tài khoản/),
+    ).toBeVisible()
+
+    await page.getByLabel('Tên hiển thị hoặc biệt danh').fill('Mầm Xanh')
+    await page.getByText('Lá xanh').click()
+    await page.getByRole('button', { name: 'Tạo danh tính cộng đồng' }).click()
+    await expect(
+      page.getByRole('button', { name: 'Lưu thay đổi' }),
+    ).toBeVisible()
+
+    await page.getByLabel('Tên hiển thị hoặc biệt danh').fill('Lá Nhỏ')
+    await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
+    await page.reload()
+    await expect(page.getByLabel('Tên hiển thị hoặc biệt danh')).toHaveValue(
+      'Lá Nhỏ',
+    )
+  })
 })

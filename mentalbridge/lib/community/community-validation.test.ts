@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   parseCommunityFeedPage,
+  parseCommunityProfile,
+  parseCommunityProfileInput,
   parseCommunityPostDetail,
   parseCommunityPostWrite,
   parseCommunityTopics,
@@ -12,6 +14,7 @@ const post = {
   postId: '20000000-0000-4000-8000-000000000009',
   author: {
     communityProfileId: '10000000-0000-4000-8000-000000000002',
+    avatarPreset: 'LEAF',
     displayName: 'Minh An',
     state: 'ACTIVE',
   },
@@ -161,5 +164,36 @@ describe('Community response validation', () => {
     expect(parseCommunityTopics(topics)).not.toBeNull()
     expect(parseCommunityTopics(topics.slice(0, 5))).toBeNull()
     expect(parseCommunityTopics([...topics.slice(0, 5), topics[0]])).toBeNull()
+  })
+
+  it('accepts only the bounded public Community display identity contract', () => {
+    const profile = {
+      communityProfileId: '10000000-0000-4000-8000-000000000002',
+      displayName: '🌿'.repeat(80),
+      avatarPreset: 'LEAF',
+      status: 'ACTIVE',
+      version: 1,
+      createdAt: '2026-09-29T05:00:00Z',
+      updatedAt: '2026-09-29T05:10:00Z',
+    }
+    expect(parseCommunityProfile(profile)).not.toBeNull()
+    expect(
+      parseCommunityProfile({
+        ...profile,
+        accountSubject: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityProfileInput({
+        displayName: 'Mầm Xanh',
+        avatarPreset: null,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityProfileInput({
+        displayName: 'Mầm Xanh',
+        avatarPreset: 'https://example.test/me.png',
+      }),
+    ).toBeNull()
   })
 })
