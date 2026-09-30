@@ -1,6 +1,13 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ResourceBrowserError } from '../api/browser-resources'
 import ResourceDetail from './ResourceDetail'
@@ -58,6 +65,22 @@ const resource = {
   sourceUrl:
     'https://www.nhs.uk/every-mind-matters/mental-wellbeing-tips/top-tips-to-improve-your-mental-wellbeing/',
   sourceReviewNote: 'Đã xác minh video và tác giả.',
+  resourceKind: 'LEARNING' as const,
+  interactionType: 'VIDEO_TRANSCRIPT' as const,
+  repeatability: 'ONE_TIME' as const,
+  completionMode: 'VIDEO_CONFIRMATION' as const,
+  streakEligible: false,
+  expectedDurationMinutes: 7,
+  cooldownDays: 0,
+  recommendedFrequencyPerWeek: 1,
+  planTags: ['ANXIETY_SYMPTOMS'],
+  structuredContent: {},
+  interactionConfig: {},
+  safetyNotes: [],
+  sourceRetrievedAt: '2026-09-23T00:00:00Z',
+  sourceContentHash: null,
+  contentVersionLabel: 'test-v1',
+  sourceReviewStatus: 'REVIEWED' as const,
   contentVersion: '4',
   status: 'PUBLISHED' as const,
   reviewedAt: '2026-09-23T00:00:00Z',
@@ -106,6 +129,10 @@ describe('ResourceDetail', () => {
         version: '1',
       }),
     )
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders reviewed detail, embedded video, TOC, and catalogue return', async () => {
@@ -221,6 +248,10 @@ describe('ResourceDetail', () => {
       category: 'JOURNALING' as const,
       title: 'Viết vài dòng dịu dàng',
       externalUrl: null,
+      resourceKind: 'REFLECTION' as const,
+      interactionType: 'REFLECTION' as const,
+      repeatability: 'REPEATABLE' as const,
+      completionMode: 'STEPS' as const,
     }
     api.getResourceDetail.mockResolvedValue(checklistResource)
     api.getResourceCatalogue.mockResolvedValue({
@@ -237,9 +268,11 @@ describe('ResourceDetail', () => {
       />,
     )
 
-    const settle = await screen.findByLabelText(/gọi tên cảm xúc hiện tại/i)
-    const write = screen.getByLabelText(/viết tự do/i)
-    const reflect = screen.getByLabelText(/điều dịu dàng/i)
+    const settle = await screen.findByRole('checkbox', {
+      name: /gọi tên cảm xúc hiện tại/i,
+    })
+    const write = screen.getByRole('checkbox', { name: /viết tự do/i })
+    const reflect = screen.getByRole('checkbox', { name: /điều dịu dàng/i })
 
     await user.click(settle)
     await waitFor(() =>
@@ -265,10 +298,12 @@ describe('ResourceDetail', () => {
     expect(api.saveResourceProgress).toHaveBeenLastCalledWith(
       checklistResource.id,
       '2026-09-29',
-      {
+      expect.objectContaining({
         status: 'COMPLETED',
         completedActionIds: ['settle', 'write', 'reflect'],
-      },
+        practiceSessionId: expect.any(String),
+        practiceStartedAt: expect.any(String),
+      }),
     )
 
     await user.click(settle)
@@ -286,6 +321,232 @@ describe('ResourceDetail', () => {
     expect(
       screen.getByText(/kết quả hoàn thành đã được ghi nhận/i),
     ).toBeVisible()
+
+    const firstSession = api.saveResourceProgress.mock.calls[2]?.[2] as {
+      practiceSessionId: string
+    }
+    await user.click(
+      screen.getByRole('button', {
+        name: /thực hành lại và ghi một lần mới/i,
+      }),
+    )
+    expect(settle).not.toBeChecked()
+    expect(write).not.toBeChecked()
+    expect(reflect).not.toBeChecked()
+
+    await user.click(settle)
+    await user.click(write)
+    await user.click(reflect)
+    await user.click(
+      screen.getByRole('button', { name: 'Xác nhận hoàn thành' }),
+    )
+    await waitFor(() =>
+      expect(api.saveResourceProgress).toHaveBeenCalledTimes(7),
+    )
+    expect(api.saveResourceProgress).toHaveBeenLastCalledWith(
+      checklistResource.id,
+      '2026-09-29',
+      expect.objectContaining({
+        status: 'COMPLETED',
+        practiceSessionId: expect.not.stringMatching(
+          new RegExp(`^${firstSession.practiceSessionId}$`),
+        ),
+      }),
+    )
+  })
+
+  it('renders purpose-shaped worksheet prompts without persisting private notes', async () => {
+    const worksheetResource = {
+      ...resource,
+      category: 'JOURNALING' as const,
+      title: 'Gỡ rối từng bước',
+      externalUrl: null,
+      resourceKind: 'ACTION' as const,
+      interactionType: 'PROBLEM_SOLVING_WORKSHEET' as const,
+      repeatability: 'REPEATABLE' as const,
+      completionMode: 'STEPS' as const,
+      interactionConfig: {
+        steps: [
+          { id: 'define', label: 'Gọi tên vấn đề' },
+          { id: 'next', label: 'Chọn bước nhỏ tiếp theo' },
+        ],
+      },
+    }
+    api.getResourceDetail.mockResolvedValue(worksheetResource)
+    api.getResourceCatalogue.mockResolvedValue({
+      items: [worksheetResource],
+      hasMore: false,
+    })
+
+    render(
+      <ResourceDetail
+        resourceId={worksheetResource.id}
+        fromSupportPlan={false}
+      />,
+    )
+
+    expect(
+      await screen.findByText(/nội dung bạn nhập.+không được lưu/i),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('textbox', { name: /ghi chú cho: gọi tên vấn đề/i }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('checkbox', { name: 'Gọi tên vấn đề' }),
+    ).toBeVisible()
+  })
+
+  it('renders behavioral activation planning controls', async () => {
+    const activationResource = {
+      ...resource,
+      category: 'JOURNALING' as const,
+      externalUrl: null,
+      resourceKind: 'ACTION' as const,
+      interactionType: 'BEHAVIORAL_ACTIVATION_PLANNER' as const,
+      repeatability: 'REPEATABLE' as const,
+      completionMode: 'STEPS' as const,
+      interactionConfig: {
+        steps: [{ id: 'choose', label: 'Chọn một hoạt động nhỏ' }],
+      },
+    }
+    api.getResourceDetail.mockResolvedValue(activationResource)
+    api.getResourceCatalogue.mockResolvedValue({
+      items: [activationResource],
+      hasMore: false,
+    })
+
+    render(
+      <ResourceDetail
+        resourceId={activationResource.id}
+        fromSupportPlan={false}
+      />,
+    )
+
+    expect(
+      await screen.findByRole('group', { name: 'Bản nháp hoạt động' }),
+    ).toBeVisible()
+    expect(screen.getByLabelText('Mức năng lượng phù hợp')).toBeVisible()
+    expect(screen.getByLabelText('Thời điểm dự kiến')).toBeVisible()
+    expect(screen.getByRole('radio', { name: 'Đã làm' })).toBeVisible()
+  })
+
+  it('renders reviewed structured content instead of collapsing to the legacy body', async () => {
+    const structuredResource = {
+      ...resource,
+      category: 'ARTICLE' as const,
+      interactionType: 'STRUCTURED_READER' as const,
+      completionMode: 'EXPLICIT' as const,
+      externalUrl: null,
+      structuredContent: {
+        overview: 'Tổng quan đã được biên tập.',
+        whenUseful: 'Khi bạn muốn hiểu rõ hơn trước khi thực hành.',
+        keyIdeas: ['Ý chính thứ nhất.', 'Ý chính thứ hai.'],
+        steps: ['Đọc chậm một lượt.', 'Chọn một ý phù hợp.'],
+        cautions: ['Dừng lại nếu nội dung làm bạn khó chịu hơn.'],
+        nextStep: 'Chọn một bước vừa sức trong kế hoạch.',
+      },
+    }
+    api.getResourceDetail.mockResolvedValue(structuredResource)
+    api.getResourceCatalogue.mockResolvedValue({
+      items: [structuredResource],
+      hasMore: false,
+    })
+
+    render(
+      <ResourceDetail
+        resourceId={structuredResource.id}
+        fromSupportPlan={false}
+      />,
+    )
+
+    expect(await screen.findByText('Tổng quan đã được biên tập.')).toBeVisible()
+    expect(
+      screen.getByText('Khi bạn muốn hiểu rõ hơn trước khi thực hành.'),
+    ).toBeVisible()
+    expect(screen.getByText('Ý chính thứ hai.')).toBeVisible()
+    expect(screen.getByText('Chọn một ý phù hợp.')).toBeVisible()
+    expect(
+      screen.getByText('Dừng lại nếu nội dung làm bạn khó chịu hơn.'),
+    ).toBeVisible()
+    expect(
+      screen.getByText(/chọn một bước vừa sức trong kế hoạch/i),
+    ).toBeVisible()
+    expect(screen.queryByText(resource.contentBody)).not.toBeInTheDocument()
+  })
+
+  it('highlights each timed practice cue as the session advances', async () => {
+    const timedResource = {
+      ...resource,
+      category: 'MEDITATION' as const,
+      title: 'Đi bộ nhẹ trong vài phút',
+      externalUrl: null,
+      resourceKind: 'PRACTICE' as const,
+      interactionType: 'WALK_TIMER' as const,
+      repeatability: 'REPEATABLE' as const,
+      completionMode: 'TIMED' as const,
+      streakEligible: true,
+      expectedDurationMinutes: 1,
+      cooldownDays: 0,
+      recommendedFrequencyPerWeek: 4,
+      planTags: [],
+      structuredContent: {},
+      interactionConfig: {
+        durationSeconds: 6,
+        steps: [
+          { id: 'prepare', label: 'Chuẩn bị' },
+          { id: 'walk', label: 'Đi bộ' },
+          { id: 'finish', label: 'Chậm lại' },
+        ],
+      },
+      safetyNotes: [],
+      sourceRetrievedAt: '2026-09-29T00:00:00Z',
+      sourceContentHash: null,
+      contentVersionLabel: 'test',
+      sourceReviewStatus: 'REVIEWED' as const,
+    }
+    api.getResourceDetail.mockResolvedValue(timedResource)
+    api.getResourceCatalogue.mockResolvedValue({
+      items: [timedResource],
+      hasMore: false,
+    })
+
+    render(
+      <ResourceDetail
+        resourceId={timedResource.id}
+        fromSupportPlan={false}
+        activityDate="2026-09-30"
+      />,
+    )
+
+    await screen.findByRole('heading', { name: timedResource.title })
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu 6 giây' }))
+
+    const practice = screen
+      .getByRole('heading', {
+        name: 'Vận động theo nhịp vừa sức',
+      })
+      .closest('section') as HTMLElement
+    const prepare = within(practice)
+      .getByText('Chuẩn bị', { selector: 'b' })
+      .closest('li')
+    const walk = within(practice)
+      .getByText('Đi bộ', { selector: 'b' })
+      .closest('li')
+    expect(prepare).toHaveAttribute('aria-current', 'step')
+    expect(prepare).toHaveTextContent('2 giây')
+    expect(prepare).toHaveTextContent('Đang thực hiện · còn 2 giây')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(prepare).not.toHaveAttribute('aria-current')
+    expect(walk).toHaveAttribute('aria-current', 'step')
+    expect(prepare).toHaveTextContent('✓')
   })
 
   it('returns to Support Plan when opened from an occurrence', async () => {

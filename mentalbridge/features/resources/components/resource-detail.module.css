@@ -433,6 +433,62 @@
   line-height: 1.65;
 }
 
+.callout strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #173f36;
+}
+
+.keyIdeas {
+  margin-top: 24px;
+}
+
+.keyIdeas > strong {
+  color: #173f36;
+}
+
+.keyIdeas ul {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding-left: 22px;
+  color: #405c53;
+  line-height: 1.65;
+}
+
+.structuredSteps,
+.cautions {
+  margin-top: 22px;
+}
+
+.structuredSteps > strong,
+.cautions > strong {
+  color: #173f36;
+}
+
+.structuredSteps ol,
+.cautions ul {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding-left: 24px;
+  line-height: 1.65;
+}
+
+.cautions {
+  padding: 16px 18px;
+  border: 1px solid #e4c992;
+  border-radius: var(--radius-panel);
+  background: #fff8e9;
+  color: #5d4c2d;
+}
+
+.nextStep {
+  margin-top: 22px;
+  padding-left: 16px;
+  border-left: 3px solid #65a893;
+}
+
 .videoFrame {
   position: relative;
   overflow: hidden;
@@ -625,21 +681,50 @@
 }
 
 .practiceSection li {
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 2px 9px;
   padding: 15px;
+  border: 1px solid transparent;
   border-radius: 16px;
   background: rgb(255 255 255 / 63%);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
-.practiceSection li small {
+.practiceSection li small,
+.practiceSection li em {
   grid-column: 2;
   color: var(--detail-muted);
 }
 
+.practiceSection li em {
+  margin-top: 5px;
+  color: #27695c;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 850;
+}
+
 .practiceSection li.done {
   background: #cce7d6;
+}
+
+.practiceSection li.activePracticeCue {
+  border-color: #2f7a68;
+  background: #fffdf5;
+  box-shadow:
+    inset 4px 0 #2f7a68,
+    0 16px 32px -28px rgb(31 86 72 / 80%);
+  transform: translateY(-2px);
+}
+
+.practiceSection li.activePracticeCue > span {
+  color: #2f7a68;
 }
 
 .breathOrb {
@@ -667,6 +752,16 @@
 .breathOrb strong {
   color: #326458;
   font-size: 13px;
+}
+
+.breathOrb small {
+  display: block;
+  max-width: 120px;
+  margin-top: 5px;
+  color: #4d6b62;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.35;
 }
 
 .breathOrb.isBreathing {
@@ -737,6 +832,213 @@
 .actionsSection input:focus-visible + span {
   outline: 3px solid #efb25f;
   outline-offset: 3px;
+}
+
+.purposeActions {
+  display: grid;
+  gap: 16px;
+}
+
+.purposeIntro,
+.privateDraftNotice {
+  margin: 0;
+}
+
+.activationDraft {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #c8dcd3;
+  border-radius: var(--radius-panel);
+  background: #f4f8f2;
+}
+
+.activationDraft legend {
+  padding: 0 6px;
+  color: #245f52;
+  font-weight: 800;
+}
+
+.activationDraft > label {
+  display: grid;
+  gap: 7px;
+  color: #294f46;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.activationDraft select,
+.activationDraft input[type='datetime-local'] {
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #a8c4ba;
+  border-radius: var(--radius-control);
+  background: white;
+  color: #173f36;
+  font: inherit;
+}
+
+.activationResult {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.activationResult > span {
+  width: 100%;
+  color: #294f46;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.activationResult label {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 40px;
+  padding: 7px 11px;
+  border: 1px solid #b9cec5;
+  border-radius: var(--radius-pill);
+  background: white;
+  color: #294f46;
+  cursor: pointer;
+}
+
+.privateDraftNotice {
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: #f7f1df;
+  color: #665b38;
+  font-size: 14px;
+}
+
+.purposeActions ol {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.purposeActions li {
+  padding: 16px;
+  border: 1px solid #d7e2da;
+  border-radius: var(--radius-panel);
+  background: #fbfcf8;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
+}
+
+.purposeActions li.purposeActionDone {
+  border-color: #78aa9b;
+  background: #edf5ef;
+}
+
+.purposeActionHeader {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.purposeActionHeader > span {
+  color: #347363;
+  font-family: var(--font-fraunces), serif;
+  font-weight: 800;
+}
+
+.purposeActionHeader strong {
+  color: #173f36;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.purposeActionToggle {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #7eaa9e;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: #245f52;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.purposeActionToggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.purposeActionToggle:has(input:checked) {
+  border-color: #2f7565;
+  background: #2f7565;
+  color: white;
+}
+
+.purposeActions textarea {
+  width: 100%;
+  min-height: 76px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  resize: vertical;
+  border: 1px solid #cbdad1;
+  border-radius: var(--radius-control);
+  background: white;
+  color: #173f36;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.purposeActionToggle:has(input:focus-visible),
+.purposeActions textarea:focus-visible,
+.activationDraft select:focus-visible,
+.activationDraft input:focus-visible {
+  outline: 3px solid rgba(52, 115, 99, 0.28);
+  outline-offset: 2px;
+}
+
+.repeatPracticeButton {
+  min-height: 44px;
+  margin-top: 16px;
+  padding: 0 18px;
+  border: 1px solid #347363;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: #245f52;
+  font-weight: 800;
+}
+
+.repeatPracticeButton:hover {
+  background: #edf5ef;
+}
+
+.repeatPracticeButton:focus-visible {
+  outline: 3px solid rgba(52, 115, 99, 0.28);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .activationDraft {
+    grid-template-columns: 1fr;
+  }
+
+  .purposeActionHeader {
+    grid-template-columns: auto 1fr;
+  }
+
+  .purposeActionToggle {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
 }
 
 .error {
@@ -1342,7 +1644,12 @@
   }
 
   .contextTranscript li button,
-  .cueWord {
+  .cueWord,
+  .practiceSection li {
     transition: none;
+  }
+
+  .practiceSection li.activePracticeCue {
+    transform: none;
   }
 }

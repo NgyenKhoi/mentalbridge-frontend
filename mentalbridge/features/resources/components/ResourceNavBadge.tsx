@@ -2,13 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import { getResourceProgress } from '../api/browser-resource-progress'
-import { getResourceCatalogue } from '../api/browser-resources'
-import {
-  completedDailyCount,
-  dailyResources,
-  localDate,
-} from '../model/resource-experience'
+import { getResourceJourney } from '../api/browser-resource-journey'
+import { localDate } from '../model/resource-experience'
 
 export default function ResourceNavBadge() {
   const [remaining, setRemaining] = useState<number | null>(null)
@@ -16,16 +11,15 @@ export default function ResourceNavBadge() {
   const refresh = useCallback(async (signal?: AbortSignal) => {
     const today = localDate()
     try {
-      const [catalogue, progress] = await Promise.all([
-        getResourceCatalogue(signal),
-        getResourceProgress(today, today),
-      ])
-      if (catalogue.unavailable) return
-      const total = dailyResources(catalogue.items, today).length
+      const journey = await getResourceJourney(
+        today,
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+        signal,
+      )
       setRemaining(
         Math.max(
           0,
-          total - completedDailyCount(catalogue.items, progress, today),
+          journey.progress.dailyTotal - journey.progress.dailyCompleted,
         ),
       )
     } catch (error) {

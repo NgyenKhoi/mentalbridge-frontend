@@ -84,7 +84,12 @@ export const formatLabels: Readonly<Record<ResourceFormat, string>> = {
 export function resourcePresentation(
   resource: PublicResourceSummary,
 ): ResourcePresentation {
-  return presentationByCategory[resource.category]
+  return {
+    ...presentationByCategory[resource.category],
+    minutes:
+      resource.expectedDurationMinutes ??
+      presentationByCategory[resource.category].minutes,
+  }
 }
 
 export function localDate(value = new Date()): string {

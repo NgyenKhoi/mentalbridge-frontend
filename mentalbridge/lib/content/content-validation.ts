@@ -16,6 +16,9 @@ export type ResourceProgressItem = components['schemas']['ResourceProgressItem']
 export type ResourceProgressList = components['schemas']['ResourceProgressList']
 export type ResourceProgressUpdate =
   components['schemas']['ResourceProgressUpdate']
+export type ResourceJourney = components['schemas']['ResourceJourney']
+export type ResourceJourneyRequest =
+  components['schemas']['ResourceJourneyRequest']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -31,6 +34,34 @@ const CATEGORIES = new Set([
 ])
 const STATUSES = new Set(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
 const PROGRESS_STATUSES = new Set(['IN_PROGRESS', 'COMPLETED'])
+const RESOURCE_KINDS = new Set([
+  'LEARNING',
+  'PRACTICE',
+  'HABIT',
+  'ACTION',
+  'REFLECTION',
+])
+const INTERACTION_TYPES = new Set([
+  'STRUCTURED_READER',
+  'VIDEO_TRANSCRIPT',
+  'BREATHING_PACER',
+  'GROUNDING_GUIDE',
+  'PROGRESSIVE_RELAXATION',
+  'WALK_TIMER',
+  'STRETCH_SEQUENCE',
+  'PROBLEM_SOLVING_WORKSHEET',
+  'BEHAVIORAL_ACTIVATION_PLANNER',
+  'SELF_COMPASSION_PROMPTS',
+  'UNHOOKING_PROMPTS',
+  'PREPARE_FOR_SPECIALIST_CHECKLIST',
+  'REFLECTION',
+])
+const COMPLETION_MODES = new Set([
+  'EXPLICIT',
+  'STEPS',
+  'TIMED',
+  'VIDEO_CONFIRMATION',
+])
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/
 const ACTION_ID = /^[A-Za-z0-9:_-]{1,64}$/
 
@@ -79,6 +110,47 @@ function optionalNullableString(value: unknown): boolean {
   return value === undefined || value === null || typeof value === 'string'
 }
 
+function validResourceExperience(item: Record<string, unknown>) {
+  if (item.resourceKind === undefined) return true
+  return (
+    typeof item.resourceKind === 'string' &&
+    RESOURCE_KINDS.has(item.resourceKind) &&
+    typeof item.interactionType === 'string' &&
+    INTERACTION_TYPES.has(item.interactionType) &&
+    (item.repeatability === 'ONE_TIME' ||
+      item.repeatability === 'REPEATABLE') &&
+    typeof item.completionMode === 'string' &&
+    COMPLETION_MODES.has(item.completionMode) &&
+    typeof item.streakEligible === 'boolean' &&
+    Number.isSafeInteger(item.expectedDurationMinutes) &&
+    (item.expectedDurationMinutes as number) >= 1 &&
+    Number.isSafeInteger(item.cooldownDays) &&
+    (item.cooldownDays as number) >= 0 &&
+    Number.isSafeInteger(item.recommendedFrequencyPerWeek) &&
+    (item.recommendedFrequencyPerWeek as number) >= 1 &&
+    Array.isArray(item.planTags) &&
+    item.planTags.every((tag) => typeof tag === 'string')
+  )
+}
+
+function validOptionalResourceDetailExperience(item: Record<string, unknown>) {
+  if (item.structuredContent === undefined) return true
+  return (
+    record(item.structuredContent) !== null &&
+    record(item.interactionConfig) !== null &&
+    Array.isArray(item.safetyNotes) &&
+    item.safetyNotes.every((note) => typeof note === 'string') &&
+    nullableDateTime(item.sourceRetrievedAt) &&
+    (item.sourceContentHash === null ||
+      (typeof item.sourceContentHash === 'string' &&
+        /^[a-f0-9]{64}$/.test(item.sourceContentHash))) &&
+    typeof item.contentVersionLabel === 'string' &&
+    ['REVIEWED', 'REVIEW_REQUIRED', 'NEEDS_SOURCE_REVIEW'].includes(
+      item.sourceReviewStatus as string,
+    )
+  )
+}
+
 export function isResourceId(value: string): boolean {
   return UUID.test(value)
 }
@@ -112,6 +184,7 @@ export function parseResourceSummary(value: unknown): ResourceSummary | null {
     !UUID.test(item.id) ||
     typeof item.category !== 'string' ||
     !CATEGORIES.has(item.category) ||
+    !validResourceExperience(item) ||
     typeof item.locale !== 'string' ||
     !LOCALE.test(item.locale) ||
     typeof item.title !== 'string' ||
@@ -143,6 +216,7 @@ export function parsePublicResourceDetail(
     !optionalNullableString(item.sourceTitle) ||
     !optionalNullableHttpUrl(item.sourceUrl) ||
     !optionalNullableString(item.sourceReviewNote) ||
+    !validOptionalResourceDetailExperience(item) ||
     !nullableDateTime(item.effectiveAt) ||
     !nullableDateTime(item.expiresAt)
   ) {
@@ -239,6 +313,76 @@ export function parseResourceProgressItem(
   return item as ResourceProgressItem
 }
 
+export function parseResourceJourney(value: unknown): ResourceJourney | null {
+  const journey = record(value)
+  if (
+    !journey ||
+    typeof journey.assignmentId !== 'string' ||
+    !UUID.test(journey.assignmentId) ||
+    typeof journey.localDate !== 'string' ||
+    !isLocalDate(journey.localDate) ||
+    typeof journey.planId !== 'string' ||
+    !UUID.test(journey.planId) ||
+    !Number.isSafeInteger(journey.planVersion) ||
+    (journey.planVersion as number) < 1 ||
+    !Number.isSafeInteger(journey.planDay) ||
+    (journey.planDay as number) < 1 ||
+    (journey.planDay as number) > 14 ||
+    ![
+      'ORIENTATION',
+      'CORE_PRACTICE',
+      'REINFORCEMENT',
+      'MAINTENANCE',
+      'REVIEW',
+    ].includes(journey.planStage as string) ||
+    !Array.isArray(journey.items) ||
+    journey.items.length > 4 ||
+    !journey.items.every((entry) => {
+      const item = record(entry)
+      return (
+        item !== null &&
+        Number.isSafeInteger(item.position) &&
+        typeof item.reason === 'string' &&
+        ['PLAN_SELECTED', 'PLAN_DOMAIN', 'CONTINUITY', 'BALANCE'].includes(
+          item.reason,
+        ) &&
+        parseResourceSummary(item.resource) !== null
+      )
+    }) ||
+    typeof journey.weekStart !== 'string' ||
+    !isLocalDate(journey.weekStart) ||
+    !Array.isArray(journey.bingo) ||
+    journey.bingo.length > 9 ||
+    !journey.bingo.every((entry) => {
+      const item = record(entry)
+      return (
+        item !== null &&
+        Number.isSafeInteger(item.position) &&
+        typeof item.resourceId === 'string' &&
+        UUID.test(item.resourceId) &&
+        typeof item.label === 'string' &&
+        typeof item.stamped === 'boolean'
+      )
+    })
+  ) {
+    return null
+  }
+  const progress = record(journey.progress)
+  if (
+    !progress ||
+    ![
+      progress.dailyCompleted,
+      progress.dailyTotal,
+      progress.learningCompleted,
+      progress.learningTotal,
+      progress.practiceStreakDays,
+    ].every((entry) => Number.isSafeInteger(entry) && (entry as number) >= 0)
+  ) {
+    return null
+  }
+  return journey as ResourceJourney
+}
+
 export function parseResourceProgressList(
   value: unknown,
 ): ResourceProgressList | null {
@@ -260,7 +404,13 @@ export function parseResourceProgressUpdate(
   const update = record(value)
   if (
     !update ||
-    !exactKeys(update, ['status', 'completedActionIds']) ||
+    !exactKeys(update, [
+      'status',
+      'completedActionIds',
+      'practiceSessionId',
+      'practiceStartedAt',
+      'practiceDurationSeconds',
+    ]) ||
     typeof update.status !== 'string' ||
     !PROGRESS_STATUSES.has(update.status) ||
     !Array.isArray(update.completedActionIds) ||
@@ -268,7 +418,26 @@ export function parseResourceProgressUpdate(
     !update.completedActionIds.every(
       (entry) => typeof entry === 'string' && ACTION_ID.test(entry),
     ) ||
-    new Set(update.completedActionIds).size !== update.completedActionIds.length
+    new Set(update.completedActionIds).size !==
+      update.completedActionIds.length ||
+    !(
+      update.practiceSessionId === undefined ||
+      (typeof update.practiceSessionId === 'string' &&
+        UUID.test(update.practiceSessionId))
+    ) ||
+    !(
+      update.practiceStartedAt === undefined ||
+      dateTime(update.practiceStartedAt)
+    ) ||
+    !(
+      update.practiceDurationSeconds === undefined ||
+      (Number.isSafeInteger(update.practiceDurationSeconds) &&
+        (update.practiceDurationSeconds as number) >= 1 &&
+        (update.practiceDurationSeconds as number) <= 7_200)
+    ) ||
+    ((update.practiceStartedAt !== undefined ||
+      update.practiceDurationSeconds !== undefined) &&
+      update.practiceSessionId === undefined)
   ) {
     return null
   }

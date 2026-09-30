@@ -8,6 +8,7 @@ const api = vi.hoisted(() => ({
   getResourceCatalogue: vi.fn(),
   getResourceProgress: vi.fn(),
   saveResourceProgress: vi.fn(),
+  getResourceJourney: vi.fn(),
 }))
 
 vi.mock('../api/browser-resources', () => ({
@@ -16,6 +17,14 @@ vi.mock('../api/browser-resources', () => ({
 vi.mock('../api/browser-resource-progress', () => ({
   getResourceProgress: api.getResourceProgress,
   saveResourceProgress: api.saveResourceProgress,
+}))
+vi.mock('../api/browser-resource-journey', () => ({
+  getResourceJourney: api.getResourceJourney,
+  ResourceJourneyBrowserError: class ResourceJourneyBrowserError extends Error {
+    constructor(readonly status: number) {
+      super('Resource journey request failed')
+    }
+  },
 }))
 
 const resources = [
@@ -68,6 +77,33 @@ describe('ResourcesExperience', () => {
       hasMore: false,
     })
     api.getResourceProgress.mockResolvedValue([])
+    api.getResourceJourney.mockImplementation(async (date: string) => ({
+      assignmentId: '00000000-0000-4000-8000-000000000301',
+      localDate: date,
+      planId: '00000000-0000-4000-8000-000000000302',
+      planVersion: 1,
+      planDay: 10,
+      planStage: 'MAINTENANCE',
+      items: resources.map((resource, index) => ({
+        position: index + 1,
+        resource,
+        reason: index === 0 ? 'PLAN_SELECTED' : 'BALANCE',
+      })),
+      progress: {
+        dailyCompleted: 0,
+        dailyTotal: resources.length,
+        learningCompleted: 0,
+        learningTotal: 2,
+        practiceStreakDays: 0,
+      },
+      weekStart: '2026-09-28',
+      bingo: resources.map((resource, index) => ({
+        position: index + 1,
+        resourceId: resource.id,
+        label: resource.title,
+        stamped: false,
+      })),
+    }))
     api.saveResourceProgress.mockImplementation(
       async (resourceId: string, localDate: string, update: object) => ({
         resourceId,
