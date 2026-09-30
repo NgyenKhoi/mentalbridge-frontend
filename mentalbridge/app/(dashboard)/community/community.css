@@ -186,6 +186,113 @@
   margin-top: 18px;
 }
 
+.community-media-uploader {
+  display: grid;
+  gap: 12px;
+  padding: 16px 0;
+  border-block: 1px solid color-mix(in srgb, var(--community-muted) 24%, transparent);
+}
+
+.community-media-uploader-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.community-media-uploader-heading p,
+.community-media-uploader > small,
+.community-upload-list span,
+.community-upload-list small {
+  color: var(--community-muted);
+}
+
+.community-media-uploader-heading p {
+  margin: 4px 0 0;
+}
+
+.community-media-picker {
+  position: relative;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 8px 16px;
+  border: 1px solid var(--community-green);
+  border-radius: 999px;
+  color: var(--community-green);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.community-media-picker:focus-within {
+  outline: 3px solid color-mix(in srgb, var(--community-green) 28%, transparent);
+  outline-offset: 2px;
+}
+
+.community-media-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.community-media-picker:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.community-upload-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.community-upload-list li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.community-upload-list img,
+.community-upload-list video {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: var(--community-sage);
+  object-fit: cover;
+}
+
+.community-upload-list div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.community-upload-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-upload-list button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--community-green);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.community-upload-list button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--community-green) 28%, transparent);
+  outline-offset: 2px;
+}
+
 .community-composer button,
 .community-form-actions button,
 .community-owner-actions button {

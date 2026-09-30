@@ -371,6 +371,7 @@ export interface components {
             /** @enum {string} */
             mediaType: "IMAGE" | "VIDEO";
             mimeType: string;
+            /** @description Browser-observed size in bytes. Images are limited to 10 MiB and videos to 50 MiB. */
             sizeBytes: number;
         };
         MediaUploadIntent: {
@@ -382,7 +383,8 @@ export interface components {
             uploadUrl: string;
             /** Format: date-time */
             expiresAt: string;
-            requiredHeaders: {
+            /** @description Signed fields that must be copied unchanged into the multipart provider upload together with the file field. */
+            uploadFields: {
                 [key: string]: string;
             };
             version: number;
@@ -707,14 +709,13 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     finalizeCommunityMedia: {
         parameters: {
             query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
+            header?: never;
             path: {
                 mediaId: components["parameters"]["MediaId"];
             };
@@ -735,6 +736,7 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     deleteCommunityMedia: {
@@ -750,16 +752,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Owner media tombstoned. */
+            /** @description Unattached owner media tombstoned. Attached media must first be removed through the post update contract. */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             412: components["responses"]["Problem"];
         };
     };

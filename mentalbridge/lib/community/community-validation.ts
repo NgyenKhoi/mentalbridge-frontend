@@ -13,6 +13,10 @@ export type PutCommunityProfileRequest =
   components['schemas']['PutCommunityProfileRequest']
 export type CommunityProblem = components['schemas']['Problem']
 export type CommunityPostWrite = components['schemas']['CreatePostRequest']
+export type CreateMediaUploadIntentRequest =
+  components['schemas']['CreateMediaUploadIntentRequest']
+export type MediaUploadIntent = components['schemas']['MediaUploadIntent']
+export type CommunityMediaRecord = components['schemas']['CommunityMediaRecord']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -26,6 +30,21 @@ const TOPICS = new Set<CommunityTopicCode>([
 ])
 const MEDIA_TYPES = new Set(['IMAGE', 'VIDEO'])
 const MEDIA_AVAILABILITY = new Set(['NONE', 'READY', 'PARTIAL', 'UNAVAILABLE'])
+const MEDIA_STATES = new Set([
+  'PENDING',
+  'PROCESSING',
+  'READY',
+  'REJECTED',
+  'DELETED',
+  'EXPIRED',
+])
+const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime'])
+const UPLOAD_HOSTS = new Set([
+  'api.cloudinary.com',
+  'api-eu.cloudinary.com',
+  'api-ap.cloudinary.com',
+])
 const AVATAR_PRESETS = new Set<CommunityAvatarPreset>([
   'LEAF',
   'SUNRISE',
@@ -86,6 +105,11 @@ function httpsUrl(value: unknown): value is string {
   } catch {
     return false
   }
+}
+
+function uploadUrl(value: unknown): value is string {
+  if (!httpsUrl(value)) return false
+  return UPLOAD_HOSTS.has(new URL(value).hostname)
 }
 
 function parseAuthor(value: unknown): CommunityAuthor | null {
@@ -245,6 +269,10 @@ export function isCommunityPostId(value: string) {
   return UUID.test(value)
 }
 
+export function isCommunityMediaId(value: string) {
+  return UUID.test(value)
+}
+
 export function isCommunityTopic(value: string): value is CommunityTopicCode {
   return TOPICS.has(value as CommunityTopicCode)
 }
@@ -276,6 +304,98 @@ export function parseCommunityPostWrite(
     return null
   }
   return input as CommunityPostWrite
+}
+
+export function parseCreateMediaUploadIntent(
+  value: unknown,
+): CreateMediaUploadIntentRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['fileName', 'mediaType', 'mimeType', 'sizeBytes']) ||
+    !text(input.fileName, 1, 255) ||
+    (input.fileName as string).trim().length === 0 ||
+    [...(input.fileName as string)].some((character) =>
+      /[\u0000-\u001f\u007f]/.test(character),
+    ) ||
+    (input.mediaType !== 'IMAGE' && input.mediaType !== 'VIDEO') ||
+    typeof input.mimeType !== 'string' ||
+    !Number.isSafeInteger(input.sizeBytes) ||
+    Number(input.sizeBytes) < 1
+  ) {
+    return null
+  }
+  const allowed =
+    input.mediaType === 'IMAGE' ? IMAGE_MIME_TYPES : VIDEO_MIME_TYPES
+  const maximum = input.mediaType === 'IMAGE' ? 10_485_760 : 52_428_800
+  if (!allowed.has(input.mimeType) || Number(input.sizeBytes) > maximum) {
+    return null
+  }
+  return input as CreateMediaUploadIntentRequest
+}
+
+export function parseMediaUploadIntent(
+  value: unknown,
+): MediaUploadIntent | null {
+  const intent = record(value)
+  const fields = record(intent?.uploadFields)
+  if (
+    !intent ||
+    !exactKeys(intent, [
+      'mediaId',
+      'state',
+      'uploadUrl',
+      'expiresAt',
+      'uploadFields',
+      'version',
+    ]) ||
+    typeof intent.mediaId !== 'string' ||
+    !UUID.test(intent.mediaId) ||
+    intent.state !== 'PENDING' ||
+    !uploadUrl(intent.uploadUrl) ||
+    !dateTime(intent.expiresAt) ||
+    !fields ||
+    Object.keys(fields).length < 1 ||
+    Object.keys(fields).length > 16 ||
+    !Object.entries(fields).every(
+      ([key, field]) =>
+        /^[a-z][a-z0-9_]{0,63}$/.test(key) &&
+        typeof field === 'string' &&
+        field.length <= 1024,
+    ) ||
+    !nonNegativeInteger(intent.version)
+  ) {
+    return null
+  }
+  return intent as MediaUploadIntent
+}
+
+export function parseCommunityMediaRecord(
+  value: unknown,
+): CommunityMediaRecord | null {
+  const media = record(value)
+  if (
+    !media ||
+    !exactKeys(media, [
+      'mediaId',
+      'mediaType',
+      'state',
+      'version',
+      'createdAt',
+      'updatedAt',
+    ]) ||
+    typeof media.mediaId !== 'string' ||
+    !UUID.test(media.mediaId) ||
+    (media.mediaType !== 'IMAGE' && media.mediaType !== 'VIDEO') ||
+    typeof media.state !== 'string' ||
+    !MEDIA_STATES.has(media.state) ||
+    !nonNegativeInteger(media.version) ||
+    !dateTime(media.createdAt) ||
+    !dateTime(media.updatedAt)
+  ) {
+    return null
+  }
+  return media as CommunityMediaRecord
 }
 
 export function parseOwnerVersion(value: string | null): number | null {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { ApiError } from '@/lib/api/api-error'
@@ -9,6 +9,7 @@ import {
   type CommunityTopic,
   type CommunityTopicCode,
 } from '@/features/community/api/browser-community'
+import CommunityMediaUploader from './CommunityMediaUploader'
 
 const MAX_CONTENT = 5000
 
@@ -20,11 +21,20 @@ export default function CommunityPostComposer({
   const [content, setContent] = useState('')
   const [selected, setSelected] = useState<CommunityTopicCode[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [mediaIds, setMediaIds] = useState<string[]>([])
+  const [mediaBusy, setMediaBusy] = useState(false)
   const [message, setMessage] = useState('')
   const command = useRef<{ signature: string; key: string } | undefined>(
     undefined,
   )
   const length = [...content].length
+  const updateMedia = useCallback(
+    ({ mediaIds: readyIds, busy }: { mediaIds: string[]; busy: boolean }) => {
+      setMediaIds(readyIds)
+      setMediaBusy(busy)
+    },
+    [],
+  )
 
   function toggle(topic: CommunityTopicCode) {
     setMessage('')
@@ -43,7 +53,11 @@ export default function CommunityPostComposer({
       setMessage('Hãy nhập nội dung và chọn từ một đến ba chủ đề.')
       return
     }
-    const input = { content: normalized, topics: selected, mediaIds: [] }
+    if (mediaBusy) {
+      setMessage('Hãy chờ tệp tải lên xong trước khi đăng bài.')
+      return
+    }
+    const input = { content: normalized, topics: selected, mediaIds }
     const signature = JSON.stringify(input)
     if (!command.current || command.current.signature !== signature) {
       command.current = { signature, key: crypto.randomUUID() }
@@ -119,6 +133,7 @@ export default function CommunityPostComposer({
           ))}
         </div>
       </fieldset>
+      <CommunityMediaUploader disabled={submitting} onChange={updateMedia} />
       {message && (
         <p className="community-form-error" role="alert">
           {message}
@@ -130,7 +145,7 @@ export default function CommunityPostComposer({
         </button>
         <button
           type="button"
-          disabled={submitting || length > MAX_CONTENT}
+          disabled={submitting || mediaBusy || length > MAX_CONTENT}
           onClick={() => void submit()}
         >
           {submitting ? 'Đang đăng…' : 'Đăng câu chuyện'}
