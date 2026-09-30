@@ -111,7 +111,11 @@ function errorMessage(error: unknown) {
   return messages[error.code] ?? 'Lịch hẹn tạm thời chưa thể cập nhật.'
 }
 
-export default function AppointmentRequestPanel() {
+export default function AppointmentRequestPanel({
+  focusAppointmentId,
+}: {
+  focusAppointmentId?: string
+}) {
   const { confirm, showActionToast } = useFeedback()
   const [slots, setSlots] = useState<BookableSlot[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -383,6 +387,15 @@ export default function AppointmentRequestPanel() {
           {error}
         </p>
       )}
+      {!loading &&
+        !error &&
+        focusAppointmentId &&
+        !appointments.some((item) => item.id === focusAppointmentId) && (
+          <p className={styles.empty} role="status">
+            Không tìm thấy lịch hẹn này trong tài khoản của bạn. Hãy kiểm tra
+            danh sách lịch hẹn mới nhất.
+          </p>
+        )}
       {next && (
         <section
           className={styles.nextAppointment}
@@ -443,123 +456,138 @@ export default function AppointmentRequestPanel() {
           <p className={styles.empty}>Không có lịch hẹn trong nhóm này.</p>
         ) : (
           <div className={styles.grid}>
-            {visibleAppointments.map((item) => (
-              <article
-                className={styles.card}
-                key={item.id}
-                id={`appointment-${item.id}`}
-              >
-                <div className={styles.status}>
-                  {appointmentStatus[item.status]}
-                </div>
-                <h3>{item.specialistDisplayName}</h3>
-                <p>
-                  {item.modality === 'IN_APP_CHAT'
-                    ? 'Chat trong ứng dụng'
-                    : 'Video trong ứng dụng'}
-                </p>
-                <dl>
-                  <div>
-                    <dt>Thời gian</dt>
-                    <dd>{format(item.scheduledStartAt, item.timezone)}</dd>
+            {visibleAppointments.map((item) => {
+              const isFocused = item.id === focusAppointmentId
+              return (
+                <article
+                  className={`${styles.card} ${isFocused ? styles.focusedCard : ''}`}
+                  key={item.id}
+                  id={
+                    isFocused
+                      ? 'appointment-from-reminder'
+                      : `appointment-${item.id}`
+                  }
+                >
+                  {isFocused && <span id={`appointment-${item.id}`} />}
+                  <div className={styles.status}>
+                    {appointmentStatus[item.status]}
                   </div>
-                  <div>
-                    <dt>Hạn quyết định</dt>
-                    <dd>{format(item.decisionDeadlineAt, item.timezone)}</dd>
-                  </div>
-                  <div>
-                    <dt>Lượt tư vấn</dt>
-                    <dd>
-                      {item.cancellationCreditOutcome ===
-                      'TRANSFERRED_TO_REPLACEMENT'
-                        ? 'Đã chuyển sang lịch mới'
-                        : item.cancellationCreditOutcome === 'FORFEITED'
-                          ? 'Không được hoàn lại'
-                          : item.cancellationCreditOutcome === 'RELEASED'
-                            ? 'Đã được hoàn lại'
-                            : creditOutcome[item.creditState]}
-                    </dd>
-                  </div>
-                </dl>
-                {replacementText(item) && (
-                  <p className={styles.relationship}>{replacementText(item)}</p>
-                )}
-                {item.status === 'CANCELLED' && (
-                  <div className={styles.audit}>
-                    <strong>Thông tin hủy lịch</strong>
-                    <span>
-                      {item.cancellationActor === 'USER'
-                        ? 'Bạn'
-                        : 'Quản trị viên'}{' '}
-                      đã hủy vào{' '}
-                      {item.cancelledAt
-                        ? format(item.cancelledAt, item.timezone)
-                        : ''}
-                    </span>
-                    <span>
-                      {item.cancellationReason === 'USER_RESCHEDULED'
-                        ? 'Lý do: đổi sang lịch mới'
-                        : item.cancellationReason === 'SPECIALIST_SUSPENDED'
-                          ? 'Lý do: chuyên gia tạm ngưng nhận lịch'
-                          : 'Lý do: bạn yêu cầu hủy'}
-                    </span>
-                  </div>
-                )}
-                {item.history.length > 0 && (
-                  <details className={styles.history}>
-                    <summary>Lịch sử thay đổi</summary>
-                    <ol>
-                      {item.history.map((event) => (
-                        <li key={event.eventId}>
-                          <span>{appointmentStatus[event.toStatus]}</span>
-                          <time>{format(event.occurredAt, item.timezone)}</time>
-                        </li>
-                      ))}
-                    </ol>
-                  </details>
-                )}
-                {item.modality === 'IN_APP_CHAT' &&
-                  (item.status === 'CONFIRMED' ||
-                    item.status === 'IN_PROGRESS' ||
-                    item.history.some(
-                      (event) => event.toStatus === 'CONFIRMED',
-                    )) && (
-                    <Link
-                      className={styles.chatLink}
-                      href={`/messages?appointmentId=${encodeURIComponent(item.id)}`}
-                    >
-                      Mở tin nhắn
-                    </Link>
+                  <h3>{item.specialistDisplayName}</h3>
+                  <p>
+                    {item.modality === 'IN_APP_CHAT'
+                      ? 'Chat trong ứng dụng'
+                      : 'Video trong ứng dụng'}
+                  </p>
+                  <dl>
+                    <div>
+                      <dt>Thời gian</dt>
+                      <dd>{format(item.scheduledStartAt, item.timezone)}</dd>
+                    </div>
+                    <div>
+                      <dt>Hạn quyết định</dt>
+                      <dd>{format(item.decisionDeadlineAt, item.timezone)}</dd>
+                    </div>
+                    <div>
+                      <dt>Lượt tư vấn</dt>
+                      <dd>
+                        {item.cancellationCreditOutcome ===
+                        'TRANSFERRED_TO_REPLACEMENT'
+                          ? 'Đã chuyển sang lịch mới'
+                          : item.cancellationCreditOutcome === 'FORFEITED'
+                            ? 'Không được hoàn lại'
+                            : item.cancellationCreditOutcome === 'RELEASED'
+                              ? 'Đã được hoàn lại'
+                              : creditOutcome[item.creditState]}
+                      </dd>
+                    </div>
+                  </dl>
+                  {replacementText(item) && (
+                    <p className={styles.relationship}>
+                      {replacementText(item)}
+                    </p>
                   )}
-                {(item.status === 'REQUESTED' ||
-                  item.status === 'CONFIRMED') && (
-                  <div className={styles.actions}>
-                    <button
-                      type="button"
-                      className={styles.secondary}
-                      onClick={() => setRescheduling(item)}
-                      disabled={submitting !== null}
-                    >
-                      Đổi lịch
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.danger}
-                      onClick={() => void cancelAppointment(item)}
-                      disabled={submitting !== null}
-                    >
-                      {submitting === item.id ? 'Đang hủy…' : 'Hủy lịch'}
-                    </button>
-                  </div>
-                )}
-                {item.status === 'CONFIRMED' && (
-                  <ConsultationBriefEditor appointmentId={item.id} />
-                )}
-                {item.status === 'COMPLETED' && (
-                  <SessionSummaryPanel appointmentId={item.id} viewer="USER" />
-                )}
-              </article>
-            ))}
+                  {item.status === 'CANCELLED' && (
+                    <div className={styles.audit}>
+                      <strong>Thông tin hủy lịch</strong>
+                      <span>
+                        {item.cancellationActor === 'USER'
+                          ? 'Bạn'
+                          : 'Quản trị viên'}{' '}
+                        đã hủy vào{' '}
+                        {item.cancelledAt
+                          ? format(item.cancelledAt, item.timezone)
+                          : ''}
+                      </span>
+                      <span>
+                        {item.cancellationReason === 'USER_RESCHEDULED'
+                          ? 'Lý do: đổi sang lịch mới'
+                          : item.cancellationReason === 'SPECIALIST_SUSPENDED'
+                            ? 'Lý do: chuyên gia tạm ngưng nhận lịch'
+                            : 'Lý do: bạn yêu cầu hủy'}
+                      </span>
+                    </div>
+                  )}
+                  {item.history.length > 0 && (
+                    <details className={styles.history}>
+                      <summary>Lịch sử thay đổi</summary>
+                      <ol>
+                        {item.history.map((event) => (
+                          <li key={event.eventId}>
+                            <span>{appointmentStatus[event.toStatus]}</span>
+                            <time>
+                              {format(event.occurredAt, item.timezone)}
+                            </time>
+                          </li>
+                        ))}
+                      </ol>
+                    </details>
+                  )}
+                  {item.modality === 'IN_APP_CHAT' &&
+                    (item.status === 'CONFIRMED' ||
+                      item.status === 'IN_PROGRESS' ||
+                      item.history.some(
+                        (event) => event.toStatus === 'CONFIRMED',
+                      )) && (
+                      <Link
+                        className={styles.chatLink}
+                        href={`/messages?appointmentId=${encodeURIComponent(item.id)}`}
+                      >
+                        Mở tin nhắn
+                      </Link>
+                    )}
+                  {(item.status === 'REQUESTED' ||
+                    item.status === 'CONFIRMED') && (
+                    <div className={styles.actions}>
+                      <button
+                        type="button"
+                        className={styles.secondary}
+                        onClick={() => setRescheduling(item)}
+                        disabled={submitting !== null}
+                      >
+                        Đổi lịch
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.danger}
+                        onClick={() => void cancelAppointment(item)}
+                        disabled={submitting !== null}
+                      >
+                        {submitting === item.id ? 'Đang hủy…' : 'Hủy lịch'}
+                      </button>
+                    </div>
+                  )}
+                  {item.status === 'CONFIRMED' && (
+                    <ConsultationBriefEditor appointmentId={item.id} />
+                  )}
+                  {item.status === 'COMPLETED' && (
+                    <SessionSummaryPanel
+                      appointmentId={item.id}
+                      viewer="USER"
+                    />
+                  )}
+                </article>
+              )
+            })}
           </div>
         )}
       </section>

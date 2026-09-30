@@ -52,6 +52,10 @@
   padding: 1.25rem;
   box-shadow: var(--shadow);
 }
+.focusedCard {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 2px var(--teal-pale), var(--shadow);
+}
 .card h3 {
   margin: 0.6rem 0 0.25rem;
 }

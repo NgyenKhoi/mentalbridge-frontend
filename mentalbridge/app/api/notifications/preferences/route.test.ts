@@ -43,6 +43,7 @@ const preferences = {
     cadence: 'IMMEDIATE' as const,
     wellbeingDigestEnabled: false,
     resourceRemindersEnabled: false,
+    appointmentRemindersEnabled: false,
     dailyDigestTime: '19:00',
     resourceReminderTime: '18:30',
   },
@@ -111,9 +112,30 @@ describe('/api/notifications/preferences', () => {
     )
   })
 
+  it('accepts a separate appointment reminder preference', async () => {
+    const patch = { email: { appointmentRemindersEnabled: true } }
+    contentMocks.update.mockResolvedValue({
+      preferences: {
+        ...preferences,
+        email: { ...preferences.email, appointmentRemindersEnabled: true },
+        version: 1,
+      },
+      etag: '"1"',
+    })
+    const response = await PATCH(request('PATCH', patch, '"0"'))
+    expect(response.status).toBe(200)
+    expect(contentMocks.update).toHaveBeenCalledWith(
+      'identity-access-secret',
+      patch,
+      '"0"',
+      expect.any(String),
+    )
+  })
+
   it.each([
     [{ channels: { sms: true } }, '"0"'],
     [{ quietHours: { start: '25:00' } }, '"0"'],
+    [{ email: { appointmentRemindersEnabled: 'yes' } }, '"0"'],
     [{ channels: { email: true } }, undefined],
   ])(
     'rejects invalid input before Content is called',

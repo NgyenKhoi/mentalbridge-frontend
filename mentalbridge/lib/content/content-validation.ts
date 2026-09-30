@@ -513,6 +513,7 @@ export function parseNotificationPreferences(
       'cadence',
       'wellbeingDigestEnabled',
       'resourceRemindersEnabled',
+      'appointmentRemindersEnabled',
       'dailyDigestTime',
       'resourceReminderTime',
     ]) ||
@@ -520,6 +521,7 @@ export function parseNotificationPreferences(
     !EMAIL_CADENCES.has(email.cadence) ||
     typeof email.wellbeingDigestEnabled !== 'boolean' ||
     typeof email.resourceRemindersEnabled !== 'boolean' ||
+    typeof email.appointmentRemindersEnabled !== 'boolean' ||
     typeof email.dailyDigestTime !== 'string' ||
     !TIME.test(email.dailyDigestTime) ||
     typeof email.resourceReminderTime !== 'string' ||
@@ -596,6 +598,7 @@ export function parseNotificationPreferencePatch(
         'cadence',
         'wellbeingDigestEnabled',
         'resourceRemindersEnabled',
+        'appointmentRemindersEnabled',
         'dailyDigestTime',
         'resourceReminderTime',
       ]) ||
@@ -606,6 +609,8 @@ export function parseNotificationPreferencePatch(
         typeof email.wellbeingDigestEnabled !== 'boolean') ||
       (email.resourceRemindersEnabled !== undefined &&
         typeof email.resourceRemindersEnabled !== 'boolean') ||
+      (email.appointmentRemindersEnabled !== undefined &&
+        typeof email.appointmentRemindersEnabled !== 'boolean') ||
       (email.dailyDigestTime !== undefined &&
         (typeof email.dailyDigestTime !== 'string' ||
           !TIME.test(email.dailyDigestTime))) ||

@@ -698,6 +698,33 @@ export default function NotificationsPage() {
               </label>
             </div>
             <div className="notification-category-list">
+              <article>
+                <span>✉</span>
+                <div>
+                  <strong>Nhắc lịch hẹn qua email</strong>
+                  <small>
+                    Một email khoảng 1 giờ trước lịch chat hoặc video đã xác
+                    nhận. Nếu giờ yên tĩnh kéo dài đến lúc bắt đầu, email sẽ
+                    không được gửi. Đổi hoặc hủy lịch sẽ hủy nhắc lịch cũ. Không
+                    gộp vào bản tổng hợp hằng ngày.
+                  </small>
+                </div>
+                <Toggle
+                  checked={preferences.email.appointmentRemindersEnabled}
+                  onChange={() =>
+                    change({
+                      ...preferences,
+                      email: {
+                        ...preferences.email,
+                        appointmentRemindersEnabled:
+                          !preferences.email.appointmentRemindersEnabled,
+                      },
+                    })
+                  }
+                  label="Nhắc lịch hẹn qua email"
+                  disabled={disabled || !preferences.channels.email}
+                />
+              </article>
               {(
                 [
                   [

@@ -539,6 +539,7 @@ export interface components {
             resourceRemindersEnabled: boolean;
             dailyDigestTime: string;
             resourceReminderTime: string;
+            appointmentRemindersEnabled: boolean;
         };
         EmailPreferencesPatch: {
             cadence?: components["schemas"]["EmailCadence"];
@@ -546,6 +547,7 @@ export interface components {
             resourceRemindersEnabled?: boolean;
             dailyDigestTime?: string;
             resourceReminderTime?: string;
+            appointmentRemindersEnabled?: boolean;
         };
         WellbeingDigestResourceItem: {
             /** Format: uuid */

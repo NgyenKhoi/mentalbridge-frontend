@@ -136,6 +136,34 @@ describe('AppointmentRequestPanel', () => {
     ).toBeInTheDocument()
   })
 
+  it('opens a reminder deep link only for an appointment in the current account', async () => {
+    appointmentClient.slots.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2099-01-01T00:00:00Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list.mockResolvedValue({
+      items: [{ ...appointment, status: 'CONFIRMED' }],
+      count: 1,
+      generatedAt: '2099-01-01T00:00:00Z',
+    })
+    const { rerender } = render(
+      <AppointmentRequestPanel focusAppointmentId={appointment.id} />,
+    )
+    expect(
+      (await screen.findAllByText('Appointment specialist')).length,
+    ).toBeGreaterThan(0)
+    expect(document.getElementById('appointment-from-reminder')).toBeVisible()
+
+    rerender(
+      <AppointmentRequestPanel focusAppointmentId="another-appointment" />,
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Không tìm thấy lịch hẹn này trong tài khoản của bạn',
+    )
+  })
+
   it('cancels with the exact version and renders the persisted audit outcome after reload', async () => {
     const cancelled = {
       ...appointment,

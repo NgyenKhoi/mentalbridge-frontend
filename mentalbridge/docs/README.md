@@ -15,6 +15,7 @@ how the executable Next.js application is organized and delivered.
 7. [MB-375 SupportPlan replacement evidence](mb-375-support-plan-replacement-evidence.md)
 8. [MB-363 approved specialist discovery consumer evidence](mb-363-specialist-discovery-evidence.md)
 9. [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
+10. [MB-549 appointment reminder consumer evidence](evidence/mb-549-appointment-reminder-consumer.md)
 
 ## UI and motion routing
 

@@ -57,6 +57,7 @@ const preferences = {
     cadence: 'IMMEDIATE' as const,
     wellbeingDigestEnabled: false,
     resourceRemindersEnabled: false,
+    appointmentRemindersEnabled: false,
     dailyDigestTime: '19:00',
     resourceReminderTime: '18:30',
   },
@@ -285,6 +286,59 @@ describe('Notification preferences page', () => {
       '"0"',
     )
     expect(await screen.findByText('Đã lưu cài đặt thông báo.')).toBeVisible()
+  })
+
+  it('saves the separate appointment reminder opt-in with timezone and quiet hours', async () => {
+    const user = userEvent.setup()
+    api.save.mockImplementation(async (patch) => ({
+      preferences: { ...preferences, ...patch, version: 1 },
+      etag: '"1"',
+    }))
+    render(<NotificationsPage />)
+    await user.click(screen.getByRole('button', { name: /Cài đặt/i }))
+    await user.click(await screen.findByRole('switch', { name: 'Email' }))
+    await user.click(
+      screen.getByRole('switch', { name: 'Nhắc lịch hẹn qua email' }),
+    )
+    await user.selectOptions(screen.getByLabelText('Múi giờ'), 'Europe/Paris')
+    await user.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
+
+    await waitFor(() => expect(api.save).toHaveBeenCalledTimes(1))
+    expect(api.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: expect.objectContaining({
+          appointmentRemindersEnabled: true,
+          wellbeingDigestEnabled: false,
+        }),
+        quietHours: expect.objectContaining({
+          enabled: true,
+          timeZone: 'Europe/Paris',
+        }),
+      }),
+      '"0"',
+    )
+    expect(await screen.findByText('Đã lưu cài đặt thông báo.')).toBeVisible()
+    expect(
+      screen.getByText(/Nếu giờ yên tĩnh kéo dài đến lúc bắt đầu/),
+    ).toBeVisible()
+  })
+
+  it('keeps the appointment reminder change unsaved when persistence fails', async () => {
+    const user = userEvent.setup()
+    api.save.mockRejectedValue(new Error('provider unavailable'))
+    render(<NotificationsPage />)
+    await user.click(screen.getByRole('button', { name: /Cài đặt/i }))
+    await user.click(await screen.findByRole('switch', { name: 'Email' }))
+    await user.click(
+      screen.getByRole('switch', { name: 'Nhắc lịch hẹn qua email' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
+
+    expect(await screen.findByRole('alert')).toBeVisible()
+    expect(
+      screen.queryByText('Đã lưu cài đặt thông báo.'),
+    ).not.toBeInTheDocument()
+    expect(api.save).toHaveBeenCalledTimes(1)
   })
 
   it('shows a recoverable load failure instead of local defaults', async () => {
