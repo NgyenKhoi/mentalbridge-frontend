@@ -377,6 +377,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/wellbeing-digest/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview today's privacy-safe wellbeing email digest */
+        get: operations["previewWellbeingDigest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/{notificationId}/read": {
         parameters: {
             query?: never;
@@ -520,11 +537,31 @@ export interface components {
             cadence: components["schemas"]["EmailCadence"];
             wellbeingDigestEnabled: boolean;
             resourceRemindersEnabled: boolean;
+            dailyDigestTime: string;
+            resourceReminderTime: string;
         };
         EmailPreferencesPatch: {
             cadence?: components["schemas"]["EmailCadence"];
             wellbeingDigestEnabled?: boolean;
             resourceRemindersEnabled?: boolean;
+            dailyDigestTime?: string;
+            resourceReminderTime?: string;
+        };
+        WellbeingDigestResourceItem: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+        };
+        WellbeingDigestPreview: {
+            /** Format: date */
+            localDate: string;
+            timeZone: string;
+            scheduledTime: string;
+            eligibleNow: boolean;
+            resourceItems: components["schemas"]["WellbeingDigestResourceItem"][];
+            includeJournalPrompt: boolean;
+            includeEmotionPrompt: boolean;
+            empty: boolean;
         };
         NotificationPreferences: {
             notificationsEnabled: boolean;
@@ -2027,6 +2064,28 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    previewWellbeingDigest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current local-day digest preview built from real pending items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WellbeingDigestPreview"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

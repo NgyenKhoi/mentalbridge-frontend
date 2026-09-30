@@ -228,6 +228,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/notification-delivery-contacts/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve an active verified account's email for the notification owner service */
+        get: operations["getNotificationDeliveryContact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/accounts/{accountId}": {
         parameters: {
             query?: never;
@@ -350,6 +367,10 @@ export interface components {
             updatedAt: string;
             /** Format: int64 */
             version: number;
+        };
+        NotificationDeliveryContact: {
+            /** Format: email */
+            email: string;
         };
         AccountPage: {
             items: components["schemas"]["AccountDetail"][];
@@ -873,6 +894,34 @@ export interface operations {
             400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getNotificationDeliveryContact: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-MentalBridge-Service-Token": string;
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current delivery contact */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationDeliveryContact"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     getAccountById: {

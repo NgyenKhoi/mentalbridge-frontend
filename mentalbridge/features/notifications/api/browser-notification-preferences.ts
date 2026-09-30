@@ -6,6 +6,8 @@ export type NotificationPreferences =
   components['schemas']['NotificationPreferences']
 export type NotificationPreferencePatch =
   components['schemas']['NotificationPreferencePatch']
+export type WellbeingDigestPreview =
+  components['schemas']['WellbeingDigestPreview']
 
 export type VersionedNotificationPreferences = Readonly<{
   preferences: NotificationPreferences
@@ -43,4 +45,11 @@ export async function saveNotificationPreferences(
     { headers: { 'If-Match': etag } },
   )
   return versioned(response.data, response.headers.etag)
+}
+
+export async function getWellbeingDigestPreview() {
+  const response = await browserApiClient.get<WellbeingDigestPreview>(
+    '/notifications/wellbeing-digest/preview',
+  )
+  return response.data
 }
