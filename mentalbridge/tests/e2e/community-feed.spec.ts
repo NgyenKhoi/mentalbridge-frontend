@@ -68,13 +68,16 @@ test.describe('Community feed journey', () => {
       .getByRole('group', { name: 'Chọn 1–3 chủ đề' })
       .getByText('Câu chuyện của tôi')
       .click()
+    await page.getByText('Đăng ẩn danh', { exact: true }).click()
     await page.getByRole('button', { name: 'Đăng câu chuyện' }).click()
 
     await expect(page).toHaveURL(/\/community\/[0-9a-f-]+$/)
+    await expect(page.getByText('Thành viên ẩn danh')).toBeVisible()
     await expect(
       page.getByText('Một câu chuyện mới do mình chủ động chia sẻ.'),
     ).toBeVisible()
     await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
+    await page.getByText('Dùng danh tính cộng đồng', { exact: true }).click()
     await page.getByLabel('Nội dung').fill('Câu chuyện đã được mình cập nhật.')
     await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
     await expect(

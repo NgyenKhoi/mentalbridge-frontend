@@ -7,6 +7,9 @@ import {
   parseCommunityPostDetail,
   parseCommunityPostWrite,
   parseCommunityTopics,
+  parseCreateMediaUploadIntent,
+  parseMediaUploadIntent,
+  parseCommunityMediaRecord,
   parseOwnerVersion,
 } from './community-validation'
 
@@ -195,6 +198,49 @@ describe('Community response validation', () => {
     ).toBeNull()
   })
 
+  it('accepts only the contract-safe anonymous author projection and write mode', () => {
+    const anonymousAuthor = {
+      communityProfileId: null,
+      avatarPreset: null,
+      displayName: 'Thành viên ẩn danh',
+      state: 'ANONYMOUS',
+    }
+
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        author: anonymousAuthor,
+        content: 'Một chia sẻ ẩn danh.',
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        author: {
+          ...anonymousAuthor,
+          communityProfileId: post.author.communityProfileId,
+        },
+        content: 'Không được làm lộ hồ sơ cộng đồng.',
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityPostWrite({
+        content: 'Một chia sẻ ẩn danh.',
+        topics: ['MY_STORY'],
+        mediaIds: [],
+        authorMode: 'ANONYMOUS',
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityPostWrite({
+        content: 'Sai chế độ tác giả.',
+        topics: ['MY_STORY'],
+        mediaIds: [],
+        authorMode: 'HIDDEN',
+      }),
+    ).toBeNull()
+  })
+
   it('requires the complete unique governed topic catalogue', () => {
     const topics = [
       'MY_STORY',
@@ -239,5 +285,66 @@ describe('Community response validation', () => {
         avatarPreset: 'https://example.test/me.png',
       }),
     ).toBeNull()
+  })
+
+  it('validates bounded media commands and Cloudinary-only signed intents', () => {
+    expect(
+      parseCreateMediaUploadIntent({
+        fileName: 'ảnh.webp',
+        mediaType: 'IMAGE',
+        mimeType: 'image/webp',
+        sizeBytes: 10_485_760,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCreateMediaUploadIntent({
+        fileName: 'ảnh.svg',
+        mediaType: 'IMAGE',
+        mimeType: 'image/svg+xml',
+        sizeBytes: 100,
+      }),
+    ).toBeNull()
+    expect(
+      parseCreateMediaUploadIntent({
+        fileName: 'ảnh.png',
+        mediaType: 'IMAGE',
+        mimeType: 'image/png',
+        sizeBytes: 10_485_761,
+      }),
+    ).toBeNull()
+
+    const intent = {
+      mediaId: '30000000-0000-4000-8000-000000000001',
+      state: 'PENDING',
+      uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload',
+      expiresAt: '2026-09-30T08:30:00Z',
+      uploadFields: {
+        api_key: 'public-key',
+        public_id: 'scoped-id',
+        signature: 'signed-value',
+      },
+      version: 0,
+    }
+    expect(parseMediaUploadIntent(intent)).not.toBeNull()
+    expect(
+      parseMediaUploadIntent({
+        ...intent,
+        uploadUrl: 'https://uploads.attacker.example/file',
+      }),
+    ).toBeNull()
+    expect(
+      parseMediaUploadIntent({ ...intent, apiSecret: 'must-not-cross-bff' }),
+    ).toBeNull()
+
+    expect(
+      parseCommunityMediaRecord({
+        mediaId: intent.mediaId,
+        mediaType: 'IMAGE',
+        state: 'READY',
+        version: 1,
+        createdAt: '2026-09-30T08:20:00Z',
+        updatedAt: '2026-09-30T08:21:00Z',
+      }),
+    ).not.toBeNull()
   })
 })

@@ -23,6 +23,9 @@ describe('marketing Header session actions', () => {
   it('keeps public sign-in actions when there is no session hint', () => {
     render(<Header />)
 
+    for (const link of screen.getAllByRole('link', { name: 'Cộng đồng' })) {
+      expect(link).toHaveAttribute('href', '/community')
+    }
     expect(screen.getAllByRole('link', { name: 'Đăng nhập' })).not.toHaveLength(
       0,
     )

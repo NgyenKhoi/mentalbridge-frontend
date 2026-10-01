@@ -1050,11 +1050,19 @@ const server = createServer(async (request, response) => {
       const now = new Date().toISOString()
       const post = {
         postId: crypto.randomUUID(),
-        author: {
-          communityProfileId: crypto.randomUUID(),
-          displayName: 'Thành viên MentalBridge',
-          state: 'ACTIVE',
-        },
+        author:
+          body.authorMode === 'ANONYMOUS'
+            ? {
+                communityProfileId: null,
+                displayName: 'Thành viên ẩn danh',
+                avatarPreset: null,
+                state: 'ANONYMOUS',
+              }
+            : {
+                communityProfileId: crypto.randomUUID(),
+                displayName: 'Thành viên MentalBridge',
+                state: 'ACTIVE',
+              },
         content: body.content,
         topics: body.topics,
         media: [],
@@ -1120,6 +1128,20 @@ const server = createServer(async (request, response) => {
       const body = await readBody(request)
       post.content = body.content
       post.topics = body.topics
+      if (body.authorMode === 'ANONYMOUS') {
+        post.author = {
+          communityProfileId: null,
+          displayName: 'Thành viên ẩn danh',
+          avatarPreset: null,
+          state: 'ANONYMOUS',
+        }
+      } else if (body.authorMode === 'PROFILE') {
+        post.author = {
+          communityProfileId: crypto.randomUUID(),
+          displayName: 'Thành viên MentalBridge',
+          state: 'ACTIVE',
+        }
+      }
       post.updatedAt = new Date().toISOString()
       communityPostVersions.set(post.postId, version + 1)
       json(response, 200, post, 'application/json', {

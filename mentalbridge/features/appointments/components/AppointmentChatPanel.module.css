@@ -36,7 +36,8 @@
 }
 .notice,
 .error,
-.empty {
+.empty,
+.creditState {
   border-radius: var(--radius-control);
   padding: 0.85rem 1rem;
 }
@@ -46,6 +47,40 @@
 .error {
   background: var(--terracotta-soft);
   color: var(--terracotta);
+}
+.creditState {
+  margin: 0;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+.attendance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+.attendance p {
+  margin: 0.35rem 0 0;
+  color: var(--ink-soft);
+}
+.attendance button {
+  min-height: 44px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--radius-control);
+  padding: 0.7rem 1rem;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+}
+.attendance button:disabled {
+  opacity: 0.7;
+  cursor: default;
 }
 .messages {
   min-height: 320px;
@@ -112,6 +147,10 @@
     padding: 1rem;
   }
   .header {
+    flex-direction: column;
+  }
+  .attendance {
+    align-items: stretch;
     flex-direction: column;
   }
   .composer {

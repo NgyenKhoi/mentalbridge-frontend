@@ -19,7 +19,7 @@ export async function GET(
   const correlationId = correlationIdFrom(request)
   const { appointmentId } = await context.params
   const operation = request.nextUrl.searchParams.get('operation')?.toUpperCase()
-  if (!['SUBSCRIBE', 'SEND', 'HISTORY'].includes(operation ?? ''))
+  if (!['SUBSCRIBE', 'SEND', 'HISTORY', 'CHECK_IN'].includes(operation ?? ''))
     return localProblem(
       400,
       'VALIDATION_FAILED',
@@ -40,7 +40,7 @@ export async function GET(
       actor.accessToken,
       correlationId,
       appointmentId,
-      operation as 'SUBSCRIBE' | 'SEND' | 'HISTORY',
+      operation as 'SUBSCRIBE' | 'SEND' | 'HISTORY' | 'CHECK_IN',
     )
     return carryConsultationSession(
       consultationSuccess(result.data, correlationId),

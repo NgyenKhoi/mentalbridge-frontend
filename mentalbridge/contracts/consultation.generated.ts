@@ -75,6 +75,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/appointments/{appointmentId}/chat-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Records idempotent, content-free evidence observed by Realtime for the authenticated assigned participant. Only explicit check-in, bounded server-observed presence, and accepted-message metadata are accepted; late delivery cannot make a post-end occurrence count. */
+        post: operations["recordAppointmentChatEvidence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile": {
         parameters: {
             query?: never;
@@ -627,15 +646,15 @@ export interface components {
             /** Format: uuid */
             eventId: string;
             /** @enum {string|null} */
-            fromStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED" | null;
+            fromStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED" | null;
             /** @enum {string} */
-            toStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            toStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED";
             /** @enum {string} */
             actorType: "USER" | "SPECIALIST" | "ADMIN" | "SYSTEM";
             /** Format: uuid */
             actorId: string | null;
             /** @enum {string} */
-            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED";
+            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED" | "SESSION_ACTIVITY_OBSERVED" | "SCHEDULED_WINDOW_ENDED" | "EVIDENCE_REQUIREMENTS_MET";
             creditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
             /** Format: date-time */
             occurredAt: string;
@@ -670,18 +689,46 @@ export interface components {
             /** Format: uuid */
             specialistAccountId: string;
             /** @enum {string} */
-            phase: "NOT_AVAILABLE" | "TOO_EARLY" | "WAITING" | "ACTIVE" | "ENDED" | "CANCELLED" | "RESCHEDULED";
+            phase: "NOT_AVAILABLE" | "TOO_EARLY" | "WAITING" | "ACTIVE" | "ENDED_PROCESSING" | "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | "CANCELLED" | "RESCHEDULED";
             /** @enum {string} */
-            reasonCode: "APPOINTMENT_NOT_CONFIRMED" | "CHAT_ENTRY_TOO_EARLY" | "APPOINTMENT_WAITING" | "APPOINTMENT_ACTIVE" | "APPOINTMENT_ENDED" | "APPOINTMENT_CANCELLED" | "APPOINTMENT_RESCHEDULED";
+            reasonCode: "APPOINTMENT_NOT_CONFIRMED" | "CHAT_ENTRY_TOO_EARLY" | "APPOINTMENT_WAITING" | "APPOINTMENT_ACTIVE" | "SESSION_OUTCOME_PROCESSING" | "SESSION_EVIDENCE_REVIEW" | "SESSION_COMPLETED" | "SESSION_USER_NO_SHOW" | "SESSION_SPECIALIST_NO_SHOW" | "SESSION_BOTH_NO_SHOW" | "SESSION_INSUFFICIENT_EVIDENCE" | "APPOINTMENT_CANCELLED" | "APPOINTMENT_RESCHEDULED";
             subscribeAllowed: boolean;
             sendAllowed: boolean;
             historyAllowed: boolean;
+            checkInAllowed: boolean;
+            participantCheckedIn: boolean;
+            /** @enum {string|null} */
+            sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
+            /** @enum {string} */
+            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
             /** Format: date-time */
             scheduledStartAt: string;
             /** Format: date-time */
             scheduledEndAt: string;
             /** Format: date-time */
             serverTime: string;
+        };
+        ChatEvidenceRequest: {
+            /** Format: uuid */
+            evidenceId: string;
+            /** @enum {string} */
+            type: "CHECK_IN" | "PRESENCE_INTERVAL" | "ACCEPTED_MESSAGE";
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: date-time */
+            intervalStartedAt?: string | null;
+            /** Format: uuid */
+            messageId?: string | null;
+        };
+        ChatEvidenceResponse: {
+            /** Format: uuid */
+            evidenceId: string;
+            accepted: boolean;
+            duplicate: boolean;
+            /** @enum {string} */
+            reasonCode: "EVIDENCE_ACCEPTED" | "EVIDENCE_ALREADY_ACCEPTED" | "EVIDENCE_ID_CONFLICT" | "EVIDENCE_WINDOW_CLOSED" | "EVIDENCE_OCCURRED_OUTSIDE_WINDOW" | "INVALID_EVIDENCE_SHAPE" | "INVALID_PRESENCE_INTERVAL" | "APPOINTMENT_NOT_ELIGIBLE";
+            /** Format: date-time */
+            receivedAt: string;
         };
         /** @enum {string} */
         DiscoveryContextState: "NOT_REQUESTED" | "APPLIED" | "UNAVAILABLE";
@@ -754,7 +801,7 @@ export interface components {
             specialistAccountId: string;
             specialistDisplayName: string;
             /** @enum {string} */
-            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED";
             modality: components["schemas"]["AppointmentModality"];
             /** Format: date-time */
             scheduledStartAt: string;
@@ -782,6 +829,17 @@ export interface components {
             /** @enum {string|null} */
             cancellationActor: "USER" | "ADMIN" | null;
             cancellationCreditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
+            /** @enum {string|null} */
+            sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
+            sessionOutcomeReason: string | null;
+            /** @enum {string|null} */
+            sessionPolicyVersion: "chat-session-completion-v1" | null;
+            /** Format: date-time */
+            sessionEndedAt: string | null;
+            /** Format: date-time */
+            sessionSettledAt: string | null;
+            /** Format: uuid */
+            completionFactId: string | null;
             /** @enum {string} */
             creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
             history: components["schemas"]["AppointmentHistoryEntry"][];
@@ -796,7 +854,7 @@ export interface components {
             /** Format: uuid */
             specialistAccountId: string;
             /** @enum {string} */
-            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED";
             /** Format: date-time */
             scheduledStartAt: string;
             /** Format: date-time */
@@ -1140,7 +1198,7 @@ export interface operations {
     getAppointmentChatEligibility: {
         parameters: {
             query: {
-                operation: "SUBSCRIBE" | "SEND" | "HISTORY";
+                operation: "SUBSCRIBE" | "SEND" | "HISTORY" | "CHECK_IN";
             };
             header?: never;
             path: {
@@ -1160,6 +1218,39 @@ export interface operations {
                     "application/json": components["schemas"]["AppointmentChatEligibility"];
                 };
             };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["AppointmentNotFoundProblem"];
+        };
+    };
+    recordAppointmentChatEvidence: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Shared service credential proving the evidence was observed by Realtime. */
+                "X-MentalBridge-Service-Token": string;
+            };
+            path: {
+                appointmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatEvidenceRequest"];
+            };
+        };
+        responses: {
+            /** @description Evidence acceptance, duplicate, or stable ignored reason */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatEvidenceResponse"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["AppointmentNotFoundProblem"];

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/api/api-error'
 import type { AppointmentChatEligibility } from '@/lib/consultation/consultation-validation'
 import {
+  createCheckInCommand,
+  createHeartbeatCommand,
   createMessageCommand,
   createSocketIoFactory,
   createSubscribeCommand,
@@ -24,9 +26,26 @@ const phaseText: Record<AppointmentChatEligibility['phase'], string> = {
   TOO_EARLY: 'Phòng chờ sẽ mở trước giờ hẹn 10 phút.',
   WAITING: 'Bạn đang ở phòng chờ. Gửi tin nhắn sẽ mở đúng giờ hẹn.',
   ACTIVE: 'Buổi chat đang diễn ra.',
-  ENDED: 'Buổi chat đã kết thúc. Lịch sử hiện chỉ đọc.',
+  ENDED_PROCESSING:
+    'Buổi chat đã kết thúc. Hệ thống đang tổng hợp bằng chứng tham gia.',
+  COMPLETED: 'Buổi chat đã hoàn thành và credit đã được sử dụng.',
+  USER_NO_SHOW: 'Buổi chat kết thúc với kết quả người dùng không tham gia.',
+  SPECIALIST_NO_SHOW:
+    'Buổi chat kết thúc với kết quả chuyên gia không tham gia.',
+  BOTH_NO_SHOW: 'Buổi chat kết thúc vì cả hai bên không tham gia.',
+  INSUFFICIENT_EVIDENCE:
+    'Chưa đủ bằng chứng để xác nhận buổi chat đã hoàn thành.',
+  EVIDENCE_REVIEW:
+    'Dữ liệu tham gia đã được chuyển sang trạng thái cần đối soát.',
   CANCELLED: 'Lịch hẹn đã bị hủy. Lịch sử hiện chỉ đọc.',
   RESCHEDULED: 'Lịch hẹn đã được đổi. Lịch sử của lịch cũ hiện chỉ đọc.',
+}
+
+const creditText: Record<AppointmentChatEligibility['creditState'], string> = {
+  HELD: 'Credit đang được giữ trong lúc buổi hẹn được xử lý.',
+  CONSUMED: 'Credit đã được sử dụng cho buổi tư vấn hoàn thành.',
+  FORFEITED: 'Credit đã bị trừ theo kết quả người dùng không tham gia.',
+  AVAILABLE: 'Credit đã được hoàn lại để bạn có thể đặt lịch khác.',
 }
 
 export default function AppointmentChatPanel({
@@ -125,7 +144,9 @@ export default function AppointmentChatPanel({
                 ? current.subscribeAllowed
                 : operation === 'send'
                   ? current.sendAllowed
-                  : current.historyAllowed
+                  : operation === 'history'
+                    ? current.historyAllowed
+                    : current.checkInAllowed
             return allowed ? 'eligible' : 'denied'
           } catch {
             return 'unavailable'
@@ -201,6 +222,34 @@ export default function AppointmentChatPanel({
     }
   }
 
+  async function checkIn() {
+    if (
+      !eligibility?.checkInAllowed ||
+      eligibility.participantCheckedIn ||
+      !transportRef.current
+    )
+      return
+    const result = await transportRef.current.checkIn(
+      eligibility.conversationId,
+      createCheckInCommand(eligibility.conversationId),
+    )
+    if (result === 'sent') await refresh()
+    else setError('Không thể ghi nhận điểm danh. Vui lòng thử lại.')
+  }
+
+  useEffect(() => {
+    if (
+      !eligibility?.subscribeAllowed ||
+      (connection?.phase !== 'ready' && connection?.phase !== 'degraded')
+    )
+      return
+    const timer = window.setInterval(() => {
+      const transport = transportRef.current
+      if (transport) void transport.heartbeat(createHeartbeatCommand())
+    }, 15_000)
+    return () => window.clearInterval(timer)
+  }, [connection?.phase, eligibility?.subscribeAllowed])
+
   const reconnecting =
     eligibility?.subscribeAllowed === true &&
     (connection?.phase === 'reconnecting' ||
@@ -238,6 +287,45 @@ export default function AppointmentChatPanel({
           {displayedError}
         </p>
       )}
+      {eligibility?.checkInAllowed && (
+        <section
+          className={styles.attendance}
+          aria-label="Điểm danh buổi tư vấn"
+        >
+          <div>
+            <strong>
+              {eligibility.participantCheckedIn
+                ? 'Đã ghi nhận điểm danh'
+                : 'Xác nhận bạn đã tham gia'}
+            </strong>
+            <p>
+              Thời gian hiện diện và tin nhắn được ghi nhận bằng metadata máy
+              chủ; nội dung chat không được dùng để chấm mức tham gia.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void checkIn()}
+            disabled={eligibility.participantCheckedIn}
+          >
+            {eligibility.participantCheckedIn ? 'Đã điểm danh' : 'Điểm danh'}
+          </button>
+        </section>
+      )}
+      {eligibility &&
+        [
+          'ENDED_PROCESSING',
+          'COMPLETED',
+          'USER_NO_SHOW',
+          'SPECIALIST_NO_SHOW',
+          'BOTH_NO_SHOW',
+          'INSUFFICIENT_EVIDENCE',
+          'EVIDENCE_REVIEW',
+        ].includes(eligibility.phase) && (
+          <p className={styles.creditState}>
+            {creditText[eligibility.creditState]}
+          </p>
+        )}
       <section
         className={styles.messages}
         aria-live="polite"

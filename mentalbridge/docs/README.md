@@ -54,6 +54,7 @@ Story-specific delivery evidence:
 - [MB-362 online specialist availability evidence](mb-362-specialist-availability-evidence.md)
 - [MB-379 appointment decisions and expiry evidence](mb-379-appointment-decisions-evidence.md)
 - [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
+- [MB-609 standalone Community peer-support experience](mb-609-community-standalone-evidence.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
@@ -89,6 +90,7 @@ to select any additional task-specific material.
 | Appointment cancellation and linked reschedule       | Implemented | MB-380         |
 | Owner-scoped factual personal analytics overview     | Implemented | MB-570         |
 | Owner-scoped cross-feature activity dashboard        | Implemented | MB-571, MB-610 |
+| Standalone pseudonymous peer-support Community       | Implemented | MB-609         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

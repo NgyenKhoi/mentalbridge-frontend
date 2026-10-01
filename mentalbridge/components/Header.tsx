@@ -84,6 +84,9 @@ export default function Header({
           </a>
           <ul className="nav-links">
             <li>
+              <Link href="/community">Cộng đồng</Link>
+            </li>
+            <li>
               <a href="#journey">Hành trình</a>
             </li>
             <li>
@@ -145,6 +148,9 @@ export default function Header({
           id="mobile-navigation"
           className={`mobile-navigation ${menuOpen ? 'open' : ''}`}
         >
+          <Link href="/community" onClick={() => setMenuOpen(false)}>
+            Cộng đồng
+          </Link>
           <a href="#journey" onClick={() => setMenuOpen(false)}>
             Hành trình
           </a>

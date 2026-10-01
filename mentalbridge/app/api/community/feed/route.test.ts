@@ -13,6 +13,9 @@ const communityMocks = vi.hoisted(() => ({
   delete: vi.fn(),
   profile: vi.fn(),
   putProfile: vi.fn(),
+  createMediaIntent: vi.fn(),
+  finalizeMedia: vi.fn(),
+  deleteMedia: vi.fn(),
 }))
 const sessionMocks = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -39,6 +42,9 @@ import {
 import { POST as createPost } from '../posts/route'
 import { GET as getProfile, PUT as putProfile } from '../profile/route'
 import { GET as getTopics } from '../topics/route'
+import { POST as createMediaIntent } from '../media/upload-intents/route'
+import { POST as finalizeMedia } from '../media/[mediaId]/finalize/route'
+import { DELETE as deleteMedia } from '../media/[mediaId]/route'
 import { GET as getFeed } from './route'
 
 const postId = '20000000-0000-4000-8000-000000000009'
@@ -163,6 +169,7 @@ describe('/api/community read BFF', () => {
       content: post.content,
       topics: ['MY_STORY'],
       mediaIds: [],
+      authorMode: 'ANONYMOUS',
     })
 
     const created = await createPost(
@@ -179,7 +186,7 @@ describe('/api/community read BFF', () => {
     expect(created.headers.get('etag')).toBe('"1"')
     expect(communityMocks.create).toHaveBeenCalledWith(
       'identity-access-secret',
-      expect.objectContaining({ mediaIds: [] }),
+      expect.objectContaining({ mediaIds: [], authorMode: 'ANONYMOUS' }),
       'browser-create-key-0001',
       expect.any(String),
     )
@@ -363,5 +370,107 @@ describe('/api/community read BFF', () => {
       expect((await response.json()).code).toBe('VALIDATION_FAILED')
     }
     expect(communityMocks.putProfile).not.toHaveBeenCalled()
+  })
+
+  it('proxies only bounded owner media lifecycle commands', async () => {
+    const mediaId = '30000000-0000-4000-8000-000000000001'
+    communityMocks.createMediaIntent.mockResolvedValue({
+      mediaId,
+      state: 'PENDING',
+      uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload',
+      expiresAt: '2026-09-30T08:30:00Z',
+      uploadFields: { api_key: 'public-key', signature: 'signed-value' },
+      version: 0,
+    })
+    communityMocks.finalizeMedia.mockResolvedValue({
+      mediaId,
+      mediaType: 'IMAGE',
+      state: 'READY',
+      version: 1,
+      createdAt: '2026-09-30T08:20:00Z',
+      updatedAt: '2026-09-30T08:21:00Z',
+    })
+    communityMocks.deleteMedia.mockResolvedValue(undefined)
+
+    const intent = await createMediaIntent(
+      request('http://localhost/api/community/media/upload-intents', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': 'browser-media-key-0001',
+        },
+        body: JSON.stringify({
+          fileName: 'photo.webp',
+          mediaType: 'IMAGE',
+          mimeType: 'image/webp',
+          sizeBytes: 1234,
+        }),
+      }),
+    )
+    expect(intent.status).toBe(201)
+    expect(communityMocks.createMediaIntent).toHaveBeenCalledWith(
+      'identity-access-secret',
+      expect.objectContaining({ mimeType: 'image/webp', sizeBytes: 1234 }),
+      'browser-media-key-0001',
+      expect.any(String),
+    )
+
+    const finalized = await finalizeMedia(
+      request(`http://localhost/api/community/media/${mediaId}/finalize`, {
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ mediaId }) },
+    )
+    expect(finalized.status).toBe(200)
+    expect(communityMocks.finalizeMedia).toHaveBeenCalledWith(
+      'identity-access-secret',
+      mediaId,
+      expect.any(String),
+    )
+
+    const removed = await deleteMedia(
+      request(`http://localhost/api/community/media/${mediaId}`, {
+        method: 'DELETE',
+        headers: { 'if-match': '"1"' },
+      }),
+      { params: Promise.resolve({ mediaId }) },
+    )
+    expect(removed.status).toBe(204)
+    expect(communityMocks.deleteMedia).toHaveBeenCalledWith(
+      'identity-access-secret',
+      mediaId,
+      '"1"',
+      expect.any(String),
+    )
+  })
+
+  it('rejects oversized and unsafe media commands before the provider boundary', async () => {
+    for (const body of [
+      {
+        fileName: 'large.png',
+        mediaType: 'IMAGE',
+        mimeType: 'image/png',
+        sizeBytes: 10_485_761,
+      },
+      {
+        fileName: 'vector.svg',
+        mediaType: 'IMAGE',
+        mimeType: 'image/svg+xml',
+        sizeBytes: 100,
+      },
+    ]) {
+      const response = await createMediaIntent(
+        request('http://localhost/api/community/media/upload-intents', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-key': 'browser-media-key-0002',
+          },
+          body: JSON.stringify(body),
+        }),
+      )
+      expect(response.status).toBe(400)
+    }
+    expect(communityMocks.createMediaIntent).not.toHaveBeenCalled()
   })
 })

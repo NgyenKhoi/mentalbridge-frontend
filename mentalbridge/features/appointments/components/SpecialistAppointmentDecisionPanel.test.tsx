@@ -97,6 +97,31 @@ describe('SpecialistAppointmentDecisionPanel', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('routes a confirmed appointment to the specialist chat workspace', async () => {
+    api.assigned.mockResolvedValue({
+      items: [
+        {
+          ...requested,
+          status: 'CONFIRMED',
+          decidedAt: '2099-09-25T03:00:00Z',
+          decisionReason: 'SPECIALIST_ACCEPTED',
+          version: 1,
+        },
+      ],
+      count: 1,
+      generatedAt: '2099-09-25T03:00:01Z',
+    })
+    const { container } = render(<SpecialistAppointmentDecisionPanel />)
+
+    await waitFor(() =>
+      expect(
+        container.querySelector(
+          `a[href="/specialist/appointments/${requested.id}/chat"]`,
+        ),
+      ).toBeInTheDocument(),
+    )
+  })
+
   it('rejects only after confirmation and shows the released credit', async () => {
     api.decide.mockResolvedValue({
       ...requested,
