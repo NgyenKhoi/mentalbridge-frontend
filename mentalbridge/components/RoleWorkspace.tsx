@@ -232,7 +232,7 @@ export default function RoleWorkspace({
     <motion.main className="role-main" layout="position" transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div><Link href={`/${role}/notifications`} className="role-bell" aria-label="Thông báo">○<b>3</b></Link></header>
       <div className="role-content">
-        {role === 'specialist' && sectionKey === 'appointment-chat' && appointmentChatId && <AppointmentChatPanel appointmentId={appointmentChatId} />}
+        {role === 'specialist' && sectionKey === 'appointment-chat' && appointmentChatId && <AppointmentChatPanel appointmentId={appointmentChatId} viewerRole="SPECIALIST" />}
         {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboard rows={section.rows} onSelect={setSelected} />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}

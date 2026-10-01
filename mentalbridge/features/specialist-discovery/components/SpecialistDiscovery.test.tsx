@@ -101,6 +101,8 @@ describe('SpecialistDiscovery', () => {
     expect(
       await screen.findByText('Vì sao hồ sơ này xuất hiện?'),
     ).toBeInTheDocument()
+    expect(screen.queryByText('Múi giờ')).not.toBeInTheDocument()
+    expect(screen.queryByText('Asia/Ho_Chi_Minh')).not.toBeInTheDocument()
     expect(screen.getAllByText('Chat trong ứng dụng')).toHaveLength(2)
     expect(
       screen.getByRole('link', { name: 'Xem quyền lợi các gói' }),
