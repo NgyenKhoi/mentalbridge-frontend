@@ -170,7 +170,7 @@ export const consultationClient = {
     token: string,
     correlationId: string,
     conversationId: string,
-    operation: 'SUBSCRIBE' | 'SEND' | 'HISTORY',
+    operation: 'SUBSCRIBE' | 'SEND' | 'HISTORY' | 'CHECK_IN',
   ) {
     return request<AppointmentChatEligibility>({
       method: 'GET',

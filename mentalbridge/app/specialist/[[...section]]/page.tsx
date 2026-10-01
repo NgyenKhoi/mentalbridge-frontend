@@ -7,11 +7,18 @@ export default async function SpecialistWorkspace({
 }: PageProps<'/specialist/[[...section]]'>) {
   const account = await requireCurrentAccount(['SPECIALIST'])
   const { section } = await params
+  const appointmentChatId =
+    section?.[0] === 'appointments' && section[2] === 'chat'
+      ? section[1]
+      : undefined
   return (
     <RoleWorkspace
       role="specialist"
-      sectionKey={section?.[0] || 'dashboard'}
+      sectionKey={
+        appointmentChatId ? 'appointment-chat' : section?.[0] || 'dashboard'
+      }
       workspaces={resolveWorkspaces(account.roles) ?? []}
+      appointmentChatId={appointmentChatId}
     />
   )
 }

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { createMessageCommand } from '@/lib/realtime/commands'
+import {
+  createCheckInCommand,
+  createMessageCommand,
+} from '@/lib/realtime/commands'
 import {
   parseAcknowledgementV1,
   parseCommandV1,
@@ -127,5 +130,18 @@ describe('realtime v1 envelope adapters', () => {
       clock,
     )
     expect(retry).toEqual(first)
+  })
+
+  it('creates a strict explicit check-in without client-authored presence duration', () => {
+    const command = createCheckInCommand(conversationId, {
+      commandId,
+      correlationId,
+    })
+    expect(parseCommandV1(command).ok).toBe(true)
+    expect(command).toMatchObject({
+      commandType: 'conversation.check-in',
+      payload: { conversationId },
+    })
+    expect(command.payload).not.toHaveProperty('presentForSeconds')
   })
 })

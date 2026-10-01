@@ -17,11 +17,13 @@ export type ChatMessage = Readonly<{
 
 export async function chatEligibility(
   appointmentId: string,
-  operation: 'subscribe' | 'send' | 'history',
+  operation: 'subscribe' | 'send' | 'history' | 'check-in',
 ): Promise<AppointmentChatEligibility> {
+  const backendOperation =
+    operation === 'check-in' ? 'CHECK_IN' : operation.toUpperCase()
   const response = await browserApiClient.get(
     `/consultation/appointments/${encodeURIComponent(appointmentId)}/chat-eligibility`,
-    { params: { operation } },
+    { params: { operation: backendOperation } },
   )
   const parsed = parseAppointmentChatEligibility(response.data)
   if (!parsed) throw new Error('Chat eligibility response is invalid.')

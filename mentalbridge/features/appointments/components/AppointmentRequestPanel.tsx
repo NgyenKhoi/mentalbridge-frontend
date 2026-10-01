@@ -63,6 +63,8 @@ const appointmentStatus: Record<Appointment['status'], string> = {
   REQUESTED: 'Đang chờ xác nhận',
   CONFIRMED: 'Đã xác nhận',
   IN_PROGRESS: 'Đang diễn ra',
+  SESSION_ENDED: 'Đang tổng hợp kết quả',
+  COMPLETED: 'Đã hoàn thành',
   REJECTED: 'Chuyên gia chưa thể nhận lịch',
   EXPIRED: 'Hết thời gian xác nhận',
   CANCELLED: 'Đã hủy',

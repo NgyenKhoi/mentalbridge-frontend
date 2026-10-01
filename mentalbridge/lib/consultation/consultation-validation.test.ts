@@ -274,6 +274,12 @@ describe('Consultation contract validation', () => {
       cancellationReason: null,
       cancellationActor: null,
       cancellationCreditOutcome: null,
+      sessionOutcome: null,
+      sessionOutcomeReason: null,
+      sessionPolicyVersion: null,
+      sessionEndedAt: null,
+      sessionSettledAt: null,
+      completionFactId: null,
       creditState: 'HELD',
       history: [
         {

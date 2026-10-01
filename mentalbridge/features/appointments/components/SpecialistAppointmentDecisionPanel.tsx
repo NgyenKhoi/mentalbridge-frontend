@@ -16,6 +16,8 @@ const STATUS_LABELS: Record<Appointment['status'], string> = {
   REQUESTED: 'Chờ phản hồi',
   CONFIRMED: 'Đã xác nhận',
   IN_PROGRESS: 'Đang diễn ra',
+  SESSION_ENDED: 'Đang tổng hợp kết quả',
+  COMPLETED: 'Đã hoàn thành',
   REJECTED: 'Đã từ chối',
   EXPIRED: 'Đã hết hạn',
   CANCELLED: 'Đã hủy',
@@ -285,7 +287,7 @@ export default function SpecialistAppointmentDecisionPanel() {
                     )) && (
                     <Link
                       className={styles.chatLink}
-                      href={`/appointments/${appointment.id}/chat`}
+                      href={`/specialist/appointments/${appointment.id}/chat`}
                     >
                       Vào phòng chat
                     </Link>
