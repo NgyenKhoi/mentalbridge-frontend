@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/api/api-error'
 import type { AppointmentChatEligibility } from '@/lib/consultation/consultation-validation'
@@ -48,10 +49,64 @@ const creditText: Record<AppointmentChatEligibility['creditState'], string> = {
   AVAILABLE: 'Credit đã được hoàn lại để bạn có thể đặt lịch khác.',
 }
 
+const phaseLabel: Record<AppointmentChatEligibility['phase'], string> = {
+  NOT_AVAILABLE: 'Chưa mở',
+  TOO_EARLY: 'Sắp diễn ra',
+  WAITING: 'Phòng chờ',
+  ACTIVE: 'Đang diễn ra',
+  ENDED_PROCESSING: 'Đang xử lý',
+  COMPLETED: 'Đã hoàn thành',
+  USER_NO_SHOW: 'Người dùng vắng mặt',
+  SPECIALIST_NO_SHOW: 'Chuyên gia vắng mặt',
+  BOTH_NO_SHOW: 'Hai bên vắng mặt',
+  INSUFFICIENT_EVIDENCE: 'Chưa đủ dữ liệu',
+  EVIDENCE_REVIEW: 'Cần đối soát',
+  CANCELLED: 'Đã hủy',
+  RESCHEDULED: 'Đã đổi lịch',
+}
+
+function sessionPresentation(eligibility: AppointmentChatEligibility) {
+  const start = new Date(eligibility.scheduledStartAt)
+  const end = new Date(eligibility.scheduledEndAt)
+  const server = new Date(eligibility.serverTime)
+  const time = (value: Date) =>
+    new Intl.DateTimeFormat('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Ho_Chi_Minh',
+    }).format(value)
+  const date = new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  }).format(start)
+  const totalMinutes = Math.max(1, (end.getTime() - start.getTime()) / 60_000)
+  const elapsedMinutes = Math.max(
+    0,
+    Math.min(totalMinutes, (server.getTime() - start.getTime()) / 60_000),
+  )
+  const remainingMinutes = Math.max(0, Math.ceil(totalMinutes - elapsedMinutes))
+
+  return {
+    range: `${time(start)} – ${time(end)}`,
+    date,
+    totalMinutes: Math.round(totalMinutes),
+    elapsedMinutes: Math.floor(elapsedMinutes),
+    remainingMinutes,
+    progress: Math.round((elapsedMinutes / totalMinutes) * 100),
+    endTime: time(end),
+  }
+}
+
 export default function AppointmentChatPanel({
   appointmentId,
+  viewerRole = 'USER',
 }: {
   appointmentId: string
+  viewerRole?: 'USER' | 'SPECIALIST'
 }) {
   const [eligibility, setEligibility] = useState<AppointmentChatEligibility>()
   const [connection, setConnection] = useState<ConnectionState>()
@@ -262,23 +317,64 @@ export default function AppointmentChatPanel({
       ? 'Không thể duy trì kết nối chat. Vui lòng tải lại để thử lại.'
       : ''
   const displayedError = error || connectionFailure
+  const session = eligibility ? sessionPresentation(eligibility) : null
+  const viewerAccountId = eligibility
+    ? viewerRole === 'SPECIALIST'
+      ? eligibility.specialistAccountId
+      : eligibility.userAccountId
+    : null
+  const counterpartLabel =
+    viewerRole === 'SPECIALIST' ? 'Người dùng' : 'Chuyên gia'
+  const quickReplies =
+    viewerRole === 'SPECIALIST'
+      ? [
+          'Chào bạn, hôm nay bạn muốn chia sẻ điều gì?',
+          'Chào bạn, bạn đã sẵn sàng bắt đầu buổi chat chưa?',
+        ]
+      : [
+          'Chào chuyên gia, mình đã sẵn sàng bắt đầu.',
+          'Chào chuyên gia, cảm ơn bạn đã đồng hành cùng mình hôm nay.',
+        ]
 
   return (
     <main className={styles.page}>
+      <Link
+        className={styles.backLink}
+        href={
+          viewerRole === 'SPECIALIST'
+            ? '/specialist/appointments'
+            : '/appointments'
+        }
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+        Lịch hẹn
+      </Link>
       <header className={styles.header}>
         <div>
-          <span>TƯ VẤN TRỰC TUYẾN</span>
           <h1>Phòng chat lịch hẹn</h1>
-          <p>
-            {eligibility
-              ? phaseText[eligibility.phase]
-              : 'Đang kiểm tra lịch hẹn…'}
-          </p>
+          {eligibility && (
+            <span className={styles.phaseBadge} data-phase={eligibility.phase}>
+              <i /> {phaseLabel[eligibility.phase]}
+            </span>
+          )}
         </div>
-        <button type="button" onClick={() => void refresh()}>
-          Tải lại
+        <button
+          className={styles.refreshButton}
+          type="button"
+          onClick={() => void refresh()}
+          aria-label="Tải lại phòng chat"
+          title="Tải lại"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />
+          </svg>
         </button>
       </header>
+      <p className={styles.phaseDescription}>
+        {eligibility ? phaseText[eligibility.phase] : 'Đang kiểm tra lịch hẹn…'}
+      </p>
       {reconnecting && (
         <p className={styles.notice}>Đang kết nối lại và đồng bộ tin nhắn…</p>
       )}
@@ -287,93 +383,220 @@ export default function AppointmentChatPanel({
           {displayedError}
         </p>
       )}
-      {eligibility?.checkInAllowed && (
-        <section
-          className={styles.attendance}
-          aria-label="Điểm danh buổi tư vấn"
-        >
-          <div>
-            <strong>
-              {eligibility.participantCheckedIn
-                ? 'Đã ghi nhận điểm danh'
-                : 'Xác nhận bạn đã tham gia'}
-            </strong>
-            <p>
-              Thời gian hiện diện và tin nhắn được ghi nhận bằng metadata máy
-              chủ; nội dung chat không được dùng để chấm mức tham gia.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void checkIn()}
-            disabled={eligibility.participantCheckedIn}
+      <div className={styles.layout}>
+        <section className={styles.chat} aria-label="Cuộc trò chuyện">
+          <header className={styles.chatHeader}>
+            <span className={styles.avatar} aria-hidden="true">
+              {counterpartLabel.slice(0, 1)}
+            </span>
+            <div>
+              <strong>{counterpartLabel}</strong>
+              <small>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.2-4.4A8 8 0 1 1 21 12z" />
+                </svg>
+                Chat trong ứng dụng
+              </small>
+            </div>
+            {eligibility?.phase === 'ACTIVE' && session && (
+              <div className={styles.timeRemaining}>
+                <strong>Còn {session.remainingMinutes} phút</strong>
+                <span>Kết thúc lúc {session.endTime}</span>
+              </div>
+            )}
+          </header>
+
+          {eligibility?.checkInAllowed && (
+            <section
+              className={styles.attendance}
+              aria-label="Điểm danh buổi tư vấn"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                {eligibility.participantCheckedIn ? (
+                  <path d="M5 12.5l4.5 4.5L19 7.5" />
+                ) : (
+                  <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3zM9 12l2 2 4-4" />
+                )}
+              </svg>
+              <div>
+                <strong>
+                  {eligibility.participantCheckedIn
+                    ? 'Đã ghi nhận điểm danh'
+                    : 'Xác nhận bạn đã tham gia'}
+                </strong>
+                <p>
+                  Hệ thống chỉ ghi nhận metadata tham gia, không dùng nội dung
+                  chat để đánh giá mức tham gia.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void checkIn()}
+                disabled={eligibility.participantCheckedIn}
+              >
+                {eligibility.participantCheckedIn
+                  ? 'Đã điểm danh'
+                  : 'Xác nhận tham gia'}
+              </button>
+            </section>
+          )}
+
+          <section
+            className={styles.messages}
+            aria-live="polite"
+            aria-label="Tin nhắn tư vấn"
+            role="log"
           >
-            {eligibility.participantCheckedIn ? 'Đã điểm danh' : 'Điểm danh'}
-          </button>
+            {messages.length === 0 ? (
+              <div className={styles.empty}>
+                <svg viewBox="0 0 120 84" aria-hidden="true">
+                  <path d="M4 84V50a56 56 0 0 1 112 0v34" />
+                  <path d="M20 84V50a40 40 0 0 1 80 0v34" />
+                  <path d="M36 84V50a24 24 0 0 1 48 0v34" />
+                </svg>
+                <h2>Chưa có tin nhắn trong lịch hẹn này</h2>
+                <p>
+                  {eligibility?.sendAllowed
+                    ? 'Gửi lời chào để mở đầu buổi tư vấn.'
+                    : 'Tin nhắn sẽ được mở khi buổi tư vấn bắt đầu.'}
+                </p>
+                {eligibility?.sendAllowed && (
+                  <div className={styles.quickReplies}>
+                    {quickReplies.map((reply, index) => (
+                      <button
+                        key={reply}
+                        type="button"
+                        onClick={() => setContent(reply)}
+                      >
+                        {index === 0 ? 'Gửi lời chào' : 'Xác nhận sẵn sàng'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              messages.map((message) => {
+                const own = message.senderId === viewerAccountId
+                return (
+                  <article
+                    key={message.messageId}
+                    className={`${styles.messageRow} ${own ? styles.own : ''}`}
+                    aria-label={
+                      own
+                        ? 'Tin nhắn của bạn'
+                        : `Tin nhắn từ ${counterpartLabel}`
+                    }
+                  >
+                    <p>{message.content}</p>
+                    <time dateTime={message.sentAt}>
+                      {new Intl.DateTimeFormat('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                        timeZone: 'Asia/Ho_Chi_Minh',
+                      }).format(new Date(message.sentAt))}
+                    </time>
+                  </article>
+                )
+              })
+            )}
+          </section>
+
+          <form
+            className={styles.composer}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void send()
+            }}
+          >
+            <label htmlFor="appointment-chat-message">Tin nhắn</label>
+            <div className={styles.composerBox}>
+              <textarea
+                id="appointment-chat-message"
+                value={content}
+                rows={1}
+                maxLength={4000}
+                onChange={(event) => setContent(event.target.value)}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing
+                  ) {
+                    event.preventDefault()
+                    void send()
+                  }
+                }}
+                disabled={!eligibility?.sendAllowed}
+                placeholder={
+                  eligibility?.sendAllowed
+                    ? 'Nhập tin nhắn…'
+                    : 'Chat hiện ở chế độ chỉ đọc'
+                }
+              />
+              <button
+                type="submit"
+                disabled={!eligibility?.sendAllowed || !content.trim()}
+                aria-label="Gửi tin nhắn"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                </svg>
+              </button>
+            </div>
+            <p>Enter để gửi, Shift + Enter để xuống dòng.</p>
+          </form>
         </section>
-      )}
-      {eligibility &&
-        [
-          'ENDED_PROCESSING',
-          'COMPLETED',
-          'USER_NO_SHOW',
-          'SPECIALIST_NO_SHOW',
-          'BOTH_NO_SHOW',
-          'INSUFFICIENT_EVIDENCE',
-          'EVIDENCE_REVIEW',
-        ].includes(eligibility.phase) && (
-          <p className={styles.creditState}>
-            {creditText[eligibility.creditState]}
-          </p>
+
+        {eligibility && session && (
+          <aside className={styles.sessionCard} aria-label="Thông tin buổi hẹn">
+            <h2>Thông tin buổi hẹn</h2>
+            <strong className={styles.sessionTime}>{session.range}</strong>
+            <p className={styles.sessionDate}>{session.date}</p>
+            <div
+              className={styles.progress}
+              role="progressbar"
+              aria-valuenow={session.progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Thời gian buổi hẹn đã trôi qua"
+            >
+              <i style={{ width: `${session.progress}%` }} />
+            </div>
+            <div className={styles.progressLabels}>
+              <span>Đã qua {session.elapsedMinutes} phút</span>
+              <span>Tổng {session.totalMinutes} phút</span>
+            </div>
+            <dl className={styles.sessionFacts}>
+              <div>
+                <dt>Hình thức</dt>
+                <dd>Chat trong ứng dụng</dd>
+              </div>
+              <div>
+                <dt>Trạng thái</dt>
+                <dd>{phaseLabel[eligibility.phase]}</dd>
+              </div>
+              <div>
+                <dt>Điểm danh</dt>
+                <dd>
+                  {eligibility.participantCheckedIn
+                    ? 'Đã xác nhận'
+                    : 'Chưa xác nhận'}
+                </dd>
+              </div>
+            </dl>
+            <div className={styles.creditState}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" />
+              </svg>
+              <div>
+                <strong>Quyền lợi buổi hẹn</strong>
+                <p>{creditText[eligibility.creditState]}</p>
+              </div>
+            </div>
+          </aside>
         )}
-      <section
-        className={styles.messages}
-        aria-live="polite"
-        aria-label="Tin nhắn tư vấn"
-      >
-        {messages.length === 0 ? (
-          <p className={styles.empty}>Chưa có tin nhắn trong lịch hẹn này.</p>
-        ) : (
-          messages.map((message) => (
-            <article key={message.messageId} className={styles.message}>
-              <p>{message.content}</p>
-              <time dateTime={message.sentAt}>
-                {new Intl.DateTimeFormat('vi-VN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }).format(new Date(message.sentAt))}
-              </time>
-            </article>
-          ))
-        )}
-      </section>
-      <form
-        className={styles.composer}
-        onSubmit={(event) => {
-          event.preventDefault()
-          void send()
-        }}
-      >
-        <label htmlFor="appointment-chat-message">Tin nhắn</label>
-        <textarea
-          id="appointment-chat-message"
-          value={content}
-          maxLength={4000}
-          onChange={(event) => setContent(event.target.value)}
-          disabled={!eligibility?.sendAllowed}
-          placeholder={
-            eligibility?.sendAllowed
-              ? 'Nhập tin nhắn…'
-              : 'Chat hiện ở chế độ chỉ đọc'
-          }
-        />
-        <button
-          type="submit"
-          disabled={!eligibility?.sendAllowed || !content.trim()}
-        >
-          Gửi tin nhắn
-        </button>
-      </form>
+      </div>
     </main>
   )
 }

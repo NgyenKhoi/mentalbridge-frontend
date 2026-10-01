@@ -86,7 +86,7 @@ describe('AppointmentChatPanel', () => {
     api.chatEligibility.mockResolvedValue(baseDecision)
     render(<AppointmentChatPanel appointmentId={appointmentId} />)
 
-    expect(await screen.findByText(/phòng chờ/i)).toBeInTheDocument()
+    expect((await screen.findAllByText(/phòng chờ/i)).length).toBeGreaterThan(0)
     expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toBeDisabled()
     await waitFor(() => expect(realtime.connect).toHaveBeenCalledOnce())
     expect(realtime.subscribe).toHaveBeenCalledOnce()
@@ -102,8 +102,14 @@ describe('AppointmentChatPanel', () => {
     })
     render(<AppointmentChatPanel appointmentId={appointmentId} />)
 
-    expect(await screen.findByText(/đang diễn ra/i)).toBeInTheDocument()
+    expect(
+      (await screen.findAllByText(/đang diễn ra/i)).length,
+    ).toBeGreaterThan(0)
     expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi lời chào' }))
+    expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toHaveValue(
+      'Chào chuyên gia, mình đã sẵn sàng bắt đầu.',
+    )
   })
 
   it('shows ended history as read-only without opening a socket', async () => {
@@ -130,7 +136,9 @@ describe('AppointmentChatPanel', () => {
       .mockResolvedValue({ ...baseDecision, participantCheckedIn: true })
     render(<AppointmentChatPanel appointmentId={appointmentId} />)
 
-    const button = await screen.findByRole('button', { name: 'Điểm danh' })
+    const button = await screen.findByRole('button', {
+      name: 'Xác nhận tham gia',
+    })
     fireEvent.click(button)
 
     await waitFor(() => expect(realtime.checkIn).toHaveBeenCalledOnce())
@@ -159,6 +167,55 @@ describe('AppointmentChatPanel', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('visually distinguishes the current participant messages', async () => {
+    api.chatEligibility.mockResolvedValue({
+      ...baseDecision,
+      phase: 'ACTIVE',
+      reasonCode: 'APPOINTMENT_ACTIVE',
+      sendAllowed: true,
+    })
+    api.chatHistory.mockResolvedValue({
+      items: [
+        {
+          messageId: '11111111-1111-4111-8111-111111111111',
+          conversationId: appointmentId,
+          senderId: baseDecision.specialistAccountId,
+          clientMessageId: '22222222-2222-4222-8222-222222222222',
+          type: 'TEXT',
+          content: 'Tin nhắn từ chuyên gia',
+          sentAt: '2099-09-27T02:01:00Z',
+          schemaVersion: 1,
+        },
+        {
+          messageId: '33333333-3333-4333-8333-333333333333',
+          conversationId: appointmentId,
+          senderId: baseDecision.userAccountId,
+          clientMessageId: '44444444-4444-4444-8444-444444444444',
+          type: 'TEXT',
+          content: 'Tin nhắn từ người dùng',
+          sentAt: '2099-09-27T02:02:00Z',
+          schemaVersion: 1,
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    })
+
+    render(
+      <AppointmentChatPanel
+        appointmentId={appointmentId}
+        viewerRole="SPECIALIST"
+      />,
+    )
+
+    expect(await screen.findByLabelText('Tin nhắn của bạn')).toHaveTextContent(
+      'Tin nhắn từ chuyên gia',
+    )
+    expect(screen.getByLabelText('Tin nhắn từ Người dùng')).toHaveTextContent(
+      'Tin nhắn từ người dùng',
+    )
   })
 
   it.each([
