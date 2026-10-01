@@ -215,6 +215,7 @@ export default function CommunityFeed() {
                     displayName={post.author.displayName}
                     avatarPreset={post.author.avatarPreset}
                     deleted={post.author.state === 'DELETED'}
+                    anonymous={post.author.state === 'ANONYMOUS'}
                   />
                   <div>
                     <strong>{post.author.displayName}</strong>

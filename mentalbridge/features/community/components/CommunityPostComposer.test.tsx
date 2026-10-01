@@ -86,6 +86,26 @@ describe('CommunityPostComposer', () => {
     expect(mocks.create).not.toHaveBeenCalled()
   })
 
+  it('sends the per-post anonymous mode to Community', async () => {
+    const user = userEvent.setup()
+    mocks.create.mockResolvedValue({
+      post: { postId: '20000000-0000-4000-8000-000000000009' },
+      version: 0,
+    })
+    render(<CommunityPostComposer topics={topics} />)
+
+    await user.click(screen.getByRole('button', { name: 'Viết bài' }))
+    await user.type(screen.getByLabelText('Nội dung'), 'Một chia sẻ riêng tư')
+    await user.click(screen.getByText('Câu chuyện của tôi'))
+    await user.click(screen.getByRole('radio', { name: /Đăng ẩn danh/ }))
+    await user.click(screen.getByRole('button', { name: 'Đăng câu chuyện' }))
+
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ authorMode: 'ANONYMOUS' }),
+      expect.any(String),
+    )
+  })
+
   it('waits for READY media and attaches its exact id to the new post', async () => {
     const user = userEvent.setup()
     const mediaId = '30000000-0000-4000-8000-000000000001'

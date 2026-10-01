@@ -198,6 +198,49 @@ describe('Community response validation', () => {
     ).toBeNull()
   })
 
+  it('accepts only the contract-safe anonymous author projection and write mode', () => {
+    const anonymousAuthor = {
+      communityProfileId: null,
+      avatarPreset: null,
+      displayName: 'Thành viên ẩn danh',
+      state: 'ANONYMOUS',
+    }
+
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        author: anonymousAuthor,
+        content: 'Một chia sẻ ẩn danh.',
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        author: {
+          ...anonymousAuthor,
+          communityProfileId: post.author.communityProfileId,
+        },
+        content: 'Không được làm lộ hồ sơ cộng đồng.',
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityPostWrite({
+        content: 'Một chia sẻ ẩn danh.',
+        topics: ['MY_STORY'],
+        mediaIds: [],
+        authorMode: 'ANONYMOUS',
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityPostWrite({
+        content: 'Sai chế độ tác giả.',
+        topics: ['MY_STORY'],
+        mediaIds: [],
+        authorMode: 'HIDDEN',
+      }),
+    ).toBeNull()
+  })
+
   it('requires the complete unique governed topic catalogue', () => {
     const topics = [
       'MY_STORY',

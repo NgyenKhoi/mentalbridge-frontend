@@ -53,6 +53,7 @@ const AVATAR_PRESETS = new Set<CommunityAvatarPreset>([
   'CLOUD',
   'SPROUT',
 ])
+const POST_AUTHOR_MODES = new Set(['PROFILE', 'ANONYMOUS'])
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -120,18 +121,27 @@ function parseAuthor(value: unknown): CommunityAuthor | null {
     ? ['communityProfileId', 'displayName', 'avatarPreset', 'state']
     : ['communityProfileId', 'displayName', 'state']
   const normalizedAvatarPreset = hasAvatarPreset ? author.avatarPreset : null
+  const anonymous = author.state === 'ANONYMOUS'
   if (
     !exactKeys(author, allowedKeys) ||
-    typeof author.communityProfileId !== 'string' ||
-    !UUID.test(author.communityProfileId) ||
+    (anonymous
+      ? author.communityProfileId !== null
+      : typeof author.communityProfileId !== 'string' ||
+        !UUID.test(author.communityProfileId)) ||
     !text(author.displayName, 1, 80) ||
     !avatarPreset(normalizedAvatarPreset) ||
-    (author.state !== 'ACTIVE' && author.state !== 'DELETED')
+    (author.state !== 'ACTIVE' &&
+      author.state !== 'DELETED' &&
+      author.state !== 'ANONYMOUS') ||
+    (anonymous && normalizedAvatarPreset !== null)
   ) {
     return null
   }
+  const communityProfileId = anonymous
+    ? null
+    : (author.communityProfileId as string)
   return {
-    communityProfileId: author.communityProfileId,
+    communityProfileId,
     displayName: author.displayName,
     avatarPreset: normalizedAvatarPreset,
     state: author.state,
@@ -281,9 +291,15 @@ export function parseCommunityPostWrite(
   value: unknown,
 ): CommunityPostWrite | null {
   const input = record(value)
+  const hasAuthorMode = Boolean(input && Object.hasOwn(input, 'authorMode'))
   if (
     !input ||
-    !exactKeys(input, ['content', 'topics', 'mediaIds']) ||
+    !exactKeys(
+      input,
+      hasAuthorMode
+        ? ['content', 'topics', 'mediaIds', 'authorMode']
+        : ['content', 'topics', 'mediaIds'],
+    ) ||
     !text(input.content, 1, 5000) ||
     (input.content as string).trim().length === 0 ||
     !Array.isArray(input.topics) ||
@@ -299,7 +315,10 @@ export function parseCommunityPostWrite(
     !input.mediaIds.every((mediaId) =>
       typeof mediaId === 'string' ? UUID.test(mediaId) : false,
     ) ||
-    new Set(input.mediaIds).size !== input.mediaIds.length
+    new Set(input.mediaIds).size !== input.mediaIds.length ||
+    (hasAuthorMode &&
+      (typeof input.authorMode !== 'string' ||
+        !POST_AUTHOR_MODES.has(input.authorMode)))
   ) {
     return null
   }

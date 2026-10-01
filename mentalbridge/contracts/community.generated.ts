@@ -300,13 +300,18 @@ export interface components {
             description: string;
         };
         CommunityAuthor: {
-            /** Format: uuid */
-            communityProfileId: string;
+            /**
+             * Format: uuid
+             * @description Null for an anonymous post so public responses cannot link it to the author's Community profile.
+             */
+            communityProfileId: string | null;
             displayName: string;
             avatarPreset: components["schemas"]["CommunityAvatarPreset"] | null;
             /** @enum {string} */
-            state: "ACTIVE" | "DELETED";
+            state: "ACTIVE" | "DELETED" | "ANONYMOUS";
         };
+        /** @enum {string} */
+        CommunityPostAuthorMode: "PROFILE" | "ANONYMOUS";
         CommunityCounts: {
             comments: number;
             reactions: number;
@@ -362,6 +367,8 @@ export interface components {
             content: string;
             topics: components["schemas"]["CommunityTopicCode"][];
             mediaIds: string[];
+            /** @description Defaults to PROFILE when omitted on create; omission on update preserves the current mode. */
+            authorMode?: components["schemas"]["CommunityPostAuthorMode"];
         };
         UpdatePostRequest: components["schemas"]["CreatePostRequest"];
         /** @enum {string} */

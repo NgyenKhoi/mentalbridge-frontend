@@ -22,6 +22,9 @@ export default function CommunityPostComposer({
   const [selected, setSelected] = useState<CommunityTopicCode[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [mediaIds, setMediaIds] = useState<string[]>([])
+  const [authorMode, setAuthorMode] = useState<'PROFILE' | 'ANONYMOUS'>(
+    'PROFILE',
+  )
   const [mediaBusy, setMediaBusy] = useState(false)
   const [message, setMessage] = useState('')
   const command = useRef<{ signature: string; key: string } | undefined>(
@@ -57,7 +60,12 @@ export default function CommunityPostComposer({
       setMessage('Hãy chờ tệp tải lên xong trước khi đăng bài.')
       return
     }
-    const input = { content: normalized, topics: selected, mediaIds }
+    const input = {
+      content: normalized,
+      topics: selected,
+      mediaIds,
+      authorMode,
+    }
     const signature = JSON.stringify(input)
     if (!command.current || command.current.signature !== signature) {
       command.current = { signature, key: crypto.randomUUID() }
@@ -131,6 +139,44 @@ export default function CommunityPostComposer({
               <span>{topic.label}</span>
             </label>
           ))}
+        </div>
+      </fieldset>
+      <fieldset className="community-identity-choices">
+        <legend>Bạn muốn xuất hiện như thế nào?</legend>
+        <p>
+          Lựa chọn này chỉ áp dụng cho bài viết này và có thể thay đổi khi chỉnh
+          sửa.
+        </p>
+        <div>
+          <label>
+            <input
+              type="radio"
+              name="community-author-mode"
+              value="PROFILE"
+              checked={authorMode === 'PROFILE'}
+              onChange={() => setAuthorMode('PROFILE')}
+            />
+            <span>
+              <strong>Dùng danh tính cộng đồng</strong>
+              <small>Hiển thị tên và hình đại diện bạn đã chọn.</small>
+            </span>
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="community-author-mode"
+              value="ANONYMOUS"
+              checked={authorMode === 'ANONYMOUS'}
+              onChange={() => setAuthorMode('ANONYMOUS')}
+            />
+            <span>
+              <strong>Đăng ẩn danh</strong>
+              <small>
+                Người đọc không thấy hay liên kết được danh tính cộng đồng của
+                bạn; MentalBridge vẫn giữ quyền sở hữu để bảo vệ an toàn.
+              </small>
+            </span>
+          </label>
         </div>
       </fieldset>
       <CommunityMediaUploader disabled={submitting} onChange={updateMedia} />

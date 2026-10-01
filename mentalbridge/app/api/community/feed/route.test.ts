@@ -169,6 +169,7 @@ describe('/api/community read BFF', () => {
       content: post.content,
       topics: ['MY_STORY'],
       mediaIds: [],
+      authorMode: 'ANONYMOUS',
     })
 
     const created = await createPost(
@@ -185,7 +186,7 @@ describe('/api/community read BFF', () => {
     expect(created.headers.get('etag')).toBe('"1"')
     expect(communityMocks.create).toHaveBeenCalledWith(
       'identity-access-secret',
-      expect.objectContaining({ mediaIds: [] }),
+      expect.objectContaining({ mediaIds: [], authorMode: 'ANONYMOUS' }),
       'browser-create-key-0001',
       expect.any(String),
     )
