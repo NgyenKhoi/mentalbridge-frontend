@@ -365,6 +365,15 @@ function uuid(value: unknown): value is string {
   )
 }
 
+function uuidText(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  )
+}
+
 function instantOrNull(value: unknown): value is string | null {
   return (
     value === null ||
@@ -674,7 +683,7 @@ export function parseProfile(value: unknown): SpecialistProfile | null {
     ) ||
     !instantOrNull(item.submittedAt) ||
     !instantOrNull(item.reviewedAt) ||
-    !(item.reviewedBy === null || uuid(item.reviewedBy)) ||
+    !(item.reviewedBy === null || uuidText(item.reviewedBy)) ||
     !validProfileDecisionReason(item.approvalStatus, item.decisionReasonCode) ||
     !instantOrNull(item.createdAt) ||
     !instantOrNull(item.updatedAt) ||

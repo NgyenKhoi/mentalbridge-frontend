@@ -36,11 +36,20 @@ function initials(name: string) {
 }
 
 function formatTime(value: string, timezone: string) {
-  return new Intl.DateTimeFormat('vi-VN', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+  const date = new Date(value)
+  const time = new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
     timeZone: timezone,
-  }).format(new Date(value))
+  }).format(date)
+  const day = new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: timezone,
+  }).format(date)
+  return `${time} · ${day}`
 }
 
 function slotPresentation(slot: DiscoverySlot) {
@@ -506,29 +515,47 @@ export default function SpecialistDiscovery() {
   return (
     <main className={styles.page}>
       <header className={styles.hero}>
-        <span>KẾT NỐI TRỰC TUYẾN</span>
+        <span className={styles.heroPill}>
+          <i aria-hidden="true" /> Kết nối trực tuyến
+        </span>
         <h1>Chuyên gia tư vấn</h1>
         <p>
           Xem hồ sơ đã được phê duyệt và chọn khung giờ chat hoặc video 60 phút
           đang khả dụng.
         </p>
+        <div className={styles.heroStats}>
+          <span>
+            <strong>{loading ? '—' : items.length}</strong> chuyên gia có lịch
+          </span>
+          <span>
+            <strong>60</strong> phút mỗi buổi
+          </span>
+        </div>
       </header>
 
       <section className={styles.controls} aria-label="Bộ lọc chuyên gia">
-        <label>
+        <div className={styles.controlGroup}>
           <span>Lĩnh vực hỗ trợ</span>
-          <select
-            value={supportArea}
-            disabled={loading}
-            onChange={(event) =>
-              setSupportArea(event.target.value as typeof supportArea)
-            }
-          >
-            <option value="">Tất cả</option>
-            <option value="DEPRESSIVE_SYMPTOMS">Khí sắc và trầm buồn</option>
-            <option value="ANXIETY_SYMPTOMS">Lo âu</option>
-          </select>
-        </label>
+          <div className={styles.chips}>
+            {(
+              [
+                ['', 'Tất cả'],
+                ['ANXIETY_SYMPTOMS', 'Lo âu'],
+                ['DEPRESSIVE_SYMPTOMS', 'Khí sắc và trầm buồn'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value || 'all'}
+                type="button"
+                data-active={supportArea === value}
+                disabled={loading}
+                onClick={() => setSupportArea(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <label>
           <span>Ưu tiên ngôn ngữ</span>
           <select
@@ -543,27 +570,40 @@ export default function SpecialistDiscovery() {
             <option value="en">English</option>
           </select>
         </label>
-        <label>
+        <div className={styles.controlGroup}>
           <span>Hình thức</span>
-          <select
-            value={modality}
-            disabled={loading}
-            onChange={(event) =>
-              setModality(event.target.value as typeof modality)
-            }
-          >
-            <option value="">Chat hoặc video</option>
-            <option value="IN_APP_CHAT">Chat trong ứng dụng</option>
-            <option
-              value="IN_APP_VIDEO"
-              disabled={page?.videoEnabled === false}
+          <div className={styles.chips}>
+            <button
+              type="button"
+              data-active={modality === ''}
+              disabled={loading}
+              onClick={() => setModality('')}
             >
-              Video trong ứng dụng
-              {page?.videoEnabled === false ? ' (chưa khả dụng)' : ''}
-            </option>
-          </select>
-        </label>
-        <button type="button" onClick={() => void load()} disabled={loading}>
+              Tất cả
+            </button>
+            <button
+              type="button"
+              data-active={modality === 'IN_APP_CHAT'}
+              disabled={loading}
+              onClick={() => setModality('IN_APP_CHAT')}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              disabled
+              title="Video trong ứng dụng hiện chưa khả dụng"
+            >
+              Video · sắp có
+            </button>
+          </div>
+        </div>
+        <button
+          className={styles.reload}
+          type="button"
+          onClick={() => void load()}
+          disabled={loading}
+        >
           {loading ? 'Đang tải…' : 'Tải lại'}
         </button>
       </section>
@@ -589,6 +629,12 @@ export default function SpecialistDiscovery() {
             </p>
           )}
         </aside>
+      )}
+
+      {!loading && !error && (
+        <p className={styles.resultCount}>
+          Hiển thị <strong>{items.length}</strong> chuyên gia
+        </p>
       )}
 
       {error && (
@@ -643,27 +689,28 @@ export default function SpecialistDiscovery() {
                 ))}
               </div>
               <p className={styles.summary}>{item.bio}</p>
-              <dl className={styles.cardFacts}>
+              <p className={styles.languages}>
+                Ngôn ngữ{' '}
+                <strong>
+                  {item.languages
+                    .map((value) => languageLabels[value])
+                    .join(', ')}
+                </strong>
+              </p>
+              <div className={styles.nextSlot}>
+                <i aria-hidden="true">◷</i>
                 <div>
-                  <dt>Ngôn ngữ</dt>
-                  <dd>
-                    {item.languages
-                      .map((value) => languageLabels[value])
-                      .join(', ')}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Lịch gần nhất</dt>
-                  <dd>
+                  <small>Lịch gần nhất</small>
+                  <strong>
                     {item.explanation.earliestSelectableStartAt
                       ? formatTime(
                           item.explanation.earliestSelectableStartAt,
                           timezone,
                         )
                       : 'Chưa có lịch trống'}
-                  </dd>
+                  </strong>
                 </div>
-              </dl>
+              </div>
               <button
                 type="button"
                 onClick={() => openDetail(item.specialistAccountId)}

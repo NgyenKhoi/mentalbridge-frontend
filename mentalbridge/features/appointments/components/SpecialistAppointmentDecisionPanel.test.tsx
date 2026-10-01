@@ -91,7 +91,9 @@ describe('SpecialistAppointmentDecisionPanel', () => {
       0,
       expect.stringMatching(/^[0-9a-f-]{36}$/),
     )
-    expect(await screen.findByText('Đã xác nhận')).toBeInTheDocument()
+    expect((await screen.findAllByText('Đã xác nhận')).length).toBeGreaterThan(
+      0,
+    )
     expect(
       screen.queryByRole('button', { name: 'Từ chối' }),
     ).not.toBeInTheDocument()
@@ -116,7 +118,7 @@ describe('SpecialistAppointmentDecisionPanel', () => {
     await waitFor(() =>
       expect(
         container.querySelector(
-          `a[href="/specialist/appointments/${requested.id}/chat"]`,
+          `a[href="/specialist/messages?appointmentId=${requested.id}"]`,
         ),
       ).toBeInTheDocument(),
     )

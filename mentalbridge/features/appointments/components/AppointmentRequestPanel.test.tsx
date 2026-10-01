@@ -122,7 +122,9 @@ describe('AppointmentRequestPanel', () => {
       timeStyle: 'short',
     }).format(new Date(appointmentStart))
     expect(snapshotStart).not.toBe(deviceStart)
-    expect(await screen.findByText(snapshotStart)).toBeInTheDocument()
+    expect((await screen.findAllByText(snapshotStart)).length).toBeGreaterThan(
+      0,
+    )
     expect(screen.getByText('Đang diễn ra')).toBeInTheDocument()
     expect(
       screen.getByText(formatInSnapshotTimezone(decisionDeadline)),
