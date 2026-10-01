@@ -4,6 +4,7 @@ import SessionActions from './SessionActions'
 import WorkspaceSwitcher from './WorkspaceSwitcher'
 import AdminContentSection from './AdminContentSection'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
+import AdminAccountManager from './AdminAccountManager'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -80,6 +81,8 @@ export default function AdminWorkspace({
           <AdminContentSection />
         ) : section === 'specialists' ? (
           <AdminSpecialistReviewSection />
+        ) : section === 'accounts' ? (
+          <AdminAccountManager />
         ) : (
           <>
             <span className={styles.eyebrow}>
