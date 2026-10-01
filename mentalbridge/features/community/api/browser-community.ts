@@ -9,6 +9,9 @@ import type {
   CommunityTopic,
   CommunityTopicCode,
   PutCommunityProfileRequest,
+  CreateMediaUploadIntentRequest,
+  MediaUploadIntent,
+  CommunityMediaRecord,
 } from '@/lib/community/community-validation'
 
 export type {
@@ -20,6 +23,9 @@ export type {
   CommunityTopic,
   CommunityTopicCode,
   PutCommunityProfileRequest,
+  CreateMediaUploadIntentRequest,
+  MediaUploadIntent,
+  CommunityMediaRecord,
 }
 
 export type VersionedCommunityPost = Readonly<{
@@ -114,4 +120,58 @@ export async function putCommunityProfile(
     { headers: etag ? { 'If-Match': etag } : undefined },
   )
   return { data: response.data, etag: response.headers.etag ?? null }
+}
+
+export async function createCommunityMediaUploadIntent(
+  input: CreateMediaUploadIntentRequest,
+  idempotencyKey: string,
+) {
+  const response = await browserApiClient.post<MediaUploadIntent>(
+    '/community/media/upload-intents',
+    input,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
+  return response.data
+}
+
+export async function finalizeCommunityMedia(mediaId: string) {
+  const response = await browserApiClient.post<CommunityMediaRecord>(
+    `/community/media/${encodeURIComponent(mediaId)}/finalize`,
+  )
+  return response.data
+}
+
+export async function deleteCommunityMedia(mediaId: string, version: number) {
+  await browserApiClient.delete(
+    `/community/media/${encodeURIComponent(mediaId)}`,
+    { headers: { 'If-Match': `"${version}"` } },
+  )
+}
+
+export async function uploadCommunityMedia(file: File, signal?: AbortSignal) {
+  const mediaType = file.type.startsWith('image/') ? 'IMAGE' : 'VIDEO'
+  const intent = await createCommunityMediaUploadIntent(
+    {
+      fileName: file.name,
+      mediaType,
+      mimeType: file.type,
+      sizeBytes: file.size,
+    },
+    crypto.randomUUID(),
+  )
+  const form = new FormData()
+  Object.entries(intent.uploadFields).forEach(([name, value]) =>
+    form.append(name, value),
+  )
+  form.append('file', file, file.name)
+  const upload = await fetch(intent.uploadUrl, {
+    method: 'POST',
+    body: form,
+    redirect: 'error',
+    signal,
+  })
+  if (!upload.ok) throw new Error('COMMUNITY_PROVIDER_UPLOAD_FAILED')
+  const result = await finalizeCommunityMedia(intent.mediaId)
+  if (result.state !== 'READY') throw new Error('COMMUNITY_MEDIA_REJECTED')
+  return result
 }

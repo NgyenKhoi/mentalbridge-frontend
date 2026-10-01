@@ -63,6 +63,8 @@ function safeTitle(code: string, status: number) {
   if (status === 403) return 'Access is forbidden.'
   if (code === 'COMMUNITY_PROFILE_NOT_FOUND')
     return 'Community profile was not found.'
+  if (code === 'COMMUNITY_MEDIA_NOT_FOUND')
+    return 'Community media was not found.'
   if (status === 404) return 'Community post was not found.'
   if (code === 'COMMUNITY_TIMEOUT') return 'Community request timed out.'
   if (code === 'COMMUNITY_UNAVAILABLE') return 'Community is unavailable.'

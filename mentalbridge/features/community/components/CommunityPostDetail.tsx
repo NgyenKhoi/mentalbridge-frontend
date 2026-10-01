@@ -36,6 +36,9 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
   const [editing, setEditing] = useState(false)
   const [content, setContent] = useState('')
   const [selected, setSelected] = useState<CommunityTopicCode[]>([])
+  const [authorMode, setAuthorMode] = useState<'PROFILE' | 'ANONYMOUS'>(
+    'PROFILE',
+  )
   const [saving, setSaving] = useState(false)
 
   const loadPost = useCallback(async () => {
@@ -44,6 +47,9 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
     setVersion(result.version)
     setContent(result.post.content)
     setSelected(result.post.topics)
+    setAuthorMode(
+      result.post.author.state === 'ANONYMOUS' ? 'ANONYMOUS' : 'PROFILE',
+    )
     return result
   }, [postId])
 
@@ -56,6 +62,9 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
         setVersion(result.version)
         setContent(result.post.content)
         setSelected(result.post.topics)
+        setAuthorMode(
+          result.post.author.state === 'ANONYMOUS' ? 'ANONYMOUS' : 'PROFILE',
+        )
         setTopics(topicValues)
       })
       .catch((cause) => {
@@ -105,6 +114,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
           content: normalized,
           topics: selected,
           mediaIds: post.media.map((item) => item.mediaId),
+          authorMode,
         },
         version,
       )
@@ -208,6 +218,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
             displayName={post.author.displayName}
             avatarPreset={post.author.avatarPreset}
             deleted={post.author.state === 'DELETED'}
+            anonymous={post.author.state === 'ANONYMOUS'}
           />
           <div>
             <strong>{post.author.displayName}</strong>
@@ -258,6 +269,38 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
                 ))}
               </div>
             </fieldset>
+            <fieldset className="community-identity-choices">
+              <legend>Danh tính hiển thị cho bài viết</legend>
+              <p>Bạn có thể đổi lựa chọn này riêng cho bài viết hiện tại.</p>
+              <div>
+                <label>
+                  <input
+                    type="radio"
+                    name="community-edit-author-mode"
+                    checked={authorMode === 'PROFILE'}
+                    onChange={() => setAuthorMode('PROFILE')}
+                  />
+                  <span>
+                    <strong>Dùng danh tính cộng đồng</strong>
+                    <small>Hiển thị tên và hình đại diện bạn đã chọn.</small>
+                  </span>
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="community-edit-author-mode"
+                    checked={authorMode === 'ANONYMOUS'}
+                    onChange={() => setAuthorMode('ANONYMOUS')}
+                  />
+                  <span>
+                    <strong>Đăng ẩn danh</strong>
+                    <small>
+                      Ẩn liên kết công khai tới danh tính cộng đồng.
+                    </small>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
             <div className="community-form-actions">
               <button
                 type="button"
@@ -265,6 +308,9 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
                   setEditing(false)
                   setContent(post.content)
                   setSelected(post.topics)
+                  setAuthorMode(
+                    post.author.state === 'ANONYMOUS' ? 'ANONYMOUS' : 'PROFILE',
+                  )
                 }}
               >
                 Hủy
@@ -312,6 +358,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
           Nội dung thể hiện trải nghiệm cá nhân, không thay thế tư vấn chuyên
           môn hoặc hỗ trợ khẩn cấp.
         </p>
+        <Link href="/safety-directory">Cần hỗ trợ ngay</Link>
       </aside>
     </div>
   )

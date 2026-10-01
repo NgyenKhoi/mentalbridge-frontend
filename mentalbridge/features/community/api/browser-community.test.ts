@@ -1,0 +1,101 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const api = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  put: vi.fn(),
+  delete: vi.fn(),
+}))
+
+vi.mock('@/lib/api/browser-client', () => ({ browserApiClient: api }))
+
+import { uploadCommunityMedia } from './browser-community'
+
+describe('uploadCommunityMedia', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+  })
+
+  it('copies only signed intent fields into the direct provider upload then finalizes', async () => {
+    const mediaId = '30000000-0000-4000-8000-000000000001'
+    api.post
+      .mockResolvedValueOnce({
+        data: {
+          mediaId,
+          state: 'PENDING',
+          uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload',
+          expiresAt: '2026-09-30T08:30:00Z',
+          uploadFields: {
+            api_key: 'public-key',
+            public_id: 'owner-scoped-key',
+            signature: 'signed-value',
+            timestamp: '1790756400',
+          },
+          version: 0,
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          mediaId,
+          mediaType: 'IMAGE',
+          state: 'READY',
+          version: 1,
+          createdAt: '2026-09-30T08:20:00Z',
+          updatedAt: '2026-09-30T08:21:00Z',
+        },
+      })
+    vi.mocked(fetch).mockResolvedValue(new Response('{}', { status: 200 }))
+    const file = new File(['safe-image'], 'story.webp', {
+      type: 'image/webp',
+    })
+
+    const result = await uploadCommunityMedia(file)
+
+    expect(result).toMatchObject({ mediaId, state: 'READY' })
+    expect(api.post).toHaveBeenNthCalledWith(
+      1,
+      '/community/media/upload-intents',
+      {
+        fileName: 'story.webp',
+        mediaType: 'IMAGE',
+        mimeType: 'image/webp',
+        sizeBytes: file.size,
+      },
+      { headers: { 'Idempotency-Key': expect.any(String) } },
+    )
+    const [url, options] = vi.mocked(fetch).mock.calls[0]
+    expect(url).toBe('https://api.cloudinary.com/v1_1/test/image/upload')
+    const form = options?.body as FormData
+    expect(form.get('api_key')).toBe('public-key')
+    expect(form.get('public_id')).toBe('owner-scoped-key')
+    expect(form.get('signature')).toBe('signed-value')
+    expect(form.get('file')).toBeInstanceOf(File)
+    expect(api.post).toHaveBeenNthCalledWith(
+      2,
+      `/community/media/${mediaId}/finalize`,
+    )
+  })
+
+  it('does not finalize when the provider rejects the upload', async () => {
+    api.post.mockResolvedValueOnce({
+      data: {
+        mediaId: '30000000-0000-4000-8000-000000000001',
+        state: 'PENDING',
+        uploadUrl: 'https://api.cloudinary.com/v1_1/test/video/upload',
+        expiresAt: '2026-09-30T08:30:00Z',
+        uploadFields: { signature: 'signed-value' },
+        version: 0,
+      },
+    })
+    vi.mocked(fetch).mockResolvedValue(new Response('{}', { status: 400 }))
+
+    await expect(
+      uploadCommunityMedia(
+        new File(['video'], 'story.mp4', { type: 'video/mp4' }),
+      ),
+    ).rejects.toThrow('COMMUNITY_PROVIDER_UPLOAD_FAILED')
+    expect(api.post).toHaveBeenCalledTimes(1)
+  })
+})

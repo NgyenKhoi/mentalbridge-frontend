@@ -9,6 +9,8 @@ import {
   parseCommunityProblem,
   parseOwnerVersion,
   parseCommunityTopics,
+  parseMediaUploadIntent,
+  parseCommunityMediaRecord,
   type CommunityFeedPage,
   type CommunityProfile,
   type CommunityPostDetail,
@@ -16,6 +18,9 @@ import {
   type CommunityProblem,
   type CommunityTopic,
   type PutCommunityProfileRequest,
+  type CreateMediaUploadIntentRequest,
+  type MediaUploadIntent,
+  type CommunityMediaRecord,
 } from './community-validation'
 
 const MAX_RESPONSE_BYTES = 256 * 1024
@@ -341,6 +346,54 @@ export const communityClient = {
           headers: ifMatch ? { 'If-Match': ifMatch } : undefined,
         },
       ),
+    )
+  },
+  async createMediaIntent(
+    accessToken: string,
+    input: CreateMediaUploadIntentRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return (
+      await request<MediaUploadIntent>(
+        '/api/v1/community/media/upload-intents',
+        accessToken,
+        correlationId,
+        parseMediaUploadIntent,
+        {
+          method: 'POST',
+          body: input,
+          headers: { 'Idempotency-Key': idempotencyKey },
+        },
+      )
+    ).data
+  },
+  async finalizeMedia(
+    accessToken: string,
+    mediaId: string,
+    correlationId: string,
+  ) {
+    return (
+      await request<CommunityMediaRecord>(
+        `/api/v1/community/media/${encodeURIComponent(mediaId)}/finalize`,
+        accessToken,
+        correlationId,
+        parseCommunityMediaRecord,
+        { method: 'POST' },
+      )
+    ).data
+  },
+  deleteMedia(
+    accessToken: string,
+    mediaId: string,
+    ifMatch: string,
+    correlationId: string,
+  ) {
+    return deleteRequest(
+      `/api/v1/community/media/${encodeURIComponent(mediaId)}`,
+      accessToken,
+      correlationId,
+      ifMatch,
     )
   },
 }

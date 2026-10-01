@@ -76,6 +76,7 @@ describe('CommunityPostDetail', () => {
         content: 'Nội dung đã cập nhật.',
         topics: ['MY_STORY'],
         mediaIds: [],
+        authorMode: 'PROFILE',
       },
       7,
     )
@@ -85,6 +86,35 @@ describe('CommunityPostDetail', () => {
     expect(api.confirm).toHaveBeenCalled()
     expect(api.remove).toHaveBeenCalledWith(post.postId, 8)
     expect(api.push).toHaveBeenCalledWith('/community')
+  })
+
+  it('lets the owner change identity mode for this post only', async () => {
+    const user = userEvent.setup()
+    api.post.mockResolvedValue({ post, version: 4 })
+    api.update.mockResolvedValue({
+      post: {
+        ...post,
+        author: {
+          communityProfileId: null,
+          avatarPreset: null,
+          displayName: 'Thành viên ẩn danh',
+          state: 'ANONYMOUS',
+        },
+      },
+      version: 5,
+    })
+    render(<CommunityPostDetail postId={post.postId} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }))
+    await user.click(screen.getByRole('radio', { name: /Đăng ẩn danh/ }))
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+
+    expect(api.update).toHaveBeenCalledWith(
+      post.postId,
+      expect.objectContaining({ authorMode: 'ANONYMOUS' }),
+      4,
+    )
+    expect(await screen.findByText('Thành viên ẩn danh')).toBeVisible()
   })
 
   it('reloads authoritative content after a stale edit', async () => {
@@ -114,6 +144,9 @@ describe('CommunityPostDetail', () => {
     expect(screen.getByText('Câu chuyện của tôi')).toBeVisible()
     expect(screen.getByText(/hiện chưa khả dụng/)).toBeVisible()
     expect(screen.getByText(/không thay thế tư vấn chuyên môn/)).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Cần hỗ trợ ngay' }),
+    ).toHaveAttribute('href', '/safety-directory')
   })
 
   it('uses the same unavailable state for hidden, removed, blocked and unknown posts', async () => {
