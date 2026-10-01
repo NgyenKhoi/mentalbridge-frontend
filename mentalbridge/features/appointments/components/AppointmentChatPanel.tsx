@@ -104,16 +104,31 @@ function sessionPresentation(eligibility: AppointmentChatEligibility) {
 export default function AppointmentChatPanel({
   appointmentId,
   viewerRole = 'USER',
+  embedded = false,
 }: {
   appointmentId: string
   viewerRole?: 'USER' | 'SPECIALIST'
+  embedded?: boolean
 }) {
   const [eligibility, setEligibility] = useState<AppointmentChatEligibility>()
   const [connection, setConnection] = useState<ConnectionState>()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [content, setContent] = useState('')
   const [error, setError] = useState('')
+  const [errorDismissed, setErrorDismissed] = useState(false)
+  const [showSessionDetails, setShowSessionDetails] = useState(true)
   const transportRef = useRef<RealtimeTransport | undefined>(undefined)
+  const messagesRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const timer = window.setTimeout(
+      () =>
+        setShowSessionDetails(window.matchMedia('(min-width: 1280px)').matches),
+      0,
+    )
+    return () => window.clearTimeout(timer)
+  }, [])
 
   const mergeMessages = useCallback((incoming: readonly ChatMessage[]) => {
     setMessages((current) => {
@@ -305,6 +320,16 @@ export default function AppointmentChatPanel({
     return () => window.clearInterval(timer)
   }, [connection?.phase, eligibility?.subscribeAllowed])
 
+  useEffect(() => {
+    const container = messagesRef.current
+    if (container) container.scrollTop = container.scrollHeight
+  }, [messages])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setErrorDismissed(false), 0)
+    return () => window.clearTimeout(timer)
+  }, [error, connection?.issue])
+
   const reconnecting =
     eligibility?.subscribeAllowed === true &&
     (connection?.phase === 'reconnecting' ||
@@ -316,7 +341,7 @@ export default function AppointmentChatPanel({
       connection.phase === 'authentication-expired')
       ? 'Không thể duy trì kết nối chat. Vui lòng tải lại để thử lại.'
       : ''
-  const displayedError = error || connectionFailure
+  const displayedError = errorDismissed ? '' : error || connectionFailure
   const session = eligibility ? sessionPresentation(eligibility) : null
   const viewerAccountId = eligibility
     ? viewerRole === 'SPECIALIST'
@@ -337,74 +362,116 @@ export default function AppointmentChatPanel({
         ]
 
   return (
-    <main className={styles.page}>
-      <Link
-        className={styles.backLink}
-        href={
-          viewerRole === 'SPECIALIST'
-            ? '/specialist/appointments'
-            : '/appointments'
-        }
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 18l-6-6 6-6" />
-        </svg>
-        Lịch hẹn
-      </Link>
-      <header className={styles.header}>
-        <div>
-          <h1>Phòng chat lịch hẹn</h1>
-          {eligibility && (
-            <span className={styles.phaseBadge} data-phase={eligibility.phase}>
-              <i /> {phaseLabel[eligibility.phase]}
-            </span>
-          )}
-        </div>
-        <button
-          className={styles.refreshButton}
-          type="button"
-          onClick={() => void refresh()}
-          aria-label="Tải lại phòng chat"
-          title="Tải lại"
+    <main className={`${styles.page} ${embedded ? styles.embedded : ''}`}>
+      {!embedded && (
+        <Link
+          className={styles.backLink}
+          href={
+            viewerRole === 'SPECIALIST'
+              ? '/specialist/appointments'
+              : '/appointments'
+          }
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />
+            <path d="M15 18l-6-6 6-6" />
           </svg>
-        </button>
-      </header>
-      <p className={styles.phaseDescription}>
-        {eligibility ? phaseText[eligibility.phase] : 'Đang kiểm tra lịch hẹn…'}
-      </p>
-      {reconnecting && (
-        <p className={styles.notice}>Đang kết nối lại và đồng bộ tin nhắn…</p>
+          Lịch hẹn
+        </Link>
       )}
-      {displayedError && (
-        <p className={styles.error} role="alert">
-          {displayedError}
-        </p>
-      )}
-      <div className={styles.layout}>
+      <div
+        className={`${styles.layout} ${showSessionDetails && eligibility && session ? styles.withSessionDetails : ''}`}
+      >
         <section className={styles.chat} aria-label="Cuộc trò chuyện">
           <header className={styles.chatHeader}>
             <span className={styles.avatar} aria-hidden="true">
               {counterpartLabel.slice(0, 1)}
             </span>
-            <div>
-              <strong>{counterpartLabel}</strong>
-              <small>
+            <div className={styles.chatIdentity}>
+              <div className={styles.chatTitleRow}>
+                <strong>{counterpartLabel}</strong>
+                {eligibility && (
+                  <span
+                    className={styles.phaseBadge}
+                    data-phase={eligibility.phase}
+                  >
+                    <i /> {phaseLabel[eligibility.phase]}
+                  </span>
+                )}
+              </div>
+              <div className={styles.chatMeta}>
+                <h1>Phòng chat lịch hẹn</h1>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.2-4.4A8 8 0 1 1 21 12z" />
                 </svg>
-                Chat trong ứng dụng
-              </small>
-            </div>
-            {eligibility?.phase === 'ACTIVE' && session && (
-              <div className={styles.timeRemaining}>
-                <strong>Còn {session.remainingMinutes} phút</strong>
-                <span>Kết thúc lúc {session.endTime}</span>
+                <span>Chat trong ứng dụng</span>
+                <span aria-hidden="true">·</span>
+                <p>
+                  {eligibility
+                    ? phaseText[eligibility.phase]
+                    : 'Đang kiểm tra lịch hẹn…'}
+                </p>
               </div>
-            )}
+            </div>
+            <div className={styles.chatActions}>
+              {eligibility?.phase === 'ACTIVE' && session && (
+                <div className={styles.timeRemaining}>
+                  <strong>Còn {session.remainingMinutes} phút</strong>
+                  <span>Kết thúc lúc {session.endTime}</span>
+                </div>
+              )}
+              <button
+                className={styles.refreshButton}
+                type="button"
+                onClick={() => void refresh()}
+                aria-label="Tải lại phòng chat"
+                title="Tải lại"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />
+                </svg>
+              </button>
+              <button
+                className={styles.refreshButton}
+                type="button"
+                onClick={() => setShowSessionDetails((visible) => !visible)}
+                aria-controls="appointment-session-details"
+                aria-expanded={showSessionDetails}
+                aria-label={
+                  showSessionDetails
+                    ? 'Ẩn thông tin buổi hẹn'
+                    : 'Hiện thông tin buổi hẹn'
+                }
+                title="Thông tin buổi hẹn"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 8h.01M11 12h1v4h1M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z" />
+                </svg>
+              </button>
+            </div>
           </header>
+
+          {reconnecting && (
+            <div className={styles.notice}>
+              Đang kết nối lại và đồng bộ tin nhắn…
+            </div>
+          )}
+          {displayedError && (
+            <div className={styles.error} role="alert">
+              <span>{displayedError}</span>
+              <div>
+                <button type="button" onClick={() => void refresh()}>
+                  Thử lại
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setErrorDismissed(true)}
+                  aria-label="Đóng thông báo lỗi"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
 
           {eligibility?.checkInAllowed && (
             <section
@@ -442,6 +509,7 @@ export default function AppointmentChatPanel({
           )}
 
           <section
+            ref={messagesRef}
             className={styles.messages}
             aria-live="polite"
             aria-label="Tin nhắn tư vấn"
@@ -548,8 +616,12 @@ export default function AppointmentChatPanel({
           </form>
         </section>
 
-        {eligibility && session && (
-          <aside className={styles.sessionCard} aria-label="Thông tin buổi hẹn">
+        {eligibility && session && showSessionDetails && (
+          <aside
+            id="appointment-session-details"
+            className={styles.sessionCard}
+            aria-label="Thông tin buổi hẹn"
+          >
             <h2>Thông tin buổi hẹn</h2>
             <strong className={styles.sessionTime}>{session.range}</strong>
             <p className={styles.sessionDate}>{session.date}</p>

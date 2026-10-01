@@ -93,6 +93,109 @@
   border-radius: 12px;
   padding: 0.9rem 1rem;
 }
+
+.nextAppointment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  border: 1px solid color-mix(in srgb, var(--teal) 30%, var(--line));
+  border-radius: var(--radius-shell);
+  padding: var(--space-5) var(--space-6);
+  background: linear-gradient(
+    115deg,
+    color-mix(in srgb, var(--teal-pale) 72%, var(--surface)),
+    var(--surface)
+  );
+  box-shadow: var(--elevation-1);
+}
+
+.nextAppointment span {
+  color: var(--teal);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.nextAppointment h2,
+.nextAppointment p {
+  margin: 0;
+}
+
+.nextAppointment h2 {
+  margin-top: var(--space-1);
+  font-size: 1.25rem;
+}
+
+.nextAppointment > div > strong {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--ink);
+}
+
+.nextAppointment p {
+  margin-top: var(--space-1);
+  color: var(--ink-soft);
+}
+
+.nextActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.nextActions a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--teal-deep);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-4);
+  color: var(--teal-deep);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.nextActions a:last-child {
+  background: var(--teal-deep);
+  color: white;
+}
+
+.appointmentHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.appointmentHeading h2 {
+  margin: 0;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.filters button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filters button[aria-pressed='true'] {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  color: white;
+}
 .empty {
   border: 1px dashed var(--line);
   border-radius: 14px;
@@ -225,5 +328,13 @@
   .rescheduleNotice {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .nextAppointment,
+  .appointmentHeading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .nextActions a {
+    flex: 1;
   }
 }
