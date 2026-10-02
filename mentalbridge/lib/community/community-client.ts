@@ -13,6 +13,8 @@ import {
   parseCommunityMediaRecord,
   parseCommunityComment,
   parseCommunityCommentPage,
+  parseModerationCase,
+  parseModerationCases,
   type CommunityFeedPage,
   type CommunityProfile,
   type CommunityPostDetail,
@@ -27,6 +29,10 @@ import {
   type CommunityCommentPage,
   type CreateCommentRequest,
   type UpdateCommentRequest,
+  type CreateReportRequest,
+  type ReportTargetType,
+  type ModerationCase,
+  type CreateModerationActionRequest,
 } from './community-validation'
 
 const MAX_RESPONSE_BYTES = 256 * 1024
@@ -489,6 +495,148 @@ export const communityClient = {
       ifMatch,
     )
   },
+  report(
+    accessToken: string,
+    input: CreateReportRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return noContentRequest(
+      '/api/v1/community/reports',
+      'POST',
+      accessToken,
+      correlationId,
+      { 'Idempotency-Key': idempotencyKey },
+      input,
+      202,
+    )
+  },
+  hide(
+    accessToken: string,
+    targetType: ReportTargetType,
+    targetId: string,
+    correlationId: string,
+  ) {
+    return noContentRequest(
+      `/api/v1/community/hidden-content/${targetType}/${encodeURIComponent(targetId)}`,
+      'PUT',
+      accessToken,
+      correlationId,
+    )
+  },
+  block(accessToken: string, profileId: string, correlationId: string) {
+    return noContentRequest(
+      `/api/v1/community/blocks/${encodeURIComponent(profileId)}`,
+      'PUT',
+      accessToken,
+      correlationId,
+    )
+  },
+  unblock(accessToken: string, profileId: string, correlationId: string) {
+    return noContentRequest(
+      `/api/v1/community/blocks/${encodeURIComponent(profileId)}`,
+      'DELETE',
+      accessToken,
+      correlationId,
+    )
+  },
+  async moderationCases(
+    accessToken: string,
+    query: URLSearchParams,
+    correlationId: string,
+  ) {
+    const suffix = query.size ? `?${query.toString()}` : ''
+    return (
+      await request<ModerationCase[]>(
+        `/api/v1/community/admin/moderation-cases${suffix}`,
+        accessToken,
+        correlationId,
+        parseModerationCases,
+      )
+    ).data
+  },
+  async moderationAction(
+    accessToken: string,
+    caseId: string,
+    input: CreateModerationActionRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return (
+      await request<ModerationCase>(
+        `/api/v1/community/admin/moderation-cases/${encodeURIComponent(caseId)}/actions`,
+        accessToken,
+        correlationId,
+        parseModerationCase,
+        {
+          method: 'POST',
+          body: input,
+          headers: { 'Idempotency-Key': idempotencyKey },
+        },
+      )
+    ).data
+  },
+}
+
+async function noContentRequest(
+  path: string,
+  method: 'POST' | 'PUT' | 'DELETE',
+  accessToken: string,
+  correlationId: string,
+  headers?: Record<string, string>,
+  body?: unknown,
+  expectedStatus = 204,
+) {
+  const config = readCommunityServerConfig()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetch(
+      new URL(path.replace(/^\//, ''), config.baseUrl),
+      {
+        method,
+        cache: 'no-store',
+        redirect: 'error',
+        signal: controller.signal,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        headers: {
+          Accept: 'application/json, application/problem+json',
+          Authorization: `Bearer ${accessToken}`,
+          'X-Correlation-Id': correlationId,
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          ...headers,
+        },
+      },
+    )
+    if (response.status === expectedStatus) return
+    const raw = await readJson(response)
+    if (!response.ok) {
+      const problem = parseCommunityProblem(raw, response.status)
+      if (problem) throw new CommunityServiceError(problem)
+    }
+    throw localError(
+      502,
+      'COMMUNITY_MALFORMED_RESPONSE',
+      'Community returned an invalid response.',
+    )
+  } catch (error) {
+    if (error instanceof CommunityServiceError) throw error
+    if (controller.signal.aborted)
+      throw localError(
+        504,
+        'COMMUNITY_TIMEOUT',
+        'Community request timed out.',
+        error,
+      )
+    throw localError(
+      503,
+      'COMMUNITY_UNAVAILABLE',
+      'Community is unavailable.',
+      error,
+    )
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 async function deleteRequest(

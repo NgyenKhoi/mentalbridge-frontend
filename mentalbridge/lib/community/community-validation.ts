@@ -21,6 +21,14 @@ export type CommunityComment = components['schemas']['CommunityComment']
 export type CommunityCommentPage = components['schemas']['CommunityCommentPage']
 export type CreateCommentRequest = components['schemas']['CreateCommentRequest']
 export type UpdateCommentRequest = components['schemas']['UpdateCommentRequest']
+export type ReportTargetType = components['schemas']['ReportTargetType']
+export type ReportReason = components['schemas']['ReportReason']
+export type CreateReportRequest = components['schemas']['CreateReportRequest']
+export type ModerationCase = components['schemas']['ModerationCase']
+export type ModerationCaseState = components['schemas']['ModerationCaseState']
+export type ModerationPriority = components['schemas']['ModerationPriority']
+export type CreateModerationActionRequest =
+  components['schemas']['CreateModerationActionRequest']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -63,6 +71,25 @@ const COMMENT_STATES = new Set([
   'OWNER_DELETED',
   'MODERATION_HIDDEN',
   'MODERATION_REMOVED',
+])
+const REPORT_TARGET_TYPES = new Set(['POST', 'COMMENT'])
+const REPORT_REASONS = new Set([
+  'HARASSMENT',
+  'PRIVACY_OR_DOXXING',
+  'MEDICAL_MISINFORMATION',
+  'SELF_HARM_OR_CRISIS_CONCERN',
+  'SPAM',
+  'SEXUAL_OR_VIOLENT_CONTENT',
+  'OTHER',
+])
+const MODERATION_STATES = new Set(['OPEN', 'IN_REVIEW', 'RESOLVED'])
+const MODERATION_PRIORITIES = new Set(['NORMAL', 'HIGH'])
+const MODERATION_ACTIONS = new Set([
+  'NO_ACTION',
+  'HIDE',
+  'REMOVE',
+  'RESTORE',
+  'RESTRICT_COMMUNITY_ACCESS',
 ])
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -121,6 +148,121 @@ function httpsUrl(value: unknown): value is string {
 function uploadUrl(value: unknown): value is string {
   if (!httpsUrl(value)) return false
   return UPLOAD_HOSTS.has(new URL(value).hostname)
+}
+
+export function parseCommunityReportInput(
+  value: unknown,
+): CreateReportRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['targetType', 'targetId', 'reason', 'details']) ||
+    !REPORT_TARGET_TYPES.has(String(input.targetType)) ||
+    typeof input.targetId !== 'string' ||
+    !UUID.test(input.targetId) ||
+    !REPORT_REASONS.has(String(input.reason)) ||
+    (input.details !== null && !text(input.details, 1, 1000)) ||
+    (typeof input.details === 'string' &&
+      input.details !== input.details.trim())
+  )
+    return null
+  return input as CreateReportRequest
+}
+
+export function parseModerationActionInput(
+  value: unknown,
+): CreateModerationActionRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['action', 'reasonCode']) ||
+    !MODERATION_ACTIONS.has(String(input.action)) ||
+    typeof input.reasonCode !== 'string' ||
+    !/^[A-Z0-9_]{1,64}$/.test(input.reasonCode)
+  )
+    return null
+  return input as CreateModerationActionRequest
+}
+
+export function parseModerationCase(value: unknown): ModerationCase | null {
+  const item = record(value)
+  const evidence = record(item?.evidence)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'caseId',
+      'targetType',
+      'targetId',
+      'state',
+      'priority',
+      'reportReasons',
+      'reportContexts',
+      'evidence',
+      'actions',
+      'createdAt',
+      'updatedAt',
+      'version',
+    ]) ||
+    typeof item.caseId !== 'string' ||
+    !UUID.test(item.caseId) ||
+    !REPORT_TARGET_TYPES.has(String(item.targetType)) ||
+    typeof item.targetId !== 'string' ||
+    !UUID.test(item.targetId) ||
+    !MODERATION_STATES.has(String(item.state)) ||
+    !MODERATION_PRIORITIES.has(String(item.priority)) ||
+    !Array.isArray(item.reportReasons) ||
+    item.reportReasons.some((reason) => !REPORT_REASONS.has(String(reason))) ||
+    !Array.isArray(item.reportContexts) ||
+    item.reportContexts.length > 20 ||
+    item.reportContexts.some((context) => !text(context, 1, 1000)) ||
+    !evidence ||
+    !exactKeys(evidence, ['content', 'state', 'version']) ||
+    typeof evidence.content !== 'string' ||
+    typeof evidence.state !== 'string' ||
+    !nonNegativeInteger(evidence.version) ||
+    !Array.isArray(item.actions) ||
+    item.actions.some((action) => !parseModerationActionRecord(action)) ||
+    !dateTime(item.createdAt) ||
+    !dateTime(item.updatedAt) ||
+    !nonNegativeInteger(item.version)
+  )
+    return null
+  return item as ModerationCase
+}
+
+function parseModerationActionRecord(value: unknown) {
+  const item = record(value)
+  return Boolean(
+    item &&
+    exactKeys(item, [
+      'actionId',
+      'action',
+      'reasonCode',
+      'actorSubject',
+      'priorState',
+      'resultingState',
+      'targetVersion',
+      'createdAt',
+    ]) &&
+    typeof item.actionId === 'string' &&
+    UUID.test(item.actionId) &&
+    MODERATION_ACTIONS.has(String(item.action)) &&
+    typeof item.reasonCode === 'string' &&
+    typeof item.actorSubject === 'string' &&
+    UUID.test(item.actorSubject) &&
+    typeof item.priorState === 'string' &&
+    typeof item.resultingState === 'string' &&
+    nonNegativeInteger(item.targetVersion) &&
+    dateTime(item.createdAt),
+  )
+}
+
+export function parseModerationCases(value: unknown): ModerationCase[] | null {
+  if (!Array.isArray(value)) return null
+  const parsed = value.map(parseModerationCase)
+  return parsed.every((item): item is ModerationCase => item !== null)
+    ? parsed
+    : null
 }
 
 function parseAuthor(value: unknown): CommunityAuthor | null {

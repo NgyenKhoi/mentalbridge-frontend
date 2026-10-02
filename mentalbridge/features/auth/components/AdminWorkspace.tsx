@@ -4,6 +4,7 @@ import SessionActions from './SessionActions'
 import WorkspaceSwitcher from './WorkspaceSwitcher'
 import AdminContentSection from './AdminContentSection'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
+import AdminCommunityModerationSection from '@/features/community/components/AdminCommunityModerationSection'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -26,6 +27,11 @@ const SECTIONS = {
   content: {
     label: 'Tài nguyên tự chăm sóc',
     description: 'Quản lý tài nguyên qua Content service được bảo vệ.',
+  },
+  moderation: {
+    label: 'Kiểm duyệt Community',
+    description:
+      'Hàng đợi kiểm duyệt nội dung cộng đồng có nhật ký quyết định.',
   },
   audit: {
     label: 'Nhật ký kiểm toán',
@@ -80,6 +86,8 @@ export default function AdminWorkspace({
           <AdminContentSection />
         ) : section === 'specialists' ? (
           <AdminSpecialistReviewSection />
+        ) : section === 'moderation' ? (
+          <AdminCommunityModerationSection />
         ) : (
           <>
             <span className={styles.eyebrow}>
