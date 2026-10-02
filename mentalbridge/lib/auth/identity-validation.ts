@@ -24,6 +24,13 @@ const ACCOUNT_STATUSES = new Set([
   'DELETED',
 ])
 const IDENTITY_ROLES = new Set<IdentityRole>(['USER', 'SPECIALIST', 'ADMIN'])
+const ADMIN_TARGET_STATUSES = new Set(['ACTIVE', 'DISABLED'])
+const ACCOUNT_STATE_REASON_CODES = new Set([
+  'SAFETY_CONCERN',
+  'POLICY_VIOLATION',
+  'ACCOUNT_REVIEW_REQUIRED',
+  'REVIEW_COMPLETED',
+])
 const PUBLIC_REGISTRATION_ROLES = new Set<PublicRegistrationRole>([
   'USER',
   'SPECIALIST',
@@ -437,6 +444,10 @@ export function isValidIdentityRole(value: string): value is IdentityRole {
   return IDENTITY_ROLES.has(value as IdentityRole)
 }
 
+export function isValidEmail(value: string) {
+  return value.length <= 254 && EMAIL_PATTERN.test(value)
+}
+
 export function parseAccountPage(value: unknown): AccountPage | null {
   if (!isRecord(value)) return null
   if (!hasOnlyKeys(value, ['items', 'nextCursor'])) return null
@@ -465,14 +476,15 @@ export function validateAccountStateChangeRequest(
   if (!hasOnlyKeys(value, ['status', 'reasonCode'])) {
     violations.push({ field: 'body', code: 'UNKNOWN_FIELD' })
   }
-  if (typeof value.status !== 'string' || !ACCOUNT_STATUSES.has(value.status)) {
+  if (
+    typeof value.status !== 'string' ||
+    !ADMIN_TARGET_STATUSES.has(value.status)
+  ) {
     violations.push({ field: 'status', code: 'INVALID_FORMAT' })
   }
   if (
     typeof value.reasonCode !== 'string' ||
-    value.reasonCode.length < 1 ||
-    value.reasonCode.length > 64 ||
-    !/^[A-Z0-9_]+$/.test(value.reasonCode)
+    !ACCOUNT_STATE_REASON_CODES.has(value.reasonCode)
   ) {
     violations.push({ field: 'reasonCode', code: 'INVALID_FORMAT' })
   }
@@ -481,7 +493,7 @@ export function validateAccountStateChangeRequest(
     success: true,
     value: {
       status: value.status as AccountStateChangeRequest['status'],
-      reasonCode: value.reasonCode as string,
+      reasonCode: value.reasonCode as AccountStateChangeRequest['reasonCode'],
     },
   }
 }

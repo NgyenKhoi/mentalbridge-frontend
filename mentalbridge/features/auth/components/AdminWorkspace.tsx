@@ -17,7 +17,7 @@ const SECTIONS = {
   accounts: {
     label: 'Tài khoản',
     description:
-      'Khu vực quản lý vòng đời tài khoản. Chưa tải dữ liệu cho đến khi API quản trị được phê duyệt.',
+      'Tra cứu, tạm ngưng và khôi phục tài khoản với quyền quản trị được bảo vệ.',
   },
   specialists: {
     label: 'Chuyên gia',

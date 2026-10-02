@@ -174,6 +174,7 @@ async function run() {
     {
       ...inheritedEnvironment,
       PLAYWRIGHT_BASE_URL: `http://${host}:${frontendPort}`,
+      MENTALBRIDGE_MANAGED_E2E: 'true',
     },
   )
   const code = await new Promise((resolve) => playwright.once('exit', resolve))

@@ -378,8 +378,16 @@ export interface components {
             nextCursor?: string | null;
         };
         AccountStateChangeRequest: {
-            status: components["schemas"]["AccountStatus"];
-            reasonCode: string;
+            /**
+             * @description DISABLED suspends an account; ACTIVE restores a disabled account according to email-verification state.
+             * @enum {string}
+             */
+            status: "ACTIVE" | "DISABLED";
+            /**
+             * @description REVIEW_COMPLETED is reserved for restoration; the other values are suspension reasons.
+             * @enum {string}
+             */
+            reasonCode: "SAFETY_CONCERN" | "POLICY_VIOLATION" | "ACCOUNT_REVIEW_REQUIRED" | "REVIEW_COMPLETED";
         };
         Problem: {
             /** Format: uri-reference */
