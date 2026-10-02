@@ -10,7 +10,13 @@ const api = vi.hoisted(() => ({
 
 vi.mock('@/lib/api/browser-client', () => ({ browserApiClient: api }))
 
-import { uploadCommunityMedia } from './browser-community'
+import {
+  createCommunityComment,
+  deleteCommunityComment,
+  getCommunityComments,
+  updateCommunityComment,
+  uploadCommunityMedia,
+} from './browser-community'
 
 describe('uploadCommunityMedia', () => {
   beforeEach(() => {
@@ -97,5 +103,67 @@ describe('uploadCommunityMedia', () => {
       ),
     ).rejects.toThrow('COMMUNITY_PROVIDER_UPLOAD_FAILED')
     expect(api.post).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Community comment browser API', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('uses bounded pagination, idempotency and exact comment versions', async () => {
+    const postId = '20000000-0000-4000-8000-000000000009'
+    const commentId = '40000000-0000-4000-8000-000000000001'
+    const comment = {
+      commentId,
+      postId,
+      parentCommentId: null,
+      author: {
+        communityProfileId: '10000000-0000-4000-8000-000000000002',
+        displayName: 'Mầm Xanh',
+        avatarPreset: 'LEAF',
+        state: 'ACTIVE',
+      },
+      content: 'Mình đang lắng nghe bạn.',
+      state: 'ACTIVE',
+      version: 0,
+      createdAt: '2026-10-01T05:00:00Z',
+      updatedAt: '2026-10-01T05:00:00Z',
+    }
+    api.get.mockResolvedValue({
+      data: { items: [comment], nextCursor: null, hasMore: false },
+    })
+    api.post.mockResolvedValue({ data: comment, headers: { etag: '"0"' } })
+    api.patch.mockResolvedValue({
+      data: { ...comment, content: 'Mình vẫn ở đây.', version: 1 },
+      headers: { etag: '"1"' },
+    })
+    api.delete.mockResolvedValue(undefined)
+
+    await getCommunityComments(postId, 'opaque-cursor')
+    await createCommunityComment(
+      postId,
+      { content: comment.content, parentCommentId: null },
+      'browser-comment-key-0001',
+    )
+    await updateCommunityComment(commentId, { content: 'Mình vẫn ở đây.' }, 0)
+    await deleteCommunityComment(commentId, 1)
+
+    expect(api.get).toHaveBeenCalledWith(
+      `/community/posts/${postId}/comments`,
+      { params: { limit: 20, cursor: 'opaque-cursor' } },
+    )
+    expect(api.post).toHaveBeenCalledWith(
+      `/community/posts/${postId}/comments`,
+      { content: comment.content, parentCommentId: null },
+      { headers: { 'Idempotency-Key': 'browser-comment-key-0001' } },
+    )
+    expect(api.patch).toHaveBeenCalledWith(
+      `/community/comments/${commentId}`,
+      { content: 'Mình vẫn ở đây.' },
+      { headers: { 'If-Match': '"0"' } },
+    )
+    expect(api.delete).toHaveBeenCalledWith(
+      `/community/comments/${commentId}`,
+      { headers: { 'If-Match': '"1"' } },
+    )
   })
 })

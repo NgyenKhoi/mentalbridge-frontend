@@ -16,6 +16,10 @@ const communityMocks = vi.hoisted(() => ({
   createMediaIntent: vi.fn(),
   finalizeMedia: vi.fn(),
   deleteMedia: vi.fn(),
+  comments: vi.fn(),
+  createComment: vi.fn(),
+  updateComment: vi.fn(),
+  deleteComment: vi.fn(),
 }))
 const sessionMocks = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -45,10 +49,19 @@ import { GET as getTopics } from '../topics/route'
 import { POST as createMediaIntent } from '../media/upload-intents/route'
 import { POST as finalizeMedia } from '../media/[mediaId]/finalize/route'
 import { DELETE as deleteMedia } from '../media/[mediaId]/route'
+import {
+  GET as getComments,
+  POST as createComment,
+} from '../posts/[postId]/comments/route'
+import {
+  DELETE as deleteComment,
+  PATCH as patchComment,
+} from '../comments/[commentId]/route'
 import { GET as getFeed } from './route'
 
 const postId = '20000000-0000-4000-8000-000000000009'
 const authorId = '10000000-0000-4000-8000-000000000002'
+const commentId = '40000000-0000-4000-8000-000000000001'
 const post = {
   postId,
   author: {
@@ -472,5 +485,133 @@ describe('/api/community read BFF', () => {
       expect(response.status).toBe(400)
     }
     expect(communityMocks.createMediaIntent).not.toHaveBeenCalled()
+  })
+
+  it('proxies bounded comment reads, creates, edits and owner deletion', async () => {
+    const comment = {
+      commentId,
+      postId,
+      parentCommentId: null,
+      author: post.author,
+      content: 'Mình đang lắng nghe bạn.',
+      state: 'ACTIVE' as const,
+      version: 0,
+      createdAt: post.publishedAt,
+      updatedAt: post.updatedAt,
+    }
+    communityMocks.comments.mockResolvedValue({
+      items: [comment],
+      nextCursor: null,
+      hasMore: false,
+    })
+    communityMocks.createComment.mockResolvedValue({
+      data: comment,
+      etag: '"0"',
+    })
+    communityMocks.updateComment.mockResolvedValue({
+      data: { ...comment, content: 'Mình vẫn ở đây.', version: 1 },
+      etag: '"1"',
+    })
+    communityMocks.deleteComment.mockResolvedValue(undefined)
+
+    const listed = await getComments(
+      request(
+        `http://localhost/api/community/posts/${postId}/comments?limit=20`,
+      ),
+      { params: Promise.resolve({ postId }) },
+    )
+    expect(listed.status).toBe(200)
+    expect(communityMocks.comments).toHaveBeenCalledWith(
+      'identity-access-secret',
+      postId,
+      expect.any(URLSearchParams),
+      expect.any(String),
+    )
+
+    const created = await createComment(
+      request(`http://localhost/api/community/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': 'browser-comment-key-0001',
+        },
+        body: JSON.stringify({
+          content: comment.content,
+          parentCommentId: null,
+        }),
+      }),
+      { params: Promise.resolve({ postId }) },
+    )
+    expect(created.status).toBe(201)
+    expect(created.headers.get('etag')).toBe('"0"')
+
+    const updated = await patchComment(
+      request(`http://localhost/api/community/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', 'if-match': '"0"' },
+        body: JSON.stringify({ content: 'Mình vẫn ở đây.' }),
+      }),
+      { params: Promise.resolve({ commentId }) },
+    )
+    expect(updated.status).toBe(200)
+    expect(updated.headers.get('etag')).toBe('"1"')
+    expect(communityMocks.updateComment).toHaveBeenCalledWith(
+      'identity-access-secret',
+      commentId,
+      { content: 'Mình vẫn ở đây.' },
+      '"0"',
+      expect.any(String),
+    )
+
+    const removed = await deleteComment(
+      request(`http://localhost/api/community/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { 'if-match': '"1"' },
+      }),
+      { params: Promise.resolve({ commentId }) },
+    )
+    expect(removed.status).toBe(204)
+    expect(communityMocks.deleteComment).toHaveBeenCalledWith(
+      'identity-access-secret',
+      commentId,
+      '"1"',
+      expect.any(String),
+    )
+  })
+
+  it('rejects malformed comment pagination and commands at the BFF', async () => {
+    const invalidPage = await getComments(
+      request(
+        `http://localhost/api/community/posts/${postId}/comments?limit=51&emotion=SAD`,
+      ),
+      { params: Promise.resolve({ postId }) },
+    )
+    expect(invalidPage.status).toBe(400)
+
+    const invalidCreate = await createComment(
+      request(`http://localhost/api/community/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': 'short',
+        },
+        body: JSON.stringify({ content: '', parentCommentId: null }),
+      }),
+      { params: Promise.resolve({ postId }) },
+    )
+    expect(invalidCreate.status).toBe(400)
+
+    const invalidPatch = await patchComment(
+      request(`http://localhost/api/community/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', 'if-match': '0' },
+        body: JSON.stringify({ content: 'Nội dung' }),
+      }),
+      { params: Promise.resolve({ commentId }) },
+    )
+    expect(invalidPatch.status).toBe(400)
+    expect(communityMocks.comments).not.toHaveBeenCalled()
+    expect(communityMocks.createComment).not.toHaveBeenCalled()
+    expect(communityMocks.updateComment).not.toHaveBeenCalled()
   })
 })

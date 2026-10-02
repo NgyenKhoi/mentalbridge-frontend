@@ -12,6 +12,10 @@ import type {
   CreateMediaUploadIntentRequest,
   MediaUploadIntent,
   CommunityMediaRecord,
+  CommunityComment,
+  CommunityCommentPage,
+  CreateCommentRequest,
+  UpdateCommentRequest,
 } from '@/lib/community/community-validation'
 
 export type {
@@ -26,11 +30,20 @@ export type {
   CreateMediaUploadIntentRequest,
   MediaUploadIntent,
   CommunityMediaRecord,
+  CommunityComment,
+  CommunityCommentPage,
+  CreateCommentRequest,
+  UpdateCommentRequest,
 }
 
 export type VersionedCommunityPost = Readonly<{
   post: CommunityPostDetail
   version: number | null
+}>
+
+export type VersionedCommunityComment = Readonly<{
+  comment: CommunityComment
+  version: number
 }>
 
 export async function getCommunityFeed(
@@ -144,6 +157,59 @@ export async function finalizeCommunityMedia(mediaId: string) {
 export async function deleteCommunityMedia(mediaId: string, version: number) {
   await browserApiClient.delete(
     `/community/media/${encodeURIComponent(mediaId)}`,
+    { headers: { 'If-Match': `"${version}"` } },
+  )
+}
+
+export async function getCommunityComments(postId: string, cursor?: string) {
+  const response = await browserApiClient.get<CommunityCommentPage>(
+    `/community/posts/${encodeURIComponent(postId)}/comments`,
+    {
+      params: {
+        limit: 20,
+        ...(cursor ? { cursor } : {}),
+      },
+    },
+  )
+  return response.data
+}
+
+export async function createCommunityComment(
+  postId: string,
+  input: CreateCommentRequest,
+  idempotencyKey: string,
+): Promise<VersionedCommunityComment> {
+  const response = await browserApiClient.post<CommunityComment>(
+    `/community/posts/${encodeURIComponent(postId)}/comments`,
+    input,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
+  const version = parseOwnerVersion(response.headers.etag)
+  if (version === null) throw new Error('COMMUNITY_INVALID_COMMENT_VERSION')
+  return { comment: response.data, version }
+}
+
+export async function updateCommunityComment(
+  commentId: string,
+  input: UpdateCommentRequest,
+  version: number,
+): Promise<VersionedCommunityComment> {
+  const response = await browserApiClient.patch<CommunityComment>(
+    `/community/comments/${encodeURIComponent(commentId)}`,
+    input,
+    { headers: { 'If-Match': `"${version}"` } },
+  )
+  const nextVersion = parseOwnerVersion(response.headers.etag)
+  if (nextVersion === null) throw new Error('COMMUNITY_INVALID_COMMENT_VERSION')
+  return { comment: response.data, version: nextVersion }
+}
+
+export async function deleteCommunityComment(
+  commentId: string,
+  version: number,
+) {
+  await browserApiClient.delete(
+    `/community/comments/${encodeURIComponent(commentId)}`,
     { headers: { 'If-Match': `"${version}"` } },
   )
 }

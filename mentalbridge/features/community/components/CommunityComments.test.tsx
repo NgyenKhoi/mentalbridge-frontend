@@ -1,0 +1,158 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { ApiError } from '@/lib/api/api-error'
+
+const api = vi.hoisted(() => ({
+  list: vi.fn(),
+  profile: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  remove: vi.fn(),
+  confirm: vi.fn(),
+  toast: vi.fn(),
+}))
+
+vi.mock('@/components/ui/FeedbackProvider', () => ({
+  useFeedback: () => ({ confirm: api.confirm, showActionToast: api.toast }),
+}))
+vi.mock('@/features/community/api/browser-community', () => ({
+  getCommunityComments: api.list,
+  getCommunityProfile: api.profile,
+  createCommunityComment: api.create,
+  updateCommunityComment: api.update,
+  deleteCommunityComment: api.remove,
+}))
+
+import CommunityComments from './CommunityComments'
+
+const postId = '20000000-0000-4000-8000-000000000009'
+const profileId = '10000000-0000-4000-8000-000000000002'
+const root = {
+  commentId: '40000000-0000-4000-8000-000000000001',
+  postId,
+  parentCommentId: null,
+  author: {
+    communityProfileId: profileId,
+    avatarPreset: 'LEAF' as const,
+    displayName: 'Mầm Xanh',
+    state: 'ACTIVE' as const,
+  },
+  content: 'Mình đang lắng nghe bạn.',
+  state: 'ACTIVE' as const,
+  version: 0,
+  createdAt: '2026-10-01T05:00:00Z',
+  updatedAt: '2026-10-01T05:00:00Z',
+}
+
+describe('CommunityComments', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    api.list.mockResolvedValue({
+      items: [root],
+      nextCursor: null,
+      hasMore: false,
+    })
+    api.profile.mockResolvedValue({
+      data: { communityProfileId: profileId },
+      etag: '"0"',
+    })
+    api.confirm.mockResolvedValue(true)
+  })
+
+  it('creates a one-level reply with supportive composer guidance', async () => {
+    const user = userEvent.setup()
+    const onCountChange = vi.fn()
+    const reply = {
+      ...root,
+      commentId: '40000000-0000-4000-8000-000000000002',
+      parentCommentId: root.commentId,
+      content: 'Cảm ơn bạn đã chia sẻ.',
+    }
+    api.create.mockResolvedValue({ comment: reply, version: 0 })
+    render(<CommunityComments postId={postId} onCountChange={onCountChange} />)
+
+    expect(await screen.findByText(root.content)).toBeVisible()
+    expect(screen.getByText(/Tránh chẩn đoán/)).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Phản hồi' }))
+    await user.type(
+      screen.getByLabelText('Lời phản hồi của bạn'),
+      reply.content,
+    )
+    await user.click(screen.getByRole('button', { name: 'Gửi phản hồi' }))
+
+    expect(api.create).toHaveBeenCalledWith(
+      postId,
+      { content: reply.content, parentCommentId: root.commentId },
+      expect.any(String),
+    )
+    expect(await screen.findByText(reply.content)).toBeVisible()
+    expect(onCountChange).toHaveBeenCalledWith(1)
+  })
+
+  it('edits an owned comment with its exact version', async () => {
+    const user = userEvent.setup()
+    api.update.mockResolvedValue({
+      comment: { ...root, content: 'Mình vẫn ở đây.', version: 1 },
+      version: 1,
+    })
+    render(<CommunityComments postId={postId} onCountChange={vi.fn()} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }))
+    const editor = screen.getByLabelText('Chỉnh sửa bình luận')
+    await user.clear(editor)
+    await user.type(editor, 'Mình vẫn ở đây.')
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+
+    expect(api.update).toHaveBeenCalledWith(
+      root.commentId,
+      { content: 'Mình vẫn ở đây.' },
+      0,
+    )
+    expect(await screen.findByText('Mình vẫn ở đây.')).toBeVisible()
+  })
+
+  it('tombstones deletion and decrements the visible count once', async () => {
+    const user = userEvent.setup()
+    const onCountChange = vi.fn()
+    api.remove.mockResolvedValue(undefined)
+    render(<CommunityComments postId={postId} onCountChange={onCountChange} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Xóa' }))
+    await waitFor(() =>
+      expect(api.remove).toHaveBeenCalledWith(root.commentId, 0),
+    )
+    expect(
+      await screen.findByText('Bình luận đã được người viết xóa.'),
+    ).toBeVisible()
+    expect(onCountChange).toHaveBeenCalledWith(-1)
+  })
+
+  it('reloads comments after a stale edit', async () => {
+    const user = userEvent.setup()
+    api.update.mockRejectedValue(
+      new ApiError({ message: 'stale', code: 'STALE', status: 412 }),
+    )
+    api.list
+      .mockResolvedValueOnce({
+        items: [root],
+        nextCursor: null,
+        hasMore: false,
+      })
+      .mockResolvedValueOnce({
+        items: [{ ...root, content: 'Nội dung mới nhất', version: 1 }],
+        nextCursor: null,
+        hasMore: false,
+      })
+    render(<CommunityComments postId={postId} onCountChange={vi.fn()} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+
+    expect(await screen.findByText('Nội dung mới nhất')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Nội dung mới nhất đã được tải lại.',
+    )
+  })
+})

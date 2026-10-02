@@ -17,6 +17,7 @@ import {
 } from '@/features/community/api/browser-community'
 import CommunityMedia from './CommunityMedia'
 import CommunityAvatar from './CommunityAvatar'
+import CommunityComments from './CommunityComments'
 
 function communityTime(value: string) {
   return new Intl.DateTimeFormat('vi-VN', {
@@ -352,6 +353,22 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
           </>
         )}
       </article>
+      <CommunityComments
+        postId={post.postId}
+        onCountChange={(difference) =>
+          setPost((current) =>
+            current
+              ? {
+                  ...current,
+                  counts: {
+                    ...current.counts,
+                    comments: Math.max(0, current.counts.comments + difference),
+                  },
+                }
+              : current,
+          )
+        }
+      />
       <aside className="community-safety-note">
         <strong>Chia sẻ từ cộng đồng</strong>
         <p>

@@ -169,8 +169,29 @@ const actors = new Map([
 
 const initialContentResources = structuredClone(contentResources)
 const initialCommunityPosts = structuredClone(communityPosts)
+const communityComments = [
+  {
+    commentId: '52000000-0000-4000-8000-000000000001',
+    postId: '50000000-0000-4000-8000-000000000002',
+    parentCommentId: null,
+    author: {
+      communityProfileId: '51000000-0000-4000-8000-000000000003',
+      displayName: 'Lá Dịu Dàng',
+      avatarPreset: 'SPROUT',
+      state: 'ACTIVE',
+    },
+    content: 'Cảm ơn bạn đã chia sẻ bước tiến này.',
+    state: 'ACTIVE',
+    version: 0,
+    createdAt: '2026-09-29T05:10:00Z',
+    updatedAt: '2026-09-29T05:10:00Z',
+  },
+]
+const initialCommunityComments = structuredClone(communityComments)
 const contentCreateByKey = new Map()
 const communityCreateByKey = new Map()
+const communityCommentCreateByKey = new Map()
+const communityCommentOwners = new Map()
 const communityPostOwners = new Map([
   [
     '50000000-0000-4000-8000-000000000002',
@@ -248,6 +269,13 @@ function reset() {
   availabilityCommands.clear()
   contentCreateByKey.clear()
   communityCreateByKey.clear()
+  communityCommentCreateByKey.clear()
+  communityComments.splice(
+    0,
+    communityComments.length,
+    ...structuredClone(initialCommunityComments),
+  )
+  communityCommentOwners.clear()
   communityPosts.splice(
     0,
     communityPosts.length,
@@ -1177,6 +1205,172 @@ const server = createServer(async (request, response) => {
       response.writeHead(204, { 'X-Correlation-Id': correlationId })
       response.end()
       return
+    }
+
+    const communityCommentCollection = url.pathname.match(
+      /^\/api\/v1\/community\/posts\/([0-9a-f-]+)\/comments$/i,
+    )
+    if (communityCommentCollection) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const post = communityPosts.find(
+        ({ postId }) => postId === communityCommentCollection[1],
+      )
+      if (!post) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+        return
+      }
+      if (request.method === 'GET') {
+        const offset = Number(url.searchParams.get('cursor') ?? 0)
+        const limit = Number(url.searchParams.get('limit') ?? 20)
+        const matching = communityComments.filter(
+          (comment) => comment.postId === post.postId,
+        )
+        const items = matching.slice(offset, offset + limit)
+        const nextOffset = offset + items.length
+        json(response, 200, {
+          items,
+          nextCursor: nextOffset < matching.length ? String(nextOffset) : null,
+          hasMore: nextOffset < matching.length,
+        })
+        return
+      }
+      if (request.method === 'POST') {
+        const key = request.headers['idempotency-key']
+        if (typeof key !== 'string') {
+          problem(
+            response,
+            400,
+            'VALIDATION_FAILED',
+            'Idempotency key is required',
+          )
+          return
+        }
+        const body = await readBody(request)
+        const parent = body.parentCommentId
+          ? communityComments.find(
+              (comment) =>
+                comment.commentId === body.parentCommentId &&
+                comment.postId === post.postId &&
+                comment.parentCommentId === null &&
+                comment.state === 'ACTIVE',
+            )
+          : null
+        if (body.parentCommentId && !parent) {
+          problem(
+            response,
+            404,
+            'COMMUNITY_COMMENT_NOT_FOUND',
+            'Comment not found',
+          )
+          return
+        }
+        const commandKey = `${actor.accountId}:${key}`
+        const fingerprint = JSON.stringify({ postId: post.postId, ...body })
+        const replay = communityCommentCreateByKey.get(commandKey)
+        if (replay) {
+          if (replay.fingerprint !== fingerprint) {
+            problem(response, 409, 'IDEMPOTENCY_KEY_REUSED', 'Key was reused')
+            return
+          }
+          json(response, 201, replay.comment, 'application/json', {
+            ETag: `"${replay.comment.version}"`,
+          })
+          return
+        }
+        const now = new Date().toISOString()
+        let profile = communityProfiles.get(actor.accountId)
+        if (!profile) {
+          profile = {
+            communityProfileId: crypto.randomUUID(),
+            displayName: 'Thành viên MentalBridge',
+            avatarPreset: null,
+            status: 'ACTIVE',
+            version: 0,
+            createdAt: now,
+            updatedAt: now,
+          }
+          communityProfiles.set(actor.accountId, profile)
+        }
+        const comment = {
+          commentId: crypto.randomUUID(),
+          postId: post.postId,
+          parentCommentId: body.parentCommentId,
+          author: {
+            communityProfileId: profile.communityProfileId,
+            displayName: profile.displayName,
+            avatarPreset: profile.avatarPreset,
+            state: 'ACTIVE',
+          },
+          content: body.content,
+          state: 'ACTIVE',
+          version: 0,
+          createdAt: now,
+          updatedAt: now,
+        }
+        communityComments.push(comment)
+        communityCommentOwners.set(comment.commentId, actor.accountId)
+        communityCommentCreateByKey.set(commandKey, { fingerprint, comment })
+        post.counts.comments += 1
+        json(response, 201, comment, 'application/json', { ETag: '"0"' })
+        return
+      }
+    }
+
+    const communityCommentResource = url.pathname.match(
+      /^\/api\/v1\/community\/comments\/([0-9a-f-]+)$/i,
+    )
+    if (communityCommentResource) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const comment = communityComments.find(
+        ({ commentId }) => commentId === communityCommentResource[1],
+      )
+      if (
+        !comment ||
+        comment.state !== 'ACTIVE' ||
+        communityCommentOwners.get(comment.commentId) !== actor.accountId
+      ) {
+        problem(
+          response,
+          404,
+          'COMMUNITY_COMMENT_NOT_FOUND',
+          'Comment not found',
+        )
+        return
+      }
+      if (request.headers['if-match'] !== `"${comment.version}"`) {
+        problem(
+          response,
+          412,
+          'COMMUNITY_COMMENT_VERSION_MISMATCH',
+          'Comment changed',
+        )
+        return
+      }
+      if (request.method === 'PATCH') {
+        const body = await readBody(request)
+        comment.content = body.content
+        comment.updatedAt = new Date().toISOString()
+        comment.version += 1
+        json(response, 200, comment, 'application/json', {
+          ETag: `"${comment.version}"`,
+        })
+        return
+      }
+      if (request.method === 'DELETE') {
+        comment.content = 'Bình luận đã được người viết xóa.'
+        comment.state = 'OWNER_DELETED'
+        comment.updatedAt = new Date().toISOString()
+        comment.version += 1
+        const post = communityPosts.find(
+          ({ postId }) => postId === comment.postId,
+        )
+        if (post) post.counts.comments = Math.max(0, post.counts.comments - 1)
+        response.writeHead(204, { 'X-Correlation-Id': correlationId })
+        response.end()
+        return
+      }
     }
 
     if (request.method === 'GET' && url.pathname === '/api/v1/resources') {

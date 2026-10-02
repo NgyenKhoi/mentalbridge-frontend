@@ -122,4 +122,48 @@ test.describe('Community feed journey', () => {
       'Lá Nhỏ',
     )
   })
+
+  test('comments, replies, edits and keeps a tombstone after deletion', async ({
+    page,
+    request,
+  }) => {
+    const reset = await request.post(`${identityFixtureUrl}/__test/reset`)
+    expect(reset.status()).toBe(204)
+    await login(page)
+    await page.goto('/community/50000000-0000-4000-8000-000000000002')
+
+    await expect(
+      page.getByRole('heading', { name: 'Bình luận hỗ trợ' }),
+    ).toBeVisible()
+    await page
+      .getByLabel('Bạn muốn chia sẻ điều gì?')
+      .fill('Mình ở đây và đang lắng nghe bạn.')
+    await page.getByRole('button', { name: 'Gửi bình luận' }).click()
+
+    let ownComment = page
+      .getByRole('listitem')
+      .filter({ hasText: 'Mình ở đây và đang lắng nghe bạn.' })
+    await expect(ownComment).toBeVisible()
+    await ownComment.getByRole('button', { name: 'Chỉnh sửa' }).click()
+    await ownComment
+      .getByLabel('Chỉnh sửa bình luận')
+      .fill('Mình vẫn ở đây cùng bạn.')
+    await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
+    await expect(page.getByText('Mình vẫn ở đây cùng bạn.')).toBeVisible()
+
+    ownComment = page
+      .getByRole('listitem')
+      .filter({ hasText: 'Mình vẫn ở đây cùng bạn.' })
+    await ownComment.getByRole('button', { name: 'Phản hồi' }).click()
+    await page.getByLabel('Lời phản hồi của bạn').fill('Cảm ơn bạn đã mở lòng.')
+    await page.getByRole('button', { name: 'Gửi phản hồi' }).click()
+    await expect(page.getByText('Cảm ơn bạn đã mở lòng.')).toBeVisible()
+
+    await ownComment.getByRole('button', { name: 'Xóa' }).click()
+    await page.getByRole('button', { name: 'Xóa bình luận' }).click()
+    await expect(
+      page.getByText('Bình luận đã được người viết xóa.'),
+    ).toBeVisible()
+    await expect(page.getByText('Cảm ơn bạn đã mở lòng.')).toBeVisible()
+  })
 })
