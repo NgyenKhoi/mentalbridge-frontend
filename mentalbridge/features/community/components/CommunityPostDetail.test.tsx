@@ -25,6 +25,9 @@ vi.mock('@/features/community/api/browser-community', () => ({
   updateCommunityPost: api.update,
   deleteCommunityPost: api.remove,
 }))
+vi.mock('./CommunityComments', () => ({
+  default: () => <section aria-label="Bình luận hỗ trợ" />,
+}))
 
 import CommunityPostDetail from './CommunityPostDetail'
 

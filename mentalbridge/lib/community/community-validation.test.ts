@@ -11,6 +11,9 @@ import {
   parseMediaUploadIntent,
   parseCommunityMediaRecord,
   parseOwnerVersion,
+  parseCommunityCommentPage,
+  parseCreateCommentRequest,
+  parseUpdateCommentRequest,
 } from './community-validation'
 
 const post = {
@@ -346,5 +349,50 @@ describe('Community response validation', () => {
         updatedAt: '2026-09-30T08:21:00Z',
       }),
     ).not.toBeNull()
+  })
+
+  it('accepts only bounded comment pages and one-level write shapes', () => {
+    const comment = {
+      commentId: '40000000-0000-4000-8000-000000000001',
+      postId: post.postId,
+      parentCommentId: null,
+      author: post.author,
+      content: 'Mình đang lắng nghe bạn.',
+      state: 'ACTIVE',
+      version: 0,
+      createdAt: post.publishedAt,
+      updatedAt: post.updatedAt,
+    }
+    expect(
+      parseCommunityCommentPage({
+        items: [comment],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityCommentPage({
+        items: [{ ...comment, journalEntryId: 'private' }],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    ).toBeNull()
+    expect(
+      parseCreateCommentRequest({
+        content: 'Một lời động viên.',
+        parentCommentId: comment.commentId,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCreateCommentRequest({
+        content: 'Không nhận cấp lồng.',
+        parentCommentId: comment.commentId,
+        grandparentCommentId: comment.commentId,
+      }),
+    ).toBeNull()
+    expect(
+      parseUpdateCommentRequest({ content: 'Đã chỉnh sửa.' }),
+    ).not.toBeNull()
+    expect(parseUpdateCommentRequest({ content: ' '.repeat(3) })).toBeNull()
   })
 })

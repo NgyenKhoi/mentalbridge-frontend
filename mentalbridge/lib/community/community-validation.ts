@@ -17,6 +17,10 @@ export type CreateMediaUploadIntentRequest =
   components['schemas']['CreateMediaUploadIntentRequest']
 export type MediaUploadIntent = components['schemas']['MediaUploadIntent']
 export type CommunityMediaRecord = components['schemas']['CommunityMediaRecord']
+export type CommunityComment = components['schemas']['CommunityComment']
+export type CommunityCommentPage = components['schemas']['CommunityCommentPage']
+export type CreateCommentRequest = components['schemas']['CreateCommentRequest']
+export type UpdateCommentRequest = components['schemas']['UpdateCommentRequest']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -54,6 +58,12 @@ const AVATAR_PRESETS = new Set<CommunityAvatarPreset>([
   'SPROUT',
 ])
 const POST_AUTHOR_MODES = new Set(['PROFILE', 'ANONYMOUS'])
+const COMMENT_STATES = new Set([
+  'ACTIVE',
+  'OWNER_DELETED',
+  'MODERATION_HIDDEN',
+  'MODERATION_REMOVED',
+])
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -283,6 +293,10 @@ export function isCommunityMediaId(value: string) {
   return UUID.test(value)
 }
 
+export function isCommunityCommentId(value: string) {
+  return UUID.test(value)
+}
+
 export function isCommunityTopic(value: string): value is CommunityTopicCode {
   return TOPICS.has(value as CommunityTopicCode)
 }
@@ -323,6 +337,41 @@ export function parseCommunityPostWrite(
     return null
   }
   return input as CommunityPostWrite
+}
+
+export function parseCreateCommentRequest(
+  value: unknown,
+): CreateCommentRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['content', 'parentCommentId']) ||
+    !text(input.content, 1, 2000) ||
+    (input.content as string).trim().length === 0 ||
+    !(
+      input.parentCommentId === null ||
+      (typeof input.parentCommentId === 'string' &&
+        UUID.test(input.parentCommentId))
+    )
+  ) {
+    return null
+  }
+  return input as CreateCommentRequest
+}
+
+export function parseUpdateCommentRequest(
+  value: unknown,
+): UpdateCommentRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['content']) ||
+    !text(input.content, 1, 2000) ||
+    (input.content as string).trim().length === 0
+  ) {
+    return null
+  }
+  return input as UpdateCommentRequest
 }
 
 export function parseCreateMediaUploadIntent(
@@ -449,6 +498,66 @@ export function parseCommunityPostDetail(
   value: unknown,
 ): CommunityPostDetail | null {
   return parsePost(value, true) as CommunityPostDetail | null
+}
+
+export function parseCommunityComment(value: unknown): CommunityComment | null {
+  const comment = record(value)
+  const author = parseAuthor(comment?.author)
+  if (
+    !comment ||
+    !exactKeys(comment, [
+      'commentId',
+      'postId',
+      'parentCommentId',
+      'author',
+      'content',
+      'state',
+      'version',
+      'createdAt',
+      'updatedAt',
+    ]) ||
+    typeof comment.commentId !== 'string' ||
+    !UUID.test(comment.commentId) ||
+    typeof comment.postId !== 'string' ||
+    !UUID.test(comment.postId) ||
+    !(
+      comment.parentCommentId === null ||
+      (typeof comment.parentCommentId === 'string' &&
+        UUID.test(comment.parentCommentId))
+    ) ||
+    !author ||
+    !text(comment.content, 1, 2000) ||
+    typeof comment.state !== 'string' ||
+    !COMMENT_STATES.has(comment.state) ||
+    !nonNegativeInteger(comment.version) ||
+    !dateTime(comment.createdAt) ||
+    !dateTime(comment.updatedAt)
+  ) {
+    return null
+  }
+  return { ...comment, author } as CommunityComment
+}
+
+export function parseCommunityCommentPage(
+  value: unknown,
+): CommunityCommentPage | null {
+  const page = record(value)
+  const items = Array.isArray(page?.items)
+    ? page.items.map(parseCommunityComment)
+    : null
+  if (
+    !page ||
+    !exactKeys(page, ['items', 'nextCursor', 'hasMore']) ||
+    !items ||
+    items.some((item) => item === null) ||
+    !(page.nextCursor === null || typeof page.nextCursor === 'string') ||
+    (typeof page.nextCursor === 'string' && page.nextCursor.length > 256) ||
+    typeof page.hasMore !== 'boolean' ||
+    (page.hasMore && !page.nextCursor)
+  ) {
+    return null
+  }
+  return { ...page, items } as CommunityCommentPage
 }
 
 export function parseCommunityTopics(value: unknown): CommunityTopic[] | null {
