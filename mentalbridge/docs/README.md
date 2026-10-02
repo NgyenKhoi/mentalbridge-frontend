@@ -55,6 +55,7 @@ Story-specific delivery evidence:
 - [MB-379 appointment decisions and expiry evidence](mb-379-appointment-decisions-evidence.md)
 - [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
 - [MB-609 standalone Community peer-support experience](mb-609-community-standalone-evidence.md)
+- [MB-577 Community comments and one-level replies](mb-577-community-comments-evidence.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in

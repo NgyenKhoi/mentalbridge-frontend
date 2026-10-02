@@ -822,6 +822,7 @@ export interface operations {
             /** @description Created comment or reply. */
             201: {
                 headers: {
+                    ETag: components["headers"]["OwnerVersion"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -855,6 +856,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
@@ -881,6 +883,7 @@ export interface operations {
             /** @description Updated owner comment. */
             200: {
                 headers: {
+                    ETag: components["headers"]["OwnerVersion"];
                     [name: string]: unknown;
                 };
                 content: {

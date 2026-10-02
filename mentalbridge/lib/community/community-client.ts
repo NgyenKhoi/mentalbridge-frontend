@@ -11,6 +11,8 @@ import {
   parseCommunityTopics,
   parseMediaUploadIntent,
   parseCommunityMediaRecord,
+  parseCommunityComment,
+  parseCommunityCommentPage,
   type CommunityFeedPage,
   type CommunityProfile,
   type CommunityPostDetail,
@@ -21,6 +23,10 @@ import {
   type CreateMediaUploadIntentRequest,
   type MediaUploadIntent,
   type CommunityMediaRecord,
+  type CommunityComment,
+  type CommunityCommentPage,
+  type CreateCommentRequest,
+  type UpdateCommentRequest,
 } from './community-validation'
 
 const MAX_RESPONSE_BYTES = 256 * 1024
@@ -124,6 +130,22 @@ function requireProfileEtag(
       502,
       'COMMUNITY_MALFORMED_RESPONSE',
       'Community returned an invalid profile version.',
+    )
+  }
+  return result
+}
+
+function requireCommentEtag(
+  result: CommunityResult<CommunityComment>,
+): CommunityResult<CommunityComment> {
+  if (
+    !isCommunityEtag(result.etag) ||
+    Number(result.etag.slice(1, -1)) !== result.data.version
+  ) {
+    throw localError(
+      502,
+      'COMMUNITY_MALFORMED_RESPONSE',
+      'Community returned an invalid comment version.',
     )
   }
   return result
@@ -391,6 +413,77 @@ export const communityClient = {
   ) {
     return deleteRequest(
       `/api/v1/community/media/${encodeURIComponent(mediaId)}`,
+      accessToken,
+      correlationId,
+      ifMatch,
+    )
+  },
+  async comments(
+    accessToken: string,
+    postId: string,
+    query: URLSearchParams,
+    correlationId: string,
+  ) {
+    const suffix = query.size > 0 ? `?${query.toString()}` : ''
+    return (
+      await request<CommunityCommentPage>(
+        `/api/v1/community/posts/${encodeURIComponent(postId)}/comments${suffix}`,
+        accessToken,
+        correlationId,
+        parseCommunityCommentPage,
+      )
+    ).data
+  },
+  async createComment(
+    accessToken: string,
+    postId: string,
+    input: CreateCommentRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return requireCommentEtag(
+      await request<CommunityComment>(
+        `/api/v1/community/posts/${encodeURIComponent(postId)}/comments`,
+        accessToken,
+        correlationId,
+        parseCommunityComment,
+        {
+          method: 'POST',
+          body: input,
+          headers: { 'Idempotency-Key': idempotencyKey },
+        },
+      ),
+    )
+  },
+  async updateComment(
+    accessToken: string,
+    commentId: string,
+    input: UpdateCommentRequest,
+    ifMatch: string,
+    correlationId: string,
+  ) {
+    return requireCommentEtag(
+      await request<CommunityComment>(
+        `/api/v1/community/comments/${encodeURIComponent(commentId)}`,
+        accessToken,
+        correlationId,
+        parseCommunityComment,
+        {
+          method: 'PATCH',
+          body: input,
+          headers: { 'If-Match': ifMatch },
+        },
+      ),
+    )
+  },
+  deleteComment(
+    accessToken: string,
+    commentId: string,
+    ifMatch: string,
+    correlationId: string,
+  ) {
+    return deleteRequest(
+      `/api/v1/community/comments/${encodeURIComponent(commentId)}`,
       accessToken,
       correlationId,
       ifMatch,
