@@ -127,8 +127,46 @@ describe('SessionSummaryPanel', () => {
       expect(api.updateConsent).toHaveBeenCalledWith(summary.id, true, 0),
     )
     expect(
-      screen.getByText(/Bạn có thể tắt bất cứ lúc nào/),
+      screen.getByText(/Chuyên gia chỉ xem được khi bạn phê duyệt hồ sơ đó/),
     ).toBeInTheDocument()
+  })
+
+  it('prefills an amendment with the current agreed next steps', async () => {
+    api.list.mockResolvedValue({
+      items: [summary],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    api.publish.mockResolvedValue({ ...summary, version: 2 })
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(
+      await screen.findByRole('button', { name: 'Đính chính bản tóm tắt' }),
+    )
+    expect(screen.getByLabelText('Tên bước 1')).toHaveValue(
+      'Viết nhật ký 3 ngày',
+    )
+    expect(screen.getByLabelText('Chi tiết bước 1')).toHaveValue(
+      'Ghi lại giờ ngủ.',
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất bản bản đính chính' }),
+    )
+    await waitFor(() => expect(api.publish).toHaveBeenCalled())
+    expect(api.publish.mock.calls[0][1].agreedNextSteps).toEqual([
+      {
+        type: 'JOURNAL',
+        title: 'Viết nhật ký 3 ngày',
+        details: 'Ghi lại giờ ngủ.',
+        resourceId: null,
+        resourceVersion: null,
+      },
+    ])
   })
 
   it('lets the user revoke reuse for an older immutable version', async () => {

@@ -109,7 +109,7 @@ export function parseSessionSummary(value: unknown): SessionSummary | null {
     item.topicsDiscussed.length > 8 ||
     item.topicsDiscussed.some(
       (topic) =>
-        typeof topic !== 'string' || topic.length < 1 || topic.length > 120,
+        typeof topic !== 'string' || topic.length < 1 || topic.length > 160,
     ) ||
     !optionalText(item.progressSummary, 1_000) ||
     !optionalText(item.specialistNoteForUser, 1_000) ||
@@ -202,7 +202,7 @@ export function parsePublishSessionSummaryInput(
     topics.length > 8 ||
     topics.some(
       (topic) =>
-        typeof topic !== 'string' || topic.length < 1 || topic.length > 120,
+        typeof topic !== 'string' || topic.length < 1 || topic.length > 160,
     ) ||
     !optionalText(input.progressSummary, 1_000) ||
     !optionalText(input.specialistNoteForUser, 1_000) ||

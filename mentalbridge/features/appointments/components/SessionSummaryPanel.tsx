@@ -47,6 +47,16 @@ const emptyStep = (): DraftStep => ({
   resourceVersion: '',
 })
 
+const draftStep = (
+  step: SessionSummary['agreedNextSteps'][number],
+): DraftStep => ({
+  type: step.type,
+  title: step.title,
+  details: step.details ?? '',
+  resourceId: step.resourceId ?? '',
+  resourceVersion: step.resourceVersion ?? '',
+})
+
 function errorText(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 412)
@@ -124,7 +134,11 @@ function SpecialistForm({
   const [progress, setProgress] = useState(current?.progressSummary ?? '')
   const [note, setNote] = useState(current?.specialistNoteForUser ?? '')
   const [followUp, setFollowUp] = useState(current?.followUpSuggested ?? false)
-  const [steps, setSteps] = useState<DraftStep[]>([emptyStep()])
+  const [steps, setSteps] = useState<DraftStep[]>(
+    current?.agreedNextSteps.length
+      ? current.agreedNextSteps.map(draftStep)
+      : [emptyStep()],
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const idempotencyKey = useRef(crypto.randomUUID())
@@ -519,8 +533,10 @@ export function SessionSummaryPanel({
             <div>
               <strong>Cho phép dùng lại ở lần tư vấn sau</strong>
               <p>
-                Khi bật, chuyên gia được giao cho lịch hẹn tương lai có thể xem
-                bản tóm tắt này. Bạn có thể tắt bất cứ lúc nào.
+                Khi bật, bạn có thể chọn bản tóm tắt này khi chuẩn bị hồ sơ chia
+                sẻ cho một lịch hẹn sau. Chuyên gia chỉ xem được khi bạn phê
+                duyệt hồ sơ đó và trong thời gian truy cập của cuộc hẹn. Bạn có
+                thể tắt bất cứ lúc nào.
               </p>
             </div>
             <label>

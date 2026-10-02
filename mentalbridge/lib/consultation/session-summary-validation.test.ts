@@ -62,6 +62,30 @@ describe('session summary contract validation', () => {
     ).toBeNull()
   })
 
+  it('uses the 160-character topic limit from the service contract', () => {
+    const boundary = 'a'.repeat(160)
+    expect(
+      parseSessionSummary({ ...summary, topicsDiscussed: [boundary] }),
+    ).not.toBeNull()
+    expect(
+      parseSessionSummary({ ...summary, topicsDiscussed: [`${boundary}a`] }),
+    ).toBeNull()
+    expect(
+      parsePublishSessionSummaryInput({
+        topicsDiscussed: [boundary],
+        followUpSuggested: false,
+        agreedNextSteps: [],
+      }).topicsDiscussed,
+    ).toEqual([boundary])
+    expect(() =>
+      parsePublishSessionSummaryInput({
+        topicsDiscussed: [`${boundary}a`],
+        followUpSuggested: false,
+        agreedNextSteps: [],
+      }),
+    ).toThrow(SessionSummaryInputError)
+  })
+
   it('requires an exact version only for platform resources', () => {
     expect(() =>
       parsePublishSessionSummaryInput({
