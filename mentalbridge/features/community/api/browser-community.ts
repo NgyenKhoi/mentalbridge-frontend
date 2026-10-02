@@ -16,6 +16,11 @@ import type {
   CommunityCommentPage,
   CreateCommentRequest,
   UpdateCommentRequest,
+  CreateReportRequest,
+  ReportTargetType,
+  ReportReason,
+  ModerationCase,
+  CreateModerationActionRequest,
 } from '@/lib/community/community-validation'
 
 export type {
@@ -34,6 +39,11 @@ export type {
   CommunityCommentPage,
   CreateCommentRequest,
   UpdateCommentRequest,
+  CreateReportRequest,
+  ReportTargetType,
+  ReportReason,
+  ModerationCase,
+  CreateModerationActionRequest,
 }
 
 export type VersionedCommunityPost = Readonly<{
@@ -212,6 +222,61 @@ export async function deleteCommunityComment(
     `/community/comments/${encodeURIComponent(commentId)}`,
     { headers: { 'If-Match': `"${version}"` } },
   )
+}
+
+export async function reportCommunityContent(
+  input: CreateReportRequest,
+  idempotencyKey: string,
+) {
+  await browserApiClient.post('/community/reports', input, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+export async function hideCommunityContent(
+  targetType: ReportTargetType,
+  targetId: string,
+) {
+  await browserApiClient.put(
+    `/community/hidden-content/${targetType}/${encodeURIComponent(targetId)}`,
+  )
+}
+
+export async function blockCommunityProfile(profileId: string) {
+  await browserApiClient.put(
+    `/community/blocks/${encodeURIComponent(profileId)}`,
+  )
+}
+
+export async function unblockCommunityProfile(profileId: string) {
+  await browserApiClient.delete(
+    `/community/blocks/${encodeURIComponent(profileId)}`,
+  )
+}
+
+export async function getCommunityModerationCases(filters?: {
+  state?: string
+  targetType?: string
+  priority?: string
+}) {
+  const response = await browserApiClient.get<ModerationCase[]>(
+    '/community/admin/moderation-cases',
+    { params: filters },
+  )
+  return response.data
+}
+
+export async function createCommunityModerationAction(
+  caseId: string,
+  input: CreateModerationActionRequest,
+  idempotencyKey: string,
+) {
+  const response = await browserApiClient.post<ModerationCase>(
+    `/community/admin/moderation-cases/${encodeURIComponent(caseId)}/actions`,
+    input,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
+  return response.data
 }
 
 export async function uploadCommunityMedia(file: File, signal?: AbortSignal) {
