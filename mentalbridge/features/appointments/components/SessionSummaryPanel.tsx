@@ -6,6 +6,7 @@ import type {
   AgreedNextStepState,
   AgreedNextStepType,
   PublishSessionSummaryInput,
+  ResourceProposalReasonCode,
   SessionSummary,
 } from '@/lib/consultation/session-summary-validation'
 import {
@@ -14,6 +15,7 @@ import {
   type PublicResourceSummary,
 } from '@/features/resources/api/browser-resources'
 import { sessionSummaryBrowserClient } from '../api/session-summary-browser-client'
+import { PlanChangeRequestCard } from './PlanChangeRequestCard'
 import styles from './SessionSummaryPanel.module.css'
 
 type DraftStep = {
@@ -22,6 +24,13 @@ type DraftStep = {
   details: string
   resourceId: string
   resourceVersion: string
+  resourceProposalReasonCode: ResourceProposalReasonCode | ''
+}
+
+const REASON_LABELS: Record<ResourceProposalReasonCode, string> = {
+  POST_CONSULTATION_CONTINUITY: 'Tiếp nối nội dung sau buổi tư vấn',
+  TRY_ALTERNATIVE_RESOURCE: 'Thử một tài nguyên phù hợp khác',
+  ADDRESS_REPORTED_BARRIER: 'Hỗ trợ trở ngại đã trao đổi',
 }
 
 const STEP_LABELS: Record<AgreedNextStepType, string> = {
@@ -45,6 +54,7 @@ const emptyStep = (): DraftStep => ({
   details: '',
   resourceId: '',
   resourceVersion: '',
+  resourceProposalReasonCode: '',
 })
 
 const draftStep = (
@@ -55,6 +65,7 @@ const draftStep = (
   details: step.details ?? '',
   resourceId: step.resourceId ?? '',
   resourceVersion: step.resourceVersion ?? '',
+  resourceProposalReasonCode: step.resourceProposalReasonCode ?? '',
 })
 
 function errorText(error: unknown) {
@@ -156,6 +167,7 @@ function SpecialistForm({
       resourceId,
       title: resource?.title ?? '',
       resourceVersion: '',
+      resourceProposalReasonCode: 'POST_CONSULTATION_CONTINUITY',
     })
     if (!resourceId) return
     try {
@@ -183,7 +195,9 @@ function SpecialistForm({
     const usedSteps = steps.filter((step) => step.title.trim())
     if (
       usedSteps.some(
-        (step) => step.type === 'PLATFORM_RESOURCE' && !step.resourceVersion,
+        (step) =>
+          step.type === 'PLATFORM_RESOURCE' &&
+          (!step.resourceVersion || !step.resourceProposalReasonCode),
       )
     ) {
       setError('Hãy chọn một tài nguyên hợp lệ trước khi xuất bản.')
@@ -201,6 +215,10 @@ function SpecialistForm({
         resourceId: step.type === 'PLATFORM_RESOURCE' ? step.resourceId : null,
         resourceVersion:
           step.type === 'PLATFORM_RESOURCE' ? step.resourceVersion : null,
+        resourceProposalReasonCode:
+          step.type === 'PLATFORM_RESOURCE'
+            ? step.resourceProposalReasonCode || null
+            : null,
       })),
     }
     setSaving(true)
@@ -283,6 +301,10 @@ function SpecialistForm({
                   type: event.target.value as AgreedNextStepType,
                   resourceId: '',
                   resourceVersion: '',
+                  resourceProposalReasonCode:
+                    event.target.value === 'PLATFORM_RESOURCE'
+                      ? 'POST_CONSULTATION_CONTINUITY'
+                      : '',
                   title: '',
                 })
               }
@@ -294,20 +316,38 @@ function SpecialistForm({
               ))}
             </select>
             {step.type === 'PLATFORM_RESOURCE' ? (
-              <select
-                aria-label={`Tài nguyên ${index + 1}`}
-                value={step.resourceId}
-                onChange={(event) =>
-                  void chooseResource(index, event.target.value)
-                }
-              >
-                <option value="">Chọn tài nguyên</option>
-                {resources.map((resource) => (
-                  <option key={resource.id} value={resource.id}>
-                    {resource.title}
-                  </option>
-                ))}
-              </select>
+              <div className={styles.resourceFields}>
+                <select
+                  aria-label={`Tài nguyên ${index + 1}`}
+                  value={step.resourceId}
+                  onChange={(event) =>
+                    void chooseResource(index, event.target.value)
+                  }
+                >
+                  <option value="">Chọn tài nguyên</option>
+                  {resources.map((resource) => (
+                    <option key={resource.id} value={resource.id}>
+                      {resource.title}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label={`Lý do đề xuất ${index + 1}`}
+                  value={step.resourceProposalReasonCode}
+                  onChange={(event) =>
+                    updateStep(index, {
+                      resourceProposalReasonCode: event.target
+                        .value as ResourceProposalReasonCode,
+                    })
+                  }
+                >
+                  {Object.entries(REASON_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             ) : (
               <input
                 aria-label={`Tên bước ${index + 1}`}
@@ -388,7 +428,7 @@ export function SessionSummaryPanel({
       setLoaded(true)
       if (viewer === 'SPECIALIST') {
         try {
-          const catalogue = await getResourceCatalogue()
+          const catalogue = await getResourceCatalogue(undefined, 'vi-VN')
           setResources(catalogue.items)
         } catch {
           setResources([])
@@ -485,6 +525,12 @@ export function SessionSummaryPanel({
                   <span>{STEP_LABELS[step.type]}</span>
                   <strong>{step.title}</strong>
                   {step.details && <p>{step.details}</p>}
+                  {step.type === 'PLATFORM_RESOURCE' && (
+                    <PlanChangeRequestCard
+                      proposalId={step.id}
+                      viewer={viewer}
+                    />
+                  )}
                   {step.hidden && <small>Đã ẩn khỏi danh sách của bạn</small>}
                 </div>
                 {viewer === 'USER' && (

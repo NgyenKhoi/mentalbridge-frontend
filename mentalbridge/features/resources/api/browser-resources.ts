@@ -19,8 +19,11 @@ export class ResourceBrowserError extends Error {
 
 export async function getResourceCatalogue(
   signal?: AbortSignal,
+  locale?: 'vi-VN' | 'en-US',
 ): Promise<ResourceCatalogue> {
-  const response = await fetch('/api/resources?limit=100', {
+  const query = new URLSearchParams({ limit: '100' })
+  if (locale) query.set('locale', locale)
+  const response = await fetch(`/api/resources?${query.toString()}`, {
     method: 'GET',
     headers: { Accept: 'application/json' },
     cache: 'no-store',

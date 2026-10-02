@@ -85,6 +85,42 @@ Visible changes include screenshots at representative desktop/mobile sizes.
 Identity/session changes include evidence for success, invalid credentials,
 expired/rotated sessions, forbidden roles, logout, and backend unavailability.
 
+## Visual and journey review
+
+For changes inside a priority journey, review the complete transition that the
+change affects, not only the edited component. The current priority journeys,
+reference screens, and route outcomes are defined in
+[`PRODUCT_EXPERIENCE.md`](PRODUCT_EXPERIENCE.md).
+
+Desktop/laptop UI evidence includes the primary state at 1440 × 900 and
+1280 × 800. Also inspect every changed state that can materially alter layout:
+loading, empty, partial/error, success, long content, and open dialog/drawer.
+Tablet/mobile remain regression gates at 768px and 375px.
+
+Review screenshots for hierarchy, primary-action clarity, text contrast,
+content density, clipping, horizontal overflow, sticky/fixed collisions, chart
+labels, and layout shift. Exercise keyboard focus and reduced motion; a static
+screenshot cannot prove either behavior.
+
+### Optional external advisory review
+
+The local contracts, the
+[`UI_IMPLEMENTATION_PLAYBOOK.md`](UI_IMPLEMENTATION_PLAYBOOK.md), executable
+tests, and visual evidence are sufficient to review and deliver UI work. A
+human or AI second reviewer is optional, not part of the default quality gate.
+
+When the product owner explicitly requests an external review, send only
+sanitized screenshots and the relevant contract excerpt—never `.env` files,
+credentials, tokens, production identifiers, or personal health data. Ask for
+findings as `blocker`, `major`, or `minor`, tied to a specific route/state and a
+rule ID from `PRODUCT_EXPERIENCE.md` or `DESIGN_SYSTEM.md`. Reproduce every
+functional claim locally before accepting it.
+
+An external reviewer cannot approve business logic, API contracts, privacy
+boundaries, merge readiness, or replace the playbook's required self-review.
+Its absence never blocks delivery unless the Jira task explicitly makes that
+review an acceptance criterion.
+
 ## Definition of done
 
 A story is done only when its acceptance criteria are implemented, relevant

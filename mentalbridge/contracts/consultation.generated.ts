@@ -101,8 +101,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns one exact immutable summary snapshot only when it belongs to the same user as the target appointment and that user currently approves reuse. This is the bounded ConsultationBrief handoff; appointment-preparation consent never implies this separate approval. */
+        /** @description Returns one exact immutable summary snapshot only when the user currently approves reuse and the target is a different, later CONFIRMED or IN_PROGRESS appointment for the same user. Owner preparation closes when the target starts; assigned-specialist access is limited to the target appointment's 24-hour-before/after-start window. This is the bounded ConsultationBrief handoff; summary consent alone does not approve a target brief or grant specialist access outside that boundary. */
         get: operations["getApprovedReusableSessionSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/resource-proposals/{proposalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the exact latest resource proposal from an evidence-backed completed appointment for its user or assigned specialist. Superseded, hidden, skipped, missing, or unauthorized proposals fail closed. This endpoint supplies provenance to Care and never mutates a SupportPlan. */
+        get: operations["getAuthorizedResourceProposal"];
         put?: never;
         post?: never;
         delete?: never;
@@ -720,6 +737,8 @@ export interface components {
         AgreedNextStepType: "CHECKLIST" | "JOURNAL" | "EMOTION_CHECK_IN" | "REASSESSMENT" | "FOLLOW_UP_APPOINTMENT" | "PLATFORM_RESOURCE";
         /** @enum {string} */
         AgreedNextStepState: "PENDING" | "COMPLETED" | "SKIPPED";
+        /** @enum {string} */
+        ResourceProposalReasonCode: "POST_CONSULTATION_CONTINUITY" | "TRY_ALTERNATIVE_RESOURCE" | "ADDRESS_REPORTED_BARRIER";
         PublishAgreedNextStep: {
             type: components["schemas"]["AgreedNextStepType"];
             title: string;
@@ -731,6 +750,8 @@ export interface components {
             resourceId?: string | null;
             /** @description Exact immutable Content resource version required only for PLATFORM_RESOURCE. */
             resourceVersion?: string | null;
+            /** @description Required only for PLATFORM_RESOURCE; records bounded specialist context without raw private notes. */
+            resourceProposalReasonCode?: components["schemas"]["ResourceProposalReasonCode"] | null;
         };
         PublishSessionSummaryRequest: {
             topicsDiscussed: string[];
@@ -762,6 +783,7 @@ export interface components {
             /** Format: uuid */
             resourceId: string | null;
             resourceVersion: string | null;
+            resourceProposalReasonCode: components["schemas"]["ResourceProposalReasonCode"] | null;
             state: components["schemas"]["AgreedNextStepState"] | null;
             hidden: boolean;
             /** Format: int64 */
@@ -798,6 +820,34 @@ export interface components {
             count: number;
             /** Format: date-time */
             generatedAt: string;
+        };
+        ResourceProposal: {
+            /** Format: uuid */
+            proposalId: string;
+            /** Format: int64 */
+            version: number;
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            /** Format: uuid */
+            summaryId: string;
+            /** Format: int64 */
+            summaryVersion: number;
+            /** Format: uuid */
+            completionFactId: string;
+            /** Format: uuid */
+            resourceId: string;
+            resourceVersion: string;
+            reasonCode: components["schemas"]["ResourceProposalReasonCode"];
+            title: string;
+            details: string | null;
+            /** @constant */
+            summarySchemaVersion: "session-summary-v1";
+            /** Format: date-time */
+            proposedAt: string;
         };
         RequestAppointment: {
             /** Format: uuid */
@@ -1457,6 +1507,31 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getAuthorizedResourceProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact active specialist proposal with completion and summary provenance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceProposal"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
         };
     };
     getOwnSpecialistProfile: {

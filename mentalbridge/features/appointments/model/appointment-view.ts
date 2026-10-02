@@ -45,17 +45,12 @@ export function nextAppointment(
     )[0]
 }
 
-export function appointmentTimingCopy(appointment: Appointment, now: number) {
-  const start = Date.parse(appointment.scheduledStartAt)
-  const end = Date.parse(appointment.scheduledEndAt)
-  if (now >= start && now < end) return 'Phiên nhắn tin đang diễn ra'
-  if (now >= end) return 'Xem lại hội thoại'
-  const opensAt = new Date(start - 10 * 60 * 1000)
-  const time = new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'Asia/Ho_Chi_Minh',
-  }).format(opensAt)
-  return `Tin nhắn sẽ mở lúc ${time}`
+export function appointmentTimingCopy(appointment: Appointment) {
+  if (appointment.status === 'IN_PROGRESS') {
+    return 'Phiên nhắn tin đang diễn ra'
+  }
+  if (appointment.status === 'CONFIRMED') {
+    return 'Buổi tư vấn đã được xác nhận'
+  }
+  return 'Mở tin nhắn để xem trạng thái phiên'
 }
