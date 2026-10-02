@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import type {
@@ -9,7 +9,14 @@ import type {
   BookableSlot,
 } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
+import {
+  appointmentTimingCopy,
+  matchesAppointmentFilter,
+  nextAppointment,
+  type AppointmentFilter,
+} from '../model/appointment-view'
 import { ConsultationBriefEditor } from './ConsultationBriefEditor'
+import { SessionSummaryPanel } from './SessionSummaryPanel'
 import styles from './AppointmentRequestPanel.module.css'
 
 function format(value: string, timezone: string) {
@@ -109,6 +116,7 @@ export default function AppointmentRequestPanel() {
   const [slots, setSlots] = useState<BookableSlot[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [generatedAt, setGeneratedAt] = useState('')
+  const [filter, setFilter] = useState<AppointmentFilter>('all')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null)
@@ -342,6 +350,19 @@ export default function AppointmentRequestPanel() {
     return null
   }
 
+  const now = generatedAt ? Date.parse(generatedAt) : 0
+  const next = useMemo(
+    () => nextAppointment(appointments, now),
+    [appointments, now],
+  )
+  const visibleAppointments = useMemo(
+    () =>
+      appointments.filter((appointment) =>
+        matchesAppointmentFilter(appointment, filter, now),
+      ),
+    [appointments, filter, now],
+  )
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
@@ -362,14 +383,72 @@ export default function AppointmentRequestPanel() {
           {error}
         </p>
       )}
+      {next && (
+        <section
+          className={styles.nextAppointment}
+          aria-label="Cuộc hẹn tiếp theo"
+        >
+          <div>
+            <span>CUỘC HẸN TIẾP THEO</span>
+            <h2>{format(next.scheduledStartAt, next.timezone)}</h2>
+            <strong>{next.specialistDisplayName}</strong>
+            <p>
+              {next.modality === 'IN_APP_CHAT'
+                ? appointmentTimingCopy(next, now)
+                : 'Phiên video đã được xác nhận'}
+            </p>
+          </div>
+          <div className={styles.nextActions}>
+            <a href={`#appointment-${next.id}`}>Mở chi tiết</a>
+            {next.modality === 'IN_APP_CHAT' && (
+              <Link
+                href={`/messages?appointmentId=${encodeURIComponent(next.id)}`}
+              >
+                Mở tin nhắn
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
       <section aria-labelledby="requested-title">
-        <h2 id="requested-title">Yêu cầu hiện tại</h2>
+        <div className={styles.appointmentHeading}>
+          <h2 id="requested-title">Lịch của bạn</h2>
+          <div
+            className={styles.filters}
+            role="group"
+            aria-label="Lọc lịch hẹn"
+          >
+            {(
+              [
+                ['all', 'Tất cả'],
+                ['requested', 'Chờ xác nhận'],
+                ['upcoming', 'Sắp tới'],
+                ['history', 'Lịch sử'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={filter === value}
+                onClick={() => setFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         {appointments.length === 0 ? (
           <p className={styles.empty}>Bạn chưa có yêu cầu đặt lịch.</p>
+        ) : visibleAppointments.length === 0 ? (
+          <p className={styles.empty}>Không có lịch hẹn trong nhóm này.</p>
         ) : (
           <div className={styles.grid}>
-            {appointments.map((item) => (
-              <article className={styles.card} key={item.id}>
+            {visibleAppointments.map((item) => (
+              <article
+                className={styles.card}
+                key={item.id}
+                id={`appointment-${item.id}`}
+              >
                 <div className={styles.status}>
                   {appointmentStatus[item.status]}
                 </div>
@@ -447,9 +526,9 @@ export default function AppointmentRequestPanel() {
                     )) && (
                     <Link
                       className={styles.chatLink}
-                      href={`/appointments/${item.id}/chat`}
+                      href={`/messages?appointmentId=${encodeURIComponent(item.id)}`}
                     >
-                      Vào phòng chat
+                      Mở tin nhắn
                     </Link>
                   )}
                 {(item.status === 'REQUESTED' ||
@@ -475,6 +554,9 @@ export default function AppointmentRequestPanel() {
                 )}
                 {item.status === 'CONFIRMED' && (
                   <ConsultationBriefEditor appointmentId={item.id} />
+                )}
+                {item.status === 'COMPLETED' && (
+                  <SessionSummaryPanel appointmentId={item.id} viewer="USER" />
                 )}
               </article>
             ))}

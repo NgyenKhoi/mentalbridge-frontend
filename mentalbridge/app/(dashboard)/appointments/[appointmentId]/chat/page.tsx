@@ -1,4 +1,4 @@
-import AppointmentChatPanel from '@/features/appointments/components/AppointmentChatPanel'
+import { redirect } from 'next/navigation'
 
 export default async function AppointmentChatPage({
   params,
@@ -6,5 +6,5 @@ export default async function AppointmentChatPage({
   params: Promise<{ appointmentId: string }>
 }) {
   const { appointmentId } = await params
-  return <AppointmentChatPanel appointmentId={appointmentId} />
+  redirect(`/messages?appointmentId=${encodeURIComponent(appointmentId)}`)
 }

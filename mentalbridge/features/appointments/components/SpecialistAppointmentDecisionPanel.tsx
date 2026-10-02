@@ -7,8 +7,15 @@ import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
+import {
+  appointmentTimingCopy,
+  matchesAppointmentFilter,
+  nextAppointment,
+  type AppointmentFilter,
+} from '../model/appointment-view'
 import styles from './SpecialistAppointmentDecisionPanel.module.css'
 import { SpecialistConsultationBrief } from './SpecialistConsultationBrief'
+import { SessionSummaryPanel } from './SessionSummaryPanel'
 
 type Decision = 'accept' | 'reject'
 
@@ -96,6 +103,8 @@ function friendlyError(error: unknown, reloaded = false) {
 export default function SpecialistAppointmentDecisionPanel() {
   const { confirm, showActionToast } = useFeedback()
   const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [generatedAt, setGeneratedAt] = useState('')
+  const [filter, setFilter] = useState<AppointmentFilter>('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pendingCommand, setPendingCommand] = useState<string | null>(null)
@@ -107,6 +116,7 @@ export default function SpecialistAppointmentDecisionPanel() {
     try {
       const data = await appointmentBrowserClient.assigned()
       setAppointments(data.items)
+      setGeneratedAt(data.generatedAt)
       return true
     } catch (caught) {
       setError(friendlyError(caught))
@@ -121,7 +131,10 @@ export default function SpecialistAppointmentDecisionPanel() {
     appointmentBrowserClient
       .assigned()
       .then((data) => {
-        if (active) setAppointments(data.items)
+        if (active) {
+          setAppointments(data.items)
+          setGeneratedAt(data.generatedAt)
+        }
       })
       .catch((caught: unknown) => {
         if (active) setError(friendlyError(caught))
@@ -143,6 +156,18 @@ export default function SpecialistAppointmentDecisionPanel() {
       ).length,
     }),
     [appointments],
+  )
+  const now = generatedAt ? Date.parse(generatedAt) : 0
+  const next = useMemo(
+    () => nextAppointment(appointments, now),
+    [appointments, now],
+  )
+  const visibleAppointments = useMemo(
+    () =>
+      appointments.filter((appointment) =>
+        matchesAppointmentFilter(appointment, filter, now),
+      ),
+    [appointments, filter, now],
   )
 
   const decide = async (appointment: Appointment, decision: Decision) => {
@@ -219,6 +244,53 @@ export default function SpecialistAppointmentDecisionPanel() {
         </div>
       </header>
 
+      {next && (
+        <section
+          className={styles.nextAppointment}
+          aria-label="Cuộc hẹn tiếp theo"
+        >
+          <div>
+            <span>CUỘC HẸN TIẾP THEO</span>
+            <h2>{displayRange(next)}</h2>
+            <p>
+              {next.modality === 'IN_APP_CHAT'
+                ? appointmentTimingCopy(next, now)
+                : 'Phiên video đã được xác nhận'}
+            </p>
+          </div>
+          <div className={styles.nextActions}>
+            <strong>{STATUS_LABELS[next.status]}</strong>
+            {next.modality === 'IN_APP_CHAT' && (
+              <Link
+                href={`/specialist/messages?appointmentId=${encodeURIComponent(next.id)}`}
+              >
+                Mở tin nhắn
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
+
+      <div className={styles.filters} role="group" aria-label="Lọc lịch hẹn">
+        {(
+          [
+            ['all', 'Tất cả'],
+            ['requested', 'Chờ xác nhận'],
+            ['upcoming', 'Sắp tới'],
+            ['history', 'Lịch sử'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={filter === value}
+            onClick={() => setFilter(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className={styles.toolbar}>
         <div>
           <h2>Yêu cầu được giao cho bạn</h2>
@@ -247,9 +319,14 @@ export default function SpecialistAppointmentDecisionPanel() {
             đây.
           </p>
         </div>
+      ) : visibleAppointments.length === 0 ? (
+        <div className={styles.empty}>
+          <h2>Không có lịch hẹn trong nhóm này</h2>
+          <p>Chọn một bộ lọc khác để xem các lịch hẹn còn lại.</p>
+        </div>
       ) : (
         <ul className={styles.list}>
-          {appointments.map((appointment) => {
+          {visibleAppointments.map((appointment) => {
             const deciding = pendingCommand?.startsWith(`${appointment.id}:`)
             return (
               <li key={appointment.id} className={styles.card}>
@@ -287,9 +364,9 @@ export default function SpecialistAppointmentDecisionPanel() {
                     )) && (
                     <Link
                       className={styles.chatLink}
-                      href={`/specialist/appointments/${appointment.id}/chat`}
+                      href={`/specialist/messages?appointmentId=${encodeURIComponent(appointment.id)}`}
                     >
-                      Vào phòng chat
+                      Mở tin nhắn
                     </Link>
                   )}
                 {appointment.status === 'REQUESTED' && (
@@ -314,6 +391,12 @@ export default function SpecialistAppointmentDecisionPanel() {
                 )}
                 {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) && (
                   <SpecialistConsultationBrief appointmentId={appointment.id} />
+                )}
+                {appointment.status === 'COMPLETED' && (
+                  <SessionSummaryPanel
+                    appointmentId={appointment.id}
+                    viewer="SPECIALIST"
+                  />
                 )}
               </li>
             )

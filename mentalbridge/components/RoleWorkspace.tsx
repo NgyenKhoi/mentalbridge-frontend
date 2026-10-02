@@ -9,9 +9,8 @@ import type { Workspace } from '@/features/auth/model/workspace'
 import SpecialistProfileWorkspace from '@/features/specialist-profile/components/SpecialistProfileWorkspace'
 import SpecialistAvailabilityManager from '@/features/specialist-availability/components/SpecialistAvailabilityManager'
 import SpecialistAppointmentDecisionPanel from '@/features/appointments/components/SpecialistAppointmentDecisionPanel'
-import AppointmentChatPanel from '@/features/appointments/components/AppointmentChatPanel'
+import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
 import SpecialistClientsManager from './SpecialistClientsManager'
-import SpecialistMessagesManager from './SpecialistMessagesManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
 import AdminUsersManager from './AdminUsersManager'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
@@ -151,12 +150,12 @@ export default function RoleWorkspace({
   role,
   sectionKey,
   workspaces,
-  appointmentChatId,
+  selectedAppointmentId,
 }: {
   role: Role
   sectionKey: string
   workspaces: readonly Workspace[]
-  appointmentChatId?: string
+  selectedAppointmentId?: string
 }) {
   const sections = role === 'specialist' ? specialistSections : adminSections
   const section = sections[sectionKey] || sections.dashboard
@@ -231,14 +230,13 @@ export default function RoleWorkspace({
     </motion.aside>
     <motion.main className="role-main" layout="position" transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div><Link href={`/${role}/notifications`} className="role-bell" aria-label="Thông báo">○<b>3</b></Link></header>
-      <div className="role-content">
-        {role === 'specialist' && sectionKey === 'appointment-chat' && appointmentChatId && <AppointmentChatPanel appointmentId={appointmentChatId} />}
+      <div className={`role-content${role === 'specialist' && sectionKey === 'messages' ? ' role-content-messages' : ''}`}>
         {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboard rows={section.rows} onSelect={setSelected} />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel />}
         {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager rows={section.rows} />}
-        {role === 'specialist' && sectionKey === 'messages' && <SpecialistMessagesManager />}
+        {role === 'specialist' && sectionKey === 'messages' && <AppointmentMessagesWorkspace viewerRole="SPECIALIST" initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'earnings' && <SpecialistEarningsManager />}
         {role === 'admin' && sectionKey === 'users' && <AdminUsersManager onSelect={setSelected} onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'specialists' && <AdminSpecialistReviewSection />}
@@ -250,7 +248,7 @@ export default function RoleWorkspace({
         {role === 'admin' && sectionKey === 'payouts' && <AdminPayoutsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'moderation' && <AdminModerationManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'appointments' && <AdminAppointmentsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
-        <div className={`role-generic ${(role === 'specialist' && (sectionKey === 'dashboard' || sectionKey === 'profile' || sectionKey === 'availability' || sectionKey === 'appointments' || sectionKey === 'appointment-chat' || sectionKey === 'clients' || sectionKey === 'messages' || sectionKey === 'earnings')) || (role === 'admin' && (sectionKey === 'dashboard' || sectionKey === 'users' || sectionKey === 'specialists' || sectionKey === 'assessments' || sectionKey === 'content' || sectionKey === 'reports' || sectionKey === 'payments' || sectionKey === 'payouts' || sectionKey === 'moderation' || sectionKey === 'appointments')) ? 'role-generic-hidden' : ''}`}>
+        <div className={`role-generic ${(role === 'specialist' && (sectionKey === 'dashboard' || sectionKey === 'profile' || sectionKey === 'availability' || sectionKey === 'appointments' || sectionKey === 'clients' || sectionKey === 'messages' || sectionKey === 'earnings')) || (role === 'admin' && (sectionKey === 'dashboard' || sectionKey === 'users' || sectionKey === 'specialists' || sectionKey === 'assessments' || sectionKey === 'content' || sectionKey === 'reports' || sectionKey === 'payments' || sectionKey === 'payouts' || sectionKey === 'moderation' || sectionKey === 'appointments')) ? 'role-generic-hidden' : ''}`}>
         <div className="role-heading"><div><span className="eyebrow">{role === 'admin' ? 'Quản trị nền tảng' : 'Không gian chuyên gia'}</span><h1>{section.label}</h1><p>{section.description}</p></div><button className="btn-primary" onClick={() => {
           if (role === 'specialist' && sectionKey === 'appointments') return setShowAppointmentModal(true)
           setToast('Biểu mẫu tạo mới đã sẵn sàng để kết nối API.')
