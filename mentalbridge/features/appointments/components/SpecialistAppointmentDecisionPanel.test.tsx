@@ -91,10 +91,37 @@ describe('SpecialistAppointmentDecisionPanel', () => {
       0,
       expect.stringMatching(/^[0-9a-f-]{36}$/),
     )
-    expect(await screen.findByText('Đã xác nhận')).toBeInTheDocument()
+    expect((await screen.findAllByText('Đã xác nhận')).length).toBeGreaterThan(
+      0,
+    )
     expect(
       screen.queryByRole('button', { name: 'Từ chối' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('routes a confirmed appointment to the specialist chat workspace', async () => {
+    api.assigned.mockResolvedValue({
+      items: [
+        {
+          ...requested,
+          status: 'CONFIRMED',
+          decidedAt: '2099-09-25T03:00:00Z',
+          decisionReason: 'SPECIALIST_ACCEPTED',
+          version: 1,
+        },
+      ],
+      count: 1,
+      generatedAt: '2099-09-25T03:00:01Z',
+    })
+    const { container } = render(<SpecialistAppointmentDecisionPanel />)
+
+    await waitFor(() =>
+      expect(
+        container.querySelector(
+          `a[href="/specialist/messages?appointmentId=${requested.id}"]`,
+        ),
+      ).toBeInTheDocument(),
+    )
   })
 
   it('rejects only after confirmation and shows the released credit', async () => {

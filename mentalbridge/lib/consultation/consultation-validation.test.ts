@@ -89,6 +89,15 @@ describe('Consultation contract validation', () => {
   it('accepts only the approved specialist profile fields and enums', () => {
     expect(parseProfile(profile)).toEqual(profile)
     expect(
+      parseProfile({
+        ...profile,
+        reviewedBy: '00000000-0000-0000-0000-000000000383',
+      }),
+    ).not.toBeNull()
+    expect(
+      parseProfile({ ...profile, reviewedBy: 'invalid-reviewer-id' }),
+    ).toBeNull()
+    expect(
       parseProfile({ ...profile, supportAreas: ['CLINICAL_DIAGNOSIS'] }),
     ).toBeNull()
   })
@@ -274,6 +283,12 @@ describe('Consultation contract validation', () => {
       cancellationReason: null,
       cancellationActor: null,
       cancellationCreditOutcome: null,
+      sessionOutcome: null,
+      sessionOutcomeReason: null,
+      sessionPolicyVersion: null,
+      sessionEndedAt: null,
+      sessionSettledAt: null,
+      completionFactId: null,
       creditState: 'HELD',
       history: [
         {

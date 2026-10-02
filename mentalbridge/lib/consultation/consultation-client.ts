@@ -33,6 +33,15 @@ import {
   type AppointmentRequestInput,
   type BookableSlotList,
 } from './consultation-validation'
+import {
+  parseSessionSummary,
+  parseSessionSummaryList,
+  type PublishSessionSummaryInput,
+  type SessionSummary,
+  type SessionSummaryList,
+  type SessionSummaryReuseConsentInput,
+  type UpdateAgreedNextStepInput,
+} from './session-summary-validation'
 
 const MAX_RESPONSE_BYTES = 128 * 1024
 
@@ -166,11 +175,90 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  userSessionSummaries(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+  ) {
+    return request<SessionSummaryList>({
+      method: 'GET',
+      path: `/api/v1/appointments/${encodeURIComponent(appointmentId)}/session-summaries`,
+      token,
+      correlationId,
+      parse: parseSessionSummaryList,
+    })
+  },
+  specialistSessionSummaries(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+  ) {
+    return request<SessionSummaryList>({
+      method: 'GET',
+      path: `/api/v1/specialist/appointments/${encodeURIComponent(appointmentId)}/session-summaries`,
+      token,
+      correlationId,
+      parse: parseSessionSummaryList,
+    })
+  },
+  publishSessionSummary(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+    body: PublishSessionSummaryInput,
+    idempotencyKey: string,
+    ifMatch?: string,
+  ) {
+    return request<SessionSummary>({
+      method: 'POST',
+      path: `/api/v1/specialist/appointments/${encodeURIComponent(appointmentId)}/session-summaries`,
+      token,
+      correlationId,
+      body,
+      idempotencyKey,
+      ifMatch,
+      parse: parseSessionSummary,
+    })
+  },
+  updateSessionSummaryReuseConsent(
+    token: string,
+    correlationId: string,
+    summaryId: string,
+    body: SessionSummaryReuseConsentInput,
+    ifMatch: string,
+  ) {
+    return request<SessionSummary>({
+      method: 'PUT',
+      path: `/api/v1/session-summaries/${encodeURIComponent(summaryId)}/reuse-consent`,
+      token,
+      correlationId,
+      body,
+      ifMatch,
+      parse: parseSessionSummary,
+    })
+  },
+  updateAgreedNextStep(
+    token: string,
+    correlationId: string,
+    nextStepId: string,
+    body: UpdateAgreedNextStepInput,
+    ifMatch: string,
+  ) {
+    return request<SessionSummary>({
+      method: 'PUT',
+      path: `/api/v1/agreed-next-steps/${encodeURIComponent(nextStepId)}`,
+      token,
+      correlationId,
+      body,
+      ifMatch,
+      parse: parseSessionSummary,
+    })
+  },
   chatEligibility(
     token: string,
     correlationId: string,
     conversationId: string,
-    operation: 'SUBSCRIBE' | 'SEND' | 'HISTORY',
+    operation: 'SUBSCRIBE' | 'SEND' | 'HISTORY' | 'CHECK_IN',
   ) {
     return request<AppointmentChatEligibility>({
       method: 'GET',

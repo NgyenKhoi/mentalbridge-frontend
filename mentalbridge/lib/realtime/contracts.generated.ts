@@ -40,6 +40,9 @@ export const commandEnvelopeV1Schema = {
       $ref: '#/$defs/subscribe',
     },
     {
+      $ref: '#/$defs/checkIn',
+    },
+    {
       $ref: '#/$defs/sendMessage',
     },
   ],
@@ -67,6 +70,7 @@ export const commandEnvelopeV1Schema = {
           enum: [
             'presence.heartbeat',
             'conversation.subscribe',
+            'conversation.check-in',
             'message.send',
           ],
         },
@@ -122,6 +126,37 @@ export const commandEnvelopeV1Schema = {
             commandId: true,
             commandType: {
               const: 'conversation.subscribe',
+            },
+            correlationId: true,
+            sentAt: true,
+            payload: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['conversationId'],
+              properties: {
+                conversationId: {
+                  type: 'string',
+                  format: 'uuid',
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+    checkIn: {
+      allOf: [
+        {
+          $ref: '#/$defs/base',
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            schemaVersion: true,
+            commandId: true,
+            commandType: {
+              const: 'conversation.check-in',
             },
             correlationId: true,
             sentAt: true,
@@ -269,6 +304,13 @@ export const errorV1Schema = {
         'RATE_LIMITED',
         'ACCESS_DENIED',
         'CHAT_ELIGIBILITY_UNAVAILABLE',
+        'CHAT_EVIDENCE_UNAVAILABLE',
+        'EVIDENCE_WINDOW_CLOSED',
+        'EVIDENCE_OCCURRED_OUTSIDE_WINDOW',
+        'EVIDENCE_ID_CONFLICT',
+        'INVALID_EVIDENCE_SHAPE',
+        'INVALID_PRESENCE_INTERVAL',
+        'APPOINTMENT_NOT_ELIGIBLE',
         'APPOINTMENT_NOT_CONFIRMED',
         'CHAT_NOT_STARTED',
         'CHAT_ENDED',

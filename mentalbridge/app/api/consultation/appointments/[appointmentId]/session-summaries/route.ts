@@ -11,36 +11,37 @@ import {
   localProblem,
 } from '@/lib/consultation/bff-response'
 import { consultationClient } from '@/lib/consultation/consultation-client'
+import { validUuid } from '@/lib/consultation/consultation-validation'
 
 export async function GET(
   request: NextRequest,
-  context: RouteContext<'/api/consultation/appointments/[appointmentId]/chat-eligibility'>,
+  context: RouteContext<'/api/consultation/appointments/[appointmentId]/session-summaries'>,
 ) {
   const correlationId = correlationIdFrom(request)
-  const { appointmentId } = await context.params
-  const operation = request.nextUrl.searchParams.get('operation')?.toUpperCase()
-  if (!['SUBSCRIBE', 'SEND', 'HISTORY', 'CHECK_IN'].includes(operation ?? ''))
-    return localProblem(
-      400,
-      'VALIDATION_FAILED',
-      'Operation is invalid.',
-      correlationId,
-    )
   let actor
   try {
     actor = await authenticatedConsultationActor(request, correlationId, [
       'USER',
-      'SPECIALIST',
     ])
   } catch (error) {
     return consultationAuthenticationFailure(error, correlationId)
   }
+  const { appointmentId } = await context.params
+  if (!validUuid(appointmentId))
+    return carryConsultationSession(
+      localProblem(
+        400,
+        'VALIDATION_FAILED',
+        'Lịch hẹn không hợp lệ.',
+        correlationId,
+      ),
+      actor,
+    )
   try {
-    const result = await consultationClient.chatEligibility(
+    const result = await consultationClient.userSessionSummaries(
       actor.accessToken,
       correlationId,
       appointmentId,
-      operation as 'SUBSCRIBE' | 'SEND' | 'HISTORY' | 'CHECK_IN',
     )
     return carryConsultationSession(
       consultationSuccess(result.data, correlationId),

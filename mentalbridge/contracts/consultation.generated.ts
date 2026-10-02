@@ -75,6 +75,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/appointments/{appointmentId}/chat-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Records idempotent, content-free evidence observed by Realtime for the authenticated assigned participant. Only explicit check-in, bounded server-observed presence, and accepted-message metadata are accepted; late delivery cannot make a post-end occurrence count. */
+        post: operations["recordAppointmentChatEvidence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/appointments/{appointmentId}/reusable-session-summaries/{summaryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns one exact immutable summary snapshot only when it belongs to the same user as the target appointment and that user currently approves reuse. This is the bounded ConsultationBrief handoff; appointment-preparation consent never implies this separate approval. */
+        get: operations["getApprovedReusableSessionSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile": {
         parameters: {
             query?: never;
@@ -251,6 +287,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/appointments/{appointmentId}/session-summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns immutable published versions for one user-owned completed appointment, including user-owned next-step state and separate reuse consent. */
+        get: operations["listOwnSessionSummaries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/session-summaries/{summaryId}/reuse-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Approves or revokes future reuse of one exact immutable summary version. This does not change an existing ConsultationBrief snapshot. */
+        put: operations["updateOwnSessionSummaryReuseConsent"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agreed-next-steps/{nextStepId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Lets the owning user mark an agreed next step pending, completed, skipped, or hidden. Specialists cannot read this mutable tracking state and the operation never creates a SupportPlan occurrence. */
+        put: operations["updateOwnAgreedNextStep"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist/appointments": {
         parameters: {
             query?: never;
@@ -262,6 +349,24 @@ export interface paths {
         get: operations["listAssignedAppointments"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/appointments/{appointmentId}/session-summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns immutable published versions for the assigned specialist. User-owned checklist and reuse-consent state are intentionally omitted. */
+        get: operations["listAssignedAppointmentSessionSummaries"];
+        put?: never;
+        /** @description Publishes the first immutable user-visible snapshot after evidence-backed COMPLETED, or appends an explicit amendment when If-Match identifies the current summary version. Exact command replay is idempotent. */
+        post: operations["publishAssignedAppointmentSessionSummary"];
         delete?: never;
         options?: never;
         head?: never;
@@ -611,6 +716,89 @@ export interface components {
         };
         /** @enum {string} */
         AppointmentModality: "IN_APP_CHAT" | "IN_APP_VIDEO";
+        /** @enum {string} */
+        AgreedNextStepType: "CHECKLIST" | "JOURNAL" | "EMOTION_CHECK_IN" | "REASSESSMENT" | "FOLLOW_UP_APPOINTMENT" | "PLATFORM_RESOURCE";
+        /** @enum {string} */
+        AgreedNextStepState: "PENDING" | "COMPLETED" | "SKIPPED";
+        PublishAgreedNextStep: {
+            type: components["schemas"]["AgreedNextStepType"];
+            title: string;
+            details?: string | null;
+            /**
+             * Format: uuid
+             * @description Required only for PLATFORM_RESOURCE and records a proposal without changing a SupportPlan.
+             */
+            resourceId?: string | null;
+            /** @description Exact immutable Content resource version required only for PLATFORM_RESOURCE. */
+            resourceVersion?: string | null;
+        };
+        PublishSessionSummaryRequest: {
+            topicsDiscussed: string[];
+            progressSummary?: string | null;
+            specialistNoteForUser?: string | null;
+            followUpSuggested: boolean;
+            agreedNextSteps: components["schemas"]["PublishAgreedNextStep"][];
+        };
+        SessionSummaryReuseConsentRequest: {
+            approved: boolean;
+        };
+        UpdateAgreedNextStepRequest: {
+            state: components["schemas"]["AgreedNextStepState"];
+            hidden: boolean;
+        };
+        SessionSummaryReuseConsent: {
+            approved: boolean;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AgreedNextStep: {
+            /** Format: uuid */
+            id: string;
+            type: components["schemas"]["AgreedNextStepType"];
+            title: string;
+            details: string | null;
+            /** Format: uuid */
+            resourceId: string | null;
+            resourceVersion: string | null;
+            state: components["schemas"]["AgreedNextStepState"] | null;
+            hidden: boolean;
+            /** Format: int64 */
+            stateVersion: number | null;
+            /** Format: date-time */
+            stateUpdatedAt: string | null;
+        };
+        SessionSummary: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            /** Format: int64 */
+            version: number;
+            /** @constant */
+            schemaVersion: "session-summary-v1";
+            topicsDiscussed: string[];
+            progressSummary: string | null;
+            specialistNoteForUser: string | null;
+            followUpSuggested: boolean;
+            /** Format: uuid */
+            amendsSummaryId: string | null;
+            /** Format: date-time */
+            publishedAt: string;
+            reuseConsent: components["schemas"]["SessionSummaryReuseConsent"] | null;
+            agreedNextSteps: components["schemas"]["AgreedNextStep"][];
+        };
+        SessionSummaryList: {
+            items: components["schemas"]["SessionSummary"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
+        };
         RequestAppointment: {
             /** Format: uuid */
             slotId: string;
@@ -627,15 +815,15 @@ export interface components {
             /** Format: uuid */
             eventId: string;
             /** @enum {string|null} */
-            fromStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED" | null;
+            fromStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED" | null;
             /** @enum {string} */
-            toStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            toStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED";
             /** @enum {string} */
             actorType: "USER" | "SPECIALIST" | "ADMIN" | "SYSTEM";
             /** Format: uuid */
             actorId: string | null;
             /** @enum {string} */
-            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED";
+            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED" | "SESSION_ACTIVITY_OBSERVED" | "SCHEDULED_WINDOW_ENDED" | "EVIDENCE_REQUIREMENTS_MET";
             creditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
             /** Format: date-time */
             occurredAt: string;
@@ -670,18 +858,46 @@ export interface components {
             /** Format: uuid */
             specialistAccountId: string;
             /** @enum {string} */
-            phase: "NOT_AVAILABLE" | "TOO_EARLY" | "WAITING" | "ACTIVE" | "ENDED" | "CANCELLED" | "RESCHEDULED";
+            phase: "NOT_AVAILABLE" | "TOO_EARLY" | "WAITING" | "ACTIVE" | "ENDED_PROCESSING" | "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | "CANCELLED" | "RESCHEDULED";
             /** @enum {string} */
-            reasonCode: "APPOINTMENT_NOT_CONFIRMED" | "CHAT_ENTRY_TOO_EARLY" | "APPOINTMENT_WAITING" | "APPOINTMENT_ACTIVE" | "APPOINTMENT_ENDED" | "APPOINTMENT_CANCELLED" | "APPOINTMENT_RESCHEDULED";
+            reasonCode: "APPOINTMENT_NOT_CONFIRMED" | "CHAT_ENTRY_TOO_EARLY" | "APPOINTMENT_WAITING" | "APPOINTMENT_ACTIVE" | "SESSION_OUTCOME_PROCESSING" | "SESSION_EVIDENCE_REVIEW" | "SESSION_COMPLETED" | "SESSION_USER_NO_SHOW" | "SESSION_SPECIALIST_NO_SHOW" | "SESSION_BOTH_NO_SHOW" | "SESSION_INSUFFICIENT_EVIDENCE" | "APPOINTMENT_CANCELLED" | "APPOINTMENT_RESCHEDULED";
             subscribeAllowed: boolean;
             sendAllowed: boolean;
             historyAllowed: boolean;
+            checkInAllowed: boolean;
+            participantCheckedIn: boolean;
+            /** @enum {string|null} */
+            sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
+            /** @enum {string} */
+            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
             /** Format: date-time */
             scheduledStartAt: string;
             /** Format: date-time */
             scheduledEndAt: string;
             /** Format: date-time */
             serverTime: string;
+        };
+        ChatEvidenceRequest: {
+            /** Format: uuid */
+            evidenceId: string;
+            /** @enum {string} */
+            type: "CHECK_IN" | "PRESENCE_INTERVAL" | "ACCEPTED_MESSAGE";
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: date-time */
+            intervalStartedAt?: string | null;
+            /** Format: uuid */
+            messageId?: string | null;
+        };
+        ChatEvidenceResponse: {
+            /** Format: uuid */
+            evidenceId: string;
+            accepted: boolean;
+            duplicate: boolean;
+            /** @enum {string} */
+            reasonCode: "EVIDENCE_ACCEPTED" | "EVIDENCE_ALREADY_ACCEPTED" | "EVIDENCE_ID_CONFLICT" | "EVIDENCE_WINDOW_CLOSED" | "EVIDENCE_OCCURRED_OUTSIDE_WINDOW" | "INVALID_EVIDENCE_SHAPE" | "INVALID_PRESENCE_INTERVAL" | "APPOINTMENT_NOT_ELIGIBLE";
+            /** Format: date-time */
+            receivedAt: string;
         };
         /** @enum {string} */
         DiscoveryContextState: "NOT_REQUESTED" | "APPLIED" | "UNAVAILABLE";
@@ -754,7 +970,7 @@ export interface components {
             specialistAccountId: string;
             specialistDisplayName: string;
             /** @enum {string} */
-            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED";
             modality: components["schemas"]["AppointmentModality"];
             /** Format: date-time */
             scheduledStartAt: string;
@@ -782,6 +998,17 @@ export interface components {
             /** @enum {string|null} */
             cancellationActor: "USER" | "ADMIN" | null;
             cancellationCreditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
+            /** @enum {string|null} */
+            sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
+            sessionOutcomeReason: string | null;
+            /** @enum {string|null} */
+            sessionPolicyVersion: "chat-session-completion-v1" | null;
+            /** Format: date-time */
+            sessionEndedAt: string | null;
+            /** Format: date-time */
+            sessionSettledAt: string | null;
+            /** Format: uuid */
+            completionFactId: string | null;
             /** @enum {string} */
             creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
             history: components["schemas"]["AppointmentHistoryEntry"][];
@@ -796,7 +1023,7 @@ export interface components {
             /** Format: uuid */
             specialistAccountId: string;
             /** @enum {string} */
-            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "REJECTED" | "EXPIRED" | "CANCELLED";
+            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED";
             /** Format: date-time */
             scheduledStartAt: string;
             /** Format: date-time */
@@ -1045,6 +1272,8 @@ export interface components {
         RequiredIfMatch: string;
         AvailabilitySlotId: string;
         AppointmentId: string;
+        SessionSummaryId: string;
+        AgreedNextStepId: string;
         /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
         IdempotencyKey: string;
         /** @description Quoted current non-negative availability slot version. */
@@ -1053,6 +1282,10 @@ export interface components {
         AppointmentIfMatch: string;
         /** @description Required with replacesAppointmentId and ignored only for a normal non-replacement request. Contains the quoted current version of the appointment being replaced. */
         OptionalAppointmentIfMatch: string;
+        /** @description Quoted current non-negative consent or next-step state version. */
+        SessionSummaryIfMatch: string;
+        /** @description Omit for the first publication; required for an amendment and contains the quoted current summary version. */
+        OptionalSessionSummaryIfMatch: string;
     };
     requestBodies: never;
     headers: {
@@ -1140,7 +1373,7 @@ export interface operations {
     getAppointmentChatEligibility: {
         parameters: {
             query: {
-                operation: "SUBSCRIBE" | "SEND" | "HISTORY";
+                operation: "SUBSCRIBE" | "SEND" | "HISTORY" | "CHECK_IN";
             };
             header?: never;
             path: {
@@ -1163,6 +1396,67 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["AppointmentNotFoundProblem"];
+        };
+    };
+    recordAppointmentChatEvidence: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Shared service credential proving the evidence was observed by Realtime. */
+                "X-MentalBridge-Service-Token": string;
+            };
+            path: {
+                appointmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatEvidenceRequest"];
+            };
+        };
+        responses: {
+            /** @description Evidence acceptance, duplicate, or stable ignored reason */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatEvidenceResponse"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["AppointmentNotFoundProblem"];
+        };
+    };
+    getApprovedReusableSessionSummary: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+                summaryId: components["parameters"]["SessionSummaryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact approved reusable snapshot without user checklist state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     getOwnSpecialistProfile: {
@@ -1573,6 +1867,101 @@ export interface operations {
             428: components["responses"]["AppointmentVersionRequiredProblem"];
         };
     };
+    listOwnSessionSummaries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest summary version first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSummaryList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    updateOwnSessionSummaryReuseConsent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative consent or next-step state version. */
+                "If-Match": components["parameters"]["SessionSummaryIfMatch"];
+            };
+            path: {
+                summaryId: components["parameters"]["SessionSummaryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionSummaryReuseConsentRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated user-visible summary state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSummary"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    updateOwnAgreedNextStep: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative consent or next-step state version. */
+                "If-Match": components["parameters"]["SessionSummaryIfMatch"];
+            };
+            path: {
+                nextStepId: components["parameters"]["AgreedNextStepId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgreedNextStepRequest"];
+            };
+        };
+        responses: {
+            /** @description Parent summary with updated user-owned next-step state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSummary"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
     listAssignedAppointments: {
         parameters: {
             query?: never;
@@ -1593,6 +1982,69 @@ export interface operations {
             };
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    listAssignedAppointmentSessionSummaries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest summary version first without user tracking state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSummaryList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    publishAssignedAppointmentSessionSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Omit for the first publication; required for an amendment and contains the quoted current summary version. */
+                "If-Match"?: components["parameters"]["OptionalSessionSummaryIfMatch"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishSessionSummaryRequest"];
+            };
+        };
+        responses: {
+            /** @description Published immutable summary snapshot or exact replay */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSummary"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
         };
     };
     acceptAssignedAppointment: {

@@ -87,9 +87,7 @@ describe('SpecialistDiscovery', () => {
     expect(await screen.findByText('Chuyên gia An')).toBeInTheDocument()
     expect(screen.getByText(/Bạn đang dùng gói Free/)).toBeInTheDocument()
     expect(
-      screen.getByRole('option', {
-        name: 'Video trong ứng dụng (chưa khả dụng)',
-      }),
+      screen.getByRole('button', { name: 'Video · sắp có' }),
     ).toBeDisabled()
     expect(
       screen.getByText(/Video trong ứng dụng hiện chưa khả dụng/),
@@ -101,7 +99,9 @@ describe('SpecialistDiscovery', () => {
     expect(
       await screen.findByText('Vì sao hồ sơ này xuất hiện?'),
     ).toBeInTheDocument()
-    expect(screen.getAllByText('Chat trong ứng dụng')).toHaveLength(2)
+    expect(screen.queryByText('Múi giờ')).not.toBeInTheDocument()
+    expect(screen.queryByText('Asia/Ho_Chi_Minh')).not.toBeInTheDocument()
+    expect(screen.getByText('Chat trong ứng dụng')).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Xem quyền lợi các gói' }),
     ).toBeInTheDocument()

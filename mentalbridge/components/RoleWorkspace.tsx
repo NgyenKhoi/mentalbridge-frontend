@@ -9,8 +9,8 @@ import type { Workspace } from '@/features/auth/model/workspace'
 import SpecialistProfileWorkspace from '@/features/specialist-profile/components/SpecialistProfileWorkspace'
 import SpecialistAvailabilityManager from '@/features/specialist-availability/components/SpecialistAvailabilityManager'
 import SpecialistAppointmentDecisionPanel from '@/features/appointments/components/SpecialistAppointmentDecisionPanel'
+import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
 import SpecialistClientsManager from './SpecialistClientsManager'
-import SpecialistMessagesManager from './SpecialistMessagesManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
 import AdminUsersManager from './AdminUsersManager'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
@@ -150,10 +150,12 @@ export default function RoleWorkspace({
   role,
   sectionKey,
   workspaces,
+  selectedAppointmentId,
 }: {
   role: Role
   sectionKey: string
   workspaces: readonly Workspace[]
+  selectedAppointmentId?: string
 }) {
   const sections = role === 'specialist' ? specialistSections : adminSections
   const section = sections[sectionKey] || sections.dashboard
@@ -228,13 +230,13 @@ export default function RoleWorkspace({
     </motion.aside>
     <motion.main className="role-main" layout="position" transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div><Link href={`/${role}/notifications`} className="role-bell" aria-label="Thông báo">○<b>3</b></Link></header>
-      <div className="role-content">
+      <div className={`role-content${role === 'specialist' && sectionKey === 'messages' ? ' role-content-messages' : ''}`}>
         {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboard rows={section.rows} onSelect={setSelected} />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel />}
         {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager rows={section.rows} />}
-        {role === 'specialist' && sectionKey === 'messages' && <SpecialistMessagesManager />}
+        {role === 'specialist' && sectionKey === 'messages' && <AppointmentMessagesWorkspace viewerRole="SPECIALIST" initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'earnings' && <SpecialistEarningsManager />}
         {role === 'admin' && sectionKey === 'users' && <AdminUsersManager onSelect={setSelected} onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'specialists' && <AdminSpecialistReviewSection />}

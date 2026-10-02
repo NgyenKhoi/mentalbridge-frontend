@@ -112,7 +112,13 @@ export type AppointmentChatPhase =
   | 'TOO_EARLY'
   | 'WAITING'
   | 'ACTIVE'
-  | 'ENDED'
+  | 'ENDED_PROCESSING'
+  | 'COMPLETED'
+  | 'USER_NO_SHOW'
+  | 'SPECIALIST_NO_SHOW'
+  | 'BOTH_NO_SHOW'
+  | 'INSUFFICIENT_EVIDENCE'
+  | 'EVIDENCE_REVIEW'
   | 'CANCELLED'
   | 'RESCHEDULED'
 
@@ -126,6 +132,10 @@ export type AppointmentChatEligibility = Readonly<{
   subscribeAllowed: boolean
   sendAllowed: boolean
   historyAllowed: boolean
+  checkInAllowed: boolean
+  participantCheckedIn: boolean
+  sessionOutcome: ChatSessionOutcome | null
+  creditState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
   scheduledStartAt: string
   scheduledEndAt: string
   serverTime: string
@@ -147,7 +157,13 @@ export function parseAppointmentChatEligibility(
       'TOO_EARLY',
       'WAITING',
       'ACTIVE',
-      'ENDED',
+      'ENDED_PROCESSING',
+      'COMPLETED',
+      'USER_NO_SHOW',
+      'SPECIALIST_NO_SHOW',
+      'BOTH_NO_SHOW',
+      'INSUFFICIENT_EVIDENCE',
+      'EVIDENCE_REVIEW',
       'CANCELLED',
       'RESCHEDULED',
     ].includes(String(phase)) ||
@@ -155,6 +171,20 @@ export function parseAppointmentChatEligibility(
     typeof candidate.subscribeAllowed !== 'boolean' ||
     typeof candidate.sendAllowed !== 'boolean' ||
     typeof candidate.historyAllowed !== 'boolean' ||
+    typeof candidate.checkInAllowed !== 'boolean' ||
+    typeof candidate.participantCheckedIn !== 'boolean' ||
+    ![
+      'COMPLETED',
+      'USER_NO_SHOW',
+      'SPECIALIST_NO_SHOW',
+      'BOTH_NO_SHOW',
+      'INSUFFICIENT_EVIDENCE',
+      'EVIDENCE_REVIEW',
+      null,
+    ].includes(candidate.sessionOutcome as ChatSessionOutcome | null) ||
+    !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
+      String(candidate.creditState),
+    ) ||
     !utcInstant(candidate.scheduledStartAt) ||
     !utcInstant(candidate.scheduledEndAt) ||
     !utcInstant(candidate.serverTime)
@@ -166,11 +196,20 @@ export type AppointmentStatus =
   | 'REQUESTED'
   | 'CONFIRMED'
   | 'IN_PROGRESS'
+  | 'SESSION_ENDED'
+  | 'COMPLETED'
   | 'REJECTED'
   | 'EXPIRED'
   | 'CANCELLED'
 export type AppointmentCancellationCreditOutcome =
   'RELEASED' | 'FORFEITED' | 'TRANSFERRED_TO_REPLACEMENT'
+export type ChatSessionOutcome =
+  | 'COMPLETED'
+  | 'USER_NO_SHOW'
+  | 'SPECIALIST_NO_SHOW'
+  | 'BOTH_NO_SHOW'
+  | 'INSUFFICIENT_EVIDENCE'
+  | 'EVIDENCE_REVIEW'
 export type AppointmentHistoryEntry = Readonly<{
   eventId: string
   fromStatus: AppointmentStatus | null
@@ -185,6 +224,9 @@ export type AppointmentHistoryEntry = Readonly<{
     | 'SPECIALIST_REJECTED'
     | 'DECISION_DEADLINE_EXPIRED'
     | 'SPECIALIST_SUSPENDED'
+    | 'SESSION_ACTIVITY_OBSERVED'
+    | 'SCHEDULED_WINDOW_ENDED'
+    | 'EVIDENCE_REQUIREMENTS_MET'
   creditOutcome: AppointmentCancellationCreditOutcome | null
   occurredAt: string
 }>
@@ -242,6 +284,12 @@ export type Appointment = Readonly<{
     'USER_CANCELLED' | 'USER_RESCHEDULED' | 'SPECIALIST_SUSPENDED' | null
   cancellationActor: 'USER' | 'ADMIN' | null
   cancellationCreditOutcome: AppointmentCancellationCreditOutcome | null
+  sessionOutcome: ChatSessionOutcome | null
+  sessionOutcomeReason: string | null
+  sessionPolicyVersion: 'chat-session-completion-v1' | null
+  sessionEndedAt: string | null
+  sessionSettledAt: string | null
+  completionFactId: string | null
   creditState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
   history: AppointmentHistoryEntry[]
   version: number
@@ -312,6 +360,15 @@ function uuid(value: unknown): value is string {
   return (
     typeof value === 'string' &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  )
+}
+
+function uuidText(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       value,
     )
   )
@@ -626,7 +683,7 @@ export function parseProfile(value: unknown): SpecialistProfile | null {
     ) ||
     !instantOrNull(item.submittedAt) ||
     !instantOrNull(item.reviewedAt) ||
-    !(item.reviewedBy === null || uuid(item.reviewedBy)) ||
+    !(item.reviewedBy === null || uuidText(item.reviewedBy)) ||
     !validProfileDecisionReason(item.approvalStatus, item.decisionReasonCode) ||
     !instantOrNull(item.createdAt) ||
     !instantOrNull(item.updatedAt) ||
@@ -876,6 +933,8 @@ export function parseAppointment(value: unknown): Appointment | null {
       'REQUESTED',
       'CONFIRMED',
       'IN_PROGRESS',
+      'SESSION_ENDED',
+      'COMPLETED',
       'REJECTED',
       'EXPIRED',
       'CANCELLED',
@@ -914,6 +973,25 @@ export function parseAppointment(value: unknown): Appointment | null {
     !['RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT', null].includes(
       item.cancellationCreditOutcome as string | null,
     ) ||
+    ![
+      'COMPLETED',
+      'USER_NO_SHOW',
+      'SPECIALIST_NO_SHOW',
+      'BOTH_NO_SHOW',
+      'INSUFFICIENT_EVIDENCE',
+      'EVIDENCE_REVIEW',
+      null,
+    ].includes(item.sessionOutcome as ChatSessionOutcome | null) ||
+    !(
+      item.sessionOutcomeReason === null ||
+      typeof item.sessionOutcomeReason === 'string'
+    ) ||
+    !['chat-session-completion-v1', null].includes(
+      item.sessionPolicyVersion as string | null,
+    ) ||
+    !(item.sessionEndedAt === null || utcInstant(item.sessionEndedAt)) ||
+    !(item.sessionSettledAt === null || utcInstant(item.sessionSettledAt)) ||
+    !(item.completionFactId === null || uuid(item.completionFactId)) ||
     !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
       String(item.creditState),
     ) ||
@@ -952,6 +1030,28 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
       item.decisionReason === 'SPECIALIST_ACCEPTED' &&
       item.creditState === 'HELD'
     )
+  if (item.status === 'SESSION_ENDED')
+    return (
+      item.decidedAt !== null &&
+      item.decisionReason === 'SPECIALIST_ACCEPTED' &&
+      item.sessionEndedAt !== null &&
+      item.sessionPolicyVersion === 'chat-session-completion-v1' &&
+      item.sessionOutcome !== 'COMPLETED' &&
+      (item.sessionOutcome === null
+        ? item.creditState === 'HELD' && item.sessionSettledAt === null
+        : item.creditState !== 'HELD' && item.sessionSettledAt !== null)
+    )
+  if (item.status === 'COMPLETED')
+    return (
+      item.decidedAt !== null &&
+      item.decisionReason === 'SPECIALIST_ACCEPTED' &&
+      item.sessionOutcome === 'COMPLETED' &&
+      item.sessionPolicyVersion === 'chat-session-completion-v1' &&
+      item.sessionEndedAt !== null &&
+      item.sessionSettledAt !== null &&
+      item.completionFactId !== null &&
+      item.creditState === 'CONSUMED'
+    )
   if (item.status === 'REJECTED')
     return (
       item.decidedAt !== null &&
@@ -976,6 +1076,8 @@ function validAppointmentHistoryEntry(value: unknown) {
       'REQUESTED',
       'CONFIRMED',
       'IN_PROGRESS',
+      'SESSION_ENDED',
+      'COMPLETED',
       'REJECTED',
       'EXPIRED',
       'CANCELLED',
@@ -985,6 +1087,8 @@ function validAppointmentHistoryEntry(value: unknown) {
       'REQUESTED',
       'CONFIRMED',
       'IN_PROGRESS',
+      'SESSION_ENDED',
+      'COMPLETED',
       'REJECTED',
       'EXPIRED',
       'CANCELLED',
@@ -1001,6 +1105,9 @@ function validAppointmentHistoryEntry(value: unknown) {
       'SPECIALIST_REJECTED',
       'DECISION_DEADLINE_EXPIRED',
       'SPECIALIST_SUSPENDED',
+      'SESSION_ACTIVITY_OBSERVED',
+      'SCHEDULED_WINDOW_ENDED',
+      'EVIDENCE_REQUIREMENTS_MET',
     ].includes(String(item.reason)) ||
     !['RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT', null].includes(
       item.creditOutcome as string | null,
