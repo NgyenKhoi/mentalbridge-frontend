@@ -190,6 +190,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/community/hidden-content/{targetType}/{targetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                targetType: components["schemas"]["ReportTargetType"];
+                targetId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["putCommunityContentHide"];
+        post?: never;
+        delete: operations["deleteCommunityContentHide"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/community/blocks/{communityProfileId}": {
         parameters: {
             query?: never;
@@ -451,9 +470,10 @@ export interface components {
         };
         /** @enum {string} */
         ReportReason: "HARASSMENT" | "PRIVACY_OR_DOXXING" | "MEDICAL_MISINFORMATION" | "SELF_HARM_OR_CRISIS_CONCERN" | "SPAM" | "SEXUAL_OR_VIOLENT_CONTENT" | "OTHER";
+        /** @enum {string} */
+        ReportTargetType: "POST" | "COMMENT";
         CreateReportRequest: {
-            /** @enum {string} */
-            targetType: "POST" | "COMMENT" | "COMMUNITY_PROFILE";
+            targetType: components["schemas"]["ReportTargetType"];
             /** Format: uuid */
             targetId: string;
             reason: components["schemas"]["ReportReason"];
@@ -484,20 +504,45 @@ export interface components {
         /** @enum {string} */
         ModerationCaseState: "OPEN" | "IN_REVIEW" | "RESOLVED";
         /** @enum {string} */
+        ModerationPriority: "NORMAL" | "HIGH";
+        /** @enum {string} */
         ModerationAction: "NO_ACTION" | "HIDE" | "REMOVE" | "RESTORE" | "RESTRICT_COMMUNITY_ACCESS";
         ModerationCase: {
             /** Format: uuid */
             caseId: string;
-            /** @enum {string} */
-            targetType: "POST" | "COMMENT" | "COMMUNITY_PROFILE";
+            targetType: components["schemas"]["ReportTargetType"];
             /** Format: uuid */
             targetId: string;
             state: components["schemas"]["ModerationCaseState"];
+            priority: components["schemas"]["ModerationPriority"];
             reportReasons: components["schemas"]["ReportReason"][];
+            /** @description Bounded reporter-provided context without reporter identity. */
+            reportContexts: string[];
+            evidence: components["schemas"]["ModerationEvidence"];
+            actions: components["schemas"]["ModerationActionRecord"][];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            version: number;
+        };
+        ModerationEvidence: {
+            content: string;
+            state: string;
+            version: number;
+        };
+        ModerationActionRecord: {
+            /** Format: uuid */
+            actionId: string;
+            action: components["schemas"]["ModerationAction"];
+            reasonCode: string;
+            /** Format: uuid */
+            actorSubject: string;
+            priorState: string;
+            resultingState: string;
+            targetVersion: number;
+            /** Format: date-time */
+            createdAt: string;
         };
         CreateModerationActionRequest: {
             action: components["schemas"]["ModerationAction"];
@@ -1024,6 +1069,53 @@ export interface operations {
             409: components["responses"]["Problem"];
         };
     };
+    putCommunityContentHide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                targetType: components["schemas"]["ReportTargetType"];
+                targetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Content hidden from the owner's Community experience. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deleteCommunityContentHide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                targetType: components["schemas"]["ReportTargetType"];
+                targetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Personal content hide removed or already absent. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
     putCommunityBlock: {
         parameters: {
             query?: never;
@@ -1160,7 +1252,11 @@ export interface operations {
     };
     listCommunityModerationCases: {
         parameters: {
-            query?: never;
+            query?: {
+                state?: components["schemas"]["ModerationCaseState"];
+                targetType?: components["schemas"]["ReportTargetType"];
+                priority?: components["schemas"]["ModerationPriority"];
+            };
             header?: never;
             path?: never;
             cookie?: never;

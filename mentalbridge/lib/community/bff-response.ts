@@ -49,8 +49,11 @@ export function communitySuccessResponse<T>(
   return response
 }
 
-export function communityNoContentResponse(correlationId: string) {
-  const response = new NextResponse(null, { status: 204 })
+export function communityNoContentResponse(
+  correlationId: string,
+  status = 204,
+) {
+  const response = new NextResponse(null, { status })
   response.headers.set(CORRELATION_HEADER, correlationId)
   response.headers.set('Cache-Control', 'no-store')
   return response

@@ -18,6 +18,7 @@ import {
 import CommunityMedia from './CommunityMedia'
 import CommunityAvatar from './CommunityAvatar'
 import CommunityComments from './CommunityComments'
+import CommunitySafetyActions from './CommunitySafetyActions'
 
 function communityTime(value: string) {
   return new Intl.DateTimeFormat('vi-VN', {
@@ -350,6 +351,14 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
               <span>♡ {post.counts.reactions} lượt đồng cảm</span>
               <span>◇ {post.counts.comments} bình luận</span>
             </footer>
+            {version === null && (
+              <CommunitySafetyActions
+                targetType="POST"
+                targetId={post.postId}
+                communityProfileId={post.author.communityProfileId}
+                onHidden={() => router.push('/community')}
+              />
+            )}
           </>
         )}
       </article>

@@ -13,6 +13,7 @@ import {
   type CommunityComment,
 } from '@/features/community/api/browser-community'
 import CommunityAvatar from './CommunityAvatar'
+import CommunitySafetyActions from './CommunitySafetyActions'
 
 const MAX_COMMENT_CONTENT = 2000
 
@@ -406,6 +407,21 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
                         </>
                       )}
                     </div>
+                  )}
+                  {!editing && comment.state === 'ACTIVE' && !own && (
+                    <CommunitySafetyActions
+                      targetType="COMMENT"
+                      targetId={comment.commentId}
+                      communityProfileId={comment.author.communityProfileId}
+                      onHidden={() => {
+                        setComments((current) =>
+                          current.filter(
+                            (item) => item.commentId !== comment.commentId,
+                          ),
+                        )
+                        onCountChange(-1)
+                      }}
+                    />
                   )}
                 </div>
               </li>
