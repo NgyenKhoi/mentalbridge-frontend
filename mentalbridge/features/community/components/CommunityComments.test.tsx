@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -121,6 +121,79 @@ describe('CommunityComments', () => {
     expect(await screen.findByText(created.content)).toBeVisible()
     expect(onCountChange).toHaveBeenCalledTimes(1)
     expect(onCountChange).toHaveBeenCalledWith(1)
+  })
+
+  it('accepts 2,000 astral emoji code points when creating a comment', async () => {
+    const user = userEvent.setup()
+    const boundaryContent = '🙂'.repeat(2000)
+    const created = {
+      ...root,
+      commentId: '40000000-0000-4000-8000-000000000004',
+      content: boundaryContent,
+    }
+    api.create.mockResolvedValue({ comment: created, version: 0 })
+    render(<CommunityComments postId={postId} onCountChange={vi.fn()} />)
+
+    expect(await screen.findByText(root.content)).toBeVisible()
+    const composer = screen.getByLabelText('Bạn muốn chia sẻ điều gì?')
+    expect(composer).toHaveAttribute('maxlength', '4000')
+    fireEvent.change(composer, { target: { value: boundaryContent } })
+    expect(screen.getByText('2000/2000')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Gửi bình luận' }))
+
+    await waitFor(() =>
+      expect(api.create).toHaveBeenCalledWith(
+        postId,
+        { content: boundaryContent, parentCommentId: null },
+        expect.any(String),
+      ),
+    )
+  })
+
+  it('accepts 2,000 astral emoji code points when editing a comment', async () => {
+    const user = userEvent.setup()
+    const boundaryContent = '🙂'.repeat(2000)
+    api.update.mockResolvedValue({
+      comment: { ...root, content: boundaryContent, version: 1 },
+      version: 1,
+    })
+    render(<CommunityComments postId={postId} onCountChange={vi.fn()} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }))
+    const editor = screen.getByLabelText('Chỉnh sửa bình luận')
+    expect(editor).toHaveAttribute('maxlength', '4000')
+    fireEvent.change(editor, { target: { value: boundaryContent } })
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+
+    await waitFor(() =>
+      expect(api.update).toHaveBeenCalledWith(
+        root.commentId,
+        { content: boundaryContent },
+        0,
+      ),
+    )
+  })
+
+  it('rejects more than 2,000 code points for create and edit', async () => {
+    const user = userEvent.setup()
+    const oversizedContent = 'a'.repeat(2001)
+    render(<CommunityComments postId={postId} onCountChange={vi.fn()} />)
+
+    expect(await screen.findByText(root.content)).toBeVisible()
+    fireEvent.change(screen.getByLabelText('Bạn muốn chia sẻ điều gì?'), {
+      target: { value: oversizedContent },
+    })
+    await user.click(screen.getByRole('button', { name: 'Gửi bình luận' }))
+    expect(api.create).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('2.000')
+
+    await user.click(screen.getByRole('button', { name: 'Chỉnh sửa' }))
+    fireEvent.change(screen.getByLabelText('Chỉnh sửa bình luận'), {
+      target: { value: oversizedContent },
+    })
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+    expect(api.update).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('2.000')
   })
 
   it('edits an owned comment with its exact version', async () => {

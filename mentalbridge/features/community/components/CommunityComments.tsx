@@ -14,6 +14,8 @@ import {
 } from '@/features/community/api/browser-community'
 import CommunityAvatar from './CommunityAvatar'
 
+const MAX_COMMENT_CONTENT = 2000
+
 type Props = Readonly<{
   postId: string
   onCountChange: (difference: number) => void
@@ -88,7 +90,7 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
 
   async function submit() {
     const normalized = content.trim()
-    if (!normalized || [...normalized].length > 2000) {
+    if (!normalized || [...normalized].length > MAX_COMMENT_CONTENT) {
       setMessage('Hãy viết bình luận từ 1 đến 2.000 ký tự.')
       return
     }
@@ -137,7 +139,7 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
 
   async function saveEdit(comment: CommunityComment) {
     const normalized = editContent.trim()
-    if (!normalized || [...normalized].length > 2000) {
+    if (!normalized || [...normalized].length > MAX_COMMENT_CONTENT) {
       setMessage('Hãy viết bình luận từ 1 đến 2.000 ký tự.')
       return
     }
@@ -273,13 +275,15 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
           ref={composer}
           id="community-comment-content"
           rows={4}
-          maxLength={2000}
+          maxLength={MAX_COMMENT_CONTENT * 2}
           value={content}
           placeholder="Viết bằng sự tôn trọng và đồng cảm…"
           onChange={(event) => setContent(event.target.value)}
         />
         <div>
-          <span>{[...content].length}/2000</span>
+          <span>
+            {[...content].length}/{MAX_COMMENT_CONTENT}
+          </span>
           <button
             type="button"
             disabled={submitting}
@@ -338,7 +342,7 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
                     <div className="community-comment-edit">
                       <textarea
                         rows={4}
-                        maxLength={2000}
+                        maxLength={MAX_COMMENT_CONTENT * 2}
                         value={editContent}
                         aria-label="Chỉnh sửa bình luận"
                         onChange={(event) => setEditContent(event.target.value)}
