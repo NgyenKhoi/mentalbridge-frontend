@@ -15,6 +15,7 @@ import {
 } from '../model/appointment-view'
 import styles from './SpecialistAppointmentDecisionPanel.module.css'
 import { SpecialistConsultationBrief } from './SpecialistConsultationBrief'
+import { SessionSummaryPanel } from './SessionSummaryPanel'
 
 type Decision = 'accept' | 'reject'
 
@@ -390,6 +391,12 @@ export default function SpecialistAppointmentDecisionPanel() {
                 )}
                 {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) && (
                   <SpecialistConsultationBrief appointmentId={appointment.id} />
+                )}
+                {appointment.status === 'COMPLETED' && (
+                  <SessionSummaryPanel
+                    appointmentId={appointment.id}
+                    viewer="SPECIALIST"
+                  />
                 )}
               </li>
             )

@@ -16,6 +16,7 @@ import {
   type AppointmentFilter,
 } from '../model/appointment-view'
 import { ConsultationBriefEditor } from './ConsultationBriefEditor'
+import { SessionSummaryPanel } from './SessionSummaryPanel'
 import styles from './AppointmentRequestPanel.module.css'
 
 function format(value: string, timezone: string) {
@@ -553,6 +554,9 @@ export default function AppointmentRequestPanel() {
                 )}
                 {item.status === 'CONFIRMED' && (
                   <ConsultationBriefEditor appointmentId={item.id} />
+                )}
+                {item.status === 'COMPLETED' && (
+                  <SessionSummaryPanel appointmentId={item.id} viewer="USER" />
                 )}
               </article>
             ))}
