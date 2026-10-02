@@ -41,6 +41,9 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [message, setMessage] = useState('')
+  const createCommand = useRef<{ signature: string; key: string } | undefined>(
+    undefined,
+  )
 
   const load = useCallback(async () => {
     const page = await getCommunityComments(postId)
@@ -89,17 +92,26 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
       setMessage('Hãy viết bình luận từ 1 đến 2.000 ký tự.')
       return
     }
+    const input = {
+      content: normalized,
+      parentCommentId: replyingTo?.commentId ?? null,
+    }
+    const signature = JSON.stringify({ postId, ...input })
+    if (
+      !createCommand.current ||
+      createCommand.current.signature !== signature
+    ) {
+      createCommand.current = { signature, key: crypto.randomUUID() }
+    }
     setSubmitting(true)
     setMessage('')
     try {
       const result = await createCommunityComment(
         postId,
-        {
-          content: normalized,
-          parentCommentId: replyingTo?.commentId ?? null,
-        },
-        crypto.randomUUID(),
+        input,
+        createCommand.current.key,
       )
+      createCommand.current = undefined
       setComments((current) => [...current, result.comment])
       setOwnProfileId(
         (current) =>

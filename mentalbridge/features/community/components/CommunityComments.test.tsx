@@ -91,6 +91,38 @@ describe('CommunityComments', () => {
     expect(onCountChange).toHaveBeenCalledWith(1)
   })
 
+  it('reuses the create idempotency key after a committed request loses its response', async () => {
+    const user = userEvent.setup()
+    const onCountChange = vi.fn()
+    const created = {
+      ...root,
+      commentId: '40000000-0000-4000-8000-000000000003',
+      content: 'Mình ở đây và đang lắng nghe bạn.',
+    }
+    api.create
+      .mockRejectedValueOnce(new TypeError('response lost'))
+      .mockResolvedValueOnce({ comment: created, version: 0 })
+    render(<CommunityComments postId={postId} onCountChange={onCountChange} />)
+
+    expect(await screen.findByText(root.content)).toBeVisible()
+    await user.type(
+      screen.getByLabelText('Bạn muốn chia sẻ điều gì?'),
+      created.content,
+    )
+    await user.click(screen.getByRole('button', { name: 'Gửi bình luận' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Nội dung vẫn còn ở đây để bạn thử lại.',
+    )
+    await user.click(screen.getByRole('button', { name: 'Gửi bình luận' }))
+
+    await waitFor(() => expect(api.create).toHaveBeenCalledTimes(2))
+    expect(api.create.mock.calls[0]?.[2]).toBe(api.create.mock.calls[1]?.[2])
+    expect(await screen.findByText(created.content)).toBeVisible()
+    expect(onCountChange).toHaveBeenCalledTimes(1)
+    expect(onCountChange).toHaveBeenCalledWith(1)
+  })
+
   it('edits an owned comment with its exact version', async () => {
     const user = userEvent.setup()
     api.update.mockResolvedValue({
