@@ -1099,6 +1099,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plan-change-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create or replay a Care-reviewed plan change request
+         * @description The authenticated USER references one exact specialist proposal from a completed
+         *     consultation. Care reloads the authoritative proposal, current entitlement,
+         *     current SupportPlan, current compatible evaluation, and exact Content eligibility.
+         *     A successful review creates only a request for user decision; it does not change
+         *     the current SupportPlan.
+         */
+        post: operations["reviewOwnSpecialistResourceProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan-change-requests/by-proposal/{proposalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the authenticated user's reviewed request for a proposal */
+        get: operations["getOwnPlanChangeRequestByProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/plan-change-requests/by-proposal/{proposalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Let the proposing specialist see only the user's decision status */
+        get: operations["getSpecialistPlanChangeRequestByProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan-change-requests/{requestId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Explicitly accept or reject one reviewed specialist proposal
+         * @description REJECT records a final decision without changing the plan. ACCEPT reloads the
+         *     authoritative proposal and freshly revalidates entitlement, current plan/version,
+         *     current evaluation, template constraints, and the exact resource version. Only a
+         *     still-valid request atomically supersedes the current plan and activates its replacement.
+         */
+        put: operations["decideOwnPlanChangeRequest"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1893,6 +1974,57 @@ export interface components {
             proposedResource: components["schemas"]["SupportPlanResource"] | null;
         };
         SupportPlanDraft: components["schemas"]["SupportPlan"];
+        CreatePlanChangeRequest: {
+            /** Format: uuid */
+            proposalId: string;
+        };
+        PlanChangeDecision: {
+            /** @enum {string} */
+            decision: "ACCEPT" | "REJECT";
+        };
+        PlanChangeResourceSnapshot: {
+            /** Format: uuid */
+            resourceId: string;
+            resourceVersion: string;
+            title: string;
+        };
+        PlanChangeRequest: {
+            /** Format: uuid */
+            requestId: string;
+            version: number;
+            /** @enum {string} */
+            status: "READY_FOR_REVIEW" | "ACCEPTED" | "REJECTED";
+            /** @enum {string} */
+            outcomeCode: "PROPOSAL_ADMISSIBLE" | "PROPOSAL_APPLIED" | "USER_REJECTED";
+            /** Format: uuid */
+            sourceProposalId: string;
+            /** Format: uuid */
+            sourceAppointmentId: string;
+            /** Format: uuid */
+            sourceSummaryId: string;
+            /** Format: uuid */
+            specialistId: string;
+            /** @enum {string} */
+            proposalReasonCode: "POST_CONSULTATION_CONTINUITY" | "TRY_ALTERNATIVE_RESOURCE" | "ADDRESS_REPORTED_BARRIER";
+            proposalDetails: string | null;
+            targetSlotId: string;
+            currentResource: components["schemas"]["PlanChangeResourceSnapshot"] | null;
+            proposedResource: components["schemas"]["PlanChangeResourceSnapshot"];
+            /** Format: uuid */
+            currentSupportPlanId: string;
+            currentSupportPlanVersion: number;
+            /** Format: uuid */
+            replacementSupportPlanId: string | null;
+            replacementSupportPlanVersion: number | null;
+            /** Format: date-time */
+            reviewedAt: string;
+            /** Format: date-time */
+            decidedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         SupportPlan: {
             /** Format: uuid */
             supportPlanId: string;
@@ -2504,6 +2636,8 @@ export interface components {
         CorrelationId: string;
         /** @description Retry key scoped to the authenticated account or anonymous session */
         IdempotencyKey: string;
+        ProposalId: string;
+        PlanChangeRequestId: string;
         /** @example "3" */
         OptionalIfMatch: string;
         /** @example "3" */
@@ -4220,6 +4354,142 @@ export interface operations {
             400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    reviewOwnSpecialistResourceProposal: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlanChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Proposal reviewed and awaiting the user's explicit decision */
+            201: {
+                headers: {
+                    Location?: string;
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanChangeRequest"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    getOwnPlanChangeRequestByProposal: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                proposalId: components["parameters"]["ProposalId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned plan change request */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanChangeRequest"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getSpecialistPlanChangeRequestByProposal: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                proposalId: components["parameters"]["ProposalId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Proposal review and decision status */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanChangeRequest"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    decideOwnPlanChangeRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                requestId: components["parameters"]["PlanChangeRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanChangeDecision"];
+            };
+        };
+        responses: {
+            /** @description Final decision persisted; an accepted request includes the activated replacement plan reference */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanChangeRequest"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
         };
     };
 }

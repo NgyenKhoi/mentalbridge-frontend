@@ -122,6 +122,8 @@ or production mock content when Content cannot confirm the catalogue.
 
 ## Project guidance
 
+- [`.agents/skills/mentalbridge-ui/SKILL.md`](.agents/skills/mentalbridge-ui/SKILL.md):
+  mandatory repository skill for every user-visible frontend change
 - [`docs/README.md`](docs/README.md): engineering documentation index
 - [`docs/frontend-architecture.md`](docs/frontend-architecture.md): server,
   browser, BFF, and Identity ownership
@@ -138,7 +140,13 @@ or production mock content when Content cannot confirm the catalogue.
   Story 902 acceptance, security, test, and visual evidence
 - [`docs/mb-362-specialist-availability-evidence.md`](docs/mb-362-specialist-availability-evidence.md):
   MB-362 contract, BFF, UI, mobile fixture, and verification evidence
-- [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md): current visual language
+- [`docs/PRODUCT_EXPERIENCE.md`](docs/PRODUCT_EXPERIENCE.md): route hierarchy,
+  priority journeys, data visualization, and UI/UX Definition of Done
+- [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md): current visual language,
+  tokens, primitives, accessibility, and motion contract
+- [`docs/UI_IMPLEMENTATION_PLAYBOOK.md`](docs/UI_IMPLEMENTATION_PLAYBOOK.md):
+  repeatable page brief, state and responsive matrices, implementation order,
+  and local self-review evidence
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md): Git, Jira, PR, and review workflow
 
 Read [`../AGENTS.md`](../AGENTS.md) and [`AGENTS.md`](AGENTS.md) before using a
@@ -160,10 +168,3 @@ server-set HttpOnly cookies; tokens must never enter localStorage, sessionStorag
 client state, or browser-readable responses. Public registration must not create
 `ADMIN`. See the architecture guide for the complete boundary and the Sprint 1
 Jira stories for implementation status.
-
-## Additional project artifacts
-
-`BUILD_SUCCESS.md`, `IMPLEMENTATION_SUMMARY.md`, `MIGRATION_NOTES.md`,
-`NEXT_STEPS.md`, `QUICKSTART.md`, and `SUMMARY.md` are historical UI delivery
-notes. When they conflict with this README or `docs/`, the current executable
-configuration and engineering guide take precedence.

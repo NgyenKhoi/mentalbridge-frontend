@@ -72,9 +72,12 @@ describe('appointment view', () => {
     )
   })
 
-  it('describes when messaging becomes available', () => {
-    expect(appointmentTimingCopy(appointment(), now)).toBe(
-      'Tin nhắn sẽ mở lúc 13:50',
+  it('uses the appointment status instead of inferring chat authority locally', () => {
+    expect(appointmentTimingCopy(appointment())).toBe(
+      'Buổi tư vấn đã được xác nhận',
+    )
+    expect(appointmentTimingCopy(appointment({ status: 'IN_PROGRESS' }))).toBe(
+      'Phiên nhắn tin đang diễn ra',
     )
   })
 })

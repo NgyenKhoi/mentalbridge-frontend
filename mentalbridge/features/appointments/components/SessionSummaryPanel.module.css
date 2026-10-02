@@ -234,6 +234,74 @@
   grid-template-columns: 180px minmax(150px, 1fr) minmax(150px, 1fr) auto;
   gap: 0.5rem;
 }
+.resourceFields {
+  display: grid;
+  gap: 0.45rem;
+}
+.planChange {
+  display: grid;
+  gap: 0.65rem;
+  min-width: min(560px, 70vw);
+  margin-top: 0.65rem;
+  border: 1px solid rgba(49, 99, 90, 0.2);
+  border-radius: 12px;
+  background: #f4f8f5;
+  padding: 0.85rem;
+}
+.planChange p {
+  margin: 0;
+}
+.planChange button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--teal-deep);
+  padding: 0.55rem 0.8rem;
+  color: white;
+  font-weight: 750;
+  cursor: pointer;
+}
+.planChange button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.planChangeHeading,
+.planChangeActions,
+.resourceComparison {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+.planChangeHeading span {
+  border-radius: 999px;
+  background: #dcece6;
+  padding: 0.3rem 0.55rem;
+  color: var(--teal-deep);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+.resourceComparison {
+  border-radius: 10px;
+  background: white;
+  padding: 0.75rem;
+}
+.resourceComparison > div {
+  display: grid;
+  flex: 1;
+  gap: 0.2rem;
+}
+.resourceComparison > div:last-child {
+  text-align: right;
+}
+.planChange .secondaryAction {
+  border: 1px solid rgba(49, 99, 90, 0.25);
+  background: white;
+  color: var(--teal-deep);
+}
+.planChangeError {
+  color: #7a382f;
+}
 .primary {
   min-height: 44px;
   border: 0;
@@ -281,5 +349,16 @@
   }
   .stepEditor {
     grid-template-columns: 1fr;
+  }
+  .planChange {
+    min-width: 0;
+  }
+  .planChangeHeading,
+  .resourceComparison {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .resourceComparison > div:last-child {
+    text-align: left;
   }
 }
