@@ -209,7 +209,11 @@ describe('AdminAccountManager', () => {
   it('excludes DELETED accounts from the status filter options', async () => {
     render(<AdminAccountManager />)
     await screen.findByText('member@example.com')
-    expect(screen.queryByRole('option', { name: 'Đã xóa' })).not.toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Đã tạm ngưng' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('option', { name: 'Đã xóa' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('option', { name: 'Đã tạm ngưng' }),
+    ).toBeInTheDocument()
   })
 })
