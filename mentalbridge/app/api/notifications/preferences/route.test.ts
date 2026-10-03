@@ -132,6 +132,23 @@ describe('/api/notifications/preferences', () => {
     )
   })
 
+  it('works against old backends that omit appointmentRemindersEnabled (MB-517 rollout)', async () => {
+    // Old backend response: email object without appointmentRemindersEnabled.
+    const oldEmail = { ...preferences.email }
+    delete (oldEmail as { appointmentRemindersEnabled?: boolean })
+      .appointmentRemindersEnabled
+    const oldPreferences = { ...preferences, email: oldEmail }
+    contentMocks.get.mockResolvedValue({
+      preferences: oldPreferences,
+      etag: '"0"',
+    })
+
+    const getResponse = await GET(request('GET'))
+    expect(getResponse.status).toBe(200)
+    const body = await getResponse.json()
+    expect(body.email.appointmentRemindersEnabled).toBeUndefined()
+  })
+
   it.each([
     [{ channels: { sms: true } }, '"0"'],
     [{ quietHours: { start: '25:00' } }, '"0"'],

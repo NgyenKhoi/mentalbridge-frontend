@@ -216,6 +216,34 @@ describe('Content response validation', () => {
     ).toBeNull()
   })
 
+  it('accepts preference responses from old backends that omit appointmentRemindersEnabled (MB-517 rollout)', () => {
+    // Old content-notification-service does not return appointmentRemindersEnabled.
+    // The frontend must parse this gracefully and treat the capability as absent.
+    const emailWithoutField = { ...preferences.email }
+    delete (emailWithoutField as { appointmentRemindersEnabled?: boolean })
+      .appointmentRemindersEnabled
+    const oldBackendPreferences = { ...preferences, email: emailWithoutField }
+    const parsed = parseNotificationPreferences(oldBackendPreferences)
+    expect(parsed).not.toBeNull()
+    expect(parsed?.email.appointmentRemindersEnabled).toBeUndefined()
+
+    // A non-boolean value must still be rejected even from old backends.
+    expect(
+      parseNotificationPreferences({
+        ...oldBackendPreferences,
+        email: { ...emailWithoutField, appointmentRemindersEnabled: 'yes' },
+      }),
+    ).toBeNull()
+
+    // Spurious unknown keys are still rejected.
+    expect(
+      parseNotificationPreferences({
+        ...preferences,
+        email: { ...preferences.email, unknownFutureField: true },
+      }),
+    ).toBeNull()
+  })
+
   it('accepts closed partial preference updates', () => {
     expect(
       parseNotificationPreferencePatch({ channels: { push: true } }),

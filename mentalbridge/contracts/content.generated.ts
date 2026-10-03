@@ -539,7 +539,9 @@ export interface components {
             resourceRemindersEnabled: boolean;
             dailyDigestTime: string;
             resourceReminderTime: string;
-            appointmentRemindersEnabled: boolean;
+            /** Optional: only present when the MB-517 backend is deployed.
+             *  Frontend must not require or render this field when absent. */
+            appointmentRemindersEnabled?: boolean;
         };
         EmailPreferencesPatch: {
             cadence?: components["schemas"]["EmailCadence"];

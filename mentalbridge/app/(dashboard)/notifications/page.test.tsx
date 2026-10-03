@@ -323,6 +323,32 @@ describe('Notification preferences page', () => {
     ).toBeVisible()
   })
 
+  it('hides appointment reminder toggle and omits field from patch when backend does not support it (MB-517 rollout)', async () => {
+    const oldEmail = { ...preferences.email }
+    delete (oldEmail as { appointmentRemindersEnabled?: boolean })
+      .appointmentRemindersEnabled
+    const oldPreferences = { ...preferences, email: oldEmail }
+    api.get.mockResolvedValue({ preferences: oldPreferences, etag: '"0"' })
+
+    const user = userEvent.setup()
+    render(<NotificationsPage />)
+    await user.click(screen.getByRole('button', { name: /Cài đặt/i }))
+    await screen.findByRole('switch', { name: 'Email' })
+
+    // Toggle must be hidden because the backend capability is absent
+    expect(
+      screen.queryByRole('switch', { name: 'Nhắc lịch hẹn qua email' }),
+    ).not.toBeInTheDocument()
+
+    // Modify a different setting and save
+    await user.click(screen.getByRole('switch', { name: 'Email' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
+
+    await waitFor(() => expect(api.save).toHaveBeenCalledTimes(1))
+    const savedPatch = api.save.mock.calls[0][0]
+    expect(savedPatch.email.appointmentRemindersEnabled).toBeUndefined()
+  })
+
   it('keeps the appointment reminder change unsaved when persistence fails', async () => {
     const user = userEvent.setup()
     api.save.mockRejectedValue(new Error('provider unavailable'))

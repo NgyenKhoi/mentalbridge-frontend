@@ -84,4 +84,25 @@ describe('content notification preference client', () => {
       status: 502,
     } satisfies Partial<ContentServiceError>)
   })
+
+  it('accepts upstream preferences from old backend omitting appointmentRemindersEnabled', async () => {
+    const oldEmail = { ...preferences.email }
+    delete (oldEmail as { appointmentRemindersEnabled?: boolean })
+      .appointmentRemindersEnabled
+    const oldPreferences = { ...preferences, email: oldEmail }
+    const oldResponse = new Response(JSON.stringify(oldPreferences), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        ETag: '"0"',
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(oldResponse))
+    const result = await contentPreferenceClient.get(
+      'owner-token',
+      'correlation',
+    )
+    expect(result.etag).toBe('"0"')
+    expect(result.preferences.email.appointmentRemindersEnabled).toBeUndefined()
+  })
 })
