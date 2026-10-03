@@ -15,6 +15,7 @@ import {
   parseCommunityCommentPage,
   parseModerationCase,
   parseModerationCases,
+  parseCommunityReaction,
   type CommunityFeedPage,
   type CommunityProfile,
   type CommunityPostDetail,
@@ -33,6 +34,8 @@ import {
   type ReportTargetType,
   type ModerationCase,
   type CreateModerationActionRequest,
+  type CommunityReaction,
+  type PutReactionRequest,
 } from './community-validation'
 
 const MAX_RESPONSE_BYTES = 256 * 1024
@@ -493,6 +496,46 @@ export const communityClient = {
       accessToken,
       correlationId,
       ifMatch,
+    )
+  },
+  async putReaction(
+    accessToken: string,
+    postId: string,
+    input: PutReactionRequest,
+    correlationId: string,
+  ) {
+    return (
+      await request<CommunityReaction>(
+        `/api/v1/community/posts/${encodeURIComponent(postId)}/reaction`,
+        accessToken,
+        correlationId,
+        parseCommunityReaction,
+        { method: 'PUT', body: input },
+      )
+    ).data
+  },
+  deleteReaction(accessToken: string, postId: string, correlationId: string) {
+    return noContentRequest(
+      `/api/v1/community/posts/${encodeURIComponent(postId)}/reaction`,
+      'DELETE',
+      accessToken,
+      correlationId,
+    )
+  },
+  putBookmark(accessToken: string, postId: string, correlationId: string) {
+    return noContentRequest(
+      `/api/v1/community/posts/${encodeURIComponent(postId)}/bookmark`,
+      'PUT',
+      accessToken,
+      correlationId,
+    )
+  },
+  deleteBookmark(accessToken: string, postId: string, correlationId: string) {
+    return noContentRequest(
+      `/api/v1/community/posts/${encodeURIComponent(postId)}/bookmark`,
+      'DELETE',
+      accessToken,
+      correlationId,
     )
   },
   report(

@@ -16,6 +16,10 @@ import {
   getCommunityComments,
   updateCommunityComment,
   uploadCommunityMedia,
+  putCommunityReaction,
+  deleteCommunityReaction,
+  putCommunityBookmark,
+  deleteCommunityBookmark,
 } from './browser-community'
 
 describe('uploadCommunityMedia', () => {
@@ -164,6 +168,42 @@ describe('Community comment browser API', () => {
     expect(api.delete).toHaveBeenCalledWith(
       `/community/comments/${commentId}`,
       { headers: { 'If-Match': '"1"' } },
+    )
+  })
+})
+
+describe('Community interaction browser API', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('uses naturally idempotent replacement and removal endpoints', async () => {
+    const postId = '20000000-0000-4000-8000-000000000009'
+    api.put.mockResolvedValue({ data: { postId, reaction: 'RELATE' } })
+    api.delete.mockResolvedValue(undefined)
+
+    await expect(putCommunityReaction(postId, 'RELATE')).resolves.toEqual({
+      postId,
+      reaction: 'RELATE',
+    })
+    await deleteCommunityReaction(postId)
+    await putCommunityBookmark(postId)
+    await deleteCommunityBookmark(postId)
+
+    expect(api.put).toHaveBeenNthCalledWith(
+      1,
+      `/community/posts/${postId}/reaction`,
+      { reaction: 'RELATE' },
+    )
+    expect(api.delete).toHaveBeenNthCalledWith(
+      1,
+      `/community/posts/${postId}/reaction`,
+    )
+    expect(api.put).toHaveBeenNthCalledWith(
+      2,
+      `/community/posts/${postId}/bookmark`,
+    )
+    expect(api.delete).toHaveBeenNthCalledWith(
+      2,
+      `/community/posts/${postId}/bookmark`,
     )
   })
 })

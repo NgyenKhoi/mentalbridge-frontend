@@ -13,6 +13,7 @@ import {
 import CommunityMedia from './CommunityMedia'
 import CommunityPostComposer from './CommunityPostComposer'
 import CommunityAvatar from './CommunityAvatar'
+import CommunityInteractions from './CommunityInteractions'
 
 type FeedPost = Omit<CommunityPostDetail, 'content'> & {
   contentPreview: string
@@ -236,7 +237,24 @@ export default function CommunityFeed() {
                 <CommunityMedia media={post.media} />
                 <MediaNotice availability={post.mediaAvailability} />
                 <footer>
-                  <span>♡ {post.counts.reactions}</span>
+                  <CommunityInteractions
+                    postId={post.postId}
+                    viewerState={post.viewerState}
+                    reactionCount={post.counts.reactions}
+                    onChange={(viewerState, reactions) =>
+                      setItems((current) =>
+                        current.map((item) =>
+                          item.postId === post.postId
+                            ? {
+                                ...item,
+                                viewerState,
+                                counts: { ...item.counts, reactions },
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
                   <span>◇ {post.counts.comments} bình luận</span>
                   <Link href={`/community/${post.postId}`}>
                     Đọc bài viết <span aria-hidden="true">→</span>

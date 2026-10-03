@@ -38,6 +38,7 @@ const post = {
   ],
   mediaAvailability: 'READY',
   counts: { comments: 2, reactions: 3 },
+  viewerState: { reaction: null, bookmarked: false },
   publishedAt: '2026-09-29T05:00:00Z',
   updatedAt: '2026-09-29T05:00:00Z',
 }

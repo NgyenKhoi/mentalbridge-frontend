@@ -21,6 +21,10 @@ export type CommunityComment = components['schemas']['CommunityComment']
 export type CommunityCommentPage = components['schemas']['CommunityCommentPage']
 export type CreateCommentRequest = components['schemas']['CreateCommentRequest']
 export type UpdateCommentRequest = components['schemas']['UpdateCommentRequest']
+export type SupportiveReaction = components['schemas']['SupportiveReaction']
+export type PutReactionRequest = components['schemas']['PutReactionRequest']
+export type CommunityReaction = components['schemas']['CommunityReaction']
+export type CommunityViewerState = components['schemas']['CommunityViewerState']
 export type ReportTargetType = components['schemas']['ReportTargetType']
 export type ReportReason = components['schemas']['ReportReason']
 export type CreateReportRequest = components['schemas']['CreateReportRequest']
@@ -71,6 +75,11 @@ const COMMENT_STATES = new Set([
   'OWNER_DELETED',
   'MODERATION_HIDDEN',
   'MODERATION_REMOVED',
+])
+const SUPPORTIVE_REACTIONS = new Set<SupportiveReaction>([
+  'SUPPORT',
+  'RELATE',
+  'THANK_YOU',
 ])
 const REPORT_TARGET_TYPES = new Set(['POST', 'COMMENT'])
 const REPORT_REASONS = new Set([
@@ -357,6 +366,18 @@ function parseCounts(value: unknown) {
   )
 }
 
+function parseViewerState(value: unknown): value is CommunityViewerState {
+  const state = record(value)
+  return Boolean(
+    state &&
+    exactKeys(state, ['reaction', 'bookmarked']) &&
+    (state.reaction === null ||
+      (typeof state.reaction === 'string' &&
+        SUPPORTIVE_REACTIONS.has(state.reaction as SupportiveReaction))) &&
+    typeof state.bookmarked === 'boolean',
+  )
+}
+
 function parseMedia(value: unknown) {
   const media = record(value)
   return Boolean(
@@ -399,6 +420,7 @@ function parsePost(
       'media',
       'mediaAvailability',
       'counts',
+      'viewerState',
       'publishedAt',
       'updatedAt',
     ]) ||
@@ -419,6 +441,7 @@ function parsePost(
     typeof post.mediaAvailability !== 'string' ||
     !MEDIA_AVAILABILITY.has(post.mediaAvailability) ||
     !parseCounts(post.counts) ||
+    !parseViewerState(post.viewerState) ||
     !dateTime(post.publishedAt) ||
     !dateTime(post.updatedAt)
   ) {
@@ -514,6 +537,38 @@ export function parseUpdateCommentRequest(
     return null
   }
   return input as UpdateCommentRequest
+}
+
+export function parsePutReactionRequest(
+  value: unknown,
+): PutReactionRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['reaction']) ||
+    typeof input.reaction !== 'string' ||
+    !SUPPORTIVE_REACTIONS.has(input.reaction as SupportiveReaction)
+  ) {
+    return null
+  }
+  return input as PutReactionRequest
+}
+
+export function parseCommunityReaction(
+  value: unknown,
+): CommunityReaction | null {
+  const reaction = record(value)
+  if (
+    !reaction ||
+    !exactKeys(reaction, ['postId', 'reaction']) ||
+    typeof reaction.postId !== 'string' ||
+    !UUID.test(reaction.postId) ||
+    typeof reaction.reaction !== 'string' ||
+    !SUPPORTIVE_REACTIONS.has(reaction.reaction as SupportiveReaction)
+  ) {
+    return null
+  }
+  return reaction as CommunityReaction
 }
 
 export function parseCreateMediaUploadIntent(
