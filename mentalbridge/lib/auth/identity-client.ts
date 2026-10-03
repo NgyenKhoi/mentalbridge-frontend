@@ -4,6 +4,8 @@ import { ApiError } from '@/lib/api/api-error'
 import { isProblemDetails } from '@/lib/api/problem-details'
 import type {
   AccountDetail,
+  AccountPage,
+  AccountStateChangeRequest,
   AccountSummary,
   ChallengeRequest,
   EmailRequest,
@@ -18,6 +20,7 @@ import { readIdentityServerConfig } from '@/lib/config/server'
 
 import {
   parseAccountDetail,
+  parseAccountPage,
   parseAccountSummary,
   parseRegistrationResponse,
   parseTokenPair,
@@ -30,6 +33,7 @@ type RequestOptions<T> = Readonly<{
   correlationId: string
   authorization?: string
   idempotencyKey?: string
+  ifMatch?: string
   body?: unknown
   parseSuccess?: (value: unknown) => T | null
   emptySuccess?: boolean
@@ -113,6 +117,9 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
         ...(options.idempotencyKey === undefined
           ? {}
           : { 'Idempotency-Key': options.idempotencyKey }),
+        ...(options.ifMatch === undefined
+          ? {}
+          : { 'If-Match': options.ifMatch }),
       },
       ...(options.body === undefined
         ? {}
@@ -310,6 +317,73 @@ export const identityClient = {
       expectedStatus: 200,
       correlationId,
       authorization: accessToken,
+      parseSuccess: parseAccountDetail,
+    })
+  },
+
+  searchAccounts(
+    accessToken: string,
+    params: {
+      status?: string
+      role?: string
+      email?: string
+      cursor?: string
+      limit?: number
+    },
+    correlationId: string,
+  ) {
+    const query = new URLSearchParams()
+    if (params.status) query.set('status', params.status)
+    if (params.role) query.set('role', params.role)
+    if (params.email) query.set('email', params.email)
+    if (params.cursor) query.set('cursor', params.cursor)
+    if (params.limit !== undefined) query.set('limit', String(params.limit))
+    const queryString = query.toString()
+    const path = `/api/v1/admin/accounts${queryString ? `?${queryString}` : ''}`
+    return identityRequest<AccountPage>({
+      method: 'GET',
+      path,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAccountPage,
+    })
+  },
+
+  getAccountById(
+    accessToken: string,
+    accountId: string,
+    correlationId: string,
+  ) {
+    return identityRequest<AccountDetail>({
+      method: 'GET',
+      path: `/api/v1/admin/accounts/${encodeURIComponent(accountId)}`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAccountDetail,
+    })
+  },
+
+  changeAccountState(
+    accessToken: string,
+    accountId: string,
+    request: AccountStateChangeRequest,
+    ifMatch: string,
+    correlationId: string,
+  ) {
+    const formattedIfMatch =
+      ifMatch.startsWith('"') && ifMatch.endsWith('"')
+        ? ifMatch
+        : `"${ifMatch}"`
+    return identityRequest<AccountDetail>({
+      method: 'PUT',
+      path: `/api/v1/admin/accounts/${encodeURIComponent(accountId)}/state`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: formattedIfMatch,
+      body: request,
       parseSuccess: parseAccountDetail,
     })
   },

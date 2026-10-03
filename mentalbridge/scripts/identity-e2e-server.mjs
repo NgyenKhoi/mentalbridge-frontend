@@ -169,6 +169,37 @@ const actors = new Map([
   ],
 ])
 
+const initialAdminAccounts = [
+  {
+    accountId: '10000000-0000-4000-8000-000000000001',
+    email: 'user@example.com',
+    status: 'ACTIVE',
+    roles: ['USER'],
+    emailVerified: true,
+    ...timestamps,
+    version: 0,
+  },
+  {
+    accountId: '10000000-0000-4000-8000-000000000003',
+    email: 'specialist@example.com',
+    status: 'ACTIVE',
+    roles: ['SPECIALIST'],
+    emailVerified: true,
+    ...timestamps,
+    version: 0,
+  },
+  {
+    accountId: '10000000-0000-4000-8000-000000000006',
+    email: 'admin-resource-e2e@example.com',
+    status: 'ACTIVE',
+    roles: ['ADMIN'],
+    emailVerified: true,
+    ...timestamps,
+    version: 0,
+  },
+]
+const adminAccounts = structuredClone(initialAdminAccounts)
+
 const initialContentResources = structuredClone(contentResources)
 const initialCommunityPosts = structuredClone(communityPosts)
 const communityReactionByViewer = new Map()
@@ -271,6 +302,11 @@ function reset() {
   communityProfiles.clear()
   availabilitySlots.clear()
   availabilityCommands.clear()
+  adminAccounts.splice(
+    0,
+    adminAccounts.length,
+    ...structuredClone(initialAdminAccounts),
+  )
   contentCreateByKey.clear()
   communityCreateByKey.clear()
   communityCommentCreateByKey.clear()
@@ -2761,6 +2797,94 @@ const server = createServer(async (request, response) => {
       refreshSessions.delete(body.refreshToken)
       state.refreshCount += 1
       json(response, 200, tokenPair(actor, `${actor.accountId}-rotated`))
+      return
+    }
+
+    if (url.pathname === '/api/v1/admin/accounts') {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      if (request.method !== 'GET') {
+        problem(response, 405, 'METHOD_NOT_ALLOWED', 'Method is not allowed')
+        return
+      }
+      const items = adminAccounts.filter((candidate) => {
+        const status = url.searchParams.get('status')
+        const role = url.searchParams.get('role')
+        const email = url.searchParams.get('email')
+        return (
+          (!status || candidate.status === status) &&
+          (!role || candidate.roles.includes(role)) &&
+          (!email || candidate.email === email.toLowerCase())
+        )
+      })
+      json(response, 200, { items, nextCursor: null })
+      return
+    }
+
+    const adminAccountState = url.pathname.match(
+      /^\/api\/v1\/admin\/accounts\/([^/]+)\/state$/,
+    )
+    if (request.method === 'PUT' && adminAccountState) {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      const target = adminAccounts.find(
+        ({ accountId }) => accountId === adminAccountState[1],
+      )
+      if (!target) {
+        problem(response, 404, 'ACCOUNT_NOT_FOUND', 'Account was not found')
+        return
+      }
+      if (target.roles.includes('ADMIN')) {
+        problem(
+          response,
+          403,
+          'DEDICATED_ADMIN_PROTECTED',
+          'Account is protected',
+        )
+        return
+      }
+      if (request.headers['if-match'] !== `"${target.version}"`) {
+        problem(response, 412, 'VERSION_CONFLICT', 'Account version changed')
+        return
+      }
+      const body = await readBody(request)
+      const nextStatus = body.status === 'DISABLED' ? 'DISABLED' : 'ACTIVE'
+      if (target.status !== nextStatus) {
+        target.status = nextStatus
+        target.updatedAt = '2026-10-02T00:00:00Z'
+        target.version += 1
+      }
+      json(response, 200, target, 'application/json', {
+        ETag: `"${target.version}"`,
+      })
+      return
+    }
+
+    const adminAccountDetail = url.pathname.match(
+      /^\/api\/v1\/admin\/accounts\/([^/]+)$/,
+    )
+    if (request.method === 'GET' && adminAccountDetail) {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      const target = adminAccounts.find(
+        ({ accountId }) => accountId === adminAccountDetail[1],
+      )
+      if (!target) {
+        problem(response, 404, 'ACCOUNT_NOT_FOUND', 'Account was not found')
+        return
+      }
+      json(response, 200, target, 'application/json', {
+        ETag: `"${target.version}"`,
+      })
       return
     }
 
