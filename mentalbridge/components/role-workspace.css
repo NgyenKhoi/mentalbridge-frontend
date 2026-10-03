@@ -34,6 +34,10 @@
 @media(max-width:980px){.role-collapse{display:none}.sidebar-collapsed .role-main{margin-left:0}.role-sidebar{width:min(300px,calc(100vw - 24px))!important}.sidebar-collapsed .role-brand{justify-content:flex-start;padding:20px 18px}.sidebar-collapsed .role-brand-copy,.sidebar-collapsed .role-user-copy,.sidebar-collapsed .role-nav-label,.sidebar-collapsed .role-logout-label{opacity:1;transform:none;pointer-events:auto}.sidebar-collapsed .role-sidebar nav{padding-inline:12px}.sidebar-collapsed .role-sidebar nav .role-nav-item>a{justify-content:flex-start;padding-inline:12px}.sidebar-collapsed .role-user{justify-content:flex-start;margin-inline:14px;padding:12px}.sidebar-collapsed .role-logout{justify-content:flex-start;width:calc(100% - 28px);margin-inline:14px;padding-inline:12px}}
 @media(prefers-reduced-motion:reduce){.role-brand-copy,.role-user-copy,.role-nav-label,.role-logout-label,.role-nav-icon,.role-main{transition:none!important}}
 
+/* Specialist controls keep a readable foreground in every interaction state. */
+.role-specialist .role-nav-badge{color:var(--teal-deep)}
+.role-specialist .availability-modal-footer .btn-primary:disabled{background:var(--teal-pale)!important;color:var(--teal-deep)!important;opacity:1;box-shadow:none}
+
 /* Motion owns the visual FLIP transform; layout dimensions change without width/margin tweens. */
 .role-sidebar{width:264px!important;will-change:transform}
 .sidebar-collapsed .role-sidebar{width:88px!important}

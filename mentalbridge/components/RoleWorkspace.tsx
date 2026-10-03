@@ -215,7 +215,7 @@ export default function RoleWorkspace({
     })
   }
   
-  return <div className={`role-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+  return <div className={`role-shell role-${role} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     <motion.aside className={`role-sidebar ${mobileOpen ? 'open' : ''}`} layout initial={false} transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <Link href="/" className="role-brand"><motion.span className="role-brand-mark" whileHover={{ rotate: -6, scale: 1.06 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>M</motion.span><span className="role-brand-copy"><strong>MentalBridge</strong><small>{role === 'admin' ? 'Admin Console' : 'Specialist Workspace'}</small></span></Link>
       <button className="role-collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'} title={sidebarCollapsed ? 'Mở rộng' : 'Thu gọn'}><motion.span animate={{ rotate: sidebarCollapsed ? 180 : 0 }}>‹</motion.span></button>
@@ -233,7 +233,7 @@ export default function RoleWorkspace({
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel />}
-        {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager rows={section.rows} />}
+        {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager rows={section.rows} initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'messages' && <AppointmentMessagesWorkspace viewerRole="SPECIALIST" initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'follow-up' && <SpecialistContinuityManager />}
         {role === 'specialist' && sectionKey === 'earnings' && <SpecialistEarningsManager />}

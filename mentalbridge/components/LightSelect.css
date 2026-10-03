@@ -34,19 +34,20 @@
   box-shadow: 0 0 0 3px var(--teal-pale);
 }
 
-.light-select-trigger[aria-expanded="true"] {
+.light-select-trigger[aria-expanded='true'] {
   border-color: var(--teal);
   background: #fff;
 }
 
 .light-select-chevron {
+  width: 16px;
+  height: 16px;
   color: var(--ink-soft);
-  font-size: 18px;
   transition: transform 0.2s ease;
   flex-shrink: 0;
 }
 
-.light-select-trigger[aria-expanded="true"] .light-select-chevron {
+.light-select-trigger[aria-expanded='true'] .light-select-chevron {
   transform: rotate(180deg);
 }
 
@@ -99,7 +100,7 @@
   background: var(--surface-soft);
 }
 
-.light-select-option[aria-selected="true"] {
+.light-select-option[aria-selected='true'] {
   background: var(--teal-pale);
   color: var(--teal-deep);
   font-weight: 600;

@@ -353,9 +353,10 @@
 }
 
 .attendance button:disabled {
-  border-color: color-mix(in srgb, var(--teal-deep) 40%, var(--line));
-  background: color-mix(in srgb, var(--teal-deep) 72%, var(--surface));
-  opacity: 0.72;
+  border-color: var(--line);
+  background: var(--teal-pale);
+  color: var(--teal-deep) !important;
+  -webkit-text-fill-color: var(--teal-deep);
   cursor: default;
 }
 
@@ -535,10 +536,14 @@
 .composer button svg {
   width: 20px;
   height: 20px;
+  color: inherit;
 }
 
 .composer button:disabled {
-  opacity: 0.38;
+  background: var(--teal-pale);
+  color: var(--teal-deep) !important;
+  -webkit-text-fill-color: var(--teal-deep);
+  opacity: 1;
   cursor: not-allowed;
 }
 
