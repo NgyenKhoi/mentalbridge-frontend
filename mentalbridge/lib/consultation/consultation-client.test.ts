@@ -12,6 +12,69 @@ vi.mock('@/lib/config/server', () => ({
 describe('Consultation server-only client', () => {
   afterEach(() => vi.unstubAllGlobals())
 
+  it('reads the specialist dashboard through the authenticated provider boundary', async () => {
+    const asOf = '2026-10-03T02:00:00Z'
+    const blockedCollection = {
+      source: 'CONSULTATION',
+      asOf,
+      state: 'BLOCKED',
+      count: 0,
+      localDate: null,
+      timezone: null,
+      items: [],
+    }
+    const dashboard = {
+      source: 'CONSULTATION',
+      generatedAt: asOf,
+      operationalStatus: 'PROFILE_REQUIRED',
+      profile: {
+        source: 'CONSULTATION',
+        asOf,
+        state: 'EMPTY',
+        displayName: null,
+        timezone: null,
+        approvalStatus: null,
+      },
+      todayConfirmedSessions: blockedCollection,
+      pendingAppointmentRequests: blockedCollection,
+      nextAppointment: {
+        source: 'CONSULTATION',
+        asOf,
+        state: 'BLOCKED',
+        item: null,
+      },
+      availability: {
+        source: 'CONSULTATION',
+        asOf,
+        state: 'BLOCKED',
+        count: 0,
+        items: [],
+      },
+      actionRequired: [
+        {
+          source: 'CONSULTATION',
+          asOf,
+          type: 'COMPLETE_PROFILE',
+          count: 1,
+        },
+      ],
+    }
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(dashboard))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      consultationClient.specialistDashboard('access-token', 'correlation-id'),
+    ).resolves.toMatchObject({ data: dashboard })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe(
+      'http://consultation.test/api/v1/specialist/dashboard',
+    )
+    expect(init.headers).toMatchObject({
+      Authorization: 'Bearer access-token',
+      'X-Correlation-Id': 'correlation-id',
+    })
+  })
+
   it('maps a provider network failure to an explicit dependency failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
 

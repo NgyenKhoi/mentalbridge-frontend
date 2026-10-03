@@ -12,6 +12,7 @@ import {
   parseProblem,
   parseProfile,
   parseServiceCreditAccount,
+  parseSpecialistDashboard,
   parseSpecialistDiscoveryItem,
   parseSpecialistDiscoveryPage,
   parseSpecialistSuspensionResult,
@@ -27,6 +28,7 @@ import {
   type SpecialistApprovalStatus,
   type SpecialistDecisionReason,
   type SpecialistSuspensionResult,
+  type SpecialistDashboard,
   type Appointment,
   type AppointmentList,
   type AppointmentChatEligibility,
@@ -175,6 +177,15 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  specialistDashboard(token: string, correlationId: string) {
+    return request<SpecialistDashboard>({
+      method: 'GET',
+      path: '/api/v1/specialist/dashboard',
+      token,
+      correlationId,
+      parse: parseSpecialistDashboard,
+    })
+  },
   userSessionSummaries(
     token: string,
     correlationId: string,
