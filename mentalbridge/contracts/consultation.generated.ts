@@ -355,6 +355,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialist/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns a bounded, server-time specialist operations projection from Consultation-owned profile, appointment, and availability facts. Non-approved profiles fail closed with blocked sections and no workload data. */
+        get: operations["getSpecialistOperationalDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist/appointments": {
         parameters: {
             query?: never;
@@ -730,6 +747,104 @@ export interface components {
             generatedAt: string;
             /** @description True only while the reviewed video capability/provider contract gate is enabled. */
             videoPublishingEnabled: boolean;
+        };
+        /** @enum {string} */
+        DashboardDataState: "AVAILABLE" | "EMPTY" | "BLOCKED" | "UNAVAILABLE";
+        /** @enum {string} */
+        SpecialistOperationalStatus: "READY" | "PROFILE_REQUIRED" | "PENDING_APPROVAL" | "PROFILE_REJECTED" | "SUSPENDED";
+        /** @enum {string} */
+        SpecialistDashboardActionType: "COMPLETE_PROFILE" | "AWAIT_PROFILE_APPROVAL" | "UPDATE_REJECTED_PROFILE" | "CONTACT_SUPPORT" | "REVIEW_APPOINTMENT_REQUESTS" | "PUBLISH_AVAILABILITY";
+        SpecialistDashboardProfile: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["DashboardDataState"];
+            displayName: string | null;
+            timezone: string | null;
+            approvalStatus: components["schemas"]["SpecialistApprovalStatus"] | null;
+        };
+        SpecialistDashboardAppointmentItem: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** @enum {string} */
+            status: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS";
+            modality: components["schemas"]["AppointmentModality"];
+            /** Format: date-time */
+            scheduledStartAt: string;
+            /** Format: date-time */
+            scheduledEndAt: string;
+            timezone: string;
+            /** Format: date-time */
+            decisionDeadlineAt: string;
+        };
+        SpecialistDashboardAppointmentCollection: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["DashboardDataState"];
+            count: number;
+            /** Format: date */
+            localDate: string | null;
+            timezone: string | null;
+            items: components["schemas"]["SpecialistDashboardAppointmentItem"][];
+        };
+        SpecialistDashboardNextAppointment: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["DashboardDataState"];
+            item: components["schemas"]["SpecialistDashboardAppointmentItem"] | null;
+        };
+        SpecialistDashboardAvailabilityItem: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            /** Format: uuid */
+            slotId: string;
+            modality: components["schemas"]["AvailabilityModality"];
+            /** Format: date-time */
+            startAt: string;
+            /** Format: date-time */
+            endAt: string;
+            timezone: string;
+        };
+        SpecialistDashboardAvailabilityCollection: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["DashboardDataState"];
+            count: number;
+            items: components["schemas"]["SpecialistDashboardAvailabilityItem"][];
+        };
+        SpecialistDashboardActionItem: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            type: components["schemas"]["SpecialistDashboardActionType"];
+            count: number;
+        };
+        SpecialistDashboard: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            generatedAt: string;
+            operationalStatus: components["schemas"]["SpecialistOperationalStatus"];
+            profile: components["schemas"]["SpecialistDashboardProfile"];
+            todayConfirmedSessions: components["schemas"]["SpecialistDashboardAppointmentCollection"];
+            pendingAppointmentRequests: components["schemas"]["SpecialistDashboardAppointmentCollection"];
+            nextAppointment: components["schemas"]["SpecialistDashboardNextAppointment"];
+            availability: components["schemas"]["SpecialistDashboardAvailabilityCollection"];
+            actionRequired: components["schemas"]["SpecialistDashboardActionItem"][];
         };
         /** @enum {string} */
         AppointmentModality: "IN_APP_CHAT" | "IN_APP_VIDEO";
@@ -2035,6 +2150,28 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
             412: components["responses"]["VersionProblem"];
             428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    getSpecialistOperationalDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current operational projection or an explicit profile-eligibility block */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistDashboard"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     listAssignedAppointments: {

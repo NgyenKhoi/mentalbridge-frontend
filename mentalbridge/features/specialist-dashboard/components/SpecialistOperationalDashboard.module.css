@@ -1,0 +1,441 @@
+.dashboard,
+.loading {
+  display: grid;
+  gap: 1.4rem;
+}
+
+.heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.heading h1,
+.panelHeading h2,
+.statePanel h1,
+.statePanel h2 {
+  margin: 0;
+  color: #173a30;
+}
+
+.heading h1 {
+  margin-top: 0.25rem;
+  font-size: clamp(1.75rem, 3vw, 2.65rem);
+  letter-spacing: -0.035em;
+}
+
+.heading > div > p:last-child,
+.statePanel p {
+  max-width: 42rem;
+  margin: 0.55rem 0 0;
+  color: #536860;
+  line-height: 1.6;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #167356;
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.primaryAction,
+.statePanel a,
+.statePanel button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #126b50;
+  padding: 0.7rem 1rem;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.metrics article {
+  display: flex;
+  min-width: 0;
+  gap: 0.9rem;
+  border: 1px solid #d9e5df;
+  border-radius: 1rem;
+  background: #fff;
+  padding: 1rem;
+  box-shadow: 0 0.35rem 1.4rem rgb(25 73 58 / 6%);
+}
+
+.metricIcon {
+  display: grid;
+  width: 2.55rem;
+  height: 2.55rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: #e8f5ef;
+  color: #126b50;
+  font-weight: 900;
+}
+
+.metrics article div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.metrics p,
+.metrics small {
+  margin: 0;
+  color: #5a6e66;
+}
+
+.metrics strong {
+  color: #173a30;
+  font-size: 1.8rem;
+  line-height: 1.1;
+}
+
+.metrics small {
+  font-size: 0.79rem;
+  line-height: 1.4;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+  gap: 1rem;
+}
+
+.nextPanel,
+.actionPanel,
+.statePanel {
+  border: 1px solid #d9e5df;
+  border-radius: 1.1rem;
+  background: #fff;
+  padding: 1.2rem;
+  box-shadow: 0 0.35rem 1.4rem rgb(25 73 58 / 6%);
+}
+
+.panelHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e7eeea;
+}
+
+.panelHeading h2 {
+  margin-top: 0.2rem;
+  font-size: 1.15rem;
+}
+
+.panelHeading > a {
+  color: #126b50;
+  font-weight: 750;
+}
+
+.nextAppointment {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1.2rem 0 0.15rem;
+}
+
+.modality {
+  width: fit-content;
+  border-radius: 999px;
+  background: #e8f5ef;
+  padding: 0.35rem 0.65rem;
+  color: #125f49;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.nextAppointment h3,
+.nextAppointment p,
+.emptyState h3,
+.emptyState p,
+.actionList p,
+.calmState p {
+  margin: 0;
+}
+
+.nextAppointment h3 {
+  color: #173a30;
+  font-size: 1.35rem;
+  text-transform: capitalize;
+}
+
+.nextAppointment p,
+.emptyState p,
+.actionList p,
+.calmState p {
+  color: #5a6e66;
+  line-height: 1.5;
+}
+
+.nextAppointment > a {
+  width: fit-content;
+  margin-top: 0.35rem;
+  color: #126b50;
+  font-weight: 800;
+}
+
+.emptyState {
+  display: grid;
+  min-height: 10rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.45rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.emptyState > span {
+  color: #699085;
+  font-size: 1.8rem;
+}
+
+.actionList {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 1rem 0 0;
+  list-style: none;
+}
+
+.actionList li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.85rem;
+  background: #f4f8f6;
+  padding: 0.8rem;
+}
+
+.actionList li > span {
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  border-radius: 0.7rem;
+  background: #fff2d2;
+  color: #765600;
+  font-weight: 900;
+}
+
+.actionList strong,
+.calmState strong {
+  color: #23473c;
+}
+
+.actionList li > a {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border-radius: 999px;
+  color: #126b50;
+  font-size: 1.2rem;
+  text-decoration: none;
+}
+
+.calmState {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 1rem;
+  border-radius: 0.85rem;
+  background: #eef8f3;
+  padding: 1rem;
+}
+
+.calmState > span {
+  color: #126b50;
+  font-weight: 900;
+}
+
+.sourceNote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: #667970;
+  font-size: 0.8rem;
+}
+
+.sourceNote button {
+  border: 0;
+  background: transparent;
+  padding: 0.35rem;
+  color: #126b50;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.statePanel {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.statePanel h1,
+.statePanel h2 {
+  margin-top: 0.2rem;
+}
+
+.statePanel a,
+.statePanel button {
+  margin-top: 1rem;
+}
+
+.stateIcon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.85rem;
+  background: #fff1d2;
+  color: #765600;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.loading {
+  animation: fade 180ms ease-out;
+}
+
+.skeletonWide,
+.skeletonPanel,
+.loadingGrid span {
+  display: block;
+  border-radius: 1rem;
+  background: linear-gradient(90deg, #edf2ef 25%, #f8faf9 50%, #edf2ef 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.skeletonWide {
+  width: min(32rem, 80%);
+  height: 5.5rem;
+}
+
+.loadingGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.9rem;
+}
+
+.loadingGrid span {
+  height: 7.5rem;
+}
+
+.skeletonPanel {
+  height: 16rem;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.primaryAction:focus-visible,
+.statePanel a:focus-visible,
+.statePanel button:focus-visible,
+.panelHeading a:focus-visible,
+.nextAppointment a:focus-visible,
+.actionList a:focus-visible,
+.sourceNote button:focus-visible {
+  outline: 3px solid #f1b82d;
+  outline-offset: 3px;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .loadingGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard,
+  .loading {
+    gap: 1rem;
+  }
+
+  .primaryAction {
+    width: 100%;
+  }
+
+  .nextPanel,
+  .actionPanel,
+  .statePanel {
+    border-radius: 0.85rem;
+    padding: 1rem;
+  }
+
+  .statePanel {
+    flex-direction: column;
+  }
+
+  .actionList li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .actionList li > a {
+    grid-column: 2;
+    justify-self: end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading,
+  .skeletonWide,
+  .skeletonPanel,
+  .loadingGrid span {
+    animation: none;
+  }
+}

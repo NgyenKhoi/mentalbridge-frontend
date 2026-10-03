@@ -258,6 +258,7 @@ export type SpecialistDiscoveryItem =
   ConsultationSchemas['SpecialistDiscoveryItem']
 export type SpecialistDiscoveryPage =
   ConsultationSchemas['SpecialistDiscoveryPage']
+export type SpecialistDashboard = ConsultationSchemas['SpecialistDashboard']
 export type Appointment = Readonly<{
   id: string
   slotId: string
@@ -356,6 +357,14 @@ function record(value: unknown): Record<string, unknown> | null {
     : null
 }
 
+function exactKeys(value: Record<string, unknown>, expected: string[]) {
+  const actual = Object.keys(value)
+  return (
+    actual.length === expected.length &&
+    actual.every((key) => expected.includes(key))
+  )
+}
+
 function uuid(value: unknown): value is string {
   return (
     typeof value === 'string' &&
@@ -397,6 +406,314 @@ function ianaTimezone(value: unknown): value is string {
     return true
   } catch {
     return false
+  }
+}
+
+const DASHBOARD_STATES = [
+  'AVAILABLE',
+  'EMPTY',
+  'BLOCKED',
+  'UNAVAILABLE',
+] as const
+const DASHBOARD_OPERATIONAL_STATUSES = [
+  'READY',
+  'PROFILE_REQUIRED',
+  'PENDING_APPROVAL',
+  'PROFILE_REJECTED',
+  'SUSPENDED',
+] as const
+const DASHBOARD_ACTIONS = [
+  'COMPLETE_PROFILE',
+  'AWAIT_PROFILE_APPROVAL',
+  'UPDATE_REJECTED_PROFILE',
+  'CONTACT_SUPPORT',
+  'REVIEW_APPOINTMENT_REQUESTS',
+  'PUBLISH_AVAILABILITY',
+] as const
+
+function dashboardMetadata(value: Record<string, unknown>) {
+  return value.source === 'CONSULTATION' && utcInstant(value.asOf)
+}
+
+function dashboardAppointment(value: unknown) {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'source',
+      'asOf',
+      'appointmentId',
+      'status',
+      'modality',
+      'scheduledStartAt',
+      'scheduledEndAt',
+      'timezone',
+      'decisionDeadlineAt',
+    ]) ||
+    !dashboardMetadata(item) ||
+    !uuid(item.appointmentId) ||
+    !['REQUESTED', 'CONFIRMED', 'IN_PROGRESS'].includes(String(item.status)) ||
+    !AVAILABILITY_MODALITIES.includes(item.modality as AppointmentModality) ||
+    !utcInstant(item.scheduledStartAt) ||
+    !utcInstant(item.scheduledEndAt) ||
+    Date.parse(item.scheduledEndAt) <= Date.parse(item.scheduledStartAt) ||
+    !ianaTimezone(item.timezone) ||
+    !utcInstant(item.decisionDeadlineAt)
+  )
+    return null
+  return item as SpecialistDashboard['todayConfirmedSessions']['items'][number]
+}
+
+function dashboardAppointmentCollection(value: unknown) {
+  const collection = record(value)
+  if (
+    !collection ||
+    !exactKeys(collection, [
+      'source',
+      'asOf',
+      'state',
+      'count',
+      'localDate',
+      'timezone',
+      'items',
+    ]) ||
+    !dashboardMetadata(collection) ||
+    !DASHBOARD_STATES.includes(collection.state as never) ||
+    !Number.isSafeInteger(collection.count) ||
+    Number(collection.count) < 0 ||
+    !(
+      collection.localDate === null ||
+      (typeof collection.localDate === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(collection.localDate) &&
+        !Number.isNaN(Date.parse(`${collection.localDate}T00:00:00Z`)))
+    ) ||
+    !(collection.timezone === null || ianaTimezone(collection.timezone)) ||
+    !Array.isArray(collection.items) ||
+    collection.items.length > 5 ||
+    Number(collection.count) < collection.items.length
+  )
+    return null
+  const items = collection.items.map(dashboardAppointment)
+  if (items.some((item) => item === null)) return null
+  if (
+    (collection.state === 'EMPTY' &&
+      (collection.count !== 0 || collection.items.length !== 0)) ||
+    (collection.state === 'AVAILABLE' &&
+      (Number(collection.count) === 0 || collection.items.length === 0)) ||
+    (['BLOCKED', 'UNAVAILABLE'].includes(String(collection.state)) &&
+      (collection.count !== 0 || collection.items.length !== 0))
+  )
+    return null
+  return {
+    ...collection,
+    items,
+  } as SpecialistDashboard['todayConfirmedSessions']
+}
+
+function dashboardNextAppointment(value: unknown) {
+  const next = record(value)
+  if (
+    !next ||
+    !exactKeys(next, ['source', 'asOf', 'state', 'item']) ||
+    !dashboardMetadata(next) ||
+    !DASHBOARD_STATES.includes(next.state as never)
+  )
+    return null
+  const item = next.item === null ? null : dashboardAppointment(next.item)
+  if (
+    (next.item !== null && item === null) ||
+    (next.state === 'AVAILABLE') !== (item !== null) ||
+    (item && item.status === 'REQUESTED')
+  )
+    return null
+  return { ...next, item } as SpecialistDashboard['nextAppointment']
+}
+
+function dashboardAvailability(value: unknown) {
+  const availability = record(value)
+  if (
+    !availability ||
+    !exactKeys(availability, ['source', 'asOf', 'state', 'count', 'items']) ||
+    !dashboardMetadata(availability) ||
+    !DASHBOARD_STATES.includes(availability.state as never) ||
+    !Number.isSafeInteger(availability.count) ||
+    Number(availability.count) < 0 ||
+    !Array.isArray(availability.items) ||
+    availability.items.length > 5 ||
+    Number(availability.count) < availability.items.length
+  )
+    return null
+  const items = availability.items.map((value) => {
+    const item = record(value)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'source',
+        'asOf',
+        'slotId',
+        'modality',
+        'startAt',
+        'endAt',
+        'timezone',
+      ]) ||
+      !dashboardMetadata(item) ||
+      !uuid(item.slotId) ||
+      !AVAILABILITY_MODALITIES.includes(item.modality as AppointmentModality) ||
+      !utcInstant(item.startAt) ||
+      !utcInstant(item.endAt) ||
+      Date.parse(item.endAt) <= Date.parse(item.startAt) ||
+      !ianaTimezone(item.timezone)
+    )
+      return null
+    return item
+  })
+  if (items.some((item) => item === null)) return null
+  if (
+    (availability.state === 'EMPTY' &&
+      (availability.count !== 0 || availability.items.length !== 0)) ||
+    (availability.state === 'AVAILABLE' &&
+      (Number(availability.count) === 0 || availability.items.length === 0)) ||
+    (['BLOCKED', 'UNAVAILABLE'].includes(String(availability.state)) &&
+      (availability.count !== 0 || availability.items.length !== 0))
+  )
+    return null
+  return { ...availability, items } as SpecialistDashboard['availability']
+}
+
+export function parseSpecialistDashboard(
+  value: unknown,
+): SpecialistDashboard | null {
+  const dashboard = record(value)
+  if (
+    !dashboard ||
+    !exactKeys(dashboard, [
+      'source',
+      'generatedAt',
+      'operationalStatus',
+      'profile',
+      'todayConfirmedSessions',
+      'pendingAppointmentRequests',
+      'nextAppointment',
+      'availability',
+      'actionRequired',
+    ]) ||
+    dashboard.source !== 'CONSULTATION' ||
+    !utcInstant(dashboard.generatedAt) ||
+    !DASHBOARD_OPERATIONAL_STATUSES.includes(
+      dashboard.operationalStatus as never,
+    )
+  )
+    return null
+  const profile = record(dashboard.profile)
+  const today = dashboardAppointmentCollection(dashboard.todayConfirmedSessions)
+  const pending = dashboardAppointmentCollection(
+    dashboard.pendingAppointmentRequests,
+  )
+  const next = dashboardNextAppointment(dashboard.nextAppointment)
+  const availability = dashboardAvailability(dashboard.availability)
+  if (
+    !profile ||
+    !exactKeys(profile, [
+      'source',
+      'asOf',
+      'state',
+      'displayName',
+      'timezone',
+      'approvalStatus',
+    ]) ||
+    !dashboardMetadata(profile) ||
+    !DASHBOARD_STATES.includes(profile.state as never) ||
+    !(
+      profile.displayName === null ||
+      (typeof profile.displayName === 'string' &&
+        profile.displayName.length >= 1 &&
+        profile.displayName.length <= 120)
+    ) ||
+    !(profile.timezone === null || ianaTimezone(profile.timezone)) ||
+    !(
+      profile.approvalStatus === null ||
+      SPECIALIST_APPROVAL_STATUSES.includes(profile.approvalStatus as never)
+    ) ||
+    !today ||
+    !pending ||
+    !next ||
+    !availability ||
+    !Array.isArray(dashboard.actionRequired) ||
+    dashboard.actionRequired.length > 2
+  )
+    return null
+  const actions = dashboard.actionRequired.map((value) => {
+    const action = record(value)
+    if (
+      !action ||
+      !exactKeys(action, ['source', 'asOf', 'type', 'count']) ||
+      !dashboardMetadata(action) ||
+      !DASHBOARD_ACTIONS.includes(action.type as never) ||
+      !Number.isSafeInteger(action.count) ||
+      Number(action.count) < 1
+    )
+      return null
+    return action
+  })
+  if (actions.some((action) => action === null)) return null
+  const ready = dashboard.operationalStatus === 'READY'
+  const expectedApproval = {
+    READY: 'APPROVED',
+    PROFILE_REQUIRED: null,
+    PENDING_APPROVAL: 'PENDING',
+    PROFILE_REJECTED: 'REJECTED',
+    SUSPENDED: 'SUSPENDED',
+  }[dashboard.operationalStatus as SpecialistDashboard['operationalStatus']]
+  const projections = [
+    profile,
+    today,
+    pending,
+    next,
+    availability,
+    ...today.items,
+    ...pending.items,
+    ...(next.item ? [next.item] : []),
+    ...availability.items,
+    ...actions,
+  ]
+  if (
+    profile.approvalStatus !== expectedApproval ||
+    projections.some(
+      (projection) => projection?.asOf !== dashboard.generatedAt,
+    ) ||
+    (dashboard.operationalStatus === 'PROFILE_REQUIRED' &&
+      (profile.state !== 'EMPTY' ||
+        profile.displayName !== null ||
+        profile.timezone !== null)) ||
+    (dashboard.operationalStatus !== 'PROFILE_REQUIRED' &&
+      profile.state !== 'AVAILABLE') ||
+    (!ready &&
+      [today.state, pending.state, next.state, availability.state].some(
+        (state) => state !== 'BLOCKED',
+      )) ||
+    (ready &&
+      ([today.state, pending.state, next.state, availability.state].some(
+        (state) => state === 'BLOCKED' || state === 'UNAVAILABLE',
+      ) ||
+        today.localDate === null ||
+        pending.localDate !== null ||
+        today.timezone !== profile.timezone ||
+        pending.timezone !== profile.timezone)) ||
+    today.items.some((item) => item.status === 'REQUESTED') ||
+    pending.items.some((item) => item.status !== 'REQUESTED')
+  )
+    return null
+  return {
+    source: 'CONSULTATION',
+    generatedAt: dashboard.generatedAt,
+    operationalStatus:
+      dashboard.operationalStatus as SpecialistDashboard['operationalStatus'],
+    profile: profile as SpecialistDashboard['profile'],
+    todayConfirmedSessions: today,
+    pendingAppointmentRequests: pending,
+    nextAppointment: next,
+    availability,
+    actionRequired: actions as SpecialistDashboard['actionRequired'],
   }
 }
 
