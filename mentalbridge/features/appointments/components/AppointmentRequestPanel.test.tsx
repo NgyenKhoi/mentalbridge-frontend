@@ -81,6 +81,20 @@ function formatInSnapshotTimezone(value: string) {
   }).format(new Date(value))
 }
 
+function formatSlotInSnapshotTimezone(start: string, end: string) {
+  const date = new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'medium',
+    timeZone: timezone,
+  }).format(new Date(start))
+  const time = new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: timezone,
+  })
+  return `${date} · ${time.format(new Date(start))} – ${time.format(new Date(end))}`
+}
+
 describe('AppointmentRequestPanel', () => {
   beforeAll(() => {
     process.env.TZ = 'America/New_York'
@@ -125,14 +139,91 @@ describe('AppointmentRequestPanel', () => {
     expect((await screen.findAllByText(snapshotStart)).length).toBeGreaterThan(
       0,
     )
-    expect(screen.getByText('Đang diễn ra')).toBeInTheDocument()
+    expect(screen.getAllByText('Đang diễn ra')).toHaveLength(2)
     expect(
-      screen.getByText(formatInSnapshotTimezone(decisionDeadline)),
+      screen.getByRole('link', {
+        name: /Mở tin nhắn với Appointment specialist/,
+      }),
+    ).toHaveAttribute('href', `/messages?appointmentId=${appointment.id}`)
+    expect(
+      screen.queryByText(formatInSnapshotTimezone(decisionDeadline)),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText(formatSlotInSnapshotTimezone(slotStart, slotEnd)),
     ).toBeInTheDocument()
+  })
+
+  it('filters the appointment list without hiding the next appointment context', async () => {
+    const historicalAppointment = {
+      ...appointment,
+      id: '523e4567-e89b-42d3-a456-426614174003',
+      specialistDisplayName: 'Historical specialist',
+      status: 'COMPLETED' as const,
+      creditState: 'CONSUMED' as const,
+      version: 2,
+    }
+    appointmentClient.slots.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2099-01-01T00:00:00Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list.mockResolvedValue({
+      items: [appointment, historicalAppointment],
+      count: 2,
+      generatedAt: '2099-01-01T00:00:00Z',
+    })
+    const user = userEvent.setup()
+
+    render(<AppointmentRequestPanel />)
+
+    const historyFilter = await screen.findByRole('button', {
+      name: 'Lịch sử',
+    })
+    await user.click(historyFilter)
+
+    expect(historyFilter).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('Hiển thị 1 lịch hẹn')).toBeInTheDocument()
+    expect(screen.getByText('Historical specialist')).toBeInTheDocument()
+    expect(screen.getByText('Cuộc hẹn tiếp theo')).toBeInTheDocument()
+  })
+
+  it('keeps appointments usable when available slots fail to load', async () => {
+    appointmentClient.slots.mockRejectedValue(new Error('slots unavailable'))
+    appointmentClient.list.mockResolvedValue({
+      items: [appointment],
+      count: 1,
+      generatedAt: '2099-01-01T00:00:00Z',
+    })
+
+    render(<AppointmentRequestPanel />)
+
     expect(
-      screen.getByText(
-        `${formatInSnapshotTimezone(slotStart)} – ${formatInSnapshotTimezone(slotEnd)}`,
-      ),
+      (await screen.findAllByText('Appointment specialist')).length,
+    ).toBeGreaterThan(0)
+    expect(screen.getByText('Chưa thể tải khung giờ')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument()
+  })
+
+  it('keeps booking slots usable when appointments fail to load', async () => {
+    appointmentClient.slots.mockResolvedValue({
+      items: [slot],
+      count: 1,
+      generatedAt: '2099-01-01T00:00:00Z',
+      videoEnabled: false,
+    })
+    appointmentClient.list.mockRejectedValue(
+      new Error('appointments unavailable'),
+    )
+
+    render(<AppointmentRequestPanel />)
+
+    expect(await screen.findByText('Slot specialist')).toBeInTheDocument()
+    expect(screen.getByText('Chưa thể tải lịch hẹn')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: /Yêu cầu lịch hẹn với Slot specialist/,
+      }),
     ).toBeInTheDocument()
   })
 
@@ -218,7 +309,9 @@ describe('AppointmentRequestPanel', () => {
     const user = userEvent.setup()
     render(<AppointmentRequestPanel />)
 
-    await user.click(await screen.findByRole('button', { name: 'Hủy lịch' }))
+    await user.click(
+      await screen.findByRole('button', { name: /Hủy lịch hẹn với/ }),
+    )
 
     await waitFor(() =>
       expect(appointmentClient.cancel).toHaveBeenCalledWith(
@@ -253,9 +346,11 @@ describe('AppointmentRequestPanel', () => {
     const user = userEvent.setup()
     render(<AppointmentRequestPanel />)
 
-    await user.click(await screen.findByRole('button', { name: 'Đổi lịch' }))
+    await user.click(
+      await screen.findByRole('button', { name: /Đổi lịch hẹn với/ }),
+    )
     expect(screen.getByText(/chỉ được hủy khi yêu cầu mới/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Đổi sang giờ này' }))
+    await user.click(screen.getByRole('button', { name: /Đổi lịch sang/ }))
 
     await waitFor(() =>
       expect(appointmentClient.request).toHaveBeenCalledWith(
@@ -291,7 +386,9 @@ describe('AppointmentRequestPanel', () => {
     const user = userEvent.setup()
     render(<AppointmentRequestPanel />)
 
-    await user.click(await screen.findByRole('button', { name: 'Đổi lịch' }))
+    await user.click(
+      await screen.findByRole('button', { name: /Đổi lịch hẹn với/ }),
+    )
 
     expect(
       screen.getByText(/lượt tư vấn cũ sẽ không được hoàn lại/),
@@ -359,12 +456,14 @@ describe('AppointmentRequestPanel', () => {
       </FeedbackProvider>,
     )
 
-    await user.click(await screen.findByRole('button', { name: 'Đổi lịch' }))
+    await user.click(
+      await screen.findByRole('button', { name: /Đổi lịch hẹn với/ }),
+    )
     expect(
       screen.queryByText(/lượt tư vấn cũ sẽ không được hoàn lại/),
     ).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Đổi sang giờ này' }))
+    await user.click(screen.getByRole('button', { name: /Đổi lịch sang/ }))
 
     expect(
       await screen.findByText(

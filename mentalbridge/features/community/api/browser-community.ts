@@ -12,6 +12,15 @@ import type {
   CreateMediaUploadIntentRequest,
   MediaUploadIntent,
   CommunityMediaRecord,
+  CommunityComment,
+  CommunityCommentPage,
+  CreateCommentRequest,
+  UpdateCommentRequest,
+  CreateReportRequest,
+  ReportTargetType,
+  ReportReason,
+  ModerationCase,
+  CreateModerationActionRequest,
 } from '@/lib/community/community-validation'
 
 export type {
@@ -26,11 +35,25 @@ export type {
   CreateMediaUploadIntentRequest,
   MediaUploadIntent,
   CommunityMediaRecord,
+  CommunityComment,
+  CommunityCommentPage,
+  CreateCommentRequest,
+  UpdateCommentRequest,
+  CreateReportRequest,
+  ReportTargetType,
+  ReportReason,
+  ModerationCase,
+  CreateModerationActionRequest,
 }
 
 export type VersionedCommunityPost = Readonly<{
   post: CommunityPostDetail
   version: number | null
+}>
+
+export type VersionedCommunityComment = Readonly<{
+  comment: CommunityComment
+  version: number
 }>
 
 export async function getCommunityFeed(
@@ -146,6 +169,114 @@ export async function deleteCommunityMedia(mediaId: string, version: number) {
     `/community/media/${encodeURIComponent(mediaId)}`,
     { headers: { 'If-Match': `"${version}"` } },
   )
+}
+
+export async function getCommunityComments(postId: string, cursor?: string) {
+  const response = await browserApiClient.get<CommunityCommentPage>(
+    `/community/posts/${encodeURIComponent(postId)}/comments`,
+    {
+      params: {
+        limit: 20,
+        ...(cursor ? { cursor } : {}),
+      },
+    },
+  )
+  return response.data
+}
+
+export async function createCommunityComment(
+  postId: string,
+  input: CreateCommentRequest,
+  idempotencyKey: string,
+): Promise<VersionedCommunityComment> {
+  const response = await browserApiClient.post<CommunityComment>(
+    `/community/posts/${encodeURIComponent(postId)}/comments`,
+    input,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
+  const version = parseOwnerVersion(response.headers.etag)
+  if (version === null) throw new Error('COMMUNITY_INVALID_COMMENT_VERSION')
+  return { comment: response.data, version }
+}
+
+export async function updateCommunityComment(
+  commentId: string,
+  input: UpdateCommentRequest,
+  version: number,
+): Promise<VersionedCommunityComment> {
+  const response = await browserApiClient.patch<CommunityComment>(
+    `/community/comments/${encodeURIComponent(commentId)}`,
+    input,
+    { headers: { 'If-Match': `"${version}"` } },
+  )
+  const nextVersion = parseOwnerVersion(response.headers.etag)
+  if (nextVersion === null) throw new Error('COMMUNITY_INVALID_COMMENT_VERSION')
+  return { comment: response.data, version: nextVersion }
+}
+
+export async function deleteCommunityComment(
+  commentId: string,
+  version: number,
+) {
+  await browserApiClient.delete(
+    `/community/comments/${encodeURIComponent(commentId)}`,
+    { headers: { 'If-Match': `"${version}"` } },
+  )
+}
+
+export async function reportCommunityContent(
+  input: CreateReportRequest,
+  idempotencyKey: string,
+) {
+  await browserApiClient.post('/community/reports', input, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+export async function hideCommunityContent(
+  targetType: ReportTargetType,
+  targetId: string,
+) {
+  await browserApiClient.put(
+    `/community/hidden-content/${targetType}/${encodeURIComponent(targetId)}`,
+  )
+}
+
+export async function blockCommunityProfile(profileId: string) {
+  await browserApiClient.put(
+    `/community/blocks/${encodeURIComponent(profileId)}`,
+  )
+}
+
+export async function unblockCommunityProfile(profileId: string) {
+  await browserApiClient.delete(
+    `/community/blocks/${encodeURIComponent(profileId)}`,
+  )
+}
+
+export async function getCommunityModerationCases(filters?: {
+  state?: string
+  targetType?: string
+  priority?: string
+}) {
+  const response = await browserApiClient.get<ModerationCase[]>(
+    '/community/admin/moderation-cases',
+    { params: filters },
+  )
+  return response.data
+}
+
+export async function createCommunityModerationAction(
+  caseId: string,
+  input: CreateModerationActionRequest,
+  idempotencyKey: string,
+) {
+  const response = await browserApiClient.post<ModerationCase>(
+    `/community/admin/moderation-cases/${encodeURIComponent(caseId)}/actions`,
+    input,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
+  return response.data
 }
 
 export async function uploadCommunityMedia(file: File, signal?: AbortSignal) {

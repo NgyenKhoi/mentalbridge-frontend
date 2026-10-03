@@ -11,6 +11,10 @@ import {
   parseCommunityTopics,
   parseMediaUploadIntent,
   parseCommunityMediaRecord,
+  parseCommunityComment,
+  parseCommunityCommentPage,
+  parseModerationCase,
+  parseModerationCases,
   type CommunityFeedPage,
   type CommunityProfile,
   type CommunityPostDetail,
@@ -21,6 +25,14 @@ import {
   type CreateMediaUploadIntentRequest,
   type MediaUploadIntent,
   type CommunityMediaRecord,
+  type CommunityComment,
+  type CommunityCommentPage,
+  type CreateCommentRequest,
+  type UpdateCommentRequest,
+  type CreateReportRequest,
+  type ReportTargetType,
+  type ModerationCase,
+  type CreateModerationActionRequest,
 } from './community-validation'
 
 const MAX_RESPONSE_BYTES = 256 * 1024
@@ -124,6 +136,22 @@ function requireProfileEtag(
       502,
       'COMMUNITY_MALFORMED_RESPONSE',
       'Community returned an invalid profile version.',
+    )
+  }
+  return result
+}
+
+function requireCommentEtag(
+  result: CommunityResult<CommunityComment>,
+): CommunityResult<CommunityComment> {
+  if (
+    !isCommunityEtag(result.etag) ||
+    Number(result.etag.slice(1, -1)) !== result.data.version
+  ) {
+    throw localError(
+      502,
+      'COMMUNITY_MALFORMED_RESPONSE',
+      'Community returned an invalid comment version.',
     )
   }
   return result
@@ -396,6 +424,219 @@ export const communityClient = {
       ifMatch,
     )
   },
+  async comments(
+    accessToken: string,
+    postId: string,
+    query: URLSearchParams,
+    correlationId: string,
+  ) {
+    const suffix = query.size > 0 ? `?${query.toString()}` : ''
+    return (
+      await request<CommunityCommentPage>(
+        `/api/v1/community/posts/${encodeURIComponent(postId)}/comments${suffix}`,
+        accessToken,
+        correlationId,
+        parseCommunityCommentPage,
+      )
+    ).data
+  },
+  async createComment(
+    accessToken: string,
+    postId: string,
+    input: CreateCommentRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return requireCommentEtag(
+      await request<CommunityComment>(
+        `/api/v1/community/posts/${encodeURIComponent(postId)}/comments`,
+        accessToken,
+        correlationId,
+        parseCommunityComment,
+        {
+          method: 'POST',
+          body: input,
+          headers: { 'Idempotency-Key': idempotencyKey },
+        },
+      ),
+    )
+  },
+  async updateComment(
+    accessToken: string,
+    commentId: string,
+    input: UpdateCommentRequest,
+    ifMatch: string,
+    correlationId: string,
+  ) {
+    return requireCommentEtag(
+      await request<CommunityComment>(
+        `/api/v1/community/comments/${encodeURIComponent(commentId)}`,
+        accessToken,
+        correlationId,
+        parseCommunityComment,
+        {
+          method: 'PATCH',
+          body: input,
+          headers: { 'If-Match': ifMatch },
+        },
+      ),
+    )
+  },
+  deleteComment(
+    accessToken: string,
+    commentId: string,
+    ifMatch: string,
+    correlationId: string,
+  ) {
+    return deleteRequest(
+      `/api/v1/community/comments/${encodeURIComponent(commentId)}`,
+      accessToken,
+      correlationId,
+      ifMatch,
+    )
+  },
+  report(
+    accessToken: string,
+    input: CreateReportRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return noContentRequest(
+      '/api/v1/community/reports',
+      'POST',
+      accessToken,
+      correlationId,
+      { 'Idempotency-Key': idempotencyKey },
+      input,
+      202,
+    )
+  },
+  hide(
+    accessToken: string,
+    targetType: ReportTargetType,
+    targetId: string,
+    correlationId: string,
+  ) {
+    return noContentRequest(
+      `/api/v1/community/hidden-content/${targetType}/${encodeURIComponent(targetId)}`,
+      'PUT',
+      accessToken,
+      correlationId,
+    )
+  },
+  block(accessToken: string, profileId: string, correlationId: string) {
+    return noContentRequest(
+      `/api/v1/community/blocks/${encodeURIComponent(profileId)}`,
+      'PUT',
+      accessToken,
+      correlationId,
+    )
+  },
+  unblock(accessToken: string, profileId: string, correlationId: string) {
+    return noContentRequest(
+      `/api/v1/community/blocks/${encodeURIComponent(profileId)}`,
+      'DELETE',
+      accessToken,
+      correlationId,
+    )
+  },
+  async moderationCases(
+    accessToken: string,
+    query: URLSearchParams,
+    correlationId: string,
+  ) {
+    const suffix = query.size ? `?${query.toString()}` : ''
+    return (
+      await request<ModerationCase[]>(
+        `/api/v1/community/admin/moderation-cases${suffix}`,
+        accessToken,
+        correlationId,
+        parseModerationCases,
+      )
+    ).data
+  },
+  async moderationAction(
+    accessToken: string,
+    caseId: string,
+    input: CreateModerationActionRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return (
+      await request<ModerationCase>(
+        `/api/v1/community/admin/moderation-cases/${encodeURIComponent(caseId)}/actions`,
+        accessToken,
+        correlationId,
+        parseModerationCase,
+        {
+          method: 'POST',
+          body: input,
+          headers: { 'Idempotency-Key': idempotencyKey },
+        },
+      )
+    ).data
+  },
+}
+
+async function noContentRequest(
+  path: string,
+  method: 'POST' | 'PUT' | 'DELETE',
+  accessToken: string,
+  correlationId: string,
+  headers?: Record<string, string>,
+  body?: unknown,
+  expectedStatus = 204,
+) {
+  const config = readCommunityServerConfig()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetch(
+      new URL(path.replace(/^\//, ''), config.baseUrl),
+      {
+        method,
+        cache: 'no-store',
+        redirect: 'error',
+        signal: controller.signal,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        headers: {
+          Accept: 'application/json, application/problem+json',
+          Authorization: `Bearer ${accessToken}`,
+          'X-Correlation-Id': correlationId,
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          ...headers,
+        },
+      },
+    )
+    if (response.status === expectedStatus) return
+    const raw = await readJson(response)
+    if (!response.ok) {
+      const problem = parseCommunityProblem(raw, response.status)
+      if (problem) throw new CommunityServiceError(problem)
+    }
+    throw localError(
+      502,
+      'COMMUNITY_MALFORMED_RESPONSE',
+      'Community returned an invalid response.',
+    )
+  } catch (error) {
+    if (error instanceof CommunityServiceError) throw error
+    if (controller.signal.aborted)
+      throw localError(
+        504,
+        'COMMUNITY_TIMEOUT',
+        'Community request timed out.',
+        error,
+      )
+    throw localError(
+      503,
+      'COMMUNITY_UNAVAILABLE',
+      'Community is unavailable.',
+      error,
+    )
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 async function deleteRequest(

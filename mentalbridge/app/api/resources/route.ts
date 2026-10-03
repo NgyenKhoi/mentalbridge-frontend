@@ -42,6 +42,7 @@ const RESOURCE_STATUSES = new Set<ResourceStatus>([
   'PUBLISHED',
   'ARCHIVED',
 ])
+const RESOURCE_LOCALES = new Set(['vi-VN', 'en-US'])
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const UNAVAILABLE_MESSAGE =
@@ -120,6 +121,17 @@ function isValidResourceSummary(
 }
 
 function validateQuery(searchParams: URLSearchParams): ErrorResponse | null {
+  const locale = searchParams.get('locale')
+  if (locale && !RESOURCE_LOCALES.has(locale)) {
+    return {
+      type: 'about:blank',
+      title: 'Invalid Request',
+      status: 400,
+      code: 'INVALID_RESOURCE_LOCALE',
+      detail: 'locale must be a supported resource locale',
+    }
+  }
+
   const category = searchParams.get('category')
   if (category && !RESOURCE_CATEGORIES.has(category as ResourceCategory)) {
     return {
@@ -179,9 +191,10 @@ export async function GET(request: NextRequest) {
   const cursor = searchParams.get('cursor')
   const acceptLanguage = request.headers.get('accept-language')
   const locale =
-    acceptLanguage?.split(',')[0]?.split('-')[0]?.toLowerCase() === 'en'
+    searchParams.get('locale') ??
+    (acceptLanguage?.split(',')[0]?.split('-')[0]?.toLowerCase() === 'en'
       ? 'en-US'
-      : 'vi-VN'
+      : 'vi-VN')
 
   const upstreamUrl = new URL('api/v1/resources', contentConfig.baseUrl)
   upstreamUrl.searchParams.set('locale', locale)

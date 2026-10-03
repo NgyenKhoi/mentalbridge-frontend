@@ -254,7 +254,7 @@ export default function SpecialistAppointmentDecisionPanel() {
             <h2>{displayRange(next)}</h2>
             <p>
               {next.modality === 'IN_APP_CHAT'
-                ? appointmentTimingCopy(next, now)
+                ? appointmentTimingCopy(next)
                 : 'Phiên video đã được xác nhận'}
             </p>
           </div>
