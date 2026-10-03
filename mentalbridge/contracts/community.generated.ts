@@ -357,6 +357,7 @@ export interface components {
             /** @enum {string} */
             mediaAvailability: "NONE" | "READY" | "PARTIAL" | "UNAVAILABLE";
             counts: components["schemas"]["CommunityCounts"];
+            viewerState: components["schemas"]["CommunityViewerState"];
             /** Format: date-time */
             publishedAt: string;
             /** Format: date-time */
@@ -372,6 +373,7 @@ export interface components {
             /** @enum {string} */
             mediaAvailability: "NONE" | "READY" | "PARTIAL" | "UNAVAILABLE";
             counts: components["schemas"]["CommunityCounts"];
+            viewerState: components["schemas"]["CommunityViewerState"];
             /** Format: date-time */
             publishedAt: string;
             /** Format: date-time */
@@ -460,6 +462,11 @@ export interface components {
         };
         /** @enum {string} */
         SupportiveReaction: "SUPPORT" | "RELATE" | "THANK_YOU";
+        CommunityViewerState: {
+            reaction: components["schemas"]["SupportiveReaction"] | null;
+            /** @description True only when the authenticated owner bookmarked this post; another viewer's bookmark state is never exposed. */
+            bookmarked: boolean;
+        };
         PutReactionRequest: {
             reaction: components["schemas"]["SupportiveReaction"];
         };

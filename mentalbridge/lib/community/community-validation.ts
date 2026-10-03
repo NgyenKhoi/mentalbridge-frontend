@@ -1,9 +1,22 @@
 import type { components } from '@/contracts/community.generated'
 
-export type CommunityFeedPage = components['schemas']['CommunityFeedPage']
 export type CommunityAuthor = components['schemas']['CommunityAuthor']
-export type CommunityPostSummary = components['schemas']['CommunityPostSummary']
-export type CommunityPostDetail = components['schemas']['CommunityPostDetail']
+export type CommunityViewerState = components['schemas']['CommunityViewerState']
+type ContractCommunityPostSummary =
+  components['schemas']['CommunityPostSummary']
+type ContractCommunityPostDetail = components['schemas']['CommunityPostDetail']
+export type CommunityPostSummary = Omit<
+  ContractCommunityPostSummary,
+  'viewerState'
+> & { viewerState?: CommunityViewerState }
+export type CommunityPostDetail = Omit<
+  ContractCommunityPostDetail,
+  'viewerState'
+> & { viewerState?: CommunityViewerState }
+export type CommunityFeedPage = Omit<
+  components['schemas']['CommunityFeedPage'],
+  'items'
+> & { items: CommunityPostSummary[] }
 export type CommunityTopic = components['schemas']['CommunityTopic']
 export type CommunityTopicCode = components['schemas']['CommunityTopicCode']
 export type CommunityProfile = components['schemas']['CommunityProfile']
@@ -21,6 +34,9 @@ export type CommunityComment = components['schemas']['CommunityComment']
 export type CommunityCommentPage = components['schemas']['CommunityCommentPage']
 export type CreateCommentRequest = components['schemas']['CreateCommentRequest']
 export type UpdateCommentRequest = components['schemas']['UpdateCommentRequest']
+export type SupportiveReaction = components['schemas']['SupportiveReaction']
+export type PutReactionRequest = components['schemas']['PutReactionRequest']
+export type CommunityReaction = components['schemas']['CommunityReaction']
 export type ReportTargetType = components['schemas']['ReportTargetType']
 export type ReportReason = components['schemas']['ReportReason']
 export type CreateReportRequest = components['schemas']['CreateReportRequest']
@@ -71,6 +87,11 @@ const COMMENT_STATES = new Set([
   'OWNER_DELETED',
   'MODERATION_HIDDEN',
   'MODERATION_REMOVED',
+])
+const SUPPORTIVE_REACTIONS = new Set<SupportiveReaction>([
+  'SUPPORT',
+  'RELATE',
+  'THANK_YOU',
 ])
 const REPORT_TARGET_TYPES = new Set(['POST', 'COMMENT'])
 const REPORT_REASONS = new Set([
@@ -357,6 +378,18 @@ function parseCounts(value: unknown) {
   )
 }
 
+function parseViewerState(value: unknown): value is CommunityViewerState {
+  const state = record(value)
+  return Boolean(
+    state &&
+    exactKeys(state, ['reaction', 'bookmarked']) &&
+    (state.reaction === null ||
+      (typeof state.reaction === 'string' &&
+        SUPPORTIVE_REACTIONS.has(state.reaction as SupportiveReaction))) &&
+    typeof state.bookmarked === 'boolean',
+  )
+}
+
 function parseMedia(value: unknown) {
   const media = record(value)
   return Boolean(
@@ -389,19 +422,20 @@ function parsePost(
   const post = record(value)
   const content = detail ? post?.content : post?.contentPreview
   const author = parseAuthor(post?.author)
+  const keys = [
+    'postId',
+    'author',
+    detail ? 'content' : 'contentPreview',
+    'topics',
+    'media',
+    'mediaAvailability',
+    'counts',
+    'publishedAt',
+    'updatedAt',
+  ]
   if (
     !post ||
-    !exactKeys(post, [
-      'postId',
-      'author',
-      detail ? 'content' : 'contentPreview',
-      'topics',
-      'media',
-      'mediaAvailability',
-      'counts',
-      'publishedAt',
-      'updatedAt',
-    ]) ||
+    (!exactKeys(post, keys) && !exactKeys(post, [...keys, 'viewerState'])) ||
     typeof post.postId !== 'string' ||
     !UUID.test(post.postId) ||
     !author ||
@@ -419,6 +453,7 @@ function parsePost(
     typeof post.mediaAvailability !== 'string' ||
     !MEDIA_AVAILABILITY.has(post.mediaAvailability) ||
     !parseCounts(post.counts) ||
+    ('viewerState' in post && !parseViewerState(post.viewerState)) ||
     !dateTime(post.publishedAt) ||
     !dateTime(post.updatedAt)
   ) {
@@ -514,6 +549,38 @@ export function parseUpdateCommentRequest(
     return null
   }
   return input as UpdateCommentRequest
+}
+
+export function parsePutReactionRequest(
+  value: unknown,
+): PutReactionRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['reaction']) ||
+    typeof input.reaction !== 'string' ||
+    !SUPPORTIVE_REACTIONS.has(input.reaction as SupportiveReaction)
+  ) {
+    return null
+  }
+  return input as PutReactionRequest
+}
+
+export function parseCommunityReaction(
+  value: unknown,
+): CommunityReaction | null {
+  const reaction = record(value)
+  if (
+    !reaction ||
+    !exactKeys(reaction, ['postId', 'reaction']) ||
+    typeof reaction.postId !== 'string' ||
+    !UUID.test(reaction.postId) ||
+    typeof reaction.reaction !== 'string' ||
+    !SUPPORTIVE_REACTIONS.has(reaction.reaction as SupportiveReaction)
+  ) {
+    return null
+  }
+  return reaction as CommunityReaction
 }
 
 export function parseCreateMediaUploadIntent(
