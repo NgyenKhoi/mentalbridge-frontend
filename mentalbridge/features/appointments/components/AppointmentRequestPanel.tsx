@@ -497,6 +497,7 @@ export default function AppointmentRequestPanel({
             Đóng
           </button>
         </div>
+      )}
       {!appointmentLoading &&
         !appointmentError &&
         focusAppointmentId &&
@@ -603,7 +604,6 @@ export default function AppointmentRequestPanel({
               <div className={styles.appointmentTools}>
                 <p
                   className={styles.resultStatus}
-                  role="status"
                   aria-live="polite"
                 >
                   {appointmentLoading && appointments.length > 0
@@ -874,7 +874,6 @@ export default function AppointmentRequestPanel({
                   </article>
                 )
               })}
->>>>>>> origin/dev
             </div>
           )}
         </section>
