@@ -21,6 +21,23 @@
   margin-bottom: var(--space-6);
 }
 
+.empty {
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+}
+
+.focusedCard,
+.focusedRow {
+  border-color: var(--teal) !important;
+  box-shadow:
+    0 0 0 2px var(--teal-pale),
+    var(--elevation-1);
+}
+
 .eyebrow,
 .appointmentTitleRow > div > span,
 .bookingHeading span,

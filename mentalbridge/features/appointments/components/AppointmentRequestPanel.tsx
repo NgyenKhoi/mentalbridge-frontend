@@ -198,7 +198,11 @@ function errorMessage(
   return messages[error.code] ?? fallback
 }
 
-export default function AppointmentRequestPanel() {
+export default function AppointmentRequestPanel({
+  focusAppointmentId,
+}: {
+  focusAppointmentId?: string
+}) {
   const { confirm, showActionToast } = useFeedback()
   const [slots, setSlots] = useState<BookableSlot[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -494,6 +498,15 @@ export default function AppointmentRequestPanel() {
           </button>
         </div>
       )}
+      {!appointmentLoading &&
+        !appointmentError &&
+        focusAppointmentId &&
+        !appointments.some((item) => item.id === focusAppointmentId) && (
+          <p className={styles.empty} role="status">
+            Không tìm thấy lịch hẹn này trong tài khoản của bạn. Hãy kiểm tra
+            danh sách lịch hẹn mới nhất.
+          </p>
+        )}
 
       {appointmentLoading && appointments.length === 0 ? (
         <section
@@ -589,11 +602,7 @@ export default function AppointmentRequestPanel() {
                 <h2 id="requested-title">Tất cả cuộc hẹn</h2>
               </div>
               <div className={styles.appointmentTools}>
-                <p
-                  className={styles.resultStatus}
-                  role="status"
-                  aria-live="polite"
-                >
+                <p className={styles.resultStatus} aria-live="polite">
                   {appointmentLoading && appointments.length > 0
                     ? 'Đang cập nhật lịch hẹn…'
                     : `Hiển thị ${visibleAppointments.length} lịch hẹn`}
@@ -684,12 +693,18 @@ export default function AppointmentRequestPanel() {
                     item.history.some(
                       (event) => event.toStatus === 'CONFIRMED',
                     ))
+                const isFocused = item.id === focusAppointmentId
                 return (
                   <article
-                    className={styles.appointmentRow}
+                    className={`${styles.appointmentRow} ${isFocused ? `${styles.focusedRow} ${styles.focusedCard}` : ''}`}
                     key={item.id}
-                    id={`appointment-${item.id}`}
+                    id={
+                      isFocused
+                        ? 'appointment-from-reminder'
+                        : `appointment-${item.id}`
+                    }
                   >
+                    {isFocused && <span id={`appointment-${item.id}`} />}
                     <time
                       className={styles.dateTile}
                       dateTime={item.scheduledStartAt}

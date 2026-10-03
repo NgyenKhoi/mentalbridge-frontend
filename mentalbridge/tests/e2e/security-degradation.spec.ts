@@ -561,6 +561,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
         cadence: 'IMMEDIATE',
         wellbeingDigestEnabled: false,
         resourceRemindersEnabled: false,
+        appointmentRemindersEnabled: false,
         dailyDigestTime: '19:00',
         resourceReminderTime: '18:30',
       },

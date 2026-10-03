@@ -149,12 +149,24 @@ function Toggle({
 }
 
 function patchOf(value: NotificationPreferences): NotificationPreferencePatch {
+  const emailPatch: NotificationPreferencePatch['email'] = {
+    cadence: value.email.cadence,
+    wellbeingDigestEnabled: value.email.wellbeingDigestEnabled,
+    resourceRemindersEnabled: value.email.resourceRemindersEnabled,
+    dailyDigestTime: value.email.dailyDigestTime,
+    resourceReminderTime: value.email.resourceReminderTime,
+    // Only include when the new backend has already provided this capability.
+    // Omitting prevents PATCH rejection on old backends (MB-517 rollout safety).
+    ...(value.email.appointmentRemindersEnabled !== undefined
+      ? { appointmentRemindersEnabled: value.email.appointmentRemindersEnabled }
+      : {}),
+  }
   return {
     notificationsEnabled: value.notificationsEnabled,
     channels: value.channels,
     contentGroups: value.contentGroups,
     quietHours: value.quietHours,
-    email: value.email,
+    email: emailPatch,
   }
 }
 
@@ -698,6 +710,39 @@ export default function NotificationsPage() {
               </label>
             </div>
             <div className="notification-category-list">
+              {/* Appointment reminder toggle is only shown when the backend
+                  has returned the appointmentRemindersEnabled capability.
+                  Old backends omit the field; deploying this frontend before
+                  the MB-517 backend is therefore safe (MB-517 rollout). */}
+              {preferences.email.appointmentRemindersEnabled !== undefined && (
+                <article>
+                  <span>✉</span>
+                  <div>
+                    <strong>Nhắc lịch hẹn qua email</strong>
+                    <small>
+                      Một email khoảng 1 giờ trước lịch chat hoặc video đã xác
+                      nhận. Nếu giờ yên tĩnh kéo dài đến lúc bắt đầu, email sẽ
+                      không được gửi. Đổi hoặc hủy lịch sẽ hủy nhắc lịch cũ.
+                      Không gộp vào bản tổng hợp hằng ngày.
+                    </small>
+                  </div>
+                  <Toggle
+                    checked={preferences.email.appointmentRemindersEnabled}
+                    onChange={() =>
+                      change({
+                        ...preferences,
+                        email: {
+                          ...preferences.email,
+                          appointmentRemindersEnabled:
+                            !preferences.email.appointmentRemindersEnabled,
+                        },
+                      })
+                    }
+                    label="Nhắc lịch hẹn qua email"
+                    disabled={disabled || !preferences.channels.email}
+                  />
+                </article>
+              )}
               {(
                 [
                   [

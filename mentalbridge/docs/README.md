@@ -57,6 +57,7 @@ Story-specific delivery evidence:
 - [MB-577 Community comments and one-level replies](mb-577-community-comments-evidence.md)
 - [MB-578 Community reports, blocks, and moderation](mb-578-community-moderation-evidence.md)
 - [MB-579 Community reactions and private bookmarks](mb-579-community-interactions-evidence.md)
+- [MB-549 appointment reminder consumer evidence](evidence/mb-549-appointment-reminder-consumer.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
