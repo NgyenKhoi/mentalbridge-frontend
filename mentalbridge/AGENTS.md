@@ -1,5 +1,16 @@
 # MentalBridge frontend rules
 
+## Required UI skill
+
+Before implementing or reviewing any user-visible frontend change, every agent
+must read and follow `.agents/skills/mentalbridge-ui/SKILL.md`. This requirement
+applies to page work, components, layout, responsive behavior, accessibility,
+motion, and user-facing copy. Backend-only or non-rendered changes are exempt.
+
+The repository skill and its linked contracts are the default quality path.
+Claude or another external reviewer may provide optional advice only when the
+product owner requests it; delivery must never depend on external AI access.
+
 ## User-facing copy
 
 Write UI text for the person using the product, not for developers or reviewers.
@@ -75,9 +86,16 @@ above, avoids unsupported claims, and contains no developer-facing notes.
 ## UI engineering constitution
 
 Use `docs/README.md` as the documentation router and read the UI or motion
-documents that are relevant to the task. `docs/DESIGN_SYSTEM.md` is the compact
-shared foundation for visual language, tokens, primitives, accessibility, and
-motion decisions; it is not a mandatory standalone gateway for every UI change.
+documents that are relevant to the task. Read `docs/PRODUCT_EXPERIENCE.md` for
+route hierarchy or either priority journey. `docs/DESIGN_SYSTEM.md` is the
+compact shared foundation for visual language, tokens, primitives,
+accessibility, and motion decisions; it is not a mandatory standalone gateway
+for every UI change.
+
+For a page implementation or refactor, follow
+`docs/UI_IMPLEMENTATION_PLAYBOOK.md`. Its brief, state matrix, responsive
+matrix, local behavior tests, and visual evidence are the default review path;
+an external AI review is optional and must not become an implicit dependency.
 
 - Reuse `components/ui` and `components/motion` before creating a feature-local
   dialog, disclosure, select, tooltip, tabs, toast, choice control, or skeleton.
@@ -89,7 +107,8 @@ motion decisions; it is not a mandatory standalone gateway for every UI change.
   disabled, loading, selected/open, error, and empty.
 - Product motion must preserve continuity, use shared tokens, prefer transform
   and opacity, and honor `prefers-reduced-motion`.
-- All changed screens must support keyboard navigation and be reviewed around
-  375px, 768px, 1280px, and 1440px.
+- All changed screens must support keyboard navigation. Review 1280px and
+  1440px as the primary desktop/laptop targets; keep 375px and 768px as
+  functional regression gates.
 - Follow the Discover → Audit → Plan → Implement → Verify → Self-review workflow
   and do not call UI work complete based only on the happy path.

@@ -140,10 +140,17 @@
   cursor: pointer;
 }
 
-.form button:disabled,
+.form button:disabled {
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
 .list button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  color: var(--ink-soft);
+  opacity: 1;
 }
 
 .list {

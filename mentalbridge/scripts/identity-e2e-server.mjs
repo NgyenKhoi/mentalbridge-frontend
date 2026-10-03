@@ -86,6 +86,7 @@ const communityPosts = [
     media: [],
     mediaAvailability: 'PARTIAL',
     counts: { comments: 4, reactions: 12 },
+    viewerState: { reaction: null, bookmarked: false },
     publishedAt: '2026-09-29T05:00:00Z',
     updatedAt: '2026-09-29T05:00:00Z',
   },
@@ -103,6 +104,7 @@ const communityPosts = [
     media: [],
     mediaAvailability: 'NONE',
     counts: { comments: 1, reactions: 8 },
+    viewerState: { reaction: null, bookmarked: false },
     publishedAt: '2026-09-28T05:00:00Z',
     updatedAt: '2026-09-28T05:00:00Z',
   },
@@ -200,6 +202,8 @@ const adminAccounts = structuredClone(initialAdminAccounts)
 
 const initialContentResources = structuredClone(contentResources)
 const initialCommunityPosts = structuredClone(communityPosts)
+const communityReactionByViewer = new Map()
+const communityBookmarks = new Set()
 const communityComments = [
   {
     commentId: '52000000-0000-4000-8000-000000000001',
@@ -306,6 +310,8 @@ function reset() {
   contentCreateByKey.clear()
   communityCreateByKey.clear()
   communityCommentCreateByKey.clear()
+  communityReactionByViewer.clear()
+  communityBookmarks.clear()
   communityComments.splice(
     0,
     communityComments.length,
@@ -1059,7 +1065,8 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/api/v1/community/feed') {
-      if (!journalActor(request, response)) return
+      const actor = journalActor(request, response)
+      if (!actor) return
       const topic = url.searchParams.get('topic')
       const cursor = url.searchParams.get('cursor')
       const matching = topic
@@ -1068,10 +1075,17 @@ const server = createServer(async (request, response) => {
       const offset = cursor === 'community-next' ? 1 : 0
       const items = matching
         .slice(offset, offset + 1)
-        .map(({ content, ...post }) => ({
-          ...post,
-          contentPreview: content,
-        }))
+        .map(({ content, ...post }) => {
+          const viewerKey = `${actor.accountId}:${post.postId}`
+          return {
+            ...post,
+            contentPreview: content,
+            viewerState: {
+              reaction: communityReactionByViewer.get(viewerKey) ?? null,
+              bookmarked: communityBookmarks.has(viewerKey),
+            },
+          }
+        })
       const hasMore = offset + items.length < matching.length
       json(response, 200, {
         items,
@@ -1132,6 +1146,7 @@ const server = createServer(async (request, response) => {
         media: [],
         mediaAvailability: 'NONE',
         counts: { comments: 0, reactions: 0 },
+        viewerState: { reaction: null, bookmarked: false },
         publishedAt: now,
         updatedAt: now,
       }
@@ -1141,6 +1156,74 @@ const server = createServer(async (request, response) => {
       communityCreateByKey.set(commandKey, { fingerprint, post })
       json(response, 201, post, 'application/json', { ETag: '"1"' })
       return
+    }
+
+    const communityReaction = url.pathname.match(
+      /^\/api\/v1\/community\/posts\/([0-9a-f-]+)\/reaction$/i,
+    )
+    if (communityReaction) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const post = communityPosts.find(
+        ({ postId }) => postId === communityReaction[1],
+      )
+      if (!post) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+        return
+      }
+      const viewerKey = `${actor.accountId}:${post.postId}`
+      if (request.method === 'PUT') {
+        const body = await readBody(request)
+        if (!['SUPPORT', 'RELATE', 'THANK_YOU'].includes(body.reaction)) {
+          problem(response, 400, 'VALIDATION_FAILED', 'Reaction is invalid')
+          return
+        }
+        if (!communityReactionByViewer.has(viewerKey)) {
+          post.counts.reactions += 1
+        }
+        communityReactionByViewer.set(viewerKey, body.reaction)
+        json(response, 200, {
+          postId: post.postId,
+          reaction: body.reaction,
+        })
+        return
+      }
+      if (request.method === 'DELETE') {
+        if (communityReactionByViewer.delete(viewerKey)) {
+          post.counts.reactions = Math.max(0, post.counts.reactions - 1)
+        }
+        response.writeHead(204, { 'X-Correlation-Id': correlationId })
+        response.end()
+        return
+      }
+    }
+
+    const communityBookmark = url.pathname.match(
+      /^\/api\/v1\/community\/posts\/([0-9a-f-]+)\/bookmark$/i,
+    )
+    if (communityBookmark) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const post = communityPosts.find(
+        ({ postId }) => postId === communityBookmark[1],
+      )
+      if (!post) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+        return
+      }
+      const viewerKey = `${actor.accountId}:${post.postId}`
+      if (request.method === 'PUT') {
+        communityBookmarks.add(viewerKey)
+        response.writeHead(204, { 'X-Correlation-Id': correlationId })
+        response.end()
+        return
+      }
+      if (request.method === 'DELETE') {
+        communityBookmarks.delete(viewerKey)
+        response.writeHead(204, { 'X-Correlation-Id': correlationId })
+        response.end()
+        return
+      }
     }
 
     const communityPostDetail = url.pathname.match(
@@ -1156,10 +1239,17 @@ const server = createServer(async (request, response) => {
         problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
       } else {
         const owner = communityPostOwners.get(post.postId)
+        const viewerKey = `${actor.accountId}:${post.postId}`
         json(
           response,
           200,
-          post,
+          {
+            ...post,
+            viewerState: {
+              reaction: communityReactionByViewer.get(viewerKey) ?? null,
+              bookmarked: communityBookmarks.has(viewerKey),
+            },
+          },
           'application/json',
           owner === actor.accountId
             ? { ETag: `"${communityPostVersions.get(post.postId)}"` }

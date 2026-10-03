@@ -35,6 +35,7 @@ const post: CommunityFeedPage['items'][number] = {
   media: [],
   mediaAvailability: 'PARTIAL',
   counts: { comments: 2, reactions: 3 },
+  viewerState: { reaction: null, bookmarked: false },
   publishedAt: '2026-09-29T05:00:00Z',
   updatedAt: '2026-09-29T05:00:00Z',
 }
@@ -69,6 +70,26 @@ describe('CommunityFeed', () => {
       'href',
       `/community/${post.postId}`,
     )
+  })
+
+  it('keeps interaction controls hidden for a legacy v1.5 feed response', async () => {
+    const legacyPost = { ...post }
+    Reflect.deleteProperty(legacyPost, 'viewerState')
+    api.feed.mockResolvedValueOnce({
+      items: [legacyPost],
+      nextCursor: null,
+      hasMore: false,
+    })
+
+    render(<CommunityFeed />)
+
+    expect(await screen.findByText('♡ 3')).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: /Äá»“ng hĂ nh/ }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'LÆ°u bĂ i' }),
+    ).not.toBeInTheDocument()
   })
 
   it('reloads newest-first content when a governed topic is selected', async () => {

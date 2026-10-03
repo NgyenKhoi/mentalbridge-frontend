@@ -123,6 +123,45 @@ test.describe('Community feed journey', () => {
     )
   })
 
+  test('adds, replaces and removes one reaction and persists a private bookmark', async ({
+    page,
+    request,
+  }) => {
+    const reset = await request.post(`${identityFixtureUrl}/__test/reset`)
+    expect(reset.status()).toBe(204)
+    await login(page)
+    await page.goto('/community/50000000-0000-4000-8000-000000000002')
+
+    const reactionButtons = page.locator('button[aria-pressed]')
+    const support = reactionButtons.nth(0)
+    const relate = reactionButtons.nth(1)
+    const bookmark = reactionButtons.nth(3)
+
+    await expect(page.getByText(/^12 /)).toBeVisible()
+    await support.click()
+    await expect(support).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByText(/^13 /)).toBeVisible()
+
+    await relate.click()
+    await expect(relate).toHaveAttribute('aria-pressed', 'true')
+    await expect(support).toHaveAttribute('aria-pressed', 'false')
+    await expect(page.getByText(/^13 /)).toBeVisible()
+
+    await relate.click()
+    await expect(relate).toHaveAttribute('aria-pressed', 'false')
+    await expect(page.getByText(/^12 /)).toBeVisible()
+
+    await bookmark.click()
+    await expect(bookmark).toHaveAttribute('aria-pressed', 'true')
+    await page.reload()
+    await expect(reactionButtons.nth(3)).toHaveAttribute('aria-pressed', 'true')
+    await reactionButtons.nth(3).click()
+    await expect(reactionButtons.nth(3)).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+  })
+
   test('comments, replies, edits and keeps a tombstone after deletion', async ({
     page,
     request,

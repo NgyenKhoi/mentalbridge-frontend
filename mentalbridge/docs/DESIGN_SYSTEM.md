@@ -16,15 +16,18 @@ mọi thay đổi UI và cũng không phải catalog của từng animation. B�
 
 Thứ tự ưu tiên khi triển khai:
 
-1. Hành vi người dùng và yêu cầu của task.
+1. Hành vi người dùng và yêu cầu của task, trong giới hạn bắt buộc của
+   `PRODUCT_EXPERIENCE.md` mục 9.
 2. Token và primitive đang chạy trong `app/globals.css`, `components/ui`,
    `components/motion` và `lib/animations/config.ts`.
 3. Contract bền vững trong tài liệu này.
-4. Tài liệu animation lịch sử, prompt và changelog chỉ dùng để hiểu ngữ cảnh.
+4. Story evidence chỉ ghi lại phạm vi đã giao; không thay thế contract hiện tại.
 
-`CLAUDE.md` chỉ chuyển tiếp đến `AGENTS.md`. Các file `ANIMATION_*`,
-`ANIMATIONS_README.md` và `GSAP_PROMPT.md` không tự động trở thành quy chuẩn chỉ
-vì có ví dụ code hoặc nhãn “production ready”.
+`CLAUDE.md` chỉ chuyển tiếp đến `AGENTS.md`. Với hierarchy, journey, chart và
+page-level state, đọc thêm [`PRODUCT_EXPERIENCE.md`](PRODUCT_EXPERIENCE.md).
+Khi dựng hoặc refactor toàn bộ một page, dùng thêm
+[`UI_IMPLEMENTATION_PLAYBOOK.md`](UI_IMPLEMENTATION_PLAYBOOK.md) để đi từ brief,
+state matrix và responsive matrix đến bằng chứng nghiệm thu cục bộ.
 
 ## 1. Ngôn ngữ thiết kế
 
@@ -39,13 +42,15 @@ vì có ví dụ code hoặc nhãn “production ready”.
 - Không biến toàn bộ màn hình thành một lưới các card có viền giống nhau. Dùng
   typography, spacing, alignment và surface để tạo phân cấp trước khi thêm viền.
 
-Landing và Auth là tham chiếu về chất lượng thương hiệu; các token trong
-`app/globals.css` là nguồn sự thật khi triển khai.
+Landing là tham chiếu về chất lượng thương hiệu; User Dashboard,
+`/specialist/clients` và `/specialist/earnings` là tham chiếu về product layout
+và state. Các token trong `app/globals.css` là nguồn sự thật khi triển khai.
 
 ## 2. Token contract
 
 Không tự tạo duration, easing, radius, shadow hoặc spacing mới trong feature nếu
-token hiện có đáp ứng được.
+token hiện có đáp ứng được. Block dưới đây là snapshot để đọc nhanh;
+`app/globals.css` luôn là nguồn sự thật nếu giá trị thay đổi.
 
 ```css
 /* Spacing: nhịp 4/8px */
@@ -79,6 +84,10 @@ token hiện có đáp ứng được.
 
 Giữ palette hiện tại: `--bg`, `--surface`, `--ink`, `--ink-soft`, `--teal-*`,
 `--amber-*`, `--terracotta-*`, `--line`. Không tạo palette riêng cho từng màn.
+Fraunces và Be Vietnam Pro phải tiếp tục được tải với subset `vietnamese` trong
+`app/layout.tsx`; kiểm tra dấu tiếng Việt ở heading trước khi đổi font/weight.
+`--ease-emphasis` có overshoot, chỉ dùng cho marketing hoặc một emphasis đã được
+review, không dùng mặc định cho product control.
 
 ## 3. Kiến trúc component
 
@@ -92,7 +101,8 @@ Giữ palette hiện tại: `--bg`, `--surface`, `--ink`, `--ink-soft`, `--teal-
   `ActionToast` ở đáy cho kết quả thao tác trực tiếp, `NotificationToast` ở góc
   phải trên cho kết quả nền/cập nhật mới, và `ConfirmDialog` cho thao tác phá huỷ
   hoặc làm nội dung biến mất. Feature giữ error/ngữ cảnh tại chỗ; toast không
-  được là nguồn thông tin duy nhất.
+  được là nguồn thông tin duy nhất. Trên màn có composer/sticky footer, toast
+  phải có safe-area/offset để không che điều khiển.
 - Các primitive tiếp theo chỉ được thêm khi có hành vi lặp thực sự: Button,
   Select, Tabs, Checkbox, Radio, Switch, TextField, TextArea.
 
@@ -113,30 +123,31 @@ Mọi điều khiển phải xét default, hover, focus-visible, pressed, disabl
 loading, selected/open và error khi phù hợp. Target chính tối thiểu 44 × 44px;
 body text trên mobile ưu tiên từ 16px.
 
-| Interaction | Enter                   | Exit              | Token gợi ý    |
+| Interaction | Enter                   | Exit              | Enter / exit   |
 | ----------- | ----------------------- | ----------------- | -------------- |
-| Tooltip     | fade + y 4              | fade              | instant–fast   |
-| Dropdown    | fade + y -4 + scale .98 | reverse           | fast–base      |
-| Disclosure  | content fade + y -4     | immediate/native  | base           |
-| Dialog      | fade + y 8 + scale .98  | reverse nhanh hơn | base / instant |
-| Page state  | fade + y 8              | fade              | base–medium    |
-| List item   | fade + y 6              | fade              | fast–base      |
+| Tooltip     | fade + y 4              | fade              | fast / instant |
+| Dropdown    | fade + y -4 + scale .98 | reverse           | base / fast    |
+| Disclosure  | content fade + y -4     | immediate/native  | base / instant |
+| Dialog      | fade + y 8 + scale .98  | reverse nhanh hơn | base / fast    |
+| Page state  | fade + y 8              | fade              | medium / base  |
+| List item   | fade + y 6              | fade              | base / fast    |
 
 - Motion diễn đạt quan hệ nhân quả và sự liên tục, không dùng để trang trí.
 - Ưu tiên `transform` và `opacity`; không làm input bị chặn trong lúc animation.
-- Exit nhanh hơn enter khoảng 15–25%.
+- Exit dùng token thấp hơn enter một bậc (`medium → base`, `base → fast`,
+  `fast → instant`); `instant` là sàn.
 - Không kết hợp scale + glow + shadow + rotation trên control thông thường.
 - GSAP chỉ dành cho landing/storytelling hoặc sequence phức tạp.
 - `prefers-reduced-motion` phải bỏ chuyển động lớn, bounce và parallax.
 
 ### 4.1 Chọn công cụ theo phạm vi
 
-| Nhu cầu | Công cụ ưu tiên |
-| ------- | --------------- |
-| Hover, focus, pressed, màu, opacity hoặc transform đơn giản của một control | CSS transition/keyframe dùng motion token |
-| Mount/unmount, dialog, list/page state và transition gắn với state React | Primitive hiện có hoặc Framer Motion |
-| Timeline nhiều bước, scroll choreography, scrub, pin hoặc parallax của landing/storytelling | GSAP + ScrollTrigger |
-| Smooth scrolling | `useLenis` trên route đã được cho phép trong `PUBLIC_SMOOTH_ROUTES` |
+| Nhu cầu                                                                                     | Công cụ ưu tiên                                                     |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Hover, focus, pressed, màu, opacity hoặc transform đơn giản của một control                 | CSS transition/keyframe dùng motion token                           |
+| Mount/unmount, dialog, list/page state và transition gắn với state React                    | Primitive hiện có hoặc Framer Motion                                |
+| Timeline nhiều bước, scroll choreography, scrub, pin hoặc parallax của landing/storytelling | GSAP + ScrollTrigger                                                |
+| Smooth scrolling                                                                            | `useLenis` trên route đã được cho phép trong `PUBLIC_SMOOTH_ROUTES` |
 
 Không thêm GSAP cho một fade/slide đơn giản và không thêm Framer Motion nếu CSS
 đã diễn đạt đủ. Product page dùng chuyển động ngắn, nhẹ và có ích cho việc hiểu
@@ -207,8 +218,8 @@ hiệu thực sự cần chúng.
 4. **Implement** — sửa primitive trước, feature sử dụng primitive sau.
 5. **Verify** — desktop/tablet/mobile, keyboard, reduced motion và các trạng thái
    loading/error/empty.
-6. **Self-review** — so lại với ngôn ngữ MentalBridge và copy rules trong
-   `AGENTS.md`.
+6. **Self-review** — so lại với ngôn ngữ MentalBridge, journey contract và copy
+   rules trong `AGENTS.md`.
 
 Với task nhỏ, các bước có thể ngắn và thực hiện liền nhau; không cần biến thành
 một tài liệu kế hoạch riêng. Điều bắt buộc là đã kiểm tra đúng tác động, không
@@ -224,22 +235,16 @@ phải đã đọc toàn bộ design system hoặc toàn bộ tài liệu animat
 - Dùng Performance panel khi thay đổi choreography hoặc scroll; tìm long task,
   layout shift và frame drop thay vì dựa vào cảm giác.
 - Kiểm tra console/hydration error và xác nhận selector/ref vẫn tồn tại trong
-  code hiện tại trước khi dùng các script trong `DEBUG_ANIMATIONS.md`.
+  code hiện tại trước khi dùng snippet debug tạm thời.
 - Chạy lint, typecheck và targeted test theo phạm vi. Visual review là bằng chứng
   bổ sung, không thay thế kiểm tra hành vi.
 
 ## 7. Definition of Done
 
-- [ ] Thuộc cùng ngôn ngữ MentalBridge, không sinh palette/style riêng.
-- [ ] Đã tìm và tái sử dụng primitive hiện có.
-- [ ] Có hover, focus-visible, pressed, disabled và loading phù hợp.
-- [ ] Có empty/error state và đường phục hồi.
-- [ ] Keyboard và reduced motion hoạt động.
-- [ ] Đã kiểm tra mobile, tablet, desktop; không có horizontal overflow.
-- [ ] Không layout shift đáng kể khi đổi state.
-- [ ] Không lộ service name, policy/version/ID ngoài `Thông tin kỹ thuật`.
-- [ ] Build, typecheck và targeted tests chạy qua; visual review được ghi nhận.
+Dùng [`PRODUCT_EXPERIENCE.md`](PRODUCT_EXPERIENCE.md) mục 8 làm Definition of
+Done duy nhất cho mọi thay đổi UI/UX, kể cả foundation. Không duy trì checklist
+song song trong tài liệu này.
 
 Khi cần catalog trực quan, ưu tiên route nội bộ `/dev/ui` trước khi thêm Storybook
-và dependency mới. Chỉ mở rộng foundation sau khi một feature thật chứng minh
-nhu cầu.
+và dependency mới; route này chỉ dùng trong development và không được expose ở
+production. Chỉ mở rộng foundation sau khi một feature thật chứng minh nhu cầu.

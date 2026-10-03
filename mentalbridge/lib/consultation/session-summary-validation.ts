@@ -10,6 +10,8 @@ export type UpdateAgreedNextStepInput =
   components['schemas']['UpdateAgreedNextStepRequest']
 export type AgreedNextStepType = components['schemas']['AgreedNextStepType']
 export type AgreedNextStepState = components['schemas']['AgreedNextStepState']
+export type ResourceProposalReasonCode =
+  components['schemas']['ResourceProposalReasonCode']
 
 const STEP_TYPES: AgreedNextStepType[] = [
   'CHECKLIST',
@@ -20,6 +22,11 @@ const STEP_TYPES: AgreedNextStepType[] = [
   'PLATFORM_RESOURCE',
 ]
 const STEP_STATES: AgreedNextStepState[] = ['PENDING', 'COMPLETED', 'SKIPPED']
+const RESOURCE_REASON_CODES: ResourceProposalReasonCode[] = [
+  'POST_CONSULTATION_CONTINUITY',
+  'TRY_ALTERNATIVE_RESOURCE',
+  'ADDRESS_REPORTED_BARRIER',
+]
 
 function object(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -75,6 +82,12 @@ function parseStep(value: unknown) {
     !(item.resourceId === null || uuid(item.resourceId)) ||
     !(
       item.resourceVersion === null || typeof item.resourceVersion === 'string'
+    ) ||
+    !(
+      item.resourceProposalReasonCode === null ||
+      RESOURCE_REASON_CODES.includes(
+        item.resourceProposalReasonCode as ResourceProposalReasonCode,
+      )
     ) ||
     !(
       item.state === null ||
@@ -172,6 +185,7 @@ export function parsePublishSessionSummaryInput(
     const step = object(value)
     if (!step) throw new SessionSummaryInputError(`agreedNextSteps.${index}`)
     const platformResource = step.type === 'PLATFORM_RESOURCE'
+    const reason = step.resourceProposalReasonCode
     if (
       !STEP_TYPES.includes(step.type as AgreedNextStepType) ||
       typeof step.title !== 'string' ||
@@ -181,9 +195,14 @@ export function parsePublishSessionSummaryInput(
       (platformResource &&
         (!uuid(step.resourceId) ||
           typeof step.resourceVersion !== 'string' ||
-          !step.resourceVersion)) ||
+          !step.resourceVersion ||
+          !RESOURCE_REASON_CODES.includes(
+            reason as ResourceProposalReasonCode,
+          ))) ||
       (!platformResource &&
-        (step.resourceId != null || step.resourceVersion != null))
+        (step.resourceId != null ||
+          step.resourceVersion != null ||
+          reason != null))
     )
       throw new SessionSummaryInputError(`agreedNextSteps.${index}`)
     return {
@@ -194,6 +213,9 @@ export function parsePublishSessionSummaryInput(
       resourceId: platformResource ? (step.resourceId as string) : null,
       resourceVersion: platformResource
         ? (step.resourceVersion as string)
+        : null,
+      resourceProposalReasonCode: platformResource
+        ? (reason as ResourceProposalReasonCode)
         : null,
     }
   })

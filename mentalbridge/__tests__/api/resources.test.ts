@@ -202,6 +202,7 @@ describe('GET /api/resources', () => {
     ['?limit=0', 'INVALID_RESOURCE_LIMIT'],
     ['?limit=101', 'INVALID_RESOURCE_LIMIT'],
     ['?cursor=not-a-uuid', 'INVALID_RESOURCE_CURSOR'],
+    ['?locale=fr-FR', 'INVALID_RESOURCE_LOCALE'],
   ])('rejects an invalid public query (%s)', async (query, code) => {
     const response = await GET(request(query))
     const data = await response.json()
@@ -227,6 +228,16 @@ describe('GET /api/resources', () => {
     expect(upstreamUrl.searchParams.get('limit')).toBe('5')
     expect(upstreamUrl.searchParams.get('cursor')).toBe(cursor)
     expect(upstreamUrl.searchParams.get('locale')).toBe('en-US')
+  })
+
+  it('lets an explicit supported locale override browser language', async () => {
+    mockFetch.mockResolvedValueOnce(upstreamJson({ data: [], count: 0 }))
+
+    const response = await GET(request('?locale=vi-VN', 'en-US,en;q=0.8'))
+    const upstreamUrl = new URL(mockFetch.mock.calls[0][0])
+
+    expect(response.status).toBe(200)
+    expect(upstreamUrl.searchParams.get('locale')).toBe('vi-VN')
   })
 
   it('sanitizes upstream Problem Details before returning them to the browser', async () => {

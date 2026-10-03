@@ -49,6 +49,7 @@ const summary = {
       details: 'Ghi lại giờ ngủ.',
       resourceId: null,
       resourceVersion: null,
+      resourceProposalReasonCode: null,
       state: 'PENDING' as const,
       hidden: false,
       stateVersion: 0,
@@ -165,6 +166,7 @@ describe('SessionSummaryPanel', () => {
         details: 'Ghi lại giờ ngủ.',
         resourceId: null,
         resourceVersion: null,
+        resourceProposalReasonCode: null,
       },
     ])
   })

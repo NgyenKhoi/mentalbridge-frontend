@@ -20,6 +20,10 @@ const communityMocks = vi.hoisted(() => ({
   createComment: vi.fn(),
   updateComment: vi.fn(),
   deleteComment: vi.fn(),
+  putReaction: vi.fn(),
+  deleteReaction: vi.fn(),
+  putBookmark: vi.fn(),
+  deleteBookmark: vi.fn(),
 }))
 const sessionMocks = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -57,6 +61,14 @@ import {
   DELETE as deleteComment,
   PATCH as patchComment,
 } from '../comments/[commentId]/route'
+import {
+  DELETE as deleteReaction,
+  PUT as putReaction,
+} from '../posts/[postId]/reaction/route'
+import {
+  DELETE as deleteBookmark,
+  PUT as putBookmark,
+} from '../posts/[postId]/bookmark/route'
 import { GET as getFeed } from './route'
 
 const postId = '20000000-0000-4000-8000-000000000009'
@@ -75,6 +87,7 @@ const post = {
   media: [],
   mediaAvailability: 'NONE' as const,
   counts: { comments: 2, reactions: 3 },
+  viewerState: { reaction: null, bookmarked: false },
   publishedAt: '2026-09-29T05:00:00Z',
   updatedAt: '2026-09-29T05:00:00Z',
 }
@@ -613,5 +626,67 @@ describe('/api/community read BFF', () => {
     expect(communityMocks.comments).not.toHaveBeenCalled()
     expect(communityMocks.createComment).not.toHaveBeenCalled()
     expect(communityMocks.updateComment).not.toHaveBeenCalled()
+  })
+
+  it('proxies bounded reaction and private bookmark commands', async () => {
+    communityMocks.putReaction.mockResolvedValue({
+      postId,
+      reaction: 'SUPPORT',
+    })
+    communityMocks.deleteReaction.mockResolvedValue(undefined)
+    communityMocks.putBookmark.mockResolvedValue(undefined)
+    communityMocks.deleteBookmark.mockResolvedValue(undefined)
+
+    const reacted = await putReaction(
+      request(`http://localhost/api/community/posts/${postId}/reaction`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reaction: 'SUPPORT' }),
+      }),
+      { params: Promise.resolve({ postId }) },
+    )
+    expect(reacted.status).toBe(200)
+    expect(communityMocks.putReaction).toHaveBeenCalledWith(
+      'identity-access-secret',
+      postId,
+      { reaction: 'SUPPORT' },
+      expect.any(String),
+    )
+
+    const removedReaction = await deleteReaction(
+      request(`http://localhost/api/community/posts/${postId}/reaction`, {
+        method: 'DELETE',
+      }),
+      { params: Promise.resolve({ postId }) },
+    )
+    const bookmarked = await putBookmark(
+      request(`http://localhost/api/community/posts/${postId}/bookmark`, {
+        method: 'PUT',
+      }),
+      { params: Promise.resolve({ postId }) },
+    )
+    const unbookmarked = await deleteBookmark(
+      request(`http://localhost/api/community/posts/${postId}/bookmark`, {
+        method: 'DELETE',
+      }),
+      { params: Promise.resolve({ postId }) },
+    )
+    expect(removedReaction.status).toBe(204)
+    expect(bookmarked.status).toBe(204)
+    expect(unbookmarked.status).toBe(204)
+  })
+
+  it('rejects unsupported reactions at the BFF boundary', async () => {
+    const response = await putReaction(
+      request(`http://localhost/api/community/posts/${postId}/reaction`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reaction: 'LIKE' }),
+      }),
+      { params: Promise.resolve({ postId }) },
+    )
+
+    expect(response.status).toBe(400)
+    expect(communityMocks.putReaction).not.toHaveBeenCalled()
   })
 })

@@ -53,6 +53,9 @@ import type {
   ChangeSupportPlanStatusRequest,
   ReplaceCurrentSupportPlanRequest,
   SupportPlanReplacementReview,
+  PlanChangeRequest,
+  CreatePlanChangeRequest,
+  PlanChangeDecision,
 } from '@/features/support-plan/api/support-plan-contract'
 import {
   parseSupportGuide,
@@ -88,6 +91,7 @@ import {
   parseSupportPlanOccurrenceList,
   parseSupportPlanReplacementReview,
 } from './support-plan-validation'
+import { parsePlanChangeRequest } from './plan-change-request-validation'
 import type { ActivityDashboard } from '@/features/analytics/api/activity-dashboard-contract'
 import type { AnalyticsRange } from '@/features/analytics/api/activity-dashboard-contract'
 import { parseActivityDashboard } from '@/features/analytics/api/activity-dashboard-contract'
@@ -865,6 +869,71 @@ export const careClient = {
       idempotencyKey,
       body: request,
       parseSuccess: parseSupportPlanDraft,
+    })
+  },
+
+  createPlanChangeRequest(
+    accessToken: string,
+    request: CreatePlanChangeRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<PlanChangeRequest> {
+    return careRequest({
+      method: 'POST',
+      path: '/api/v1/plan-change-requests',
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parsePlanChangeRequest,
+    })
+  },
+
+  planChangeRequestByProposal(
+    accessToken: string,
+    proposalId: string,
+    correlationId: string,
+  ): Promise<PlanChangeRequest> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/plan-change-requests/by-proposal/${encodeURIComponent(proposalId)}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parsePlanChangeRequest,
+    })
+  },
+
+  specialistPlanChangeRequestByProposal(
+    accessToken: string,
+    proposalId: string,
+    correlationId: string,
+  ): Promise<PlanChangeRequest> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/specialist/plan-change-requests/by-proposal/${encodeURIComponent(proposalId)}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parsePlanChangeRequest,
+    })
+  },
+
+  decidePlanChangeRequest(
+    accessToken: string,
+    requestId: string,
+    version: number,
+    request: PlanChangeDecision,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<PlanChangeRequest> {
+    return careRequest({
+      method: 'PUT',
+      path: `/api/v1/plan-change-requests/${encodeURIComponent(requestId)}/decision`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parsePlanChangeRequest,
     })
   },
 

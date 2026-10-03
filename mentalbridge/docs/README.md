@@ -4,6 +4,10 @@ This directory is the source of truth for MentalBridge frontend engineering
 decisions. Product/design documents describe intent; these documents describe
 how the executable Next.js application is organized and delivered.
 
+All user-visible frontend work starts by loading the repository skill at
+`.agents/skills/mentalbridge-ui/SKILL.md`; the tables below let that skill select
+the smallest relevant contract set.
+
 ## Reading order
 
 1. [Agent workflow](agent-workflow.md)
@@ -12,9 +16,8 @@ how the executable Next.js application is organized and delivered.
 4. [API, query, contract, and test baseline](api-query-and-testing.md)
 5. [Runtime and environment](runtime-and-environment.md)
 6. [Review and testing](review-and-testing.md)
-7. [MB-375 SupportPlan replacement evidence](mb-375-support-plan-replacement-evidence.md)
-8. [MB-363 approved specialist discovery consumer evidence](mb-363-specialist-discovery-evidence.md)
-9. [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
+7. [Product experience contract](PRODUCT_EXPERIENCE.md) for UI/UX work
+8. [MentalBridge UI Foundation](DESIGN_SYSTEM.md) for visual or motion work
 
 ## UI and motion routing
 
@@ -23,26 +26,22 @@ smallest relevant set:
 
 | Task                                                                              | Read                                                                                                                                                          |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implement or refactor a product page end to end                                   | [UI implementation playbook](UI_IMPLEMENTATION_PLAYBOOK.md), then [PRODUCT_EXPERIENCE.md](PRODUCT_EXPERIENCE.md) and [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)     |
+| Product journey, page hierarchy, data visualization, or route-level UX            | [PRODUCT_EXPERIENCE.md](PRODUCT_EXPERIENCE.md), then the owning page/component and tests                                                                      |
 | Shared visual language, tokens, primitives, accessibility, or responsive behavior | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)                                                                                                                          |
-| Product-page loading, empty, error, list, dialog, or page-state motion            | The motion contract in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), then the owning component and its tests                                                          |
+| Product-page loading, empty, error, list, dialog, or page-state motion            | [PRODUCT_EXPERIENCE.md](PRODUCT_EXPERIENCE.md) and the motion contract in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)                                                |
 | Landing-page choreography, scroll sequences, parallax, or smooth scrolling        | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), current code in `components/motion`, `components/ScrollReveal.tsx`, `hooks/useLenis.ts`, and `lib/animations/config.ts` |
-| Debugging or manually testing an existing animation                               | [TESTING_ANIMATIONS.md](TESTING_ANIMATIONS.md) and [DEBUG_ANIMATIONS.md](DEBUG_ANIMATIONS.md), after verifying their selectors against current code           |
+| Visual QA, screenshots, journey review, or delivery gates                         | [Review and testing](review-and-testing.md)                                                                                                                   |
 
-Document status:
+`CLAUDE.md` is only a compatibility pointer to the applicable `AGENTS.md`; it
+does not define a separate UI system. Current source code and shared tokens are
+authoritative for implementation details. Story evidence records what a Jira
+story delivered, but it does not override the current product-experience or
+design-system contract.
 
-- `CLAUDE.md` is only a compatibility pointer to the applicable `AGENTS.md`; it
-  does not define a separate UI system.
-- `GSAP_PROMPT.md` is the original implementation prompt. It is historical
-  input, not a reusable coding standard. In particular, do not copy global
-  cleanup such as killing every `ScrollTrigger` in the application.
-- `ANIMATIONS_README.md`, `ANIMATION_IMPROVEMENTS.md`,
-  `ANIMATION_SUMMARY.md`, and `ANIMATION_CHANGELOG.md` describe the landing-page
-  animation work completed at that time. Treat their exact selectors, timings,
-  version claims, performance claims, and future ideas as history until current
-  code or a new requirement confirms them.
-- Current source code and shared tokens are authoritative for implementation
-  details. If they disagree with a document, investigate the mismatch instead
-  of silently copying either side.
+Các prompt, changelog và báo cáo animation/UI cũ đã được gỡ khỏi working tree để
+tránh tạo nguồn sự thật thứ hai. Khi cần điều tra lịch sử, dùng Git history;
+không khôi phục chúng như coding standard hiện hành.
 
 Story-specific delivery evidence:
 
@@ -57,6 +56,7 @@ Story-specific delivery evidence:
 - [MB-609 standalone Community peer-support experience](mb-609-community-standalone-evidence.md)
 - [MB-577 Community comments and one-level replies](mb-577-community-comments-evidence.md)
 - [MB-578 Community reports, blocks, and moderation](mb-578-community-moderation-evidence.md)
+- [MB-579 Community reactions and private bookmarks](mb-579-community-interactions-evidence.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
 Repository-wide Git, Jira, and pull-request rules are in
@@ -94,6 +94,7 @@ to select any additional task-specific material.
 | Owner-scoped cross-feature activity dashboard        | Implemented | MB-571, MB-610 |
 | Standalone pseudonymous peer-support Community       | Implemented | MB-609         |
 | Community reports, blocks, and auditable moderation  | Implemented | MB-578         |
+| Supportive Community reactions and private bookmarks | Implemented | MB-579         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

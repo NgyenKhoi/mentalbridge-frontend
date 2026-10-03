@@ -21,6 +21,9 @@ import type {
   ReportReason,
   ModerationCase,
   CreateModerationActionRequest,
+  CommunityReaction,
+  PutReactionRequest,
+  SupportiveReaction,
 } from '@/lib/community/community-validation'
 
 export type {
@@ -44,6 +47,9 @@ export type {
   ReportReason,
   ModerationCase,
   CreateModerationActionRequest,
+  CommunityReaction,
+  PutReactionRequest,
+  SupportiveReaction,
 }
 
 export type VersionedCommunityPost = Readonly<{
@@ -221,6 +227,35 @@ export async function deleteCommunityComment(
   await browserApiClient.delete(
     `/community/comments/${encodeURIComponent(commentId)}`,
     { headers: { 'If-Match': `"${version}"` } },
+  )
+}
+
+export async function putCommunityReaction(
+  postId: string,
+  reaction: SupportiveReaction,
+) {
+  const response = await browserApiClient.put<CommunityReaction>(
+    `/community/posts/${encodeURIComponent(postId)}/reaction`,
+    { reaction },
+  )
+  return response.data
+}
+
+export async function deleteCommunityReaction(postId: string) {
+  await browserApiClient.delete(
+    `/community/posts/${encodeURIComponent(postId)}/reaction`,
+  )
+}
+
+export async function putCommunityBookmark(postId: string) {
+  await browserApiClient.put(
+    `/community/posts/${encodeURIComponent(postId)}/bookmark`,
+  )
+}
+
+export async function deleteCommunityBookmark(postId: string) {
+  await browserApiClient.delete(
+    `/community/posts/${encodeURIComponent(postId)}/bookmark`,
   )
 }
 
