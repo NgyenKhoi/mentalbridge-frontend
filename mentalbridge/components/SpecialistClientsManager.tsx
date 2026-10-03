@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import './specialist-clients-manager.css'
 
@@ -12,21 +13,19 @@ export type SpecialistClientRow = {
 }
 
 type Props = { rows: SpecialistClientRow[] }
-type DetailTab = 'overview' | 'assessments' | 'emotion' | 'followup'
+type DetailTab = 'overview' | 'assessments' | 'emotion'
 type EmotionRange = '7d' | '30d' | '90d'
 
 const clientProfiles = {
   c1: {
     initials: 'MA', age: '24 tuổi', since: 'Đồng hành từ 04/2026', lastSession: '20/08/2026', nextSession: '28/08 · 10:30', format: 'Video call',
-    focus: ['Lo âu', 'Giấc ngủ'], consent: ['Kết quả assessment', 'Xu hướng cảm xúc', 'Kế hoạch theo dõi'], privateItems: ['Nội dung nhật ký', 'Ghi chú cá nhân'],
+    focus: ['Lo âu', 'Giấc ngủ'], consent: ['Kết quả assessment', 'Xu hướng cảm xúc'], privateItems: ['Nội dung nhật ký', 'Ghi chú cá nhân'],
     mood: [3, 4, 3, 4, 5, 4, 4], assessment: { name: 'GAD-7', score: '8/21', level: 'Mức nhẹ', change: 'Giảm 3 điểm' },
-    followup: { title: 'Ổn định giấc ngủ', completed: 3, total: 5, due: 'Check-in tiếp theo: Thứ Sáu' },
   },
   c2: {
     initials: 'GH', age: '29 tuổi', since: 'Đồng hành từ 06/2026', lastSession: '18/08/2026', nextSession: '27/08 · 14:00', format: 'Tại phòng tư vấn',
-    focus: ['Căng thẳng', 'Cân bằng công việc'], consent: ['Thông tin tổng quan', 'Kế hoạch theo dõi'], privateItems: ['Nội dung nhật ký', 'Chi tiết assessment', 'Ghi nhận cảm xúc'],
+    focus: ['Căng thẳng', 'Cân bằng công việc'], consent: ['Thông tin tổng quan'], privateItems: ['Nội dung nhật ký', 'Chi tiết assessment', 'Ghi nhận cảm xúc'],
     mood: [2, 3, 3, 2, 4, 3, 4], assessment: { name: 'DASS-21', score: '—', level: 'Không được chia sẻ', change: 'Cần quyền truy cập' },
-    followup: { title: 'Quản lý căng thẳng', completed: 2, total: 4, due: 'Check-in tiếp theo: 30/08' },
   },
 } as const
 
@@ -34,7 +33,6 @@ const tabs: { key: DetailTab; label: string }[] = [
   { key: 'overview', label: 'Tổng quan' },
   { key: 'assessments', label: 'Đánh giá' },
   { key: 'emotion', label: 'Cảm xúc' },
-  { key: 'followup', label: 'Theo dõi' },
 ]
 
 const emotionSeries: Record<EmotionRange, { label: string; value: number }[]> = {
@@ -66,7 +64,7 @@ export default function SpecialistClientsManager({ rows }: Props) {
   const clients = useMemo(() => rows.map((row, index) => ({
     ...row,
     profile: clientProfiles[row.id as keyof typeof clientProfiles] || {
-      initials: row.title.split(' ').slice(-2).map(part => part.charAt(0)).join(''), age: '—', since: 'Đang đồng hành', lastSession: '—', nextSession: 'Chưa có lịch', format: '—', focus: ['Theo dõi'], consent: ['Thông tin tổng quan'], privateItems: ['Nội dung nhật ký'], mood: [3, 3, 3, 3, 3, 3, 3], assessment: { name: 'Chưa có', score: '—', level: '—', change: '—' }, followup: { title: 'Chưa thiết lập', completed: 0, total: 1, due: 'Chưa có check-in' },
+      initials: row.title.split(' ').slice(-2).map(part => part.charAt(0)).join(''), age: '—', since: 'Đang đồng hành', lastSession: '—', nextSession: 'Chưa có lịch', format: '—', focus: ['Theo dõi'], consent: ['Thông tin tổng quan'], privateItems: ['Nội dung nhật ký'], mood: [3, 3, 3, 3, 3, 3, 3], assessment: { name: 'Chưa có', score: '—', level: '—', change: '—' },
     },
     unread: index === 0 ? 2 : 0,
   })), [rows])
@@ -91,7 +89,7 @@ export default function SpecialistClientsManager({ rows }: Props) {
     <section className="scm-stats" aria-label="Tổng quan khách hàng">
       <article className="is-primary"><span>Đang đồng hành</span><strong>{clients.length}</strong><p>Khách hàng đang hoạt động</p></article>
       <article><span>Lịch hẹn tuần này</span><strong>4</strong><p>Phiên tiếp theo ngày 27/08</p></article>
-      <article><span>Cần theo dõi</span><strong>1</strong><p>Check-in cần xem hôm nay</p></article>
+      <article><span>Tiếp nối sau tư vấn</span><strong><Link href="/specialist/follow-up">Mở</Link></strong><p>Tóm tắt theo từng phiên đã hoàn thành</p></article>
       <article><span>Tin nhắn mới</span><strong>2</strong><p>Từ Nguyễn Minh Anh</p></article>
     </section>
 
@@ -123,7 +121,6 @@ export default function SpecialistClientsManager({ rows }: Props) {
             <section className="scm-session-card"><header><span>Phiên sắp tới</span><b>Đã xác nhận</b></header><strong>{selected.profile.nextSession}</strong><h3>{selected.profile.format}</h3><p>Thời lượng dự kiến 45 phút</p><button type="button" onClick={() => showNotice('Đã mở phần chuẩn bị phiên tư vấn.')}>Chuẩn bị phiên <span>→</span></button></section>
             <section className="scm-progress-card"><header><div><span>Tiến trình gần đây</span><h3>Nhịp cảm xúc 7 ngày</h3></div><small>1 · Khó khăn　5 · Tốt</small></header><div className="scm-mini-chart" aria-label="Biểu đồ cảm xúc 7 ngày">{selected.profile.mood.map((value, index) => <span key={index}><i style={{ height: `${value * 15}%` }} /><small>{['T2','T3','T4','T5','T6','T7','CN'][index]}</small></span>)}</div><footer><strong>Xu hướng ổn định</strong><span>Điểm trung bình 3,9/5</span></footer></section>
             <section className="scm-assessment-card"><header><span>Đánh giá gần nhất</span><small>14/08/2026</small></header><div><strong>{selected.profile.assessment.name}</strong><b>{selected.profile.assessment.score}</b></div><h3>{selected.profile.assessment.level}</h3><p>{selected.profile.assessment.change} so với lần trước</p><button type="button" onClick={() => setActiveTab('assessments')}>Xem đánh giá <span>→</span></button></section>
-            <section className="scm-followup-card"><header><span>Kế hoạch theo dõi</span><b>Đang tiến hành</b></header><h3>{selected.profile.followup.title}</h3><p>{selected.profile.followup.completed}/{selected.profile.followup.total} nhiệm vụ đã hoàn thành</p><div><i style={{ width: `${selected.profile.followup.completed / selected.profile.followup.total * 100}%` }} /></div><small>{selected.profile.followup.due}</small><button type="button" onClick={() => setActiveTab('followup')}>Xem kế hoạch <span>→</span></button></section>
           </div>}
 
           {activeTab === 'assessments' && <section className="scm-tab-panel"><header><div><span>Dữ liệu được chia sẻ</span><h3>Lịch sử đánh giá tâm lý</h3><p>Kết quả hỗ trợ theo dõi và không thay thế chẩn đoán chuyên môn.</p></div><b>2 kết quả</b></header><article><div><span>GAD-7</span><strong>Đánh giá mức độ lo âu</strong><small>14/08/2026 · Hoàn thành</small></div><b>8/21</b><em>Mức nhẹ</em><button type="button">Xem chi tiết →</button></article><article><div><span>PHQ-9</span><strong>Đánh giá sức khỏe tinh thần</strong><small>02/08/2026 · Hoàn thành</small></div><b>6/27</b><em>Mức nhẹ</em><button type="button">Xem chi tiết →</button></article></section>}
@@ -139,7 +136,6 @@ export default function SpecialistClientsManager({ rows }: Props) {
             <section className="scm-emotion-log"><header><div><span>Ghi nhận gần đây</span><h4>Lịch sử check-in</h4></div><button type="button" onClick={() => showNotice('Bộ lọc lịch sử cảm xúc đã sẵn sàng để kết nối API.')}>≡ Lọc lịch sử</button></header><div>{emotionEntries.map(entry => <button type="button" key={`${entry.date}-${entry.time}`} onClick={() => showNotice(`Đã chọn ghi nhận ngày ${entry.date}.`)}><time><strong>{entry.date.slice(0,5)}</strong><small>{entry.time}</small></time><span className="scm-emotion-emoji">{entry.emoji}</span><span className="scm-emotion-copy"><strong>{entry.mood}</strong><small>{entry.context}</small></span><span className="scm-emotion-score"><b>{entry.score}</b>/5</span><span className="scm-emotion-note">{entry.note}</span><i>›</i></button>)}</div></section>
           </section> : <section className="scm-emotion-locked"><span>⌁</span><h3>Lịch sử cảm xúc chưa được chia sẻ</h3><p>{selected.title} chưa cấp quyền cho chuyên gia xem dữ liệu cảm xúc. Các điểm số, ghi nhận và biểu đồ được giữ riêng tư.</p><div><strong>Quyền hiện tại</strong>{selected.profile.consent.map(item => <span key={item}>✓ {item}</span>)}</div><small>Không yêu cầu quyền ngoài mục đích tư vấn đã thống nhất.</small></section>)}
 
-          {activeTab === 'followup' && <section className="scm-tab-panel scm-followup-panel"><header><div><span>Kế hoạch đang hoạt động</span><h3>{selected.profile.followup.title}</h3><p>{selected.profile.followup.due}</p></div><b>{selected.profile.followup.completed}/{selected.profile.followup.total}</b></header>{['Ghi nhận giờ ngủ mỗi ngày','Thực hành thở 4–7–8','Check-in cảm xúc cuối ngày','Hạn chế caffeine sau 15:00','Hoàn thành GAD-7 cuối tuần'].map((task,index) => <article key={task} className={index < selected.profile.followup.completed ? 'is-done' : ''}><span>{index < selected.profile.followup.completed ? '✓' : index + 1}</span><div><strong>{task}</strong><small>{index < selected.profile.followup.completed ? 'Đã hoàn thành' : 'Đang chờ khách hàng'}</small></div></article>)}</section>}
         </div>
 
         <footer className="scm-privacy"><div><span>⌁</span><p><strong>Thông tin riêng tư được bảo vệ</strong>Nội dung nhật ký và ghi chú cá nhân không được hiển thị.</p></div><button type="button" onClick={() => showNotice('Đã mở thông tin quyền riêng tư.')}>Quyền riêng tư</button></footer>
