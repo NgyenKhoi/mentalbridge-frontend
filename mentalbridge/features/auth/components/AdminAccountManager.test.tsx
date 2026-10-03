@@ -178,7 +178,7 @@ describe('AdminAccountManager', () => {
     )
   })
 
-  it('confirms the delayed specialist-state impact without exposing internals', async () => {
+  it('confirms the specialist-state impact without exposing internals', async () => {
     const specialist = {
       ...userAccount,
       roles: ['SPECIALIST' as const],
@@ -196,7 +196,7 @@ describe('AdminAccountManager', () => {
 
     expect(feedback.confirm).toHaveBeenCalledWith(
       expect.objectContaining({
-        description: expect.stringContaining('khu vực liên quan'),
+        description: expect.stringContaining('hệ thống tư vấn'),
       }),
     )
     expect(feedback.confirm).not.toHaveBeenCalledWith(
@@ -204,5 +204,12 @@ describe('AdminAccountManager', () => {
         description: expect.stringMatching(/Identity|lifecycle|bất đồng bộ/),
       }),
     )
+  })
+
+  it('excludes DELETED accounts from the status filter options', async () => {
+    render(<AdminAccountManager />)
+    await screen.findByText('member@example.com')
+    expect(screen.queryByRole('option', { name: 'Đã xóa' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Đã tạm ngưng' })).toBeInTheDocument()
   })
 })

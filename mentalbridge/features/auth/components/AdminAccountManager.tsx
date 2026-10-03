@@ -22,6 +22,13 @@ const statusLabels: Record<AccountStatus, string> = {
   DELETED: 'Đã xóa',
 }
 
+const searchableStatuses: AccountStatus[] = [
+  'PENDING_EMAIL_VERIFICATION',
+  'ACTIVE',
+  'DISABLED',
+  'DELETION_PENDING',
+]
+
 const roleLabels: Record<IdentityRole, string> = {
   USER: 'Người dùng',
   SPECIALIST: 'Chuyên gia',
@@ -153,7 +160,7 @@ export default function AdminAccountManager() {
     if (!selected || !etag || selected.roles.includes('ADMIN')) return
     const restoring = selected.status === 'DISABLED'
     const impact = selected.roles.includes('SPECIALIST')
-      ? 'Các phiên đăng nhập hiện tại sẽ bị thu hồi. Trạng thái tài khoản chuyên gia ở các khu vực liên quan có thể cần một khoảng thời gian ngắn để cập nhật.'
+      ? 'Các phiên đăng nhập hiện tại sẽ bị thu hồi. Hồ sơ và lịch hẹn chuyên gia sẽ tự động tạm ngưng trên hệ thống tư vấn.'
       : 'Các phiên đăng nhập hiện tại sẽ bị thu hồi và đăng nhập mới bị chặn cho đến khi tài khoản được khôi phục.'
     const approved = await confirm({
       title: restoring ? 'Khôi phục tài khoản?' : 'Tạm ngưng tài khoản?',
@@ -227,9 +234,9 @@ export default function AdminAccountManager() {
             onChange={(event) => setStatus(event.target.value)}
           >
             <option value="">Tất cả</option>
-            {Object.entries(statusLabels).map(([value, label]) => (
+            {searchableStatuses.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {statusLabels[value]}
               </option>
             ))}
           </select>
