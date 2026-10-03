@@ -153,6 +153,22 @@ describe('CommunityPostDetail', () => {
     ).toHaveAttribute('href', '/safety-directory')
   })
 
+  it('keeps interaction controls hidden for a legacy v1.5 detail response', async () => {
+    const legacyPost = { ...post }
+    Reflect.deleteProperty(legacyPost, 'viewerState')
+    api.post.mockResolvedValueOnce({ post: legacyPost, version: null })
+
+    render(<CommunityPostDetail postId={post.postId} />)
+
+    expect(await screen.findByText(/♡ 3/)).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: /Äá»“ng hĂ nh/ }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'LÆ°u bĂ i' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('uses the same unavailable state for hidden, removed, blocked and unknown posts', async () => {
     api.post.mockRejectedValueOnce(
       new ApiError({

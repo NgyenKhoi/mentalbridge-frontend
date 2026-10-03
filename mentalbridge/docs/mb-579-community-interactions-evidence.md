@@ -6,6 +6,7 @@
 - A signed-in user can bookmark or unbookmark an active visible post. Bookmark state is returned only as personalized viewer state and is never exposed to another user.
 - PUT and DELETE commands are naturally idempotent. Repeating the same reaction or bookmark command does not create another row or change the aggregate count twice.
 - Hidden, removed, personally hidden, or bilaterally blocked posts reject new interactions through the same fail-closed visibility policy used by Community reads.
+- During rolling deployment, a v1.5 response without `viewerState` remains valid and exposes no interaction controls. The presence of valid v1.6 `viewerState` is the capability signal that enables reaction and bookmark commands.
 
 ## Data and product boundaries
 
@@ -17,5 +18,6 @@
 
 - Backend `CommunityInteractionIntegrationTests` verifies reaction replay/replacement/removal, concurrent duplicate requests, exact aggregate counts, owner-private bookmarks, viewer-state isolation, and rejection for hidden posts against PostgreSQL with Liquibase migrations through `0010`.
 - Frontend validation, API, Route Handler, and component tests verify the bounded contract, same-origin authenticated forwarding, retry-safe natural commands, count changes, and private bookmark toggles.
+- Compatibility regressions verify that v1.5 feed/detail payloads remain readable while reaction and bookmark controls stay absent, so the frontend can deploy before the v1.6 provider.
 - `tests/e2e/community-feed.spec.ts` exercises add/change/remove reaction plus bookmark persistence and removal through the browser journey.
 - The Community OpenAPI contract is synchronized at v1.6 and generated TypeScript is checked by the frontend contract gate.

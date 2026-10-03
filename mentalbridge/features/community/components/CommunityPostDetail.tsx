@@ -348,23 +348,28 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
                 Nội dung đa phương tiện hiện chưa khả dụng.
               </p>
             )}
-            <CommunityInteractions
-              postId={post.postId}
-              viewerState={post.viewerState}
-              reactionCount={post.counts.reactions}
-              onChange={(viewerState, reactions) =>
-                setPost((current) =>
-                  current
-                    ? {
-                        ...current,
-                        viewerState,
-                        counts: { ...current.counts, reactions },
-                      }
-                    : current,
-                )
-              }
-            />
+            {post.viewerState ? (
+              <CommunityInteractions
+                postId={post.postId}
+                viewerState={post.viewerState}
+                reactionCount={post.counts.reactions}
+                onChange={(viewerState, reactions) =>
+                  setPost((current) =>
+                    current
+                      ? {
+                          ...current,
+                          viewerState,
+                          counts: { ...current.counts, reactions },
+                        }
+                      : current,
+                  )
+                }
+              />
+            ) : null}
             <footer>
+              {!post.viewerState && (
+                <span>♡ {post.counts.reactions} lượt đồng cảm</span>
+              )}
               <span>◇ {post.counts.comments} bình luận</span>
             </footer>
             {version === null && (

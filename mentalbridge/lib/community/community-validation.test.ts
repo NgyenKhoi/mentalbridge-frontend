@@ -57,6 +57,25 @@ describe('Community response validation', () => {
     ).not.toBeNull()
   })
 
+  it('accepts legacy v1.5 posts without inventing interaction capability', () => {
+    const legacyPost = { ...post }
+    Reflect.deleteProperty(legacyPost, 'viewerState')
+    const feed = parseCommunityFeedPage({
+      items: [{ ...legacyPost, contentPreview: 'Má»™t cĂ¢u chuyá»‡n.' }],
+      nextCursor: null,
+      hasMore: false,
+    })
+    const detail = parseCommunityPostDetail({
+      ...legacyPost,
+      content: 'Ná»™i dung Ä‘áº§y Ä‘á»§.',
+    })
+
+    expect(feed).not.toBeNull()
+    expect(detail).not.toBeNull()
+    expect(feed?.items[0]).not.toHaveProperty('viewerState')
+    expect(detail).not.toHaveProperty('viewerState')
+  })
+
   it('accepts both rollout author shapes and normalizes the legacy avatar', () => {
     const legacyAuthor = {
       communityProfileId: post.author.communityProfileId,

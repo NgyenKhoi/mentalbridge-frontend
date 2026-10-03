@@ -1,9 +1,22 @@
 import type { components } from '@/contracts/community.generated'
 
-export type CommunityFeedPage = components['schemas']['CommunityFeedPage']
 export type CommunityAuthor = components['schemas']['CommunityAuthor']
-export type CommunityPostSummary = components['schemas']['CommunityPostSummary']
-export type CommunityPostDetail = components['schemas']['CommunityPostDetail']
+export type CommunityViewerState = components['schemas']['CommunityViewerState']
+type ContractCommunityPostSummary =
+  components['schemas']['CommunityPostSummary']
+type ContractCommunityPostDetail = components['schemas']['CommunityPostDetail']
+export type CommunityPostSummary = Omit<
+  ContractCommunityPostSummary,
+  'viewerState'
+> & { viewerState?: CommunityViewerState }
+export type CommunityPostDetail = Omit<
+  ContractCommunityPostDetail,
+  'viewerState'
+> & { viewerState?: CommunityViewerState }
+export type CommunityFeedPage = Omit<
+  components['schemas']['CommunityFeedPage'],
+  'items'
+> & { items: CommunityPostSummary[] }
 export type CommunityTopic = components['schemas']['CommunityTopic']
 export type CommunityTopicCode = components['schemas']['CommunityTopicCode']
 export type CommunityProfile = components['schemas']['CommunityProfile']
@@ -24,7 +37,6 @@ export type UpdateCommentRequest = components['schemas']['UpdateCommentRequest']
 export type SupportiveReaction = components['schemas']['SupportiveReaction']
 export type PutReactionRequest = components['schemas']['PutReactionRequest']
 export type CommunityReaction = components['schemas']['CommunityReaction']
-export type CommunityViewerState = components['schemas']['CommunityViewerState']
 export type ReportTargetType = components['schemas']['ReportTargetType']
 export type ReportReason = components['schemas']['ReportReason']
 export type CreateReportRequest = components['schemas']['CreateReportRequest']
@@ -410,20 +422,20 @@ function parsePost(
   const post = record(value)
   const content = detail ? post?.content : post?.contentPreview
   const author = parseAuthor(post?.author)
+  const keys = [
+    'postId',
+    'author',
+    detail ? 'content' : 'contentPreview',
+    'topics',
+    'media',
+    'mediaAvailability',
+    'counts',
+    'publishedAt',
+    'updatedAt',
+  ]
   if (
     !post ||
-    !exactKeys(post, [
-      'postId',
-      'author',
-      detail ? 'content' : 'contentPreview',
-      'topics',
-      'media',
-      'mediaAvailability',
-      'counts',
-      'viewerState',
-      'publishedAt',
-      'updatedAt',
-    ]) ||
+    (!exactKeys(post, keys) && !exactKeys(post, [...keys, 'viewerState'])) ||
     typeof post.postId !== 'string' ||
     !UUID.test(post.postId) ||
     !author ||
@@ -441,7 +453,7 @@ function parsePost(
     typeof post.mediaAvailability !== 'string' ||
     !MEDIA_AVAILABILITY.has(post.mediaAvailability) ||
     !parseCounts(post.counts) ||
-    !parseViewerState(post.viewerState) ||
+    ('viewerState' in post && !parseViewerState(post.viewerState)) ||
     !dateTime(post.publishedAt) ||
     !dateTime(post.updatedAt)
   ) {
