@@ -602,10 +602,7 @@ export default function AppointmentRequestPanel({
                 <h2 id="requested-title">Tất cả cuộc hẹn</h2>
               </div>
               <div className={styles.appointmentTools}>
-                <p
-                  className={styles.resultStatus}
-                  aria-live="polite"
-                >
+                <p className={styles.resultStatus} aria-live="polite">
                   {appointmentLoading && appointments.length > 0
                     ? 'Đang cập nhật lịch hẹn…'
                     : `Hiển thị ${visibleAppointments.length} lịch hẹn`}

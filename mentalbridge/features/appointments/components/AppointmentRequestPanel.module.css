@@ -33,7 +33,9 @@
 .focusedCard,
 .focusedRow {
   border-color: var(--teal) !important;
-  box-shadow: 0 0 0 2px var(--teal-pale), var(--elevation-1);
+  box-shadow:
+    0 0 0 2px var(--teal-pale),
+    var(--elevation-1);
 }
 
 .eyebrow,
