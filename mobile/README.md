@@ -68,6 +68,13 @@ development build, install it, and start Metro. Re-run the native build after
 changing a native dependency or Expo config. Windows can develop and verify
 the shared TypeScript bundle but cannot compile the iOS native target locally.
 
+Required pull-request CI also exercises these native paths with deterministic
+Release smoke runs on an Android emulator and iOS Simulator. Those jobs compile,
+install, relaunch, assert that the app stays alive, and upload screenshots and
+launch diagnostics. See
+[`docs/NATIVE_VERIFICATION.md`](docs/NATIVE_VERIFICATION.md) for the exact
+commands, assertions, artifacts, and local reproduction steps.
+
 ## Architecture boundaries
 
 ```text
@@ -108,9 +115,10 @@ Run the complete mobile gate with:
 npm run quality
 ```
 
-`build:bundle` exports both Android and iOS JavaScript bundles. Native device
-compilation remains the platform-specific `npm run android` / `npm run ios`
-step described above.
+`build:bundle` exports Android and iOS JavaScript bundles only; it is not native
+compile or boot evidence. Native compile/install/launch is verified separately
+by `npm run native:android:smoke` and `npm run native:ios:smoke`, which are
+required by the pull-request `quality-gate`.
 
 The synthetic welcome-screen review capture is documented in
 [`docs/evidence/README.md`](docs/evidence/README.md).

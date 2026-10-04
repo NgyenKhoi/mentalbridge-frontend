@@ -8,3 +8,9 @@ Regenerate it after exporting or starting the Expo web target, then capture the
 root route with Playwright at the same viewport. The Android and iOS JavaScript
 bundles are verified separately by `npm run quality`; this image is review
 evidence for the shared UI only and is not proof of a native device build.
+
+Native boot evidence is generated per commit by the required `Android native
+boot` and `iOS native boot` CI jobs. The screenshots and launch diagnostics are
+uploaded as workflow artifacts; see
+[`../NATIVE_VERIFICATION.md`](../NATIVE_VERIFICATION.md) for the assertions and
+reproduction commands.
