@@ -7,7 +7,7 @@ readonly evidence_dir="${NATIVE_EVIDENCE_DIR:-native-evidence}"
 
 command -v xcrun >/dev/null
 command -v jq >/dev/null
-mkdir -p "$evidence_dir"
+mkdir -p "$evidence_dir" "${HOME}/.expo"
 
 device="${IOS_DEVICE:-}"
 if [[ -z "$device" ]]; then
