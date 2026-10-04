@@ -5,6 +5,7 @@ on:
     branches: [dev]
     paths:
       - 'mentalbridge/**'
+      - 'mobile/**'
       - 'AGENTS.md'
       - 'CONTRIBUTING.md'
       - '.github/workflows/frontend-quality.yml'
@@ -13,6 +14,7 @@ on:
     branches: [dev]
     paths:
       - 'mentalbridge/**'
+      - 'mobile/**'
       - 'AGENTS.md'
       - 'CONTRIBUTING.md'
       - '.github/workflows/frontend-quality.yml'
@@ -98,14 +100,43 @@ jobs:
       - name: Build production application
         run: npm run build
 
+  mobile-quality:
+    name: Mobile checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_BASE_URL: https://api.test.mentalbridge
+      EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run mobile quality gate
+        run: npm run quality
+
   quality-gate:
     name: quality-gate
     if: always()
-    needs: [quality]
+    needs: [quality, mobile-quality]
     runs-on: ubuntu-24.04
     steps:
       - name: Require frontend checks
-        if: needs.quality.result != 'success'
+        if: needs.quality.result != 'success' || needs.mobile-quality.result != 'success'
         run: exit 1
       - name: Confirm quality gate
         run: echo "All required frontend quality checks passed."
