@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/specialist/client-relationships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns only confirmed/in-flight and recent completed appointment relationships assigned to the authenticated currently approved specialist. It is a bounded continuity authority projection, not a user directory, and every read is audited without health content. */
+        get: operations["listBoundedSpecialistClientRelationships"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/appointments/{conversationId}/chat-eligibility": {
         parameters: {
             query?: never;
@@ -1196,6 +1213,31 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        SpecialistClientRelationship: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            /** @enum {string} */
+            status: "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED";
+            modality: components["schemas"]["AppointmentModality"];
+            /** Format: date-time */
+            scheduledStartAt: string;
+            /** Format: date-time */
+            scheduledEndAt: string;
+            /** Format: int64 */
+            appointmentVersion: number;
+        };
+        SpecialistClientRelationshipList: {
+            items: components["schemas"]["SpecialistClientRelationship"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: date-time */
+            recentSince: string;
+            /** @constant */
+            policyVersion: "specialist-client-continuity-v1";
+        };
         AppointmentList: {
             items: components["schemas"]["Appointment"][];
             count: number;
@@ -1533,6 +1575,28 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    listBoundedSpecialistClientRelationships: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Appointment-bounded specialist client relationships */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistClientRelationshipList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     getAppointmentChatEligibility: {

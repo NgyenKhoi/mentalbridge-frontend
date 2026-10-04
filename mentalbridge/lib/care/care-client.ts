@@ -99,12 +99,14 @@ import type {
   ConsultationBrief,
   ConsultationBriefDraftRequest,
   SpecialistConsultationBrief,
+  SpecialistClientContinuityList,
   ConsultationBriefScreeningContextList,
 } from '@/features/appointments/api/consultation-brief-contract'
 import {
   parseConsultationBrief,
   parseSpecialistConsultationBrief,
   parseConsultationBriefScreeningContexts,
+  parseSpecialistClientContinuityList,
 } from './consultation-brief-validation'
 
 type RequestOptions<T> = Readonly<{
@@ -343,6 +345,19 @@ export const careClient = {
       authorization,
       correlationId,
       parseSuccess: parseSpecialistConsultationBrief,
+    })
+  },
+
+  specialistClientContinuity(
+    authorization: string,
+    correlationId: string,
+  ): Promise<SpecialistClientContinuityList> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/specialist/client-continuity',
+      authorization,
+      correlationId,
+      parseSuccess: parseSpecialistClientContinuityList,
     })
   },
 

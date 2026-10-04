@@ -8,6 +8,10 @@ export type ConsultationBrief = Schemas['ConsultationBrief']
 export type ConsultationBriefScreeningContext =
   Schemas['ConsultationBriefScreeningContext']
 export type SpecialistConsultationBrief = Schemas['SpecialistConsultationBrief']
+export type SpecialistClientContinuityList =
+  Schemas['SpecialistClientContinuityList']
+export type SpecialistClientContinuityItem =
+  Schemas['SpecialistClientContinuityItem']
 export type ConsultationBriefScreeningContextChoice =
   Schemas['ConsultationBriefScreeningContextChoice']
 export type ConsultationBriefScreeningContextList =

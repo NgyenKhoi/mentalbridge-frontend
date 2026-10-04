@@ -3,6 +3,7 @@ import type {
   ConsultationBriefDraftRequest,
   ConsultationBriefScreeningContext,
   SpecialistConsultationBrief,
+  SpecialistClientContinuityList,
   ConsultationBriefScreeningContextList,
 } from '@/features/appointments/api/consultation-brief-contract'
 
@@ -155,6 +156,9 @@ export function parseSpecialistConsultationBrief(
       'userGoals',
       'snapshotVersion',
       'approvedAt',
+      'accessStartAt',
+      'accessEndAt',
+      'sourceType',
     ]) ||
     typeof value.snapshotId !== 'string' ||
     !UUID.test(value.snapshotId) ||
@@ -167,10 +171,82 @@ export function parseSpecialistConsultationBrief(
     !goals(value.userGoals) ||
     !Number.isSafeInteger(value.snapshotVersion) ||
     Number(value.snapshotVersion) < 1 ||
-    !instant(value.approvedAt)
+    !instant(value.approvedAt) ||
+    !instant(value.accessStartAt) ||
+    !instant(value.accessEndAt) ||
+    value.sourceType !== 'CONSULTATION_BRIEF'
   )
     return null
   return value as SpecialistConsultationBrief
+}
+
+export function parseSpecialistClientContinuityList(
+  value: unknown,
+): SpecialistClientContinuityList | null {
+  if (
+    !record(value) ||
+    !exact(value, [
+      'items',
+      'count',
+      'generatedAt',
+      'recentSince',
+      'policyVersion',
+    ]) ||
+    !Array.isArray(value.items) ||
+    value.items.length > 200 ||
+    !Number.isSafeInteger(value.count) ||
+    value.count !== value.items.length ||
+    !instant(value.generatedAt) ||
+    !instant(value.recentSince) ||
+    value.policyVersion !== 'specialist-client-continuity-v1'
+  )
+    return null
+  const valid = value.items.every(
+    (item) =>
+      record(item) &&
+      exact(item, [
+        'appointmentId',
+        'userAccountId',
+        'userDisplayName',
+        'status',
+        'modality',
+        'scheduledStartAt',
+        'scheduledEndAt',
+        'appointmentVersion',
+        'briefAccessState',
+        'briefSnapshotVersion',
+        'briefAccessStartAt',
+        'briefAccessEndAt',
+      ]) &&
+      typeof item.appointmentId === 'string' &&
+      UUID.test(item.appointmentId) &&
+      typeof item.userAccountId === 'string' &&
+      UUID.test(item.userAccountId) &&
+      boundedText(item.userDisplayName, 120) &&
+      ['CONFIRMED', 'IN_PROGRESS', 'SESSION_ENDED', 'COMPLETED'].includes(
+        String(item.status),
+      ) &&
+      ['IN_APP_CHAT', 'IN_APP_VIDEO'].includes(String(item.modality)) &&
+      instant(item.scheduledStartAt) &&
+      instant(item.scheduledEndAt) &&
+      Number.isSafeInteger(item.appointmentVersion) &&
+      Number(item.appointmentVersion) >= 0 &&
+      [
+        'NOT_SHARED',
+        'REVOKED',
+        'STALE',
+        'TOO_EARLY',
+        'AVAILABLE',
+        'EXPIRED',
+        'UNAVAILABLE',
+      ].includes(String(item.briefAccessState)) &&
+      (item.briefSnapshotVersion === null ||
+        (Number.isSafeInteger(item.briefSnapshotVersion) &&
+          Number(item.briefSnapshotVersion) >= 1)) &&
+      (item.briefAccessStartAt === null || instant(item.briefAccessStartAt)) &&
+      (item.briefAccessEndAt === null || instant(item.briefAccessEndAt)),
+  )
+  return valid ? (value as SpecialistClientContinuityList) : null
 }
 
 export function parseConsultationBriefScreeningContexts(

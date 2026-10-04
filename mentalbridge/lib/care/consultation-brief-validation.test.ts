@@ -4,6 +4,7 @@ import {
   parseConsultationBrief,
   parseConsultationBriefDraftRequest,
   parseSpecialistConsultationBrief,
+  parseSpecialistClientContinuityList,
 } from './consultation-brief-validation'
 
 const screening = [
@@ -99,10 +100,45 @@ describe('consultation brief runtime contract', () => {
       userGoals: ['Tìm một bước tiếp theo phù hợp'],
       snapshotVersion: 1,
       approvedAt: '2026-09-28T10:00:00Z',
+      accessStartAt: '2026-09-28T09:00:00Z',
+      accessEndAt: '2026-09-30T09:00:00Z',
+      sourceType: 'CONSULTATION_BRIEF',
     }
     expect(parseSpecialistConsultationBrief(value)).not.toBeNull()
     expect(
       parseSpecialistConsultationBrief({ ...value, diagnosis: 'x' }),
+    ).toBeNull()
+  })
+
+  it('accepts only bounded continuity rows without private content', () => {
+    const value = {
+      items: [
+        {
+          appointmentId: ids.appointment,
+          userAccountId: ids.brief,
+          userDisplayName: 'Nguyễn Minh Anh',
+          status: 'CONFIRMED',
+          modality: 'IN_APP_CHAT',
+          scheduledStartAt: '2026-10-04T10:00:00Z',
+          scheduledEndAt: '2026-10-04T11:00:00Z',
+          appointmentVersion: 1,
+          briefAccessState: 'AVAILABLE',
+          briefSnapshotVersion: 1,
+          briefAccessStartAt: '2026-10-03T10:00:00Z',
+          briefAccessEndAt: '2026-10-05T10:00:00Z',
+        },
+      ],
+      count: 1,
+      generatedAt: '2026-10-04T09:00:00Z',
+      recentSince: '2026-07-06T09:00:00Z',
+      policyVersion: 'specialist-client-continuity-v1',
+    }
+    expect(parseSpecialistClientContinuityList(value)).not.toBeNull()
+    expect(
+      parseSpecialistClientContinuityList({
+        ...value,
+        items: [{ ...value.items[0], journalEntries: [] }],
+      }),
     ).toBeNull()
   })
 })

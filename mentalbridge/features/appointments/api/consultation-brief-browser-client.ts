@@ -4,6 +4,7 @@ import type {
   ConsultationBriefDraftRequest,
   ConsultationBriefScreeningContextList,
   SpecialistConsultationBrief,
+  SpecialistClientContinuityList,
 } from './consultation-brief-contract'
 
 const base = (appointmentId: string) =>
@@ -58,6 +59,13 @@ export const consultationBriefBrowserClient = {
     return (
       await browserApiClient.get<SpecialistConsultationBrief>(
         `/care/specialist/consultation-briefs/${encodeURIComponent(appointmentId)}`,
+      )
+    ).data
+  },
+  async specialistContinuity() {
+    return (
+      await browserApiClient.get<SpecialistClientContinuityList>(
+        '/care/specialist/client-continuity',
       )
     ).data
   },
