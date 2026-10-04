@@ -356,6 +356,7 @@ export interface components {
             media: components["schemas"]["CommunityMedia"][];
             /** @enum {string} */
             mediaAvailability: "NONE" | "READY" | "PARTIAL" | "UNAVAILABLE";
+            resourceAttachment?: components["schemas"]["CommunityResourceAttachment"] | null;
             counts: components["schemas"]["CommunityCounts"];
             viewerState: components["schemas"]["CommunityViewerState"];
             /** Format: date-time */
@@ -372,6 +373,7 @@ export interface components {
             media: components["schemas"]["CommunityMedia"][];
             /** @enum {string} */
             mediaAvailability: "NONE" | "READY" | "PARTIAL" | "UNAVAILABLE";
+            resourceAttachment?: components["schemas"]["CommunityResourceAttachment"] | null;
             counts: components["schemas"]["CommunityCounts"];
             viewerState: components["schemas"]["CommunityViewerState"];
             /** Format: date-time */
@@ -390,8 +392,18 @@ export interface components {
             mediaIds: string[];
             /** @description Defaults to PROFILE when omitted on create; omission on update preserves the current mode. */
             authorMode?: components["schemas"]["CommunityPostAuthorMode"];
+            /**
+             * Format: uuid
+             * @description Optional stable Content-owned Resource identifier. Null or omission means no attachment; Community never accepts a ResourceVersion or Resource body.
+             */
+            resourceId?: string | null;
         };
         UpdatePostRequest: components["schemas"]["CreatePostRequest"];
+        /** @description Minimal logical reference to a Content-owned Resource. Current availability and display metadata are resolved through the Content contract. */
+        CommunityResourceAttachment: {
+            /** Format: uuid */
+            resourceId: string;
+        };
         /** @enum {string} */
         CommunityMediaState: "PENDING" | "PROCESSING" | "READY" | "REJECTED" | "DELETED" | "EXPIRED";
         CreateMediaUploadIntentRequest: {

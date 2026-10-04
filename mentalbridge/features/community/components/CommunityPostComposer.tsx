@@ -10,6 +10,7 @@ import {
   type CommunityTopicCode,
 } from '@/features/community/api/browser-community'
 import CommunityMediaUploader from './CommunityMediaUploader'
+import CommunityResourceSelector from './CommunityResourceSelector'
 
 const MAX_CONTENT = 5000
 
@@ -26,6 +27,7 @@ export default function CommunityPostComposer({
     'PROFILE',
   )
   const [mediaBusy, setMediaBusy] = useState(false)
+  const [resourceId, setResourceId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const command = useRef<{ signature: string; key: string } | undefined>(
     undefined,
@@ -65,6 +67,7 @@ export default function CommunityPostComposer({
       topics: selected,
       mediaIds,
       authorMode,
+      resourceId,
     }
     const signature = JSON.stringify(input)
     if (!command.current || command.current.signature !== signature) {
@@ -188,6 +191,14 @@ export default function CommunityPostComposer({
         </div>
       </fieldset>
       <CommunityMediaUploader disabled={submitting} onChange={updateMedia} />
+      <CommunityResourceSelector
+        value={resourceId}
+        disabled={submitting}
+        onChange={(value) => {
+          setResourceId(value)
+          setMessage('')
+        }}
+      />
       {message && (
         <p className="community-form-error" role="alert">
           {message}

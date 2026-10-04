@@ -433,9 +433,13 @@ function parsePost(
     'publishedAt',
     'updatedAt',
   ]
+  const optionalKeys = ['viewerState', 'resourceAttachment'].filter((key) =>
+    Object.hasOwn(post ?? {}, key),
+  )
+  const resourceAttachment = record(post?.resourceAttachment)
   if (
     !post ||
-    (!exactKeys(post, keys) && !exactKeys(post, [...keys, 'viewerState'])) ||
+    !exactKeys(post, [...keys, ...optionalKeys]) ||
     typeof post.postId !== 'string' ||
     !UUID.test(post.postId) ||
     !author ||
@@ -452,6 +456,12 @@ function parsePost(
     !post.media.every(parseMedia) ||
     typeof post.mediaAvailability !== 'string' ||
     !MEDIA_AVAILABILITY.has(post.mediaAvailability) ||
+    (post.resourceAttachment !== undefined &&
+      post.resourceAttachment !== null &&
+      (!resourceAttachment ||
+        !exactKeys(resourceAttachment, ['resourceId']) ||
+        typeof resourceAttachment.resourceId !== 'string' ||
+        !UUID.test(resourceAttachment.resourceId))) ||
     !parseCounts(post.counts) ||
     ('viewerState' in post && !parseViewerState(post.viewerState)) ||
     !dateTime(post.publishedAt) ||
@@ -459,7 +469,11 @@ function parsePost(
   ) {
     return null
   }
-  return { ...post, author } as CommunityPostSummary | CommunityPostDetail
+  return {
+    ...post,
+    author,
+    resourceAttachment: resourceAttachment ?? null,
+  } as CommunityPostSummary | CommunityPostDetail
 }
 
 export function isCommunityPostId(value: string) {
@@ -483,14 +497,13 @@ export function parseCommunityPostWrite(
 ): CommunityPostWrite | null {
   const input = record(value)
   const hasAuthorMode = Boolean(input && Object.hasOwn(input, 'authorMode'))
+  const hasResourceId = Boolean(input && Object.hasOwn(input, 'resourceId'))
+  const keys = ['content', 'topics', 'mediaIds']
+  if (hasAuthorMode) keys.push('authorMode')
+  if (hasResourceId) keys.push('resourceId')
   if (
     !input ||
-    !exactKeys(
-      input,
-      hasAuthorMode
-        ? ['content', 'topics', 'mediaIds', 'authorMode']
-        : ['content', 'topics', 'mediaIds'],
-    ) ||
+    !exactKeys(input, keys) ||
     !text(input.content, 1, 5000) ||
     (input.content as string).trim().length === 0 ||
     !Array.isArray(input.topics) ||
@@ -509,7 +522,10 @@ export function parseCommunityPostWrite(
     new Set(input.mediaIds).size !== input.mediaIds.length ||
     (hasAuthorMode &&
       (typeof input.authorMode !== 'string' ||
-        !POST_AUTHOR_MODES.has(input.authorMode)))
+        !POST_AUTHOR_MODES.has(input.authorMode))) ||
+    (hasResourceId &&
+      input.resourceId !== null &&
+      (typeof input.resourceId !== 'string' || !UUID.test(input.resourceId)))
   ) {
     return null
   }

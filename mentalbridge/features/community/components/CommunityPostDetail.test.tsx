@@ -12,6 +12,8 @@ const api = vi.hoisted(() => ({
   push: vi.fn(),
   confirm: vi.fn(),
   toast: vi.fn(),
+  catalogue: vi.fn(),
+  resource: vi.fn(),
 }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: api.push }),
@@ -24,6 +26,10 @@ vi.mock('@/features/community/api/browser-community', () => ({
   getCommunityTopics: api.topics,
   updateCommunityPost: api.update,
   deleteCommunityPost: api.remove,
+}))
+vi.mock('@/features/resources/api/browser-resources', () => ({
+  getResourceCatalogue: api.catalogue,
+  getResourceDetail: api.resource,
 }))
 vi.mock('./CommunityComments', () => ({
   default: () => <section aria-label="Bình luận hỗ trợ" />,
@@ -57,6 +63,7 @@ describe('CommunityPostDetail', () => {
       { code: 'MY_STORY', label: 'Câu chuyện của tôi', description: 'Mô tả' },
     ])
     api.confirm.mockResolvedValue(true)
+    api.catalogue.mockResolvedValue({ items: [], hasMore: false })
   })
 
   it('sends the authoritative owner version when editing and deleting', async () => {
@@ -81,6 +88,7 @@ describe('CommunityPostDetail', () => {
         topics: ['MY_STORY'],
         mediaIds: [],
         authorMode: 'PROFILE',
+        resourceId: null,
       },
       7,
     )
@@ -90,6 +98,62 @@ describe('CommunityPostDetail', () => {
     expect(api.confirm).toHaveBeenCalled()
     expect(api.remove).toHaveBeenCalledWith(post.postId, 8)
     expect(api.push).toHaveBeenCalledWith('/community')
+  })
+
+  it('lets the owner replace and remove a resource attachment', async () => {
+    const user = userEvent.setup()
+    const first = '40000000-0000-4000-8000-000000000001'
+    const replacement = '40000000-0000-4000-8000-000000000002'
+    api.post.mockResolvedValue({
+      post: { ...post, resourceAttachment: { resourceId: first } },
+      version: 2,
+    })
+    api.catalogue.mockResolvedValue({
+      items: [
+        { id: first, title: 'Tài nguyên đầu tiên' },
+        { id: replacement, title: 'Tài nguyên thay thế' },
+      ],
+      hasMore: false,
+    })
+    api.resource.mockResolvedValue({
+      id: first,
+      title: 'Tài nguyên đầu tiên',
+      resourceKind: 'PRACTICE',
+    })
+    api.update
+      .mockResolvedValueOnce({
+        post: { ...post, resourceAttachment: { resourceId: replacement } },
+        version: 3,
+      })
+      .mockResolvedValueOnce({
+        post: { ...post, resourceAttachment: null },
+        version: 4,
+      })
+    render(<CommunityPostDetail postId={post.postId} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }))
+    await user.selectOptions(
+      await screen.findByLabelText(/Tài nguyên MentalBridge/),
+      replacement,
+    )
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+    expect(api.update).toHaveBeenLastCalledWith(
+      post.postId,
+      expect.objectContaining({ resourceId: replacement }),
+      2,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }))
+    await user.selectOptions(
+      await screen.findByLabelText(/Tài nguyên MentalBridge/),
+      '',
+    )
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+    expect(api.update).toHaveBeenLastCalledWith(
+      post.postId,
+      expect.objectContaining({ resourceId: null }),
+      3,
+    )
   })
 
   it('lets the owner change identity mode for this post only', async () => {

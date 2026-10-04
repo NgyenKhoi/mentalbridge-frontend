@@ -20,6 +20,8 @@ import CommunityAvatar from './CommunityAvatar'
 import CommunityComments from './CommunityComments'
 import CommunitySafetyActions from './CommunitySafetyActions'
 import CommunityInteractions from './CommunityInteractions'
+import CommunityResourceAttachment from './CommunityResourceAttachment'
+import CommunityResourceSelector from './CommunityResourceSelector'
 
 function communityTime(value: string) {
   return new Intl.DateTimeFormat('vi-VN', {
@@ -43,6 +45,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
     'PROFILE',
   )
   const [saving, setSaving] = useState(false)
+  const [resourceId, setResourceId] = useState<string | null>(null)
 
   const loadPost = useCallback(async () => {
     const result = await getCommunityPost(postId)
@@ -50,6 +53,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
     setVersion(result.version)
     setContent(result.post.content)
     setSelected(result.post.topics)
+    setResourceId(result.post.resourceAttachment?.resourceId ?? null)
     setAuthorMode(
       result.post.author.state === 'ANONYMOUS' ? 'ANONYMOUS' : 'PROFILE',
     )
@@ -65,6 +69,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
         setVersion(result.version)
         setContent(result.post.content)
         setSelected(result.post.topics)
+        setResourceId(result.post.resourceAttachment?.resourceId ?? null)
         setAuthorMode(
           result.post.author.state === 'ANONYMOUS' ? 'ANONYMOUS' : 'PROFILE',
         )
@@ -118,6 +123,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
           topics: selected,
           mediaIds: post.media.map((item) => item.mediaId),
           authorMode,
+          resourceId,
         },
         version,
       )
@@ -304,6 +310,11 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
                 </label>
               </div>
             </fieldset>
+            <CommunityResourceSelector
+              value={resourceId}
+              disabled={saving}
+              onChange={setResourceId}
+            />
             <div className="community-form-actions">
               <button
                 type="button"
@@ -311,6 +322,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
                   setEditing(false)
                   setContent(post.content)
                   setSelected(post.topics)
+                  setResourceId(post.resourceAttachment?.resourceId ?? null)
                   setAuthorMode(
                     post.author.state === 'ANONYMOUS' ? 'ANONYMOUS' : 'PROFILE',
                   )
@@ -338,6 +350,11 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
             </div>
             <p className="community-detail-copy">{post.content}</p>
             <CommunityMedia media={post.media} />
+            {post.resourceAttachment && (
+              <CommunityResourceAttachment
+                resourceId={post.resourceAttachment.resourceId}
+              />
+            )}
             {post.mediaAvailability === 'PARTIAL' && (
               <p className="community-media-note">
                 Một số nội dung đa phương tiện đang được xử lý.

@@ -1734,3 +1734,109 @@
   color: var(--ink);
   font: inherit;
 }
+
+.community-resource-card {
+  display: grid;
+  gap: 4px;
+  margin-top: var(--space-4);
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--teal) 28%, var(--line));
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-soft) 82%, var(--teal) 4%);
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.community-resource-card[href]:hover {
+  border-color: var(--teal);
+  transform: translateY(-1px);
+}
+
+.community-resource-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal) 38%, transparent);
+  outline-offset: 3px;
+}
+
+.community-resource-card > span,
+.community-resource-card > small {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.community-resource-card.is-loading,
+.community-resource-card.is-unavailable {
+  color: var(--ink-soft);
+}
+
+.community-resource-card.is-unavailable button,
+.community-resource-selector-error button {
+  width: fit-content;
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+}
+
+.community-resource-selector {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface-soft);
+}
+
+.community-resource-selector label {
+  font-weight: 800;
+}
+
+.community-resource-selector label span,
+.community-resource-selector p,
+.community-resource-selector small {
+  color: var(--ink-soft);
+}
+
+.community-resource-selector p {
+  margin: 0;
+}
+
+.community-resource-selector select {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.community-resource-selector-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--terracotta-deep);
+}
+
+@media (max-width: 540px) {
+  .community-resource-selector-error {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .community-resource-card {
+    transform: none;
+    transition: none;
+  }
+}

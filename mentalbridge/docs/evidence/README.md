@@ -1,5 +1,11 @@
 # Synthetic browser evidence
 
+MB-614 adds one optional reviewed MentalBridge resource attachment to Community
+posts. Its create/reload/navigation journey, unavailable state, owner edit and
+contract privacy coverage are recorded in
+[`mb-614-community-resource-attachment.md`](mb-614-community-resource-attachment.md),
+with the synthetic capture `mb-614-community-resource-attachment.png`.
+
 MB-549's persisted appointment-reminder preference, safe entry route, and
 focused consumer checks are documented in
 [`mb-549-appointment-reminder-consumer.md`](mb-549-appointment-reminder-consumer.md).

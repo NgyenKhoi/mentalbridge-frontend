@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   upload: vi.fn(),
   remove: vi.fn(),
   push: vi.fn(),
+  catalogue: vi.fn(),
 }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
@@ -15,6 +16,9 @@ vi.mock('@/features/community/api/browser-community', () => ({
   createCommunityPost: mocks.create,
   uploadCommunityMedia: mocks.upload,
   deleteCommunityMedia: mocks.remove,
+}))
+vi.mock('@/features/resources/api/browser-resources', () => ({
+  getResourceCatalogue: mocks.catalogue,
 }))
 
 import CommunityPostComposer from './CommunityPostComposer'
@@ -35,6 +39,7 @@ const topics = [
 describe('CommunityPostComposer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.catalogue.mockResolvedValue({ items: [], hasMore: false })
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       value: vi.fn(() => 'blob:preview'),
@@ -102,6 +107,34 @@ describe('CommunityPostComposer', () => {
 
     expect(mocks.create).toHaveBeenCalledWith(
       expect.objectContaining({ authorMode: 'ANONYMOUS' }),
+      expect.any(String),
+    )
+  })
+
+  it('attaches one published MentalBridge resource to the command', async () => {
+    const user = userEvent.setup()
+    const resourceId = '40000000-0000-4000-8000-000000000001'
+    mocks.catalogue.mockResolvedValue({
+      items: [{ id: resourceId, title: 'Thở chậm trong hai phút' }],
+      hasMore: false,
+    })
+    mocks.create.mockResolvedValue({
+      post: { postId: '20000000-0000-4000-8000-000000000009' },
+      version: 0,
+    })
+    render(<CommunityPostComposer topics={topics} />)
+
+    await user.click(screen.getByRole('button', { name: 'Viết bài' }))
+    await user.type(screen.getByLabelText('Nội dung'), 'Một tài nguyên hữu ích')
+    await user.click(screen.getByText('Câu chuyện của tôi'))
+    await user.selectOptions(
+      await screen.findByLabelText(/Tài nguyên MentalBridge/),
+      resourceId,
+    )
+    await user.click(screen.getByRole('button', { name: 'Đăng câu chuyện' }))
+
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ resourceId }),
       expect.any(String),
     )
   })

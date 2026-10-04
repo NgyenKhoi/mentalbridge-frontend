@@ -14,6 +14,7 @@ import CommunityMedia from './CommunityMedia'
 import CommunityPostComposer from './CommunityPostComposer'
 import CommunityAvatar from './CommunityAvatar'
 import CommunityInteractions from './CommunityInteractions'
+import CommunityResourceAttachment from './CommunityResourceAttachment'
 
 type FeedPost = Omit<CommunityPostDetail, 'content'> & {
   contentPreview: string
@@ -292,6 +293,11 @@ export default function CommunityFeed() {
                 <p className="community-card-copy">{post.contentPreview}</p>
                 <CommunityMedia media={post.media} />
                 <MediaNotice availability={post.mediaAvailability} />
+                {post.resourceAttachment && (
+                  <CommunityResourceAttachment
+                    resourceId={post.resourceAttachment.resourceId}
+                  />
+                )}
                 <footer>
                   {post.viewerState ? (
                     <CommunityInteractions
