@@ -21,8 +21,7 @@ fi
 export CI="${CI:-true}"
 npx expo run:android \
   --variant release \
-  --no-bundler \
-  --device "$device"
+  --no-bundler
 
 adb -s "$device" shell am force-stop "$app_id"
 adb -s "$device" shell monkey \
