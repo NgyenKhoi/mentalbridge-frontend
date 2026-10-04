@@ -85,14 +85,44 @@ jobs:
             mentalbridge/test-results
           if-no-files-found: warn
 
+  mobile-release-quality:
+    name: Staging mobile checks
+    needs: [promotion-policy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_BASE_URL: https://api.test.mentalbridge
+      EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run mobile quality gate
+        run: npm run quality
+
   staging-quality-gate:
     name: staging-quality-gate
     if: always()
-    needs: [promotion-policy, release-quality]
+    needs: [promotion-policy, release-quality, mobile-release-quality]
     runs-on: ubuntu-24.04
     steps:
       - name: Require staging release checks
-        if: needs.promotion-policy.result != 'success' || needs.release-quality.result != 'success'
+        if: needs.promotion-policy.result != 'success' || needs.release-quality.result != 'success' || needs.mobile-release-quality.result != 'success'
         run: exit 1
       - name: Confirm staging quality gate
         run: echo "All required staging release checks passed."

@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "MentalBridge",
+    "slug": "mentalbridge-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "mentalbridge",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mentalbridge.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.mentalbridge.mobile",
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "Cho phép MentalBridge xác thực để bảo vệ phiên đăng nhập của bạn."
+        }
+      ],
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
