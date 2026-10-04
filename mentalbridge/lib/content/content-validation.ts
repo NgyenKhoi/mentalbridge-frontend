@@ -454,6 +454,28 @@ function exactKeys(value: Record<string, unknown>, allowed: readonly string[]) {
   return keys.length > 0 && keys.every((key) => allowed.includes(key))
 }
 
+// Like exactKeys but also permits the optional appointmentRemindersEnabled field
+// that was added in MB-517. Old backends omit it; new backends include it.
+const EMAIL_REQUIRED_KEYS = [
+  'cadence',
+  'wellbeingDigestEnabled',
+  'resourceRemindersEnabled',
+  'dailyDigestTime',
+  'resourceReminderTime',
+] as const
+const EMAIL_ALLOWED_KEYS = [
+  ...EMAIL_REQUIRED_KEYS,
+  'appointmentRemindersEnabled',
+] as const
+
+function allowedEmailKeys(value: Record<string, unknown>): boolean {
+  const keys = Object.keys(value)
+  return (
+    EMAIL_REQUIRED_KEYS.every((key) => key in value) &&
+    keys.every((key) => (EMAIL_ALLOWED_KEYS as readonly string[]).includes(key))
+  )
+}
+
 function booleanObject(
   value: unknown,
   allowed: readonly string[],
@@ -509,17 +531,13 @@ export function parseNotificationPreferences(
     quietHours.timeZone.length < 1 ||
     quietHours.timeZone.length > 64 ||
     !email ||
-    !exactKeys(email, [
-      'cadence',
-      'wellbeingDigestEnabled',
-      'resourceRemindersEnabled',
-      'dailyDigestTime',
-      'resourceReminderTime',
-    ]) ||
+    !allowedEmailKeys(email) ||
     typeof email.cadence !== 'string' ||
     !EMAIL_CADENCES.has(email.cadence) ||
     typeof email.wellbeingDigestEnabled !== 'boolean' ||
     typeof email.resourceRemindersEnabled !== 'boolean' ||
+    (email.appointmentRemindersEnabled !== undefined &&
+      typeof email.appointmentRemindersEnabled !== 'boolean') ||
     typeof email.dailyDigestTime !== 'string' ||
     !TIME.test(email.dailyDigestTime) ||
     typeof email.resourceReminderTime !== 'string' ||
@@ -596,6 +614,7 @@ export function parseNotificationPreferencePatch(
         'cadence',
         'wellbeingDigestEnabled',
         'resourceRemindersEnabled',
+        'appointmentRemindersEnabled',
         'dailyDigestTime',
         'resourceReminderTime',
       ]) ||
@@ -606,6 +625,8 @@ export function parseNotificationPreferencePatch(
         typeof email.wellbeingDigestEnabled !== 'boolean') ||
       (email.resourceRemindersEnabled !== undefined &&
         typeof email.resourceRemindersEnabled !== 'boolean') ||
+      (email.appointmentRemindersEnabled !== undefined &&
+        typeof email.appointmentRemindersEnabled !== 'boolean') ||
       (email.dailyDigestTime !== undefined &&
         (typeof email.dailyDigestTime !== 'string' ||
           !TIME.test(email.dailyDigestTime))) ||

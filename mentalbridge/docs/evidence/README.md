@@ -1,5 +1,9 @@
 # Synthetic browser evidence
 
+MB-549's persisted appointment-reminder preference, safe entry route, and
+focused consumer checks are documented in
+[`mb-549-appointment-reminder-consumer.md`](mb-549-appointment-reminder-consumer.md).
+
 MB-380 produces `mb-380-appointment-changes.png` from the controlled
 appointment cancellation journey. The same focused Playwright file verifies
 that cancellation and replacement commands preserve the exact appointment
