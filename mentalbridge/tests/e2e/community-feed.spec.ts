@@ -18,10 +18,11 @@ test.describe('Community feed journey', () => {
     'The deterministic Community fixture journey does not run against live data.',
   )
 
-  test('browses paged posts, filters by an explicit topic and opens full detail', async ({
+  test('browses paged posts, filters by multiple explicit topics and opens full detail', async ({
     page,
     request,
   }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
     const reset = await request.post(`${identityFixtureUrl}/__test/reset`)
     expect(reset.status()).toBe(204)
     await login(page)
@@ -41,7 +42,15 @@ test.describe('Community feed journey', () => {
     await expect(page.getByText('Minh An')).toBeVisible()
     await expect(page.getByText('Thành viên đã rời cộng đồng')).toHaveCount(0)
 
-    await page.getByRole('link', { name: /Đọc bài viết/ }).click()
+    await page.getByRole('button', { name: 'Điều mình nhận ra' }).click()
+    await expect(page.getByText('Minh An')).toBeVisible()
+    await page.getByRole('button', { name: 'Xem thêm câu chuyện' }).click()
+    await expect(page.getByText('Thành viên đã rời cộng đồng')).toBeVisible()
+    await expect(page.getByText(/Đang lọc theo 2 chủ đề/)).toBeVisible()
+    await page
+      .getByRole('link', { name: /Đọc bài viết/ })
+      .first()
+      .click()
     await expect(page).toHaveURL(
       /\/community\/50000000-0000-4000-8000-000000000002$/,
     )

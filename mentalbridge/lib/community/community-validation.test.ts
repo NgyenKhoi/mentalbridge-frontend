@@ -264,7 +264,7 @@ describe('Community response validation', () => {
     ).toBeNull()
   })
 
-  it('requires the complete unique governed topic catalogue', () => {
+  it('accepts an empty or partially active unique governed topic catalogue', () => {
     const topics = [
       'MY_STORY',
       'SMALL_MILESTONE',
@@ -275,7 +275,8 @@ describe('Community response validation', () => {
     ].map((code) => ({ code, label: code, description: `Mô tả ${code}` }))
 
     expect(parseCommunityTopics(topics)).not.toBeNull()
-    expect(parseCommunityTopics(topics.slice(0, 5))).toBeNull()
+    expect(parseCommunityTopics([])).toEqual([])
+    expect(parseCommunityTopics(topics.slice(0, 5))).toEqual(topics.slice(0, 5))
     expect(parseCommunityTopics([...topics.slice(0, 5), topics[0]])).toBeNull()
   })
 

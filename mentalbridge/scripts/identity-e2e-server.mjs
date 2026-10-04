@@ -1067,10 +1067,12 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/api/v1/community/feed') {
       const actor = journalActor(request, response)
       if (!actor) return
-      const topic = url.searchParams.get('topic')
+      const topics = url.searchParams.getAll('topic')
       const cursor = url.searchParams.get('cursor')
-      const matching = topic
-        ? communityPosts.filter((post) => post.topics.includes(topic))
+      const matching = topics.length
+        ? communityPosts.filter((post) =>
+            post.topics.some((topic) => topics.includes(topic)),
+          )
         : communityPosts
       const offset = cursor === 'community-next' ? 1 : 0
       const items = matching

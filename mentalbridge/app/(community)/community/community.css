@@ -687,6 +687,17 @@
   color: #fff;
 }
 
+.community-topics button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.community-topic-status {
+  margin: -12px 0 24px;
+  color: var(--community-muted);
+  font-size: 0.9rem;
+}
+
 .community-feed {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

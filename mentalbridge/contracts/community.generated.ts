@@ -598,7 +598,8 @@ export interface operations {
     browseCommunityFeed: {
         parameters: {
             query?: {
-                topic?: components["schemas"]["CommunityTopicCode"];
+                /** @description Repeat one to three distinct active governed topic codes. Results match any selected topic; omit the parameter for the unfiltered newest-first feed. */
+                topic?: components["schemas"]["CommunityTopicCode"][];
                 cursor?: string;
                 limit?: number;
             };
@@ -1244,7 +1245,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Governed non-diagnostic Community topic catalogue. */
+            /** @description Active governed non-diagnostic Community topic catalogue in display order. An empty array means no topic is currently available. */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -124,7 +124,7 @@ describe('/api/community read BFF', () => {
     })
     const response = await getFeed(
       request(
-        'http://localhost/api/community/feed?topic=MY_STORY&limit=12&cursor=opaque-current',
+        'http://localhost/api/community/feed?topic=MY_STORY&topic=SMALL_MILESTONE&limit=12&cursor=opaque-current',
       ),
     )
 
@@ -136,7 +136,7 @@ describe('/api/community read BFF', () => {
       expect.any(String),
     )
     expect(communityMocks.feed.mock.calls[0][1].toString()).toBe(
-      'topic=MY_STORY&limit=12&cursor=opaque-current',
+      'topic=MY_STORY&topic=SMALL_MILESTONE&limit=12&cursor=opaque-current',
     )
     expect(sessionMocks.ensureRole).toHaveBeenCalledWith(expect.any(Object), [
       'USER',
@@ -146,6 +146,8 @@ describe('/api/community read BFF', () => {
   it('rejects profiling and malformed feed parameters before calling Community', async () => {
     for (const query of [
       'topic=PHQ9_MODERATE',
+      'topic=MY_STORY&topic=MY_STORY',
+      'topic=MY_STORY&topic=SMALL_MILESTONE&topic=PEER_QUESTION&topic=HELPFUL_RESOURCE',
       'limit=51',
       'cursor=https://bad',
       'emotion=SAD',

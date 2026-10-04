@@ -20,7 +20,27 @@ import {
   deleteCommunityReaction,
   putCommunityBookmark,
   deleteCommunityBookmark,
+  getCommunityFeed,
 } from './browser-community'
+
+describe('Community feed browser API', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('serializes one to three explicit topic filters as repeated query values', async () => {
+    api.get.mockResolvedValue({
+      data: { items: [], nextCursor: null, hasMore: false },
+    })
+
+    await getCommunityFeed(['MY_STORY', 'SMALL_MILESTONE'], 'opaque-cursor')
+
+    expect(api.get).toHaveBeenCalledWith('/community/feed', {
+      params: expect.any(URLSearchParams),
+    })
+    expect(api.get.mock.calls[0][1].params.toString()).toBe(
+      'limit=12&topic=MY_STORY&topic=SMALL_MILESTONE&cursor=opaque-cursor',
+    )
+  })
+})
 
 describe('uploadCommunityMedia', () => {
   beforeEach(() => {
