@@ -36,6 +36,7 @@ const post: CommunityFeedPage['items'][number] = {
   mediaAvailability: 'PARTIAL',
   counts: { comments: 2, reactions: 3 },
   viewerState: { reaction: null, bookmarked: false },
+  sensitiveContentWarning: null,
   publishedAt: '2026-09-29T05:00:00Z',
   updatedAt: '2026-09-29T05:00:00Z',
 }
@@ -70,6 +71,29 @@ describe('CommunityFeed', () => {
       'href',
       `/community/${post.postId}`,
     )
+  })
+
+  it('conceals warned body and media state until the reader explicitly reveals it', async () => {
+    const user = userEvent.setup()
+    api.feed.mockResolvedValueOnce({
+      items: [
+        { ...post, sensitiveContentWarning: 'SENSITIVE_CONTENT' as const },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    })
+
+    render(<CommunityFeed />)
+
+    expect(await screen.findByText('Nội dung nhạy cảm')).toBeVisible()
+    expect(screen.queryByText(post.contentPreview)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/Một số nội dung đa phương tiện/),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Đọc bài viết/ })).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'Xem nội dung' }))
+    expect(screen.getByText(post.contentPreview)).toBeVisible()
   })
 
   it('keeps interaction controls hidden for a legacy v1.5 feed response', async () => {

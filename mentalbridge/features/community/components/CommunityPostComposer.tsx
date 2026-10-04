@@ -28,6 +28,9 @@ export default function CommunityPostComposer({
   )
   const [mediaBusy, setMediaBusy] = useState(false)
   const [resourceId, setResourceId] = useState<string | null>(null)
+  const [sensitiveContentWarning, setSensitiveContentWarning] = useState<
+    'SENSITIVE_CONTENT' | null
+  >(null)
   const [message, setMessage] = useState('')
   const command = useRef<{ signature: string; key: string } | undefined>(
     undefined,
@@ -68,6 +71,7 @@ export default function CommunityPostComposer({
       mediaIds,
       authorMode,
       resourceId,
+      sensitiveContentWarning,
     }
     const signature = JSON.stringify(input)
     if (!command.current || command.current.signature !== signature) {
@@ -199,6 +203,28 @@ export default function CommunityPostComposer({
           setMessage('')
         }}
       />
+      <fieldset className="community-sensitive-choice">
+        <legend>Cảnh báo nội dung</legend>
+        <label>
+          <input
+            type="checkbox"
+            checked={sensitiveContentWarning === 'SENSITIVE_CONTENT'}
+            onChange={(event) => {
+              setSensitiveContentWarning(
+                event.target.checked ? 'SENSITIVE_CONTENT' : null,
+              )
+              setMessage('')
+            }}
+          />
+          <span>
+            <strong>Thêm cảnh báo nội dung nhạy cảm</strong>
+            <small>
+              Dùng khi câu chuyện có chi tiết người đọc có thể muốn chuẩn bị
+              trước. Đây không phải nhãn chẩn đoán hay đánh giá mức độ.
+            </small>
+          </span>
+        </label>
+      </fieldset>
       {message && (
         <p className="community-form-error" role="alert">
           {message}

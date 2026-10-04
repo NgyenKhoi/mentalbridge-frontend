@@ -331,6 +331,11 @@ export interface components {
         };
         /** @enum {string} */
         CommunityPostAuthorMode: "PROFILE" | "ANONYMOUS";
+        /**
+         * @description Optional non-clinical Community presentation warning. Absence means no warning; the value is never inferred from sentiment, distress language, screening, Journal, Care, or AI data.
+         * @enum {string}
+         */
+        CommunitySensitiveContentWarning: "SENSITIVE_CONTENT";
         CommunityCounts: {
             comments: number;
             reactions: number;
@@ -357,6 +362,7 @@ export interface components {
             /** @enum {string} */
             mediaAvailability: "NONE" | "READY" | "PARTIAL" | "UNAVAILABLE";
             resourceAttachment?: components["schemas"]["CommunityResourceAttachment"] | null;
+            sensitiveContentWarning?: components["schemas"]["CommunitySensitiveContentWarning"] | null;
             counts: components["schemas"]["CommunityCounts"];
             viewerState: components["schemas"]["CommunityViewerState"];
             /** Format: date-time */
@@ -374,6 +380,7 @@ export interface components {
             /** @enum {string} */
             mediaAvailability: "NONE" | "READY" | "PARTIAL" | "UNAVAILABLE";
             resourceAttachment?: components["schemas"]["CommunityResourceAttachment"] | null;
+            sensitiveContentWarning?: components["schemas"]["CommunitySensitiveContentWarning"] | null;
             counts: components["schemas"]["CommunityCounts"];
             viewerState: components["schemas"]["CommunityViewerState"];
             /** Format: date-time */
@@ -397,6 +404,8 @@ export interface components {
              * @description Optional stable Content-owned Resource identifier. Null or omission means no attachment; Community never accepts a ResourceVersion or Resource body.
              */
             resourceId?: string | null;
+            /** @description Author-selected warning for this post. Null or omission means no warning; the service never infers this value from the post text. */
+            sensitiveContentWarning?: components["schemas"]["CommunitySensitiveContentWarning"] | null;
         };
         UpdatePostRequest: components["schemas"]["CreatePostRequest"];
         /** @description Minimal logical reference to a Content-owned Resource. Current availability and display metadata are resolved through the Content contract. */
@@ -525,7 +534,7 @@ export interface components {
         /** @enum {string} */
         ModerationPriority: "NORMAL" | "HIGH";
         /** @enum {string} */
-        ModerationAction: "NO_ACTION" | "HIDE" | "REMOVE" | "RESTORE" | "RESTRICT_COMMUNITY_ACCESS";
+        ModerationAction: "NO_ACTION" | "HIDE" | "REMOVE" | "RESTORE" | "RESTRICT_COMMUNITY_ACCESS" | "APPLY_SENSITIVE_WARNING" | "REMOVE_SENSITIVE_WARNING";
         ModerationCase: {
             /** Format: uuid */
             caseId: string;

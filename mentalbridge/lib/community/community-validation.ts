@@ -2,17 +2,25 @@ import type { components } from '@/contracts/community.generated'
 
 export type CommunityAuthor = components['schemas']['CommunityAuthor']
 export type CommunityViewerState = components['schemas']['CommunityViewerState']
+export type CommunitySensitiveContentWarning =
+  components['schemas']['CommunitySensitiveContentWarning']
 type ContractCommunityPostSummary =
   components['schemas']['CommunityPostSummary']
 type ContractCommunityPostDetail = components['schemas']['CommunityPostDetail']
 export type CommunityPostSummary = Omit<
   ContractCommunityPostSummary,
-  'viewerState'
-> & { viewerState?: CommunityViewerState }
+  'viewerState' | 'sensitiveContentWarning'
+> & {
+  viewerState?: CommunityViewerState
+  sensitiveContentWarning: CommunitySensitiveContentWarning | null
+}
 export type CommunityPostDetail = Omit<
   ContractCommunityPostDetail,
-  'viewerState'
-> & { viewerState?: CommunityViewerState }
+  'viewerState' | 'sensitiveContentWarning'
+> & {
+  viewerState?: CommunityViewerState
+  sensitiveContentWarning: CommunitySensitiveContentWarning | null
+}
 export type CommunityFeedPage = Omit<
   components['schemas']['CommunityFeedPage'],
   'items'
@@ -82,6 +90,9 @@ const AVATAR_PRESETS = new Set<CommunityAvatarPreset>([
   'SPROUT',
 ])
 const POST_AUTHOR_MODES = new Set(['PROFILE', 'ANONYMOUS'])
+const SENSITIVE_CONTENT_WARNINGS = new Set<CommunitySensitiveContentWarning>([
+  'SENSITIVE_CONTENT',
+])
 const COMMENT_STATES = new Set([
   'ACTIVE',
   'OWNER_DELETED',
@@ -111,6 +122,8 @@ const MODERATION_ACTIONS = new Set([
   'REMOVE',
   'RESTORE',
   'RESTRICT_COMMUNITY_ACCESS',
+  'APPLY_SENSITIVE_WARNING',
+  'REMOVE_SENSITIVE_WARNING',
 ])
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -433,9 +446,11 @@ function parsePost(
     'publishedAt',
     'updatedAt',
   ]
-  const optionalKeys = ['viewerState', 'resourceAttachment'].filter((key) =>
-    Object.hasOwn(post ?? {}, key),
-  )
+  const optionalKeys = [
+    'viewerState',
+    'resourceAttachment',
+    'sensitiveContentWarning',
+  ].filter((key) => Object.hasOwn(post ?? {}, key))
   const resourceAttachment = record(post?.resourceAttachment)
   if (
     !post ||
@@ -462,6 +477,12 @@ function parsePost(
         !exactKeys(resourceAttachment, ['resourceId']) ||
         typeof resourceAttachment.resourceId !== 'string' ||
         !UUID.test(resourceAttachment.resourceId))) ||
+    (post.sensitiveContentWarning !== undefined &&
+      post.sensitiveContentWarning !== null &&
+      (typeof post.sensitiveContentWarning !== 'string' ||
+        !SENSITIVE_CONTENT_WARNINGS.has(
+          post.sensitiveContentWarning as CommunitySensitiveContentWarning,
+        ))) ||
     !parseCounts(post.counts) ||
     ('viewerState' in post && !parseViewerState(post.viewerState)) ||
     !dateTime(post.publishedAt) ||
@@ -473,6 +494,9 @@ function parsePost(
     ...post,
     author,
     resourceAttachment: resourceAttachment ?? null,
+    sensitiveContentWarning:
+      (post.sensitiveContentWarning as CommunitySensitiveContentWarning) ??
+      null,
   } as CommunityPostSummary | CommunityPostDetail
 }
 
@@ -498,9 +522,13 @@ export function parseCommunityPostWrite(
   const input = record(value)
   const hasAuthorMode = Boolean(input && Object.hasOwn(input, 'authorMode'))
   const hasResourceId = Boolean(input && Object.hasOwn(input, 'resourceId'))
+  const hasSensitiveContentWarning = Boolean(
+    input && Object.hasOwn(input, 'sensitiveContentWarning'),
+  )
   const keys = ['content', 'topics', 'mediaIds']
   if (hasAuthorMode) keys.push('authorMode')
   if (hasResourceId) keys.push('resourceId')
+  if (hasSensitiveContentWarning) keys.push('sensitiveContentWarning')
   if (
     !input ||
     !exactKeys(input, keys) ||
@@ -525,7 +553,13 @@ export function parseCommunityPostWrite(
         !POST_AUTHOR_MODES.has(input.authorMode))) ||
     (hasResourceId &&
       input.resourceId !== null &&
-      (typeof input.resourceId !== 'string' || !UUID.test(input.resourceId)))
+      (typeof input.resourceId !== 'string' || !UUID.test(input.resourceId))) ||
+    (hasSensitiveContentWarning &&
+      input.sensitiveContentWarning !== null &&
+      (typeof input.sensitiveContentWarning !== 'string' ||
+        !SENSITIVE_CONTENT_WARNINGS.has(
+          input.sensitiveContentWarning as CommunitySensitiveContentWarning,
+        )))
   ) {
     return null
   }

@@ -111,6 +111,35 @@ describe('CommunityPostComposer', () => {
     )
   })
 
+  it('sends an explicit sensitive-content warning only when the author selects it', async () => {
+    const user = userEvent.setup()
+    mocks.create.mockResolvedValue({
+      post: { postId: '20000000-0000-4000-8000-000000000009' },
+      version: 0,
+    })
+    render(<CommunityPostComposer topics={topics} />)
+
+    await user.click(screen.getByRole('button', { name: 'Viết bài' }))
+    await user.type(
+      screen.getByLabelText('Nội dung'),
+      'Một chia sẻ cần cảnh báo',
+    )
+    await user.click(screen.getByText('Câu chuyện của tôi'))
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: /Thêm cảnh báo nội dung nhạy cảm/,
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Đăng câu chuyện' }))
+
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sensitiveContentWarning: 'SENSITIVE_CONTENT',
+      }),
+      expect.any(String),
+    )
+  })
+
   it('attaches one published MentalBridge resource to the command', async () => {
     const user = userEvent.setup()
     const resourceId = '40000000-0000-4000-8000-000000000001'
