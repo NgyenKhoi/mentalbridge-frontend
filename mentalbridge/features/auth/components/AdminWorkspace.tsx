@@ -4,6 +4,7 @@ import SessionActions from './SessionActions'
 import WorkspaceSwitcher from './WorkspaceSwitcher'
 import AdminContentSection from './AdminContentSection'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
+import AdminAccountManager from './AdminAccountManager'
 import AdminCommunityModerationSection from '@/features/community/components/AdminCommunityModerationSection'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
@@ -17,7 +18,7 @@ const SECTIONS = {
   accounts: {
     label: 'Tài khoản',
     description:
-      'Khu vực quản lý vòng đời tài khoản. Chưa tải dữ liệu cho đến khi API quản trị được phê duyệt.',
+      'Tra cứu, tạm ngưng và khôi phục tài khoản với quyền quản trị được bảo vệ.',
   },
   specialists: {
     label: 'Chuyên gia',
@@ -86,6 +87,8 @@ export default function AdminWorkspace({
           <AdminContentSection />
         ) : section === 'specialists' ? (
           <AdminSpecialistReviewSection />
+        ) : section === 'accounts' ? (
+          <AdminAccountManager />
         ) : section === 'moderation' ? (
           <AdminCommunityModerationSection />
         ) : (
