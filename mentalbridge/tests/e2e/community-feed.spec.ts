@@ -101,6 +101,45 @@ test.describe('Community feed journey', () => {
     ).toHaveCount(0)
   })
 
+  test('persists one reviewed resource attachment across reload and opens Resources', async ({
+    page,
+    request,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    const reset = await request.post(`${identityFixtureUrl}/__test/reset`)
+    expect(reset.status()).toBe(204)
+    await login(page)
+    await page.goto('/community')
+
+    await page.locator('.community-composer-collapsed button').click()
+    await page
+      .locator('#community-post-content')
+      .fill('Tài nguyên này đã giúp mình dừng lại và thở chậm hơn.')
+    await page.locator('.community-topic-choices label').last().click()
+    await page
+      .locator('#community-resource-select')
+      .selectOption('30000000-0000-4000-8000-000000000001')
+    await page.locator('.community-form-actions button').last().click()
+
+    await expect(page).toHaveURL(/\/community\/[0-9a-f-]+$/)
+    await page.reload()
+    const resourceLink = page.locator(
+      'a[href="/resources/30000000-0000-4000-8000-000000000001"]',
+    )
+    await expect(resourceLink).toContainText('Published Resource')
+    await page.screenshot({
+      path: 'docs/evidence/mb-614-community-resource-attachment.png',
+      fullPage: true,
+    })
+    await resourceLink.click()
+    await expect(page).toHaveURL(
+      /\/resources\/30000000-0000-4000-8000-000000000001$/,
+    )
+    await expect(
+      page.getByRole('heading', { name: 'Published Resource' }),
+    ).toBeVisible()
+  })
+
   test('creates and updates a private Community display identity', async ({
     page,
     request,

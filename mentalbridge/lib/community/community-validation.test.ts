@@ -57,6 +57,45 @@ describe('Community response validation', () => {
     ).not.toBeNull()
   })
 
+  it('accepts one resource reference, normalizes legacy posts and rejects drift', () => {
+    const resourceId = '40000000-0000-4000-8000-000000000001'
+    const legacy = parseCommunityPostDetail({
+      ...post,
+      content: 'Nội dung cũ vẫn đọc được.',
+    })
+    const current = parseCommunityPostDetail({
+      ...post,
+      content: 'Nội dung có tài nguyên.',
+      resourceAttachment: { resourceId },
+    })
+
+    expect(legacy?.resourceAttachment).toBeNull()
+    expect(current?.resourceAttachment).toEqual({ resourceId })
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        content: 'Không chấp nhận metadata do Community tự giữ.',
+        resourceAttachment: { resourceId, title: 'Bản sao không hợp lệ' },
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityPostWrite({
+        content: 'Chia sẻ tài nguyên',
+        topics: ['HELPFUL_RESOURCE'],
+        mediaIds: [],
+        resourceId,
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityPostWrite({
+        content: 'Sai định danh',
+        topics: ['HELPFUL_RESOURCE'],
+        mediaIds: [],
+        resourceId: 'not-a-uuid',
+      }),
+    ).toBeNull()
+  })
+
   it('accepts legacy v1.5 posts without inventing interaction capability', () => {
     const legacyPost = { ...post }
     Reflect.deleteProperty(legacyPost, 'viewerState')

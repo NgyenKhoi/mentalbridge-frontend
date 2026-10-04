@@ -11,6 +11,15 @@ const contentResources = [
   {
     id: '30000000-0000-4000-8000-000000000001',
     category: 'ARTICLE',
+    resourceKind: 'LEARNING',
+    interactionType: 'STRUCTURED_READER',
+    repeatability: 'REPEATABLE',
+    completionMode: 'EXPLICIT',
+    streakEligible: false,
+    expectedDurationMinutes: 5,
+    cooldownDays: 0,
+    recommendedFrequencyPerWeek: 1,
+    planTags: [],
     locale: 'en-US',
     title: 'Published Resource',
     summary: 'Reviewed support content from the controlled provider fixture.',
@@ -18,6 +27,10 @@ const contentResources = [
     status: 'PUBLISHED',
     reviewedAt: '2026-08-01T00:00:00Z',
     contentBody: 'Published fixture body.',
+    contentVersion: '1',
+    sourceTitle: null,
+    sourceUrl: null,
+    sourceReviewNote: null,
     reviewedBy: '10000000-0000-4000-8000-000000000006',
     effectiveAt: null,
     expiresAt: null,
@@ -1147,6 +1160,9 @@ const server = createServer(async (request, response) => {
         topics: body.topics,
         media: [],
         mediaAvailability: 'NONE',
+        resourceAttachment: body.resourceId
+          ? { resourceId: body.resourceId }
+          : null,
         counts: { comments: 0, reactions: 0 },
         viewerState: { reaction: null, bookmarked: false },
         publishedAt: now,
@@ -1284,6 +1300,9 @@ const server = createServer(async (request, response) => {
       const body = await readBody(request)
       post.content = body.content
       post.topics = body.topics
+      post.resourceAttachment = body.resourceId
+        ? { resourceId: body.resourceId }
+        : null
       if (body.authorMode === 'ANONYMOUS') {
         post.author = {
           communityProfileId: null,
@@ -1530,6 +1549,32 @@ const server = createServer(async (request, response) => {
           (resource) => resource.status === 'PUBLISHED',
         ).length,
       })
+      return
+    }
+
+    const publicResourceDetail = url.pathname.match(
+      /^\/api\/v1\/resources\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'GET' && publicResourceDetail) {
+      const resource = contentResources.find(
+        ({ id, status }) =>
+          id === publicResourceDetail[1] && status === 'PUBLISHED',
+      )
+      if (!resource) {
+        problem(response, 404, 'RESOURCE_NOT_FOUND', 'Resource not found')
+      } else {
+        json(response, 200, resource)
+      }
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/resource-progress'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      json(response, 200, { items: [] })
       return
     }
 
