@@ -598,6 +598,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialist/client-continuity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List appointment-bounded client continuity rows
+         * @description Composes Consultation-owned assigned relationships with Care-owned display identity and current brief-access provenance. It returns no brief content, raw journal, assessment answers, AI analysis, SupportPlan state, or private chat.
+         */
+        get: operations["listAssignedSpecialistClientContinuity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/support-evaluations": {
         parameters: {
             query?: never;
@@ -1253,6 +1273,47 @@ export interface components {
             snapshotVersion: number;
             /** Format: date-time */
             approvedAt: string;
+            /** Format: date-time */
+            accessStartAt: string;
+            /** Format: date-time */
+            accessEndAt: string;
+            /** @constant */
+            sourceType: "CONSULTATION_BRIEF";
+        };
+        SpecialistClientContinuityItem: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            userDisplayName: string;
+            /** @enum {string} */
+            status: "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED";
+            /** @enum {string} */
+            modality: "IN_APP_CHAT" | "IN_APP_VIDEO";
+            /** Format: date-time */
+            scheduledStartAt: string;
+            /** Format: date-time */
+            scheduledEndAt: string;
+            /** Format: int64 */
+            appointmentVersion: number;
+            /** @enum {string} */
+            briefAccessState: "NOT_SHARED" | "REVOKED" | "STALE" | "TOO_EARLY" | "AVAILABLE" | "EXPIRED" | "UNAVAILABLE";
+            /** Format: int64 */
+            briefSnapshotVersion: number | null;
+            /** Format: date-time */
+            briefAccessStartAt: string | null;
+            /** Format: date-time */
+            briefAccessEndAt: string | null;
+        };
+        SpecialistClientContinuityList: {
+            items: components["schemas"]["SpecialistClientContinuityItem"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: date-time */
+            recentSince: string;
+            /** @constant */
+            policyVersion: "specialist-client-continuity-v1";
         };
         /** @description Half-open UTC period. Canonical v2 periods are issued by the Care reassessment context policy. */
         ReassessmentPeriod: {
@@ -2449,6 +2510,15 @@ export interface components {
         };
         /** @description Entitlement or exact resource eligibility could not be trusted (ENTITLEMENT_UNAVAILABLE or RESOURCE_ELIGIBILITY_UNAVAILABLE); no draft was created */
         SupportPlanDependencyProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description An authoritative dependency could not be verified; access fails closed. */
+        DependencyProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -3667,6 +3737,32 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
             410: components["responses"]["ConflictProblem"];
+        };
+    };
+    listAssignedSpecialistClientContinuity: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authorized current and recent consultation relationships */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistClientContinuityList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            503: components["responses"]["DependencyProblem"];
         };
     };
     listOwnScreeningSupportEvaluations: {
