@@ -11,6 +11,7 @@ import SpecialistAvailabilityManager from '@/features/specialist-availability/co
 import SpecialistAppointmentDecisionPanel from '@/features/appointments/components/SpecialistAppointmentDecisionPanel'
 import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
 import SpecialistContinuityManager from '@/features/appointments/components/SpecialistContinuityManager'
+import SpecialistOperationalDashboard from '@/features/specialist-dashboard/components/SpecialistOperationalDashboard'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
 import AdminUsersManager from './AdminUsersManager'
@@ -30,11 +31,7 @@ type Row = { id: string; title: string; meta: string; status: string; detail: st
 type Section = { label: string; description: string; rows: Row[]; tabs?: string[] }
 
 const specialistSections: Record<string, Section> = {
-  dashboard: { label: 'Tổng quan chuyên gia', description: 'Lịch làm việc, tin nhắn và các việc cần theo dõi hôm nay.', rows: [
-    { id: 's1', title: 'Lịch hẹn hôm nay', meta: '3 phiên tư vấn · Phiên tiếp theo 10:30', status: 'Đang hoạt động', detail: 'Lịch làm việc được tổng hợp từ các cuộc hẹn đã xác nhận.' },
-    { id: 's2', title: 'Yêu cầu đang chờ', meta: '2 yêu cầu đặt lịch mới', status: 'Cần xử lý', detail: 'Chỉ yêu cầu đang chờ mới có thể chấp nhận hoặc từ chối.' },
-    { id: 's3', title: 'Tiếp nối sau tư vấn', meta: 'Xem tóm tắt và các bước đã thống nhất', status: 'Mở khu vực', detail: 'Nội dung được sắp xếp theo từng lịch hẹn đã hoàn thành.' },
-  ]},
+  dashboard: { label: 'Tổng quan chuyên gia', description: 'Lịch làm việc và các việc cần theo dõi hôm nay.', rows: [] },
   appointments: { label: 'Quản lý lịch hẹn', description: 'Xử lý yêu cầu và theo dõi phiên tư vấn theo trạng thái.', rows: [
     { id: 'a1', title: 'Nguyễn Minh Anh', meta: 'Hôm nay · 10:30–11:15 · Video call', status: 'Đã xác nhận', detail: 'Phiên tư vấn 45 phút. Có thể yêu cầu đổi lịch hoặc đánh dấu hoàn thành sau phiên.' },
     { id: 'a2', title: 'Trần Gia Hân', meta: 'Ngày mai · 14:00–14:45', status: 'Chờ xác nhận', detail: 'Yêu cầu mới. Hãy xem ghi chú trước khi chấp nhận hoặc từ chối.' },
@@ -121,29 +118,6 @@ const navIcons: Record<string, string> = { dashboard: '⌂', appointments: '◷'
 
 const statusClass = (status: string) => /hoàn thành|thành công|hoạt động|đã duyệt|khả dụng|sẵn sàng|xuất bản|cấp quyền|xác nhận/i.test(status) ? 'ok' : /chờ|cần|thất bại|tạm khóa|ẩn/i.test(status) ? 'attention' : 'neutral'
 
-function SpecialistDashboard({ rows, onSelect }: { rows: Row[]; onSelect: (row: Row) => void }) {
-  const [appointment, requests] = rows
-  return <div className="specialist-command">
-    <div className="role-heading specialist-command-head"><div><span className="eyebrow">Không gian chuyên gia</span><h1>Chào buổi sáng, Thu Hà</h1><p>Mọi thông tin quan trọng cho ngày làm việc của bạn được tổng hợp tại đây.</p></div><Link className="btn-primary" href="/specialist/availability">+ Tạo lịch trống</Link></div>
-    <div className="specialist-command-grid">
-      <button className="specialist-pulse" onClick={() => onSelect(appointment)}>
-        <div className="specialist-card-kicker"><span>Nhịp làm việc hôm nay</span><b>14 tháng 8</b></div>
-        <div className="specialist-session-copy"><small>PHIÊN TIẾP THEO · 10:30</small><h2>Nguyễn Minh Anh</h2><p>Tư vấn video · 45 phút</p></div>
-        <div className="specialist-timeline" aria-label="Dòng thời gian lịch hẹn hôm nay"><span className="specialist-timeline-fill" /><i className="is-done" /><i className="is-now" /><i /></div>
-        <div className="specialist-time-labels"><span><b>08:30</b><small>Hoàn thành</small></span><span><b>10:30</b><small>Sắp diễn ra</small></span><span><b>15:00</b><small>Phiên cuối</small></span></div>
-        <div className="specialist-session-footer"><span><i /> Đã chuẩn bị ghi chú phiên</span><strong>Vào phòng tư vấn <b>→</b></strong></div>
-      </button>
-      <div className="specialist-command-stack">
-        <button className="specialist-mini-card is-amber" onClick={() => onSelect(requests)}><span className="specialist-mini-icon">↗</span><div><small>CẦN BẠN XỬ LÝ</small><strong>2 yêu cầu đặt lịch</strong><p>Xem và phản hồi trước cuối ngày</p></div><b>→</b></button>
-        <Link className="specialist-mini-card is-teal" href="/specialist/follow-up"><span className="specialist-mini-icon">✓</span><div><small>NỘI DUNG SAU PHIÊN</small><strong>Xem tóm tắt đã xuất bản</strong><p>Theo từng lịch hẹn đã hoàn thành</p></div><b>→</b></Link>
-        <div className="specialist-calm-note"><span>✦</span><p><strong>Một ngày cân bằng</strong> Bạn có 90 phút trống giữa hai phiên chiều.</p></div>
-      </div>
-    </div>
-    <div className="specialist-activity-head"><div><span className="eyebrow">Tổng quan nhanh</span><h2>Hoạt động cần chú ý</h2></div><button className="btn-ghost">Xem tất cả →</button></div>
-    <section className="specialist-activity-panel">{rows.map((row, index) => row.id === 's3' ? <Link className="specialist-activity-row" key={row.id} href="/specialist/follow-up"><span className={`specialist-activity-icon tone-${index}`}>✓</span><span className="specialist-activity-copy"><strong>{row.title}</strong><small>{row.meta}</small></span><span className={`role-status ${statusClass(row.status)}`}>{row.status}</span><span className="role-arrow">→</span></Link> : <button className="specialist-activity-row" key={row.id} onClick={() => onSelect(row)}><span className={`specialist-activity-icon tone-${index}`}>{index === 0 ? '◷' : '↗'}</span><span className="specialist-activity-copy"><strong>{row.title}</strong><small>{row.meta}</small></span><span className={`role-status ${statusClass(row.status)}`}>{row.status}</span><span className="role-arrow">→</span></button>)}</section>
-  </div>
-}
-
 export default function RoleWorkspace({
   role,
   sectionKey,
@@ -229,7 +203,7 @@ export default function RoleWorkspace({
     <motion.main className="role-main" layout="position" transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div><Link href={`/${role}/notifications`} className="role-bell" aria-label="Thông báo">○<b>3</b></Link></header>
       <div className={`role-content${role === 'specialist' && sectionKey === 'messages' ? ' role-content-messages' : ''}`}>
-        {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboard rows={section.rows} onSelect={setSelected} />}
+        {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistOperationalDashboard />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel />}
