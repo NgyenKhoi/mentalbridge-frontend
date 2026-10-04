@@ -12,6 +12,7 @@ decisions, appointments, or other business state.
 - React `19.2.3`
 - TypeScript `6.0.x` in strict mode
 - Node.js `22.13.0` or newer
+- Xcode `26.4` or newer for iOS native builds
 - npm with the committed `package-lock.json`
 - Expo Router `57.x` with protected route groups
 - TanStack Query `5.x`
@@ -56,8 +57,8 @@ device:
 npm run android
 ```
 
-iOS local builds require macOS and Xcode with an iOS Simulator or connected
-device:
+iOS local builds require macOS, Xcode 26.4 or newer, and an iOS Simulator or
+connected device:
 
 ```powershell
 npm run ios

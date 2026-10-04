@@ -190,7 +190,7 @@ jobs:
 
   mobile-ios-smoke:
     name: iOS native boot
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
     defaults:
       run:
@@ -210,6 +210,17 @@ jobs:
           node-version: '22.13'
           cache: npm
           cache-dependency-path: mobile/package-lock.json
+
+      - name: Verify Xcode version
+        run: |
+          xcodebuild -version
+          xcode_version="$(xcodebuild -version | awk 'NR == 1 { print $2 }')"
+          xcode_major="${xcode_version%%.*}"
+          xcode_minor="$(printf '%s' "$xcode_version" | cut -d. -f2)"
+          if (( xcode_major < 26 || (xcode_major == 26 && xcode_minor < 4) )); then
+            echo "Expo SDK 57 requires Xcode 26.4 or newer; found $xcode_version." >&2
+            exit 1
+          fi
 
       - name: Install dependencies
         run: npm ci

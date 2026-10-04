@@ -38,13 +38,17 @@ fi
 
 adb -s "$device" shell dumpsys window windows \
   >"$evidence_dir/android-window.txt"
-grep -E 'mCurrentFocus|mFocusedApp' "$evidence_dir/android-window.txt" \
-  >"$evidence_dir/android-focus.txt"
+adb -s "$device" shell dumpsys activity activities \
+  >"$evidence_dir/android-activity.txt"
+grep -E 'mResumedActivity|topResumedActivity|ResumedActivity' \
+  "$evidence_dir/android-activity.txt" \
+  >"$evidence_dir/android-focus.txt" || true
+adb -s "$device" exec-out screencap -p \
+  >"$evidence_dir/android-boot.png"
+
 if ! grep -Fq "$app_id" "$evidence_dir/android-focus.txt"; then
-  echo "Android app did not become the foreground window." >&2
+  echo "Android app did not become the resumed foreground activity." >&2
   exit 1
 fi
 
-adb -s "$device" exec-out screencap -p \
-  >"$evidence_dir/android-boot.png"
 printf 'Android native boot verified for %s with PID %s.\n' "$device" "$app_pid"

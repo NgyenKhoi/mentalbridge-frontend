@@ -8,10 +8,10 @@ prove that Gradle or Xcode can compile, install, and launch the native app.
 
 Pull requests that change `mobile/**` run two required smoke jobs:
 
-| Job                   | Agreed path exercised                               | Passing evidence                                                                                                                     |
-| --------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `Android native boot` | `expo run:android --variant release --no-bundler`   | CNG prebuild, Gradle compile, APK install, explicit launcher restart, live app PID, foreground-window assertion, screenshot artifact |
-| `iOS native boot`     | `expo run:ios --configuration Release --no-bundler` | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                       |
+| Job                   | Agreed path exercised                               | Passing evidence                                                                                                                    |
+| --------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `Android native boot` | `expo run:android --variant release --no-bundler`   | CNG prebuild, Gradle compile, APK install, explicit launcher restart, live app PID, resumed-activity assertion, screenshot artifact |
+| `iOS native boot`     | `expo run:ios --configuration Release --no-bundler` | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                      |
 
 Both jobs embed only the public test configuration from the workflow. Their
 `android-native-boot-*` and `ios-native-boot-*` artifacts contain the screenshot
@@ -37,9 +37,10 @@ npm run native:android:smoke
 
 Set `ANDROID_DEVICE` to an `adb devices` serial when more than one target is
 available. The script fails unless the package is installed, relaunched,
-remains alive, and owns a foreground window.
+remains alive, and owns Android's resumed foreground activity.
 
-iOS requires macOS, Xcode, CocoaPods, `jq`, and an installed iPhone Simulator:
+iOS requires macOS, Xcode 26.4 or newer, CocoaPods, `jq`, and an installed
+iPhone Simulator:
 
 ```bash
 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8080 \
