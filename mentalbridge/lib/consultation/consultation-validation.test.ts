@@ -6,6 +6,7 @@ import {
   parseAvailabilitySlotList,
   parseAppointment,
   parseAppointmentList,
+  parseAppointmentRating,
   parseAppointmentRequestInput,
   parseBookableSlotList,
   parseProfile,
@@ -44,6 +45,7 @@ const discoveryItem = {
   languages: ['vi'],
   yearsOfExperience: 6,
   timezone: 'Asia/Ho_Chi_Minh',
+  ratingAggregate: null,
   explanation: {
     compatibility: 'MATCHED',
     languageMatched: true,
@@ -77,7 +79,7 @@ const discoveryPage = {
   items: [discoveryItem],
   count: 1,
   nextCursor: null,
-  rankingPolicyVersion: 'specialist-discovery-v1',
+  rankingPolicyVersion: 'specialist-discovery-v2',
   generatedAt: '2099-01-01T00:00:00Z',
   contextState: 'APPLIED',
   packageCode: 'FREE',
@@ -86,6 +88,26 @@ const discoveryPage = {
 }
 
 describe('Consultation contract validation', () => {
+  it('accepts only a bounded appointment rating and truthful aggregate', () => {
+    const rating = {
+      appointmentId: '10a7e5d8-7960-42fb-9706-e642f849b78f',
+      specialistAccountId: '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
+      rating: 4,
+      createdAt: '2099-09-27T04:00:00Z',
+      updatedAt: '2099-09-27T04:00:00Z',
+      version: 2,
+      specialistAggregate: { averageRating: 4.25, ratingCount: 8 },
+    }
+    expect(parseAppointmentRating(rating)).toEqual(rating)
+    expect(parseAppointmentRating({ ...rating, rating: 6 })).toBeNull()
+    expect(
+      parseAppointmentRating({
+        ...rating,
+        specialistAggregate: { averageRating: 5.5, ratingCount: 8 },
+      }),
+    ).toBeNull()
+  })
+
   it('accepts only the approved specialist profile fields and enums', () => {
     expect(parseProfile(profile)).toEqual(profile)
     expect(

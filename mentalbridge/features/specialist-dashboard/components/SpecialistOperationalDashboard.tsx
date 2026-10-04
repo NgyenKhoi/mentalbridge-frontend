@@ -242,6 +242,7 @@ export default function SpecialistOperationalDashboard() {
         href: '/specialist/appointments',
       }
   const next = dashboard.nextAppointment.item
+  const rating = dashboard.ratingAggregate
 
   return (
     <div className={styles.dashboard}>
@@ -262,53 +263,8 @@ export default function SpecialistOperationalDashboard() {
         </Link>
       </header>
 
-      <section className={styles.metrics} aria-label="Số liệu vận hành">
-        <article>
-          <span className={styles.metricIcon} aria-hidden="true">
-            ◷
-          </span>
-          <div>
-            <p>Phiên đã xác nhận hôm nay</p>
-            <strong>{dashboard.todayConfirmedSessions.count}</strong>
-            <small>
-              {dashboard.todayConfirmedSessions.state === 'EMPTY'
-                ? 'Chưa có phiên nào hôm nay'
-                : 'Theo ngày tại múi giờ hồ sơ'}
-            </small>
-          </div>
-        </article>
-        <article>
-          <span className={styles.metricIcon} aria-hidden="true">
-            ↗
-          </span>
-          <div>
-            <p>Yêu cầu đang chờ</p>
-            <strong>{dashboard.pendingAppointmentRequests.count}</strong>
-            <small>
-              {dashboard.pendingAppointmentRequests.state === 'EMPTY'
-                ? 'Không có yêu cầu cần phản hồi'
-                : 'Còn trong thời hạn xử lý'}
-            </small>
-          </div>
-        </article>
-        <article>
-          <span className={styles.metricIcon} aria-hidden="true">
-            ▦
-          </span>
-          <div>
-            <p>Khung giờ có thể đặt</p>
-            <strong>{dashboard.availability.count}</strong>
-            <small>
-              {dashboard.availability.state === 'EMPTY'
-                ? 'Cần bổ sung lịch tương lai'
-                : 'Khung giờ trống trong tương lai'}
-            </small>
-          </div>
-        </article>
-      </section>
-
-      <div className={styles.contentGrid}>
-        <section className={styles.nextPanel} aria-labelledby="next-title">
+      <section className={styles.overview} aria-label="Tổng quan hôm nay">
+        <article className={styles.nextPanel} aria-labelledby="next-title">
           <div className={styles.panelHeading}>
             <div>
               <p className={styles.eyebrow}>Lịch sắp tới</p>
@@ -323,8 +279,9 @@ export default function SpecialistOperationalDashboard() {
               </span>
               <h3>{appointmentRange(next)}</h3>
               <p>
-                Trạng thái:{' '}
-                {next.status === 'IN_PROGRESS' ? 'Đang diễn ra' : 'Đã xác nhận'}
+                {next.status === 'IN_PROGRESS'
+                  ? 'Phiên đang diễn ra và sẵn sàng để tiếp tục.'
+                  : 'Phiên đã được xác nhận trong lịch của bạn.'}
               </p>
               <Link href="/specialist/appointments">
                 Mở quản lý lịch hẹn <span aria-hidden="true">→</span>
@@ -332,51 +289,129 @@ export default function SpecialistOperationalDashboard() {
             </div>
           ) : (
             <div className={styles.emptyState}>
-              <span aria-hidden="true">○</span>
-              <h3>Chưa có phiên đã xác nhận sắp tới</h3>
-              <p>Các yêu cầu mới chỉ xuất hiện ở đây sau khi được xác nhận.</p>
-            </div>
-          )}
-        </section>
-
-        <section className={styles.actionPanel} aria-labelledby="action-title">
-          <div className={styles.panelHeading}>
-            <div>
-              <p className={styles.eyebrow}>Ưu tiên hiện tại</p>
-              <h2 id="action-title">Việc cần chú ý</h2>
-            </div>
-          </div>
-          {dashboard.actionRequired.length ? (
-            <ul className={styles.actionList}>
-              {dashboard.actionRequired.map((item) => {
-                const copy = ACTION_COPY[item.type]
-                return (
-                  <li key={item.type}>
-                    <span aria-hidden="true">{item.count}</span>
-                    <div>
-                      <strong>{copy.label}</strong>
-                      <p>{copy.detail}</p>
-                    </div>
-                    <Link href={copy.href} aria-label={copy.label}>
-                      →
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          ) : (
-            <div className={styles.calmState}>
-              <span aria-hidden="true">✓</span>
+              <span className={styles.emptyMark} aria-hidden="true">
+                〇
+              </span>
               <div>
-                <strong>Không có việc khẩn cần xử lý</strong>
+                <h3>Lịch sắp tới đang trống</h3>
                 <p>
-                  Dashboard sẽ cập nhật khi có yêu cầu hoặc thiếu lịch trống.
+                  Khi một yêu cầu được xác nhận, phiên gần nhất sẽ xuất hiện ở
+                  đây để bạn chuẩn bị.
                 </p>
               </div>
             </div>
           )}
-        </section>
-      </div>
+        </article>
+
+        <aside className={styles.ratingPanel} aria-labelledby="rating-title">
+          <div>
+            <p className={styles.eyebrow}>Uy tín từ người dùng</p>
+            <h2 id="rating-title">Đánh giá của bạn</h2>
+          </div>
+          {rating.state === 'AVAILABLE' && rating.averageRating !== null ? (
+            <div
+              className={styles.ratingValue}
+              aria-label={`${rating.averageRating.toFixed(1)} trên 5 từ ${rating.ratingCount} đánh giá`}
+            >
+              <span aria-hidden="true">★</span>
+              <strong>{rating.averageRating.toFixed(1)}</strong>
+              <small>/ 5</small>
+              <p>{rating.ratingCount} lượt đánh giá sau phiên</p>
+            </div>
+          ) : (
+            <div className={styles.ratingEmpty}>
+              <span aria-hidden="true">☆</span>
+              <strong>Chưa có đánh giá</strong>
+              <p>
+                Điểm trung bình sẽ xuất hiện sau khi người dùng đánh giá một
+                phiên đã hoàn thành.
+              </p>
+            </div>
+          )}
+          <Link href="/specialist/profile">Xem hồ sơ chuyên gia</Link>
+        </aside>
+      </section>
+
+      <section className={styles.metrics} aria-label="Số liệu vận hành">
+        <div>
+          <span className={styles.metricIcon} aria-hidden="true">
+            ◷
+          </span>
+          <div>
+            <p>Phiên đã xác nhận hôm nay</p>
+            <strong>{dashboard.todayConfirmedSessions.count}</strong>
+            <small>
+              {dashboard.todayConfirmedSessions.state === 'EMPTY'
+                ? 'Chưa có phiên nào hôm nay'
+                : 'Theo ngày tại múi giờ hồ sơ'}
+            </small>
+          </div>
+        </div>
+        <div>
+          <span className={styles.metricIcon} aria-hidden="true">
+            ↗
+          </span>
+          <div>
+            <p>Yêu cầu đang chờ</p>
+            <strong>{dashboard.pendingAppointmentRequests.count}</strong>
+            <small>
+              {dashboard.pendingAppointmentRequests.state === 'EMPTY'
+                ? 'Không có yêu cầu cần phản hồi'
+                : 'Còn trong thời hạn xử lý'}
+            </small>
+          </div>
+        </div>
+        <div>
+          <span className={styles.metricIcon} aria-hidden="true">
+            ▦
+          </span>
+          <div>
+            <p>Khung giờ có thể đặt</p>
+            <strong>{dashboard.availability.count}</strong>
+            <small>
+              {dashboard.availability.state === 'EMPTY'
+                ? 'Cần bổ sung lịch tương lai'
+                : 'Khung giờ trống trong tương lai'}
+            </small>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.actionPanel} aria-labelledby="action-title">
+        <div className={styles.panelHeading}>
+          <div>
+            <p className={styles.eyebrow}>Ưu tiên hiện tại</p>
+            <h2 id="action-title">Việc cần chú ý</h2>
+          </div>
+        </div>
+        {dashboard.actionRequired.length ? (
+          <ul className={styles.actionList}>
+            {dashboard.actionRequired.map((item) => {
+              const copy = ACTION_COPY[item.type]
+              return (
+                <li key={item.type}>
+                  <span aria-hidden="true">{item.count}</span>
+                  <div>
+                    <strong>{copy.label}</strong>
+                    <p>{copy.detail}</p>
+                  </div>
+                  <Link href={copy.href} aria-label={copy.label}>
+                    →
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <div className={styles.calmState}>
+            <span aria-hidden="true">✓</span>
+            <div>
+              <strong>Không có việc khẩn cần xử lý</strong>
+              <p>Dashboard sẽ cập nhật khi có yêu cầu hoặc thiếu lịch trống.</p>
+            </div>
+          </div>
+        )}
+      </section>
 
       <footer className={styles.sourceNote}>
         <span>Nguồn: lịch tư vấn</span>

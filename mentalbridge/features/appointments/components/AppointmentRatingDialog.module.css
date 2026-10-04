@@ -1,0 +1,214 @@
+.trigger {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--amber) 58%, var(--line));
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-4);
+  background: var(--amber-pale);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+.trigger span {
+  color: var(--amber-deep);
+}
+
+.trigger:hover {
+  border-color: var(--amber-deep);
+  transform: translateY(-1px);
+}
+
+.trigger:focus-visible,
+.content button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal) 28%, transparent);
+  outline-offset: 3px;
+}
+
+.dialog {
+  width: min(calc(100% - 32px), 560px);
+}
+
+.content {
+  padding: var(--space-8);
+}
+
+.content header {
+  text-align: center;
+}
+
+.eyebrow {
+  color: var(--teal);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.content h2 {
+  margin: var(--space-2) 0;
+  color: var(--ink);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(1.65rem, 4vw, 2rem);
+}
+
+.content header p {
+  max-width: 44ch;
+  margin: 0 auto;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.rating {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-6) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-5);
+  background: color-mix(in srgb, var(--teal-pale) 52%, var(--surface));
+  text-align: center;
+}
+
+.rating legend {
+  width: 100%;
+  padding: 0;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.stars {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.stars button {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--line);
+  font-size: 2rem;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
+}
+
+.stars button:hover,
+.stars button[data-selected='true'] {
+  background: var(--amber-pale);
+  color: var(--amber-deep);
+  transform: scale(1.06);
+}
+
+.rating output {
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.loading {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-soft);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  border-left: 3px solid var(--terracotta);
+  padding: var(--space-3);
+  background: var(--terracotta-soft);
+  color: var(--ink);
+  font-size: 0.84rem;
+}
+
+.error p {
+  margin: 0;
+}
+
+.error button {
+  min-height: 40px;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--terracotta) 52%, var(--line));
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.content footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-5);
+}
+
+.content footer button {
+  min-height: 44px;
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-5);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.cancel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.submit {
+  border: 1px solid var(--teal-deep);
+  background: var(--teal-deep);
+  color: white;
+}
+
+.content footer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 520px) {
+  .content {
+    padding: var(--space-6);
+  }
+
+  .stars {
+    gap: 0;
+  }
+
+  .content footer {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger,
+  .stars button {
+    transition: none;
+  }
+}

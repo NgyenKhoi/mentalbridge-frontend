@@ -11,7 +11,7 @@ import SpecialistAvailabilityManager from '@/features/specialist-availability/co
 import SpecialistAppointmentDecisionPanel from '@/features/appointments/components/SpecialistAppointmentDecisionPanel'
 import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
 import SpecialistContinuityManager from '@/features/appointments/components/SpecialistContinuityManager'
-import SpecialistOperationalDashboard from '@/features/specialist-dashboard/components/SpecialistOperationalDashboard'
+import SpecialistDashboardManager from './SpecialistDashboardManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
 import AdminUsersManager from './AdminUsersManager'
@@ -203,7 +203,7 @@ export default function RoleWorkspace({
     <motion.main className="role-main" layout="position" transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div><Link href={`/${role}/notifications`} className="role-bell" aria-label="Thông báo">○<b>3</b></Link></header>
       <div className={`role-content${role === 'specialist' && sectionKey === 'messages' ? ' role-content-messages' : ''}`}>
-        {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistOperationalDashboard />}
+        {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboardManager />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel />}

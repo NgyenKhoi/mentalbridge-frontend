@@ -16,6 +16,7 @@ import {
   type AppointmentFilter,
 } from '../model/appointment-view'
 import { ConsultationBriefEditor } from './ConsultationBriefEditor'
+import { AppointmentRatingDialog } from './AppointmentRatingDialog'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
 import styles from './AppointmentRequestPanel.module.css'
 
@@ -800,6 +801,9 @@ export default function AppointmentRequestPanel({
                               <Icon name="message" />
                               Mở tin nhắn
                             </Link>
+                          )}
+                          {item.status === 'COMPLETED' && (
+                            <AppointmentRatingDialog appointment={item} />
                           )}
                           {(item.status === 'REQUESTED' ||
                             item.status === 'CONFIRMED') && (

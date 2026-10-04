@@ -5,6 +5,7 @@ import {
   parseAvailabilitySlot,
   parseAvailabilitySlotList,
   parseAppointment,
+  parseAppointmentRating,
   parseAppointmentList,
   parseAppointmentChatEligibility,
   parseBookableSlotList,
@@ -30,6 +31,7 @@ import {
   type SpecialistSuspensionResult,
   type SpecialistDashboard,
   type Appointment,
+  type AppointmentRating,
   type AppointmentList,
   type AppointmentChatEligibility,
   type AppointmentRequestInput,
@@ -177,6 +179,36 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  appointmentRating(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+  ) {
+    return request<AppointmentRating>({
+      method: 'GET',
+      path: `/api/v1/appointments/${encodeURIComponent(appointmentId)}/rating`,
+      token,
+      correlationId,
+      parse: parseAppointmentRating,
+    })
+  },
+  saveAppointmentRating(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+    rating: number,
+    etag?: string,
+  ) {
+    return request<AppointmentRating>({
+      method: 'PUT',
+      path: `/api/v1/appointments/${encodeURIComponent(appointmentId)}/rating`,
+      token,
+      correlationId,
+      body: { rating },
+      ifMatch: etag,
+      parse: parseAppointmentRating,
+    })
+  },
   specialistDashboard(token: string, correlationId: string) {
     return request<SpecialistDashboard>({
       method: 'GET',

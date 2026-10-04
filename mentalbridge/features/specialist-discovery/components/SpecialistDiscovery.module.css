@@ -359,6 +359,27 @@
   font-size: 0.82rem;
 }
 
+.identity .cardRating,
+.ratingAggregate {
+  color: var(--ink) !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.identity .cardRating span,
+.ratingAggregate span {
+  color: var(--amber-deep);
+}
+
+.ratingAggregate {
+  position: relative;
+  z-index: 1;
+  margin: 12px 0 0;
+  border-radius: var(--radius-pill);
+  padding: 7px 12px;
+  background: var(--amber-pale);
+}
+
 .tags {
   display: flex;
   flex-wrap: wrap;
