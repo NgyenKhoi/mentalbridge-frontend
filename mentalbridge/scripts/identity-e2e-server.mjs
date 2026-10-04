@@ -1163,6 +1163,7 @@ const server = createServer(async (request, response) => {
         resourceAttachment: body.resourceId
           ? { resourceId: body.resourceId }
           : null,
+        sensitiveContentWarning: body.sensitiveContentWarning ?? null,
         counts: { comments: 0, reactions: 0 },
         viewerState: { reaction: null, bookmarked: false },
         publishedAt: now,
@@ -1303,6 +1304,7 @@ const server = createServer(async (request, response) => {
       post.resourceAttachment = body.resourceId
         ? { resourceId: body.resourceId }
         : null
+      post.sensitiveContentWarning = body.sensitiveContentWarning ?? null
       if (body.authorMode === 'ANONYMOUS') {
         post.author = {
           communityProfileId: null,

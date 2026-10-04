@@ -77,4 +77,26 @@ describe('AdminCommunityModerationSection', () => {
     ).toBeInTheDocument()
     expect(screen.queryByText('Nội dung bằng chứng.')).not.toBeInTheDocument()
   })
+
+  it('offers audited warning actions only for post cases', async () => {
+    const { unmount } = render(<AdminCommunityModerationSection />)
+
+    expect(
+      await screen.findByRole('option', { name: 'Thêm cảnh báo nhạy cảm' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('option', { name: 'Gỡ cảnh báo nhạy cảm' }),
+    ).toBeInTheDocument()
+
+    unmount()
+    vi.mocked(getCommunityModerationCases).mockResolvedValueOnce([
+      { ...moderationCase, targetType: 'COMMENT' },
+    ])
+    render(<AdminCommunityModerationSection />)
+
+    await screen.findByText('Nội dung bằng chứng.')
+    expect(
+      screen.queryByRole('option', { name: 'Thêm cảnh báo nhạy cảm' }),
+    ).not.toBeInTheDocument()
+  })
 })

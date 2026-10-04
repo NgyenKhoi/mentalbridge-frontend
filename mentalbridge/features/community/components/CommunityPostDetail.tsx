@@ -22,6 +22,7 @@ import CommunitySafetyActions from './CommunitySafetyActions'
 import CommunityInteractions from './CommunityInteractions'
 import CommunityResourceAttachment from './CommunityResourceAttachment'
 import CommunityResourceSelector from './CommunityResourceSelector'
+import CommunitySensitiveContent from './CommunitySensitiveContent'
 
 function communityTime(value: string) {
   return new Intl.DateTimeFormat('vi-VN', {
@@ -46,6 +47,9 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
   )
   const [saving, setSaving] = useState(false)
   const [resourceId, setResourceId] = useState<string | null>(null)
+  const [sensitiveContentWarning, setSensitiveContentWarning] = useState<
+    'SENSITIVE_CONTENT' | null
+  >(null)
 
   const loadPost = useCallback(async () => {
     const result = await getCommunityPost(postId)
@@ -54,6 +58,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
     setContent(result.post.content)
     setSelected(result.post.topics)
     setResourceId(result.post.resourceAttachment?.resourceId ?? null)
+    setSensitiveContentWarning(result.post.sensitiveContentWarning)
     setAuthorMode(
       result.post.author.state === 'ANONYMOUS' ? 'ANONYMOUS' : 'PROFILE',
     )
@@ -70,6 +75,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
         setContent(result.post.content)
         setSelected(result.post.topics)
         setResourceId(result.post.resourceAttachment?.resourceId ?? null)
+        setSensitiveContentWarning(result.post.sensitiveContentWarning)
         setAuthorMode(
           result.post.author.state === 'ANONYMOUS' ? 'ANONYMOUS' : 'PROFILE',
         )
@@ -124,6 +130,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
           mediaIds: post.media.map((item) => item.mediaId),
           authorMode,
           resourceId,
+          sensitiveContentWarning,
         },
         version,
       )
@@ -315,6 +322,27 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
               disabled={saving}
               onChange={setResourceId}
             />
+            <fieldset className="community-sensitive-choice">
+              <legend>Cảnh báo nội dung</legend>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={sensitiveContentWarning === 'SENSITIVE_CONTENT'}
+                  onChange={(event) =>
+                    setSensitiveContentWarning(
+                      event.target.checked ? 'SENSITIVE_CONTENT' : null,
+                    )
+                  }
+                />
+                <span>
+                  <strong>Thêm cảnh báo nội dung nhạy cảm</strong>
+                  <small>
+                    Cảnh báo giúp người đọc chủ động mở nội dung; đây không phải
+                    chẩn đoán hay đánh giá mức độ.
+                  </small>
+                </span>
+              </label>
+            </fieldset>
             <div className="community-form-actions">
               <button
                 type="button"
@@ -323,6 +351,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
                   setContent(post.content)
                   setSelected(post.topics)
                   setResourceId(post.resourceAttachment?.resourceId ?? null)
+                  setSensitiveContentWarning(post.sensitiveContentWarning)
                   setAuthorMode(
                     post.author.state === 'ANONYMOUS' ? 'ANONYMOUS' : 'PROFILE',
                   )
@@ -348,23 +377,27 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
                 </span>
               ))}
             </div>
-            <p className="community-detail-copy">{post.content}</p>
-            <CommunityMedia media={post.media} />
-            {post.resourceAttachment && (
-              <CommunityResourceAttachment
-                resourceId={post.resourceAttachment.resourceId}
-              />
-            )}
-            {post.mediaAvailability === 'PARTIAL' && (
-              <p className="community-media-note">
-                Một số nội dung đa phương tiện đang được xử lý.
-              </p>
-            )}
-            {post.mediaAvailability === 'UNAVAILABLE' && (
-              <p className="community-media-note">
-                Nội dung đa phương tiện hiện chưa khả dụng.
-              </p>
-            )}
+            <CommunitySensitiveContent
+              warned={post.sensitiveContentWarning === 'SENSITIVE_CONTENT'}
+            >
+              <p className="community-detail-copy">{post.content}</p>
+              <CommunityMedia media={post.media} />
+              {post.resourceAttachment && (
+                <CommunityResourceAttachment
+                  resourceId={post.resourceAttachment.resourceId}
+                />
+              )}
+              {post.mediaAvailability === 'PARTIAL' && (
+                <p className="community-media-note">
+                  Một số nội dung đa phương tiện đang được xử lý.
+                </p>
+              )}
+              {post.mediaAvailability === 'UNAVAILABLE' && (
+                <p className="community-media-note">
+                  Nội dung đa phương tiện hiện chưa khả dụng.
+                </p>
+              )}
+            </CommunitySensitiveContent>
             {post.viewerState ? (
               <CommunityInteractions
                 postId={post.postId}

@@ -12,6 +12,7 @@ import {
 } from '@/features/community/api/browser-community'
 import CommunityMedia from './CommunityMedia'
 import CommunityPostComposer from './CommunityPostComposer'
+import CommunitySensitiveContent from './CommunitySensitiveContent'
 import CommunityAvatar from './CommunityAvatar'
 import CommunityInteractions from './CommunityInteractions'
 import CommunityResourceAttachment from './CommunityResourceAttachment'
@@ -290,14 +291,18 @@ export default function CommunityFeed() {
                     </span>
                   ))}
                 </div>
-                <p className="community-card-copy">{post.contentPreview}</p>
-                <CommunityMedia media={post.media} />
-                <MediaNotice availability={post.mediaAvailability} />
-                {post.resourceAttachment && (
-                  <CommunityResourceAttachment
-                    resourceId={post.resourceAttachment.resourceId}
-                  />
-                )}
+                <CommunitySensitiveContent
+                  warned={post.sensitiveContentWarning === 'SENSITIVE_CONTENT'}
+                >
+                  <p className="community-card-copy">{post.contentPreview}</p>
+                  <CommunityMedia media={post.media} />
+                  <MediaNotice availability={post.mediaAvailability} />
+                  {post.resourceAttachment && (
+                    <CommunityResourceAttachment
+                      resourceId={post.resourceAttachment.resourceId}
+                    />
+                  )}
+                </CommunitySensitiveContent>
                 <footer>
                   {post.viewerState ? (
                     <CommunityInteractions

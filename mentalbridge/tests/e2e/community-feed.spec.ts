@@ -140,6 +140,57 @@ test.describe('Community feed journey', () => {
     ).toBeVisible()
   })
 
+  test('persists an author warning and requires an explicit reveal on detail', async ({
+    page,
+    request,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    const reset = await request.post(`${identityFixtureUrl}/__test/reset`)
+    expect(reset.status()).toBe(204)
+    await login(page)
+    await page.goto('/community')
+
+    await page.getByRole('button', { name: 'Viết bài' }).click()
+    await page
+      .locator('#community-post-content')
+      .fill('Một câu chuyện có chi tiết nhạy cảm do tác giả chủ động cảnh báo.')
+    await page
+      .getByRole('group', { name: 'Chọn 1–3 chủ đề' })
+      .getByText('Câu chuyện của tôi')
+      .click()
+    await page
+      .getByRole('checkbox', { name: /Thêm cảnh báo nội dung nhạy cảm/ })
+      .check()
+    await page.getByRole('button', { name: 'Đăng câu chuyện' }).click()
+
+    await expect(page).toHaveURL(/\/community\/[0-9a-f-]+$/)
+    await page.reload()
+    await expect(page.getByText('Nội dung nhạy cảm')).toBeVisible()
+    await expect(
+      page.getByText(
+        'Một câu chuyện có chi tiết nhạy cảm do tác giả chủ động cảnh báo.',
+      ),
+    ).toHaveCount(0)
+    await expect(
+      page.getByRole('link', { name: 'Cần hỗ trợ ngay' }).first(),
+    ).toBeVisible()
+    await page.screenshot({
+      path: 'docs/evidence/mb-615-community-sensitive-warning-concealed.png',
+      fullPage: true,
+    })
+
+    await page.getByRole('button', { name: 'Xem nội dung' }).click()
+    await expect(
+      page.getByText(
+        'Một câu chuyện có chi tiết nhạy cảm do tác giả chủ động cảnh báo.',
+      ),
+    ).toBeVisible()
+    await page.screenshot({
+      path: 'docs/evidence/mb-615-community-sensitive-warning-revealed.png',
+      fullPage: true,
+    })
+  })
+
   test('creates and updates a private Community display identity', async ({
     page,
     request,

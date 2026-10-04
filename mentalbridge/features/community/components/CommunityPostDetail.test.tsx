@@ -51,6 +51,7 @@ const post = {
   mediaAvailability: 'UNAVAILABLE',
   counts: { comments: 2, reactions: 3 },
   viewerState: { reaction: null, bookmarked: false },
+  sensitiveContentWarning: null,
   publishedAt: '2026-09-29T05:00:00Z',
   updatedAt: '2026-09-29T05:00:00Z',
 }
@@ -89,6 +90,7 @@ describe('CommunityPostDetail', () => {
         mediaIds: [],
         authorMode: 'PROFILE',
         resourceId: null,
+        sensitiveContentWarning: null,
       },
       7,
     )
@@ -215,6 +217,56 @@ describe('CommunityPostDetail', () => {
     expect(
       screen.getByRole('link', { name: 'Cần hỗ trợ ngay' }),
     ).toHaveAttribute('href', '/safety-directory')
+  })
+
+  it('keeps warned detail content concealed while safety and report controls remain reachable', async () => {
+    const user = userEvent.setup()
+    api.post.mockResolvedValueOnce({
+      post: { ...post, sensitiveContentWarning: 'SENSITIVE_CONTENT' },
+      version: null,
+    })
+
+    render(<CommunityPostDetail postId={post.postId} />)
+
+    expect(await screen.findByText('Nội dung nhạy cảm')).toBeVisible()
+    expect(screen.queryByText(post.content)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Báo cáo' })).toBeVisible()
+    expect(
+      screen.getAllByRole('link', { name: 'Cần hỗ trợ ngay' }),
+    ).not.toHaveLength(0)
+
+    await user.click(screen.getByRole('button', { name: 'Xem nội dung' }))
+    expect(screen.getByText(post.content)).toBeVisible()
+  })
+
+  it('lets the owner remove an existing warning through the exact-version edit', async () => {
+    const user = userEvent.setup()
+    const warnedPost = {
+      ...post,
+      sensitiveContentWarning: 'SENSITIVE_CONTENT' as const,
+    }
+    api.post.mockResolvedValueOnce({ post: warnedPost, version: 5 })
+    api.update.mockResolvedValueOnce({
+      post: { ...post, sensitiveContentWarning: null },
+      version: 6,
+    })
+
+    render(<CommunityPostDetail postId={post.postId} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }))
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: /Thêm cảnh báo nội dung nhạy cảm/,
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+
+    expect(api.update).toHaveBeenCalledWith(
+      post.postId,
+      expect.objectContaining({ sensitiveContentWarning: null }),
+      5,
+    )
+    expect(await screen.findByText(post.content)).toBeVisible()
   })
 
   it('keeps interaction controls hidden for a legacy v1.5 detail response', async () => {

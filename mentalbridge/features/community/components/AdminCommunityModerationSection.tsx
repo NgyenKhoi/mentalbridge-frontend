@@ -19,6 +19,13 @@ const ACTIONS: ReadonlyArray<{
   { value: 'RESTORE', label: 'Khôi phục' },
   { value: 'RESTRICT_COMMUNITY_ACCESS', label: 'Hạn chế quyền Community' },
 ]
+const POST_WARNING_ACTIONS: ReadonlyArray<{
+  value: CreateModerationActionRequest['action']
+  label: string
+}> = [
+  { value: 'APPLY_SENSITIVE_WARNING', label: 'Thêm cảnh báo nhạy cảm' },
+  { value: 'REMOVE_SENSITIVE_WARNING', label: 'Gỡ cảnh báo nhạy cảm' },
+]
 
 export default function AdminCommunityModerationSection() {
   const [cases, setCases] = useState<ModerationCase[]>([])
@@ -244,7 +251,10 @@ export default function AdminCommunityModerationSection() {
                         }))
                       }
                     >
-                      {ACTIONS.map((action) => (
+                      {(item.targetType === 'POST'
+                        ? [...ACTIONS, ...POST_WARNING_ACTIONS]
+                        : ACTIONS
+                      ).map((action) => (
                         <option key={action.value} value={action.value}>
                           {action.label}
                         </option>
