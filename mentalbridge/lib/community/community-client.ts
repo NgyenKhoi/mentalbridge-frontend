@@ -254,6 +254,21 @@ export const communityClient = {
       )
     ).data
   },
+  async savedPosts(
+    accessToken: string,
+    query: URLSearchParams,
+    correlationId: string,
+  ) {
+    const suffix = query.size > 0 ? `?${query.toString()}` : ''
+    return (
+      await request<CommunityFeedPage>(
+        `/api/v1/community/saved-posts${suffix}`,
+        accessToken,
+        correlationId,
+        parseCommunityFeedPage,
+      )
+    ).data
+  },
   async detail(accessToken: string, postId: string, correlationId: string) {
     const response = await request<CommunityPostDetail>(
       `/api/v1/community/posts/${encodeURIComponent(postId)}`,

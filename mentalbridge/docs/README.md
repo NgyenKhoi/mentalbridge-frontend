@@ -59,6 +59,7 @@ Story-specific delivery evidence:
 - [MB-579 Community reactions and private bookmarks](mb-579-community-interactions-evidence.md)
 - [MB-582 governed Community topic discovery](mb-582-community-topic-discovery-evidence.md)
 - [MB-615 bounded Community sensitive-content warnings](mb-615-community-sensitive-content-evidence.md)
+- [MB-616 private Community saved-post collection](mb-616-community-saved-posts-evidence.md)
 - [MB-549 appointment reminder consumer evidence](evidence/mb-549-appointment-reminder-consumer.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 

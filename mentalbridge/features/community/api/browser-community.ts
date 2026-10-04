@@ -76,6 +76,16 @@ export async function getCommunityFeed(
   return response.data
 }
 
+export async function getCommunitySavedPosts(cursor?: string) {
+  const params = new URLSearchParams({ limit: '12' })
+  if (cursor) params.set('cursor', cursor)
+  const response = await browserApiClient.get<CommunityFeedPage>(
+    '/community/saved-posts',
+    { params },
+  )
+  return response.data
+}
+
 export async function getCommunityPost(postId: string) {
   const response = await browserApiClient.get<CommunityPostDetail>(
     `/community/posts/${encodeURIComponent(postId)}`,

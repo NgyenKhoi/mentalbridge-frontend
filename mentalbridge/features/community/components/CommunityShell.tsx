@@ -21,6 +21,7 @@ const communityLinks = [
   {
     href: '/community',
     label: 'Bảng tin đồng hành',
+    mobileLabel: 'Bảng tin',
     description: 'Câu chuyện mới từ cộng đồng',
     icon: (
       <Icon>
@@ -29,8 +30,20 @@ const communityLinks = [
     ),
   },
   {
+    href: '/community/saved',
+    label: 'Bài viết đã lưu',
+    mobileLabel: 'Đã lưu',
+    description: 'Bộ sưu tập riêng của bạn',
+    icon: (
+      <Icon>
+        <path d="M6.5 4.5h11v15l-5.5-3.4-5.5 3.4z" />
+      </Icon>
+    ),
+  },
+  {
     href: '/community/profile',
     label: 'Danh tính cộng đồng',
+    mobileLabel: 'Danh tính',
     description: 'Tên và hình đại diện riêng',
     icon: (
       <Icon>
@@ -45,6 +58,14 @@ export default function CommunityShell({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname()
+
+  const isActive = (href: string) =>
+    href === '/community'
+      ? pathname === '/community' ||
+        (/^\/community\/[^/]+$/.test(pathname) &&
+          pathname !== '/community/profile' &&
+          pathname !== '/community/saved')
+      : pathname.startsWith(href)
 
   return (
     <div className="community-shell">
@@ -89,12 +110,7 @@ export default function CommunityShell({
         </div>
         <nav aria-label="Điều hướng cộng đồng">
           {communityLinks.map((item) => {
-            const active =
-              item.href === '/community'
-                ? pathname === '/community' ||
-                  (/^\/community\/[^/]+$/.test(pathname) &&
-                    pathname !== '/community/profile')
-                : pathname.startsWith(item.href)
+            const active = isActive(item.href)
             return (
               <Link
                 key={item.href}
@@ -133,10 +149,7 @@ export default function CommunityShell({
         aria-label="Điều hướng cộng đồng trên di động"
       >
         {communityLinks.map((item) => {
-          const active =
-            item.href === '/community'
-              ? pathname !== '/community/profile'
-              : pathname.startsWith(item.href)
+          const active = isActive(item.href)
           return (
             <Link
               key={item.href}
@@ -145,9 +158,7 @@ export default function CommunityShell({
               aria-current={active ? 'page' : undefined}
             >
               {item.icon}
-              <span>
-                {item.href === '/community' ? 'Bảng tin' : 'Danh tính'}
-              </span>
+              <span>{item.mobileLabel}</span>
             </Link>
           )
         })}
@@ -155,7 +166,7 @@ export default function CommunityShell({
           <Icon>
             <path d="M12 3v11M12 19v.1M5 21h14L12 3 5 21Z" />
           </Icon>
-          <span>Hỗ trợ ngay</span>
+          <span>Hỗ trợ</span>
         </Link>
       </nav>
     </div>

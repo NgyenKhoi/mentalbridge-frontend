@@ -21,6 +21,7 @@ import {
   putCommunityBookmark,
   deleteCommunityBookmark,
   getCommunityFeed,
+  getCommunitySavedPosts,
 } from './browser-community'
 
 describe('Community feed browser API', () => {
@@ -38,6 +39,21 @@ describe('Community feed browser API', () => {
     })
     expect(api.get.mock.calls[0][1].params.toString()).toBe(
       'limit=12&topic=MY_STORY&topic=SMALL_MILESTONE&cursor=opaque-cursor',
+    )
+  })
+
+  it('requests the private saved-post collection with an opaque cursor', async () => {
+    api.get.mockResolvedValue({
+      data: { items: [], nextCursor: null, hasMore: false },
+    })
+
+    await getCommunitySavedPosts('opaque-saved-cursor')
+
+    expect(api.get).toHaveBeenCalledWith('/community/saved-posts', {
+      params: expect.any(URLSearchParams),
+    })
+    expect(api.get.mock.calls[0][1].params.toString()).toBe(
+      'limit=12&cursor=opaque-saved-cursor',
     )
   })
 })

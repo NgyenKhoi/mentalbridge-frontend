@@ -6,14 +6,21 @@ import type { CommunityFeedPage } from '@/lib/community/community-validation'
 
 const api = vi.hoisted(() => ({
   feed: vi.fn(),
+  saved: vi.fn(),
   topics: vi.fn(),
+  deleteBookmark: vi.fn(),
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 vi.mock('@/features/community/api/browser-community', () => ({
   getCommunityFeed: api.feed,
+  getCommunitySavedPosts: api.saved,
   getCommunityTopics: api.topics,
   createCommunityPost: vi.fn(),
+  deleteCommunityBookmark: api.deleteBookmark,
+  putCommunityBookmark: vi.fn(),
+  deleteCommunityReaction: vi.fn(),
+  putCommunityReaction: vi.fn(),
 }))
 
 import CommunityFeed from './CommunityFeed'
@@ -58,6 +65,12 @@ describe('CommunityFeed', () => {
       nextCursor: null,
       hasMore: false,
     })
+    api.saved.mockResolvedValue({
+      items: [{ ...post, viewerState: { reaction: null, bookmarked: true } }],
+      nextCursor: null,
+      hasMore: false,
+    })
+    api.deleteBookmark.mockResolvedValue(undefined)
   })
 
   it('shows the chosen identity, explicit topics, counts and partial-media state', async () => {
@@ -273,5 +286,80 @@ describe('CommunityFeed', () => {
     expect(
       await screen.findByText('Chưa có bài viết trong chủ đề này'),
     ).toBeVisible()
+  })
+
+  it('renders a private saved view without composer or ranking filters', async () => {
+    render(<CommunityFeed view="saved" />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Bài viết đã lưu' }),
+    ).toBeVisible()
+    expect(screen.getByText('Chỉ bạn thấy danh sách này')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Viết bài' })).toBeNull()
+    expect(screen.queryByLabelText('Lọc bảng tin theo chủ đề')).toBeNull()
+    expect(api.saved).toHaveBeenCalledWith(undefined)
+    expect(api.feed).not.toHaveBeenCalled()
+  })
+
+  it('removes an unbookmarked post and reloads the server-owned collection', async () => {
+    const user = userEvent.setup()
+    api.saved
+      .mockResolvedValueOnce({
+        items: [{ ...post, viewerState: { reaction: null, bookmarked: true } }],
+        nextCursor: null,
+        hasMore: false,
+      })
+      .mockResolvedValueOnce({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+      })
+
+    render(<CommunityFeed view="saved" />)
+    await user.click(await screen.findByRole('button', { name: 'Đã lưu' }))
+
+    await waitFor(() =>
+      expect(api.deleteBookmark).toHaveBeenCalledWith(post.postId),
+    )
+    expect(await screen.findByText('Bạn chưa lưu bài viết nào')).toBeVisible()
+    expect(api.saved).toHaveBeenCalledTimes(2)
+  })
+
+  it('supports opaque continuation for saved posts', async () => {
+    const user = userEvent.setup()
+    const secondPost = {
+      ...post,
+      postId: '20000000-0000-4000-8000-000000000008',
+      contentPreview: 'Một câu chuyện đã lưu khác.',
+    }
+    api.saved
+      .mockResolvedValueOnce({
+        items: [{ ...post, viewerState: { reaction: null, bookmarked: true } }],
+        nextCursor: 'saved-next',
+        hasMore: true,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          { ...secondPost, viewerState: { reaction: null, bookmarked: true } },
+        ],
+        nextCursor: null,
+        hasMore: false,
+      })
+
+    render(<CommunityFeed view="saved" />)
+    await user.click(
+      await screen.findByRole('button', { name: 'Xem thêm bài đã lưu' }),
+    )
+    expect(await screen.findByText(secondPost.contentPreview)).toBeVisible()
+    expect(api.saved).toHaveBeenNthCalledWith(2, 'saved-next')
+  })
+
+  it('renders a recoverable saved-view dependency failure', async () => {
+    api.saved.mockRejectedValueOnce(new Error('offline'))
+    render(<CommunityFeed view="saved" />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Danh sách bài đã lưu tạm thời chưa tải được.',
+    )
   })
 })
