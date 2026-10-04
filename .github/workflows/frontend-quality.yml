@@ -142,6 +142,7 @@ jobs:
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_API_BASE_URL: https://api.test.mentalbridge
       EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

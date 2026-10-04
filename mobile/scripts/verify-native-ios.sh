@@ -44,10 +44,12 @@ if [[ ! "$app_pid" =~ ^[0-9]+$ ]]; then
 fi
 
 sleep 10
-if ! xcrun simctl spawn "$device" kill -0 "$app_pid"; then
+xcrun simctl io "$device" screenshot "$evidence_dir/ios-boot.png"
+if ! kill -0 "$app_pid"; then
   echo "iOS app process is not alive after launch." >&2
   exit 1
 fi
+ps -p "$app_pid" -o pid=,etime=,command= \
+  >"$evidence_dir/ios-process.txt"
 
-xcrun simctl io "$device" screenshot "$evidence_dir/ios-boot.png"
 printf 'iOS native boot verified for %s with PID %s.\n' "$device" "$app_pid"
