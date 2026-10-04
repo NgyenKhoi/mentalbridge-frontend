@@ -1,5 +1,11 @@
 # Synthetic browser evidence
 
+MB-615 adds an explicit bounded Community sensitive-content warning and
+reader-controlled disclosure. Contract, accessibility, author/moderator, and
+fixture-browser coverage is recorded in
+[`../mb-615-community-sensitive-content-evidence.md`](../mb-615-community-sensitive-content-evidence.md),
+with controlled concealed and revealed screenshots in this directory.
+
 MB-614 adds one optional reviewed MentalBridge resource attachment to Community
 posts. Its create/reload/navigation journey, unavailable state, owner edit and
 contract privacy coverage are recorded in

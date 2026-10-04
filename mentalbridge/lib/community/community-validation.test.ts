@@ -10,6 +10,7 @@ import {
   parseCreateMediaUploadIntent,
   parseMediaUploadIntent,
   parseCommunityMediaRecord,
+  parseModerationActionInput,
   parseOwnerVersion,
   parseCommunityCommentPage,
   parseCreateCommentRequest,
@@ -92,6 +93,62 @@ describe('Community response validation', () => {
         topics: ['HELPFUL_RESOURCE'],
         mediaIds: [],
         resourceId: 'not-a-uuid',
+      }),
+    ).toBeNull()
+  })
+
+  it('normalizes absent warnings and accepts only the bounded explicit warning', () => {
+    const legacy = parseCommunityPostDetail({
+      ...post,
+      content: 'Nội dung không có cảnh báo.',
+    })
+    const warned = parseCommunityPostDetail({
+      ...post,
+      content: 'Nội dung có cảnh báo.',
+      sensitiveContentWarning: 'SENSITIVE_CONTENT',
+    })
+
+    expect(legacy?.sensitiveContentWarning).toBeNull()
+    expect(warned?.sensitiveContentWarning).toBe('SENSITIVE_CONTENT')
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        content: 'Không nhận nhãn suy diễn.',
+        sensitiveContentWarning: 'INFERRED_DISTRESS',
+      }),
+    ).toBeNull()
+    expect(
+      parseCommunityPostWrite({
+        content: 'Tác giả chủ động cảnh báo.',
+        topics: ['MY_STORY'],
+        mediaIds: [],
+        sensitiveContentWarning: 'SENSITIVE_CONTENT',
+      }),
+    ).not.toBeNull()
+    expect(
+      parseCommunityPostWrite({
+        content: 'Không nhận nhãn tự động.',
+        topics: ['MY_STORY'],
+        mediaIds: [],
+        sensitiveContentWarning: 'NEGATIVE_SENTIMENT',
+      }),
+    ).toBeNull()
+  })
+
+  it('accepts only declared moderator warning commands with stable reason codes', () => {
+    expect(
+      parseModerationActionInput({
+        action: 'APPLY_SENSITIVE_WARNING',
+        reasonCode: 'AUTHOR_REQUESTED_REVIEW',
+      }),
+    ).toEqual({
+      action: 'APPLY_SENSITIVE_WARNING',
+      reasonCode: 'AUTHOR_REQUESTED_REVIEW',
+    })
+    expect(
+      parseModerationActionInput({
+        action: 'INFER_DISTRESS_WARNING',
+        reasonCode: 'MODEL_SCORE',
       }),
     ).toBeNull()
   })
