@@ -56,10 +56,21 @@ describe('Appointment rating BFF', () => {
     vi.clearAllMocks()
     sessionMocks.resolveSession.mockResolvedValue({
       accessToken: 'access-token',
-      account: { accountId: 'user-id', status: 'ACTIVE', roles: ['USER'], emailVerified: true },
+      account: {
+        accountId: 'user-id',
+        status: 'ACTIVE',
+        roles: ['USER'],
+        emailVerified: true,
+      },
     })
-    consultationMocks.appointmentRating.mockResolvedValue({ data: rating, etag: '"2"' })
-    consultationMocks.saveAppointmentRating.mockResolvedValue({ data: rating, etag: '"2"' })
+    consultationMocks.appointmentRating.mockResolvedValue({
+      data: rating,
+      etag: '"2"',
+    })
+    consultationMocks.saveAppointmentRating.mockResolvedValue({
+      data: rating,
+      etag: '"2"',
+    })
   })
 
   it('reads the owner rating and preserves its ETag', async () => {

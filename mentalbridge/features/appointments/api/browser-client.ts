@@ -15,18 +15,13 @@ export const appointmentBrowserClient = {
       )
     ).data
   },
-  async saveRating(
-    appointmentId: string,
-    rating: number,
-    version?: number,
-  ) {
+  async saveRating(appointmentId: string, rating: number, version?: number) {
     return (
       await browserApiClient.put<AppointmentRating>(
         `/consultation/appointments/${encodeURIComponent(appointmentId)}/rating`,
         { rating },
         {
-          headers:
-            version === undefined ? {} : { 'If-Match': `"${version}"` },
+          headers: version === undefined ? {} : { 'If-Match': `"${version}"` },
         },
       )
     ).data

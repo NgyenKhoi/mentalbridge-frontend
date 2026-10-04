@@ -17,7 +17,8 @@ import {
   validUuid,
 } from '@/lib/consultation/consultation-validation'
 
-type Context = RouteContext<'/api/consultation/appointments/[appointmentId]/rating'>
+type Context =
+  RouteContext<'/api/consultation/appointments/[appointmentId]/rating'>
 
 async function actor(request: NextRequest, correlationId: string) {
   return authenticatedConsultationActor(request, correlationId, ['USER'])
@@ -112,12 +113,7 @@ export async function PUT(request: NextRequest, context: Context) {
   } catch (error) {
     if (error instanceof RequestBodyError)
       return carryConsultationSession(
-        localProblem(
-          error.status,
-          error.code,
-          error.message,
-          correlationId,
-        ),
+        localProblem(error.status, error.code, error.message, correlationId),
         current,
       )
     return carryConsultationSession(
