@@ -1,0 +1,243 @@
+.workspace {
+  display: grid;
+  gap: 24px;
+}
+
+.workspace > header span {
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.workspace > header h1 {
+  margin: 8px 0;
+  font-size: clamp(30px, 4vw, 44px);
+}
+
+.workspace > header p {
+  max-width: 720px;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+
+.filters label,
+.actions label {
+  display: grid;
+  gap: 7px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.filters input,
+.filters select,
+.actions select {
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.filters button,
+.pagination button,
+.actions button,
+.refresh {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--teal-deep);
+  color: #fff;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard);
+}
+
+.filters button:not(:disabled):hover,
+.pagination button:not(:disabled):hover,
+.actions button:not(:disabled):hover,
+.refresh:hover,
+.list > button:hover {
+  transform: translateY(-1px);
+}
+
+.filters button:not(:disabled):active,
+.pagination button:not(:disabled):active,
+.actions button:not(:disabled):active,
+.refresh:active,
+.list > button:active {
+  transform: translateY(0);
+}
+
+.filters button:disabled,
+.pagination button:disabled,
+.actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.error,
+.protected {
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: #fff0ee;
+  color: #8b2e25;
+}
+
+.refresh {
+  justify-self: start;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(360px, 1.2fr);
+  gap: 20px;
+}
+
+.list,
+.detail {
+  min-height: 420px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.listHeader,
+.detailHeader,
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.listHeader {
+  margin-bottom: 12px;
+}
+
+.listHeader span,
+.detailHeader > span {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.list > button {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
+}
+
+.list > button[aria-pressed='true'] {
+  border-color: var(--teal);
+  background: var(--teal-pale);
+}
+
+.list > button span,
+.list > button small {
+  color: var(--ink-soft);
+}
+
+.pagination {
+  margin-top: 16px;
+}
+
+.pagination button {
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.detailHeader h2 {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.detail dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.detail dl div {
+  padding: 12px;
+  border-radius: var(--radius-control);
+  background: var(--bg);
+}
+
+.detail dt {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.detail dd {
+  margin: 5px 0 0;
+  font-weight: 700;
+}
+
+.actions {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.actions .danger {
+  background: #9d3028;
+}
+
+.actions .restore {
+  background: var(--teal-deep);
+}
+
+.empty {
+  min-height: 300px;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .filters,
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .detail dl {
+    grid-template-columns: 1fr;
+  }
+}
