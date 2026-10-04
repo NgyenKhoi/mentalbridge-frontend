@@ -3,10 +3,34 @@ import type {
   Appointment,
   AppointmentList,
   AppointmentModality,
+  AppointmentRating,
   BookableSlotList,
 } from '@/lib/consultation/consultation-validation'
 
 export const appointmentBrowserClient = {
+  async rating(appointmentId: string) {
+    return (
+      await browserApiClient.get<AppointmentRating>(
+        `/consultation/appointments/${encodeURIComponent(appointmentId)}/rating`,
+      )
+    ).data
+  },
+  async saveRating(
+    appointmentId: string,
+    rating: number,
+    version?: number,
+  ) {
+    return (
+      await browserApiClient.put<AppointmentRating>(
+        `/consultation/appointments/${encodeURIComponent(appointmentId)}/rating`,
+        { rating },
+        {
+          headers:
+            version === undefined ? {} : { 'If-Match': `"${version}"` },
+        },
+      )
+    ).data
+  },
   async slots() {
     return (
       await browserApiClient.get<BookableSlotList>(

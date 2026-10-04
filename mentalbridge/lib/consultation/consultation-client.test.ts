@@ -35,6 +35,13 @@ describe('Consultation server-only client', () => {
         timezone: null,
         approvalStatus: null,
       },
+      ratingAggregate: {
+        source: 'CONSULTATION',
+        asOf,
+        state: 'BLOCKED',
+        averageRating: null,
+        ratingCount: 0,
+      },
       todayConfirmedSessions: blockedCollection,
       pendingAppointmentRequests: blockedCollection,
       nextAppointment: {

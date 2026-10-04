@@ -699,6 +699,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
       languages: ['vi'],
       yearsOfExperience: 6,
       timezone: 'Asia/Ho_Chi_Minh',
+      ratingAggregate: null,
       explanation: {
         compatibility: 'NEUTRAL',
         languageMatched: null,
@@ -741,7 +742,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
                 items: [item],
                 count: 1,
                 nextCursor: null,
-                rankingPolicyVersion: 'specialist-discovery-v1',
+                rankingPolicyVersion: 'specialist-discovery-v2',
                 generatedAt: '2099-01-01T00:00:00Z',
                 contextState: 'NOT_REQUESTED',
                 packageCode: 'FREE',
