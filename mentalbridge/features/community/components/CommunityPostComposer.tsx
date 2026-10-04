@@ -92,9 +92,17 @@ export default function CommunityPostComposer({
       <section className="community-composer community-composer-collapsed">
         <div>
           <strong>Bạn muốn chia sẻ điều gì?</strong>
-          <p>Một câu chuyện thật có thể giúp ai đó thấy mình không đơn độc.</p>
+          <p>
+            {topics.length > 0
+              ? 'Một câu chuyện thật có thể giúp ai đó thấy mình không đơn độc.'
+              : 'Chủ đề đang được cập nhật. Bạn có thể quay lại viết bài sau.'}
+          </p>
         </div>
-        <button type="button" onClick={() => setExpanded(true)}>
+        <button
+          type="button"
+          disabled={topics.length === 0}
+          onClick={() => setExpanded(true)}
+        >
           Viết bài
         </button>
       </section>

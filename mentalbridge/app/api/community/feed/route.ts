@@ -24,11 +24,13 @@ export async function GET(request: NextRequest) {
   }
 
   const query = request.nextUrl.searchParams
-  const topic = query.get('topic')
+  const topics = query.getAll('topic')
   const limit = query.get('limit')
   const cursor = query.get('cursor')
   if (
-    (topic !== null && !isCommunityTopic(topic)) ||
+    topics.length > 3 ||
+    new Set(topics).size !== topics.length ||
+    topics.some((topic) => !isCommunityTopic(topic)) ||
     (limit !== null && !/^(?:[1-9]|[1-4]\d|50)$/.test(limit)) ||
     (cursor !== null && !/^[A-Za-z0-9_-]{1,256}$/.test(cursor)) ||
     [...query.keys()].some(
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest) {
   }
 
   const outgoing = new URLSearchParams()
-  if (topic) outgoing.set('topic', topic)
+  topics.forEach((topic) => outgoing.append('topic', topic))
   if (limit) outgoing.set('limit', limit)
   if (cursor) outgoing.set('cursor', cursor)
   try {

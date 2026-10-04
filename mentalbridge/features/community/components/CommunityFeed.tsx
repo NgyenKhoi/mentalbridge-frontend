@@ -46,12 +46,14 @@ function MediaNotice({ availability }: { availability: string }) {
 
 export default function CommunityFeed() {
   const [topics, setTopics] = useState<CommunityTopic[]>([])
-  const [selectedTopic, setSelectedTopic] = useState<CommunityTopicCode>()
+  const [selectedTopics, setSelectedTopics] = useState<CommunityTopicCode[]>([])
   const [items, setItems] = useState<FeedPost[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
+  const [topicsLoading, setTopicsLoading] = useState(true)
+  const [topicsError, setTopicsError] = useState(false)
   const feedGeneration = useRef(0)
 
   const load = useCallback(
@@ -61,7 +63,7 @@ export default function CommunityFeed() {
       else setLoading(true)
       setError('')
       try {
-        const page = await getCommunityFeed(selectedTopic, cursor)
+        const page = await getCommunityFeed(selectedTopics, cursor)
         if (requestGeneration !== feedGeneration.current) return
         setItems((current) => {
           if (!append) return page.items
@@ -83,8 +85,21 @@ export default function CommunityFeed() {
         }
       }
     },
-    [selectedTopic],
+    [selectedTopics],
   )
+
+  const loadTopics = useCallback(async () => {
+    setTopicsLoading(true)
+    setTopicsError(false)
+    try {
+      setTopics(await getCommunityTopics())
+    } catch {
+      setTopics([])
+      setTopicsError(true)
+    } finally {
+      setTopicsLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -93,7 +108,10 @@ export default function CommunityFeed() {
         if (active) setTopics(value)
       })
       .catch(() => {
-        if (active) setTopics([])
+        if (active) setTopicsError(true)
+      })
+      .finally(() => {
+        if (active) setTopicsLoading(false)
       })
     return () => {
       active = false
@@ -103,7 +121,7 @@ export default function CommunityFeed() {
   useEffect(() => {
     let active = true
     const requestGeneration = feedGeneration.current
-    void getCommunityFeed(selectedTopic)
+    void getCommunityFeed(selectedTopics)
       .then((page) => {
         if (!active || requestGeneration !== feedGeneration.current) return
         setItems(page.items)
@@ -122,15 +140,26 @@ export default function CommunityFeed() {
     return () => {
       active = false
     }
-  }, [selectedTopic])
+  }, [selectedTopics])
 
-  function selectTopic(topic?: CommunityTopicCode) {
-    if (topic === selectedTopic) return
+  function changeTopics(
+    update: (current: CommunityTopicCode[]) => CommunityTopicCode[],
+  ) {
     feedGeneration.current += 1
     setLoading(true)
     setLoadingMore(false)
     setError('')
-    setSelectedTopic(topic)
+    setSelectedTopics(update)
+  }
+
+  function toggleTopic(topic: CommunityTopicCode) {
+    changeTopics((current) =>
+      current.includes(topic)
+        ? current.filter((value) => value !== topic)
+        : current.length < 3
+          ? [...current, topic]
+          : current,
+    )
   }
 
   return (
@@ -161,9 +190,9 @@ export default function CommunityFeed() {
       <nav className="community-topics" aria-label="Lọc bảng tin theo chủ đề">
         <button
           type="button"
-          className={selectedTopic === undefined ? 'is-active' : ''}
-          aria-pressed={selectedTopic === undefined}
-          onClick={() => selectTopic()}
+          className={selectedTopics.length === 0 ? 'is-active' : ''}
+          aria-pressed={selectedTopics.length === 0}
+          onClick={() => changeTopics(() => [])}
         >
           Tất cả
         </button>
@@ -172,14 +201,41 @@ export default function CommunityFeed() {
             key={topic.code}
             type="button"
             title={topic.description}
-            className={selectedTopic === topic.code ? 'is-active' : ''}
-            aria-pressed={selectedTopic === topic.code}
-            onClick={() => selectTopic(topic.code)}
+            className={selectedTopics.includes(topic.code) ? 'is-active' : ''}
+            aria-pressed={selectedTopics.includes(topic.code)}
+            disabled={
+              !selectedTopics.includes(topic.code) && selectedTopics.length >= 3
+            }
+            onClick={() => toggleTopic(topic.code)}
           >
             {topic.label}
           </button>
         ))}
       </nav>
+
+      {topicsLoading ? (
+        <p className="community-topic-status" role="status">
+          Đang tải chủ đề cộng đồng…
+        </p>
+      ) : topicsError ? (
+        <div className="community-inline-error" role="alert">
+          <span>Danh sách chủ đề tạm thời chưa tải được.</span>
+          <button type="button" onClick={() => void loadTopics()}>
+            Thử lại
+          </button>
+        </div>
+      ) : topics.length === 0 ? (
+        <p className="community-topic-status" role="status">
+          Chưa có chủ đề đang hoạt động. Bạn vẫn có thể đọc bảng tin nhưng chưa
+          thể lọc hoặc đăng bài mới.
+        </p>
+      ) : (
+        <p className="community-topic-status" aria-live="polite">
+          {selectedTopics.length === 0
+            ? 'Đang hiển thị tất cả bài viết mới nhất.'
+            : `Đang lọc theo ${selectedTopics.length} chủ đề; bài viết chỉ cần thuộc một chủ đề đã chọn.`}
+        </p>
+      )}
 
       {loading ? (
         <section className="community-state" role="status" aria-busy="true">

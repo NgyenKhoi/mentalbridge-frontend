@@ -772,7 +772,7 @@ export function parseCommunityCommentPage(
 export function parseCommunityTopics(value: unknown): CommunityTopic[] | null {
   if (
     !Array.isArray(value) ||
-    value.length !== 6 ||
+    value.length > TOPICS.size ||
     !value.every((entry) => {
       const topic = record(entry)
       return Boolean(
@@ -784,7 +784,8 @@ export function parseCommunityTopics(value: unknown): CommunityTopic[] | null {
         text(topic.description, 1, 240),
       )
     }) ||
-    new Set(value.map((entry) => (entry as { code: string }).code)).size !== 6
+    new Set(value.map((entry) => (entry as { code: string }).code)).size !==
+      value.length
   ) {
     return null
   }

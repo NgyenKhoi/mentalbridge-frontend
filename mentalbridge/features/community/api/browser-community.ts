@@ -63,18 +63,15 @@ export type VersionedCommunityComment = Readonly<{
 }>
 
 export async function getCommunityFeed(
-  topic?: CommunityTopicCode,
+  topics: CommunityTopicCode[] = [],
   cursor?: string,
 ) {
+  const params = new URLSearchParams({ limit: '12' })
+  topics.forEach((topic) => params.append('topic', topic))
+  if (cursor) params.set('cursor', cursor)
   const response = await browserApiClient.get<CommunityFeedPage>(
     '/community/feed',
-    {
-      params: {
-        limit: 12,
-        ...(topic ? { topic } : {}),
-        ...(cursor ? { cursor } : {}),
-      },
-    },
+    { params },
   )
   return response.data
 }

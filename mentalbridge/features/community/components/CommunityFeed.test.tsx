@@ -92,7 +92,7 @@ describe('CommunityFeed', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('reloads newest-first content when a governed topic is selected', async () => {
+  it('reloads newest-first content with bounded OR filtering across selected topics', async () => {
     const user = userEvent.setup()
     render(<CommunityFeed />)
     await screen.findByText(post.contentPreview)
@@ -101,8 +101,16 @@ describe('CommunityFeed', () => {
     )
 
     await waitFor(() =>
-      expect(api.feed).toHaveBeenLastCalledWith('SMALL_MILESTONE'),
+      expect(api.feed).toHaveBeenLastCalledWith(['SMALL_MILESTONE']),
     )
+    await user.click(screen.getByRole('button', { name: 'Câu chuyện của tôi' }))
+    await waitFor(() =>
+      expect(api.feed).toHaveBeenLastCalledWith([
+        'SMALL_MILESTONE',
+        'MY_STORY',
+      ]),
+    )
+    expect(screen.getByText(/Đang lọc theo 2 chủ đề/)).toBeVisible()
   })
 
   it('appends an opaque cursor page without duplicating existing posts', async () => {
@@ -133,7 +141,7 @@ describe('CommunityFeed', () => {
     )
     expect(await screen.findByText('Một bước tiến nhỏ.')).toBeVisible()
     expect(screen.getAllByText(post.contentPreview)).toHaveLength(1)
-    expect(api.feed).toHaveBeenNthCalledWith(2, undefined, 'next-page')
+    expect(api.feed).toHaveBeenNthCalledWith(2, [], 'next-page')
   })
 
   it('discards an old pagination response after the topic changes', async () => {
@@ -191,7 +199,37 @@ describe('CommunityFeed', () => {
     await user.click(
       screen.getByRole('button', { name: 'Xem thêm câu chuyện' }),
     )
-    expect(api.feed).toHaveBeenNthCalledWith(4, 'SMALL_MILESTONE', 'topic-next')
+    expect(api.feed).toHaveBeenNthCalledWith(
+      4,
+      ['SMALL_MILESTONE'],
+      'topic-next',
+    )
+  })
+
+  it('keeps reading available when the active topic catalogue is empty', async () => {
+    api.topics.mockResolvedValueOnce([])
+    render(<CommunityFeed />)
+
+    expect(
+      await screen.findByText(/Chưa có chủ đề đang hoạt động/),
+    ).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Viết bài' })).toBeDisabled()
+    expect(screen.getByText(post.contentPreview)).toBeVisible()
+  })
+
+  it('shows a recoverable topic-catalogue failure independently from the feed', async () => {
+    const user = userEvent.setup()
+    api.topics.mockRejectedValueOnce(new Error('offline'))
+    render(<CommunityFeed />)
+
+    expect(
+      await screen.findByText('Danh sách chủ đề tạm thời chưa tải được.'),
+    ).toBeVisible()
+    expect(screen.getByText(post.contentPreview)).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(
+      await screen.findByText('Đang hiển thị tất cả bài viết mới nhất.'),
+    ).toBeVisible()
   })
 
   it('renders recoverable failure and explicit empty states', async () => {
