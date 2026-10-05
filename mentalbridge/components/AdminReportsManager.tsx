@@ -1,97 +1,443 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type {
+  PlatformReport,
+  PlatformReportRequest,
+  PlatformReportType,
+} from '@/features/auth/api/identity-contract'
 import './admin-reports-manager.css'
 
-type ReportTab = 'overview' | 'reports' | 'schedules'
-type Period = '7 ngày' | '30 ngày' | 'Quý III'
+type ReportPage = Readonly<{
+  items: PlatformReport[]
+  nextCursor: string | null
+}>
+const STATUS_LABELS: Record<PlatformReport['status'], string> = {
+  QUEUED: 'Đang chờ',
+  RUNNING: 'Đang tạo',
+  COMPLETED: 'Hoàn tất',
+  FAILED: 'Thất bại',
+  STALE: 'Nguồn đã cũ',
+}
 
-const ACTIVITY = {
-  '7 ngày': [62, 74, 68, 91, 86, 103, 118],
-  '30 ngày': [71, 84, 79, 96, 91, 112, 124],
-  'Quý III': [54, 72, 67, 88, 94, 108, 121],
-} as const
+function localDate(daysAgo: number) {
+  const value = new Date()
+  value.setDate(value.getDate() - daysAgo)
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
-const REPORTS = [
-  { id: 'RPT-0826-04', name: 'Báo cáo hoạt động tháng 08', scope: 'Người dùng · Chuyên gia · Lịch hẹn', created: '27/08/2026 · 09:15', owner: 'Nguyễn Hoài An', status: 'Sẵn sàng', size: '2,4 MB' },
-  { id: 'RPT-0826-03', name: 'Hiệu quả vận hành tư vấn', scope: 'Lịch hẹn · Tỷ lệ hoàn thành', created: '26/08/2026 · 17:40', owner: 'Hệ thống', status: 'Sẵn sàng', size: '1,8 MB' },
-  { id: 'RPT-0826-02', name: 'Tăng trưởng người dùng tuần 34', scope: 'Đăng ký · Mức độ hoạt động', created: '25/08/2026 · 08:00', owner: 'Hệ thống', status: 'Sẵn sàng', size: '940 KB' },
-  { id: 'RPT-0826-01', name: 'Phân tích xu hướng quý III', scope: 'Toàn nền tảng', created: 'Đang tổng hợp', owner: 'Trần Phương Vy', status: 'Đang xử lý', size: '—' },
-]
+async function readProblem(response: Response) {
+  try {
+    const body = (await response.json()) as { title?: unknown }
+    return typeof body.title === 'string' ? body.title : null
+  } catch {
+    return null
+  }
+}
 
-const SCHEDULES = [
-  { name: 'Tổng hợp vận hành tuần', cadence: 'Thứ Hai · 08:00', recipient: 'Vận hành & quản trị', next: '31/08/2026', active: true },
-  { name: 'Đối soát lịch hẹn tháng', cadence: 'Ngày 01 hàng tháng', recipient: 'Tài chính', next: '01/09/2026', active: true },
-  { name: 'Báo cáo tăng trưởng quý', cadence: 'Ngày cuối quý', recipient: 'Ban quản trị', next: '30/09/2026', active: false },
-]
-
-export default function AdminReportsManager({ onNotice }: { onNotice: (message: string) => void }) {
-  const [tab, setTab] = useState<ReportTab>('overview')
-  const [period, setPeriod] = useState<Period>('30 ngày')
+export default function AdminReportsManager({
+  onNotice,
+}: {
+  onNotice: (message: string) => void
+}) {
+  const [catalogue, setCatalogue] = useState<PlatformReportType[]>([])
+  const [reports, setReports] = useState<PlatformReport[]>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const bars = ACTIVITY[period]
-  const max = Math.max(...bars)
+  const [periodStart, setPeriodStart] = useState(() => localDate(29))
+  const [periodEnd, setPeriodEnd] = useState(() => localDate(0))
+  const [reportType, setReportType] = useState<
+    PlatformReportRequest['reportType'] | ''
+  >('')
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [retrying, setRetrying] = useState<ReadonlySet<string>>(new Set())
+  const [error, setError] = useState<string | null>(null)
+  const createKey = useRef<{ fingerprint: string; key: string } | null>(null)
+  const retryKeys = useRef(new Map<string, string>())
+
+  const load = useCallback(async (cursor?: string, quiet = false) => {
+    if (!quiet) setLoading(true)
+    try {
+      const [catalogueResponse, historyResponse] = await Promise.all([
+        fetch('/api/admin/platform-reports/catalogue', { cache: 'no-store' }),
+        fetch(
+          `/api/admin/platform-reports?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+          { cache: 'no-store' },
+        ),
+      ])
+      if (!catalogueResponse.ok || !historyResponse.ok) {
+        throw new Error(
+          (await readProblem(
+            catalogueResponse.ok ? historyResponse : catalogueResponse,
+          )) ?? 'Không thể tải kho báo cáo.',
+        )
+      }
+      const [types, page] = (await Promise.all([
+        catalogueResponse.json(),
+        historyResponse.json(),
+      ])) as [PlatformReportType[], ReportPage]
+      setCatalogue(types)
+      setReportType((current) =>
+        types.some((item) => item.reportType === current)
+          ? current
+          : (types[0]?.reportType ?? ''),
+      )
+      setReports((current) =>
+        cursor ? [...current, ...page.items] : page.items,
+      )
+      setNextCursor(page.nextCursor)
+      setError(null)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Không thể tải kho báo cáo.',
+      )
+    } finally {
+      if (!quiet) setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0)
+    return () => window.clearTimeout(timer)
+  }, [load])
+  useEffect(() => {
+    if (
+      !reports.some(
+        (report) => report.status === 'QUEUED' || report.status === 'RUNNING',
+      )
+    )
+      return
+    const timer = window.setInterval(() => void load(undefined, true), 3000)
+    return () => window.clearInterval(timer)
+  }, [load, reports])
+
   const visibleReports = useMemo(() => {
     const keyword = query.trim().toLocaleLowerCase('vi')
-    return keyword ? REPORTS.filter(report => `${report.name} ${report.scope} ${report.status}`.toLocaleLowerCase('vi').includes(keyword)) : REPORTS
-  }, [query])
+    if (!keyword) return reports
+    return reports.filter((report) => {
+      const type = catalogue.find(
+        (item) => item.reportType === report.reportType,
+      )
+      return `${type?.label ?? report.reportType} ${report.status} ${report.periodStart} ${report.periodEnd}`
+        .toLocaleLowerCase('vi')
+        .includes(keyword)
+    })
+  }, [catalogue, query, reports])
+  const selectedType = useMemo(
+    () => catalogue.find((item) => item.reportType === reportType),
+    [catalogue, reportType],
+  )
 
-  return <div className="admin-reports-manager">
-    <div className="role-heading arm-heading">
-      <div><span className="eyebrow">Quản trị nền tảng</span><h1>Báo cáo nền tảng</h1><p>Xu hướng sử dụng, lịch hẹn, subscription và thanh toán.</p></div>
-      <div className="arm-heading-actions"><span><i />Dữ liệu cập nhật 09:15 hôm nay</span><button className="btn-primary" onClick={() => onNotice('Đã mở thiết lập tạo báo cáo mới.')}>+ Tạo báo cáo</button></div>
-    </div>
+  async function createReport(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!reportType) return
+    setSubmitting(true)
+    const request = { reportType, periodStart, periodEnd }
+    const fingerprint = JSON.stringify(request)
+    if (createKey.current?.fingerprint !== fingerprint) {
+      createKey.current = {
+        fingerprint,
+        key: `platform-report-${crypto.randomUUID()}`,
+      }
+    }
+    try {
+      const response = await fetch('/api/admin/platform-reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': createKey.current.key,
+        },
+        body: fingerprint,
+      })
+      if (!response.ok)
+        throw new Error(
+          (await readProblem(response)) ?? 'Không thể tạo báo cáo.',
+        )
+      const report = (await response.json()) as PlatformReport
+      setReports((current) => [
+        report,
+        ...current.filter((item) => item.reportId !== report.reportId),
+      ])
+      createKey.current = null
+      setError(null)
+      onNotice('Báo cáo đã được đưa vào hàng đợi.')
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Không thể tạo báo cáo.',
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
-    <section className="arm-metrics" aria-label="Chỉ số nền tảng">
-      <article className="primary"><span>Người dùng hoạt động</span><strong>8.742</strong><p><b>↑ 8,4%</b> so với kỳ trước</p></article>
-      <article><span>Phiên tư vấn hoàn thành</span><strong>1.284</strong><p>92,6% tổng lịch đã xác nhận</p></article>
-      <article><span>Doanh thu ghi nhận</span><strong>486,2 tr</strong><p><b>↑ 12,1%</b> trong 30 ngày</p></article>
-      <article><span>Tỷ lệ giữ chân</span><strong>68,7%</strong><p>Người dùng quay lại trong tháng</p></article>
-    </section>
+  async function retry(reportId: string) {
+    if (retrying.has(reportId)) return
+    setRetrying((current) => new Set(current).add(reportId))
+    const idempotencyKey =
+      retryKeys.current.get(reportId) ??
+      `platform-report-retry-${crypto.randomUUID()}`
+    retryKeys.current.set(reportId, idempotencyKey)
+    try {
+      const response = await fetch(
+        `/api/admin/platform-reports/${reportId}/retries`,
+        {
+          method: 'POST',
+          headers: {
+            'Idempotency-Key': idempotencyKey,
+          },
+        },
+      )
+      if (!response.ok)
+        throw new Error(
+          (await readProblem(response)) ?? 'Không thể thử lại báo cáo.',
+        )
+      const report = (await response.json()) as PlatformReport
+      setReports((current) => [report, ...current])
+      retryKeys.current.delete(reportId)
+      onNotice('Đã tạo lượt thử lại an toàn.')
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Không thể thử lại báo cáo.',
+      )
+    } finally {
+      setRetrying((current) => {
+        const next = new Set(current)
+        next.delete(reportId)
+        return next
+      })
+    }
+  }
 
-    <nav className="arm-tabs" aria-label="Khu vực báo cáo">
-      <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}><span>⌁</span><div><strong>Tổng quan</strong><small>Xu hướng vận hành</small></div></button>
-      <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}><span>▤</span><div><strong>Kho báo cáo</strong><small>Tệp đã tạo và đang xử lý</small></div><b>{REPORTS.length}</b></button>
-      <button className={tab === 'schedules' ? 'active' : ''} onClick={() => setTab('schedules')}><span>◷</span><div><strong>Lịch tự động</strong><small>Báo cáo định kỳ</small></div><b>{SCHEDULES.filter(item => item.active).length}</b></button>
-    </nav>
+  async function download(report: PlatformReport) {
+    try {
+      const response = await fetch(
+        `/api/admin/platform-reports/${report.reportId}/artifact`,
+        { cache: 'no-store' },
+      )
+      if (!response.ok)
+        throw new Error(
+          (await readProblem(response)) ?? 'Không thể tải báo cáo.',
+        )
+      const url = URL.createObjectURL(await response.blob())
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download =
+        report.fileName ?? `platform-report-${report.reportId}.json`
+      document.body.append(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(url)
+      onNotice('Đã tải artifact báo cáo.')
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Không thể tải báo cáo.',
+      )
+    }
+  }
 
-    {tab === 'overview' && <section className="arm-overview">
-      <article className="arm-chart-card">
-        <header><div><span>XU HƯỚNG HOẠT ĐỘNG</span><h2>Nhịp sử dụng nền tảng</h2><p>Số lượt hoạt động hợp lệ được ghi nhận theo thời gian.</p></div><select value={period} onChange={event => setPeriod(event.target.value as Period)} aria-label="Khoảng thời gian"><option>7 ngày</option><option>30 ngày</option><option>Quý III</option></select></header>
-        <div className="arm-chart" aria-label="Biểu đồ hoạt động nền tảng">
-          <div className="arm-axis"><span>120k</span><span>80k</span><span>40k</span><span>0</span></div>
-          <div className="arm-bars">{bars.map((value, index) => <div key={`${period}-${index}`}><span style={{ '--height': `${Math.max(20, value / max * 100)}%` } as React.CSSProperties}><i>{value}k</i></span><small>{['21/08','22/08','23/08','24/08','25/08','26/08','27/08'][index]}</small></div>)}</div>
-        </div>
-        <footer><span><i />Lượt hoạt động</span><strong>Trung bình 86,1 nghìn/ngày</strong></footer>
-      </article>
-
-      <aside className="arm-insights">
-        <header><span>ĐIỂM ĐÁNG CHÚ Ý</span><h2>Tín hiệu vận hành</h2></header>
-        <article><i className="up">↗</i><div><strong>Lịch hẹn tăng ổn định</strong><p>Tăng 14,2% so với 30 ngày trước, chủ yếu ở khung 19:00–21:00.</p></div></article>
-        <article><i>✓</i><div><strong>Tỷ lệ hoàn thành tốt</strong><p>92,6% phiên đã xác nhận được hoàn thành đúng trạng thái.</p></div></article>
-        <article><i className="attention">!</i><div><strong>6 hồ sơ cần xử lý</strong><p>Hồ sơ chuyên gia chờ duyệt lâu nhất đã sang ngày thứ ba.</p></div></article>
-        <button onClick={() => setTab('reports')}>Xem báo cáo chi tiết <span>→</span></button>
-      </aside>
-
-      <section className="arm-breakdown">
-        <header><div><span>PHÂN BỔ HOẠT ĐỘNG</span><h2>Các khu vực được sử dụng nhiều</h2></div><small>30 ngày gần nhất</small></header>
+  return (
+    <div className="admin-reports-manager">
+      <div className="role-heading arm-heading">
         <div>
-          {[['Đánh giá tâm lý','32%','assessment'],['Nhật ký cảm xúc','27%','journal'],['Tài nguyên tự chăm sóc','23%','resources'],['Tư vấn chuyên gia','18%','consultation']].map(([label,value,tone]) => <article key={label}><div><strong>{label}</strong><span>{value}</span></div><p><i className={tone} style={{ width: value }} /></p></article>)}
+          <span className="eyebrow">Quản trị nền tảng</span>
+          <h1>Báo cáo tổng hợp</h1>
+          <p>
+            Tạo và tải báo cáo vận hành từ nguồn dữ liệu có thẩm quyền, với
+            provenance bất biến.
+          </p>
         </div>
+        <span className="arm-live">
+          <i />
+          Dữ liệu thật · không dùng số liệu mẫu
+        </span>
+      </div>
+
+      <section className="arm-create" aria-labelledby="create-report-title">
+        <header>
+          <span>TẠO BÁO CÁO</span>
+          <h2 id="create-report-title">Chọn phạm vi tổng hợp</h2>
+          <p>
+            Tối đa {selectedType?.maximumPeriodDays ?? '…'} ngày; ngày kết thúc
+            không được nằm trong tương lai.
+          </p>
+        </header>
+        <form onSubmit={createReport}>
+          <label>
+            <span>Loại báo cáo</span>
+            <select
+              value={reportType}
+              onChange={(event) =>
+                setReportType(
+                  event.target.value as PlatformReportRequest['reportType'],
+                )
+              }
+              disabled={!catalogue.length}
+            >
+              {catalogue.map((item) => (
+                <option key={item.reportType} value={item.reportType}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Từ ngày</span>
+            <input
+              type="date"
+              value={periodStart}
+              max={periodEnd}
+              onChange={(event) => setPeriodStart(event.target.value)}
+              required
+            />
+          </label>
+          <label>
+            <span>Đến ngày</span>
+            <input
+              type="date"
+              value={periodEnd}
+              min={periodStart}
+              max={localDate(0)}
+              onChange={(event) => setPeriodEnd(event.target.value)}
+              required
+            />
+          </label>
+          <button
+            className="btn-primary"
+            disabled={submitting || !catalogue.length}
+          >
+            {submitting ? 'Đang gửi…' : '+ Tạo báo cáo'}
+          </button>
+        </form>
+        {selectedType && (
+          <aside>
+            <strong>{selectedType.label}</strong>
+            <span>{selectedType.description}</span>
+            <code>{selectedType.scopeVersion}</code>
+          </aside>
+        )}
       </section>
-    </section>}
 
-    {tab === 'reports' && <section className="arm-reports">
-      <header><div><span>KHO BÁO CÁO</span><h2>Báo cáo đã tạo</h2><p>Tải xuống hoặc theo dõi trạng thái tổng hợp dữ liệu.</p></div><label><span>⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Tìm tên hoặc phạm vi báo cáo..." /></label></header>
-      <div className="arm-report-head"><span>Báo cáo</span><span>Người tạo</span><span>Trạng thái</span><span>Dung lượng</span><span /></div>
-      <div className="arm-report-list">{visibleReports.map((report, index) => <article key={report.id}><span className={`arm-report-icon tone-${index}`}>▤</span><div><strong>{report.name}</strong><small>{report.scope}</small><em>{report.id} · {report.created}</em></div><span>{report.owner}</span><b className={report.status === 'Đang xử lý' ? 'processing' : ''}><i />{report.status}</b><span>{report.size}</span><button disabled={report.status === 'Đang xử lý'} onClick={() => onNotice(`Đang tải xuống ${report.name}.`)} aria-label={`Tải ${report.name}`}>{report.status === 'Đang xử lý' ? '…' : '↓'}</button></article>)}</div>
-      {!visibleReports.length && <div className="arm-empty"><span>⌕</span><strong>Không tìm thấy báo cáo</strong><small>Hãy thử từ khóa khác.</small></div>}
-    </section>}
+      <section className="arm-reports" aria-labelledby="report-history-title">
+        <header>
+          <div>
+            <span>LỊCH SỬ BẤT BIẾN</span>
+            <h2 id="report-history-title">Kho báo cáo</h2>
+            <p>
+              Chỉ artifact hoàn tất và còn trong thời hạn lưu mới có thể tải
+              xuống.
+            </p>
+          </div>
+          <label>
+            <span>⌕</span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Tìm theo loại, trạng thái hoặc ngày…"
+            />
+          </label>
+        </header>
+        {error && (
+          <div className="arm-error" role="alert">
+            <strong>Không thể hoàn tất yêu cầu</strong>
+            <span>{error}</span>
+            <button onClick={() => void load()}>Thử lại</button>
+          </div>
+        )}
+        {loading && (
+          <div className="arm-empty">
+            <span>◌</span>
+            <strong>Đang tải báo cáo…</strong>
+          </div>
+        )}
+        {!loading && !visibleReports.length && (
+          <div className="arm-empty">
+            <span>▤</span>
+            <strong>Chưa có báo cáo</strong>
+            <small>
+              Chọn loại và khoảng thời gian để tạo báo cáo đầu tiên.
+            </small>
+          </div>
+        )}
+        <div className="arm-report-list">
+          {visibleReports.map((report) => {
+            const type = catalogue.find(
+              (item) => item.reportType === report.reportType,
+            )
+            const retryable =
+              report.status === 'FAILED' || report.status === 'STALE'
+            return (
+              <article key={report.reportId}>
+                <span className="arm-report-icon">▤</span>
+                <div>
+                  <strong>{type?.label ?? report.reportType}</strong>
+                  <small>
+                    {report.periodStart} → {report.periodEnd}
+                  </small>
+                  <em>
+                    {report.reportId} · yêu cầu{' '}
+                    {new Date(report.requestedAt).toLocaleString('vi-VN')}
+                  </em>
+                </div>
+                <div className="arm-provenance">
+                  <small>Phiên bản phạm vi</small>
+                  <code>{report.scopeVersion}</code>
+                  <small>
+                    Nguồn: {Object.values(report.sourceVersions).join(', ')}
+                  </small>
+                </div>
+                <b className={`status-${report.status.toLowerCase()}`}>
+                  <i />
+                  {STATUS_LABELS[report.status]}
+                </b>
+                <div className="arm-report-actions">
+                  {report.downloadable && (
+                    <button onClick={() => void download(report)}>
+                      Tải xuống
+                    </button>
+                  )}
+                  {retryable && (
+                    <button
+                      disabled={retrying.has(report.reportId)}
+                      onClick={() => void retry(report.reportId)}
+                    >
+                      {retrying.has(report.reportId)
+                        ? 'Đang thử lại…'
+                        : 'Thử lại'}
+                    </button>
+                  )}
+                  {!report.downloadable && !retryable && (
+                    <span>
+                      {report.status === 'COMPLETED'
+                        ? 'Đã hết hạn'
+                        : 'Chưa có artifact'}
+                    </span>
+                  )}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+        {nextCursor && !query && (
+          <footer>
+            <button onClick={() => void load(nextCursor)}>Tải thêm</button>
+          </footer>
+        )}
+      </section>
 
-    {tab === 'schedules' && <section className="arm-schedules">
-      <header><div><span>LỊCH TỰ ĐỘNG</span><h2>Báo cáo định kỳ</h2><p>Tạo báo cáo đúng lịch và gửi đến nhóm phụ trách.</p></div><button onClick={() => onNotice('Đã mở biểu mẫu tạo lịch báo cáo.')}>+ Thêm lịch</button></header>
-      <div>{SCHEDULES.map((schedule, index) => <article key={schedule.name}><span className="arm-schedule-number">0{index + 1}</span><div><strong>{schedule.name}</strong><small>{schedule.cadence}</small></div><p><small>Người nhận</small><strong>{schedule.recipient}</strong></p><p><small>Lần tạo tiếp theo</small><strong>{schedule.next}</strong></p><label><input type="checkbox" defaultChecked={schedule.active} onChange={event => onNotice(event.target.checked ? 'Đã bật lịch báo cáo.' : 'Đã tạm dừng lịch báo cáo.')} /><i /></label><button onClick={() => onNotice(`Đã mở thiết lập ${schedule.name}.`)}>→</button></article>)}</div>
-      <aside><i>i</i><p><strong>Dữ liệu nhạy cảm không được gửi trong báo cáo tự động.</strong><span>Các báo cáo định kỳ chỉ chứa số liệu tổng hợp, đã giới hạn theo vai trò người nhận.</span></p></aside>
-    </section>}
-  </div>
+      <aside className="arm-privacy">
+        <i>i</i>
+        <p>
+          <strong>Giới hạn quyền riêng tư</strong>
+          <span>
+            Artifact chỉ chứa số liệu tổng hợp; không có nhật ký, câu trả lời
+            đánh giá, nội dung chat, ghi chú riêng hay payload AI.
+          </span>
+        </p>
+      </aside>
+    </div>
+  )
 }
