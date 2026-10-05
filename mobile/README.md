@@ -94,11 +94,20 @@ Shared foundations
 └── MentalBridge theme tokens and accessible screen/button primitives
 ```
 
-The app starts unauthenticated. MB-607 will connect Identity session outcomes
-to the existing role boundary; MB-608 will add the first USER profile feature.
-This foundation intentionally contains no login implementation, product API
-calls, mock business records, offline business database, or client-owned role
-decision.
+The app starts by restoring credentials from SecureStore and confirms the
+current account with Identity before opening the USER route group. MB-607 adds
+USER registration, email-verification deep links, login, refresh rotation,
+logout revocation, and fail-closed session restoration. Role, subject, account
+status, and email-verification state come only from Identity's authenticated
+`GET /api/v1/account` response; the app does not decode tokens to grant access.
+
+The development-build verification link is
+`mentalbridge:///verify-email?challenge=<one-time-challenge>`. It preserves the
+existing Identity challenge query and consumption semantics. Production HTTP
+links still require the approved web-domain Android App Link and iOS Universal
+Link association; MB-607 does not redefine the backend email URL.
+See [`docs/MB-607_AUTH_SESSION.md`](docs/MB-607_AUTH_SESSION.md) for the endpoint,
+lifecycle, failure-state, deep-link, and automated-test evidence.
 
 ## Quality commands
 

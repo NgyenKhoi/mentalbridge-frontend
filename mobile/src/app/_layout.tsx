@@ -4,11 +4,20 @@ import { useSession } from '@/auth/session-context'
 import { readRuntimeConfig } from '@/config/runtime-config'
 import { getRouteGuards } from '@/navigation/route-policy'
 import { AppProviders } from '@/providers/AppProviders'
+import { SessionStatusScreen } from '@/screens/SessionStatusScreen'
 
 const runtimeConfig = readRuntimeConfig()
 
 function RootNavigator() {
-  const { session } = useSession()
+  const { retryRestore, session, status } = useSession()
+
+  if (status === 'restoring') return <SessionStatusScreen />
+  if (status === 'unavailable') {
+    return (
+      <SessionStatusScreen unavailable onRetry={() => void retryRestore()} />
+    )
+  }
+
   const guards = getRouteGuards(session)
 
   return (
