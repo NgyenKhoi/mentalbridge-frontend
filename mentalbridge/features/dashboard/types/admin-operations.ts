@@ -17,7 +17,6 @@ export interface IdentityAccountsData {
   roles: {
     users: number;
     specialists: number;
-    moderators: number;
     administrators: number;
   };
 }
@@ -40,6 +39,9 @@ export interface ConsultationOperationsData {
     cancelled: number;
     rejected: number;
     expired: number;
+    userNoShow: number;
+    specialistNoShow: number;
+    disputed: number;
   };
 }
 

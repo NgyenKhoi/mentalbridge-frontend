@@ -200,10 +200,6 @@ export function AdminOperationsDashboard({ onNotice }: AdminOperationsDashboardP
                       <span className={styles.metricValue}>{data.identity.data.roles.specialists}</span>
                     </div>
                     <div className={styles.metricItem}>
-                      <span className={styles.metricName}>Kiểm duyệt viên (Moderator):</span>
-                      <span className={styles.metricValue}>{data.identity.data.roles.moderators}</span>
-                    </div>
-                    <div className={styles.metricItem}>
                       <span className={styles.metricName}>Quản trị viên (Admin):</span>
                       <span className={styles.metricValue}>{data.identity.data.roles.administrators}</span>
                     </div>
@@ -322,6 +318,18 @@ export function AdminOperationsDashboard({ onNotice }: AdminOperationsDashboardP
                     <div className={styles.metricItem}>
                       <span className={styles.metricName}>Hết hạn (Expired):</span>
                       <span className={styles.metricValue}>{data.consultation.data.appointments.expired}</span>
+                    </div>
+                    <div className={styles.metricItem}>
+                      <span className={styles.metricName}>Người dùng vắng mặt (User No-show):</span>
+                      <span className={styles.metricValue}>{data.consultation.data.appointments.userNoShow}</span>
+                    </div>
+                    <div className={styles.metricItem}>
+                      <span className={styles.metricName}>Chuyên gia vắng mặt (Specialist No-show):</span>
+                      <span className={styles.metricValue}>{data.consultation.data.appointments.specialistNoShow}</span>
+                    </div>
+                    <div className={styles.metricItem}>
+                      <span className={styles.metricName}>Đang khiếu nại (Disputed):</span>
+                      <span className={styles.metricValue}>{data.consultation.data.appointments.disputed}</span>
                     </div>
                   </div>
                 </div>

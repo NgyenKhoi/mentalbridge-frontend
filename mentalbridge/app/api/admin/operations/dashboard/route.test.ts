@@ -74,9 +74,8 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
       disabledAccounts: 5,
       deletionPendingAccounts: 0,
       byRole: {
-        users: 90,
+        users: 95,
         specialists: 20,
-        moderators: 5,
         admins: 5,
       },
     })
@@ -101,6 +100,9 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
         cancelled: 2,
         rejected: 1,
         expired: 0,
+        userNoShow: 0,
+        specialistNoShow: 0,
+        disputed: 0,
       },
     })
 

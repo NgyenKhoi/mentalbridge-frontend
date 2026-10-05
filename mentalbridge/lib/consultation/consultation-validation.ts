@@ -1742,7 +1742,10 @@ export function parseConsultationOperationsSummary(
     typeof appt.completed !== 'number' ||
     typeof appt.cancelled !== 'number' ||
     typeof appt.rejected !== 'number' ||
-    typeof appt.expired !== 'number'
+    typeof appt.expired !== 'number' ||
+    typeof appt.userNoShow !== 'number' ||
+    typeof appt.specialistNoShow !== 'number' ||
+    typeof appt.disputed !== 'number'
   ) {
     return null
   }
@@ -1767,6 +1770,9 @@ export function parseConsultationOperationsSummary(
       cancelled: appt.cancelled,
       rejected: appt.rejected,
       expired: appt.expired,
+      userNoShow: appt.userNoShow,
+      specialistNoShow: appt.specialistNoShow,
+      disputed: appt.disputed,
     },
   }
 }

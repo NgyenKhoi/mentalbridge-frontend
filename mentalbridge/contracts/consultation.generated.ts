@@ -960,6 +960,9 @@ export interface components {
             cancelled: number;
             rejected: number;
             expired: number;
+            userNoShow: number;
+            specialistNoShow: number;
+            disputed: number;
         };
         ConsultationOperationsSummary: {
             /** @constant */

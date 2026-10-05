@@ -16,9 +16,8 @@ const mockDashboardData: AdminOperationsDashboardResponse = {
       disabled: 5,
       deletionPending: 0,
       roles: {
-        users: 70,
+        users: 75,
         specialists: 20,
-        moderators: 5,
         administrators: 5,
       },
     },
@@ -45,6 +44,9 @@ const mockDashboardData: AdminOperationsDashboardResponse = {
         cancelled: 1,
         rejected: 1,
         expired: 0,
+        userNoShow: 0,
+        specialistNoShow: 0,
+        disputed: 0,
       },
     },
   },
@@ -140,6 +142,12 @@ describe('AdminOperationsDashboard Component', () => {
     expect(screen.queryByText('99,98%')).not.toBeInTheDocument()
     expect(screen.queryByText('96/100')).not.toBeInTheDocument()
     expect(screen.queryByText('12.480')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Kiểm duyệt viên/i)).not.toBeInTheDocument()
+
+    // Verify all appointment states are rendered
+    expect(screen.getByText('Người dùng vắng mặt (User No-show):')).toBeInTheDocument()
+    expect(screen.getByText('Chuyên gia vắng mặt (Specialist No-show):')).toBeInTheDocument()
+    expect(screen.getByText('Đang khiếu nại (Disputed):')).toBeInTheDocument()
   })
 
   it('renders unintegrated metrics clearly marked as UNAVAILABLE', async () => {

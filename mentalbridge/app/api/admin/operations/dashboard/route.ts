@@ -58,10 +58,6 @@ export async function GET(request: NextRequest) {
             roles: {
               users: identityResult.value.byRole.users,
               specialists: identityResult.value.byRole.specialists,
-              moderators:
-                'moderators' in identityResult.value.byRole
-                  ? Number((identityResult.value.byRole as Record<string, unknown>).moderators) || 0
-                  : 0,
               administrators: identityResult.value.byRole.admins,
             },
           },

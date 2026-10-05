@@ -269,7 +269,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read authoritative aggregate account counts and status for admin operations dashboard */
+        /** Read authoritative aggregate account counts and status for admin operations dashboard (excluding soft-deleted accounts) */
         get: operations["getAccountsSummary"];
         put?: never;
         post?: never;
@@ -439,6 +439,7 @@ export interface components {
             source: "IDENTITY";
             /** Format: date-time */
             asOf: string;
+            /** @description Total manageable accounts in the platform, excluding soft-deleted (purged) accounts. Matches the sum of status breakdown and the sum of role breakdown. */
             totalAccounts: number;
             activeAccounts: number;
             pendingVerificationAccounts: number;
