@@ -68,10 +68,15 @@ Material changes to an existing browser journey must update its Playwright test,
 but ordinary feature delivery does not run Browser E2E unless the task requires
 it.
 
+Mobile changes in pull requests into `dev` run only a clean install and
+`npm run typecheck`. Mobile formatting, lint, Jest, JavaScript bundle export,
+and native Android/iOS boot checks are deferred to the staging release gate.
+
 Promotion pull requests from `dev` to `staging` run `npm run ci:staging` after
 installing Chromium. That release gate repeats the non-browser checks and then
 runs the controlled Realtime browser tests plus the full fixture Playwright
-suite. Live cross-stack E2E remains an explicit approved-environment command;
+suite. It also runs `npm run quality` for mobile and the Android/iOS native boot
+smokes. Live cross-stack E2E remains an explicit approved-environment command;
 it is not part of either automatic gate.
 
 ## Review checklist

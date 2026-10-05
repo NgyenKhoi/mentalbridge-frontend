@@ -1,1 +1,1 @@
-export { SignInPlaceholderScreen as default } from '@/screens/SignInPlaceholderScreen'
+export { SignInScreen as default } from '@/screens/SignInScreen'
