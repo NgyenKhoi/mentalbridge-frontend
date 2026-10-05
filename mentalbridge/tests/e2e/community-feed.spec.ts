@@ -4,12 +4,16 @@ import { test } from './test-fixtures'
 
 const identityFixtureUrl = 'http://127.0.0.1:3201'
 
-async function login(page: Page) {
+async function login(page: Page, email = 'user@example.com') {
   await page.goto('/login')
-  await page.getByLabel('Email').fill('user@example.com')
+  await page.getByLabel('Email').fill(email)
   await page.getByLabel('Mật khẩu').fill('synthetic-e2e-password')
   await page.getByRole('button', { name: 'Đăng nhập' }).click()
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(
+    email === 'admin-resource-e2e@example.com'
+      ? /\/admin\/dashboard$/
+      : /\/dashboard$/,
+  )
 }
 
 test.describe('Community feed journey', () => {
