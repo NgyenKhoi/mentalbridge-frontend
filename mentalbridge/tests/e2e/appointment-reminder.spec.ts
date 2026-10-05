@@ -30,6 +30,7 @@ test('MB-550 saves and reloads the one-email opt-in independently of the digest'
       screeningReassessment: true,
       appointmentMessage: true,
       resourceSystem: true,
+      communityInteraction: true,
     },
     quietHours: {
       enabled: true,

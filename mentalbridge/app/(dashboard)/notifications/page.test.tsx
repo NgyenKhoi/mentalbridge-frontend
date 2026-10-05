@@ -46,6 +46,7 @@ const preferences = {
     screeningReassessment: true,
     appointmentMessage: true,
     resourceSystem: true,
+    communityInteraction: true,
   },
   quietHours: {
     enabled: true,
@@ -179,6 +180,44 @@ describe('Notification preferences page', () => {
     ).toBe(true)
   })
 
+  it('renders a Community interaction and follows only the server-derived post deep link', async () => {
+    const user = userEvent.setup()
+    const postId = 'e13e4567-e89b-42d3-a456-426614174000'
+    const communityNotification = {
+      ...notification,
+      kind: 'COMMUNITY_REPLY' as const,
+      title: 'Bình luận của bạn có phản hồi mới',
+      body: 'Một thành viên đã tiếp tục cuộc trò chuyện hỗ trợ.',
+      action: {
+        type: 'OPEN_COMMUNITY_POST' as const,
+        targetId: postId,
+        href: `/community/${postId}`,
+      },
+    }
+    inboxApi.get.mockResolvedValueOnce({
+      items: [communityNotification],
+      nextCursor: null,
+      hasMore: false,
+      unreadCount: 1,
+    })
+    inboxApi.read.mockResolvedValue({
+      ...communityNotification,
+      read: true,
+      readAt: '2026-09-26T02:00:00.000Z',
+    })
+
+    render(<NotificationsPage />)
+    expect(await screen.findByText('Cộng đồng')).toBeVisible()
+    const openButton = screen
+      .getByText('Bình luận của bạn có phản hồi mới')
+      .closest('button')
+    expect(openButton).not.toBeNull()
+    await user.click(openButton!)
+
+    await waitFor(() => expect(inboxApi.read).toHaveBeenCalledTimes(1))
+    expect(inboxApi.push).toHaveBeenCalledWith(`/community/${postId}`)
+  })
+
   it('persists bulk read, deletion and cursor continuation', async () => {
     const user = userEvent.setup()
     const second = {
@@ -279,13 +318,43 @@ describe('Notification preferences page', () => {
     expect(api.save).toHaveBeenCalledWith(
       expect.objectContaining({
         channels: { inApp: true, email: true, push: true },
-        contentGroups: expect.objectContaining({ resourceSystem: true }),
+        contentGroups: expect.objectContaining({
+          resourceSystem: true,
+          communityInteraction: true,
+        }),
         quietHours: expect.objectContaining({ timeZone: 'Europe/Paris' }),
         email: expect.objectContaining({ cadence: 'IMMEDIATE' }),
       }),
       '"0"',
     )
     expect(await screen.findByText('Đã lưu cài đặt thông báo.')).toBeVisible()
+  })
+
+  it('lets the owner disable Community interaction notifications independently', async () => {
+    const user = userEvent.setup()
+    api.save.mockImplementation(async (patch) => ({
+      preferences: { ...preferences, ...patch, version: 1 },
+      etag: '"1"',
+    }))
+    render(<NotificationsPage />)
+    await user.click(screen.getByRole('button', { name: /Cài đặt/i }))
+
+    const communityToggle = await screen.findByRole('switch', {
+      name: 'Tương tác cộng đồng',
+    })
+    expect(communityToggle).toHaveAttribute('aria-checked', 'true')
+    await user.click(communityToggle)
+    await user.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
+
+    await waitFor(() => expect(api.save).toHaveBeenCalledTimes(1))
+    expect(api.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentGroups: expect.objectContaining({
+          communityInteraction: false,
+        }),
+      }),
+      '"0"',
+    )
   })
 
   it('saves the separate appointment reminder opt-in with timezone and quiet hours', async () => {
