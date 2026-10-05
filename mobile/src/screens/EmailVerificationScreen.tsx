@@ -52,7 +52,7 @@ export function EmailVerificationScreen() {
     try {
       await requestEmailVerification(email.trim().toLowerCase())
       setNotice(
-        'Nếu tài khoản đang chờ xác minh, Identity đã gửi một liên kết mới.',
+        'Nếu tài khoản đang chờ xác minh, một liên kết mới đã được gửi đến email của bạn.',
       )
     } catch {
       setNotice(
@@ -72,7 +72,7 @@ export function EmailVerificationScreen() {
 
   const description =
     state === 'pending'
-      ? 'Identity đang kiểm tra liên kết một lần của bạn.'
+      ? 'MentalBridge đang kiểm tra liên kết một lần của bạn.'
       : state === 'success'
         ? 'Email đã được xác minh. Tài khoản của bạn sẵn sàng để đăng nhập.'
         : state === 'unavailable'

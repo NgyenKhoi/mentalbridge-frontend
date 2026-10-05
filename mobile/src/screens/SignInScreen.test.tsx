@@ -88,7 +88,7 @@ describe('USER sign-in screen', () => {
   it('links to USER registration without exposing an actor selector', async () => {
     await render(<SignInScreen />)
 
-    await fireEvent.press(screen.getByText('Tạo tài khoản USER'))
+    await fireEvent.press(screen.getByText('Tạo tài khoản cá nhân'))
 
     expect(mockPush).toHaveBeenCalledWith('./register')
   })

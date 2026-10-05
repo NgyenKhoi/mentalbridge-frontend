@@ -57,8 +57,8 @@ export function SignInScreen() {
         Tiếp tục hành trình của bạn
       </Text>
       <Text style={styles.description}>
-        Phiên chỉ được mở sau khi Identity xác nhận tài khoản USER đang hoạt
-        động.
+        Phiên chỉ được mở sau khi MentalBridge xác nhận tài khoản cá nhân đang
+        hoạt động.
       </Text>
       {notice ? (
         <Text accessibilityRole="alert" style={styles.error}>
@@ -112,7 +112,7 @@ export function SignInScreen() {
           onPress={() => router.push('./register')}
           style={styles.link}
         >
-          Tạo tài khoản USER
+          Tạo tài khoản cá nhân
         </Text>
       </View>
     </Screen>

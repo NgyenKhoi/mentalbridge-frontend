@@ -96,7 +96,7 @@ export function RegistrationScreen() {
     try {
       await requestEmailVerification(registeredEmail)
       setNotice(
-        'Nếu tài khoản đang chờ xác minh, Identity đã gửi một liên kết mới.',
+        'Nếu tài khoản đang chờ xác minh, một liên kết mới đã được gửi đến email của bạn.',
       )
     } catch (caught) {
       setError(registrationErrorMessage(caught))
@@ -110,8 +110,8 @@ export function RegistrationScreen() {
           Kiểm tra email của bạn
         </Text>
         <Text style={styles.description}>
-          Tài khoản USER cho {registeredEmail} đang chờ xác minh. Hãy mở liên
-          kết một lần trong email.
+          Tài khoản cho {registeredEmail} đang chờ xác minh. Hãy mở liên kết một
+          lần trong email.
         </Text>
         {notice ? (
           <Text accessibilityRole="alert" style={styles.success}>
@@ -139,12 +139,12 @@ export function RegistrationScreen() {
 
   return (
     <Screen>
-      <Text style={styles.eyebrow}>TÀI KHOẢN USER</Text>
+      <Text style={styles.eyebrow}>TÀI KHOẢN CÁ NHÂN</Text>
       <Text accessibilityRole="header" style={styles.title}>
         Tạo tài khoản MentalBridge
       </Text>
       <Text style={styles.description}>
-        Identity sẽ gửi email xác minh trước khi tài khoản có thể đăng nhập.
+        MentalBridge sẽ gửi email xác minh trước khi tài khoản có thể đăng nhập.
       </Text>
       <View style={styles.field}>
         <Text nativeID="register-email-label" style={styles.label}>

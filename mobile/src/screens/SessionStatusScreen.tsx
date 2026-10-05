@@ -17,7 +17,7 @@ export function SessionStatusScreen({
       </Text>
       <Text style={styles.description}>
         {unavailable
-          ? 'Dịch vụ tài khoản tạm thời chưa phản hồi. Ứng dụng chưa mở nội dung cá nhân cho đến khi Identity xác nhận phiên.'
+          ? 'Dịch vụ tài khoản tạm thời chưa phản hồi. Nội dung cá nhân vẫn được khóa để bảo vệ bạn. Vui lòng thử lại.'
           : 'MentalBridge đang xác nhận phiên an toàn của bạn.'}
       </Text>
       {unavailable && onRetry ? (
