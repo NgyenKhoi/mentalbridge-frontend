@@ -453,9 +453,9 @@ export interface components {
             reasonCode: "SAFETY_CONCERN" | "POLICY_VIOLATION" | "ACCOUNT_REVIEW_REQUIRED" | "REVIEW_COMPLETED";
         };
         /** @enum {string} */
-        AuditSourceService: "IDENTITY";
+        AuditSourceService: "IDENTITY" | "CONSULTATION" | "CONTENT" | "COMMUNITY";
         /** @enum {string} */
-        AuditDomain: "ACCOUNT_ADMINISTRATION";
+        AuditDomain: "ACCOUNT_ADMINISTRATION" | "SPECIALIST_REVIEW" | "RESOURCE_MANAGEMENT" | "COMMUNITY_MODERATION";
         /** @enum {string} */
         AuditActorType: "ADMIN" | "SYSTEM";
         /** @enum {string} */

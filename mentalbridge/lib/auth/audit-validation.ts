@@ -4,6 +4,20 @@ const UUID =
   '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}'
 const TARGET_PATTERN = new RegExp(`^(account:${UUID}|tombstone:[0-9a-f]{64})$`)
 
+const VALID_SOURCE_SERVICES = new Set([
+  'IDENTITY',
+  'CONSULTATION',
+  'CONTENT',
+  'COMMUNITY',
+])
+
+const VALID_DOMAINS = new Set([
+  'ACCOUNT_ADMINISTRATION',
+  'SPECIALIST_REVIEW',
+  'RESOURCE_MANAGEMENT',
+  'COMMUNITY_MODERATION',
+])
+
 export function administrationAuditSearch(
   search: URLSearchParams,
   includePagination: boolean,
@@ -36,8 +50,8 @@ export function administrationAuditSearch(
   if (
     (from !== null && !validDateTime(from)) ||
     (to !== null && !validDateTime(to)) ||
-    (sourceService !== null && sourceService !== 'IDENTITY') ||
-    (domain !== null && domain !== 'ACCOUNT_ADMINISTRATION') ||
+    (sourceService !== null && !VALID_SOURCE_SERVICES.has(sourceService)) ||
+    (domain !== null && !VALID_DOMAINS.has(domain)) ||
     (actorType !== null && !['ADMIN', 'SYSTEM'].includes(actorType)) ||
     (action !== null && !/^[A-Z0-9_]{1,96}$/.test(action)) ||
     (result !== null && !['SUCCEEDED', 'DENIED', 'FAILED'].includes(result)) ||

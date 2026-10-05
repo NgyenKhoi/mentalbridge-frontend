@@ -43,6 +43,18 @@ const UUID_PATTERN =
 const SAFE_CODE_PATTERN = /^[A-Z0-9_]{1,96}$/
 const SAFE_ACTOR_PATTERN = /^(account:[0-9a-f-]{36}|system)$/i
 const SAFE_TARGET_PATTERN = /^(account:[0-9a-f-]{36}|tombstone:[0-9a-f]{64})$/i
+const VALID_AUDIT_SERVICES = new Set([
+  'IDENTITY',
+  'CONSULTATION',
+  'CONTENT',
+  'COMMUNITY',
+])
+const VALID_AUDIT_DOMAINS = new Set([
+  'ACCOUNT_ADMINISTRATION',
+  'SPECIALIST_REVIEW',
+  'RESOURCE_MANAGEMENT',
+  'COMMUNITY_MODERATION',
+])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -503,9 +515,8 @@ function parseAdministrationAuditEvent(
       (typeof value.reasonCode !== 'string' ||
         !SAFE_CODE_PATTERN.test(value.reasonCode))) ||
     typeof value.correlationId !== 'string' ||
-    !UUID_PATTERN.test(value.correlationId) ||
-    value.sourceService !== 'IDENTITY' ||
-    value.domain !== 'ACCOUNT_ADMINISTRATION' ||
+    !VALID_AUDIT_SERVICES.has(String(value.sourceService)) ||
+    !VALID_AUDIT_DOMAINS.has(String(value.domain)) ||
     typeof value.targetIdentifier !== 'string' ||
     !SAFE_TARGET_PATTERN.test(value.targetIdentifier)
   ) {

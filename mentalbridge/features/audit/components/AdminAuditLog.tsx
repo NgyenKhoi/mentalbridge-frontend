@@ -2,14 +2,38 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ApiError } from '@/lib/api/api-error'
-import type { AdministrationAuditEvent } from '@/features/auth/api/identity-contract'
+import type {
+  AdministrationAuditEvent,
+  AuditDomain,
+  AuditSourceService,
+} from '@/features/auth/api/identity-contract'
 import { browserAdminAudit, type AuditSearch } from '../api/browser-admin-audit'
 import styles from './AdminAuditLog.module.css'
 
 const actionLabels: Record<string, string> = {
   ACCOUNT_DISABLED: 'Tạm ngưng tài khoản',
   ACCOUNT_RESTORED: 'Khôi phục tài khoản',
+  SPECIALIST_APPROVED: 'Duyệt chuyên gia',
+  SPECIALIST_REJECTED: 'Từ chối chuyên gia',
+  SPECIALIST_SUSPENDED: 'Đình chỉ chuyên gia',
+  SPECIALIST_RESTORED: 'Khôi phục chuyên gia',
+  RESOURCE_PUBLISHED: 'Xuất bản tài nguyên',
+  MODERATION_ACTION_APPLIED: 'Xử lý kiểm duyệt',
   UNKNOWN_EVENT: 'Sự kiện không xác định',
+}
+
+const serviceLabels: Record<string, string> = {
+  IDENTITY: 'Định danh & tài khoản',
+  CONSULTATION: 'Tư vấn chuyên gia',
+  COMMUNITY: 'Cộng đồng',
+  CONTENT: 'Nội dung & tài nguyên',
+}
+
+const domainLabels: Record<string, string> = {
+  ACCOUNT_ADMINISTRATION: 'Quản trị tài khoản',
+  SPECIALIST_REVIEW: 'Kiểm duyệt chuyên gia',
+  COMMUNITY_MODERATION: 'Kiểm duyệt cộng đồng',
+  RESOURCE_MANAGEMENT: 'Quản lý tài nguyên',
 }
 
 const resultLabels = {
@@ -41,6 +65,8 @@ function technicalIdentifier(value: string) {
 export default function AdminAuditLog() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  const [sourceService, setSourceService] = useState('')
+  const [domain, setDomain] = useState('')
   const [actorType, setActorType] = useState('')
   const [action, setAction] = useState('')
   const [result, setResult] = useState('')
@@ -113,8 +139,10 @@ export default function AdminAuditLog() {
     const filters: AuditSearch = {
       ...(inputToIso(from) ? { from: inputToIso(from) } : {}),
       ...(inputToIso(to) ? { to: inputToIso(to) } : {}),
-      sourceService: 'IDENTITY',
-      domain: 'ACCOUNT_ADMINISTRATION',
+      ...(sourceService
+        ? { sourceService: sourceService as AuditSourceService }
+        : {}),
+      ...(domain ? { domain: domain as AuditDomain } : {}),
       ...(actorType ? { actorType: actorType as 'ADMIN' | 'SYSTEM' } : {}),
       ...(action ? { action } : {}),
       ...(result
@@ -132,6 +160,8 @@ export default function AdminAuditLog() {
   function reset() {
     setFrom('')
     setTo('')
+    setSourceService('')
+    setDomain('')
     setActorType('')
     setAction('')
     setResult('')
@@ -208,14 +238,28 @@ export default function AdminAuditLog() {
         </label>
         <label>
           Dịch vụ
-          <select disabled value="IDENTITY">
+          <select
+            value={sourceService}
+            onChange={(event) => setSourceService(event.target.value)}
+          >
+            <option value="">Tất cả</option>
             <option value="IDENTITY">Định danh &amp; tài khoản</option>
+            <option value="CONSULTATION">Tư vấn chuyên gia</option>
+            <option value="COMMUNITY">Cộng đồng</option>
+            <option value="CONTENT">Nội dung &amp; tài nguyên</option>
           </select>
         </label>
         <label>
           Phạm vi
-          <select disabled value="ACCOUNT_ADMINISTRATION">
+          <select
+            value={domain}
+            onChange={(event) => setDomain(event.target.value)}
+          >
+            <option value="">Tất cả</option>
             <option value="ACCOUNT_ADMINISTRATION">Quản trị tài khoản</option>
+            <option value="SPECIALIST_REVIEW">Kiểm duyệt chuyên gia</option>
+            <option value="COMMUNITY_MODERATION">Kiểm duyệt cộng đồng</option>
+            <option value="RESOURCE_MANAGEMENT">Quản lý tài nguyên</option>
           </select>
         </label>
         <label>
@@ -238,6 +282,12 @@ export default function AdminAuditLog() {
             <option value="">Tất cả</option>
             <option value="ACCOUNT_DISABLED">Tạm ngưng tài khoản</option>
             <option value="ACCOUNT_RESTORED">Khôi phục tài khoản</option>
+            <option value="SPECIALIST_APPROVED">Duyệt chuyên gia</option>
+            <option value="SPECIALIST_REJECTED">Từ chối chuyên gia</option>
+            <option value="SPECIALIST_SUSPENDED">Đình chỉ chuyên gia</option>
+            <option value="SPECIALIST_RESTORED">Khôi phục chuyên gia</option>
+            <option value="RESOURCE_PUBLISHED">Xuất bản tài nguyên</option>
+            <option value="MODERATION_ACTION_APPLIED">Xử lý kiểm duyệt</option>
           </select>
         </label>
         <label>
@@ -314,7 +364,12 @@ export default function AdminAuditLog() {
                     <strong>
                       {actionLabels[event.action] ?? event.action}
                     </strong>
-                    <small>Định danh &amp; tài khoản</small>
+                    <small>
+                      {serviceLabels[event.sourceService] ??
+                        event.sourceService}
+                      {' · '}
+                      {domainLabels[event.domain] ?? event.domain}
+                    </small>
                   </td>
                   <td>
                     <span data-result={event.result}>
