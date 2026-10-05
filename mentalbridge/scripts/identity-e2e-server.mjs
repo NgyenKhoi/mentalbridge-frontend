@@ -1077,6 +1077,39 @@ const server = createServer(async (request, response) => {
       }
     }
 
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/community/saved-posts'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const cursor = url.searchParams.get('cursor')
+      const matching = communityPosts.filter((post) =>
+        communityBookmarks.has(`${actor.accountId}:${post.postId}`),
+      )
+      const offset = cursor === 'community-saved-next' ? 1 : 0
+      const items = matching
+        .slice(offset, offset + 1)
+        .map(({ content, ...post }) => ({
+          ...post,
+          contentPreview: content,
+          viewerState: {
+            reaction:
+              communityReactionByViewer.get(
+                `${actor.accountId}:${post.postId}`,
+              ) ?? null,
+            bookmarked: true,
+          },
+        }))
+      const hasMore = offset + items.length < matching.length
+      json(response, 200, {
+        items,
+        nextCursor: hasMore ? 'community-saved-next' : null,
+        hasMore,
+      })
+      return
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/v1/community/feed') {
       const actor = journalActor(request, response)
       if (!actor) return

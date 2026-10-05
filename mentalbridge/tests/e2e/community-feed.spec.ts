@@ -71,7 +71,7 @@ test.describe('Community feed journey', () => {
 
     await page.getByRole('button', { name: 'Viết bài' }).click()
     await page
-      .getByLabel('Nội dung')
+      .getByLabel('Nội dung', { exact: true })
       .fill('Một câu chuyện mới do mình chủ động chia sẻ.')
     await page
       .getByRole('group', { name: 'Chọn 1–3 chủ đề' })
@@ -87,7 +87,9 @@ test.describe('Community feed journey', () => {
     ).toBeVisible()
     await page.getByRole('button', { name: 'Chỉnh sửa' }).click()
     await page.getByText('Dùng danh tính cộng đồng', { exact: true }).click()
-    await page.getByLabel('Nội dung').fill('Câu chuyện đã được mình cập nhật.')
+    await page
+      .getByLabel('Nội dung', { exact: true })
+      .fill('Câu chuyện đã được mình cập nhật.')
     await page.getByRole('button', { name: 'Lưu thay đổi' }).click()
     await expect(
       page.getByText('Câu chuyện đã được mình cập nhật.'),
@@ -252,13 +254,31 @@ test.describe('Community feed journey', () => {
 
     await bookmark.click()
     await expect(bookmark).toHaveAttribute('aria-pressed', 'true')
+
+    await page.goto('/community/saved')
+    await expect(
+      page.getByRole('heading', { name: 'Bài viết đã lưu', exact: true }),
+    ).toBeVisible()
+    await expect(page.getByText(/dành mười phút để đi bộ/)).toBeVisible()
     await page.reload()
-    await expect(reactionButtons.nth(3)).toHaveAttribute('aria-pressed', 'true')
-    await reactionButtons.nth(3).click()
-    await expect(reactionButtons.nth(3)).toHaveAttribute(
+    await expect(page.getByRole('button', { name: 'Đã lưu' })).toHaveAttribute(
       'aria-pressed',
-      'false',
+      'true',
     )
+    await page.screenshot({
+      path: 'docs/evidence/mb-616-community-saved-posts.png',
+      fullPage: true,
+    })
+    await page.setViewportSize({ width: 375, height: 812 })
+    await expect(page.getByText('Đã lưu', { exact: true }).last()).toBeVisible()
+    await page.screenshot({
+      path: 'docs/evidence/mb-616-community-saved-posts-mobile.png',
+      fullPage: true,
+    })
+    await page.getByRole('button', { name: 'Đã lưu' }).click()
+    await expect(page.getByText('Bạn chưa lưu bài viết nào')).toBeVisible()
+    await page.reload()
+    await expect(page.getByText('Bạn chưa lưu bài viết nào')).toBeVisible()
   })
 
   test('comments, replies, edits and keeps a tombstone after deletion', async ({

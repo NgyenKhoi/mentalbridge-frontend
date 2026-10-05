@@ -1,14 +1,16 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+const navigation = vi.hoisted(() => ({ pathname: '/community' }))
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/community',
+  usePathname: () => navigation.pathname,
 }))
 
 import CommunityShell from './CommunityShell'
 
 describe('CommunityShell', () => {
   it('keeps peer support separate while preserving safe exits', () => {
+    navigation.pathname = '/community'
     render(
       <CommunityShell>
         <p>Nội dung cộng đồng</p>
@@ -28,5 +30,22 @@ describe('CommunityShell', () => {
     expect(
       screen.getByRole('link', { name: /Bảng tin đồng hành/ }),
     ).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('marks the private saved-post collection without marking the feed', () => {
+    navigation.pathname = '/community/saved'
+
+    render(
+      <CommunityShell>
+        <p>Bộ sưu tập</p>
+      </CommunityShell>,
+    )
+
+    expect(
+      screen.getByRole('link', { name: /Bài viết đã lưu/ }),
+    ).toHaveAttribute('aria-current', 'page')
+    expect(
+      screen.getByRole('link', { name: /Bảng tin đồng hành/ }),
+    ).not.toHaveAttribute('aria-current')
   })
 })

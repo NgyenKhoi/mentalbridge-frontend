@@ -20,6 +20,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/community/saved-posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["browseSavedCommunityPosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/community/posts": {
         parameters: {
             query?: never;
@@ -631,6 +647,33 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Newest-first active posts visible to the authenticated USER. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityFeedPage"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    browseSavedCommunityPosts: {
+        parameters: {
+            query?: {
+                /** @description Opaque continuation cursor for deterministic `(savedAt, postId)` descending order. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active bookmarked posts visible only to the authenticated USER, newest-saved first. */
             200: {
                 headers: {
                     [name: string]: unknown;

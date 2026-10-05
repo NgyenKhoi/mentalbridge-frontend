@@ -6,6 +6,7 @@ import { CommunityServiceError } from '@/lib/community/community-client'
 
 const communityMocks = vi.hoisted(() => ({
   feed: vi.fn(),
+  savedPosts: vi.fn(),
   detail: vi.fn(),
   topics: vi.fn(),
   create: vi.fn(),
@@ -70,6 +71,7 @@ import {
   PUT as putBookmark,
 } from '../posts/[postId]/bookmark/route'
 import { GET as getFeed } from './route'
+import { GET as getSavedPosts } from '../saved-posts/route'
 
 const postId = '20000000-0000-4000-8000-000000000009'
 const authorId = '10000000-0000-4000-8000-000000000002'
@@ -141,6 +143,51 @@ describe('/api/community read BFF', () => {
     expect(sessionMocks.ensureRole).toHaveBeenCalledWith(expect.any(Object), [
       'USER',
     ])
+  })
+
+  it('forwards only bounded owner-scoped saved-post pagination', async () => {
+    communityMocks.savedPosts.mockResolvedValue({
+      items: [{ ...post, contentPreview: post.content }],
+      nextCursor: 'opaque-saved-next',
+      hasMore: true,
+    })
+
+    const response = await getSavedPosts(
+      request(
+        'http://localhost/api/community/saved-posts?limit=12&cursor=opaque-current',
+      ),
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ hasMore: true })
+    expect(communityMocks.savedPosts).toHaveBeenCalledWith(
+      'identity-access-secret',
+      expect.any(URLSearchParams),
+      expect.any(String),
+    )
+    expect(communityMocks.savedPosts.mock.calls[0][1].toString()).toBe(
+      'limit=12&cursor=opaque-current',
+    )
+    expect(sessionMocks.ensureRole).toHaveBeenCalledWith(expect.any(Object), [
+      'USER',
+    ])
+  })
+
+  it('rejects cross-owner, ranking and malformed saved-post parameters', async () => {
+    for (const query of [
+      'ownerId=other',
+      'topic=MY_STORY',
+      'emotion=SAD',
+      'limit=51',
+      'cursor=https://bad',
+    ]) {
+      const response = await getSavedPosts(
+        request(`http://localhost/api/community/saved-posts?${query}`),
+      )
+      expect(response.status).toBe(400)
+      expect((await response.json()).code).toBe('VALIDATION_FAILED')
+    }
+    expect(communityMocks.savedPosts).not.toHaveBeenCalled()
   })
 
   it('rejects profiling and malformed feed parameters before calling Community', async () => {
@@ -326,6 +373,17 @@ describe('/api/community read BFF', () => {
     expect(unavailable.status).toBe(502)
     expect(JSON.stringify(await unavailable.json())).not.toContain(
       'private infrastructure detail',
+    )
+
+    communityMocks.savedPosts.mockRejectedValueOnce(
+      new Error('private saved collection detail'),
+    )
+    const savedUnavailable = await getSavedPosts(
+      request('http://localhost/api/community/saved-posts'),
+    )
+    expect(savedUnavailable.status).toBe(502)
+    expect(JSON.stringify(await savedUnavailable.json())).not.toContain(
+      'private saved collection detail',
     )
   })
 

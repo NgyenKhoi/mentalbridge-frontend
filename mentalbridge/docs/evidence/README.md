@@ -1,5 +1,12 @@
 # Synthetic browser evidence
 
+MB-616 adds a private, server-owned Community saved-post collection. Its BFF,
+component, reload, unbookmark, and fixture-browser evidence is recorded in
+[`../mb-616-community-saved-posts-evidence.md`](../mb-616-community-saved-posts-evidence.md),
+with the controlled synthetic capture `mb-616-community-saved-posts.png`.
+The corresponding 375px capture is
+`mb-616-community-saved-posts-mobile.png`.
+
 MB-615 adds an explicit bounded Community sensitive-content warning and
 reader-controlled disclosure. Contract, accessibility, author/moderator, and
 fixture-browser coverage is recorded in

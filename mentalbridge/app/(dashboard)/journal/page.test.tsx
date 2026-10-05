@@ -67,11 +67,14 @@ describe('Journal page', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
 
   it('uses local calendar time and manages dialog focus and background access', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-04T15:46:30.000Z'))
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValue(
