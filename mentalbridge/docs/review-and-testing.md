@@ -35,7 +35,9 @@ staging pull request and also runs on pushes to `staging`. It checks the
 Realtime schemas against the backend `staging` branch, installs Chromium, then
 runs `npm run ci:staging`: the complete non-browser gate, controlled Realtime
 browser tests, and the full fixture Playwright suite against a production
-build. The stable branch-protection check is `staging-quality-gate`.
+build. The same workflow runs the complete mobile quality gate and native
+Android/iOS boot smokes. Pull requests into `dev` run only the mobile TypeScript
+compile check. The stable branch-protection check is `staging-quality-gate`.
 
 Branch protection must require `quality-gate` on `dev` and
 `staging-quality-gate` on `staging`; workflow files cannot enable repository

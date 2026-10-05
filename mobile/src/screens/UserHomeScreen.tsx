@@ -1,9 +1,13 @@
 import { StyleSheet, Text } from 'react-native'
 
+import { useSession } from '@/auth/session-context'
+import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import { colors, spacing, typography } from '@/theme/tokens'
 
 export function UserHomeScreen() {
+  const { signOut } = useSession()
+
   return (
     <Screen>
       <Text style={styles.eyebrow}>DÀNH CHO BẠN</Text>
@@ -14,6 +18,7 @@ export function UserHomeScreen() {
         Nội dung dành cho bạn sẽ xuất hiện tại đây sau khi phiên đăng nhập được
         xác nhận.
       </Text>
+      <PrimaryButton label="Đăng xuất" onPress={() => void signOut()} />
     </Screen>
   )
 }
@@ -37,5 +42,6 @@ const styles = StyleSheet.create({
     color: colors.inkSoft,
     fontSize: typography.body,
     lineHeight: typography.bodyLineHeight,
+    marginBottom: spacing.xl,
   },
 })

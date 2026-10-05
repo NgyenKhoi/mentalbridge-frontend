@@ -69,10 +69,10 @@ development build, install it, and start Metro. Re-run the native build after
 changing a native dependency or Expo config. Windows can develop and verify
 the shared TypeScript bundle but cannot compile the iOS native target locally.
 
-Required pull-request CI also exercises these native paths with deterministic
-Release smoke runs on an Android emulator and iOS Simulator. Those jobs compile,
-install, relaunch, assert that the app stays alive, and upload screenshots and
-launch diagnostics. See
+The staging release gate exercises these native paths with deterministic Release
+smoke runs on an Android emulator and iOS Simulator. Those jobs compile, install,
+relaunch, assert that the app stays alive, and upload screenshots and launch
+diagnostics. See
 [`docs/NATIVE_VERIFICATION.md`](docs/NATIVE_VERIFICATION.md) for the exact
 commands, assertions, artifacts, and local reproduction steps.
 
@@ -94,11 +94,20 @@ Shared foundations
 └── MentalBridge theme tokens and accessible screen/button primitives
 ```
 
-The app starts unauthenticated. MB-607 will connect Identity session outcomes
-to the existing role boundary; MB-608 will add the first USER profile feature.
-This foundation intentionally contains no login implementation, product API
-calls, mock business records, offline business database, or client-owned role
-decision.
+The app starts by restoring credentials from SecureStore and confirms the
+current account with Identity before opening the USER route group. MB-607 adds
+USER registration, email-verification deep links, login, refresh rotation,
+logout revocation, and fail-closed session restoration. Role, subject, account
+status, and email-verification state come only from Identity's authenticated
+`GET /api/v1/account` response; the app does not decode tokens to grant access.
+
+The development-build verification link is
+`mentalbridge:///verify-email?challenge=<one-time-challenge>`. It preserves the
+existing Identity challenge query and consumption semantics. Production HTTP
+links still require the approved web-domain Android App Link and iOS Universal
+Link association; MB-607 does not redefine the backend email URL.
+See [`docs/MB-607_AUTH_SESSION.md`](docs/MB-607_AUTH_SESSION.md) for the endpoint,
+lifecycle, failure-state, deep-link, and automated-test evidence.
 
 ## Quality commands
 
@@ -118,8 +127,9 @@ npm run quality
 
 `build:bundle` exports Android and iOS JavaScript bundles only; it is not native
 compile or boot evidence. Native compile/install/launch is verified separately
-by `npm run native:android:smoke` and `npm run native:ios:smoke`, which are
-required by the pull-request `quality-gate`.
+by `npm run native:android:smoke` and `npm run native:ios:smoke` in the staging
+release gate. Pull requests into `dev` run only `npm run typecheck` for mobile;
+formatting, lint, Jest, bundle export, and native boot checks wait for staging.
 
 The synthetic welcome-screen review capture is documented in
 [`docs/evidence/README.md`](docs/evidence/README.md).
