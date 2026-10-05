@@ -4,6 +4,7 @@ import type {
   AccountStateChangeRequest,
   AccountStatus,
   AccountSummary,
+  AccountsSummary,
   ChallengeRequest,
   EmailRequest,
   IdentityRole,
@@ -494,6 +495,45 @@ export function validateAccountStateChangeRequest(
     value: {
       status: value.status as AccountStateChangeRequest['status'],
       reasonCode: value.reasonCode as AccountStateChangeRequest['reasonCode'],
+    },
+  }
+}
+
+export function parseAccountsSummary(value: unknown): AccountsSummary | null {
+  if (!isRecord(value)) return null
+  if (
+    value.source !== 'IDENTITY' ||
+    typeof value.asOf !== 'string' ||
+    !isDateTime(value.asOf) ||
+    typeof value.totalAccounts !== 'number' ||
+    typeof value.activeAccounts !== 'number' ||
+    typeof value.pendingVerificationAccounts !== 'number' ||
+    typeof value.disabledAccounts !== 'number' ||
+    typeof value.deletionPendingAccounts !== 'number' ||
+    !isRecord(value.byRole)
+  ) {
+    return null
+  }
+  const byRole = value.byRole
+  if (
+    typeof byRole.users !== 'number' ||
+    typeof byRole.specialists !== 'number' ||
+    typeof byRole.admins !== 'number'
+  ) {
+    return null
+  }
+  return {
+    source: 'IDENTITY',
+    asOf: value.asOf,
+    totalAccounts: value.totalAccounts,
+    activeAccounts: value.activeAccounts,
+    pendingVerificationAccounts: value.pendingVerificationAccounts,
+    disabledAccounts: value.disabledAccounts,
+    deletionPendingAccounts: value.deletionPendingAccounts,
+    byRole: {
+      users: byRole.users,
+      specialists: byRole.specialists,
+      admins: byRole.admins,
     },
   }
 }

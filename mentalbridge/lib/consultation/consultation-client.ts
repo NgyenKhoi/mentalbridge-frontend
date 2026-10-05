@@ -36,6 +36,8 @@ import {
   type AppointmentChatEligibility,
   type AppointmentRequestInput,
   type BookableSlotList,
+  parseConsultationOperationsSummary,
+  type ConsultationOperationsSummary,
 } from './consultation-validation'
 import {
   parseSessionSummary,
@@ -579,5 +581,18 @@ export const consultationClient = {
       ifMatch: etag,
       parse: parseAvailabilitySlot,
     })
+  },
+  async getOperationsSummary(
+    token: string,
+    correlationId: string,
+  ): Promise<ConsultationOperationsSummary> {
+    const result = await request<ConsultationOperationsSummary>({
+      method: 'GET',
+      path: '/api/v1/admin/operations/summary',
+      token,
+      correlationId,
+      parse: parseConsultationOperationsSummary,
+    })
+    return result.data
   },
 }

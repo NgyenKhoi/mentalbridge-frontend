@@ -31,6 +31,8 @@ import {
   type ResourceProgressUpdate,
   type ResourceJourney,
   type ResourceJourneyRequest,
+  parseNotificationOperationsSummary,
+  type NotificationOperationsSummary,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
@@ -512,6 +514,19 @@ export const contentAdminClient = {
       body: {},
       parseSuccess: parseResourceSummary,
       mutation: true,
+    })
+  },
+  getNotificationOperationsSummary(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<NotificationOperationsSummary> {
+    return contentRequest<NotificationOperationsSummary>({
+      method: 'GET',
+      path: '/api/v1/admin/notifications/summary',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseNotificationOperationsSummary,
     })
   },
 }

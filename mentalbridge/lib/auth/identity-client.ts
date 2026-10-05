@@ -7,6 +7,7 @@ import type {
   AccountPage,
   AccountStateChangeRequest,
   AccountSummary,
+  AccountsSummary,
   ChallengeRequest,
   EmailRequest,
   LoginRequest,
@@ -22,6 +23,7 @@ import {
   parseAccountDetail,
   parseAccountPage,
   parseAccountSummary,
+  parseAccountsSummary,
   parseRegistrationResponse,
   parseTokenPair,
 } from './identity-validation'
@@ -385,6 +387,17 @@ export const identityClient = {
       ifMatch: formattedIfMatch,
       body: request,
       parseSuccess: parseAccountDetail,
+    })
+  },
+
+  getAccountsSummary(accessToken: string, correlationId: string) {
+    return identityRequest<AccountsSummary>({
+      method: 'GET',
+      path: '/api/v1/admin/accounts/summary',
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAccountsSummary,
     })
   },
 }

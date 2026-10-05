@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/internal/v1/accounts/{accountId}/verified-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve the current verified email for one exact USER owner */
+        get: operations["getVerifiedDeliveryAddress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/registrations": {
         parameters: {
             query?: never;
@@ -245,6 +262,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/accounts/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read authoritative aggregate account counts and status for admin operations dashboard */
+        get: operations["getAccountsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/accounts/{accountId}": {
         parameters: {
             query?: never;
@@ -286,6 +320,12 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        VerifiedDeliveryAddress: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: email */
+            email: string;
+        };
         RegistrationRequest: {
             /** Format: email */
             email: string;
@@ -388,6 +428,23 @@ export interface components {
              * @enum {string}
              */
             reasonCode: "SAFETY_CONCERN" | "POLICY_VIOLATION" | "ACCOUNT_REVIEW_REQUIRED" | "REVIEW_COMPLETED";
+        };
+        AccountsSummaryRoleBreakdown: {
+            users: number;
+            specialists: number;
+            admins: number;
+        };
+        AccountsSummary: {
+            /** @constant */
+            source: "IDENTITY";
+            /** Format: date-time */
+            asOf: string;
+            totalAccounts: number;
+            activeAccounts: number;
+            pendingVerificationAccounts: number;
+            disabledAccounts: number;
+            deletionPendingAccounts: number;
+            byRole: components["schemas"]["AccountsSummaryRoleBreakdown"];
         };
         Problem: {
             /** Format: uri-reference */
@@ -575,6 +632,30 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getVerifiedDeliveryAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized current delivery address */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifiedDeliveryAddress"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
     registerAccount: {
         parameters: {
             query?: never;
@@ -930,6 +1011,31 @@ export interface operations {
             };
             401: components["responses"]["UnauthorizedProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getAccountsSummary: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative aggregate account summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountsSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     getAccountById: {

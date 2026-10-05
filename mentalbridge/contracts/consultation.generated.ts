@@ -499,6 +499,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/operations/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns authoritative aggregate consultation operations metrics for the admin operations dashboard including specialist profiles and appointment lifecycle status counts. */
+        get: operations["getAdminOperationsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/specialist-profiles": {
         parameters: {
             query?: never;
@@ -925,6 +942,32 @@ export interface components {
             nextAppointment: components["schemas"]["SpecialistDashboardNextAppointment"];
             availability: components["schemas"]["SpecialistDashboardAvailabilityCollection"];
             actionRequired: components["schemas"]["SpecialistDashboardActionItem"][];
+        };
+        AdminSpecialistOperationsSummary: {
+            total: number;
+            pendingReview: number;
+            active: number;
+            rejected: number;
+            suspended: number;
+        };
+        AdminAppointmentOperationsSummary: {
+            total: number;
+            requested: number;
+            confirmed: number;
+            inProgress: number;
+            sessionEnded: number;
+            completed: number;
+            cancelled: number;
+            rejected: number;
+            expired: number;
+        };
+        ConsultationOperationsSummary: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            specialists: components["schemas"]["AdminSpecialistOperationsSummary"];
+            appointments: components["schemas"]["AdminAppointmentOperationsSummary"];
         };
         /** @enum {string} */
         AppointmentModality: "IN_APP_CHAT" | "IN_APP_VIDEO";
@@ -2563,6 +2606,28 @@ export interface operations {
             409: components["responses"]["AppointmentDecisionConflictProblem"];
             412: components["responses"]["AppointmentVersionProblem"];
             428: components["responses"]["AppointmentVersionRequiredProblem"];
+        };
+    };
+    getAdminOperationsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative consultation operations summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationOperationsSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     listSpecialistProfilesForAdmin: {
