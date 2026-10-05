@@ -36,6 +36,13 @@ const readyDashboard = {
     timezone: 'Asia/Ho_Chi_Minh',
     approvalStatus: 'APPROVED',
   },
+  ratingAggregate: {
+    source: 'CONSULTATION',
+    asOf,
+    state: 'AVAILABLE',
+    averageRating: 4.67,
+    ratingCount: 3,
+  },
   todayConfirmedSessions: {
     source: 'CONSULTATION',
     asOf,
@@ -105,6 +112,9 @@ describe('SpecialistOperationalDashboard', () => {
     expect(screen.getByText('Phiên đã xác nhận hôm nay')).toBeInTheDocument()
     expect(screen.getByText('2', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('Chat trong ứng dụng')).toBeInTheDocument()
+    expect(
+      screen.getByLabelText('4.7 trên 5 từ 3 đánh giá'),
+    ).toBeInTheDocument()
     expect(screen.getByText(/Nguồn: lịch tư vấn/)).toBeInTheDocument()
     expect(screen.queryByText('Nguyễn Minh Anh')).not.toBeInTheDocument()
     expect(
@@ -112,6 +122,23 @@ describe('SpecialistOperationalDashboard', () => {
         name: /Phản hồi yêu cầu đặt lịch/,
       })[0],
     ).toHaveAttribute('href', '/specialist/appointments')
+  })
+
+  it('shows an honest rating empty state without fabricating zero stars', async () => {
+    api.get.mockResolvedValue({
+      ...readyDashboard,
+      ratingAggregate: {
+        ...readyDashboard.ratingAggregate,
+        state: 'EMPTY',
+        averageRating: null,
+        ratingCount: 0,
+      },
+    })
+
+    render(<SpecialistOperationalDashboard />)
+
+    expect(await screen.findByText('Chưa có đánh giá')).toBeInTheDocument()
+    expect(screen.queryByText('0.0')).not.toBeInTheDocument()
   })
 
   it('fails closed when the profile is suspended', async () => {

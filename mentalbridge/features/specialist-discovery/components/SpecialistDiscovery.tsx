@@ -232,6 +232,14 @@ function DetailDialog({
               <i /> Có lịch trống
             </span>
           )}
+          {item?.ratingAggregate && (
+            <p className={styles.ratingAggregate}>
+              <span aria-hidden="true">★</span>{' '}
+              <strong>{item.ratingAggregate.averageRating.toFixed(1)}/5</strong>
+              {' · '}
+              {item.ratingAggregate.ratingCount} lượt đánh giá
+            </p>
+          )}
           {item && (
             <dl className={styles.profileFacts}>
               <div>
@@ -681,6 +689,13 @@ export default function SpecialistDiscovery() {
                 <div>
                   <h2>{item.displayName}</h2>
                   <p>{item.yearsOfExperience} năm kinh nghiệm</p>
+                  {item.ratingAggregate && (
+                    <p className={styles.cardRating}>
+                      <span aria-hidden="true">★</span>{' '}
+                      {item.ratingAggregate.averageRating.toFixed(1)}/5 ·{' '}
+                      {item.ratingAggregate.ratingCount} lượt
+                    </p>
+                  )}
                 </div>
               </div>
               <div className={styles.tags}>

@@ -258,6 +258,7 @@ export type SpecialistDiscoveryItem =
   ConsultationSchemas['SpecialistDiscoveryItem']
 export type SpecialistDiscoveryPage =
   ConsultationSchemas['SpecialistDiscoveryPage']
+export type AppointmentRating = ConsultationSchemas['AppointmentRating']
 export type SpecialistDashboard = ConsultationSchemas['SpecialistDashboard']
 export type Appointment = Readonly<{
   id: string
@@ -591,6 +592,7 @@ export function parseSpecialistDashboard(
       'generatedAt',
       'operationalStatus',
       'profile',
+      'ratingAggregate',
       'todayConfirmedSessions',
       'pendingAppointmentRequests',
       'nextAppointment',
@@ -605,6 +607,7 @@ export function parseSpecialistDashboard(
   )
     return null
   const profile = record(dashboard.profile)
+  const rating = record(dashboard.ratingAggregate)
   const today = dashboardAppointmentCollection(dashboard.todayConfirmedSessions)
   const pending = dashboardAppointmentCollection(
     dashboard.pendingAppointmentRequests,
@@ -634,6 +637,29 @@ export function parseSpecialistDashboard(
       profile.approvalStatus === null ||
       SPECIALIST_APPROVAL_STATUSES.includes(profile.approvalStatus as never)
     ) ||
+    !rating ||
+    !exactKeys(rating, [
+      'source',
+      'asOf',
+      'state',
+      'averageRating',
+      'ratingCount',
+    ]) ||
+    !dashboardMetadata(rating) ||
+    !DASHBOARD_STATES.includes(rating.state as never) ||
+    !Number.isSafeInteger(rating.ratingCount) ||
+    Number(rating.ratingCount) < 0 ||
+    !(
+      rating.averageRating === null ||
+      (typeof rating.averageRating === 'number' &&
+        Number.isFinite(rating.averageRating) &&
+        rating.averageRating >= 1 &&
+        rating.averageRating <= 5)
+    ) ||
+    (rating.state === 'AVAILABLE') !==
+      (Number(rating.ratingCount) > 0 && rating.averageRating !== null) ||
+    (rating.state !== 'AVAILABLE' &&
+      (rating.ratingCount !== 0 || rating.averageRating !== null)) ||
     !today ||
     !pending ||
     !next ||
@@ -666,6 +692,7 @@ export function parseSpecialistDashboard(
   }[dashboard.operationalStatus as SpecialistDashboard['operationalStatus']]
   const projections = [
     profile,
+    rating,
     today,
     pending,
     next,
@@ -688,9 +715,13 @@ export function parseSpecialistDashboard(
     (dashboard.operationalStatus !== 'PROFILE_REQUIRED' &&
       profile.state !== 'AVAILABLE') ||
     (!ready &&
-      [today.state, pending.state, next.state, availability.state].some(
-        (state) => state !== 'BLOCKED',
-      )) ||
+      [
+        rating.state,
+        today.state,
+        pending.state,
+        next.state,
+        availability.state,
+      ].some((state) => state !== 'BLOCKED')) ||
     (ready &&
       ([today.state, pending.state, next.state, availability.state].some(
         (state) => state === 'BLOCKED' || state === 'UNAVAILABLE',
@@ -709,6 +740,7 @@ export function parseSpecialistDashboard(
     operationalStatus:
       dashboard.operationalStatus as SpecialistDashboard['operationalStatus'],
     profile: profile as SpecialistDashboard['profile'],
+    ratingAggregate: rating as SpecialistDashboard['ratingAggregate'],
     todayConfirmedSessions: today,
     pendingAppointmentRequests: pending,
     nextAppointment: next,
@@ -741,6 +773,7 @@ const DISCOVERY_CODES = [
   'EXACT_TIMEZONE_MATCH',
   'TIMEZONE_OFFSET_DISTANCE',
   'NO_REQUESTED_TIMEZONE',
+  'RATING_AVAILABLE',
   'RATING_NOT_AVAILABLE',
 ] as const
 
@@ -846,6 +879,7 @@ export function parseSpecialistDiscoveryItem(
     Number(item.yearsOfExperience) < 0 ||
     Number(item.yearsOfExperience) > 80 ||
     !ianaTimezone(item.timezone) ||
+    !validSpecialistRatingAggregate(item.ratingAggregate) ||
     !Array.isArray(item.selectableSlots) ||
     item.selectableSlots.length < 1 ||
     item.selectableSlots.length > 20
@@ -871,6 +905,8 @@ export function parseSpecialistDiscoveryItem(
     languages: [...item.languages] as ('vi' | 'en')[],
     yearsOfExperience: Number(item.yearsOfExperience),
     timezone: item.timezone,
+    ratingAggregate:
+      item.ratingAggregate as SpecialistDiscoveryItem['ratingAggregate'],
     explanation,
     selectableSlots: parsedSlots,
   }
@@ -890,7 +926,7 @@ export function parseSpecialistDiscoveryPage(
       page.nextCursor === null ||
       (typeof page.nextCursor === 'string' && page.nextCursor.length <= 2_048)
     ) ||
-    page.rankingPolicyVersion !== 'specialist-discovery-v1' ||
+    page.rankingPolicyVersion !== 'specialist-discovery-v2' ||
     !utcInstant(page.generatedAt) ||
     !['NOT_REQUESTED', 'APPLIED', 'UNAVAILABLE'].includes(
       String(page.contextState),
@@ -919,7 +955,7 @@ export function parseSpecialistDiscoveryPage(
     items: parsedItems,
     count: Number(page.count),
     nextCursor: page.nextCursor,
-    rankingPolicyVersion: 'specialist-discovery-v1',
+    rankingPolicyVersion: 'specialist-discovery-v2',
     generatedAt: page.generatedAt,
     contextState: page.contextState as SpecialistDiscoveryPage['contextState'],
     packageCode: page.packageCode as SpecialistDiscoveryPage['packageCode'],
@@ -927,6 +963,41 @@ export function parseSpecialistDiscoveryPage(
       page.bookingHandoff as SpecialistDiscoveryPage['bookingHandoff'],
     videoEnabled: page.videoEnabled,
   }
+}
+
+function validSpecialistRatingAggregate(value: unknown) {
+  if (value === null) return true
+  const aggregate = record(value)
+  return Boolean(
+    aggregate &&
+    typeof aggregate.averageRating === 'number' &&
+    Number.isFinite(aggregate.averageRating) &&
+    aggregate.averageRating >= 1 &&
+    aggregate.averageRating <= 5 &&
+    Number.isSafeInteger(aggregate.ratingCount) &&
+    Number(aggregate.ratingCount) >= 1,
+  )
+}
+
+export function parseAppointmentRating(
+  value: unknown,
+): AppointmentRating | null {
+  const rating = record(value)
+  if (
+    !rating ||
+    !uuid(rating.appointmentId) ||
+    !uuid(rating.specialistAccountId) ||
+    !Number.isSafeInteger(rating.rating) ||
+    Number(rating.rating) < 1 ||
+    Number(rating.rating) > 5 ||
+    !utcInstant(rating.createdAt) ||
+    !utcInstant(rating.updatedAt) ||
+    !Number.isSafeInteger(rating.version) ||
+    Number(rating.version) < 0 ||
+    !validSpecialistRatingAggregate(rating.specialistAggregate)
+  )
+    return null
+  return rating as AppointmentRating
 }
 
 export function discoveryQuery(

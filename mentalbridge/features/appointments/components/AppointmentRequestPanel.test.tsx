@@ -185,6 +185,9 @@ describe('AppointmentRequestPanel', () => {
     expect(historyFilter).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('Hiển thị 1 lịch hẹn')).toBeInTheDocument()
     expect(screen.getByText('Historical specialist')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Đánh giá chuyên gia' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Cuộc hẹn tiếp theo')).toBeInTheDocument()
   })
 

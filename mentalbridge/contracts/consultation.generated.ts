@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/internal/v1/appointments/{appointmentId}/notification-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the minimized current Consultation truth for one exact appointment/version immediately before notification delivery. It contains no specialist profile, brief, assessment, Journal, or chat content. */
+        get: operations["getAppointmentNotificationEligibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/service-credits": {
         parameters: {
             query?: never;
@@ -321,6 +338,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/appointments/{appointmentId}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        /** @description Returns the authenticated appointment owner's current rating for one evidence-completed appointment. */
+        get: operations["getOwnAppointmentRating"];
+        /** @description Creates the one current 1-5 rating or replaces it when If-Match carries the current rating version. Rating and aggregate update in one transaction. */
+        put: operations["saveOwnAppointmentRating"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/appointments/{appointmentId}/session-summaries": {
         parameters: {
             query?: never;
@@ -577,6 +614,20 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AppointmentNotificationEligibility: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            ownerAccountId: string;
+            /** Format: int64 */
+            version: number;
+            status: string;
+            /** Format: date-time */
+            scheduledStartAt: string;
+            /** @enum {string} */
+            modality: "IN_APP_CHAT" | "IN_APP_VIDEO";
+            eligible: boolean;
+        };
         /** @enum {string} */
         ServicePackage: "FREE" | "PLUS" | "PREMIUM";
         /** @enum {string} */
@@ -799,6 +850,17 @@ export interface components {
             /** Format: date-time */
             decisionDeadlineAt: string;
         };
+        SpecialistDashboardRatingAggregate: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["DashboardDataState"];
+            /** Format: double */
+            averageRating: number | null;
+            /** Format: int64 */
+            ratingCount: number;
+        };
         SpecialistDashboardAppointmentCollection: {
             /** @constant */
             source: "CONSULTATION";
@@ -857,6 +919,7 @@ export interface components {
             generatedAt: string;
             operationalStatus: components["schemas"]["SpecialistOperationalStatus"];
             profile: components["schemas"]["SpecialistDashboardProfile"];
+            ratingAggregate: components["schemas"]["SpecialistDashboardRatingAggregate"];
             todayConfirmedSessions: components["schemas"]["SpecialistDashboardAppointmentCollection"];
             pendingAppointmentRequests: components["schemas"]["SpecialistDashboardAppointmentCollection"];
             nextAppointment: components["schemas"]["SpecialistDashboardNextAppointment"];
@@ -1100,9 +1163,9 @@ export interface components {
             earliestSelectableStartAt: string | null;
             timezoneMatch: components["schemas"]["DiscoveryTimezoneMatch"];
             timezoneOffsetDistanceMinutes: number | null;
-            /** @description False until an authoritative eligible rating aggregate exists; never overrides a primary factor. */
+            /** @description True only when the authenticated user has PREMIUM and an authoritative aggregate participates after all primary factors. */
             ratingTieBreakerApplied: boolean;
-            codes: ("SCREENED_SUPPORT_AREA_MATCH" | "NO_SCREENED_SUPPORT_AREA_MATCH" | "NO_SCREENING_CONTEXT" | "SCREENING_CONTEXT_UNAVAILABLE" | "REQUESTED_LANGUAGE_MATCH" | "REQUESTED_LANGUAGE_NOT_MATCHED" | "NO_REQUESTED_LANGUAGE" | "SELECTABLE_SLOT_AVAILABLE" | "NO_SELECTABLE_SLOT" | "EXACT_TIMEZONE_MATCH" | "TIMEZONE_OFFSET_DISTANCE" | "NO_REQUESTED_TIMEZONE" | "RATING_NOT_AVAILABLE")[];
+            codes: ("SCREENED_SUPPORT_AREA_MATCH" | "NO_SCREENED_SUPPORT_AREA_MATCH" | "NO_SCREENING_CONTEXT" | "SCREENING_CONTEXT_UNAVAILABLE" | "REQUESTED_LANGUAGE_MATCH" | "REQUESTED_LANGUAGE_NOT_MATCHED" | "NO_REQUESTED_LANGUAGE" | "SELECTABLE_SLOT_AVAILABLE" | "NO_SELECTABLE_SLOT" | "EXACT_TIMEZONE_MATCH" | "TIMEZONE_OFFSET_DISTANCE" | "NO_REQUESTED_TIMEZONE" | "RATING_AVAILABLE" | "RATING_NOT_AVAILABLE")[];
         };
         DiscoverySlot: {
             /** Format: uuid */
@@ -1127,6 +1190,7 @@ export interface components {
             languages: components["schemas"]["LanguageTag"][];
             yearsOfExperience: number;
             timezone: string;
+            ratingAggregate: components["schemas"]["SpecialistRatingAggregate"] | null;
             explanation: components["schemas"]["DiscoveryExplanation"];
             selectableSlots: components["schemas"]["DiscoverySlot"][];
         };
@@ -1135,13 +1199,36 @@ export interface components {
             count: number;
             nextCursor: string | null;
             /** @constant */
-            rankingPolicyVersion: "specialist-discovery-v1";
+            rankingPolicyVersion: "specialist-discovery-v2";
             /** Format: date-time */
             generatedAt: string;
             contextState: components["schemas"]["DiscoveryContextState"];
             packageCode: components["schemas"]["ServicePackage"];
             bookingHandoff: components["schemas"]["BookingHandoff"];
             videoEnabled: boolean;
+        };
+        SpecialistRatingAggregate: {
+            /** Format: double */
+            averageRating: number;
+            /** Format: int64 */
+            ratingCount: number;
+        };
+        SaveAppointmentRating: {
+            rating: number;
+        };
+        AppointmentRating: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            rating: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+            specialistAggregate: components["schemas"]["SpecialistRatingAggregate"];
         };
         Appointment: {
             /** Format: uuid */
@@ -1507,6 +1594,32 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getAppointmentNotificationEligibility: {
+        parameters: {
+            query: {
+                appointmentVersion: number;
+            };
+            header?: never;
+            path: {
+                appointmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current minimized appointment truth and exact-version eligibility */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentNotificationEligibility"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
     getOwnServiceCredits: {
         parameters: {
             query?: never;
@@ -2116,6 +2229,67 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["AppointmentForbiddenProblem"];
             404: components["responses"]["AppointmentNotFoundProblem"];
+            409: components["responses"]["AppointmentConflictProblem"];
+            412: components["responses"]["AppointmentVersionProblem"];
+            428: components["responses"]["AppointmentVersionRequiredProblem"];
+        };
+    };
+    getOwnAppointmentRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current rating and truthful specialist aggregate */
+            200: {
+                headers: {
+                    ETag: components["headers"]["AppointmentETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentRating"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    saveOwnAppointmentRating: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Omit for first create; required with the current rating version for an edit. */
+                "If-Match"?: string;
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveAppointmentRating"];
+            };
+        };
+        responses: {
+            /** @description Created, updated, or natural no-op rating */
+            200: {
+                headers: {
+                    ETag: components["headers"]["AppointmentETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentRating"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["AppointmentConflictProblem"];
             412: components["responses"]["AppointmentVersionProblem"];
             428: components["responses"]["AppointmentVersionRequiredProblem"];

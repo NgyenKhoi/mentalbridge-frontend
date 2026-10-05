@@ -28,6 +28,13 @@ function dashboard() {
       timezone: 'Asia/Ho_Chi_Minh',
       approvalStatus: 'APPROVED',
     },
+    ratingAggregate: {
+      source: 'CONSULTATION',
+      asOf,
+      state: 'AVAILABLE',
+      averageRating: 4.67 as number | null,
+      ratingCount: 3,
+    },
     todayConfirmedSessions: {
       source: 'CONSULTATION',
       asOf,
@@ -74,6 +81,7 @@ describe('specialist dashboard validation', () => {
   it('accepts a bounded authoritative operational projection', () => {
     expect(parseSpecialistDashboard(dashboard())).toMatchObject({
       operationalStatus: 'READY',
+      ratingAggregate: { averageRating: 4.67, ratingCount: 3 },
       todayConfirmedSessions: { count: 1 },
       availability: { count: 0 },
     })
@@ -92,7 +100,27 @@ describe('specialist dashboard validation', () => {
     const value = dashboard()
     value.operationalStatus = 'SUSPENDED'
     value.profile.approvalStatus = 'SUSPENDED'
+    value.ratingAggregate = {
+      ...value.ratingAggregate,
+      state: 'BLOCKED',
+      averageRating: null,
+      ratingCount: 0,
+    }
 
     expect(parseSpecialistDashboard(value)).toBeNull()
+  })
+
+  it('accepts an honest empty rating aggregate', () => {
+    const value = dashboard()
+    value.ratingAggregate = {
+      ...value.ratingAggregate,
+      state: 'EMPTY',
+      averageRating: null,
+      ratingCount: 0,
+    }
+
+    expect(parseSpecialistDashboard(value)).toMatchObject({
+      ratingAggregate: { state: 'EMPTY', ratingCount: 0 },
+    })
   })
 })

@@ -23,6 +23,7 @@ const item = {
   languages: ['vi'],
   yearsOfExperience: 6,
   timezone: 'Asia/Ho_Chi_Minh',
+  ratingAggregate: null,
   explanation: {
     compatibility: 'MATCHED',
     languageMatched: true,
@@ -51,7 +52,7 @@ function page(packageCode: 'FREE' | 'PLUS' | 'PREMIUM') {
     items: [item],
     count: 1,
     nextCursor: null,
-    rankingPolicyVersion: 'specialist-discovery-v1' as const,
+    rankingPolicyVersion: 'specialist-discovery-v2' as const,
     generatedAt: '2099-01-01T00:00:00Z',
     contextState: 'APPLIED' as const,
     packageCode,
@@ -150,6 +151,23 @@ describe('SpecialistDiscovery', () => {
       await screen.findByText('Chưa có chuyên gia phù hợp'),
     ).toBeInTheDocument()
     expect(screen.queryByText('Chuyên gia An')).not.toBeInTheDocument()
+  })
+
+  it('shows the persisted rating aggregate without inventing review content', async () => {
+    discoveryClient.list.mockResolvedValue({
+      ...page('PREMIUM'),
+      items: [
+        {
+          ...item,
+          ratingAggregate: { averageRating: 4.67, ratingCount: 12 },
+        },
+      ],
+    })
+
+    renderDiscovery()
+
+    expect(await screen.findByText('4.7/5 · 12 lượt')).toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent('nhận xét')
   })
 
   it('keeps a stale slot selected for an explicit retry instead of substituting it', async () => {
