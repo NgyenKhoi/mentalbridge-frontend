@@ -550,6 +550,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
         screeningReassessment: true,
         appointmentMessage: true,
         resourceSystem: true,
+        communityInteraction: true,
       },
       quietHours: {
         enabled: true,

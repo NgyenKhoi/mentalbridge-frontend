@@ -34,6 +34,7 @@ const preferences = {
     screeningReassessment: true,
     appointmentMessage: true,
     resourceSystem: true,
+    communityInteraction: true,
   },
   quietHours: {
     enabled: false,
@@ -255,6 +256,11 @@ describe('Content response validation', () => {
       parseNotificationPreferencePatch({ channels: { sms: true } }),
     ).toBeNull()
     expect(parseNotificationPreferencePatch({})).toBeNull()
+    expect(
+      parseNotificationPreferencePatch({
+        contentGroups: { communityInteraction: false },
+      }),
+    ).toEqual({ contentGroups: { communityInteraction: false } })
   })
 
   it('accepts only bounded privacy-safe wellbeing digest previews', () => {
@@ -286,6 +292,9 @@ describe('Content response validation', () => {
       'EMOTION_CHECKIN_REMINDER',
       'JOURNAL_STREAK_MILESTONE',
       'EMOTION_STREAK_MILESTONE',
+      'COMMUNITY_COMMENT',
+      'COMMUNITY_REPLY',
+      'COMMUNITY_REACTION',
     ] as const) {
       expect(parseNotification({ ...notification, kind })).not.toBeNull()
     }
@@ -293,6 +302,29 @@ describe('Content response validation', () => {
       parseNotification({
         ...notification,
         action: { ...notification.action, href: 'https://untrusted.example' },
+      }),
+    ).toBeNull()
+    const communityPostId = '423e4567-e89b-42d3-a456-426614174000'
+    expect(
+      parseNotification({
+        ...notification,
+        kind: 'COMMUNITY_COMMENT',
+        action: {
+          type: 'OPEN_COMMUNITY_POST',
+          targetId: communityPostId,
+          href: `/community/${communityPostId}`,
+        },
+      }),
+    ).not.toBeNull()
+    expect(
+      parseNotification({
+        ...notification,
+        kind: 'COMMUNITY_COMMENT',
+        action: {
+          type: 'OPEN_COMMUNITY_POST',
+          targetId: communityPostId,
+          href: '/community/different-post',
+        },
       }),
     ).toBeNull()
     expect(
