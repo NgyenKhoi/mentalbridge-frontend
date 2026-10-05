@@ -467,11 +467,11 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {string} */
-        NotificationKind: "REMINDER" | "MESSAGE" | "APPOINTMENT" | "SYSTEM_RESOURCE" | "ASSESSMENT_REASSESSMENT" | "STREAK_MILESTONE" | "JOURNAL_REMINDER" | "EMOTION_CHECKIN_REMINDER" | "JOURNAL_STREAK_MILESTONE" | "EMOTION_STREAK_MILESTONE";
+        NotificationKind: "REMINDER" | "MESSAGE" | "APPOINTMENT" | "SYSTEM_RESOURCE" | "ASSESSMENT_REASSESSMENT" | "STREAK_MILESTONE" | "JOURNAL_REMINDER" | "EMOTION_CHECKIN_REMINDER" | "JOURNAL_STREAK_MILESTONE" | "EMOTION_STREAK_MILESTONE" | "COMMUNITY_COMMENT" | "COMMUNITY_REPLY" | "COMMUNITY_REACTION";
         /** @enum {string} */
         NotificationPriority: "LOW" | "NORMAL" | "HIGH";
         /** @enum {string} */
-        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE";
+        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE" | "OPEN_COMMUNITY_POST";
         NotificationAction: {
             type: components["schemas"]["NotificationActionType"];
             /** Format: uuid */
@@ -526,6 +526,7 @@ export interface components {
             screeningReassessment: boolean;
             appointmentMessage: boolean;
             resourceSystem: boolean;
+            communityInteraction: boolean;
         };
         NotificationContentGroupsPatch: {
             journalReminder?: boolean;
@@ -534,6 +535,7 @@ export interface components {
             screeningReassessment?: boolean;
             appointmentMessage?: boolean;
             resourceSystem?: boolean;
+            communityInteraction?: boolean;
         };
         QuietHours: {
             enabled: boolean;

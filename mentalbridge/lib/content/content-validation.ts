@@ -519,6 +519,7 @@ export function parseNotificationPreferences(
         'screeningReassessment',
         'appointmentMessage',
         'resourceSystem',
+        'communityInteraction',
       ],
       true,
     ) ||
@@ -580,6 +581,7 @@ export function parseNotificationPreferencePatch(
           'screeningReassessment',
           'appointmentMessage',
           'resourceSystem',
+          'communityInteraction',
         ],
         false,
       ))
@@ -699,6 +701,9 @@ const NOTIFICATION_KINDS = new Set([
   'EMOTION_CHECKIN_REMINDER',
   'JOURNAL_STREAK_MILESTONE',
   'EMOTION_STREAK_MILESTONE',
+  'COMMUNITY_COMMENT',
+  'COMMUNITY_REPLY',
+  'COMMUNITY_REACTION',
 ])
 const NOTIFICATION_PRIORITIES = new Set(['LOW', 'NORMAL', 'HIGH'])
 const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
@@ -765,6 +770,10 @@ export function parseNotification(value: unknown): Notification | null {
       if (typeof action.targetId !== 'string' || !UUID.test(action.targetId))
         return null
       if (action.href !== `/resources/${action.targetId}`) return null
+    } else if (action.type === 'OPEN_COMMUNITY_POST') {
+      if (typeof action.targetId !== 'string' || !UUID.test(action.targetId))
+        return null
+      if (action.href !== `/community/${action.targetId}`) return null
     } else if (
       TARGETLESS_NOTIFICATION_ACTIONS[action.type] !== action.href ||
       action.targetId !== null
