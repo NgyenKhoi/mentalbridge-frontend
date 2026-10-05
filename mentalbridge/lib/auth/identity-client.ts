@@ -7,6 +7,7 @@ import type {
   AccountPage,
   AccountStateChangeRequest,
   AccountSummary,
+  AdministrationAuditEventPage,
   ChallengeRequest,
   EmailRequest,
   LoginRequest,
@@ -22,6 +23,7 @@ import {
   parseAccountDetail,
   parseAccountPage,
   parseAccountSummary,
+  parseAdministrationAuditEventPage,
   parseRegistrationResponse,
   parseTokenPair,
 } from './identity-validation'
@@ -40,6 +42,20 @@ type RequestOptions<T> = Readonly<{
 }>
 
 const MAX_IDENTITY_RESPONSE_BYTES = 64 * 1_024
+const MAX_IDENTITY_EXPORT_BYTES = 5 * 1_024 * 1_024
+
+export type AdministrationAuditSearch = Readonly<{
+  from?: string
+  to?: string
+  sourceService?: string
+  domain?: string
+  actorType?: string
+  action?: string
+  result?: string
+  targetIdentifier?: string
+  cursor?: string
+  limit?: number
+}>
 
 function upstreamUrl(baseUrl: string, path: string) {
   return new URL(path.replace(/^\//, ''), baseUrl)
@@ -180,6 +196,105 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
       })
     }
 
+    throw new ApiError({
+      message: 'Identity is unavailable.',
+      code: 'IDENTITY_UNAVAILABLE',
+      status: 503,
+      cause: error,
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function auditPath(path: string, params: AdministrationAuditSearch) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) query.set(key, String(value))
+  }
+  const queryString = query.toString()
+  return `${path}${queryString ? `?${queryString}` : ''}`
+}
+
+async function identityCsvRequest(
+  accessToken: string,
+  params: AdministrationAuditSearch,
+  correlationId: string,
+) {
+  const config = readIdentityServerConfig()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetch(
+      upstreamUrl(
+        config.baseUrl,
+        auditPath('/api/v1/admin/audit-events/export', params),
+      ),
+      {
+        cache: 'no-store',
+        redirect: 'error',
+        signal: controller.signal,
+        headers: {
+          Accept: 'text/csv, application/problem+json',
+          Authorization: `Bearer ${accessToken}`,
+          'X-Correlation-Id': correlationId,
+        },
+      },
+    )
+    if (!response.ok) {
+      const body = await readJson(response)
+      if (isProblemDetails(body)) {
+        throw new ApiError({
+          message: body.title,
+          code: body.code,
+          status: response.status,
+          correlationId: body.correlationId,
+          problem: body,
+        })
+      }
+      throw new ApiError({
+        message: 'Identity returned an invalid error response.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const contentType = response.headers.get('content-type') ?? ''
+    const contentLength = Number(response.headers.get('content-length'))
+    if (
+      !contentType.toLowerCase().startsWith('text/csv') ||
+      (Number.isFinite(contentLength) &&
+        contentLength > MAX_IDENTITY_EXPORT_BYTES)
+    ) {
+      throw new ApiError({
+        message: 'Identity returned an invalid export.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    if (bytes.byteLength > MAX_IDENTITY_EXPORT_BYTES) {
+      throw new ApiError({
+        message: 'Identity returned an oversized export.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    return {
+      bytes,
+      contentDisposition:
+        response.headers.get('content-disposition') ??
+        'attachment; filename="mentalbridge-audit.csv"',
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    if (controller.signal.aborted) {
+      throw new ApiError({
+        message: 'Identity timed out.',
+        code: 'IDENTITY_TIMEOUT',
+        status: 504,
+        cause: error,
+      })
+    }
     throw new ApiError({
       message: 'Identity is unavailable.',
       code: 'IDENTITY_UNAVAILABLE',
@@ -348,6 +463,29 @@ export const identityClient = {
       authorization: accessToken,
       parseSuccess: parseAccountPage,
     })
+  },
+
+  browseAdministrationAuditEvents(
+    accessToken: string,
+    params: AdministrationAuditSearch,
+    correlationId: string,
+  ) {
+    return identityRequest<AdministrationAuditEventPage>({
+      method: 'GET',
+      path: auditPath('/api/v1/admin/audit-events', params),
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAdministrationAuditEventPage,
+    })
+  },
+
+  exportAdministrationAuditEvents(
+    accessToken: string,
+    params: AdministrationAuditSearch,
+    correlationId: string,
+  ) {
+    return identityCsvRequest(accessToken, params, correlationId)
   },
 
   getAccountById(

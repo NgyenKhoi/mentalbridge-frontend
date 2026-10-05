@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/internal/v1/accounts/{accountId}/verified-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve the current verified email for one exact USER owner */
+        get: operations["getVerifiedDeliveryAddress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/registrations": {
         parameters: {
             query?: never;
@@ -282,10 +299,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Browse privacy-minimized administration audit events
+         * @description Returns only bounded operational metadata retained by Identity. Raw journal, assessment, chat, provider, credential, token, secret, and unnecessary health data are never included.
+         */
+        get: operations["browseAdministrationAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit-events/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export the currently filtered administration audit events as CSV
+         * @description Uses the same authorization, retention window, ordering, and filter semantics as browse. Exports are limited to 5,000 rows and 5 MiB.
+         */
+        get: operations["exportAdministrationAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        VerifiedDeliveryAddress: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: email */
+            email: string;
+        };
         RegistrationRequest: {
             /** Format: email */
             email: string;
@@ -388,6 +451,41 @@ export interface components {
              * @enum {string}
              */
             reasonCode: "SAFETY_CONCERN" | "POLICY_VIOLATION" | "ACCOUNT_REVIEW_REQUIRED" | "REVIEW_COMPLETED";
+        };
+        /** @enum {string} */
+        AuditSourceService: "IDENTITY";
+        /** @enum {string} */
+        AuditDomain: "ACCOUNT_ADMINISTRATION";
+        /** @enum {string} */
+        AuditActorType: "ADMIN" | "SYSTEM";
+        /** @enum {string} */
+        AuditResult: "SUCCEEDED" | "DENIED" | "FAILED";
+        AdministrationAuditEvent: {
+            /** Format: uuid */
+            eventId: string;
+            /** Format: date-time */
+            occurredAt: string;
+            actorType: components["schemas"]["AuditActorType"];
+            /** @description Safe account identifier or the literal system actor. */
+            actorIdentifier: string;
+            action: string;
+            result: components["schemas"]["AuditResult"];
+            reasonCode?: string | null;
+            /** Format: uuid */
+            correlationId: string;
+            sourceService: components["schemas"]["AuditSourceService"];
+            domain: components["schemas"]["AuditDomain"];
+            targetIdentifier: string;
+        };
+        AdministrationAuditEventPage: {
+            items: components["schemas"]["AdministrationAuditEvent"][];
+            nextCursor: string | null;
+            /** Format: date-time */
+            effectiveFrom: string;
+            /** Format: date-time */
+            effectiveTo: string;
+            /** Format: date-time */
+            retentionCutoff: string;
         };
         Problem: {
             /** Format: uri-reference */
@@ -568,6 +666,17 @@ export interface components {
         IdempotencyKey: string;
         /** @example "3" */
         IfMatch: string;
+        /** @description Inclusive UTC start. Defaults to 30 days before the effective end and cannot precede the 365-day retention boundary. */
+        AuditFrom: string;
+        /** @description Inclusive UTC end. Defaults to the current server time. A query window cannot exceed 90 days. */
+        AuditTo: string;
+        AuditSourceService: components["schemas"]["AuditSourceService"];
+        AuditDomain: components["schemas"]["AuditDomain"];
+        AuditActorType: components["schemas"]["AuditActorType"];
+        AuditAction: string;
+        AuditResult: components["schemas"]["AuditResult"];
+        /** @description Exact safe identifier returned by this API, either account UUID or tombstone hash. */
+        AuditTargetIdentifier: string;
     };
     requestBodies: never;
     headers: never;
@@ -575,6 +684,30 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getVerifiedDeliveryAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized current delivery address */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifiedDeliveryAddress"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
     registerAccount: {
         parameters: {
             query?: never;
@@ -995,6 +1128,85 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["ConflictProblem"];
             412: components["responses"]["VersionProblem"];
+        };
+    };
+    browseAdministrationAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description Inclusive UTC start. Defaults to 30 days before the effective end and cannot precede the 365-day retention boundary. */
+                from?: components["parameters"]["AuditFrom"];
+                /** @description Inclusive UTC end. Defaults to the current server time. A query window cannot exceed 90 days. */
+                to?: components["parameters"]["AuditTo"];
+                sourceService?: components["parameters"]["AuditSourceService"];
+                domain?: components["parameters"]["AuditDomain"];
+                actorType?: components["parameters"]["AuditActorType"];
+                action?: components["parameters"]["AuditAction"];
+                result?: components["parameters"]["AuditResult"];
+                /** @description Exact safe identifier returned by this API, either account UUID or tombstone hash. */
+                targetIdentifier?: components["parameters"]["AuditTargetIdentifier"];
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded audit event page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdministrationAuditEventPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    exportAdministrationAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description Inclusive UTC start. Defaults to 30 days before the effective end and cannot precede the 365-day retention boundary. */
+                from?: components["parameters"]["AuditFrom"];
+                /** @description Inclusive UTC end. Defaults to the current server time. A query window cannot exceed 90 days. */
+                to?: components["parameters"]["AuditTo"];
+                sourceService?: components["parameters"]["AuditSourceService"];
+                domain?: components["parameters"]["AuditDomain"];
+                actorType?: components["parameters"]["AuditActorType"];
+                action?: components["parameters"]["AuditAction"];
+                result?: components["parameters"]["AuditResult"];
+                /** @description Exact safe identifier returned by this API, either account UUID or tombstone hash. */
+                targetIdentifier?: components["parameters"]["AuditTargetIdentifier"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description UTF-8 CSV containing only privacy-minimized audit metadata */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
 }

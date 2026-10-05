@@ -6,6 +6,7 @@ import AdminContentSection from './AdminContentSection'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
 import AdminAccountManager from './AdminAccountManager'
 import AdminCommunityModerationSection from '@/features/community/components/AdminCommunityModerationSection'
+import AdminAuditLog from '@/features/audit/components/AdminAuditLog'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -37,7 +38,7 @@ const SECTIONS = {
   audit: {
     label: 'Nhật ký kiểm toán',
     description:
-      'Khu vực theo dõi hoạt động quản trị sau khi nguồn dữ liệu audit được tích hợp.',
+      'Tra cứu và xuất dấu vết hoạt động quản trị đã được tối thiểu hóa.',
   },
 } as const
 
@@ -91,6 +92,8 @@ export default function AdminWorkspace({
           <AdminAccountManager />
         ) : section === 'moderation' ? (
           <AdminCommunityModerationSection />
+        ) : section === 'audit' ? (
+          <AdminAuditLog />
         ) : (
           <>
             <span className={styles.eyebrow}>
