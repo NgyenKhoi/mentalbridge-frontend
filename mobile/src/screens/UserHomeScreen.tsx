@@ -1,4 +1,5 @@
-import { StyleSheet, Text } from 'react-native'
+import { router } from 'expo-router'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
@@ -18,7 +19,22 @@ export function UserHomeScreen() {
         Nội dung dành cho bạn sẽ xuất hiện tại đây sau khi phiên đăng nhập được
         xác nhận.
       </Text>
-      <PrimaryButton label="Đăng xuất" onPress={() => void signOut()} />
+      <View style={styles.actions}>
+        <PrimaryButton
+          label="Mở hồ sơ cá nhân"
+          onPress={() => router.push('./profile')}
+        />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void signOut()}
+          style={({ pressed }) => [
+            styles.signOutButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.signOutLabel}>Đăng xuất</Text>
+        </Pressable>
+      </View>
     </Screen>
   )
 }
@@ -43,5 +59,22 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     lineHeight: typography.bodyLineHeight,
     marginBottom: spacing.xl,
+  },
+  actions: {
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  signOutButton: {
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+  },
+  signOutLabel: {
+    color: colors.tealDeep,
+    fontSize: typography.body,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.65,
   },
 })
