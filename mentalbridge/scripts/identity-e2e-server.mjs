@@ -133,6 +133,14 @@ const actors = new Map([
     },
   ],
   [
+    'community-peer@example.com',
+    {
+      accountId: '10000000-0000-4000-8000-000000000008',
+      roles: ['USER'],
+      initialAccessExpired: false,
+    },
+  ],
+  [
     'refresh@example.com',
     {
       accountId: '10000000-0000-4000-8000-000000000002',
@@ -243,7 +251,7 @@ const communityCommentOwners = new Map()
 const communityPostOwners = new Map([
   [
     '50000000-0000-4000-8000-000000000002',
-    actors.get('user@example.com').accountId,
+    actors.get('community-peer@example.com').accountId,
   ],
 ])
 const communityPostVersions = new Map([
@@ -280,6 +288,14 @@ let journalConflictOnce = false
 let journalCreateFailureOnce = false
 let journalAnalysisFailureOnce = false
 const communityProfiles = new Map()
+const communityMedia = new Map()
+const communityMediaCreateByKey = new Map()
+const communityHiddenContent = new Set()
+const communityBlocks = new Set()
+const communityReportsByKey = new Map()
+const communityModerationCases = []
+const communityModerationActionsByKey = new Map()
+const communityUnavailablePosts = new Set()
 accessSessions.set(careAccessToken, careActor)
 accessSessions.set(otherCareAccessToken, otherCareActor)
 accessSessions.set(resourceAccessToken, resourceActor)
@@ -313,6 +329,14 @@ function reset() {
   journalCommands.clear()
   journalAnalysisJobs.clear()
   communityProfiles.clear()
+  communityMedia.clear()
+  communityMediaCreateByKey.clear()
+  communityHiddenContent.clear()
+  communityBlocks.clear()
+  communityReportsByKey.clear()
+  communityModerationCases.splice(0, communityModerationCases.length)
+  communityModerationActionsByKey.clear()
+  communityUnavailablePosts.clear()
   availabilitySlots.clear()
   availabilityCommands.clear()
   adminAccounts.splice(
@@ -339,7 +363,7 @@ function reset() {
   communityPostOwners.clear()
   communityPostOwners.set(
     '50000000-0000-4000-8000-000000000002',
-    actors.get('user@example.com').accountId,
+    actors.get('community-peer@example.com').accountId,
   )
   communityPostVersions.clear()
   communityPostVersions.set('50000000-0000-4000-8000-000000000002', 1)
@@ -480,6 +504,23 @@ function journalActor(request, response) {
     return null
   }
   return actor
+}
+
+function communityAdminActor(request, response) {
+  const actor = accessSessions.get(bearerToken(request))
+  if (!actor || !actor.roles.includes('ADMIN')) {
+    problem(response, 403, 'FORBIDDEN', 'Administrator role is required')
+    return null
+  }
+  return actor
+}
+
+function communityPostVisibleTo(post, actor) {
+  if (communityUnavailablePosts.has(post.postId)) return false
+  if (communityHiddenContent.has(`${actor.accountId}:POST:${post.postId}`))
+    return false
+  const profileId = post.author.communityProfileId
+  return !profileId || !communityBlocks.has(`${actor.accountId}:${profileId}`)
 }
 
 function specialistActor(request, response) {
@@ -1078,14 +1119,125 @@ const server = createServer(async (request, response) => {
     }
 
     if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/community/media/upload-intents'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const key = request.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      const body = await readBody(request)
+      const commandKey = `${actor.accountId}:${key}`
+      const fingerprint = JSON.stringify(body)
+      const replay = communityMediaCreateByKey.get(commandKey)
+      if (replay) {
+        if (replay.fingerprint !== fingerprint) {
+          problem(response, 409, 'IDEMPOTENCY_KEY_REUSED', 'Key was reused')
+          return
+        }
+        json(response, 201, replay.intent)
+        return
+      }
+      const mediaId = crypto.randomUUID()
+      const now = new Date().toISOString()
+      const intent = {
+        mediaId,
+        state: 'PENDING',
+        uploadUrl: `https://api.cloudinary.com/v1_1/mentalbridge-fixture/${body.mediaType === 'VIDEO' ? 'video' : 'image'}/upload`,
+        expiresAt: '2099-01-01T00:00:00Z',
+        uploadFields: {
+          api_key: 'fixture-public-key',
+          public_id: `community/${actor.accountId}/${mediaId}`,
+          signature: 'fixture-signature',
+          timestamp: '4070908800',
+        },
+        version: 0,
+      }
+      communityMedia.set(mediaId, {
+        mediaId,
+        ownerAccountId: actor.accountId,
+        mediaType: body.mediaType,
+        fileName: body.fileName,
+        state: 'PENDING',
+        version: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      communityMediaCreateByKey.set(commandKey, { fingerprint, intent })
+      json(response, 201, intent)
+      return
+    }
+
+    const communityMediaFinalize = url.pathname.match(
+      /^\/api\/v1\/community\/media\/([0-9a-f-]+)\/finalize$/i,
+    )
+    if (request.method === 'POST' && communityMediaFinalize) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const media = communityMedia.get(communityMediaFinalize[1])
+      if (!media || media.ownerAccountId !== actor.accountId) {
+        problem(response, 404, 'COMMUNITY_MEDIA_NOT_FOUND', 'Media not found')
+        return
+      }
+      media.state = 'READY'
+      media.version = 1
+      media.updatedAt = new Date().toISOString()
+      json(response, 200, {
+        mediaId: media.mediaId,
+        mediaType: media.mediaType,
+        state: media.state,
+        version: media.version,
+        createdAt: media.createdAt,
+        updatedAt: media.updatedAt,
+      })
+      return
+    }
+
+    const communityMediaResource = url.pathname.match(
+      /^\/api\/v1\/community\/media\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'DELETE' && communityMediaResource) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const media = communityMedia.get(communityMediaResource[1])
+      if (!media || media.ownerAccountId !== actor.accountId) {
+        problem(response, 404, 'COMMUNITY_MEDIA_NOT_FOUND', 'Media not found')
+        return
+      }
+      if (request.headers['if-match'] !== `"${media.version}"`) {
+        problem(
+          response,
+          412,
+          'COMMUNITY_MEDIA_VERSION_MISMATCH',
+          'Media changed',
+        )
+        return
+      }
+      communityMedia.delete(media.mediaId)
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    if (
       request.method === 'GET' &&
       url.pathname === '/api/v1/community/saved-posts'
     ) {
       const actor = journalActor(request, response)
       if (!actor) return
       const cursor = url.searchParams.get('cursor')
-      const matching = communityPosts.filter((post) =>
-        communityBookmarks.has(`${actor.accountId}:${post.postId}`),
+      const matching = communityPosts.filter(
+        (post) =>
+          communityBookmarks.has(`${actor.accountId}:${post.postId}`) &&
+          communityPostVisibleTo(post, actor),
       )
       const offset = cursor === 'community-saved-next' ? 1 : 0
       const items = matching
@@ -1115,11 +1267,14 @@ const server = createServer(async (request, response) => {
       if (!actor) return
       const topics = url.searchParams.getAll('topic')
       const cursor = url.searchParams.get('cursor')
+      const visiblePosts = communityPosts.filter((post) =>
+        communityPostVisibleTo(post, actor),
+      )
       const matching = topics.length
-        ? communityPosts.filter((post) =>
+        ? visiblePosts.filter((post) =>
             post.topics.some((topic) => topics.includes(topic)),
           )
-        : communityPosts
+        : visiblePosts
       const offset = cursor === 'community-next' ? 1 : 0
       const items = matching
         .slice(offset, offset + 1)
@@ -1174,6 +1329,26 @@ const server = createServer(async (request, response) => {
         return
       }
       const now = new Date().toISOString()
+      const attachedMedia = (body.mediaIds ?? []).flatMap((mediaId) => {
+        const media = communityMedia.get(mediaId)
+        if (
+          !media ||
+          media.ownerAccountId !== actor.accountId ||
+          media.state !== 'READY'
+        )
+          return []
+        return [
+          {
+            mediaId: media.mediaId,
+            type: media.mediaType,
+            url: `https://res.cloudinary.com/mentalbridge-fixture/${media.mediaType === 'VIDEO' ? 'video' : 'image'}/upload/${media.mediaId}`,
+            width: media.mediaType === 'IMAGE' ? 1 : null,
+            height: media.mediaType === 'IMAGE' ? 1 : null,
+            durationSeconds: media.mediaType === 'VIDEO' ? 1 : null,
+            altText: media.fileName,
+          },
+        ]
+      })
       const post = {
         postId: crypto.randomUUID(),
         author:
@@ -1191,8 +1366,8 @@ const server = createServer(async (request, response) => {
               },
         content: body.content,
         topics: body.topics,
-        media: [],
-        mediaAvailability: 'NONE',
+        media: attachedMedia,
+        mediaAvailability: attachedMedia.length > 0 ? 'READY' : 'NONE',
         resourceAttachment: body.resourceId
           ? { resourceId: body.resourceId }
           : null,
@@ -1217,7 +1392,9 @@ const server = createServer(async (request, response) => {
       const actor = journalActor(request, response)
       if (!actor) return
       const post = communityPosts.find(
-        ({ postId }) => postId === communityReaction[1],
+        (candidate) =>
+          candidate.postId === communityReaction[1] &&
+          communityPostVisibleTo(candidate, actor),
       )
       if (!post) {
         problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
@@ -1257,7 +1434,9 @@ const server = createServer(async (request, response) => {
       const actor = journalActor(request, response)
       if (!actor) return
       const post = communityPosts.find(
-        ({ postId }) => postId === communityBookmark[1],
+        (candidate) =>
+          candidate.postId === communityBookmark[1] &&
+          communityPostVisibleTo(candidate, actor),
       )
       if (!post) {
         problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
@@ -1285,7 +1464,9 @@ const server = createServer(async (request, response) => {
       const actor = journalActor(request, response)
       if (!actor) return
       const post = communityPosts.find(
-        ({ postId }) => postId === communityPostDetail[1],
+        (candidate) =>
+          candidate.postId === communityPostDetail[1] &&
+          communityPostVisibleTo(candidate, actor),
       )
       if (!post) {
         problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
@@ -1396,7 +1577,9 @@ const server = createServer(async (request, response) => {
       const actor = journalActor(request, response)
       if (!actor) return
       const post = communityPosts.find(
-        ({ postId }) => postId === communityCommentCollection[1],
+        (candidate) =>
+          candidate.postId === communityCommentCollection[1] &&
+          communityPostVisibleTo(candidate, actor),
       )
       if (!post) {
         problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
@@ -1553,6 +1736,237 @@ const server = createServer(async (request, response) => {
         response.end()
         return
       }
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/community/reports'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const key = request.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      const body = await readBody(request)
+      const commandKey = `${actor.accountId}:${key}`
+      const fingerprint = JSON.stringify(body)
+      const replay = communityReportsByKey.get(commandKey)
+      if (replay) {
+        if (replay !== fingerprint) {
+          problem(response, 409, 'IDEMPOTENCY_KEY_REUSED', 'Key was reused')
+          return
+        }
+        response.writeHead(202, { 'X-Correlation-Id': correlationId })
+        response.end()
+        return
+      }
+      const post =
+        body.targetType === 'POST'
+          ? communityPosts.find(
+              (candidate) =>
+                candidate.postId === body.targetId &&
+                communityPostVisibleTo(candidate, actor),
+            )
+          : null
+      const comment =
+        body.targetType === 'COMMENT'
+          ? communityComments.find(
+              (candidate) =>
+                candidate.commentId === body.targetId &&
+                candidate.state === 'ACTIVE',
+            )
+          : null
+      if (!post && !comment) {
+        problem(response, 404, 'COMMUNITY_TARGET_NOT_FOUND', 'Target not found')
+        return
+      }
+      const now = new Date().toISOString()
+      let moderationCase = communityModerationCases.find(
+        (candidate) =>
+          candidate.targetType === body.targetType &&
+          candidate.targetId === body.targetId,
+      )
+      if (!moderationCase) {
+        moderationCase = {
+          caseId: crypto.randomUUID(),
+          targetType: body.targetType,
+          targetId: body.targetId,
+          state: 'OPEN',
+          priority:
+            body.reason === 'SELF_HARM_OR_CRISIS_CONCERN' ? 'HIGH' : 'NORMAL',
+          reportReasons: [body.reason],
+          reportContexts: body.details ? [body.details] : [],
+          evidence: {
+            content: post?.content ?? comment.content,
+            state: 'ACTIVE',
+            version: post
+              ? communityPostVersions.get(post.postId)
+              : comment.version,
+          },
+          actions: [],
+          createdAt: now,
+          updatedAt: now,
+          version: 0,
+        }
+        communityModerationCases.push(moderationCase)
+      } else {
+        if (!moderationCase.reportReasons.includes(body.reason))
+          moderationCase.reportReasons.push(body.reason)
+        if (body.details) moderationCase.reportContexts.push(body.details)
+        if (body.reason === 'SELF_HARM_OR_CRISIS_CONCERN')
+          moderationCase.priority = 'HIGH'
+        moderationCase.updatedAt = now
+        moderationCase.version += 1
+      }
+      communityReportsByKey.set(commandKey, fingerprint)
+      response.writeHead(202, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    const communityHiddenContentResource = url.pathname.match(
+      /^\/api\/v1\/community\/hidden-content\/(POST|COMMENT)\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'PUT' && communityHiddenContentResource) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      communityHiddenContent.add(
+        `${actor.accountId}:${communityHiddenContentResource[1].toUpperCase()}:${communityHiddenContentResource[2]}`,
+      )
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    const communityBlockResource = url.pathname.match(
+      /^\/api\/v1\/community\/blocks\/([0-9a-f-]+)$/i,
+    )
+    if (communityBlockResource) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const blockKey = `${actor.accountId}:${communityBlockResource[1]}`
+      if (request.method === 'PUT') communityBlocks.add(blockKey)
+      else if (request.method === 'DELETE') communityBlocks.delete(blockKey)
+      else return
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/community/admin/moderation-cases'
+    ) {
+      if (!communityAdminActor(request, response)) return
+      const stateFilter = url.searchParams.get('state')
+      const targetTypeFilter = url.searchParams.get('targetType')
+      const priorityFilter = url.searchParams.get('priority')
+      json(
+        response,
+        200,
+        communityModerationCases.filter(
+          (item) =>
+            (!stateFilter || item.state === stateFilter) &&
+            (!targetTypeFilter || item.targetType === targetTypeFilter) &&
+            (!priorityFilter || item.priority === priorityFilter),
+        ),
+      )
+      return
+    }
+
+    const communityModerationAction = url.pathname.match(
+      /^\/api\/v1\/community\/admin\/moderation-cases\/([0-9a-f-]+)\/actions$/i,
+    )
+    if (request.method === 'POST' && communityModerationAction) {
+      const actor = communityAdminActor(request, response)
+      if (!actor) return
+      const moderationCase = communityModerationCases.find(
+        (candidate) => candidate.caseId === communityModerationAction[1],
+      )
+      if (!moderationCase) {
+        problem(
+          response,
+          404,
+          'COMMUNITY_MODERATION_CASE_NOT_FOUND',
+          'Moderation case not found',
+        )
+        return
+      }
+      const key = request.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      const body = await readBody(request)
+      const commandKey = `${actor.accountId}:${key}`
+      const fingerprint = JSON.stringify(body)
+      const replay = communityModerationActionsByKey.get(commandKey)
+      if (replay) {
+        if (replay.fingerprint !== fingerprint) {
+          problem(response, 409, 'IDEMPOTENCY_KEY_REUSED', 'Key was reused')
+          return
+        }
+        json(response, 201, replay.moderationCase)
+        return
+      }
+      const post = communityPosts.find(
+        (candidate) => candidate.postId === moderationCase.targetId,
+      )
+      const priorState = communityUnavailablePosts.has(moderationCase.targetId)
+        ? 'MODERATION_HIDDEN'
+        : (post?.sensitiveContentWarning ?? 'ACTIVE')
+      if (body.action === 'HIDE' || body.action === 'REMOVE')
+        communityUnavailablePosts.add(moderationCase.targetId)
+      if (body.action === 'RESTORE')
+        communityUnavailablePosts.delete(moderationCase.targetId)
+      if (post && body.action === 'APPLY_SENSITIVE_WARNING')
+        post.sensitiveContentWarning = 'SENSITIVE_CONTENT'
+      if (post && body.action === 'REMOVE_SENSITIVE_WARNING')
+        post.sensitiveContentWarning = null
+      const resultingState =
+        body.action === 'HIDE'
+          ? 'MODERATION_HIDDEN'
+          : body.action === 'REMOVE'
+            ? 'MODERATION_REMOVED'
+            : body.action === 'RESTORE'
+              ? 'ACTIVE'
+              : body.action === 'APPLY_SENSITIVE_WARNING'
+                ? 'SENSITIVE_CONTENT'
+                : body.action === 'REMOVE_SENSITIVE_WARNING'
+                  ? 'NONE'
+                  : priorState
+      const now = new Date().toISOString()
+      moderationCase.actions.push({
+        actionId: crypto.randomUUID(),
+        action: body.action,
+        reasonCode: body.reasonCode,
+        actorSubject: actor.accountId,
+        priorState,
+        resultingState,
+        targetVersion: moderationCase.evidence.version,
+        createdAt: now,
+      })
+      moderationCase.state = 'RESOLVED'
+      moderationCase.updatedAt = now
+      moderationCase.version += 1
+      communityModerationActionsByKey.set(commandKey, {
+        fingerprint,
+        moderationCase,
+      })
+      json(response, 201, moderationCase)
+      return
     }
 
     if (request.method === 'GET' && url.pathname === '/api/v1/resources') {
