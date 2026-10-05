@@ -65,6 +65,8 @@ export interface NotificationOperationsData {
 }
 
 export interface CommunityOperationsData {
+  openModerationCases: number;
+  totalModerationCases: number;
   pendingReportsCount: number;
 }
 

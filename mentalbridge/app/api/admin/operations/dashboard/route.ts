@@ -40,11 +40,7 @@ export async function GET(request: NextRequest) {
       identityClient.getAccountsSummary(actor.accessToken, correlationId),
       consultationClient.getOperationsSummary(actor.accessToken, correlationId),
       contentAdminClient.getNotificationOperationsSummary(actor.accessToken, correlationId),
-      communityClient.moderationCases(
-        actor.accessToken,
-        new URLSearchParams({ status: 'OPEN' }),
-        correlationId,
-      ),
+      communityClient.operationsSummary(actor.accessToken, correlationId),
     ])
 
   const identityBlock: AuthoritativeBlock<IdentityAccountsData> =
@@ -120,10 +116,12 @@ export async function GET(request: NextRequest) {
     communityResult.status === 'fulfilled'
       ? {
           status: 'AVAILABLE',
-          source: 'COMMUNITY',
-          asOf: now,
+          source: communityResult.value.source,
+          asOf: communityResult.value.asOf,
           data: {
-            pendingReportsCount: communityResult.value.length,
+            openModerationCases: communityResult.value.openModerationCases,
+            totalModerationCases: communityResult.value.totalModerationCases,
+            pendingReportsCount: communityResult.value.openModerationCases,
           },
         }
       : {

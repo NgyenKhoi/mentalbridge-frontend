@@ -21,6 +21,7 @@ const contentAdmin = vi.hoisted(() => ({
 
 const community = vi.hoisted(() => ({
   moderationCases: vi.fn(),
+  operationsSummary: vi.fn(),
 }))
 
 vi.mock('@/lib/consultation/authenticated-actor', () => ({
@@ -126,10 +127,12 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
       },
     })
 
-    community.moderationCases.mockResolvedValue([
-      { id: 'case-1', status: 'OPEN' },
-      { id: 'case-2', status: 'OPEN' },
-    ])
+    community.operationsSummary.mockResolvedValue({
+      source: 'COMMUNITY',
+      asOf: '2026-10-05T12:00:00.000Z',
+      openModerationCases: 2,
+      totalModerationCases: 10,
+    })
   })
 
   it('fails closed when authentication fails (401)', async () => {
@@ -169,6 +172,10 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
     expect(payload.notifications.source).toBe('CONTENT_NOTIFICATION')
 
     expect(payload.community.status).toBe('AVAILABLE')
+    expect(payload.community.source).toBe('COMMUNITY')
+    expect(payload.community.asOf).toBe('2026-10-05T12:00:00.000Z')
+    expect(payload.community.data.openModerationCases).toBe(2)
+    expect(payload.community.data.totalModerationCases).toBe(10)
     expect(payload.community.data.pendingReportsCount).toBe(2)
 
     expect(payload.unintegrated.length).toBeGreaterThan(0)

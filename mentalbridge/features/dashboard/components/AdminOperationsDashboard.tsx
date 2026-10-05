@@ -409,7 +409,7 @@ export function AdminOperationsDashboard({ onNotice }: AdminOperationsDashboardP
                       </span>
                     </div>
                   </div>
-                  <div className={styles.asOf}>Ghi nhận: {formatDate(data.asOf)}</div>
+                  <div className={styles.asOf}>Ghi nhận: {formatDate(data.community.asOf)}</div>
                   <div className={styles.statRow}>
                     <div className={styles.statBox}>
                       <span className={styles.statValue}>{data.community.data.pendingReportsCount}</span>

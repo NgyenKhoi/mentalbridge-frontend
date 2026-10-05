@@ -78,6 +78,8 @@ const mockDashboardData: AdminOperationsDashboardResponse = {
     source: 'COMMUNITY',
     asOf: '2026-10-05T12:00:00.000Z',
     data: {
+      openModerationCases: 7,
+      totalModerationCases: 25,
       pendingReportsCount: 7,
     },
   },
