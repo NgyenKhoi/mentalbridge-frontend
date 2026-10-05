@@ -49,6 +49,11 @@ describe('AdminAuditLog', () => {
     const user = userEvent.setup()
     render(<AdminAuditLog />)
     await screen.findByText('Tạm ngưng tài khoản')
+    await user.selectOptions(screen.getByLabelText('Dịch vụ'), 'IDENTITY')
+    await user.selectOptions(
+      screen.getByLabelText('Phạm vi'),
+      'ACCOUNT_ADMINISTRATION',
+    )
     await user.selectOptions(screen.getByLabelText('Loại tác nhân'), 'ADMIN')
     await user.selectOptions(
       screen.getByLabelText('Hành động'),
