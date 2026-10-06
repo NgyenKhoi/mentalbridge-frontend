@@ -9,6 +9,15 @@ const runtimeEnvironmentSchema = z.object({
         message: 'EXPO_PUBLIC_API_BASE_URL must use http or https',
       },
     )
+    .refine(
+      (value) => {
+        const url = new URL(value)
+        return !url.username && !url.password
+      },
+      {
+        message: 'EXPO_PUBLIC_API_BASE_URL must not contain credentials',
+      },
+    )
     .transform((value) => value.replace(/\/$/, '')),
   EXPO_PUBLIC_API_TIMEOUT_MS: z.coerce
     .number()

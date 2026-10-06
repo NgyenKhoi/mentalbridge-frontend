@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 import type {
   AuthenticatedSession,
@@ -46,6 +47,7 @@ export function SessionProvider({
   service: SessionService
   initialSession?: AppSession | null
 }>) {
+  const queryClient = useQueryClient()
   const [session, setSession] = useState<AppSession | null>(
     initialSession ?? null,
   )
@@ -63,9 +65,10 @@ export function SessionProvider({
 
   const applyUnauthenticated = useCallback(() => {
     accessExpiresAt.current = null
+    queryClient.clear()
     setSession(null)
     setStatus('unauthenticated')
-  }, [])
+  }, [queryClient])
 
   const retryRestore = useCallback(async () => {
     setSession(null)
