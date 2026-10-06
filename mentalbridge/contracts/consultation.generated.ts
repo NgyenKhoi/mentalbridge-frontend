@@ -301,6 +301,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns a bounded, read-only Consultation-authoritative operational view. It excludes brief, summary, chat, Journal, assessment-answer, private-note, and AI content and grants no session mutation authority. */
+        get: operations["searchAdminAppointments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/appointments": {
         parameters: {
             query?: never;
@@ -1099,6 +1116,64 @@ export interface components {
              * @description Active user-owned appointment atomically replaced by this new request; omit for a normal request.
              */
             replacesAppointmentId?: string | null;
+        };
+        /** @enum {string} */
+        AppointmentStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+        AdminAppointmentItem: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            availabilitySlotId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            status: components["schemas"]["AppointmentStatus"];
+            modality: components["schemas"]["AppointmentModality"];
+            /** Format: date-time */
+            scheduledStartAt: string;
+            /** Format: date-time */
+            scheduledEndAt: string;
+            timezone: string;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            decisionDeadlineAt: string;
+            /** Format: date-time */
+            decidedAt: string | null;
+            decisionReasonCode: string | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            cancellationReasonCode: string | null;
+            cancellationCreditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
+            /** Format: date-time */
+            sessionEndedAt: string | null;
+            /** Format: date-time */
+            sessionSettledAt: string | null;
+            /** @enum {string|null} */
+            sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
+            sessionOutcomeReasonCode: string | null;
+            /** @enum {string} */
+            settlementState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        AdminAppointmentPage: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** @enum {string} */
+            dataState: "CURRENT" | "STALE" | "UNAVAILABLE";
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: date-time */
+            queryFrom: string;
+            /** Format: date-time */
+            queryTo: string;
+            items: components["schemas"]["AdminAppointmentItem"][];
+            count: number;
+            nextCursor: string | null;
         };
         /** @enum {string} */
         AppointmentCancellationCreditOutcome: "RELEASED" | "FORFEITED" | "TRANSFERRED_TO_REPLACEMENT";
@@ -2186,6 +2261,39 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
             404: components["responses"]["DiscoveryNotFoundProblem"];
+        };
+    };
+    searchAdminAppointments: {
+        parameters: {
+            query: {
+                status?: components["schemas"]["AppointmentStatus"];
+                modality?: components["schemas"]["AppointmentModality"];
+                from: string;
+                /** @description Exclusive upper bound. The requested range cannot exceed 180 days. */
+                to: string;
+                userAccountId?: string;
+                specialistAccountId?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current owner-authoritative operational appointment page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAppointmentPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     listOwnAppointments: {

@@ -201,6 +201,16 @@ export type AppointmentStatus =
   | 'REJECTED'
   | 'EXPIRED'
   | 'CANCELLED'
+const APPOINTMENT_STATUSES: AppointmentStatus[] = [
+  'REQUESTED',
+  'CONFIRMED',
+  'IN_PROGRESS',
+  'SESSION_ENDED',
+  'COMPLETED',
+  'REJECTED',
+  'EXPIRED',
+  'CANCELLED',
+]
 export type AppointmentCancellationCreditOutcome =
   'RELEASED' | 'FORFEITED' | 'TRANSFERRED_TO_REPLACEMENT'
 export type ChatSessionOutcome =
@@ -300,6 +310,43 @@ export type AppointmentList = Readonly<{
   items: Appointment[]
   count: number
   generatedAt: string
+}>
+
+export type AdminAppointmentItem = Readonly<{
+  appointmentId: string
+  availabilitySlotId: string
+  userAccountId: string
+  specialistAccountId: string
+  status: AppointmentStatus
+  modality: AppointmentModality
+  scheduledStartAt: string
+  scheduledEndAt: string
+  timezone: string
+  requestedAt: string
+  decisionDeadlineAt: string
+  decidedAt: string | null
+  decisionReasonCode: string | null
+  cancelledAt: string | null
+  cancellationReasonCode: string | null
+  cancellationCreditOutcome: AppointmentCancellationCreditOutcome | null
+  sessionEndedAt: string | null
+  sessionSettledAt: string | null
+  sessionOutcome: ChatSessionOutcome | null
+  sessionOutcomeReasonCode: string | null
+  settlementState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
+  updatedAt: string
+  version: number
+}>
+
+export type AdminAppointmentPage = Readonly<{
+  source: 'CONSULTATION'
+  dataState: 'CURRENT' | 'STALE' | 'UNAVAILABLE'
+  generatedAt: string
+  queryFrom: string
+  queryTo: string
+  items: AdminAppointmentItem[]
+  count: number
+  nextCursor: string | null
 }>
 
 export type ServicePackage = 'FREE' | 'PLUS' | 'PREMIUM'
@@ -1521,6 +1568,124 @@ export function parseAppointmentList(value: unknown): AppointmentList | null {
   const items = result.items.map(parseAppointment)
   if (items.some((item) => item === null)) return null
   return { ...result, items } as AppointmentList
+}
+
+export function parseAdminAppointmentPage(
+  value: unknown,
+): AdminAppointmentPage | null {
+  const page = record(value)
+  if (
+    !page ||
+    !exactKeys(page, [
+      'source',
+      'dataState',
+      'generatedAt',
+      'queryFrom',
+      'queryTo',
+      'items',
+      'count',
+      'nextCursor',
+    ]) ||
+    page.source !== 'CONSULTATION' ||
+    !['CURRENT', 'STALE', 'UNAVAILABLE'].includes(String(page.dataState)) ||
+    !utcInstant(page.generatedAt) ||
+    !utcInstant(page.queryFrom) ||
+    !utcInstant(page.queryTo) ||
+    !Array.isArray(page.items) ||
+    page.items.length > 100 ||
+    !Number.isInteger(page.count) ||
+    page.count !== page.items.length ||
+    (page.nextCursor !== null &&
+      (typeof page.nextCursor !== 'string' ||
+        page.nextCursor.length < 1 ||
+        page.nextCursor.length > 512))
+  )
+    return null
+
+  const items: AdminAppointmentItem[] = []
+  for (const input of page.items) {
+    const item = record(input)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'appointmentId',
+        'availabilitySlotId',
+        'userAccountId',
+        'specialistAccountId',
+        'status',
+        'modality',
+        'scheduledStartAt',
+        'scheduledEndAt',
+        'timezone',
+        'requestedAt',
+        'decisionDeadlineAt',
+        'decidedAt',
+        'decisionReasonCode',
+        'cancelledAt',
+        'cancellationReasonCode',
+        'cancellationCreditOutcome',
+        'sessionEndedAt',
+        'sessionSettledAt',
+        'sessionOutcome',
+        'sessionOutcomeReasonCode',
+        'settlementState',
+        'updatedAt',
+        'version',
+      ]) ||
+      !uuid(item.appointmentId) ||
+      !uuid(item.availabilitySlotId) ||
+      !uuid(item.userAccountId) ||
+      !uuid(item.specialistAccountId) ||
+      !APPOINTMENT_STATUSES.includes(item.status as AppointmentStatus) ||
+      !['IN_APP_CHAT', 'IN_APP_VIDEO'].includes(String(item.modality)) ||
+      !utcInstant(item.scheduledStartAt) ||
+      !utcInstant(item.scheduledEndAt) ||
+      typeof item.timezone !== 'string' ||
+      item.timezone.length < 1 ||
+      item.timezone.length > 64 ||
+      !utcInstant(item.requestedAt) ||
+      !utcInstant(item.decisionDeadlineAt) ||
+      !nullableInstant(item.decidedAt) ||
+      !nullableCode(item.decisionReasonCode) ||
+      !nullableInstant(item.cancelledAt) ||
+      !nullableCode(item.cancellationReasonCode) ||
+      ![null, 'RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT'].includes(
+        item.cancellationCreditOutcome as never,
+      ) ||
+      !nullableInstant(item.sessionEndedAt) ||
+      !nullableInstant(item.sessionSettledAt) ||
+      ![
+        null,
+        'COMPLETED',
+        'USER_NO_SHOW',
+        'SPECIALIST_NO_SHOW',
+        'BOTH_NO_SHOW',
+        'INSUFFICIENT_EVIDENCE',
+        'EVIDENCE_REVIEW',
+      ].includes(item.sessionOutcome as never) ||
+      !nullableCode(item.sessionOutcomeReasonCode) ||
+      !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
+        String(item.settlementState),
+      ) ||
+      !utcInstant(item.updatedAt) ||
+      !Number.isInteger(item.version) ||
+      (item.version as number) < 0
+    )
+      return null
+    items.push(item as AdminAppointmentItem)
+  }
+  return { ...page, items } as AdminAppointmentPage
+}
+
+function nullableInstant(value: unknown) {
+  return value === null || utcInstant(value)
+}
+
+function nullableCode(value: unknown) {
+  return (
+    value === null ||
+    (typeof value === 'string' && value.length >= 1 && value.length <= 64)
+  )
 }
 
 export function parseAppointmentRequestInput(

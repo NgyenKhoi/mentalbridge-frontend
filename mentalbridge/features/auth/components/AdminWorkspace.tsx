@@ -7,6 +7,7 @@ import AdminSpecialistReviewSection from '@/features/specialist-profile/componen
 import AdminAccountManager from './AdminAccountManager'
 import AdminCommunityModerationSection from '@/features/community/components/AdminCommunityModerationSection'
 import AdminOperationsDashboard from '@/features/dashboard/components/AdminOperationsDashboard'
+import AdminAppointmentMonitor from '@/features/appointments/components/AdminAppointmentMonitor'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -34,6 +35,10 @@ const SECTIONS = {
     label: 'Kiểm duyệt Community',
     description:
       'Hàng đợi kiểm duyệt nội dung cộng đồng có nhật ký quyết định.',
+  },
+  appointments: {
+    label: 'Lịch hẹn',
+    description: 'Giám sát vận hành lịch hẹn từ nguồn Consultation.',
   },
   audit: {
     label: 'Nhật ký kiểm toán',
@@ -94,6 +99,8 @@ export default function AdminWorkspace({
           <AdminAccountManager />
         ) : section === 'moderation' ? (
           <AdminCommunityModerationSection />
+        ) : section === 'appointments' ? (
+          <AdminAppointmentMonitor />
         ) : (
           <>
             <span className={styles.eyebrow}>

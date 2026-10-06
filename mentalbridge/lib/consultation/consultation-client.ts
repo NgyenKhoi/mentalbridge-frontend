@@ -17,6 +17,7 @@ import {
   parseSpecialistDiscoveryItem,
   parseSpecialistDiscoveryPage,
   parseSpecialistSuspensionResult,
+  parseAdminAppointmentPage,
   type PendingProfiles,
   type AvailabilitySlot,
   type AvailabilitySlotList,
@@ -38,6 +39,7 @@ import {
   type BookableSlotList,
   parseConsultationOperationsSummary,
   type ConsultationOperationsSummary,
+  type AdminAppointmentPage,
 } from './consultation-validation'
 import {
   parseSessionSummary,
@@ -181,6 +183,15 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  adminAppointments(token: string, correlationId: string, query: string) {
+    return request<AdminAppointmentPage>({
+      method: 'GET',
+      path: `/api/v1/admin/appointments?${query}`,
+      token,
+      correlationId,
+      parse: parseAdminAppointmentPage,
+    })
+  },
   appointmentRating(
     token: string,
     correlationId: string,
