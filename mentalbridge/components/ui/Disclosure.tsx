@@ -13,6 +13,7 @@ type DisclosureProps = Omit<
     className?: string
     contentClassName?: string
     summaryLabel?: string
+    expanded?: boolean
   }>
 
 export function Disclosure({
@@ -22,6 +23,7 @@ export function Disclosure({
   className,
   contentClassName,
   summaryLabel,
+  expanded,
   ...detailsProps
 }: DisclosureProps) {
   return (
@@ -33,6 +35,7 @@ export function Disclosure({
         className={styles.summary}
         role="button"
         aria-label={summaryLabel}
+        aria-expanded={expanded}
       >
         <span className={styles.label}>{summary}</span>
         {meta ? <span className={styles.meta}>{meta}</span> : null}

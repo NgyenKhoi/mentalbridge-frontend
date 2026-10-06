@@ -13,6 +13,7 @@ function renderCard(
   onSaveChoices = vi.fn(async () => undefined),
   onActivate = vi.fn(async () => undefined),
   onStatusChange = vi.fn(async () => undefined),
+  activeTab?: 'plan' | 'schedule' | 'manage',
 ) {
   const view = render(
     <SupportPlanCard
@@ -22,12 +23,27 @@ function renderCard(
       onSaveChoices={onSaveChoices}
       onActivate={onActivate}
       onStatusChange={onStatusChange}
+      activeTab={activeTab}
     />,
   )
   return { ...view, onSaveChoices, onActivate, onStatusChange }
 }
 
 describe('SupportPlanCard', () => {
+  it('marks the schedule view so its outer wrapper stays transparent', () => {
+    const { container } = renderCard(
+      supportPlanFixture(),
+      undefined,
+      undefined,
+      undefined,
+      'schedule',
+    )
+
+    expect(container.querySelector('.support-plan-card')).toHaveClass(
+      'support-plan-card--schedule',
+    )
+  })
+
   it('puts governed safety before the editable admitted choices', () => {
     const { container } = renderCard()
 
