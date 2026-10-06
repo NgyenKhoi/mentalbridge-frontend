@@ -13,6 +13,8 @@ import {
 } from '../api/browser-admin-appointments'
 import styles from './AdminAppointmentMonitor.module.css'
 
+type AppliedAppointmentFilters = Omit<AdminAppointmentSearch, 'cursor'>
+
 const statuses: AppointmentStatus[] = [
   'REQUESTED',
   'CONFIRMED',
@@ -52,6 +54,7 @@ function optionalTime(value: string | null) {
 
 export default function AdminAppointmentMonitor() {
   const initialized = useRef(false)
+  const appliedFilters = useRef<AppliedAppointmentFilters | null>(null)
   const range = initialRange()
   const [from, setFrom] = useState(range.from)
   const [to, setTo] = useState(range.to)
@@ -68,8 +71,8 @@ export default function AdminAppointmentMonitor() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const query = useCallback(
-    (cursor?: string): AdminAppointmentSearch => ({
+  const draftFilters = useCallback(
+    (): AppliedAppointmentFilters => ({
       from: new Date(from).toISOString(),
       to: new Date(to).toISOString(),
       ...(status ? { status: status as AppointmentStatus } : {}),
@@ -78,23 +81,32 @@ export default function AdminAppointmentMonitor() {
       ...(specialistAccountId.trim()
         ? { specialistAccountId: specialistAccountId.trim() }
         : {}),
-      ...(cursor ? { cursor } : {}),
       limit: 20,
     }),
     [from, modality, specialistAccountId, status, to, userAccountId],
   )
 
   const load = useCallback(
-    async (cursor?: string) => {
+    async (
+      cursor?: string,
+      filters = appliedFilters.current ?? draftFilters(),
+      applyFilters = false,
+    ) => {
       setLoading(true)
       setError('')
       try {
-        const page = await browserAdminAppointments.search(query(cursor))
+        const page = await browserAdminAppointments.search({
+          ...filters,
+          ...(cursor ? { cursor } : {}),
+        })
         setItems(page.items)
         setNextCursor(page.nextCursor)
         setGeneratedAt(page.generatedAt)
         setDataState(page.dataState)
         setCurrentCursor(cursor)
+        if (applyFilters || appliedFilters.current === null) {
+          appliedFilters.current = filters
+        }
       } catch (cause) {
         setItems([])
         setNextCursor(null)
@@ -105,7 +117,7 @@ export default function AdminAppointmentMonitor() {
         setLoading(false)
       }
     },
-    [query],
+    [draftFilters],
   )
 
   useEffect(() => {
@@ -117,7 +129,7 @@ export default function AdminAppointmentMonitor() {
   function submit(event: FormEvent) {
     event.preventDefault()
     setCursorHistory([])
-    void load()
+    void load(undefined, draftFilters(), true)
   }
 
   function nextPage() {

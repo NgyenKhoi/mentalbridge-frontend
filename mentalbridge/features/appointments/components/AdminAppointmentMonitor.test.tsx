@@ -86,6 +86,43 @@ describe('AdminAppointmentMonitor', () => {
     })
   })
 
+  it('keeps cursor navigation bound to the last applied filters', async () => {
+    const user = userEvent.setup()
+    render(<AdminAppointmentMonitor />)
+    await screen.findByText('#11111111')
+
+    await user.selectOptions(screen.getByLabelText('Trạng thái'), 'CONFIRMED')
+    await user.selectOptions(screen.getByLabelText('Hình thức'), 'IN_APP_CHAT')
+    await user.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+    await waitFor(() =>
+      expect(appointmentClient.search).toHaveBeenCalledTimes(2),
+    )
+
+    await user.selectOptions(screen.getByLabelText('Trạng thái'), 'CANCELLED')
+    await user.selectOptions(screen.getByLabelText('Hình thức'), 'IN_APP_VIDEO')
+    await user.click(screen.getByRole('button', { name: 'Trang sau' }))
+    await waitFor(() =>
+      expect(appointmentClient.search).toHaveBeenCalledTimes(3),
+    )
+    expect(appointmentClient.search.mock.calls[2][0]).toMatchObject({
+      status: 'CONFIRMED',
+      modality: 'IN_APP_CHAT',
+      cursor: 'next-page',
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Trang trước' }))
+    await waitFor(() =>
+      expect(appointmentClient.search).toHaveBeenCalledTimes(4),
+    )
+    expect(appointmentClient.search.mock.calls[3][0]).toMatchObject({
+      status: 'CONFIRMED',
+      modality: 'IN_APP_CHAT',
+    })
+    expect(appointmentClient.search.mock.calls[3][0]).not.toHaveProperty(
+      'cursor',
+    )
+  })
+
   it('shows owner unavailability explicitly and does not retain stale rows', async () => {
     appointmentClient.search.mockRejectedValue(new Error('offline'))
     render(<AdminAppointmentMonitor />)
