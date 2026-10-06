@@ -84,7 +84,7 @@ App
 ├── TanStack Query provider + native online/app-focus lifecycle
 ├── Expo Router public route group
 └── protected authenticated role groups
-    ├── USER placeholder shell
+    ├── USER home and Care-backed personal profile
     └── SPECIALIST placeholder shell
 
 Shared foundations
@@ -108,6 +108,13 @@ links still require the approved web-domain Android App Link and iOS Universal
 Link association; MB-607 does not redefine the backend email URL.
 See [`docs/MB-607_AUTH_SESSION.md`](docs/MB-607_AUTH_SESSION.md) for the endpoint,
 lifecycle, failure-state, deep-link, and automated-test evidence.
+
+MB-608 adds the USER profile route backed only by Care's authenticated
+`GET /api/v1/profile` and `PUT /api/v1/profile` contract. The mobile form sends
+only supported editable fields, preserves optimistic concurrency through
+`If-Match`, and reloads authoritative data after a stale write. See
+[`docs/MB-608_USER_PROFILE.md`](docs/MB-608_USER_PROFILE.md) for contract, state,
+cache, and automated-test evidence.
 
 ## Quality commands
 
