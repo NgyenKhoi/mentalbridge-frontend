@@ -40,8 +40,8 @@ Set `ANDROID_DEVICE` to an `adb devices` serial when more than one target is
 available. The script fails unless the package is installed, relaunched,
 remains alive, and owns Android's resumed foreground activity.
 
-iOS requires macOS, Xcode 26.4 or newer, CocoaPods, `jq`, and an installed
-iPhone Simulator:
+iOS requires macOS, Xcode 26.4.1 (`17E202`), CocoaPods, `jq`, and the iOS 26.4.1
+`iPhone 17` simulator used by staging:
 
 ```bash
 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8080 \
@@ -50,8 +50,10 @@ npm run native:ios:smoke
 ```
 
 Set `IOS_DEVICE` to a simulator UDID to select a specific device. The script
-fails unless the app is installed, an explicit launch returns a PID, and that
-process remains alive after the startup window.
+otherwise selects only `iPhone 17` from
+`com.apple.CoreSimulator.SimRuntime.iOS-26-4`; it does not select the first
+available iPhone. The script fails unless the app is installed, an explicit
+launch returns a PID, and that process remains alive after the startup window.
 
 Evidence is written to ignored `native-evidence/`. CI uploads it even when a
 smoke job fails, which keeps boot failures reviewable without committing

@@ -4,6 +4,9 @@ MB-608 adds the authenticated USER profile flow to the shared Android/iOS
 client. Care remains the authority for persisted profile data and versioning;
 mobile does not derive an account identifier from the route, request body, or
 token contents.
+It inherits transport, session, error, cache, configuration, and app-identity
+rules from
+[`Mobile Delivery Contract v1`](MB-611_MOBILE_DELIVERY_CONTRACT_V1.md).
 
 ## Contract mapping
 
