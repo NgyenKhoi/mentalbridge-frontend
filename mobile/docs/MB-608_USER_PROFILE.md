@@ -13,7 +13,7 @@ token contents.
 | Empty profile   | `404 PROFILE_NOT_FOUND` | Opens the supported create form instead of treating the response as an outage. |
 | Create profile  | `PUT /api/v1/profile`   | Sends no `If-Match` header and only supported editable fields.                 |
 | Replace profile | `PUT /api/v1/profile`   | Sends the quoted persisted version in `If-Match`.                              |
-| Stale write     | `412`                   | Reloads the authoritative profile before another save attempt.                 |
+| Stale write     | `412`                   | Locks editing and saving until an authoritative reload succeeds.               |
 
 The request body contains only `displayName`, `dateOfBirth`, and `gender`.
 Compatibility-only locale, timezone, and reminder fields are not written, and
@@ -27,7 +27,9 @@ and stale-version states. Field input remains visible after recoverable save
 errors. A successful mutation updates the account-scoped TanStack Query cache
 with the returned profile and marks it stale without issuing a duplicate
 request. Re-entering the route always refreshes, while changing the Identity
-subject selects a separate cache key.
+subject selects a separate cache key. A stale-write reload failure keeps the
+form blocked and exposes an explicit retry; stale input cannot be submitted
+again before the authoritative profile and version have been reconciled.
 
 Client validation handles shape and input format only. Care remains responsible
 for the age rule and returns field violations that mobile maps to user-facing
@@ -38,6 +40,7 @@ Vietnamese copy.
 The focused Jest suites cover exact REST paths, create/update `If-Match`
 behavior, body field boundaries, strict response parsing, local validation,
 server-owned age validation, read/create/update flows, stale-write reload,
+blocked retry behavior, screen remount refresh, account-session cache isolation,
 unauthorized handling, dependency failure, and the USER-home entry point.
 The `dev` pull-request gate typechecks mobile; the complete mobile quality,
 bundle, and native boot gates remain staged for release validation.

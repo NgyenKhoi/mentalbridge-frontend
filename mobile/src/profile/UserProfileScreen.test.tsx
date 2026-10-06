@@ -11,10 +11,12 @@ import type { ReactElement } from 'react'
 import { ApiError } from '@/api/api-error'
 
 import type { CareProfileApi } from './profile-api'
+import type { CareProfile } from './profile-contract'
 import { UserProfileScreen } from './UserProfileScreen'
 
 const mockBack = jest.fn()
 const mockSignOut = jest.fn()
+let mockSessionSubject = '11111111-1111-4111-8111-111111111111'
 
 jest.mock('expo-router', () => ({
   router: { back: () => mockBack(), push: jest.fn() },
@@ -22,12 +24,12 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@/auth/session-context', () => ({
   useSession: () => ({
-    session: { subject: '11111111-1111-4111-8111-111111111111', role: 'USER' },
+    session: { subject: mockSessionSubject, role: 'USER' },
     signOut: mockSignOut,
   }),
 }))
 
-const profile = {
+const profile: CareProfile = {
   accountId: '11111111-1111-4111-8111-111111111111',
   displayName: 'Nguyễn An',
   dateOfBirth: '1998-05-12',
@@ -38,16 +40,21 @@ const profile = {
   createdAt: '2026-09-01T00:00:00.000Z',
   updatedAt: '2026-10-01T00:00:00.000Z',
   version: 3,
-} as const
+}
 
-async function renderProfile(ui: ReactElement) {
-  const queryClient = new QueryClient({
+function createTestQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: { gcTime: Infinity, retry: false },
       mutations: { gcTime: Infinity, retry: false },
     },
   })
+}
 
+async function renderProfile(
+  ui: ReactElement,
+  queryClient = createTestQueryClient(),
+) {
   const result = await render(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
   )
@@ -66,6 +73,7 @@ function profileApi(overrides: Partial<CareProfileApi> = {}): CareProfileApi {
 describe('USER Care profile screen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockSessionSubject = '11111111-1111-4111-8111-111111111111'
   })
 
   it('loads the persisted profile and replaces it with the current version', async () => {
@@ -153,14 +161,90 @@ describe('USER Care profile screen', () => {
     ).toBeOnTheScreen()
   })
 
-  it('reloads authoritative data after a stale write conflict', async () => {
-    const latest = { ...profile, displayName: 'Tên mới nhất', version: 4 }
+  it('blocks repeated saves until stale recovery loads the authoritative version', async () => {
+    const latest: CareProfile = {
+      ...profile,
+      displayName: 'Tên mới nhất',
+      updatedAt: '2026-10-02T00:00:00.000Z',
+      version: 4,
+    }
+    let resolveRefresh: (value: CareProfile) => void = () => undefined
+    const pendingRefresh = new Promise<CareProfile>((resolve) => {
+      resolveRefresh = resolve
+    })
+    const putProfile = jest
+      .fn()
+      .mockRejectedValueOnce(
+        new ApiError({
+          code: 'VERSION_MISMATCH',
+          message: 'Stale',
+          status: 412,
+        }),
+      )
+      .mockResolvedValueOnce({
+        ...latest,
+        displayName: 'Tên sau khi tải lại',
+        version: 5,
+      })
     const api = profileApi({
       getProfile: jest
         .fn()
         .mockResolvedValueOnce(profile)
-        .mockResolvedValueOnce(latest),
-      putProfile: jest.fn().mockRejectedValue(
+        .mockReturnValueOnce(pendingRefresh),
+      putProfile,
+    })
+    await renderProfile(<UserProfileScreen api={api} />)
+
+    await screen.findByDisplayValue('Nguyễn An')
+    await fireEvent.changeText(
+      screen.getByLabelText('Tên hiển thị'),
+      'Bản nháp cũ',
+    )
+    await fireEvent.press(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+
+    expect(
+      await screen.findByText(/Hồ sơ vừa được cập nhật ở nơi khác/),
+    ).toBeOnTheScreen()
+    const blockedSave = screen.getByRole('button', { name: 'Đang tải lại…' })
+    expect(blockedSave).toBeDisabled()
+    await fireEvent.press(blockedSave)
+    expect(putProfile).toHaveBeenCalledTimes(1)
+
+    await act(async () => resolveRefresh(latest))
+    expect(await screen.findByDisplayValue('Tên mới nhất')).toBeOnTheScreen()
+
+    await fireEvent.changeText(
+      screen.getByLabelText('Tên hiển thị'),
+      'Tên sau khi tải lại',
+    )
+    await fireEvent.press(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+
+    await waitFor(() =>
+      expect(putProfile).toHaveBeenLastCalledWith(
+        {
+          displayName: 'Tên sau khi tải lại',
+          dateOfBirth: '1998-05-12',
+          gender: 'female',
+        },
+        4,
+      ),
+    )
+    expect(putProfile).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps saving blocked when stale recovery fails', async () => {
+    const api = profileApi({
+      getProfile: jest
+        .fn()
+        .mockResolvedValueOnce(profile)
+        .mockRejectedValueOnce(
+          new ApiError({
+            code: 'CARE_UNAVAILABLE',
+            message: 'Offline',
+            status: 503,
+          }),
+        ),
+      putProfile: jest.fn().mockRejectedValueOnce(
         new ApiError({
           code: 'VERSION_MISMATCH',
           message: 'Stale',
@@ -178,10 +262,15 @@ describe('USER Care profile screen', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Lưu thay đổi' }))
 
     expect(
-      await screen.findByText(/Hồ sơ vừa được cập nhật ở nơi khác/),
+      await screen.findByText(
+        'Chưa thể tải thông tin mới nhất. Hãy thử tải lại trước khi tiếp tục chỉnh sửa.',
+      ),
     ).toBeOnTheScreen()
-    expect(await screen.findByDisplayValue('Tên mới nhất')).toBeOnTheScreen()
-    expect(api.getProfile).toHaveBeenCalledTimes(2)
+    expect(
+      screen.getByRole('button', { name: 'Cần tải lại hồ sơ' }),
+    ).toBeDisabled()
+    expect(screen.getByLabelText('Tên hiển thị')).toBeDisabled()
+    expect(api.putProfile).toHaveBeenCalledTimes(1)
   })
 
   it('keeps cached profile data visible when a background refresh fails', async () => {
@@ -215,6 +304,75 @@ describe('USER Care profile screen', () => {
     expect(
       screen.getByRole('button', { name: 'Thử tải lại' }),
     ).toBeOnTheScreen()
+  })
+
+  it('refetches the authoritative profile after the screen remounts', async () => {
+    const reloaded: CareProfile = {
+      ...profile,
+      displayName: 'Tên sau khi mở lại',
+      updatedAt: '2026-10-03T00:00:00.000Z',
+      version: 4,
+    }
+    const api = profileApi({
+      getProfile: jest
+        .fn()
+        .mockResolvedValueOnce(profile)
+        .mockResolvedValueOnce(reloaded),
+    })
+    const queryClient = createTestQueryClient()
+    const firstMount = await renderProfile(
+      <UserProfileScreen api={api} />,
+      queryClient,
+    )
+
+    await screen.findByDisplayValue('Nguyễn An')
+    await firstMount.unmount()
+
+    await renderProfile(<UserProfileScreen api={api} />, queryClient)
+
+    expect(
+      await screen.findByDisplayValue('Tên sau khi mở lại'),
+    ).toBeOnTheScreen()
+    expect(api.getProfile).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses a separate cache entry when the Identity subject changes', async () => {
+    const secondSubject = '22222222-2222-4222-8222-222222222222'
+    const secondProfile: CareProfile = {
+      ...profile,
+      accountId: secondSubject,
+      displayName: 'Trần Bình',
+      updatedAt: '2026-10-04T00:00:00.000Z',
+      version: 1,
+    }
+    const api = profileApi({
+      getProfile: jest
+        .fn()
+        .mockResolvedValueOnce(profile)
+        .mockResolvedValueOnce(secondProfile),
+    })
+    const queryClient = createTestQueryClient()
+    const firstAccount = await renderProfile(
+      <UserProfileScreen api={api} />,
+      queryClient,
+    )
+
+    await screen.findByDisplayValue('Nguyễn An')
+    await firstAccount.unmount()
+    mockSessionSubject = secondSubject
+
+    await renderProfile(<UserProfileScreen api={api} />, queryClient)
+
+    expect(await screen.findByDisplayValue('Trần Bình')).toBeOnTheScreen()
+    expect(
+      queryClient.getQueryData([
+        'care-profile',
+        '11111111-1111-4111-8111-111111111111',
+      ]),
+    ).toEqual(profile)
+    expect(queryClient.getQueryData(['care-profile', secondSubject])).toEqual(
+      secondProfile,
+    )
   })
 
   it('distinguishes unauthorized and dependency-unavailable loading failures', async () => {

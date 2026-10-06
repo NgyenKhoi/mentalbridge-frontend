@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -95,15 +95,28 @@ type RuntimeNotice = Readonly<{
   tone: 'error' | 'success'
 }>
 
+type StaleRecovery = 'idle' | 'refreshing' | 'blocked'
+
 export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
   const { session, signOut } = useSession()
   const queryClient = useQueryClient()
   const subject = session?.subject
+  const activeSubjectRef = useRef(subject)
   const queryKey = ['care-profile', subject] as const
   const [form, setForm] = useState<ProfileForm>(emptyForm)
   const [formSourceKey, setFormSourceKey] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<ProfileFieldErrors>({})
   const [runtimeNotice, setRuntimeNotice] = useState<RuntimeNotice | null>(null)
+  const [staleRecovery, setStaleRecovery] = useState<StaleRecovery>('idle')
+  const staleRecoveryRef = useRef(false)
+
+  useEffect(() => {
+    activeSubjectRef.current = subject
+  }, [subject])
+
+  useEffect(() => {
+    if (formSourceKey !== null) staleRecoveryRef.current = false
+  }, [formSourceKey])
 
   const profileQuery = useQuery({
     queryKey,
@@ -128,6 +141,38 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
     setFormSourceKey(nextFormSourceKey)
     setForm(profileForm(profile))
     setFieldErrors({})
+    if (staleRecovery !== 'idle') setStaleRecovery('idle')
+  }
+
+  const refreshAuthoritativeProfile = async (blockSave: boolean) => {
+    const recoverySubject = subject
+    if (blockSave) {
+      staleRecoveryRef.current = true
+      setStaleRecovery('refreshing')
+    }
+
+    const result = await profileQuery.refetch()
+    if (!blockSave || activeSubjectRef.current !== recoverySubject) return
+
+    if (result.isSuccess) {
+      const refreshedProfile = result.data ?? null
+      setFormSourceKey(
+        `${recoverySubject}:${refreshedProfile?.version ?? 'empty'}`,
+      )
+      setForm(profileForm(refreshedProfile))
+      setFieldErrors({})
+      staleRecoveryRef.current = false
+      setStaleRecovery('idle')
+      setRuntimeNotice({
+        message:
+          'Đã tải thông tin mới nhất. Hãy kiểm tra lại trước khi lưu thay đổi.',
+        tone: 'success',
+      })
+      return
+    }
+
+    setStaleRecovery('blocked')
+    setRuntimeNotice(null)
   }
 
   const saveProfile = useMutation({
@@ -152,7 +197,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
             'Hồ sơ vừa được cập nhật ở nơi khác. Đang tải lại thông tin mới nhất trước khi bạn lưu tiếp.',
           tone: 'error',
         })
-        void profileQuery.refetch()
+        void refreshAuthoritativeProfile(true)
         return
       }
 
@@ -170,6 +215,8 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
   }
 
   const submit = () => {
+    if (staleRecoveryRef.current || saveProfile.isPending) return
+
     const validation = validateProfileForm(form)
     if (!validation.success) {
       setFieldErrors(validation.errors)
@@ -270,6 +317,7 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
     form.displayName !== originalForm.displayName ||
     form.dateOfBirth !== originalForm.dateOfBirth ||
     form.gender !== originalForm.gender
+  const formLocked = saveProfile.isPending || staleRecovery !== 'idle'
 
   return (
     <Screen>
@@ -306,12 +354,18 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
       {profileQuery.isError && profileQuery.data !== undefined && (
         <View style={styles.partialError}>
           <StateMessage
-            message="Chưa thể làm mới hồ sơ. Bạn vẫn có thể xem thông tin đã tải trước đó."
+            message={
+              staleRecovery === 'blocked'
+                ? 'Chưa thể tải thông tin mới nhất. Hãy thử tải lại trước khi tiếp tục chỉnh sửa.'
+                : 'Chưa thể làm mới hồ sơ. Bạn vẫn có thể xem thông tin đã tải trước đó.'
+            }
             tone="error"
           />
           <Pressable
             accessibilityRole="button"
-            onPress={() => void profileQuery.refetch()}
+            onPress={() =>
+              void refreshAuthoritativeProfile(staleRecoveryRef.current)
+            }
             style={({ pressed }) => [
               styles.retryButton,
               pressed && styles.secondaryPressed,
@@ -334,10 +388,10 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
           <Text style={styles.label}>Tên hiển thị</Text>
           <TextInput
             accessibilityLabel="Tên hiển thị"
-            accessibilityState={{ disabled: saveProfile.isPending }}
+            accessibilityState={{ disabled: formLocked }}
             autoCapitalize="words"
             autoComplete="name"
-            editable={!saveProfile.isPending}
+            editable={!formLocked}
             maxLength={120}
             onChangeText={(value) => updateField('displayName', value)}
             style={[styles.input, fieldErrors.displayName && styles.inputError]}
@@ -354,9 +408,9 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
           <Text style={styles.label}>Ngày sinh (không bắt buộc)</Text>
           <TextInput
             accessibilityLabel="Ngày sinh"
-            accessibilityState={{ disabled: saveProfile.isPending }}
+            accessibilityState={{ disabled: formLocked }}
             autoCapitalize="none"
-            editable={!saveProfile.isPending}
+            editable={!formLocked}
             inputMode="numeric"
             maxLength={10}
             onChangeText={(value) => updateField('dateOfBirth', value)}
@@ -376,8 +430,8 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
           <Text style={styles.label}>Giới tính (không bắt buộc)</Text>
           <TextInput
             accessibilityLabel="Giới tính"
-            accessibilityState={{ disabled: saveProfile.isPending }}
-            editable={!saveProfile.isPending}
+            accessibilityState={{ disabled: formLocked }}
+            editable={!formLocked}
             maxLength={32}
             onChangeText={(value) => updateField('gender', value)}
             style={[styles.input, fieldErrors.gender && styles.inputError]}
@@ -393,17 +447,21 @@ export function UserProfileScreen({ api }: Readonly<{ api: CareProfileApi }>) {
 
       <View style={styles.actions}>
         <PrimaryButton
-          disabled={saveProfile.isPending || (Boolean(profile) && !hasChanges)}
+          disabled={formLocked || (Boolean(profile) && !hasChanges)}
           label={
-            saveProfile.isPending
-              ? 'Đang lưu…'
-              : profile
-                ? 'Lưu thay đổi'
-                : 'Tạo hồ sơ'
+            staleRecovery === 'refreshing'
+              ? 'Đang tải lại…'
+              : staleRecovery === 'blocked'
+                ? 'Cần tải lại hồ sơ'
+                : saveProfile.isPending
+                  ? 'Đang lưu…'
+                  : profile
+                    ? 'Lưu thay đổi'
+                    : 'Tạo hồ sơ'
           }
           onPress={submit}
         />
-        {hasChanges && !saveProfile.isPending && (
+        {hasChanges && !formLocked && (
           <Pressable
             accessibilityRole="button"
             onPress={reset}
