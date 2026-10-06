@@ -13,6 +13,7 @@ import AppointmentMessagesWorkspace from '@/features/appointments/components/App
 import SpecialistContinuityManager from '@/features/appointments/components/SpecialistContinuityManager'
 import SpecialistDashboardManager from './SpecialistDashboardManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
+import SpecialistEarningsManager from './SpecialistEarningsManager'
 import SpecialistDeferredSection, {
   type SpecialistDeferredSectionKey,
 } from './SpecialistDeferredSection'
@@ -95,7 +96,7 @@ const adminSections: Record<string, Section> = {
   ], tabs: ['Audit log', 'Data retention'] },
 }
 const navByRole = {
-  specialist: [['dashboard','Tổng quan'],['appointments','Lịch hẹn'],['availability','Lịch khả dụng'],['clients','Khách hàng'],['messages','Tin nhắn'],['follow-up','Sau tư vấn'],['profile','Hồ sơ']],
+  specialist: [['dashboard','Tổng quan'],['appointments','Lịch hẹn'],['availability','Lịch khả dụng'],['clients','Khách hàng'],['messages','Tin nhắn'],['follow-up','Sau tư vấn'],['earnings','Thu nhập & thanh toán'],['profile','Hồ sơ']],
   admin: [['dashboard','Dashboard'],['users','Users'],['specialists','Specialists'],['assessments','Assessments'],['payments','Subscriptions & Payments'],['payouts','Payouts'],['appointments','Appointments'],['content','Content'],['moderation','Moderation'],['ai','AI Evaluation'],['reports','Reports'],['audit','Audit & Privacy']],
 } as const
 
@@ -171,7 +172,8 @@ export default function RoleWorkspace({
         {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'messages' && <AppointmentMessagesWorkspace viewerRole="SPECIALIST" initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'follow-up' && <SpecialistContinuityManager />}
-        {role === 'specialist' && (sectionKey === 'earnings' || sectionKey === 'notifications') && <SpecialistDeferredSection section={sectionKey as SpecialistDeferredSectionKey} />}
+		{role === 'specialist' && sectionKey === 'earnings' && <SpecialistEarningsManager />}
+		{role === 'specialist' && sectionKey === 'notifications' && <SpecialistDeferredSection section={sectionKey as SpecialistDeferredSectionKey} />}
         {role === 'admin' && sectionKey === 'users' && <AdminUsersManager onSelect={setSelected} onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'specialists' && <AdminSpecialistReviewSection />}
         {role === 'admin' && sectionKey === 'assessments' && <AdminAssessmentsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
