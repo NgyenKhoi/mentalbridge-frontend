@@ -81,7 +81,7 @@ describe('AdminReportsManager', () => {
     render(<AdminReportsManager onNotice={vi.fn()} />)
 
     expect(
-      await screen.findByRole('heading', { name: 'Kho báo cáo' }),
+      await screen.findByRole('option', { name: 'Account activity' }),
     ).toBeInTheDocument()
     expect(screen.getAllByText('Account activity').length).toBeGreaterThan(0)
     expect(screen.getByText('Hoàn tất')).toBeInTheDocument()

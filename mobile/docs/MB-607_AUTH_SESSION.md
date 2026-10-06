@@ -3,6 +3,9 @@
 MB-607 keeps Identity as the only authority for registration, verification,
 login, refresh, logout, account status, subject, and role. Mobile consumes the
 frozen `identity-service-v1.yaml` contract without changing backend semantics.
+Transport, public runtime, error, deep-link, cache, and app-identity conventions
+come from [`Mobile Delivery Contract v1`](MB-611_MOBILE_DELIVERY_CONTRACT_V1.md)
+and are not redefined by this feature.
 
 ## Contract mapping
 
@@ -27,7 +30,9 @@ SecureStore holds access/refresh credentials and both expiry instants in four
 separate protected slots. A partial write is treated as no session. The provider
 restores and verifies the session at startup, refreshes one minute before access
 expiry, and does not render protected navigation while restoration or a
-dependency retry is pending.
+dependency retry is pending. Logout clears both the secure credential slots and
+the account-scoped TanStack Query cache, including when server revocation cannot
+be confirmed.
 
 ## Verification links
 
