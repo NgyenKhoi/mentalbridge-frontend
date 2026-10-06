@@ -19,6 +19,7 @@ const EVENT_LABELS = {
   CONSUMED: 'Đã sử dụng',
   RELEASED: 'Đã hoàn lại',
   FORFEITED: 'Đã hết hiệu lực',
+  ADJUSTED_RELEASED: 'Đã trả lại sau xem xét',
 } as const
 
 function formatInstant(value: string | null) {

@@ -4,10 +4,63 @@ import type {
   AppointmentList,
   AppointmentModality,
   AppointmentRating,
+  AppointmentDispute,
+  AppointmentDisputeList,
   BookableSlotList,
+  OpenAppointmentDisputeInput,
+  ResolveAppointmentDisputeInput,
 } from '@/lib/consultation/consultation-validation'
 
 export const appointmentBrowserClient = {
+  async dispute(appointmentId: string, role: 'USER' | 'SPECIALIST') {
+    const prefix = role === 'USER' ? '' : '/specialist'
+    return (
+      await browserApiClient.get<AppointmentDispute>(
+        `/consultation${prefix}/appointments/${encodeURIComponent(appointmentId)}/dispute`,
+      )
+    ).data
+  },
+  async openDispute(
+    appointmentId: string,
+    role: 'USER' | 'SPECIALIST',
+    body: OpenAppointmentDisputeInput,
+    idempotencyKey: string,
+  ) {
+    const prefix = role === 'USER' ? '' : '/specialist'
+    return (
+      await browserApiClient.post<AppointmentDispute>(
+        `/consultation${prefix}/appointments/${encodeURIComponent(appointmentId)}/dispute`,
+        body,
+        { headers: { 'Idempotency-Key': idempotencyKey } },
+      )
+    ).data
+  },
+  async disputes(status: 'OPEN' | 'RESOLVED') {
+    return (
+      await browserApiClient.get<AppointmentDisputeList>(
+        `/consultation/admin/appointment-disputes?status=${status}`,
+      )
+    ).data
+  },
+  async resolveDispute(
+    disputeId: string,
+    body: ResolveAppointmentDisputeInput,
+    version: number,
+    idempotencyKey: string,
+  ) {
+    return (
+      await browserApiClient.post<AppointmentDispute>(
+        `/consultation/admin/appointment-disputes/${encodeURIComponent(disputeId)}/resolve`,
+        body,
+        {
+          headers: {
+            'If-Match': `"${version}"`,
+            'Idempotency-Key': idempotencyKey,
+          },
+        },
+      )
+    ).data
+  },
   async rating(appointmentId: string) {
     return (
       await browserApiClient.get<AppointmentRating>(

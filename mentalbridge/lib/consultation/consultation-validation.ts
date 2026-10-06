@@ -270,6 +270,13 @@ export type SpecialistDiscoveryPage =
   ConsultationSchemas['SpecialistDiscoveryPage']
 export type AppointmentRating = ConsultationSchemas['AppointmentRating']
 export type SpecialistDashboard = ConsultationSchemas['SpecialistDashboard']
+export type OpenAppointmentDisputeInput =
+  ConsultationSchemas['OpenAppointmentDispute']
+export type ResolveAppointmentDisputeInput =
+  ConsultationSchemas['ResolveAppointmentDispute']
+export type AppointmentDispute = ConsultationSchemas['AppointmentDispute']
+export type AppointmentDisputeList =
+  ConsultationSchemas['AppointmentDisputeList']
 export type Appointment = Readonly<{
   id: string
   slotId: string
@@ -354,7 +361,12 @@ export type CreditSource = 'DEFAULT_FREE' | 'DEMO' | 'PAID'
 export type ConsultationCreditPolicyVersion =
   'consultation-credit-v1' | 'consultation-credit-v2'
 export type CreditEventType =
-  'PROVISIONED' | 'HELD' | 'CONSUMED' | 'RELEASED' | 'FORFEITED'
+  | 'PROVISIONED'
+  | 'HELD'
+  | 'CONSUMED'
+  | 'RELEASED'
+  | 'FORFEITED'
+  | 'ADJUSTED_RELEASED'
 
 export type ServiceCreditAccount = Readonly<{
   accountId: string
@@ -1293,9 +1305,14 @@ export function parseServiceCreditAccount(
       !event ||
       !uuid(event.eventId) ||
       !uuid(event.creditId) ||
-      !['PROVISIONED', 'HELD', 'CONSUMED', 'RELEASED', 'FORFEITED'].includes(
-        String(event.eventType),
-      ) ||
+      ![
+        'PROVISIONED',
+        'HELD',
+        'CONSUMED',
+        'RELEASED',
+        'FORFEITED',
+        'ADJUSTED_RELEASED',
+      ].includes(String(event.eventType)) ||
       !['DEMO', 'PAID'].includes(String(event.source)) ||
       !['PLUS', 'PREMIUM'].includes(String(event.packageCode)) ||
       !['consultation-credit-v1', 'consultation-credit-v2'].includes(
@@ -1485,7 +1502,7 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
       item.sessionEndedAt !== null &&
       item.sessionSettledAt !== null &&
       item.completionFactId !== null &&
-      item.creditState === 'CONSUMED'
+      ['CONSUMED', 'AVAILABLE'].includes(String(item.creditState))
     )
   if (item.status === 'REJECTED')
     return (
@@ -1688,6 +1705,206 @@ function nullableCode(value: unknown) {
   )
 }
 
+const DISPUTE_REASONS = [
+  'OUTCOME_INCORRECT',
+  'PARTICIPATION_EVIDENCE_INCORRECT',
+  'SESSION_DELIVERY_NOT_RECOGNIZED',
+  'TECHNICAL_FAILURE',
+] as const
+const DISPUTE_EVIDENCE_TYPES = [
+  'ACCESS_LOG',
+  'CONNECTION_INCIDENT',
+  'PROVIDER_INCIDENT',
+] as const
+const DISPUTE_RESOLUTION_OUTCOMES = [
+  'UPHOLD_RECORDED_OUTCOME',
+  'RELEASE_USER_CREDIT',
+] as const
+const DISPUTE_RESOLUTION_REASONS = [
+  'EVIDENCE_SUPPORTS_RECORDED_OUTCOME',
+  'EVIDENCE_INCONCLUSIVE_RELEASED',
+  'TECHNICAL_FAILURE_CONFIRMED',
+] as const
+
+export function parseOpenAppointmentDisputeInput(
+  value: unknown,
+): OpenAppointmentDisputeInput {
+  const input = record(value)
+  if (!input) throw new ConsultationInputError('body')
+  const keys = Object.keys(input)
+  if (
+    keys.length < 1 ||
+    keys.length > 3 ||
+    !keys.every((key) =>
+      ['reasonCode', 'evidenceType', 'evidenceOccurredAt'].includes(key),
+    ) ||
+    !DISPUTE_REASONS.includes(input.reasonCode as never)
+  )
+    throw new ConsultationInputError('reasonCode')
+  const evidenceType = input.evidenceType ?? null
+  const evidenceOccurredAt = input.evidenceOccurredAt ?? null
+  if (
+    ![...DISPUTE_EVIDENCE_TYPES, null].includes(evidenceType as never) ||
+    !instantOrNull(evidenceOccurredAt) ||
+    (evidenceType === null) !== (evidenceOccurredAt === null)
+  )
+    throw new ConsultationInputError('evidence')
+  return {
+    reasonCode: input.reasonCode as OpenAppointmentDisputeInput['reasonCode'],
+    evidenceType: evidenceType as OpenAppointmentDisputeInput['evidenceType'],
+    evidenceOccurredAt:
+      evidenceOccurredAt as OpenAppointmentDisputeInput['evidenceOccurredAt'],
+  }
+}
+
+export function parseResolveAppointmentDisputeInput(
+  value: unknown,
+): ResolveAppointmentDisputeInput {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['outcome', 'reasonCode']) ||
+    !DISPUTE_RESOLUTION_OUTCOMES.includes(input.outcome as never) ||
+    !DISPUTE_RESOLUTION_REASONS.includes(input.reasonCode as never) ||
+    (input.outcome === 'UPHOLD_RECORDED_OUTCOME') !==
+      (input.reasonCode === 'EVIDENCE_SUPPORTS_RECORDED_OUTCOME')
+  )
+    throw new ConsultationInputError('resolution')
+  return input as ResolveAppointmentDisputeInput
+}
+
+export function parseAppointmentDispute(
+  value: unknown,
+): AppointmentDispute | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'id',
+      'appointmentId',
+      'appointmentVersion',
+      'status',
+      'openedByRole',
+      'reasonCode',
+      'evidenceType',
+      'evidenceOccurredAt',
+      'openedAt',
+      'eligibleUntil',
+      'settlementGated',
+      'resolutionOutcome',
+      'resolutionReason',
+      'resolvedAt',
+      'priorAppointmentStatus',
+      'priorSessionOutcome',
+      'resultingAppointmentStatus',
+      'resultingSessionOutcome',
+      'creditAction',
+      'version',
+    ]) ||
+    !uuid(item.id) ||
+    !uuid(item.appointmentId) ||
+    !Number.isSafeInteger(item.appointmentVersion) ||
+    Number(item.appointmentVersion) < 0 ||
+    !['OPEN', 'RESOLVED'].includes(String(item.status)) ||
+    !['USER', 'SPECIALIST'].includes(String(item.openedByRole)) ||
+    !DISPUTE_REASONS.includes(item.reasonCode as never) ||
+    ![...DISPUTE_EVIDENCE_TYPES, null].includes(item.evidenceType as never) ||
+    !instantOrNull(item.evidenceOccurredAt) ||
+    (item.evidenceType === null) !== (item.evidenceOccurredAt === null) ||
+    !utcInstant(item.openedAt) ||
+    !utcInstant(item.eligibleUntil) ||
+    typeof item.settlementGated !== 'boolean' ||
+    ![...DISPUTE_RESOLUTION_OUTCOMES, null].includes(
+      item.resolutionOutcome as never,
+    ) ||
+    ![...DISPUTE_RESOLUTION_REASONS, null].includes(
+      item.resolutionReason as never,
+    ) ||
+    !instantOrNull(item.resolvedAt) ||
+    ![
+      null,
+      ...[
+        'REQUESTED',
+        'CONFIRMED',
+        'IN_PROGRESS',
+        'SESSION_ENDED',
+        'COMPLETED',
+        'REJECTED',
+        'EXPIRED',
+        'CANCELLED',
+      ],
+    ].includes(item.priorAppointmentStatus as never) ||
+    ![
+      null,
+      ...[
+        'REQUESTED',
+        'CONFIRMED',
+        'IN_PROGRESS',
+        'SESSION_ENDED',
+        'COMPLETED',
+        'REJECTED',
+        'EXPIRED',
+        'CANCELLED',
+      ],
+    ].includes(item.resultingAppointmentStatus as never) ||
+    ![
+      ...[
+        'COMPLETED',
+        'USER_NO_SHOW',
+        'SPECIALIST_NO_SHOW',
+        'BOTH_NO_SHOW',
+        'INSUFFICIENT_EVIDENCE',
+        'EVIDENCE_REVIEW',
+      ],
+      null,
+    ].includes(item.priorSessionOutcome as never) ||
+    ![
+      ...[
+        'COMPLETED',
+        'USER_NO_SHOW',
+        'SPECIALIST_NO_SHOW',
+        'BOTH_NO_SHOW',
+        'INSUFFICIENT_EVIDENCE',
+        'EVIDENCE_REVIEW',
+      ],
+      null,
+    ].includes(item.resultingSessionOutcome as never) ||
+    !['NONE', 'ALREADY_AVAILABLE', 'ADJUSTED_RELEASED', null].includes(
+      item.creditAction as never,
+    ) ||
+    !Number.isSafeInteger(item.version) ||
+    Number(item.version) < 0
+  )
+    return null
+  const resolved = item.status === 'RESOLVED'
+  if (
+    resolved !== (item.resolutionOutcome !== null) ||
+    resolved !== (item.resolutionReason !== null) ||
+    resolved !== (item.resolvedAt !== null) ||
+    resolved !== (item.creditAction !== null)
+  )
+    return null
+  return item as AppointmentDispute
+}
+
+export function parseAppointmentDisputeList(
+  value: unknown,
+): AppointmentDisputeList | null {
+  const result = record(value)
+  if (
+    !result ||
+    !exactKeys(result, ['items', 'count', 'generatedAt']) ||
+    !Array.isArray(result.items) ||
+    result.items.length > 100 ||
+    result.count !== result.items.length ||
+    !utcInstant(result.generatedAt)
+  )
+    return null
+  const items = result.items.map(parseAppointmentDispute)
+  return items.some((item) => item === null)
+    ? null
+    : ({ ...result, items } as AppointmentDisputeList)
+}
 export function parseAppointmentRequestInput(
   value: unknown,
 ): AppointmentRequestInput {
