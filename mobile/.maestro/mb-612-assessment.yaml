@@ -1,0 +1,42 @@
+appId: com.mentalbridge.mobile
+name: MB-612 real-contract assessment to support guide
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- tapOn: 'Đăng nhập'
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Bắt đầu sàng lọc'
+- assertVisible: 'Sàng lọc và gợi ý hỗ trợ'
+- tapOn: 'Bắt đầu hoặc tiếp tục'
+- assertVisible: 'Bài PHQ-9'
+- repeat:
+    times: 8
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Bài GAD-7'
+- repeat:
+    times: 6
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Bạn đã hoàn tất lượt sàng lọc'
+- assertVisible: 'Gợi ý hỗ trợ sau sàng lọc'
+- assertVisible: 'PHQ-9'
+- assertVisible: 'GAD-7'
+- tapOn: '← Quay lại'
+- assertVisible: 'Gợi ý đã lưu'
+- tapOn: 'Gợi ý sau sàng lọc'
+- assertVisible: 'Snapshot hỗ trợ sau sàng lọc'
+- assertVisible: 'Gợi ý hỗ trợ sau sàng lọc'

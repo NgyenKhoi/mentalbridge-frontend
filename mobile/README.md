@@ -82,7 +82,9 @@ the shared TypeScript bundle but cannot compile the iOS native target locally.
 The staging release gate exercises these native paths with deterministic Release
 smoke runs on an Android emulator and iOS Simulator. Those jobs compile, install,
 relaunch, assert that the app stays alive, and upload screenshots and launch
-diagnostics. See
+diagnostics. The protected Android staging job then runs the MB-612 real-contract
+Maestro journey on the same APK and emulator, proving PHQ-9 → GAD-7 → the
+authoritative result → persisted SupportGuide. See
 [`docs/NATIVE_VERIFICATION.md`](docs/NATIVE_VERIFICATION.md) for the exact
 commands, assertions, artifacts, and local reproduction steps.
 
@@ -126,6 +128,13 @@ only supported editable fields, preserves optimistic concurrency through
 [`docs/MB-608_USER_PROFILE.md`](docs/MB-608_USER_PROFILE.md) for contract, state,
 cache, and automated-test evidence.
 
+MB-612 adds the Care-backed authenticated assessment journey from PHQ-9 through
+GAD-7 to the authoritative result and immutable post-screening SupportGuide. It
+also reopens exact owner-scoped result/guide history and uses Care's explicit
+help-now directory contract without local scoring or safety inference. See
+[`docs/MB-612_ASSESSMENT_GUIDANCE.md`](docs/MB-612_ASSESSMENT_GUIDANCE.md) for
+the API, state, safety, test, and staging Android demo evidence.
+
 ## Quality commands
 
 ```powershell
@@ -145,8 +154,10 @@ npm run quality
 `build:bundle` exports Android and iOS JavaScript bundles only; it is not native
 compile or boot evidence. Native compile/install/launch is verified separately
 by `npm run native:android:smoke` and `npm run native:ios:smoke` in the staging
-release gate. Pull requests into `dev` run only `npm run typecheck` for mobile;
-formatting, lint, Jest, bundle export, and native boot checks wait for staging.
+release gate; Android also runs `npm run e2e:android:assessment` against the
+protected staging edge and dedicated USER fixture. Pull requests into `dev` run
+only `npm run typecheck` for mobile; formatting, lint, Jest, bundle export,
+native boot, and real-contract checks wait for staging.
 
 The synthetic welcome-screen review capture is documented in
 [`docs/evidence/README.md`](docs/evidence/README.md).

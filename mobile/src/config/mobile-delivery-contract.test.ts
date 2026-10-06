@@ -106,6 +106,20 @@ describe('Mobile Delivery Contract v1', () => {
     expect(android).toContain(
       'reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d',
     )
+    expect(android).toContain('environment: staging-mobile-e2e')
+    expect(android).toContain(
+      'EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}',
+    )
+    expect(android).toContain("MAESTRO_VERSION: '2.11.0'")
+    expect(android).toContain(
+      'npm run native:android:smoke && npm run e2e:android:assessment',
+    )
+    expect(android).toContain(
+      'MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}',
+    )
+    expect(android).toContain(
+      'MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}',
+    )
 
     expect(ios).toContain('runs-on: macos-26')
     expect(ios).toContain("node-version: '22.13.0'")

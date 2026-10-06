@@ -27,4 +27,14 @@ describe('USER home screen', () => {
 
     expect(mockPush).toHaveBeenCalledWith('./profile')
   })
+
+  it('opens the Care-backed assessment journey', async () => {
+    await render(<UserHomeScreen />)
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Bắt đầu sàng lọc' }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('./assessment')
+  })
 })
