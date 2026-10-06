@@ -75,27 +75,37 @@ reopening, forbidden client-owned fields, and absence of SupportPlan calls.
 
 The deterministic UI path is committed at
 `.maestro/mb-612-assessment.yaml`. It is intentionally not part of the `dev`
-quality gate: native build/boot and real cross-stack E2E run only in the
-approved staging environment, consistent with Mobile Delivery Contract v1.
+quality gate: native build/boot and the real-contract journey run only during a
+`dev` to `staging` promotion, consistent with Mobile Delivery Contract v1.
+
+The required `mobile-android-smoke` job uses the protected GitHub Environment
+`staging-mobile-e2e`. On the same APK and emulator used for native boot
+verification, it installs pinned Maestro `2.11.0` and runs
+`npm run e2e:android:assessment`. `staging-quality-gate` cannot pass unless this
+job passes.
 
 Prerequisites:
 
-1. A staging Android build connected to the approved public staging edge.
-2. A dedicated verified USER fixture with no open initial-check episode and no
-   pre-existing data that changes the PHQ-9 → GAD-7 order.
-3. `MB_USER_EMAIL` and `MB_USER_PASSWORD` supplied to Maestro by the protected
-   staging secret store; never commit or print them.
+1. `MOBILE_STAGING_API_BASE_URL` points to the approved public staging edge.
+2. `MB_USER_EMAIL` and `MB_USER_PASSWORD` identify a dedicated verified USER
+   fixture reset to have no open initial-check episode before the promotion.
+3. All three values are GitHub Environment secrets. The workflow fails closed
+   when any value is absent and never passes credentials as CLI arguments.
 
-Run on the staging Android emulator:
+To reproduce against the approved staging edge on an already built and booted
+Android emulator, inject the same protected values into the process environment:
 
 ```bash
-maestro test \
-  -e MB_USER_EMAIL="$MB_USER_EMAIL" \
-  -e MB_USER_PASSWORD="$MB_USER_PASSWORD" \
-  .maestro/mb-612-assessment.yaml
+export EXPO_PUBLIC_API_BASE_URL='https://approved-staging-edge.example'
+export MAESTRO_MB_USER_EMAIL='dedicated-user@example.invalid'
+export MAESTRO_MB_USER_PASSWORD='from-protected-secret-store'
+npm run e2e:android:assessment
 ```
 
 Passing evidence is the real signed-in flow reaching the server-returned result
 and `Gợi ý hỗ trợ sau sàng lọc` screen after all nine PHQ-9 and seven GAD-7
-answers. Staging should retain the Maestro report and screenshot artifact for
-the tested commit without retaining credentials or raw answer payloads.
+answers, returning to the assessment list, and reopening the persisted immutable
+SupportGuide detail. CI retains the final screenshot and a sanitized manifest in
+`android-native-and-assessment-<commit>`. The artifact contains the commit, run
+URL, and proved journey classification; it excludes credentials and raw answer
+payloads.

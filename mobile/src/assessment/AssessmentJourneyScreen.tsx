@@ -131,6 +131,21 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
+function directoryStateMessage(response: SafetyDirectoryResponse) {
+  switch (response.state) {
+    case 'EMPTY':
+      return 'Chưa có cơ sở đã rà soát phù hợp cho khu vực này.'
+    case 'INVALID_AREA':
+      return 'Chưa nhận diện được khu vực bạn nhập. Hãy kiểm tra tên tỉnh, thành phố hoặc khu vực rồi thử lại.'
+    case 'UNAVAILABLE':
+      return 'Danh bạ hỗ trợ tạm thời chưa khả dụng. Hướng dẫn an toàn phía trên vẫn được giữ nguyên.'
+    case 'RESULTS':
+      return response.entries.length === 0
+        ? 'Chưa thể hiển thị danh sách cơ sở đã rà soát. Hãy thử lại sau.'
+        : null
+  }
+}
+
 function SecondaryButton({
   disabled = false,
   label,
@@ -240,6 +255,8 @@ function HelpNowPanel({
     }
   }
 
+  const directoryMessage = response ? directoryStateMessage(response) : null
+
   return (
     <View style={styles.safetyPanel}>
       <Text style={styles.sectionTitle}>Hỗ trợ an toàn</Text>
@@ -276,11 +293,13 @@ function HelpNowPanel({
         <View accessibilityLiveRegion="assertive" style={styles.directory}>
           <Text style={styles.body}>{response.safetyGuidance}</Text>
           <Text style={styles.supportingText}>{response.limitation}</Text>
-          {response.entries.length === 0 ? (
-            <Text style={styles.supportingText}>
-              Chưa có địa điểm đã rà soát phù hợp cho khu vực này.
-            </Text>
-          ) : (
+          {directoryMessage && (
+            <StateMessage
+              message={directoryMessage}
+              tone={response.state === 'EMPTY' ? 'neutral' : 'error'}
+            />
+          )}
+          {response.state === 'RESULTS' &&
             response.entries.map((entry) => (
               <View key={entry.directoryEntryId} style={styles.directoryEntry}>
                 <Text style={styles.itemTitle}>{entry.name}</Text>
@@ -289,8 +308,7 @@ function HelpNowPanel({
                   <Text style={styles.supportingText}>{entry.address}</Text>
                 )}
               </View>
-            ))
-          )}
+            ))}
         </View>
       )}
     </View>

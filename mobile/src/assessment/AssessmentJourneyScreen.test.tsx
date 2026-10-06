@@ -538,4 +538,59 @@ describe('mobile assessment and support-guide journey', () => {
     ).toBeOnTheScreen()
     expect(api.getSupportGuide).toHaveBeenCalledWith(guide.supportGuideId)
   })
+
+  it.each([
+    ['EMPTY' as const, 'Chưa có cơ sở đã rà soát phù hợp cho khu vực này.'],
+    [
+      'INVALID_AREA' as const,
+      'Chưa nhận diện được khu vực bạn nhập. Hãy kiểm tra tên tỉnh, thành phố hoặc khu vực rồi thử lại.',
+    ],
+    [
+      'UNAVAILABLE' as const,
+      'Danh bạ hỗ trợ tạm thời chưa khả dụng. Hướng dẫn an toàn phía trên vẫn được giữ nguyên.',
+    ],
+  ])(
+    'renders the authoritative %s safety-directory state without conflating it with empty results',
+    async (state, expectedMessage) => {
+      const api = assessmentApi({
+        lookupSafetyDirectory: jest.fn().mockResolvedValue({
+          trigger: 'HELP_NOW',
+          state,
+          areaWording: 'Cơ sở trong khu vực đã chọn',
+          safetyGuidance: 'Hướng dẫn an toàn từ hệ thống.',
+          limitation: 'MentalBridge không tự động liên hệ bên thứ ba.',
+          entries: [],
+        }),
+      })
+      const rendered = await render(<AssessmentJourneyScreen api={api} />)
+
+      await fireEvent.press(
+        await screen.findByRole('button', { name: 'Tôi cần hỗ trợ ngay' }),
+      )
+      await fireEvent.changeText(
+        screen.getByLabelText('Khu vực cần tìm hỗ trợ'),
+        'Khu vực kiểm thử',
+      )
+      await fireEvent.press(
+        screen.getByRole('button', { name: 'Tìm hỗ trợ đã rà soát' }),
+      )
+
+      expect(await screen.findByText(expectedMessage)).toBeOnTheScreen()
+      expect(
+        screen.getByText('Hướng dẫn an toàn từ hệ thống.'),
+      ).toBeOnTheScreen()
+      expect(
+        screen.getByText('MentalBridge không tự động liên hệ bên thứ ba.'),
+      ).toBeOnTheScreen()
+      if (state !== 'EMPTY') {
+        expect(
+          screen.queryByText(
+            'Chưa có cơ sở đã rà soát phù hợp cho khu vực này.',
+          ),
+        ).not.toBeOnTheScreen()
+      }
+
+      await rendered.unmount()
+    },
+  )
 })
