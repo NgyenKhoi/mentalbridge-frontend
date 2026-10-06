@@ -17,6 +17,7 @@ import {
 } from '../model/appointment-view'
 import { ConsultationBriefEditor } from './ConsultationBriefEditor'
 import { AppointmentRatingDialog } from './AppointmentRatingDialog'
+import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
 import styles from './AppointmentRequestPanel.module.css'
 
@@ -871,6 +872,16 @@ export default function AppointmentRequestPanel({
                           viewer="USER"
                         />
                       )}
+                      {item.sessionSettledAt &&
+                        ['SESSION_ENDED', 'COMPLETED'].includes(
+                          item.status,
+                        ) && (
+                          <AppointmentDisputePanel
+                            appointment={item}
+                            role="USER"
+                            generatedAt={generatedAt}
+                          />
+                        )}
                     </div>
                   </article>
                 )

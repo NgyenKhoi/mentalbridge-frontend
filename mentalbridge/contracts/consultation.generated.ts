@@ -355,6 +355,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/appointments/{appointmentId}/dispute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        /** @description Returns the one dispute for an owned appointment without exposing the other participant's account identity or private evidence. */
+        get: operations["getOwnAppointmentDispute"];
+        put?: never;
+        /** @description Opens the single dispute for an eligible settled appointment within 24 hours. The command records only stable reason and optional bounded operational evidence metadata; it gates specialist earning eligibility and never carries chat, brief, Journal, assessment, recording, or clinical content. */
+        post: operations["openOwnAppointmentDispute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/appointments/{appointmentId}/rating": {
         parameters: {
             query?: never;
@@ -510,6 +530,60 @@ export interface paths {
         put?: never;
         /** @description Moves one still-eligible assigned REQUESTED appointment to REJECTED and releases its slot and exact held credit once. Exact command replay returns the current appointment without duplicate history or ledger events. */
         post: operations["rejectAssignedAppointment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/appointments/{appointmentId}/dispute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        /** @description Returns the one dispute only when the authenticated specialist is assigned to the appointment. */
+        get: operations["getAssignedAppointmentDispute"];
+        put?: never;
+        /** @description Opens the single dispute for an eligible assigned appointment within 24 hours using the same minimized participant contract as the user flow. */
+        post: operations["openAssignedAppointmentDispute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/appointment-disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists a bounded operational dispute queue without participant identity, raw session content, or private evidence. */
+        get: operations["listAppointmentDisputesForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/appointment-disputes/{disputeId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Records one immutable bounded resolution. Releasing a terminal credit creates an explicit ADJUSTED_RELEASED ledger fact; prior appointment, outcome, credit, and settlement facts remain auditable. */
+        post: operations["resolveAppointmentDispute"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1358,6 +1432,63 @@ export interface components {
             history: components["schemas"]["AppointmentHistoryEntry"][];
             /** Format: int64 */
             version: number;
+        };
+        OpenAppointmentDispute: {
+            /** @enum {string} */
+            reasonCode: "OUTCOME_INCORRECT" | "PARTICIPATION_EVIDENCE_INCORRECT" | "SESSION_DELIVERY_NOT_RECOGNIZED" | "TECHNICAL_FAILURE";
+            /** @enum {string|null} */
+            evidenceType?: "ACCESS_LOG" | "CONNECTION_INCIDENT" | "PROVIDER_INCIDENT" | null;
+            /** Format: date-time */
+            evidenceOccurredAt?: string | null;
+        };
+        ResolveAppointmentDispute: {
+            /** @enum {string} */
+            outcome: "UPHOLD_RECORDED_OUTCOME" | "RELEASE_USER_CREDIT";
+            /** @enum {string} */
+            reasonCode: "EVIDENCE_SUPPORTS_RECORDED_OUTCOME" | "EVIDENCE_INCONCLUSIVE_RELEASED" | "TECHNICAL_FAILURE_CONFIRMED";
+        };
+        AppointmentDispute: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: int64 */
+            appointmentVersion: number;
+            /** @enum {string} */
+            status: "OPEN" | "RESOLVED";
+            /** @enum {string} */
+            openedByRole: "USER" | "SPECIALIST";
+            /** @enum {string} */
+            reasonCode: "OUTCOME_INCORRECT" | "PARTICIPATION_EVIDENCE_INCORRECT" | "SESSION_DELIVERY_NOT_RECOGNIZED" | "TECHNICAL_FAILURE";
+            /** @enum {string|null} */
+            evidenceType: "ACCESS_LOG" | "CONNECTION_INCIDENT" | "PROVIDER_INCIDENT" | null;
+            /** Format: date-time */
+            evidenceOccurredAt: string | null;
+            /** Format: date-time */
+            openedAt: string;
+            /** Format: date-time */
+            eligibleUntil: string;
+            settlementGated: boolean;
+            /** @enum {string|null} */
+            resolutionOutcome: "UPHOLD_RECORDED_OUTCOME" | "RELEASE_USER_CREDIT" | null;
+            /** @enum {string|null} */
+            resolutionReason: "EVIDENCE_SUPPORTS_RECORDED_OUTCOME" | "EVIDENCE_INCONCLUSIVE_RELEASED" | "TECHNICAL_FAILURE_CONFIRMED" | null;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            priorAppointmentStatus: string | null;
+            priorSessionOutcome: string | null;
+            resultingAppointmentStatus: string | null;
+            resultingSessionOutcome: string | null;
+            /** @enum {string|null} */
+            creditAction: "NONE" | "ALREADY_AVAILABLE" | "ADJUSTED_RELEASED" | null;
+            /** Format: int64 */
+            version: number;
+        };
+        AppointmentDisputeList: {
+            items: components["schemas"]["AppointmentDispute"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
         };
         ConsultationBriefAppointmentContext: {
             /** Format: uuid */
@@ -2342,6 +2473,63 @@ export interface operations {
             428: components["responses"]["AppointmentVersionRequiredProblem"];
         };
     };
+    getOwnAppointmentDispute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned appointment dispute */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDispute"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    openOwnAppointmentDispute: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenAppointmentDispute"];
+            };
+        };
+        responses: {
+            /** @description Open dispute or exact command replay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDispute"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
     getOwnAppointmentRating: {
         parameters: {
             query?: never;
@@ -2671,6 +2859,125 @@ export interface operations {
             409: components["responses"]["AppointmentDecisionConflictProblem"];
             412: components["responses"]["AppointmentVersionProblem"];
             428: components["responses"]["AppointmentVersionRequiredProblem"];
+        };
+    };
+    getAssignedAppointmentDispute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Assigned appointment dispute */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDispute"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    openAssignedAppointmentDispute: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenAppointmentDispute"];
+            };
+        };
+        responses: {
+            /** @description Open dispute or exact command replay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDispute"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    listAppointmentDisputesForAdmin: {
+        parameters: {
+            query?: {
+                status?: "OPEN" | "RESOLVED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded dispute queue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDisputeList"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    resolveAppointmentDispute: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative appointment version. */
+                "If-Match": components["parameters"]["AppointmentIfMatch"];
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveAppointmentDispute"];
+            };
+        };
+        responses: {
+            /** @description Immutable resolution or exact command replay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDispute"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["AppointmentVersionProblem"];
         };
     };
     listSpecialistProfilesForAdmin: {

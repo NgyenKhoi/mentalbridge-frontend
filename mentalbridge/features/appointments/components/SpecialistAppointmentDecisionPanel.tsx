@@ -16,6 +16,7 @@ import {
 import styles from './SpecialistAppointmentDecisionPanel.module.css'
 import { SpecialistConsultationBrief } from './SpecialistConsultationBrief'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
+import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 
 type Decision = 'accept' | 'reject'
 
@@ -398,6 +399,16 @@ export default function SpecialistAppointmentDecisionPanel() {
                     viewer="SPECIALIST"
                   />
                 )}
+                {appointment.sessionSettledAt &&
+                  ['SESSION_ENDED', 'COMPLETED'].includes(
+                    appointment.status,
+                  ) && (
+                    <AppointmentDisputePanel
+                      appointment={appointment}
+                      role="SPECIALIST"
+                      generatedAt={generatedAt}
+                    />
+                  )}
               </li>
             )
           })}
