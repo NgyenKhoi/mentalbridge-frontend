@@ -117,7 +117,6 @@ export async function GET(request: NextRequest) {
           data: {
             openModerationCases: communityResult.value.openModerationCases,
             totalModerationCases: communityResult.value.totalModerationCases,
-            pendingReportsCount: communityResult.value.openModerationCases,
           },
         }
       : {

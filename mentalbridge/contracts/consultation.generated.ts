@@ -962,7 +962,7 @@ export interface components {
             expired: number;
             userNoShow: number;
             specialistNoShow: number;
-            disputed: number;
+            bothNoShow: number;
         };
         ConsultationOperationsSummary: {
             /** @constant */

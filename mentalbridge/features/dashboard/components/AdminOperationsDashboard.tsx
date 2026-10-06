@@ -328,8 +328,8 @@ export function AdminOperationsDashboard({ onNotice }: AdminOperationsDashboardP
                       <span className={styles.metricValue}>{data.consultation.data.appointments.specialistNoShow}</span>
                     </div>
                     <div className={styles.metricItem}>
-                      <span className={styles.metricName}>Đang khiếu nại (Disputed):</span>
-                      <span className={styles.metricValue}>{data.consultation.data.appointments.disputed}</span>
+                      <span className={styles.metricName}>Cả hai vắng mặt (Both No-show):</span>
+                      <span className={styles.metricValue}>{data.consultation.data.appointments.bothNoShow}</span>
                     </div>
                   </div>
                 </div>
@@ -420,15 +420,19 @@ export function AdminOperationsDashboard({ onNotice }: AdminOperationsDashboardP
                   <div className={styles.asOf}>Ghi nhận: {formatDate(data.community.asOf)}</div>
                   <div className={styles.statRow}>
                     <div className={styles.statBox}>
-                      <span className={styles.statValue}>{data.community.data.pendingReportsCount}</span>
-                      <span className={styles.statLabel}>Báo cáo đang chờ xử lý</span>
+                      <span className={styles.statValue}>{data.community.data.openModerationCases}</span>
+                      <span className={styles.statLabel}>Vụ việc kiểm duyệt đang mở</span>
+                    </div>
+                    <div className={styles.statBox}>
+                      <span className={styles.statValue}>{data.community.data.totalModerationCases}</span>
+                      <span className={styles.statLabel}>Tổng vụ việc kiểm duyệt</span>
                     </div>
                   </div>
                   <div className={styles.metricList}>
                     <div className={styles.metricItem}>
                       <span className={styles.metricName}>Trạng thái hàng đợi kiểm duyệt:</span>
                       <span className={styles.metricValue}>
-                        {data.community.data.pendingReportsCount > 0 ? 'Cần xử lý' : 'Đang ổn định'}
+                        {data.community.data.openModerationCases > 0 ? 'Cần xử lý' : 'Đang ổn định'}
                       </span>
                     </div>
                   </div>

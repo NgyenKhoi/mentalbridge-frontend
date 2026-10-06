@@ -46,7 +46,7 @@ const mockDashboardData: AdminOperationsDashboardResponse = {
         expired: 0,
         userNoShow: 0,
         specialistNoShow: 0,
-        disputed: 0,
+        bothNoShow: 0,
       },
     },
   },
@@ -82,7 +82,6 @@ const mockDashboardData: AdminOperationsDashboardResponse = {
     data: {
       openModerationCases: 7,
       totalModerationCases: 25,
-      pendingReportsCount: 7,
     },
   },
   unintegrated: [
@@ -143,11 +142,17 @@ describe('AdminOperationsDashboard Component', () => {
     expect(screen.queryByText('96/100')).not.toBeInTheDocument()
     expect(screen.queryByText('12.480')).not.toBeInTheDocument()
     expect(screen.queryByText(/Kiểm duyệt viên/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Đang khiếu nại/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Báo cáo đang chờ xử lý/i)).not.toBeInTheDocument()
 
-    // Verify all appointment states are rendered
+    // Verify community moderation cases semantics
+    expect(screen.getByText('Vụ việc kiểm duyệt đang mở')).toBeInTheDocument()
+    expect(screen.getByText('Tổng vụ việc kiểm duyệt')).toBeInTheDocument()
+
+    // Verify appointment states and settlement outcomes are rendered
     expect(screen.getByText('Người dùng vắng mặt (User No-show):')).toBeInTheDocument()
     expect(screen.getByText('Chuyên gia vắng mặt (Specialist No-show):')).toBeInTheDocument()
-    expect(screen.getByText('Đang khiếu nại (Disputed):')).toBeInTheDocument()
+    expect(screen.getByText('Cả hai vắng mặt (Both No-show):')).toBeInTheDocument()
   })
 
   it('renders unintegrated metrics clearly marked as UNAVAILABLE', async () => {

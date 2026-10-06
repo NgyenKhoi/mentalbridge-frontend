@@ -1745,7 +1745,7 @@ export function parseConsultationOperationsSummary(
     typeof appt.expired !== 'number' ||
     typeof appt.userNoShow !== 'number' ||
     typeof appt.specialistNoShow !== 'number' ||
-    typeof appt.disputed !== 'number'
+    typeof appt.bothNoShow !== 'number'
   ) {
     return null
   }
@@ -1772,7 +1772,7 @@ export function parseConsultationOperationsSummary(
       expired: appt.expired,
       userNoShow: appt.userNoShow,
       specialistNoShow: appt.specialistNoShow,
-      disputed: appt.disputed,
+      bothNoShow: appt.bothNoShow,
     },
   }
 }

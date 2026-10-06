@@ -102,7 +102,7 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
         expired: 0,
         userNoShow: 0,
         specialistNoShow: 0,
-        disputed: 0,
+        bothNoShow: 0,
       },
     })
 
@@ -178,7 +178,6 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
     expect(payload.community.asOf).toBe('2026-10-05T12:00:00.000Z')
     expect(payload.community.data.openModerationCases).toBe(2)
     expect(payload.community.data.totalModerationCases).toBe(10)
-    expect(payload.community.data.pendingReportsCount).toBe(2)
 
     expect(payload.unintegrated.length).toBeGreaterThan(0)
     for (const item of payload.unintegrated) {

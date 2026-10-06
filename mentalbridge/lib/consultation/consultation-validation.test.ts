@@ -566,7 +566,7 @@ describe('Consultation contract validation', () => {
         expired: 1,
         userNoShow: 1,
         specialistNoShow: 0,
-        disputed: 0,
+        bothNoShow: 0,
       },
     }
 

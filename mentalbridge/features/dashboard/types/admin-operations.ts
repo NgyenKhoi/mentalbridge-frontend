@@ -41,7 +41,7 @@ export interface ConsultationOperationsData {
     expired: number;
     userNoShow: number;
     specialistNoShow: number;
-    disputed: number;
+    bothNoShow: number;
   };
 }
 
@@ -69,7 +69,6 @@ export interface NotificationOperationsData {
 export interface CommunityOperationsData {
   openModerationCases: number;
   totalModerationCases: number;
-  pendingReportsCount: number;
 }
 
 export interface UnintegratedMetric {
