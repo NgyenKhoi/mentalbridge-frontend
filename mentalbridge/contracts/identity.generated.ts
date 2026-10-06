@@ -228,6 +228,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/platform-reports/catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List report types backed by an available authoritative source */
+        get: operations["listPlatformReportTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/platform-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Browse immutable platform report job history */
+        get: operations["browsePlatformReports"];
+        put?: never;
+        /** Queue an aggregate platform report */
+        post: operations["requestPlatformReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/platform-reports/{reportId}/retries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry a failed or stale report as a new immutable job */
+        post: operations["retryPlatformReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/platform-reports/{reportId}/artifact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download an unexpired completed aggregate artifact */
+        get: operations["downloadPlatformReportArtifact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/notification-delivery-contacts/{accountId}": {
         parameters: {
             query?: never;
@@ -286,6 +355,63 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {string} */
+        PlatformReportTypeCode: "ACCOUNT_ACTIVITY";
+        /** @enum {string} */
+        PlatformReportStatus: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "STALE";
+        PlatformReportType: {
+            reportType: components["schemas"]["PlatformReportTypeCode"];
+            label: string;
+            description: string;
+            scopeVersion: string;
+            maximumPeriodDays: number;
+        };
+        PlatformReportRequest: {
+            reportType: components["schemas"]["PlatformReportTypeCode"];
+            /** Format: date */
+            periodStart: string;
+            /** Format: date */
+            periodEnd: string;
+        };
+        PlatformReport: {
+            /** Format: uuid */
+            reportId: string;
+            reportType: components["schemas"]["PlatformReportTypeCode"];
+            scopeVersion: string;
+            /** Format: date */
+            periodStart: string;
+            /** Format: date */
+            periodEnd: string;
+            /** Format: uuid */
+            requestedBy: string;
+            /** Format: date-time */
+            requestedAt: string;
+            status: components["schemas"]["PlatformReportStatus"];
+            sourceVersions: {
+                [key: string]: string;
+            };
+            /** Format: uuid */
+            retryOf?: string | null;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            completedAt?: string | null;
+            /** Format: date-time */
+            failedAt?: string | null;
+            failureCode?: string | null;
+            downloadable: boolean;
+            fileName?: string | null;
+            mediaType?: string | null;
+            /** Format: int64 */
+            contentLength?: number | null;
+            contentSha256?: string | null;
+            /** Format: date-time */
+            retainedUntil?: string | null;
+        };
+        PlatformReportPage: {
+            items: components["schemas"]["PlatformReport"][];
+            nextCursor?: string | null;
+        };
         RegistrationRequest: {
             /** Format: email */
             email: string;
@@ -532,6 +658,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description The bounded artifact retention window has ended */
+        GoneProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Idempotency key was previously used with a different request */
         IdempotencyConflictProblem: {
             headers: {
@@ -563,6 +698,7 @@ export interface components {
     };
     parameters: {
         AccountId: string;
+        ReportId: string;
         /** @description Caller correlation identifier; the server generates one when omitted */
         CorrelationId: string;
         IdempotencyKey: string;
@@ -902,6 +1038,156 @@ export interface operations {
             400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    listPlatformReportTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current supported report catalogue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReportType"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    browsePlatformReports: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest-first report history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReportPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    requestPlatformReport: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlatformReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Report job accepted or replayed */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReport"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            409: components["responses"]["IdempotencyConflictProblem"];
+        };
+    };
+    retryPlatformReport: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                reportId: components["parameters"]["ReportId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retry job accepted or replayed */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReport"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["IdempotencyConflictProblem"];
+        };
+    };
+    downloadPlatformReportArtifact: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                reportId: components["parameters"]["ReportId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable report artifact with SHA-256 integrity and retention headers */
+            200: {
+                headers: {
+                    /** @description Attachment filename for the generated artifact */
+                    "Content-Disposition"?: string;
+                    /** @description Lowercase hexadecimal SHA-256 digest of the response body */
+                    "X-Content-SHA256"?: string;
+                    /** @description Instant after which the artifact is no longer downloadable */
+                    "X-Retained-Until"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            410: components["responses"]["GoneProblem"];
         };
     };
     getNotificationDeliveryContact: {
