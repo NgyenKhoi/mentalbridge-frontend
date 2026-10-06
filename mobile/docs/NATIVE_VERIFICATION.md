@@ -4,9 +4,9 @@ MB-606 distinguishes JavaScript bundle export from a native app boot. An
 `expo export` result proves that Metro can produce platform bundles; it does not
 prove that Gradle or Xcode can compile, install, and launch the native app.
 
-## Required CI evidence
+## Required staging evidence
 
-Pull requests that change `mobile/**` run two required smoke jobs:
+Promotions from `dev` to `staging` run two required smoke jobs:
 
 | Job                   | Agreed path exercised                               | Passing evidence                                                                                                                    |
 | --------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
@@ -16,8 +16,9 @@ Pull requests that change `mobile/**` run two required smoke jobs:
 Both jobs embed only the public test configuration from the workflow. Their
 `android-native-boot-*` and `ios-native-boot-*` artifacts contain the screenshot
 and launch diagnostics produced for that exact commit. The repository
-`quality-gate` depends on both jobs, so bundle-only verification cannot satisfy
-the required pull-request gate.
+`staging-quality-gate` depends on both jobs, so bundle-only verification cannot
+satisfy the release gate. Pull requests into `dev` intentionally run only the
+mobile TypeScript compile check.
 
 Release configuration is intentional in CI: the JavaScript bundle is embedded,
 so the app can boot without leaving a long-running Metro process. Local feature

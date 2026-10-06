@@ -53,6 +53,9 @@ const typeMeta: Readonly<
     icon: '↗',
     tone: 'terra',
   },
+  COMMUNITY_COMMENT: { label: 'Cộng đồng', icon: '◇', tone: 'teal' },
+  COMMUNITY_REPLY: { label: 'Cộng đồng', icon: '↗', tone: 'sage' },
+  COMMUNITY_REACTION: { label: 'Cộng đồng', icon: '♡', tone: 'terra' },
 }
 
 function notificationTime(value: string) {
@@ -111,6 +114,12 @@ const groups = [
     '✦',
     'Tài nguyên và hệ thống',
     'Nội dung mới và cập nhật quan trọng của tài khoản.',
+  ],
+  [
+    'communityInteraction',
+    '♡',
+    'Tương tác cộng đồng',
+    'Phản hồi và sự đồng cảm mới dành cho chia sẻ của bạn.',
   ],
 ] as const
 

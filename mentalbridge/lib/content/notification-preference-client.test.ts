@@ -15,6 +15,7 @@ const preferences = {
     screeningReassessment: true,
     appointmentMessage: true,
     resourceSystem: true,
+    communityInteraction: true,
   },
   quietHours: {
     enabled: false,
