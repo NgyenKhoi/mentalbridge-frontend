@@ -53,6 +53,7 @@ Story-specific delivery evidence:
 - [MB-362 online specialist availability evidence](mb-362-specialist-availability-evidence.md)
 - [MB-379 appointment decisions and expiry evidence](mb-379-appointment-decisions-evidence.md)
 - [MB-380 appointment cancellation and reschedule evidence](mb-380-appointment-changes-evidence.md)
+- [MB-593 specialist operational analytics evidence](mb-593-specialist-operational-analytics-evidence.md)
 - [MB-609 standalone Community peer-support experience](mb-609-community-standalone-evidence.md)
 - [MB-577 Community comments and one-level replies](mb-577-community-comments-evidence.md)
 - [MB-578 Community reports, blocks, and moderation](mb-578-community-moderation-evidence.md)

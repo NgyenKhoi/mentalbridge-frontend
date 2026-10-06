@@ -11,6 +11,7 @@ import SpecialistAvailabilityManager from '@/features/specialist-availability/co
 import SpecialistAppointmentDecisionPanel from '@/features/appointments/components/SpecialistAppointmentDecisionPanel'
 import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
 import SpecialistContinuityManager from '@/features/appointments/components/SpecialistContinuityManager'
+import SpecialistOperationalAnalytics from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics'
 import SpecialistDashboardManager from './SpecialistDashboardManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
@@ -32,6 +33,7 @@ type Section = { label: string; description: string; rows: Row[]; tabs?: string[
 
 const specialistSections: Record<string, Section> = {
   dashboard: { label: 'Tổng quan chuyên gia', description: 'Lịch làm việc và các việc cần theo dõi hôm nay.', rows: [] },
+  analytics: { label: 'Phân tích vận hành', description: 'Số liệu hoạt động tư vấn theo khoảng thời gian.', rows: [] },
   appointments: { label: 'Quản lý lịch hẹn', description: 'Xử lý yêu cầu và theo dõi phiên tư vấn theo trạng thái.', rows: [
     { id: 'a1', title: 'Nguyễn Minh Anh', meta: 'Hôm nay · 10:30–11:15 · Video call', status: 'Đã xác nhận', detail: 'Phiên tư vấn 45 phút. Có thể yêu cầu đổi lịch hoặc đánh dấu hoàn thành sau phiên.' },
     { id: 'a2', title: 'Trần Gia Hân', meta: 'Ngày mai · 14:00–14:45', status: 'Chờ xác nhận', detail: 'Yêu cầu mới. Hãy xem ghi chú trước khi chấp nhận hoặc từ chối.' },
@@ -47,10 +49,7 @@ const specialistSections: Record<string, Section> = {
     { id: 'm2', title: 'Trần Gia Hân', meta: '“Cảm ơn bác sĩ, em đã rõ…” · Hôm qua', status: 'Đã đọc', detail: 'Bạn có thể đóng cuộc trò chuyện khi kế hoạch theo dõi kết thúc.' },
   ]},
   'follow-up': { label: 'Tiếp nối sau tư vấn', description: 'Xem lại nội dung đã thống nhất theo từng phiên tư vấn đã hoàn thành.', rows: [] },
-  earnings: { label: 'Thu nhập & thanh toán', description: 'Thu nhập tự động ghi nhận từ các lịch hẹn đã hoàn thành.', rows: [
-    { id: 'e1', title: 'Thu nhập khả dụng', meta: '8.400.000đ · 21 phiên hoàn thành', status: 'Khả dụng', detail: 'Số dư đủ điều kiện được đưa vào kỳ thanh toán tiếp theo.' },
-    { id: 'e2', title: 'Thanh toán tháng 07/2026', meta: '6.800.000đ · PayOS', status: 'Đã thanh toán', detail: 'Mã giao dịch PO-0726-1842 · Hoàn tất 02/08/2026.' },
-  ], tabs: ['Tổng quan', 'Đang chờ', 'Lịch sử'] },
+  earnings: { label: 'Thu nhập & thanh toán', description: 'Số liệu tài chính thực sẽ hiển thị khi chức năng được đưa vào sử dụng.', rows: [] },
   notifications: { label: 'Thông báo', description: 'Cập nhật lịch hẹn, tin nhắn và kế hoạch theo dõi.', rows: [
     { id: 'n1', title: 'Yêu cầu đặt lịch mới', meta: 'Trần Gia Hân · 10 phút trước', status: 'Chưa đọc', detail: 'Khách hàng đề xuất 14:00 ngày mai.' },
     { id: 'n2', title: 'Thanh toán đã được xử lý', meta: 'Kỳ tháng 07/2026', status: 'Đã đọc', detail: 'Khoản thanh toán đã chuyển sang trạng thái hoàn tất.' },
@@ -110,11 +109,11 @@ const adminSections: Record<string, Section> = {
   ], tabs: ['Audit log', 'Data retention'] },
 }
 const navByRole = {
-  specialist: [['dashboard','Dashboard'],['appointments','Appointments'],['availability','Availability'],['clients','Clients'],['messages','Messages'],['follow-up','Sau tư vấn'],['earnings','Earnings'],['notifications','Notifications'],['profile','Profile']],
+  specialist: [['dashboard','Dashboard'],['analytics','Phân tích'],['appointments','Appointments'],['availability','Availability'],['clients','Clients'],['messages','Messages'],['follow-up','Sau tư vấn'],['earnings','Earnings'],['notifications','Notifications'],['profile','Profile']],
   admin: [['dashboard','Dashboard'],['users','Users'],['specialists','Specialists'],['assessments','Assessments'],['payments','Subscriptions & Payments'],['payouts','Payouts'],['appointments','Appointments'],['content','Content'],['moderation','Moderation'],['ai','AI Evaluation'],['reports','Reports'],['audit','Audit & Privacy']],
 } as const
 
-const navIcons: Record<string, string> = { dashboard: '⌂', appointments: '◷', availability: '▦', clients: '♙', messages: '◇', 'follow-up': '✓', earnings: '◈', notifications: '♢', profile: '○', users: '♙', specialists: '✦', assessments: '✓', payments: '▤', payouts: '↗', content: '▣', moderation: '◉', ai: '✧', reports: '⌁', audit: '◎' }
+const navIcons: Record<string, string> = { dashboard: '⌂', analytics: '⌁', appointments: '◷', availability: '▦', clients: '♙', messages: '◇', 'follow-up': '✓', earnings: '◈', notifications: '♢', profile: '○', users: '♙', specialists: '✦', assessments: '✓', payments: '▤', payouts: '↗', content: '▣', moderation: '◉', ai: '✧', reports: '⌁', audit: '◎' }
 
 const statusClass = (status: string) => /hoàn thành|thành công|hoạt động|đã duyệt|khả dụng|sẵn sàng|xuất bản|cấp quyền|xác nhận/i.test(status) ? 'ok' : /chờ|cần|thất bại|tạm khóa|ẩn/i.test(status) ? 'attention' : 'neutral'
 
@@ -204,6 +203,7 @@ export default function RoleWorkspace({
       <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div><Link href={`/${role}/notifications`} className="role-bell" aria-label="Thông báo">○<b>3</b></Link></header>
       <div className={`role-content${role === 'specialist' && sectionKey === 'messages' ? ' role-content-messages' : ''}`}>
         {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboardManager />}
+        {role === 'specialist' && sectionKey === 'analytics' && <SpecialistOperationalAnalytics />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel />}
@@ -221,7 +221,7 @@ export default function RoleWorkspace({
         {role === 'admin' && sectionKey === 'payouts' && <AdminPayoutsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'moderation' && <AdminModerationManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'appointments' && <AdminAppointmentsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
-        <div className={`role-generic ${(role === 'specialist' && (sectionKey === 'dashboard' || sectionKey === 'profile' || sectionKey === 'availability' || sectionKey === 'appointments' || sectionKey === 'clients' || sectionKey === 'messages' || sectionKey === 'follow-up' || sectionKey === 'earnings')) || (role === 'admin' && (sectionKey === 'dashboard' || sectionKey === 'users' || sectionKey === 'specialists' || sectionKey === 'assessments' || sectionKey === 'content' || sectionKey === 'reports' || sectionKey === 'payments' || sectionKey === 'payouts' || sectionKey === 'moderation' || sectionKey === 'appointments')) ? 'role-generic-hidden' : ''}`}>
+        <div className={`role-generic ${(role === 'specialist' && (sectionKey === 'dashboard' || sectionKey === 'analytics' || sectionKey === 'profile' || sectionKey === 'availability' || sectionKey === 'appointments' || sectionKey === 'clients' || sectionKey === 'messages' || sectionKey === 'follow-up' || sectionKey === 'earnings')) || (role === 'admin' && (sectionKey === 'dashboard' || sectionKey === 'users' || sectionKey === 'specialists' || sectionKey === 'assessments' || sectionKey === 'content' || sectionKey === 'reports' || sectionKey === 'payments' || sectionKey === 'payouts' || sectionKey === 'moderation' || sectionKey === 'appointments')) ? 'role-generic-hidden' : ''}`}>
         <div className="role-heading"><div><span className="eyebrow">{role === 'admin' ? 'Quản trị nền tảng' : 'Không gian chuyên gia'}</span><h1>{section.label}</h1><p>{section.description}</p></div><button className="btn-primary" onClick={() => {
           if (role === 'specialist' && sectionKey === 'appointments') return setShowAppointmentModal(true)
           setToast('Biểu mẫu tạo mới đã sẵn sàng để kết nối API.')
