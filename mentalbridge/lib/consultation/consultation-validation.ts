@@ -523,10 +523,28 @@ export function parseSavePayoutDestinationInput(
   const input = record(value)
   if (
     !input ||
-    !exactKeys(input, ['destinationType', 'accountReference']) ||
     !PAYOUT_DESTINATION_TYPES.includes(input.destinationType as never) ||
+    !exactKeys(
+      input,
+      input.destinationType === 'BANK_ACCOUNT'
+        ? [
+            'destinationType',
+            'accountReference',
+            'accountHolderName',
+            'bankCode',
+          ]
+        : ['destinationType', 'accountReference', 'accountHolderName'],
+    ) ||
     typeof input.accountReference !== 'string' ||
-    !/^\d{6,32}$/.test(input.accountReference)
+    !/^\d{6,32}$/.test(input.accountReference) ||
+    typeof input.accountHolderName !== 'string' ||
+    input.accountHolderName.trim().length === 0 ||
+    input.accountHolderName.length > 100 ||
+    !(
+      input.bankCode === undefined ||
+      (typeof input.bankCode === 'string' && input.bankCode.length <= 32)
+    ) ||
+    (input.destinationType === 'BANK_ACCOUNT' && !input.bankCode?.trim())
   )
     throw new ConsultationInputError('payoutDestination')
   return input as SavePayoutDestinationInput
@@ -601,9 +619,13 @@ export function parseSpecialistEarnings(
       !uuid(earning.appointmentId) ||
       !uuid(earning.consumedCreditId) ||
       typeof earning.planVersion !== 'string' ||
-      earning.creditAllocationVnd !== 300000 ||
+      !Number.isSafeInteger(earning.creditAllocationVnd) ||
+      Number(earning.creditAllocationVnd) <= 0 ||
+      Number(earning.creditAllocationVnd) > 1000000000 ||
       earning.sharePercent !== 70 ||
-      earning.earningAmountVnd !== 210000 ||
+      !Number.isSafeInteger(earning.earningAmountVnd) ||
+      Number(earning.earningAmountVnd) !==
+        Math.floor((Number(earning.creditAllocationVnd) * 70) / 100) ||
       !EARNING_STATUSES.includes(earning.status as never) ||
       !utcInstant(earning.earnedAt) ||
       !utcInstant(earning.settlementAvailableAt)

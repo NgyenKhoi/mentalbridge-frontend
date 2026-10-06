@@ -488,7 +488,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** @description Encrypts one specialist-owned payout destination and returns only a masked hint. The current integration runtime uses the deterministic FAKE provider; real MoMo payout stays disabled. */
+        /** @description Encrypts one specialist-owned payout destination and returns only a masked hint. Local and CI use the deterministic FAKE provider. MoMo disbursement requires explicit production approval and complete credentials. */
         put: operations["saveSpecialistPayoutDestination"];
         post?: never;
         delete?: never;
@@ -1119,6 +1119,9 @@ export interface components {
             /** @enum {string} */
             destinationType: "MOMO_WALLET" | "BANK_ACCOUNT";
             accountReference: string;
+            accountHolderName: string;
+            /** @description Required when destinationType is BANK_ACCOUNT. */
+            bankCode?: string;
         };
         CreateSpecialistPayout: {
             /** Format: uuid */
@@ -1144,16 +1147,16 @@ export interface components {
             planVersion: string;
             /**
              * Format: int64
-             * @constant
+             * @description Allocation snapshot from the consumed credit period.
              */
-            creditAllocationVnd: 300000;
+            creditAllocationVnd: number;
             /** @constant */
             sharePercent: 70;
             /**
              * Format: int64
-             * @constant
+             * @description Exactly 70 percent of creditAllocationVnd under specialist-earning-v1.
              */
-            earningAmountVnd: 210000;
+            earningAmountVnd: number;
             /** @enum {string} */
             status: "PENDING_SETTLEMENT" | "AVAILABLE" | "PROCESSING" | "PAID" | "REVERSED";
             /** Format: date-time */

@@ -105,6 +105,8 @@ export default function SpecialistEarningsManager() {
   const [destinationType, setDestinationType] =
     useState<SavePayoutDestinationInput['destinationType']>('MOMO_WALLET')
   const [accountReference, setAccountReference] = useState('')
+  const [accountHolderName, setAccountHolderName] = useState('')
+  const [bankCode, setBankCode] = useState('')
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -160,14 +162,30 @@ export default function SpecialistEarningsManager() {
       )
       return
     }
+    if (!accountHolderName.trim()) {
+      setFormError('Nhập đúng tên chủ tài khoản hoặc chủ ví.')
+      return
+    }
+    if (destinationType === 'BANK_ACCOUNT' && !bankCode.trim()) {
+      setFormError('Nhập mã ngân hàng để tiếp tục.')
+      return
+    }
     setSubmitting(true)
     setFormError('')
     try {
       const destination = await specialistEarningsBrowserClient.saveDestination(
-        { destinationType, accountReference },
+        {
+          destinationType,
+          accountReference,
+          accountHolderName: accountHolderName.trim(),
+          bankCode:
+            destinationType === 'BANK_ACCOUNT' ? bankCode.trim() : undefined,
+        },
       )
       setData((current) => (current ? { ...current, destination } : current))
       setAccountReference('')
+      setAccountHolderName('')
+      setBankCode('')
       setDialog(null)
       showActionToast({
         title: 'Đã lưu nơi nhận tiền',
@@ -486,6 +504,30 @@ export default function SpecialistEarningsManager() {
               </span>
             </label>
           </fieldset>
+          <label className="earnings-account">
+            <span>Tên chủ tài khoản hoặc chủ ví</span>
+            <input
+              autoComplete="name"
+              value={accountHolderName}
+              maxLength={100}
+              onChange={(event) => setAccountHolderName(event.target.value)}
+              placeholder="Nhập đúng tên đã đăng ký"
+            />
+          </label>
+          {destinationType === 'BANK_ACCOUNT' && (
+            <label className="earnings-account">
+              <span>Mã ngân hàng</span>
+              <input
+                autoComplete="off"
+                value={bankCode}
+                maxLength={32}
+                onChange={(event) =>
+                  setBankCode(event.target.value.toUpperCase())
+                }
+                placeholder="Ví dụ: VCB"
+              />
+            </label>
+          )}
           <label className="earnings-account">
             <span>
               {destinationType === 'MOMO_WALLET'
