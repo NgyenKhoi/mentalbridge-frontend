@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
-import { colors, spacing, typography } from '@/theme/tokens'
+import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 export function UserHomeScreen() {
   const { signOut } = useSession()
@@ -21,9 +21,19 @@ export function UserHomeScreen() {
       </Text>
       <View style={styles.actions}>
         <PrimaryButton
-          label="Mở hồ sơ cá nhân"
-          onPress={() => router.push('./profile')}
+          label="Bắt đầu sàng lọc"
+          onPress={() => router.push('./assessment')}
         />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('./profile')}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.secondaryLabel}>Mở hồ sơ cá nhân</Text>
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => void signOut()}
@@ -70,6 +80,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   signOutLabel: {
+    color: colors.tealDeep,
+    fontSize: typography.body,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    borderColor: colors.tealDeep,
+    borderRadius: radii.control,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  secondaryLabel: {
     color: colors.tealDeep,
     fontSize: typography.body,
     fontWeight: '700',

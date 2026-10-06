@@ -126,6 +126,13 @@ only supported editable fields, preserves optimistic concurrency through
 [`docs/MB-608_USER_PROFILE.md`](docs/MB-608_USER_PROFILE.md) for contract, state,
 cache, and automated-test evidence.
 
+MB-612 adds the Care-backed authenticated assessment journey from PHQ-9 through
+GAD-7 to the authoritative result and immutable post-screening SupportGuide. It
+also reopens exact owner-scoped result/guide history and uses Care's explicit
+help-now directory contract without local scoring or safety inference. See
+[`docs/MB-612_ASSESSMENT_GUIDANCE.md`](docs/MB-612_ASSESSMENT_GUIDANCE.md) for
+the API, state, safety, test, and staging Android demo evidence.
+
 ## Quality commands
 
 ```powershell
