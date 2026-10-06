@@ -46,6 +46,9 @@ vi.mock(
   '@/features/specialist-profile/components/SpecialistProfileWorkspace',
   () => ({ default: () => <h1>Hồ sơ thật</h1> }),
 )
+vi.mock('./SpecialistEarningsManager', () => ({
+  default: () => <h1>Thu nhập thật</h1>,
+}))
 
 const props = {
   role: 'specialist' as const,
@@ -59,10 +62,10 @@ describe('RoleWorkspace specialist production closure', () => {
     const navigation = screen.getByRole('navigation', {
       name: 'Điều hướng specialist',
     })
-    expect(within(navigation).getAllByRole('link')).toHaveLength(7)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(8)
     expect(
-      within(navigation).queryByRole('link', { name: /Earnings/i }),
-    ).not.toBeInTheDocument()
+      within(navigation).getByRole('link', { name: /Thu nhập/i }),
+    ).toBeInTheDocument()
     expect(
       within(navigation).queryByRole('link', { name: /Notifications/i }),
     ).not.toBeInTheDocument()
@@ -85,10 +88,15 @@ describe('RoleWorkspace specialist production closure', () => {
     ).not.toBeInTheDocument()
   })
 
-  it.each([
-    ['earnings', 'Khu vực thu nhập chưa khả dụng'],
-    ['notifications', 'Trung tâm thông báo chưa khả dụng'],
-  ])('shows truthful deferred state for %s', (sectionKey, heading) => {
+  it('renders the authoritative specialist earnings destination', () => {
+    render(<RoleWorkspace {...props} sectionKey="earnings" />)
+
+    expect(screen.getByRole('heading', { name: 'Thu nhập thật' })).toBeVisible()
+  })
+
+  it.each([['notifications', 'Trung tâm thông báo chưa khả dụng']])(
+    'shows truthful deferred state for %s',
+    (sectionKey, heading) => {
     render(<RoleWorkspace {...props} sectionKey={sectionKey} />)
 
     expect(screen.getByRole('heading', { name: heading })).toBeVisible()
@@ -96,5 +104,6 @@ describe('RoleWorkspace specialist production closure', () => {
       screen.queryByText(/8\.400\.000|6\.800\.000|PayOS/),
     ).not.toBeInTheDocument()
     expect(screen.queryByText('Nguyễn Minh Anh')).not.toBeInTheDocument()
-  })
+    },
+  )
 })

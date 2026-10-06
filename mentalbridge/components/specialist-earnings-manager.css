@@ -1,0 +1,610 @@
+.earnings-manager {
+  display: grid;
+  gap: 24px;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 32px 36px 56px;
+  color: var(--ink);
+}
+.earnings-loading {
+  align-content: start;
+}
+.earnings-loading > span {
+  display: block;
+  border-radius: var(--radius-panel);
+}
+.earnings-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+.earnings-eyebrow,
+.earnings-panel header span,
+.earnings-destination > span,
+.earnings-dialog-header span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--teal-700);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.earnings-header h1 {
+  margin: 0;
+  font-family: var(--font-heading), serif;
+  font-size: clamp(38px, 4vw, 58px);
+  line-height: 1;
+}
+.earnings-header p {
+  max-width: 680px;
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 16px;
+}
+.earnings-refresh {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--teal-800);
+  font-weight: 750;
+  cursor: pointer;
+}
+.earnings-summary {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr;
+  gap: 16px;
+}
+.earnings-summary article {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 142px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-shell);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+.earnings-summary article > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.earnings-summary small {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.earnings-summary strong {
+  font-family: var(--font-heading), serif;
+  font-size: 30px;
+  line-height: 1.15;
+}
+.earnings-summary p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.earnings-summary-icon {
+  display: grid;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--teal-50);
+  color: var(--teal-700);
+}
+.earnings-summary-icon svg,
+.earnings-callout svg,
+.earnings-withdraw-destination svg {
+  width: 22px;
+}
+.earnings-balance {
+  border-color: var(--teal-300) !important;
+  background: linear-gradient(
+    135deg,
+    var(--surface),
+    var(--teal-50)
+  ) !important;
+}
+.earnings-balance button {
+  margin-left: auto;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--teal-800);
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+.earnings-balance button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+.earnings-callout {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--amber-300);
+  border-radius: var(--radius-panel);
+  background: var(--amber-50);
+}
+.earnings-callout > svg {
+  flex: none;
+  color: var(--amber-800);
+}
+.earnings-callout div {
+  flex: 1;
+}
+.earnings-callout strong {
+  display: block;
+}
+.earnings-callout p {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+}
+.earnings-callout button,
+.earnings-destination button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--teal-800);
+  font-weight: 800;
+  cursor: pointer;
+}
+.earnings-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 20px;
+  align-items: start;
+}
+.earnings-panel,
+.earnings-destination,
+.earnings-policy {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-shell);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+.earnings-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.earnings-panel h2,
+.earnings-destination h2 {
+  margin: 0;
+  font-family: var(--font-heading), serif;
+  font-size: 26px;
+}
+.earnings-panel header span {
+  margin-bottom: 4px;
+}
+.earnings-panel header > b {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.earnings-list article {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.earnings-list article:last-child {
+  border-bottom: 0;
+}
+.earnings-list article > div {
+  display: grid;
+  gap: 4px;
+}
+.earnings-list small {
+  color: var(--ink-soft);
+}
+.earnings-list article > b {
+  min-width: 120px;
+  text-align: right;
+  font-family: var(--font-heading), serif;
+  font-size: 21px;
+}
+.earnings-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+}
+.earnings-dot.is-available,
+.earnings-dot.is-paid {
+  background: var(--teal-500);
+}
+.earnings-dot.is-pending_settlement {
+  background: var(--amber-500);
+}
+.earnings-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 750;
+}
+.earnings-status.is-available,
+.earnings-status.is-succeeded,
+.earnings-status.is-paid {
+  background: var(--teal-50);
+  color: var(--teal-800);
+}
+.earnings-status.is-pending_settlement,
+.earnings-status.is-pending,
+.earnings-status.is-processing {
+  background: var(--amber-50);
+  color: var(--amber-800);
+}
+.earnings-status.is-failed,
+.earnings-status.is-reversed {
+  background: var(--terracotta-50);
+  color: var(--terracotta-800);
+}
+.earnings-side {
+  display: grid;
+  gap: 16px;
+}
+.earnings-destination {
+  padding: 22px;
+}
+.earnings-destination h2 {
+  margin-bottom: 10px;
+}
+.earnings-destination > strong {
+  display: block;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+.earnings-destination p {
+  margin: 8px 0 18px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.earnings-policy {
+  padding: 20px;
+  background: var(--teal-900);
+  color: white;
+}
+.earnings-policy p {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.earnings-policy b {
+  color: white;
+}
+.earnings-empty {
+  display: grid;
+  min-height: 230px;
+  padding: 32px;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+}
+.earnings-empty > span {
+  font-size: 42px;
+  color: var(--teal-500);
+}
+.earnings-empty h3 {
+  margin: 8px 0 4px;
+  font-family: var(--font-heading), serif;
+  font-size: 22px;
+}
+.earnings-empty p {
+  max-width: 560px;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.earnings-empty.is-compact {
+  min-height: 100px;
+}
+.earnings-payout-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(200px, auto);
+  align-items: center;
+  gap: 20px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.earnings-payout-list article:last-child {
+  border-bottom: 0;
+}
+.earnings-payout-list div {
+  display: grid;
+  gap: 3px;
+}
+.earnings-payout-list div > strong {
+  font-family: var(--font-heading), serif;
+  font-size: 22px;
+}
+.earnings-payout-list small,
+.earnings-payout-list p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.earnings-state {
+  display: grid;
+  min-height: 420px;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+}
+.earnings-state > span {
+  font-size: 46px;
+  color: var(--teal-600);
+}
+.earnings-state h1 {
+  margin: 12px 0 4px;
+  font-family: var(--font-heading), serif;
+}
+.earnings-state p {
+  margin: 0 0 18px;
+  color: var(--ink-soft);
+}
+.earnings-state button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--teal-800);
+  color: white;
+  font-weight: 800;
+}
+.earnings-dialog {
+  width: min(calc(100% - 32px), 600px);
+}
+.earnings-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px;
+  border-bottom: 1px solid var(--line);
+}
+.earnings-dialog-header h2 {
+  margin: 0;
+  font-family: var(--font-heading), serif;
+  font-size: 28px;
+}
+.earnings-dialog-header p {
+  margin: 7px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.earnings-dialog-header > button {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 24px;
+  cursor: pointer;
+}
+.earnings-dialog-body {
+  display: grid;
+  gap: 20px;
+  padding: 24px 26px;
+}
+.earnings-dialog-body fieldset {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.earnings-dialog-body legend,
+.earnings-account > span {
+  grid-column: 1/-1;
+  margin-bottom: 8px;
+  font-weight: 800;
+}
+.earnings-dialog-body fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.earnings-dialog-body fieldset label:has(input:checked) {
+  border-color: var(--teal-500);
+  background: var(--teal-50);
+}
+.earnings-dialog-body fieldset input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--teal-700);
+}
+.earnings-dialog-body fieldset span {
+  display: grid;
+  gap: 3px;
+}
+.earnings-dialog-body fieldset small {
+  color: var(--ink-soft);
+}
+.earnings-account {
+  display: grid;
+  gap: 8px;
+}
+.earnings-account input {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.earnings-account input:focus-visible {
+  outline: 3px solid var(--teal-100);
+  border-color: var(--teal-600);
+}
+.earnings-form-error {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-control);
+  background: var(--terracotta-50);
+  color: var(--terracotta-800);
+  font-weight: 650;
+}
+.earnings-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 18px 26px;
+  border-top: 1px solid var(--line);
+}
+.earnings-dialog-footer button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 800;
+  cursor: pointer;
+}
+.earnings-dialog-footer button:last-child {
+  border-color: var(--teal-800);
+  background: var(--teal-800);
+  color: white;
+}
+.earnings-dialog-footer button:disabled {
+  opacity: 0.55;
+}
+.earnings-withdraw-total {
+  display: grid;
+  gap: 4px;
+  padding: 20px;
+  border-radius: var(--radius-panel);
+  background: var(--teal-50);
+}
+.earnings-withdraw-total span {
+  color: var(--ink-soft);
+}
+.earnings-withdraw-total strong {
+  font-family: var(--font-heading), serif;
+  font-size: 36px;
+}
+.earnings-withdraw-destination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.earnings-withdraw-destination > svg {
+  flex: none;
+  color: var(--teal-700);
+}
+.earnings-withdraw-destination div {
+  display: grid;
+  gap: 4px;
+}
+.earnings-withdraw-destination small {
+  color: var(--ink-soft);
+}
+.earnings-notice {
+  margin: 0;
+  padding: 14px;
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+@media (max-width: 1100px) {
+  .earnings-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  .earnings-balance {
+    grid-column: 1/-1;
+  }
+  .earnings-content {
+    grid-template-columns: 1fr;
+  }
+  .earnings-side {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .earnings-manager {
+    padding: 24px 16px 40px;
+  }
+  .earnings-header {
+    align-items: start;
+    flex-direction: column;
+  }
+  .earnings-summary {
+    grid-template-columns: 1fr;
+  }
+  .earnings-balance {
+    grid-column: auto;
+    flex-wrap: wrap;
+  }
+  .earnings-balance button {
+    width: 100%;
+    margin: 8px 0 0;
+  }
+  .earnings-callout {
+    align-items: start;
+    flex-wrap: wrap;
+  }
+  .earnings-callout button {
+    width: 100%;
+  }
+  .earnings-side {
+    grid-template-columns: 1fr;
+  }
+  .earnings-list article {
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+  }
+  .earnings-list .earnings-status {
+    grid-column: 2;
+  }
+  .earnings-list article > b {
+    grid-column: 3;
+    grid-row: 1/3;
+    min-width: auto;
+  }
+  .earnings-payout-list article {
+    grid-template-columns: 1fr auto;
+  }
+  .earnings-payout-list article > p {
+    grid-column: 1/-1;
+  }
+  .earnings-dialog-body fieldset {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .earnings-manager * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
