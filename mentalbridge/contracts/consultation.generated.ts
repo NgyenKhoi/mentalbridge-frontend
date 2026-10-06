@@ -463,6 +463,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialist/earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the authenticated approved specialist's evidence-backed earning balances, immutable earning snapshots, masked destination, and payout history. Settlement eligibility is evaluated against server time. */
+        get: operations["getSpecialistEarnings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/payout-destination": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Encrypts one specialist-owned payout destination and returns only a masked hint. The current integration runtime uses the deterministic FAKE provider; real MoMo payout stays disabled. */
+        put: operations["saveSpecialistPayoutDestination"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Idempotently attaches all currently available earnings to at most one payout request per specialist per day. Server-side earnings determine the amount; the client cannot submit an amount. */
+        post: operations["requestSpecialistPayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns a bounded reconciliation view with masked destinations and no raw provider payload or destination data. */
+        get: operations["listAdminPayouts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/payouts/momo/ipn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Accepts only a correctly signed MoMo payout callback whose partner, order, request, and authoritative amount match one known attempt. Replays are idempotent. */
+        post: operations["receiveMomoPayoutIpn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist/appointments": {
         parameters: {
             query?: never;
@@ -1016,6 +1101,147 @@ export interface components {
             nextAppointment: components["schemas"]["SpecialistDashboardNextAppointment"];
             availability: components["schemas"]["SpecialistDashboardAvailabilityCollection"];
             actionRequired: components["schemas"]["SpecialistDashboardActionItem"][];
+        };
+        PayoutDestination: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            provider: "FAKE" | "MOMO";
+            /** @enum {string} */
+            destinationType: "MOMO_WALLET" | "BANK_ACCOUNT";
+            displayHint: string;
+            /** @enum {string} */
+            status: "VERIFIED" | "DISABLED";
+            /** Format: date-time */
+            verifiedAt: string;
+        };
+        SavePayoutDestination: {
+            /** @enum {string} */
+            destinationType: "MOMO_WALLET" | "BANK_ACCOUNT";
+            accountReference: string;
+        };
+        CreateSpecialistPayout: {
+            /** Format: uuid */
+            destinationId: string;
+        };
+        SpecialistEarningBalance: {
+            /** Format: int64 */
+            pendingSettlementVnd: number;
+            /** Format: int64 */
+            availableVnd: number;
+            /** Format: int64 */
+            processingVnd: number;
+            /** Format: int64 */
+            paidVnd: number;
+        };
+        SpecialistEarning: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            consumedCreditId: string;
+            planVersion: string;
+            /**
+             * Format: int64
+             * @constant
+             */
+            creditAllocationVnd: 300000;
+            /** @constant */
+            sharePercent: 70;
+            /**
+             * Format: int64
+             * @constant
+             */
+            earningAmountVnd: 210000;
+            /** @enum {string} */
+            status: "PENDING_SETTLEMENT" | "AVAILABLE" | "PROCESSING" | "PAID" | "REVERSED";
+            /** Format: date-time */
+            earnedAt: string;
+            /** Format: date-time */
+            settlementAvailableAt: string;
+        };
+        SpecialistPayout: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            destinationId: string;
+            /** Format: int64 */
+            amountVnd: number;
+            /** @enum {string} */
+            provider: "FAKE" | "MOMO";
+            /** @enum {string} */
+            status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
+            providerReference?: string | null;
+            failureCode?: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+        };
+        SpecialistEarnings: {
+            /** @constant */
+            currency: "VND";
+            /** @constant */
+            earningPolicyVersion: "specialist-earning-v1";
+            /** @constant */
+            settlementHoldDays: 7;
+            /**
+             * Format: int64
+             * @constant
+             */
+            minimumWithdrawalVnd: 100000;
+            /** Format: date-time */
+            generatedAt: string;
+            balance: components["schemas"]["SpecialistEarningBalance"];
+            destination?: components["schemas"]["PayoutDestination"] | null;
+            earnings: components["schemas"]["SpecialistEarning"][];
+            payouts: components["schemas"]["SpecialistPayout"][];
+        };
+        AdminPayout: {
+            /** Format: uuid */
+            payoutId: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            destinationHint: string;
+            /** Format: int64 */
+            amountVnd: number;
+            /** @constant */
+            currency: "VND";
+            /** @enum {string} */
+            provider: "FAKE" | "MOMO";
+            /** @enum {string} */
+            status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
+            earningCount: number;
+            providerReference?: string | null;
+            failureCode?: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+        };
+        AdminPayoutList: {
+            /** Format: date-time */
+            generatedAt: string;
+            count: number;
+            items: components["schemas"]["AdminPayout"][];
+        };
+        MomoPayoutIpn: {
+            partnerCode: string;
+            orderId: string;
+            requestId: string;
+            /** Format: int64 */
+            amount: number;
+            resultCode: number;
+            /** Format: int64 */
+            transId: number;
+            /** Format: int64 */
+            responseTime: number;
+            message?: string | null;
+            orderInfo?: string | null;
+            orderType?: string | null;
+            extraData?: string | null;
+            signature: string;
         };
         /** @enum {string} */
         AppointmentModality: "IN_APP_CHAT" | "IN_APP_VIDEO";
@@ -1756,6 +1982,15 @@ export interface components {
         };
         /** @description If-Match is required for withdrawal (AVAILABILITY_SLOT_VERSION_REQUIRED). */
         AvailabilityVersionRequiredProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Payout encryption or MoMo callback credentials are not configured; real payout remains disabled. */
+        UnavailableProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2706,6 +2941,136 @@ export interface operations {
             };
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getSpecialistEarnings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current earning and payout projection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistEarnings"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    saveSpecialistPayoutDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePayoutDestination"];
+            };
+        };
+        responses: {
+            /** @description Masked verified destination */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutDestination"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    requestSpecialistPayout: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSpecialistPayout"];
+            };
+        };
+        responses: {
+            /** @description Updated earning and payout projection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistEarnings"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    listAdminPayouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent provider payout reconciliation rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPayoutList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    receiveMomoPayoutIpn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MomoPayoutIpn"];
+            };
+        };
+        responses: {
+            /** @description Callback verified and reconciled or already processed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            503: components["responses"]["UnavailableProblem"];
         };
     };
     listAssignedAppointments: {

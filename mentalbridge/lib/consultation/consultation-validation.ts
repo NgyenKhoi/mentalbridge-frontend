@@ -262,6 +262,11 @@ export type BookableSlotList = Readonly<{
 }>
 
 type ConsultationSchemas = consultationComponents['schemas']
+export type SpecialistEarnings = ConsultationSchemas['SpecialistEarnings']
+export type PayoutDestination = ConsultationSchemas['PayoutDestination']
+export type SavePayoutDestinationInput =
+  ConsultationSchemas['SavePayoutDestination']
+export type AdminPayoutList = ConsultationSchemas['AdminPayoutList']
 export type DiscoverySlot = ConsultationSchemas['DiscoverySlot']
 export type DiscoveryExplanation = ConsultationSchemas['DiscoveryExplanation']
 export type SpecialistDiscoveryItem =
@@ -456,6 +461,244 @@ function utcInstant(value: unknown): value is string {
     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/.test(value) &&
     !Number.isNaN(Date.parse(value))
   )
+}
+
+const EARNING_STATUSES = [
+  'PENDING_SETTLEMENT',
+  'AVAILABLE',
+  'PROCESSING',
+  'PAID',
+  'REVERSED',
+] as const
+const PAYOUT_STATUSES = [
+  'PENDING',
+  'PROCESSING',
+  'SUCCEEDED',
+  'FAILED',
+  'UNKNOWN',
+] as const
+const PAYOUT_PROVIDERS = ['FAKE', 'MOMO'] as const
+const PAYOUT_DESTINATION_TYPES = ['MOMO_WALLET', 'BANK_ACCOUNT'] as const
+
+function nonNegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0
+}
+
+function nullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function parsePayoutDestinationValue(value: unknown): PayoutDestination | null {
+  const destination = record(value)
+  if (
+    !destination ||
+    !exactKeys(destination, [
+      'id',
+      'provider',
+      'destinationType',
+      'displayHint',
+      'status',
+      'verifiedAt',
+    ]) ||
+    !uuid(destination.id) ||
+    !PAYOUT_PROVIDERS.includes(destination.provider as never) ||
+    !PAYOUT_DESTINATION_TYPES.includes(destination.destinationType as never) ||
+    typeof destination.displayHint !== 'string' ||
+    !['VERIFIED', 'DISABLED'].includes(String(destination.status)) ||
+    !utcInstant(destination.verifiedAt)
+  )
+    return null
+  return destination as PayoutDestination
+}
+
+export function parsePayoutDestination(
+  value: unknown,
+): PayoutDestination | null {
+  return parsePayoutDestinationValue(value)
+}
+
+export function parseSavePayoutDestinationInput(
+  value: unknown,
+): SavePayoutDestinationInput {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['destinationType', 'accountReference']) ||
+    !PAYOUT_DESTINATION_TYPES.includes(input.destinationType as never) ||
+    typeof input.accountReference !== 'string' ||
+    !/^\d{6,32}$/.test(input.accountReference)
+  )
+    throw new ConsultationInputError('payoutDestination')
+  return input as SavePayoutDestinationInput
+}
+
+export function parseSpecialistEarnings(
+  value: unknown,
+): SpecialistEarnings | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, [
+      'currency',
+      'earningPolicyVersion',
+      'settlementHoldDays',
+      'minimumWithdrawalVnd',
+      'generatedAt',
+      'balance',
+      'destination',
+      'earnings',
+      'payouts',
+    ]) ||
+    response.currency !== 'VND' ||
+    response.earningPolicyVersion !== 'specialist-earning-v1' ||
+    response.settlementHoldDays !== 7 ||
+    response.minimumWithdrawalVnd !== 100000 ||
+    !utcInstant(response.generatedAt)
+  )
+    return null
+
+  const balance = record(response.balance)
+  if (
+    !balance ||
+    !exactKeys(balance, [
+      'pendingSettlementVnd',
+      'availableVnd',
+      'processingVnd',
+      'paidVnd',
+    ]) ||
+    !nonNegativeInteger(balance.pendingSettlementVnd) ||
+    !nonNegativeInteger(balance.availableVnd) ||
+    !nonNegativeInteger(balance.processingVnd) ||
+    !nonNegativeInteger(balance.paidVnd)
+  )
+    return null
+
+  const destination =
+    response.destination === null
+      ? null
+      : parsePayoutDestinationValue(response.destination)
+  if (response.destination !== null && destination === null) return null
+  if (!Array.isArray(response.earnings) || !Array.isArray(response.payouts))
+    return null
+
+  const earnings = response.earnings.map((value) => {
+    const earning = record(value)
+    if (
+      !earning ||
+      !exactKeys(earning, [
+        'id',
+        'appointmentId',
+        'consumedCreditId',
+        'planVersion',
+        'creditAllocationVnd',
+        'sharePercent',
+        'earningAmountVnd',
+        'status',
+        'earnedAt',
+        'settlementAvailableAt',
+      ]) ||
+      !uuid(earning.id) ||
+      !uuid(earning.appointmentId) ||
+      !uuid(earning.consumedCreditId) ||
+      typeof earning.planVersion !== 'string' ||
+      earning.creditAllocationVnd !== 300000 ||
+      earning.sharePercent !== 70 ||
+      earning.earningAmountVnd !== 210000 ||
+      !EARNING_STATUSES.includes(earning.status as never) ||
+      !utcInstant(earning.earnedAt) ||
+      !utcInstant(earning.settlementAvailableAt)
+    )
+      return null
+    return earning
+  })
+  if (earnings.some((earning) => earning === null)) return null
+
+  const payouts = response.payouts.map((value) => {
+    const payout = record(value)
+    if (
+      !payout ||
+      !exactKeys(payout, [
+        'id',
+        'destinationId',
+        'amountVnd',
+        'provider',
+        'status',
+        'providerReference',
+        'failureCode',
+        'requestedAt',
+        'completedAt',
+      ]) ||
+      !uuid(payout.id) ||
+      !uuid(payout.destinationId) ||
+      !nonNegativeInteger(payout.amountVnd) ||
+      !PAYOUT_PROVIDERS.includes(payout.provider as never) ||
+      !PAYOUT_STATUSES.includes(payout.status as never) ||
+      !nullableString(payout.providerReference) ||
+      !nullableString(payout.failureCode) ||
+      !utcInstant(payout.requestedAt) ||
+      !(payout.completedAt === null || utcInstant(payout.completedAt))
+    )
+      return null
+    return payout
+  })
+  if (payouts.some((payout) => payout === null)) return null
+
+  return {
+    ...response,
+    balance,
+    destination,
+    earnings,
+    payouts,
+  } as SpecialistEarnings
+}
+
+export function parseAdminPayoutList(value: unknown): AdminPayoutList | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, ['generatedAt', 'count', 'items']) ||
+    !utcInstant(response.generatedAt) ||
+    !nonNegativeInteger(response.count) ||
+    !Array.isArray(response.items) ||
+    response.count !== response.items.length
+  )
+    return null
+  const items = response.items.map((value) => {
+    const payout = record(value)
+    if (
+      !payout ||
+      !exactKeys(payout, [
+        'payoutId',
+        'specialistAccountId',
+        'destinationHint',
+        'amountVnd',
+        'currency',
+        'provider',
+        'status',
+        'earningCount',
+        'providerReference',
+        'failureCode',
+        'requestedAt',
+        'completedAt',
+      ]) ||
+      !uuid(payout.payoutId) ||
+      !uuid(payout.specialistAccountId) ||
+      typeof payout.destinationHint !== 'string' ||
+      !nonNegativeInteger(payout.amountVnd) ||
+      payout.currency !== 'VND' ||
+      !PAYOUT_PROVIDERS.includes(payout.provider as never) ||
+      !PAYOUT_STATUSES.includes(payout.status as never) ||
+      !nonNegativeInteger(payout.earningCount) ||
+      !nullableString(payout.providerReference) ||
+      !nullableString(payout.failureCode) ||
+      !utcInstant(payout.requestedAt) ||
+      !(payout.completedAt === null || utcInstant(payout.completedAt))
+    )
+      return null
+    return payout
+  })
+  if (items.some((item) => item === null)) return null
+  return { ...response, items } as AdminPayoutList
 }
 
 function ianaTimezone(value: unknown): value is string {
