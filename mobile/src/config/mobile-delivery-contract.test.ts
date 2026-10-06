@@ -4,9 +4,22 @@ import { resolve } from 'node:path'
 import { z } from 'zod'
 
 const mobileRoot = resolve(__dirname, '../..')
+const repositoryRoot = resolve(mobileRoot, '..')
 
 function readJson(relativePath: string): unknown {
   return JSON.parse(readFileSync(resolve(mobileRoot, relativePath), 'utf8'))
+}
+
+function workflowJob(workflow: string, jobName: string): string {
+  const lines = workflow.split(/\r?\n/)
+  const start = lines.findIndex((line) => line === `  ${jobName}:`)
+  if (start < 0) throw new Error(`Workflow job ${jobName} is missing`)
+
+  const relativeEnd = lines
+    .slice(start + 1)
+    .findIndex((line) => /^  [A-Za-z0-9_-]+:$/.test(line))
+  const end = relativeEnd < 0 ? lines.length : start + 1 + relativeEnd
+  return lines.slice(start, end).join('\n')
 }
 
 describe('Mobile Delivery Contract v1', () => {
@@ -40,7 +53,11 @@ describe('Mobile Delivery Contract v1', () => {
     const packageConfig = z
       .object({
         main: z.literal('expo-router/entry'),
-        engines: z.object({ node: z.literal('>=22.13.0') }),
+        packageManager: z.literal('npm@10.9.2'),
+        engines: z.object({
+          node: z.literal('22.13.0'),
+          npm: z.literal('10.9.2'),
+        }),
         dependencies: z.object({
           expo: z.literal('~57.0.26'),
           'expo-router': z.literal('~57.0.24'),
@@ -53,7 +70,56 @@ describe('Mobile Delivery Contract v1', () => {
       })
       .parse(readJson('package.json'))
 
-    expect(packageConfig.engines.node).toBe('>=22.13.0')
+    expect(packageConfig.engines).toEqual({
+      node: '22.13.0',
+      npm: '10.9.2',
+    })
+  })
+
+  it('pins native staging runners and their selected toolchains', () => {
+    const stagingWorkflow = readFileSync(
+      resolve(repositoryRoot, '.github/workflows/staging-quality.yml'),
+      'utf8',
+    )
+    const developmentWorkflow = readFileSync(
+      resolve(repositoryRoot, '.github/workflows/frontend-quality.yml'),
+      'utf8',
+    )
+    const mobileCompile = workflowJob(developmentWorkflow, 'mobile-compile')
+    const mobileQuality = workflowJob(stagingWorkflow, 'mobile-release-quality')
+    const android = workflowJob(stagingWorkflow, 'mobile-android-smoke')
+    const ios = workflowJob(stagingWorkflow, 'mobile-ios-smoke')
+
+    expect(mobileCompile).toContain('runs-on: ubuntu-24.04')
+    expect(mobileCompile).toContain("node-version: '22.13.0'")
+    expect(mobileQuality).toContain('runs-on: ubuntu-24.04')
+    expect(mobileQuality).toContain("node-version: '22.13.0'")
+
+    expect(android).toContain('runs-on: ubuntu-24.04')
+    expect(android).toContain("node-version: '22.13.0'")
+    expect(android).toContain('distribution: temurin')
+    expect(android).toContain("java-version: '17.0.20+8'")
+    expect(android).toContain('api-level: 36')
+    expect(android).toContain('arch: x86_64')
+    expect(android).toContain('target: google_apis')
+    expect(android).toContain('profile: pixel_6')
+    expect(android).toContain(
+      'reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d',
+    )
+
+    expect(ios).toContain('runs-on: macos-26')
+    expect(ios).toContain("node-version: '22.13.0'")
+    expect(ios).toContain("XCODE_VERSION: '26.4.1'")
+    expect(ios).toContain('XCODE_BUILD: 17E202')
+    expect(ios).toContain(
+      'XCODE_DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer',
+    )
+    expect(ios).toContain(
+      'IOS_RUNTIME_ID: com.apple.CoreSimulator.SimRuntime.iOS-26-4',
+    )
+    expect(ios).toContain("IOS_RUNTIME_VERSION: '26.4.1'")
+    expect(ios).toContain('IOS_DEVICE_NAME: iPhone 17')
+    expect(ios).toContain('xcode-select --switch "$XCODE_DEVELOPER_DIR"')
   })
 
   it('exposes one public API edge and no secret-shaped public setting', () => {

@@ -146,19 +146,27 @@ configuration.
 
 ## Version-pinned build assumptions
 
-| Layer      | V1 baseline                                                                |
-| ---------- | -------------------------------------------------------------------------- |
-| Expo       | SDK `57.0.26`; Expo Router `57.0.24`                                       |
-| Runtime    | React Native `0.86.3`; React `19.2.3`                                      |
-| Language   | TypeScript `6.0.3`, strict mode                                            |
-| Node/npm   | Node `22.13.x` or newer compatible 22.x; npm with lockfile v3 and `npm ci` |
-| Android CI | Ubuntu `24.04`, Temurin JDK `17`, Android API `36`, x86_64 emulator        |
-| iOS CI     | macOS `26`, Xcode `26.4` or newer, available iPhone Simulator              |
+| Layer      | V1 baseline                                                                             |
+| ---------- | --------------------------------------------------------------------------------------- |
+| Expo       | SDK `57.0.26`; Expo Router `57.0.24`                                                    |
+| Runtime    | React Native `0.86.3`; React `19.2.3`                                                   |
+| Language   | TypeScript `6.0.3`, strict mode                                                         |
+| Node/npm   | Node `22.13.0`; bundled npm `10.9.2`; lockfile v3 with `npm ci`                         |
+| Android CI | `ubuntu-24.04`; Temurin JDK `17.0.20+8`; Android API `36`; Google APIs x86_64 `pixel_6` |
+| iOS CI     | `macos-26`; Xcode `26.4.1` build `17E202`; iOS `26.4.1`; `iPhone 17`                    |
 
 `package.json`, `package-lock.json`, `app.json`, and the staging workflow are
 the executable sources for these pins. Android is the mandatory local
 development/demo target on the current Windows environment. iOS source and
 configuration MUST remain compatible; its native compile runs on macOS/cloud.
+
+GitHub-hosted `ubuntu-24.04` and `macos-26` labels are bounded moving-image
+exceptions because GitHub does not expose immutable hosted-image labels. The
+workflow therefore pins and drift-tests the runner family, selects exact
+Node/npm, JDK, Xcode, Android API/emulator, and iOS runtime/device values, and
+fails before compilation when the selected Xcode or iOS runtime is unavailable.
+Changing either runner family or any selected tool version requires a reviewed
+contract update.
 
 Pull requests into `dev` run a clean mobile install and strict TypeScript
 compile only. Staging promotion runs format, lint, Jest, Android/iOS JavaScript
@@ -169,7 +177,8 @@ exports, and native Android/iOS compile/install/boot smoke evidence.
 - `runtime-config.test.ts` verifies the required single edge URL, bounded
   timeout, supported protocols, and rejection of embedded credentials.
 - `mobile-delivery-contract.test.ts` prevents drift in app identity, URL scheme,
-  public environment keys, and the core SDK/toolchain versions.
+  public environment keys, core SDK versions, dev/staging runner families,
+  Android API/JDK/emulator values, and iOS Xcode/runtime/device values.
 - `api-client.test.ts` covers bearer injection, correlation IDs, RFC 9457
   normalization, and safe timeout behavior.
 - Identity session tests cover fail-closed restoration, rotation, revocation,
