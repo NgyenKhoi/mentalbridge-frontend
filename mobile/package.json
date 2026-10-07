@@ -45,6 +45,7 @@
     "ios": "expo run:ios",
     "native:android:smoke": "bash scripts/verify-native-android.sh",
     "e2e:android:assessment": "bash scripts/verify-android-assessment-e2e.sh",
+    "e2e:android:support-plan": "bash scripts/verify-android-support-plan-e2e.sh",
     "e2e:android:emotion": "bash scripts/verify-android-emotion-e2e.sh",
     "native:ios:smoke": "bash scripts/verify-native-ios.sh",
     "build:bundle": "expo export --platform android --output-dir dist/android && expo export --platform ios --output-dir dist/ios",
