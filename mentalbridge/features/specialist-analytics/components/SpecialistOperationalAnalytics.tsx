@@ -43,8 +43,9 @@ function formatDate(value: string, timezone: string) {
   }).format(new Date(value))
 }
 
-function formatTime(value: string) {
+function formatTime(value: string, timezone: string) {
   return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: timezone,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -363,7 +364,10 @@ export default function SpecialistOperationalAnalytics() {
       </section>
 
       <footer className={styles.footer}>
-        <span>Cập nhật lúc {formatTime(analytics.generatedAt)}</span>
+        <span>
+          Cập nhật lúc{' '}
+          {formatTime(analytics.generatedAt, analytics.period.timezone)}
+        </span>
         <button type="button" onClick={() => load(periodDays)}>
           Làm mới
         </button>

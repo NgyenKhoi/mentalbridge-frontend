@@ -16,12 +16,15 @@ and bounded to the selected period. The dedicated earnings workspace remains
 the authoritative detailed view. Empty, stale, dependency-error, unapproved,
 and suspended states have distinct user-facing explanations; suspension keeps
 historical facts visible while clearly stating that new activity is disabled.
+The period and response generation time are both rendered in the authoritative
+specialist analytics timezone so the displayed range and as-of time cannot
+silently disagree.
 
 Focused evidence:
 
 - contract validation rejects sensitive or inconsistent projections;
 - BFF tests cover specialist authorization and bounded preset conversion;
 - component tests cover factual metrics, period changes, suspension, stale
-  data, and unavailable financial values;
+  data, unavailable financial values, and timezone-consistent generation time;
 - backend provider tests cover immutable transition counts, period validation,
   specialist authorization, suspension, privacy, and real PostgreSQL queries.

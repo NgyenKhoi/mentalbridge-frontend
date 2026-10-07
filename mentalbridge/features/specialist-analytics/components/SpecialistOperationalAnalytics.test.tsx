@@ -85,6 +85,22 @@ describe('SpecialistOperationalAnalytics', () => {
     ).toBeInTheDocument()
   })
 
+  it('renders generatedAt in the authoritative analytics timezone', async () => {
+    api.get.mockResolvedValue({
+      ...readyAnalytics,
+      period: {
+        ...readyAnalytics.period,
+        timezone: 'America/New_York',
+      },
+    })
+
+    render(<SpecialistOperationalAnalytics />)
+
+    expect(
+      await screen.findByText('Cập nhật lúc 21:00 05/10/2026'),
+    ).toBeInTheDocument()
+  })
+
   it('reloads with the selected bounded period', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     render(<SpecialistOperationalAnalytics />)

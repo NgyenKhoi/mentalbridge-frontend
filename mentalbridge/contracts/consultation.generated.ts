@@ -3032,7 +3032,7 @@ export interface operations {
             query?: {
                 /** @description Inclusive UTC period start. Must be supplied together with to; defaults to 30 days before server time. */
                 from?: string;
-                /** @description Exclusive UTC period end. Must be supplied together with from, cannot be in the future, and defaults to server time. */
+                /** @description Exclusive UTC period end. Must be supplied together with from and defaults to server time. A small forward clock skew is clamped to server time; materially future values are rejected. */
                 to?: string;
             };
             header?: never;
