@@ -3,6 +3,7 @@
 import { useState } from 'react'
 
 import { Disclosure } from '@/components/ui/Disclosure'
+import { formatSupportPlanUpdatedAt } from './support-plan-format'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { getSupportPlan } from '../api/browser-support-plan'
 import type { SupportPlan } from '../api/support-plan-contract'
@@ -49,6 +50,7 @@ export default function SupportPlanHistory({
   onRetry,
   onLoadMore,
 }: Props) {
+  const showTechnicalDetails = process.env.NODE_ENV !== 'production'
   const [detail, setDetail] = useState<SupportPlan>()
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailMessage, setDetailMessage] = useState('')
@@ -119,7 +121,7 @@ export default function SupportPlanHistory({
                     plan.status}
                 </strong>
                 <time dateTime={terminalAt(plan)}>
-                  {new Date(terminalAt(plan)).toLocaleString('vi-VN')}
+                  {formatSupportPlanUpdatedAt(terminalAt(plan))}
                 </time>
                 <small>{plan.selectedResourceCount} nội dung đã lưu</small>
               </div>
@@ -168,7 +170,7 @@ export default function SupportPlanHistory({
           <dl>
             <div>
               <dt>Thời điểm</dt>
-              <dd>{new Date(terminalAt(detail)).toLocaleString('vi-VN')}</dd>
+              <dd>{formatSupportPlanUpdatedAt(terminalAt(detail))}</dd>
             </div>
             <div>
               <dt>Lý do kết thúc</dt>
@@ -194,18 +196,20 @@ export default function SupportPlanHistory({
               ),
             )}
           </ul>
-          <Disclosure summary="Thông tin kỹ thuật">
-            <dl>
-              <div>
-                <dt>Quy tắc lựa chọn</dt>
-                <dd>{detail.source.selectionPolicyVersion}</dd>
-              </div>
-              <div>
-                <dt>Quyền lợi gói</dt>
-                <dd>{detail.entitlement.version}</dd>
-              </div>
-            </dl>
-          </Disclosure>
+          {showTechnicalDetails ? (
+            <Disclosure summary="Thông tin kỹ thuật">
+              <dl>
+                <div>
+                  <dt>Quy tắc lựa chọn</dt>
+                  <dd>{detail.source.selectionPolicyVersion}</dd>
+                </div>
+                <div>
+                  <dt>Quyền lợi gói</dt>
+                  <dd>{detail.entitlement.version}</dd>
+                </div>
+              </dl>
+            </Disclosure>
+          ) : null}
         </aside>
       )}
     </section>

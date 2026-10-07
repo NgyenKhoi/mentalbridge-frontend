@@ -468,7 +468,7 @@ export default function SupportPlanSchedule({
         {/* Left Column (8 cols): Activities for selected date */}
         <div className="support-plan-activities-col">
           <div className="support-plan-col-header">
-            <div className="flex items-center gap-2">
+            <div className="support-plan-flex-row">
               <h4 className="support-plan-section-title">
                 {formattedSelectedDateHeading}
               </h4>

@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { Disclosure } from '@/components/ui/Disclosure'
@@ -125,7 +124,7 @@ function FeaturedActions({
         {isScheduled ? (
           <>
             <button
-              className="support-plan-btn-secondary"
+              className="support-plan-btn-ghost"
               type="button"
               disabled={busy}
               onClick={() => onStartEditing('COMPLETED')}
@@ -197,7 +196,6 @@ export default function SupportPlanFeaturedActivity({
   onRemove,
   renderForm,
 }: Props) {
-  const [detailsOpen, setDetailsOpen] = useState(false)
   const showTechnicalDetails = process.env.NODE_ENV !== 'production'
   const href = resourceHref(occurrence)
   const canEdit = authoritativePlanStatus === 'ACTIVE'
@@ -238,9 +236,6 @@ export default function SupportPlanFeaturedActivity({
             <Disclosure
               className="support-plan-featured-disclosure"
               summary="Chi tiết hoạt động"
-              open={detailsOpen}
-              expanded={detailsOpen}
-              onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
             >
               <p>
                 {technicalSourceLabels[occurrence.source.type]} trong kế hoạch ·

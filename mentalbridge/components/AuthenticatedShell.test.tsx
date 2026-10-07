@@ -18,7 +18,7 @@ vi.mock('@/features/resources/components/ResourceNavBadge', () => ({
 import AuthenticatedShell from './AuthenticatedShell'
 
 describe('AuthenticatedShell', () => {
-  it('promotes Community to the dashboard header instead of the sidebar', () => {
+  it('keeps the dashboard header focused on the current workspace actions', () => {
     render(
       <AuthenticatedShell workspaces={[]}>
         <p>Nội dung dashboard</p>
@@ -27,12 +27,14 @@ describe('AuthenticatedShell', () => {
 
     const topbar = screen.getByRole('banner')
     expect(
-      within(topbar).getByRole('link', { name: 'Cộng đồng' }),
-    ).toHaveAttribute('href', '/community')
+      within(topbar).getByRole('link', { name: 'Thông báo' }),
+    ).toHaveAttribute('href', '/notifications')
+    expect(within(topbar).getByRole('link', { name: /Hồ sơ/ })).toHaveAttribute(
+      'href',
+      '/profile',
+    )
     expect(
-      within(
-        screen.getByRole('navigation', { name: 'Điều hướng chính' }),
-      ).queryByRole('link', { name: 'Cộng đồng' }),
+      screen.queryByRole('link', { name: 'Cộng đồng' }),
     ).not.toBeInTheDocument()
   })
 })

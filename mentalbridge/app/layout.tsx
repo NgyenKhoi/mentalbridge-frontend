@@ -1,5 +1,10 @@
 import type { Metadata } from 'next'
-import { Be_Vietnam_Pro, Fraunces, Lora } from 'next/font/google'
+import {
+  Be_Vietnam_Pro,
+  Fraunces,
+  Lora,
+  Plus_Jakarta_Sans,
+} from 'next/font/google'
 import CrisisSupportWidget from '../components/crisis-support/CrisisSupportWidget'
 import MotionPreferences from '../components/motion/MotionPreferences'
 import SmoothScroll from '../components/SmoothScroll'
@@ -29,6 +34,13 @@ const lora = Lora({
   display: 'swap',
 })
 
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin', 'vietnamese'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-plus-jakarta',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'MentalBridge — Cây cầu đến sự an yên',
   description:
@@ -43,7 +55,7 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body
-        className={`${fraunces.variable} ${beVietnamPro.variable} ${lora.variable}`}
+        className={`${fraunces.variable} ${beVietnamPro.variable} ${lora.variable} ${plusJakartaSans.variable}`}
       >
         <div className="ambient-bg" aria-hidden="true">
           <div className="ambient-blob b1"></div>
