@@ -366,26 +366,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/ai-companion/conversations/{conversationId}/context": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Replace the owner-scoped sources used by one conversation.
-         * @description Message sends read this persisted configuration; client-supplied source lists are never authoritative.
-         */
-        put: operations["replaceAiCompanionConversationContext"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/longitudinal-analysis-jobs": {
         parameters: {
             query?: never;
@@ -482,25 +462,25 @@ export interface components {
         CreateAiConversationRequest: {
             title?: string;
         };
-        AiContextSources: {
-            plan: boolean;
-            diary: boolean;
-            screening: boolean;
-            resourceIds: string[];
-        };
-        AiConversationContextInput: {
-            sources: components["schemas"]["AiContextSources"];
-        };
-        AiConversationContext: {
-            sources: components["schemas"]["AiContextSources"];
-            /** Format: date-time */
-            updatedAt: string;
+        AiContextSelection: {
+            /** @default [] */
+            journalIds: string[];
+            /** Format: uuid */
+            longitudinalAnalysisId?: string;
+            /** @default true */
+            includeCurrentSupportPlan: boolean;
+            /**
+             * @description Fails closed until Content/Notification publishes an approved reminder-context owner contract.
+             * @default false
+             */
+            includeReminderContext: boolean;
         };
         SendAiMessageRequest: {
             message: string;
+            context?: components["schemas"]["AiContextSelection"];
         };
         /** @enum {string} */
-        AiContextKind: "JOURNAL" | "SUPPORT_PLAN" | "REASSESSMENT" | "RESOURCE";
+        AiContextKind: "JOURNAL" | "SUPPORT_PLAN" | "REASSESSMENT";
         AiMessage: {
             /** Format: uuid */
             messageId: string;
@@ -515,7 +495,6 @@ export interface components {
             /** Format: uuid */
             conversationId: string;
             title: string;
-            context: components["schemas"]["AiConversationContext"];
             messages: components["schemas"]["AiMessage"][];
             /** Format: date-time */
             createdAt: string;
@@ -556,7 +535,6 @@ export interface components {
             assistant: string;
             /** Format: date-time */
             createdAt: string;
-            contextKinds: components["schemas"]["AiContextKind"][];
             quota: components["schemas"]["AiQuota"];
         };
         /**
@@ -1683,37 +1661,6 @@ export interface operations {
                 };
             };
             503: components["responses"]["DependencyUnavailable"];
-        };
-    };
-    replaceAiCompanionConversationContext: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-correlation-id"?: components["parameters"]["CorrelationId"];
-            };
-            path: {
-                conversationId: components["parameters"]["ConversationId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AiConversationContextInput"];
-            };
-        };
-        responses: {
-            /** @description Conversation context replaced. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AiConversation"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
         };
     };
     createLongitudinalAnalysisJob: {

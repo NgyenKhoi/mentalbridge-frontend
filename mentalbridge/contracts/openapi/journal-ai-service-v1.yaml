@@ -582,30 +582,6 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
-  /api/v1/ai-companion/conversations/{conversationId}/context:
-    x-mentalbridge-status: implemented
-    put:
-      tags: [AI Companion]
-      operationId: replaceAiCompanionConversationContext
-      summary: Replace the owner-scoped sources used by one conversation.
-      description: Message sends read this persisted configuration; client-supplied source lists are never authoritative.
-      parameters:
-        - $ref: "#/components/parameters/ConversationId"
-        - $ref: "#/components/parameters/CorrelationId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/AiConversationContextInput" }
-      responses:
-        "200":
-          description: Conversation context replaced.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/AiConversation" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/longitudinal-analysis-jobs:
     x-mentalbridge-status: implemented
     post:
@@ -894,32 +870,22 @@ components:
       additionalProperties: false
       properties:
         title: { type: string, minLength: 1, maxLength: 80 }
-    AiContextSources:
+    AiContextSelection:
       type: object
       additionalProperties: false
-      required: [plan, diary, screening, resourceIds]
       properties:
-        plan: { type: boolean }
-        diary: { type: boolean }
-        screening: { type: boolean }
-        resourceIds:
+        journalIds:
           type: array
-          maxItems: 20
+          maxItems: 3
           uniqueItems: true
+          default: []
           items: { type: string, format: uuid }
-    AiConversationContextInput:
-      type: object
-      additionalProperties: false
-      required: [sources]
-      properties:
-        sources: { $ref: "#/components/schemas/AiContextSources" }
-    AiConversationContext:
-      type: object
-      additionalProperties: false
-      required: [sources, updatedAt]
-      properties:
-        sources: { $ref: "#/components/schemas/AiContextSources" }
-        updatedAt: { type: string, format: date-time }
+        longitudinalAnalysisId: { type: string, format: uuid }
+        includeCurrentSupportPlan: { type: boolean, default: true }
+        includeReminderContext:
+          type: boolean
+          default: false
+          description: Fails closed until Content/Notification publishes an approved reminder-context owner contract.
     SendAiMessageRequest:
       type: object
       additionalProperties: false
@@ -930,9 +896,10 @@ components:
           minLength: 1
           maxLength: 2000
           pattern: '.*\S.*'
+        context: { $ref: "#/components/schemas/AiContextSelection" }
     AiContextKind:
       type: string
-      enum: [JOURNAL, SUPPORT_PLAN, REASSESSMENT, RESOURCE]
+      enum: [JOURNAL, SUPPORT_PLAN, REASSESSMENT]
     AiMessage:
       type: object
       additionalProperties: false
@@ -944,17 +911,16 @@ components:
         createdAt: { type: string, format: date-time }
         contextKinds:
           type: array
-          maxItems: 4
+          maxItems: 3
           uniqueItems: true
           items: { $ref: "#/components/schemas/AiContextKind" }
     AiConversation:
       type: object
       additionalProperties: false
-      required: [conversationId, title, context, messages, createdAt, updatedAt, expiresAt]
+      required: [conversationId, title, messages, createdAt, updatedAt, expiresAt]
       properties:
         conversationId: { type: string, format: uuid }
         title: { type: string, minLength: 1, maxLength: 80 }
-        context: { $ref: "#/components/schemas/AiConversationContext" }
         messages:
           type: array
           maxItems: 400
@@ -993,7 +959,6 @@ components:
           assistantMessageId,
           assistant,
           createdAt,
-          contextKinds,
           quota,
         ]
       properties:
@@ -1002,11 +967,6 @@ components:
         assistantMessageId: { type: string, format: uuid }
         assistant: { type: string, minLength: 1, maxLength: 500 }
         createdAt: { type: string, format: date-time }
-        contextKinds:
-          type: array
-          maxItems: 4
-          uniqueItems: true
-          items: { $ref: "#/components/schemas/AiContextKind" }
         quota: { $ref: "#/components/schemas/AiQuota" }
     Emotion:
       type: string
