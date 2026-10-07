@@ -59,3 +59,12 @@
   background: var(--teal-pale);
   color: var(--teal-deep);
 }
+
+/* Community is a destination-level action, so it lives in the dashboard header. */
+.ref-community-entry{min-height:40px;display:inline-flex;align-items:center;gap:8px;padding:0 14px;border:1px solid color-mix(in srgb,var(--teal) 34%,var(--line));border-radius:10px;background:var(--teal-pale);color:var(--teal-deep);font-size:13px;font-weight:750;white-space:nowrap;transition:background .18s ease,border-color .18s ease,transform .18s ease}
+.ref-community-entry svg{width:18px;height:18px}
+.ref-community-entry:hover{border-color:var(--teal);background:#dceadf;transform:translateY(-1px)}
+.ref-community-entry:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.ref-community-entry:active{transform:translateY(0)}
+@media(max-width:560px){.ref-topbar>label{display:none}.ref-top-actions{margin-left:auto}.ref-community-entry{padding-inline:12px}}
+@media(prefers-reduced-motion:reduce){.ref-community-entry{transition:none}}

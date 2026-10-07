@@ -38,6 +38,7 @@ export default function CommunitySafetyActions({
   onHidden?: () => void
 }>) {
   const [open, setOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [reason, setReason] = useState<ReportReason>('HARASSMENT')
   const [details, setDetails] = useState('')
   const [busy, setBusy] = useState(false)
@@ -106,6 +107,7 @@ export default function CommunitySafetyActions({
           'Đã chặn thành viên. Nội dung của hai bên sẽ không còn hiển thị sau khi rời trang.',
         )
       }
+      setMenuOpen(false)
     } catch {
       setMessage('Chưa thể chặn thành viên này. Vui lòng thử lại.')
     } finally {
@@ -115,22 +117,48 @@ export default function CommunitySafetyActions({
 
   return (
     <div className="community-safety-actions">
-      <div>
-        <button type="button" disabled={busy} onClick={() => void hide()}>
-          Ẩn
-        </button>
+      <div className="community-safety-menu-wrap">
         <button
+          className="community-safety-trigger"
           type="button"
           disabled={busy}
-          onClick={() => setOpen((value) => !value)}
-          aria-expanded={open}
+          aria-expanded={menuOpen}
+          aria-label="Tùy chọn an toàn"
+          onClick={() => setMenuOpen((value) => !value)}
         >
-          Báo cáo
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="5" cy="12" r="1.4" />
+            <circle cx="12" cy="12" r="1.4" />
+            <circle cx="19" cy="12" r="1.4" />
+          </svg>
+          <span>Tùy chọn</span>
         </button>
-        {communityProfileId && (
-          <button type="button" disabled={busy} onClick={() => void block()}>
-            {blocked ? 'Bỏ chặn thành viên' : 'Chặn thành viên'}
-          </button>
+        {menuOpen && (
+          <div className="community-safety-menu">
+            <button type="button" disabled={busy} onClick={() => void hide()}>
+              Ẩn nội dung này
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setOpen((value) => !value)
+                setMenuOpen(false)
+              }}
+              aria-expanded={open}
+            >
+              Báo cáo
+            </button>
+            {communityProfileId && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void block()}
+              >
+                {blocked ? 'Bỏ chặn thành viên' : 'Chặn thành viên'}
+              </button>
+            )}
+          </div>
         )}
       </div>
       {open && (
@@ -155,7 +183,7 @@ export default function CommunitySafetyActions({
             Thông tin thêm (không bắt buộc)
             <textarea
               rows={3}
-              maxLength={2000}
+              maxLength={1000}
               value={details}
               onChange={(event) => {
                 setDetails(event.target.value)
@@ -170,13 +198,22 @@ export default function CommunitySafetyActions({
               hệ bên thứ ba.
             </p>
           )}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void submitReport()}
-          >
-            {busy ? 'Đang gửi…' : 'Gửi báo cáo'}
-          </button>
+          <div className="community-report-actions">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setOpen(false)}
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void submitReport()}
+            >
+              {busy ? 'Đang gửi…' : 'Gửi báo cáo'}
+            </button>
+          </div>
         </div>
       )}
       {message && <p role="status">{message}</p>}
