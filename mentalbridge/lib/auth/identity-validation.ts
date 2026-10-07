@@ -16,6 +16,10 @@ import type {
   TokenPair,
   PasswordResetRequest,
   PasswordChangeRequest,
+  PlatformReport,
+  PlatformReportPage,
+  PlatformReportRequest,
+  PlatformReportType,
 } from '@/features/auth/api/identity-contract'
 
 const ACCOUNT_STATUSES = new Set([
@@ -55,6 +59,14 @@ const VALID_AUDIT_DOMAINS = new Set([
   'RESOURCE_MANAGEMENT',
   'COMMUNITY_MODERATION',
 ])
+const PLATFORM_REPORT_STATUSES = new Set([
+  'QUEUED',
+  'RUNNING',
+  'COMPLETED',
+  'FAILED',
+  'STALE',
+])
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -589,4 +601,169 @@ export function validateAccountStateChangeRequest(
       reasonCode: value.reasonCode as AccountStateChangeRequest['reasonCode'],
     },
   }
+}
+
+export function validatePlatformReportRequest(
+  value: unknown,
+): ValidationResult<PlatformReportRequest> {
+  if (!isRecord(value)) {
+    return {
+      success: false,
+      violations: [{ field: 'body', code: 'INVALID_TYPE' }],
+    }
+  }
+  const violations: ValidationViolation[] = []
+  if (!hasOnlyKeys(value, ['reportType', 'periodStart', 'periodEnd'])) {
+    violations.push({ field: 'body', code: 'UNKNOWN_FIELD' })
+  }
+  if (value.reportType !== 'ACCOUNT_ACTIVITY') {
+    violations.push({ field: 'reportType', code: 'INVALID_VALUE' })
+  }
+  if (
+    typeof value.periodStart !== 'string' ||
+    !DATE_PATTERN.test(value.periodStart)
+  ) {
+    violations.push({ field: 'periodStart', code: 'INVALID_FORMAT' })
+  }
+  if (
+    typeof value.periodEnd !== 'string' ||
+    !DATE_PATTERN.test(value.periodEnd)
+  ) {
+    violations.push({ field: 'periodEnd', code: 'INVALID_FORMAT' })
+  }
+  if (violations.length > 0) return { success: false, violations }
+  return { success: true, value: value as PlatformReportRequest }
+}
+
+export function parsePlatformReportType(
+  value: unknown,
+): PlatformReportType | null {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'reportType',
+      'label',
+      'description',
+      'scopeVersion',
+      'maximumPeriodDays',
+    ])
+  )
+    return null
+  if (
+    value.reportType !== 'ACCOUNT_ACTIVITY' ||
+    typeof value.label !== 'string' ||
+    value.label.length > 120 ||
+    typeof value.description !== 'string' ||
+    value.description.length > 500 ||
+    typeof value.scopeVersion !== 'string' ||
+    value.scopeVersion.length > 64 ||
+    !Number.isInteger(value.maximumPeriodDays) ||
+    (value.maximumPeriodDays as number) < 1 ||
+    (value.maximumPeriodDays as number) > 366
+  )
+    return null
+  return value as PlatformReportType
+}
+
+export function parsePlatformReportCatalogue(
+  value: unknown,
+): PlatformReportType[] | null {
+  if (!Array.isArray(value) || value.length > 20) return null
+  const parsed = value.map(parsePlatformReportType)
+  return parsed.every((item): item is PlatformReportType => item !== null)
+    ? parsed
+    : null
+}
+
+export function parsePlatformReport(value: unknown): PlatformReport | null {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'reportId',
+      'reportType',
+      'scopeVersion',
+      'periodStart',
+      'periodEnd',
+      'requestedBy',
+      'requestedAt',
+      'status',
+      'sourceVersions',
+      'retryOf',
+      'startedAt',
+      'completedAt',
+      'failedAt',
+      'failureCode',
+      'downloadable',
+      'fileName',
+      'mediaType',
+      'contentLength',
+      'contentSha256',
+      'retainedUntil',
+    ])
+  )
+    return null
+  if (
+    typeof value.reportId !== 'string' ||
+    !UUID_PATTERN.test(value.reportId) ||
+    value.reportType !== 'ACCOUNT_ACTIVITY' ||
+    typeof value.scopeVersion !== 'string' ||
+    typeof value.periodStart !== 'string' ||
+    !DATE_PATTERN.test(value.periodStart) ||
+    typeof value.periodEnd !== 'string' ||
+    !DATE_PATTERN.test(value.periodEnd) ||
+    typeof value.requestedBy !== 'string' ||
+    !UUID_PATTERN.test(value.requestedBy) ||
+    !isDateTime(value.requestedAt) ||
+    typeof value.status !== 'string' ||
+    !PLATFORM_REPORT_STATUSES.has(value.status) ||
+    !isRecord(value.sourceVersions) ||
+    Object.values(value.sourceVersions).some(
+      (item) => typeof item !== 'string',
+    ) ||
+    typeof value.downloadable !== 'boolean'
+  )
+    return null
+  for (const field of ['retryOf']) {
+    const item = value[field]
+    if (item !== null && (typeof item !== 'string' || !UUID_PATTERN.test(item)))
+      return null
+  }
+  for (const field of [
+    'startedAt',
+    'completedAt',
+    'failedAt',
+    'retainedUntil',
+  ]) {
+    const item = value[field]
+    if (item !== null && !isDateTime(item)) return null
+  }
+  if (
+    (value.failureCode !== null && typeof value.failureCode !== 'string') ||
+    (value.fileName !== null && typeof value.fileName !== 'string') ||
+    (value.mediaType !== null && typeof value.mediaType !== 'string') ||
+    (value.contentLength !== null &&
+      (!Number.isInteger(value.contentLength) ||
+        (value.contentLength as number) < 1)) ||
+    (value.contentSha256 !== null &&
+      (typeof value.contentSha256 !== 'string' ||
+        !/^[0-9a-f]{64}$/.test(value.contentSha256)))
+  )
+    return null
+  return value as PlatformReport
+}
+
+export function parsePlatformReportPage(
+  value: unknown,
+): PlatformReportPage | null {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, ['items', 'nextCursor']) ||
+    !Array.isArray(value.items)
+  )
+    return null
+  const items = value.items.map(parsePlatformReport)
+  if (!items.every((item): item is PlatformReport => item !== null)) return null
+  if (value.nextCursor !== null && typeof value.nextCursor !== 'string')
+    return null
+  return { items, nextCursor: value.nextCursor as string | null }
 }

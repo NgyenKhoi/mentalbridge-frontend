@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -77,9 +77,14 @@ describe('CommunityFeed', () => {
     render(<CommunityFeed />)
 
     expect(await screen.findByText('Thành viên đã rời cộng đồng')).toBeVisible()
-    expect(screen.getAllByText('Câu chuyện của tôi')).toHaveLength(2)
+    expect(
+      screen.getByRole('button', { name: 'Câu chuyện của tôi' }),
+    ).toBeVisible()
+    expect(
+      within(screen.getByRole('article')).getByText('Câu chuyện của tôi'),
+    ).toBeVisible()
     expect(screen.getByText(/Một số nội dung đa phương tiện/)).toBeVisible()
-    expect(screen.getByText('◇ 2 bình luận')).toBeVisible()
+    expect(screen.getByText('2 bình luận')).toBeVisible()
     expect(screen.getByRole('link', { name: /Đọc bài viết/ })).toHaveAttribute(
       'href',
       `/community/${post.postId}`,
@@ -120,7 +125,7 @@ describe('CommunityFeed', () => {
 
     render(<CommunityFeed />)
 
-    expect(await screen.findByText('♡ 3')).toBeVisible()
+    expect(await screen.findByText('3 lượt đồng hành')).toBeVisible()
     expect(
       screen.queryByRole('button', { name: /Äá»“ng hĂ nh/ }),
     ).not.toBeInTheDocument()

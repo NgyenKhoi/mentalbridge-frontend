@@ -1,0 +1,137 @@
+.workspace {
+  display: grid;
+  gap: 24px;
+}
+.workspace header span {
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.workspace header h1 {
+  margin: 8px 0;
+  font-size: clamp(30px, 4vw, 44px);
+}
+.workspace header p {
+  max-width: 760px;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+.filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.filters label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+.filters input,
+.filters select {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.filters button,
+.pagination button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--teal-deep);
+  color: white;
+  font-weight: 750;
+  cursor: pointer;
+}
+.filters button {
+  align-self: end;
+}
+.filters button:disabled,
+.pagination button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.freshness {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 13px;
+}
+.error,
+.state {
+  padding: 18px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink-soft);
+}
+.error {
+  border: 1px solid #e8a6a6;
+  color: #8a2626;
+}
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.tableWrap table {
+  width: 100%;
+  min-width: 1050px;
+  border-collapse: collapse;
+}
+.tableWrap th,
+.tableWrap td {
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.tableWrap th {
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tableWrap td {
+  font-size: 13px;
+}
+.tableWrap td strong,
+.tableWrap td small {
+  display: block;
+}
+.tableWrap td small {
+  margin-top: 5px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+@media (max-width: 900px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+  .freshness {
+    flex-direction: column;
+  }
+}

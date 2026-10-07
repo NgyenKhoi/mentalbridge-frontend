@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo, useState } from 'react'
 
@@ -203,7 +203,9 @@ export default function SupportPlanCard({
 
   return (
     <article
-      className="support-plan-card"
+      className={`support-plan-card ${
+        activeTab === 'schedule' ? 'support-plan-card--schedule' : ''
+      }`}
       aria-labelledby={`support-plan-${plan.supportPlanId}`}
     >
       {/* ================= TAB 1: KẾ HOẠCH ================= */}
@@ -228,6 +230,7 @@ export default function SupportPlanCard({
           </div>
           <span
             className={`support-plan-status ${plan.status === 'ACTIVE' ? 'active' : ''}`}
+            style={{ color: plan.status === 'ACTIVE' ? '#ffffff' : undefined }}
           >
             {statusLabel}
           </span>
@@ -534,7 +537,10 @@ export default function SupportPlanCard({
         <footer>
           <p>{disclaimerText}</p>
           <time dateTime={plan.updatedAt}>
-            Cập nhật {new Date(plan.updatedAt).toLocaleString('vi-VN')}
+            Cập nhật{' '}
+            {new Date(plan.updatedAt).toLocaleString('vi-VN', {
+              timeZone: 'Asia/Ho_Chi_Minh',
+            })}
           </time>
         </footer>
       </div>
@@ -549,7 +555,16 @@ export default function SupportPlanCard({
         aria-labelledby="tab-schedule"
       >
         {plan.status === 'ACTIVE' || plan.status === 'PAUSED' ? (
-          <SupportPlanSchedule planStatus={plan.status} />
+          <SupportPlanSchedule
+            planStatus={plan.status}
+            onToggleStatus={() =>
+              setPendingStatus(plan.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED')
+            }
+            onSwitchToManageTab={() => {
+              const el = document.getElementById('tab-manage')
+              el?.click()
+            }}
+          />
         ) : (
           <div className="support-plan-schedule-empty-state">
             <p>

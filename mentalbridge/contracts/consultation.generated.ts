@@ -301,6 +301,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns a bounded, read-only Consultation-authoritative operational view. It excludes brief, summary, chat, Journal, assessment-answer, private-note, and AI content and grants no session mutation authority. */
+        get: operations["searchAdminAppointments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/appointments": {
         parameters: {
             query?: never;
@@ -332,6 +349,26 @@ export interface paths {
         put?: never;
         /** @description Cancels one future user-owned REQUESTED or CONFIRMED appointment. REQUESTED and confirmations at least 24 hours before start release the exact held credit; later confirmed cancellations forfeit it. The command records actor, stable reason, occurrence time, credit outcome, and immutable history exactly once. */
         post: operations["cancelOwnAppointment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appointments/{appointmentId}/dispute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        /** @description Returns the one dispute for an owned appointment without exposing the other participant's account identity or private evidence. */
+        get: operations["getOwnAppointmentDispute"];
+        put?: never;
+        /** @description Opens the single dispute for an eligible settled appointment within 24 hours. The command records only stable reason and optional bounded operational evidence metadata; it gates specialist earning eligibility and never carries chat, brief, Journal, assessment, recording, or clinical content. */
+        post: operations["openOwnAppointmentDispute"];
         delete?: never;
         options?: never;
         head?: never;
@@ -426,6 +463,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialist/earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the authenticated approved specialist's evidence-backed earning balances, immutable earning snapshots, masked destination, and payout history. Settlement eligibility is evaluated against server time. */
+        get: operations["getSpecialistEarnings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/payout-destination": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Encrypts one specialist-owned payout destination and returns only a masked hint. Local and CI use the deterministic FAKE provider. MoMo disbursement requires explicit production approval and complete credentials. */
+        put: operations["saveSpecialistPayoutDestination"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Idempotently attaches all currently available earnings to at most one payout request per specialist per day. Server-side earnings determine the amount; the client cannot submit an amount. */
+        post: operations["requestSpecialistPayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns a bounded reconciliation view with masked destinations and no raw provider payload or destination data. */
+        get: operations["listAdminPayouts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/payouts/momo/ipn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Accepts only a correctly signed MoMo payout callback whose partner, order, request, and authoritative amount match one known attempt. Replays are idempotent. */
+        post: operations["receiveMomoPayoutIpn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist/appointments": {
         parameters: {
             query?: never;
@@ -493,6 +615,60 @@ export interface paths {
         put?: never;
         /** @description Moves one still-eligible assigned REQUESTED appointment to REJECTED and releases its slot and exact held credit once. Exact command replay returns the current appointment without duplicate history or ledger events. */
         post: operations["rejectAssignedAppointment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/appointments/{appointmentId}/dispute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        /** @description Returns the one dispute only when the authenticated specialist is assigned to the appointment. */
+        get: operations["getAssignedAppointmentDispute"];
+        put?: never;
+        /** @description Opens the single dispute for an eligible assigned appointment within 24 hours using the same minimized participant contract as the user flow. */
+        post: operations["openAssignedAppointmentDispute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/appointment-disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists a bounded operational dispute queue without participant identity, raw session content, or private evidence. */
+        get: operations["listAppointmentDisputesForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/appointment-disputes/{disputeId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Records one immutable bounded resolution. Releasing a terminal credit creates an explicit ADJUSTED_RELEASED ledger fact; prior appointment, outcome, credit, and settlement facts remain auditable. */
+        post: operations["resolveAppointmentDispute"];
         delete?: never;
         options?: never;
         head?: never;
@@ -926,6 +1102,150 @@ export interface components {
             availability: components["schemas"]["SpecialistDashboardAvailabilityCollection"];
             actionRequired: components["schemas"]["SpecialistDashboardActionItem"][];
         };
+        PayoutDestination: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            provider: "FAKE" | "MOMO";
+            /** @enum {string} */
+            destinationType: "MOMO_WALLET" | "BANK_ACCOUNT";
+            displayHint: string;
+            /** @enum {string} */
+            status: "VERIFIED" | "DISABLED";
+            /** Format: date-time */
+            verifiedAt: string;
+        };
+        SavePayoutDestination: {
+            /** @enum {string} */
+            destinationType: "MOMO_WALLET" | "BANK_ACCOUNT";
+            accountReference: string;
+            accountHolderName: string;
+            /** @description Required when destinationType is BANK_ACCOUNT. */
+            bankCode?: string;
+        };
+        CreateSpecialistPayout: {
+            /** Format: uuid */
+            destinationId: string;
+        };
+        SpecialistEarningBalance: {
+            /** Format: int64 */
+            pendingSettlementVnd: number;
+            /** Format: int64 */
+            availableVnd: number;
+            /** Format: int64 */
+            processingVnd: number;
+            /** Format: int64 */
+            paidVnd: number;
+        };
+        SpecialistEarning: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            consumedCreditId: string;
+            planVersion: string;
+            /**
+             * Format: int64
+             * @description Allocation snapshot from the consumed credit period.
+             */
+            creditAllocationVnd: number;
+            /** @constant */
+            sharePercent: 70;
+            /**
+             * Format: int64
+             * @description Exactly 70 percent of creditAllocationVnd under specialist-earning-v1.
+             */
+            earningAmountVnd: number;
+            /** @enum {string} */
+            status: "PENDING_SETTLEMENT" | "AVAILABLE" | "PROCESSING" | "PAID" | "REVERSED";
+            /** Format: date-time */
+            earnedAt: string;
+            /** Format: date-time */
+            settlementAvailableAt: string;
+        };
+        SpecialistPayout: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            destinationId: string;
+            /** Format: int64 */
+            amountVnd: number;
+            /** @enum {string} */
+            provider: "FAKE" | "MOMO";
+            /** @enum {string} */
+            status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
+            providerReference?: string | null;
+            failureCode?: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+        };
+        SpecialistEarnings: {
+            /** @constant */
+            currency: "VND";
+            /** @constant */
+            earningPolicyVersion: "specialist-earning-v1";
+            /** @constant */
+            settlementHoldDays: 7;
+            /**
+             * Format: int64
+             * @constant
+             */
+            minimumWithdrawalVnd: 100000;
+            /** Format: date-time */
+            generatedAt: string;
+            balance: components["schemas"]["SpecialistEarningBalance"];
+            destination?: components["schemas"]["PayoutDestination"] | null;
+            earnings: components["schemas"]["SpecialistEarning"][];
+            payouts: components["schemas"]["SpecialistPayout"][];
+        };
+        AdminPayout: {
+            /** Format: uuid */
+            payoutId: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            destinationHint: string;
+            /** Format: int64 */
+            amountVnd: number;
+            /** @constant */
+            currency: "VND";
+            /** @enum {string} */
+            provider: "FAKE" | "MOMO";
+            /** @enum {string} */
+            status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
+            earningCount: number;
+            providerReference?: string | null;
+            failureCode?: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+        };
+        AdminPayoutList: {
+            /** Format: date-time */
+            generatedAt: string;
+            count: number;
+            items: components["schemas"]["AdminPayout"][];
+        };
+        MomoPayoutIpn: {
+            partnerCode: string;
+            orderId: string;
+            requestId: string;
+            /** Format: int64 */
+            amount: number;
+            resultCode: number;
+            /** Format: int64 */
+            transId: number;
+            /** Format: int64 */
+            responseTime: number;
+            message?: string | null;
+            orderInfo?: string | null;
+            orderType?: string | null;
+            extraData?: string | null;
+            signature: string;
+        };
         /** @enum {string} */
         AppointmentModality: "IN_APP_CHAT" | "IN_APP_VIDEO";
         /** @enum {string} */
@@ -1053,6 +1373,64 @@ export interface components {
              * @description Active user-owned appointment atomically replaced by this new request; omit for a normal request.
              */
             replacesAppointmentId?: string | null;
+        };
+        /** @enum {string} */
+        AppointmentStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+        AdminAppointmentItem: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            availabilitySlotId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            status: components["schemas"]["AppointmentStatus"];
+            modality: components["schemas"]["AppointmentModality"];
+            /** Format: date-time */
+            scheduledStartAt: string;
+            /** Format: date-time */
+            scheduledEndAt: string;
+            timezone: string;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            decisionDeadlineAt: string;
+            /** Format: date-time */
+            decidedAt: string | null;
+            decisionReasonCode: string | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            cancellationReasonCode: string | null;
+            cancellationCreditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
+            /** Format: date-time */
+            sessionEndedAt: string | null;
+            /** Format: date-time */
+            sessionSettledAt: string | null;
+            /** @enum {string|null} */
+            sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
+            sessionOutcomeReasonCode: string | null;
+            /** @enum {string} */
+            settlementState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        AdminAppointmentPage: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** @enum {string} */
+            dataState: "CURRENT" | "STALE" | "UNAVAILABLE";
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: date-time */
+            queryFrom: string;
+            /** Format: date-time */
+            queryTo: string;
+            items: components["schemas"]["AdminAppointmentItem"][];
+            count: number;
+            nextCursor: string | null;
         };
         /** @enum {string} */
         AppointmentCancellationCreditOutcome: "RELEASED" | "FORFEITED" | "TRANSFERRED_TO_REPLACEMENT";
@@ -1283,6 +1661,63 @@ export interface components {
             history: components["schemas"]["AppointmentHistoryEntry"][];
             /** Format: int64 */
             version: number;
+        };
+        OpenAppointmentDispute: {
+            /** @enum {string} */
+            reasonCode: "OUTCOME_INCORRECT" | "PARTICIPATION_EVIDENCE_INCORRECT" | "SESSION_DELIVERY_NOT_RECOGNIZED" | "TECHNICAL_FAILURE";
+            /** @enum {string|null} */
+            evidenceType?: "ACCESS_LOG" | "CONNECTION_INCIDENT" | "PROVIDER_INCIDENT" | null;
+            /** Format: date-time */
+            evidenceOccurredAt?: string | null;
+        };
+        ResolveAppointmentDispute: {
+            /** @enum {string} */
+            outcome: "UPHOLD_RECORDED_OUTCOME" | "RELEASE_USER_CREDIT";
+            /** @enum {string} */
+            reasonCode: "EVIDENCE_SUPPORTS_RECORDED_OUTCOME" | "EVIDENCE_INCONCLUSIVE_RELEASED" | "TECHNICAL_FAILURE_CONFIRMED";
+        };
+        AppointmentDispute: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: int64 */
+            appointmentVersion: number;
+            /** @enum {string} */
+            status: "OPEN" | "RESOLVED";
+            /** @enum {string} */
+            openedByRole: "USER" | "SPECIALIST";
+            /** @enum {string} */
+            reasonCode: "OUTCOME_INCORRECT" | "PARTICIPATION_EVIDENCE_INCORRECT" | "SESSION_DELIVERY_NOT_RECOGNIZED" | "TECHNICAL_FAILURE";
+            /** @enum {string|null} */
+            evidenceType: "ACCESS_LOG" | "CONNECTION_INCIDENT" | "PROVIDER_INCIDENT" | null;
+            /** Format: date-time */
+            evidenceOccurredAt: string | null;
+            /** Format: date-time */
+            openedAt: string;
+            /** Format: date-time */
+            eligibleUntil: string;
+            settlementGated: boolean;
+            /** @enum {string|null} */
+            resolutionOutcome: "UPHOLD_RECORDED_OUTCOME" | "RELEASE_USER_CREDIT" | null;
+            /** @enum {string|null} */
+            resolutionReason: "EVIDENCE_SUPPORTS_RECORDED_OUTCOME" | "EVIDENCE_INCONCLUSIVE_RELEASED" | "TECHNICAL_FAILURE_CONFIRMED" | null;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            priorAppointmentStatus: string | null;
+            priorSessionOutcome: string | null;
+            resultingAppointmentStatus: string | null;
+            resultingSessionOutcome: string | null;
+            /** @enum {string|null} */
+            creditAction: "NONE" | "ALREADY_AVAILABLE" | "ADJUSTED_RELEASED" | null;
+            /** Format: int64 */
+            version: number;
+        };
+        AppointmentDisputeList: {
+            items: components["schemas"]["AppointmentDispute"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
         };
         ConsultationBriefAppointmentContext: {
             /** Format: uuid */
@@ -1550,6 +1985,15 @@ export interface components {
         };
         /** @description If-Match is required for withdrawal (AVAILABILITY_SLOT_VERSION_REQUIRED). */
         AvailabilityVersionRequiredProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Payout encryption or MoMo callback credentials are not configured; real payout remains disabled. */
+        UnavailableProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2142,6 +2586,39 @@ export interface operations {
             404: components["responses"]["DiscoveryNotFoundProblem"];
         };
     };
+    searchAdminAppointments: {
+        parameters: {
+            query: {
+                status?: components["schemas"]["AppointmentStatus"];
+                modality?: components["schemas"]["AppointmentModality"];
+                from: string;
+                /** @description Exclusive upper bound. The requested range cannot exceed 180 days. */
+                to: string;
+                userAccountId?: string;
+                specialistAccountId?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current owner-authoritative operational appointment page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAppointmentPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     listOwnAppointments: {
         parameters: {
             query?: never;
@@ -2232,6 +2709,63 @@ export interface operations {
             409: components["responses"]["AppointmentConflictProblem"];
             412: components["responses"]["AppointmentVersionProblem"];
             428: components["responses"]["AppointmentVersionRequiredProblem"];
+        };
+    };
+    getOwnAppointmentDispute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned appointment dispute */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDispute"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    openOwnAppointmentDispute: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenAppointmentDispute"];
+            };
+        };
+        responses: {
+            /** @description Open dispute or exact command replay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDispute"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
         };
     };
     getOwnAppointmentRating: {
@@ -2412,6 +2946,136 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
         };
     };
+    getSpecialistEarnings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current earning and payout projection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistEarnings"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    saveSpecialistPayoutDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePayoutDestination"];
+            };
+        };
+        responses: {
+            /** @description Masked verified destination */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutDestination"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    requestSpecialistPayout: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSpecialistPayout"];
+            };
+        };
+        responses: {
+            /** @description Updated earning and payout projection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistEarnings"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    listAdminPayouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent provider payout reconciliation rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPayoutList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    receiveMomoPayoutIpn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MomoPayoutIpn"];
+            };
+        };
+        responses: {
+            /** @description Callback verified and reconciled or already processed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
     listAssignedAppointments: {
         parameters: {
             query?: never;
@@ -2563,6 +3227,125 @@ export interface operations {
             409: components["responses"]["AppointmentDecisionConflictProblem"];
             412: components["responses"]["AppointmentVersionProblem"];
             428: components["responses"]["AppointmentVersionRequiredProblem"];
+        };
+    };
+    getAssignedAppointmentDispute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Assigned appointment dispute */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDispute"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    openAssignedAppointmentDispute: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenAppointmentDispute"];
+            };
+        };
+        responses: {
+            /** @description Open dispute or exact command replay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDispute"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    listAppointmentDisputesForAdmin: {
+        parameters: {
+            query?: {
+                status?: "OPEN" | "RESOLVED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded dispute queue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDisputeList"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    resolveAppointmentDispute: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative appointment version. */
+                "If-Match": components["parameters"]["AppointmentIfMatch"];
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveAppointmentDispute"];
+            };
+        };
+        responses: {
+            /** @description Immutable resolution or exact command replay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDispute"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["AppointmentVersionProblem"];
         };
     };
     listSpecialistProfilesForAdmin: {

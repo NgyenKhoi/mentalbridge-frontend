@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   EmotionCheckIn,
@@ -74,16 +73,16 @@ describe('EmotionProgress', () => {
     })
   })
 
-  it('renders authoritative factual streaks, rolling counts, and history', async () => {
-    const user = userEvent.setup()
+  it('renders authoritative factual streaks, rolling counts, and detail box with Option D layout', async () => {
     render(<EmotionProgress />)
 
     expect(await screen.findByText('Chuỗi hiện tại')).toBeVisible()
     expect(screen.getByText('4 ngày')).toBeVisible()
     expect(screen.getByText('9 ngày')).toBeVisible()
-    expect(screen.getByText('Đã ghi nhận 4/7 ngày')).toBeVisible()
-    expect(screen.getByText('27/09/2026')).toBeVisible()
-    expect(screen.getByText('Mức cảm nhận 4/5')).toBeVisible()
+    expect(screen.getByText('4/7')).toBeVisible()
+    expect(screen.getByText(/27\/09\/2026/)).toBeVisible()
+    expect(screen.getByText('Cường độ 4/5')).toBeVisible()
+    expect(screen.getByText('Xem nhật ký →')).toBeVisible()
     expect(
       screen.queryByText('private note must not render'),
     ).not.toBeInTheDocument()
@@ -92,9 +91,6 @@ describe('EmotionProgress', () => {
         'Đây không phải chẩn đoán, đánh giá tiến bộ hay mức độ hồi phục.',
       ),
     ).toBeVisible()
-
-    await user.click(screen.getByRole('button', { name: '14 ngày' }))
-    expect(screen.getByText('Đã ghi nhận 7/14 ngày')).toBeVisible()
   })
 
   it('renders truthful zero and empty states without inventing a trend', async () => {
@@ -124,12 +120,9 @@ describe('EmotionProgress', () => {
 
     render(<EmotionProgress />)
 
-    expect(
-      await screen.findByText('Chưa có ghi nhận trong khoảng thời gian này.'),
-    ).toBeVisible()
-    expect(
-      screen.getByText(/Lịch sử sẽ xuất hiện sau lần lưu đầu tiên/),
-    ).toBeVisible()
+    expect(await screen.findByText('Chuỗi hiện tại')).toBeVisible()
+    expect(screen.getAllByText('Chưa bắt đầu').length).toBeGreaterThan(0)
+    expect(screen.getByText('0/7')).toBeVisible()
     expect(screen.queryByText(/xu hướng/iu)).not.toBeInTheDocument()
   })
 

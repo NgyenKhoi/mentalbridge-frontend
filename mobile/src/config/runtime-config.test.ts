@@ -27,4 +27,15 @@ describe('mobile runtime configuration', () => {
       }),
     ).toThrow('Invalid public mobile runtime configuration')
   })
+
+  it('rejects credentials embedded in the public edge URL', () => {
+    expect(() =>
+      parseRuntimeConfig({
+        EXPO_PUBLIC_API_BASE_URL:
+          'https://mobile-user:mobile-password@api.test.mentalbridge',
+      }),
+    ).toThrow(
+      'Invalid public mobile runtime configuration: EXPO_PUBLIC_API_BASE_URL',
+    )
+  })
 })

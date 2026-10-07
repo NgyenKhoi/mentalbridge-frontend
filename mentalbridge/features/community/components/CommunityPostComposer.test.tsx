@@ -156,6 +156,7 @@ describe('CommunityPostComposer', () => {
     await user.click(screen.getByRole('button', { name: 'Viết bài' }))
     await user.type(screen.getByLabelText('Nội dung'), 'Một tài nguyên hữu ích')
     await user.click(screen.getByText('Câu chuyện của tôi'))
+    await user.click(screen.getByRole('button', { name: /^Tài nguyên/ }))
     await user.selectOptions(
       await screen.findByLabelText(/Tài nguyên MentalBridge/),
       resourceId,
@@ -187,6 +188,7 @@ describe('CommunityPostComposer', () => {
     await user.click(screen.getByRole('button', { name: 'Viết bài' }))
     await user.type(screen.getByLabelText('Nội dung'), 'Một chia sẻ có ảnh')
     await user.click(screen.getByText('Câu chuyện của tôi'))
+    await user.click(screen.getByRole('button', { name: /^Ảnh \/ video/ }))
     await user.upload(
       screen.getByLabelText('Thêm tệp'),
       new File(['image'], 'story.webp', { type: 'image/webp' }),
@@ -199,5 +201,35 @@ describe('CommunityPostComposer', () => {
       expect.objectContaining({ mediaIds: [mediaId] }),
       expect.any(String),
     )
+  })
+
+  it('keeps an unfinished story and its identity after closing and reopening the editor', async () => {
+    const user = userEvent.setup()
+    render(<CommunityPostComposer topics={topics} />)
+    await user.click(screen.getByRole('button', { name: 'Viết bài' }))
+    await user.type(screen.getByLabelText('Nội dung'), 'Bài viết đang soạn')
+    await user.click(screen.getByRole('radio', { name: 'Đăng ẩn danh' }))
+    await user.click(screen.getByRole('button', { name: 'Để sau' }))
+    await user.click(screen.getByRole('button', { name: 'Viết tiếp' }))
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Bài viết đang soạn')
+    expect(screen.getByRole('radio', { name: 'Đăng ẩn danh' })).toBeChecked()
+  })
+
+  it('focuses the missing field and retains content when publishing needs a topic', async () => {
+    const user = userEvent.setup()
+    render(<CommunityPostComposer topics={topics} />)
+    await user.click(screen.getByRole('button', { name: 'Viết bài' }))
+    await user.click(screen.getByRole('button', { name: 'Đăng câu chuyện' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Viết nội dung')
+    expect(screen.getByLabelText('Nội dung')).toHaveFocus()
+    await user.type(screen.getByLabelText('Nội dung'), 'Một suy nghĩ')
+    await user.click(screen.getByRole('button', { name: 'Đăng câu chuyện' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Chọn ít nhất một chủ đề',
+    )
+    expect(
+      screen.getByRole('checkbox', { name: 'Câu chuyện của tôi' }),
+    ).toHaveFocus()
+    expect(mocks.create).not.toHaveBeenCalled()
   })
 })

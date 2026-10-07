@@ -1,13 +1,36 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api/api-error'
 
 import {
-  supportPlanOccurrenceFixture,
+  supportPlanOccurrenceFixture as baseSupportPlanOccurrenceFixture,
   supportPlanOccurrenceListFixture,
 } from '../testing/support-plan-occurrence-fixture'
 import SupportPlanSchedule from './SupportPlanSchedule'
+
+function supportPlanOccurrenceFixture(
+  overrides: Parameters<typeof baseSupportPlanOccurrenceFixture>[0] = {},
+) {
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+
+  return baseSupportPlanOccurrenceFixture({
+    localDate: today,
+    scheduledAt: `${today}T01:00:00Z`,
+    ...overrides,
+  })
+}
 
 const api = vi.hoisted(() => ({
   deleteSupportPlanOccurrenceEngagement: vi.fn(),
@@ -40,14 +63,22 @@ describe('SupportPlanSchedule', () => {
     expect(
       await screen.findByRole('button', { name: 'Ghi nhận đã làm' }),
     ).toBeVisible()
-    expect(screen.getByRole('link', { name: 'Mở tài nguyên' })).toHaveAttribute(
+    expect(
+      screen.getByRole('link', { name: 'Bắt đầu hoạt động' }),
+    ).toHaveAttribute(
       'href',
       `/resources/${supportPlanOccurrenceFixture().source.resourceId}?from=support-plan&contentVersion=${supportPlanOccurrenceFixture().source.contentVersion}`,
     )
     expect(
-      screen.getByRole('heading', { name: 'Hoạt động của tôi' }),
+      screen.getByRole('heading', { name: /Hoạt động hôm nay ·/ }),
     ).toBeVisible()
-    fireEvent.click(screen.getByText('Thông tin kỹ thuật'))
+    const details = screen.getByRole('button', {
+      name: 'Chi tiết hoạt động',
+    })
+    const disclosure = details.closest('details')
+    expect(disclosure).not.toHaveAttribute('open')
+    fireEvent.click(details)
+    await waitFor(() => expect(disclosure).toHaveAttribute('open'))
     expect(
       screen.getByText(/Tài nguyên trong kế hoạch · lịch 1 · SupportPlan 1/),
     ).toBeVisible()
@@ -59,6 +90,28 @@ describe('SupportPlanSchedule', () => {
       today,
       expect.any(String),
     )
+  })
+
+  it('allows selecting a calendar day with the keyboard', async () => {
+    api.getSupportPlanOccurrences.mockResolvedValue(
+      supportPlanOccurrenceListFixture([supportPlanOccurrenceFixture()]),
+    )
+
+    render(<SupportPlanSchedule planStatus="ACTIVE" />)
+
+    const calendar = await screen.findByRole('listbox', {
+      name: 'Chọn ngày trong tuần',
+    })
+    const targetDay = within(calendar)
+      .getAllByRole('option')
+      .find((option) => option.getAttribute('aria-selected') === 'false')
+
+    expect(targetDay).toBeDefined()
+    targetDay?.focus()
+    fireEvent.keyDown(targetDay as HTMLElement, { key: 'Enter' })
+
+    expect(targetDay).toHaveFocus()
+    expect(targetDay).toHaveAttribute('aria-selected', 'true')
   })
 
   it('records helpfulness, private reflection, and explicit summary reuse approval', async () => {
@@ -241,7 +294,7 @@ describe('SupportPlanSchedule', () => {
 
     render(<SupportPlanSchedule planStatus="PAUSED" />)
 
-    expect(await screen.findByText('Đang tạm dừng')).toBeVisible()
+    expect(await screen.findByText('Kế hoạch đang tạm dừng')).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Ghi nhận đã làm' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Ghi nhận bỏ qua' })).toBeNull()
   })
@@ -280,7 +333,7 @@ describe('SupportPlanSchedule', () => {
         'Mục này không còn nhận cập nhật. Trạng thái mới nhất đã được tải lại.',
       ),
     ).toBeVisible()
-    expect(screen.getByText('Đang tạm dừng')).toBeVisible()
+    expect(screen.getByText('Kế hoạch đang tạm dừng')).toBeVisible()
     expect(api.getSupportPlanOccurrences).toHaveBeenCalledTimes(2)
     for (const name of [
       'Ghi nhận đã làm',

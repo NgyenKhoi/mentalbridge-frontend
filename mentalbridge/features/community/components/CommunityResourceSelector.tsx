@@ -11,10 +11,12 @@ export default function CommunityResourceSelector({
   value,
   onChange,
   disabled = false,
+  compact = false,
 }: Readonly<{
   value: string | null
   onChange: (resourceId: string | null) => void
   disabled?: boolean
+  compact?: boolean
 }>) {
   const [generation, setGeneration] = useState(0)
   const [result, setResult] = useState<{
@@ -49,10 +51,12 @@ export default function CommunityResourceSelector({
       <label htmlFor="community-resource-select">
         Tài nguyên MentalBridge <span>(không bắt buộc)</span>
       </label>
-      <p>
-        Chia sẻ tối đa một tài nguyên đã được duyệt, không sao chép nội dung vào
-        bài viết.
-      </p>
+      {!compact && (
+        <p>
+          Chia sẻ tối đa một tài nguyên đã được duyệt, không sao chép nội dung
+          vào bài viết.
+        </p>
+      )}
       <select
         id="community-resource-select"
         value={value ?? ''}

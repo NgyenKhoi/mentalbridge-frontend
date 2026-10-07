@@ -105,7 +105,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.13'
+          node-version: '22.13.0'
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
@@ -115,14 +115,173 @@ jobs:
       - name: Run mobile quality gate
         run: npm run quality
 
+  mobile-android-smoke:
+    name: Staging Android native boot and real-contract journeys
+    needs: [promotion-policy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: staging-mobile-e2e
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      ANDROID_DEVICE: emulator-5554
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}
+      EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
+      MAESTRO_CLI_NO_ANALYTICS: 'true'
+      MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}
+      MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
+      MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL: ${{ secrets.MB_SUPPORT_PLAN_USER_EMAIL }}
+      MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD: ${{ secrets.MB_SUPPORT_PLAN_USER_PASSWORD }}
+      MAESTRO_VERSION: '2.11.0'
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Require protected staging inputs
+        run: |
+          if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD" ]]; then
+            echo "Protected staging edge, assessment USER, and SupportPlan USER fixture secrets are required." >&2
+            exit 1
+          fi
+
+      - name: Install pinned Maestro CLI
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+          "$HOME/.maestro/bin/maestro" --version
+
+      - name: Enable KVM permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Compile, install, boot, and run Android real-contract journeys
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          working-directory: mobile
+          script: npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion && npm run e2e:android:support-plan
+
+      - name: Upload Android native evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-native-and-real-contract-${{ github.sha }}
+          path: mobile/native-evidence
+          if-no-files-found: warn
+
+  mobile-ios-smoke:
+    name: Staging iOS native boot
+    needs: [promotion-policy]
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_BASE_URL: https://api.test.mentalbridge
+      EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
+      IOS_DEVICE_NAME: iPhone 17
+      IOS_RUNTIME_ID: com.apple.CoreSimulator.SimRuntime.iOS-26-4
+      IOS_RUNTIME_VERSION: '26.4.1'
+      XCODE_BUILD: 17E202
+      XCODE_DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer
+      XCODE_VERSION: '26.4.1'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Select and verify Xcode
+        run: |
+          sudo xcode-select --switch "$XCODE_DEVELOPER_DIR"
+          xcode_version="$(xcodebuild -version | awk 'NR == 1 { print $2 }')"
+          xcode_build="$(xcodebuild -version | awk 'NR == 2 { print $3 }')"
+          if [[ "$xcode_version" != "$XCODE_VERSION" || "$xcode_build" != "$XCODE_BUILD" ]]; then
+            echo "Expected Xcode $XCODE_VERSION ($XCODE_BUILD); found $xcode_version ($xcode_build)." >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Select and boot an iPhone Simulator
+        run: |
+          runtime_version="$(xcrun simctl list runtimes --json | jq -r --arg runtime "$IOS_RUNTIME_ID" '.runtimes[] | select(.identifier == $runtime and .isAvailable == true) | .version')"
+          if [[ "$runtime_version" != "$IOS_RUNTIME_VERSION" ]]; then
+            echo "Expected available iOS runtime $IOS_RUNTIME_ID version $IOS_RUNTIME_VERSION; found ${runtime_version:-none}." >&2
+            exit 1
+          fi
+          device_id="$(xcrun simctl list devices available --json | jq -r --arg runtime "$IOS_RUNTIME_ID" --arg name "$IOS_DEVICE_NAME" '(.devices[$runtime] // []) | map(select(.name == $name))[0].udid // empty')"
+          if [[ -z "$device_id" ]]; then
+            echo "No available $IOS_DEVICE_NAME simulator exists for $IOS_RUNTIME_ID." >&2
+            exit 1
+          fi
+          echo "IOS_DEVICE=$device_id" >> "$GITHUB_ENV"
+          xcrun simctl boot "$device_id" 2>/dev/null || true
+          xcrun simctl bootstatus "$device_id" -b
+
+      - name: Compile, install, and boot iOS app
+        run: npm run native:ios:smoke
+
+      - name: Upload iOS native evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-native-boot-${{ github.sha }}
+          path: mobile/native-evidence
+          if-no-files-found: warn
+
   staging-quality-gate:
     name: staging-quality-gate
     if: always()
-    needs: [promotion-policy, release-quality, mobile-release-quality]
+    needs:
+      [
+        promotion-policy,
+        release-quality,
+        mobile-release-quality,
+        mobile-android-smoke,
+        mobile-ios-smoke,
+      ]
     runs-on: ubuntu-24.04
     steps:
       - name: Require staging release checks
-        if: needs.promotion-policy.result != 'success' || needs.release-quality.result != 'success' || needs.mobile-release-quality.result != 'success'
+        if: needs.promotion-policy.result != 'success' || needs.release-quality.result != 'success' || needs.mobile-release-quality.result != 'success' || needs.mobile-android-smoke.result != 'success' || needs.mobile-ios-smoke.result != 'success'
         run: exit 1
       - name: Confirm staging quality gate
         run: echo "All required staging release checks passed."

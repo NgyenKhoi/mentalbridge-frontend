@@ -60,6 +60,9 @@ Story-specific delivery evidence:
 - [MB-582 governed Community topic discovery](mb-582-community-topic-discovery-evidence.md)
 - [MB-615 bounded Community sensitive-content warnings](mb-615-community-sensitive-content-evidence.md)
 - [MB-616 private Community saved-post collection](mb-616-community-saved-posts-evidence.md)
+- [MB-617 Community interaction notification inbox](mb-617-community-notifications-evidence.md)
+- [MB-618 Community end-to-end closure evidence](mb-618-community-closure-evidence.md)
+- [MB-619 appointment dispute UI evidence](mb-619-appointment-disputes-evidence.md)
 - [MB-549 appointment reminder consumer evidence](evidence/mb-549-appointment-reminder-consumer.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
@@ -94,6 +97,7 @@ to select any additional task-specific material.
 | Specialist appointment decisions and expiry          | Implemented | MB-379         |
 | Approved online specialist discovery consumer        | Implemented | MB-363         |
 | Appointment cancellation and linked reschedule       | Implemented | MB-380         |
+| Appointment dispute and bounded resolution UI        | Implemented | MB-619         |
 | Owner-scoped factual personal analytics overview     | Implemented | MB-570         |
 | Owner-scoped cross-feature activity dashboard        | Implemented | MB-571, MB-610 |
 | Standalone pseudonymous peer-support Community       | Implemented | MB-609         |

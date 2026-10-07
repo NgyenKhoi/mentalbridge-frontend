@@ -201,6 +201,16 @@ export type AppointmentStatus =
   | 'REJECTED'
   | 'EXPIRED'
   | 'CANCELLED'
+const APPOINTMENT_STATUSES: AppointmentStatus[] = [
+  'REQUESTED',
+  'CONFIRMED',
+  'IN_PROGRESS',
+  'SESSION_ENDED',
+  'COMPLETED',
+  'REJECTED',
+  'EXPIRED',
+  'CANCELLED',
+]
 export type AppointmentCancellationCreditOutcome =
   'RELEASED' | 'FORFEITED' | 'TRANSFERRED_TO_REPLACEMENT'
 export type ChatSessionOutcome =
@@ -252,6 +262,11 @@ export type BookableSlotList = Readonly<{
 }>
 
 type ConsultationSchemas = consultationComponents['schemas']
+export type SpecialistEarnings = ConsultationSchemas['SpecialistEarnings']
+export type PayoutDestination = ConsultationSchemas['PayoutDestination']
+export type SavePayoutDestinationInput =
+  ConsultationSchemas['SavePayoutDestination']
+export type AdminPayoutList = ConsultationSchemas['AdminPayoutList']
 export type DiscoverySlot = ConsultationSchemas['DiscoverySlot']
 export type DiscoveryExplanation = ConsultationSchemas['DiscoveryExplanation']
 export type SpecialistDiscoveryItem =
@@ -260,6 +275,13 @@ export type SpecialistDiscoveryPage =
   ConsultationSchemas['SpecialistDiscoveryPage']
 export type AppointmentRating = ConsultationSchemas['AppointmentRating']
 export type SpecialistDashboard = ConsultationSchemas['SpecialistDashboard']
+export type OpenAppointmentDisputeInput =
+  ConsultationSchemas['OpenAppointmentDispute']
+export type ResolveAppointmentDisputeInput =
+  ConsultationSchemas['ResolveAppointmentDispute']
+export type AppointmentDispute = ConsultationSchemas['AppointmentDispute']
+export type AppointmentDisputeList =
+  ConsultationSchemas['AppointmentDisputeList']
 export type Appointment = Readonly<{
   id: string
   slotId: string
@@ -302,12 +324,54 @@ export type AppointmentList = Readonly<{
   generatedAt: string
 }>
 
+export type AdminAppointmentItem = Readonly<{
+  appointmentId: string
+  availabilitySlotId: string
+  userAccountId: string
+  specialistAccountId: string
+  status: AppointmentStatus
+  modality: AppointmentModality
+  scheduledStartAt: string
+  scheduledEndAt: string
+  timezone: string
+  requestedAt: string
+  decisionDeadlineAt: string
+  decidedAt: string | null
+  decisionReasonCode: string | null
+  cancelledAt: string | null
+  cancellationReasonCode: string | null
+  cancellationCreditOutcome: AppointmentCancellationCreditOutcome | null
+  sessionEndedAt: string | null
+  sessionSettledAt: string | null
+  sessionOutcome: ChatSessionOutcome | null
+  sessionOutcomeReasonCode: string | null
+  settlementState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
+  updatedAt: string
+  version: number
+}>
+
+export type AdminAppointmentPage = Readonly<{
+  source: 'CONSULTATION'
+  dataState: 'CURRENT' | 'STALE' | 'UNAVAILABLE'
+  generatedAt: string
+  queryFrom: string
+  queryTo: string
+  items: AdminAppointmentItem[]
+  count: number
+  nextCursor: string | null
+}>
+
 export type ServicePackage = 'FREE' | 'PLUS' | 'PREMIUM'
 export type CreditSource = 'DEFAULT_FREE' | 'DEMO' | 'PAID'
 export type ConsultationCreditPolicyVersion =
   'consultation-credit-v1' | 'consultation-credit-v2'
 export type CreditEventType =
-  'PROVISIONED' | 'HELD' | 'CONSUMED' | 'RELEASED' | 'FORFEITED'
+  | 'PROVISIONED'
+  | 'HELD'
+  | 'CONSUMED'
+  | 'RELEASED'
+  | 'FORFEITED'
+  | 'ADJUSTED_RELEASED'
 
 export type ServiceCreditAccount = Readonly<{
   accountId: string
@@ -397,6 +461,266 @@ function utcInstant(value: unknown): value is string {
     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/.test(value) &&
     !Number.isNaN(Date.parse(value))
   )
+}
+
+const EARNING_STATUSES = [
+  'PENDING_SETTLEMENT',
+  'AVAILABLE',
+  'PROCESSING',
+  'PAID',
+  'REVERSED',
+] as const
+const PAYOUT_STATUSES = [
+  'PENDING',
+  'PROCESSING',
+  'SUCCEEDED',
+  'FAILED',
+  'UNKNOWN',
+] as const
+const PAYOUT_PROVIDERS = ['FAKE', 'MOMO'] as const
+const PAYOUT_DESTINATION_TYPES = ['MOMO_WALLET', 'BANK_ACCOUNT'] as const
+
+function nonNegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0
+}
+
+function nullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function parsePayoutDestinationValue(value: unknown): PayoutDestination | null {
+  const destination = record(value)
+  if (
+    !destination ||
+    !exactKeys(destination, [
+      'id',
+      'provider',
+      'destinationType',
+      'displayHint',
+      'status',
+      'verifiedAt',
+    ]) ||
+    !uuid(destination.id) ||
+    !PAYOUT_PROVIDERS.includes(destination.provider as never) ||
+    !PAYOUT_DESTINATION_TYPES.includes(destination.destinationType as never) ||
+    typeof destination.displayHint !== 'string' ||
+    !['VERIFIED', 'DISABLED'].includes(String(destination.status)) ||
+    !utcInstant(destination.verifiedAt)
+  )
+    return null
+  return destination as PayoutDestination
+}
+
+export function parsePayoutDestination(
+  value: unknown,
+): PayoutDestination | null {
+  return parsePayoutDestinationValue(value)
+}
+
+export function parseSavePayoutDestinationInput(
+  value: unknown,
+): SavePayoutDestinationInput {
+  const input = record(value)
+  if (
+    !input ||
+    !PAYOUT_DESTINATION_TYPES.includes(input.destinationType as never) ||
+    !exactKeys(
+      input,
+      input.destinationType === 'BANK_ACCOUNT'
+        ? [
+            'destinationType',
+            'accountReference',
+            'accountHolderName',
+            'bankCode',
+          ]
+        : ['destinationType', 'accountReference', 'accountHolderName'],
+    ) ||
+    typeof input.accountReference !== 'string' ||
+    !/^\d{6,32}$/.test(input.accountReference) ||
+    typeof input.accountHolderName !== 'string' ||
+    input.accountHolderName.trim().length === 0 ||
+    input.accountHolderName.length > 100 ||
+    !(
+      input.bankCode === undefined ||
+      (typeof input.bankCode === 'string' && input.bankCode.length <= 32)
+    ) ||
+    (input.destinationType === 'BANK_ACCOUNT' && !input.bankCode?.trim())
+  )
+    throw new ConsultationInputError('payoutDestination')
+  return input as SavePayoutDestinationInput
+}
+
+export function parseSpecialistEarnings(
+  value: unknown,
+): SpecialistEarnings | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, [
+      'currency',
+      'earningPolicyVersion',
+      'settlementHoldDays',
+      'minimumWithdrawalVnd',
+      'generatedAt',
+      'balance',
+      'destination',
+      'earnings',
+      'payouts',
+    ]) ||
+    response.currency !== 'VND' ||
+    response.earningPolicyVersion !== 'specialist-earning-v1' ||
+    response.settlementHoldDays !== 7 ||
+    response.minimumWithdrawalVnd !== 100000 ||
+    !utcInstant(response.generatedAt)
+  )
+    return null
+
+  const balance = record(response.balance)
+  if (
+    !balance ||
+    !exactKeys(balance, [
+      'pendingSettlementVnd',
+      'availableVnd',
+      'processingVnd',
+      'paidVnd',
+    ]) ||
+    !nonNegativeInteger(balance.pendingSettlementVnd) ||
+    !nonNegativeInteger(balance.availableVnd) ||
+    !nonNegativeInteger(balance.processingVnd) ||
+    !nonNegativeInteger(balance.paidVnd)
+  )
+    return null
+
+  const destination =
+    response.destination === null
+      ? null
+      : parsePayoutDestinationValue(response.destination)
+  if (response.destination !== null && destination === null) return null
+  if (!Array.isArray(response.earnings) || !Array.isArray(response.payouts))
+    return null
+
+  const earnings = response.earnings.map((value) => {
+    const earning = record(value)
+    if (
+      !earning ||
+      !exactKeys(earning, [
+        'id',
+        'appointmentId',
+        'consumedCreditId',
+        'planVersion',
+        'creditAllocationVnd',
+        'sharePercent',
+        'earningAmountVnd',
+        'status',
+        'earnedAt',
+        'settlementAvailableAt',
+      ]) ||
+      !uuid(earning.id) ||
+      !uuid(earning.appointmentId) ||
+      !uuid(earning.consumedCreditId) ||
+      typeof earning.planVersion !== 'string' ||
+      !Number.isSafeInteger(earning.creditAllocationVnd) ||
+      Number(earning.creditAllocationVnd) <= 0 ||
+      Number(earning.creditAllocationVnd) > 1000000000 ||
+      earning.sharePercent !== 70 ||
+      !Number.isSafeInteger(earning.earningAmountVnd) ||
+      Number(earning.earningAmountVnd) !==
+        Math.floor((Number(earning.creditAllocationVnd) * 70) / 100) ||
+      !EARNING_STATUSES.includes(earning.status as never) ||
+      !utcInstant(earning.earnedAt) ||
+      !utcInstant(earning.settlementAvailableAt)
+    )
+      return null
+    return earning
+  })
+  if (earnings.some((earning) => earning === null)) return null
+
+  const payouts = response.payouts.map((value) => {
+    const payout = record(value)
+    if (
+      !payout ||
+      !exactKeys(payout, [
+        'id',
+        'destinationId',
+        'amountVnd',
+        'provider',
+        'status',
+        'providerReference',
+        'failureCode',
+        'requestedAt',
+        'completedAt',
+      ]) ||
+      !uuid(payout.id) ||
+      !uuid(payout.destinationId) ||
+      !nonNegativeInteger(payout.amountVnd) ||
+      !PAYOUT_PROVIDERS.includes(payout.provider as never) ||
+      !PAYOUT_STATUSES.includes(payout.status as never) ||
+      !nullableString(payout.providerReference) ||
+      !nullableString(payout.failureCode) ||
+      !utcInstant(payout.requestedAt) ||
+      !(payout.completedAt === null || utcInstant(payout.completedAt))
+    )
+      return null
+    return payout
+  })
+  if (payouts.some((payout) => payout === null)) return null
+
+  return {
+    ...response,
+    balance,
+    destination,
+    earnings,
+    payouts,
+  } as SpecialistEarnings
+}
+
+export function parseAdminPayoutList(value: unknown): AdminPayoutList | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, ['generatedAt', 'count', 'items']) ||
+    !utcInstant(response.generatedAt) ||
+    !nonNegativeInteger(response.count) ||
+    !Array.isArray(response.items) ||
+    response.count !== response.items.length
+  )
+    return null
+  const items = response.items.map((value) => {
+    const payout = record(value)
+    if (
+      !payout ||
+      !exactKeys(payout, [
+        'payoutId',
+        'specialistAccountId',
+        'destinationHint',
+        'amountVnd',
+        'currency',
+        'provider',
+        'status',
+        'earningCount',
+        'providerReference',
+        'failureCode',
+        'requestedAt',
+        'completedAt',
+      ]) ||
+      !uuid(payout.payoutId) ||
+      !uuid(payout.specialistAccountId) ||
+      typeof payout.destinationHint !== 'string' ||
+      !nonNegativeInteger(payout.amountVnd) ||
+      payout.currency !== 'VND' ||
+      !PAYOUT_PROVIDERS.includes(payout.provider as never) ||
+      !PAYOUT_STATUSES.includes(payout.status as never) ||
+      !nonNegativeInteger(payout.earningCount) ||
+      !nullableString(payout.providerReference) ||
+      !nullableString(payout.failureCode) ||
+      !utcInstant(payout.requestedAt) ||
+      !(payout.completedAt === null || utcInstant(payout.completedAt))
+    )
+      return null
+    return payout
+  })
+  if (items.some((item) => item === null)) return null
+  return { ...response, items } as AdminPayoutList
 }
 
 function ianaTimezone(value: unknown): value is string {
@@ -1246,9 +1570,14 @@ export function parseServiceCreditAccount(
       !event ||
       !uuid(event.eventId) ||
       !uuid(event.creditId) ||
-      !['PROVISIONED', 'HELD', 'CONSUMED', 'RELEASED', 'FORFEITED'].includes(
-        String(event.eventType),
-      ) ||
+      ![
+        'PROVISIONED',
+        'HELD',
+        'CONSUMED',
+        'RELEASED',
+        'FORFEITED',
+        'ADJUSTED_RELEASED',
+      ].includes(String(event.eventType)) ||
       !['DEMO', 'PAID'].includes(String(event.source)) ||
       !['PLUS', 'PREMIUM'].includes(String(event.packageCode)) ||
       !['consultation-credit-v1', 'consultation-credit-v2'].includes(
@@ -1438,7 +1767,7 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
       item.sessionEndedAt !== null &&
       item.sessionSettledAt !== null &&
       item.completionFactId !== null &&
-      item.creditState === 'CONSUMED'
+      ['CONSUMED', 'AVAILABLE'].includes(String(item.creditState))
     )
   if (item.status === 'REJECTED')
     return (
@@ -1523,6 +1852,324 @@ export function parseAppointmentList(value: unknown): AppointmentList | null {
   return { ...result, items } as AppointmentList
 }
 
+export function parseAdminAppointmentPage(
+  value: unknown,
+): AdminAppointmentPage | null {
+  const page = record(value)
+  if (
+    !page ||
+    !exactKeys(page, [
+      'source',
+      'dataState',
+      'generatedAt',
+      'queryFrom',
+      'queryTo',
+      'items',
+      'count',
+      'nextCursor',
+    ]) ||
+    page.source !== 'CONSULTATION' ||
+    !['CURRENT', 'STALE', 'UNAVAILABLE'].includes(String(page.dataState)) ||
+    !utcInstant(page.generatedAt) ||
+    !utcInstant(page.queryFrom) ||
+    !utcInstant(page.queryTo) ||
+    !Array.isArray(page.items) ||
+    page.items.length > 100 ||
+    !Number.isInteger(page.count) ||
+    page.count !== page.items.length ||
+    (page.nextCursor !== null &&
+      (typeof page.nextCursor !== 'string' ||
+        page.nextCursor.length < 1 ||
+        page.nextCursor.length > 512))
+  )
+    return null
+
+  const items: AdminAppointmentItem[] = []
+  for (const input of page.items) {
+    const item = record(input)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'appointmentId',
+        'availabilitySlotId',
+        'userAccountId',
+        'specialistAccountId',
+        'status',
+        'modality',
+        'scheduledStartAt',
+        'scheduledEndAt',
+        'timezone',
+        'requestedAt',
+        'decisionDeadlineAt',
+        'decidedAt',
+        'decisionReasonCode',
+        'cancelledAt',
+        'cancellationReasonCode',
+        'cancellationCreditOutcome',
+        'sessionEndedAt',
+        'sessionSettledAt',
+        'sessionOutcome',
+        'sessionOutcomeReasonCode',
+        'settlementState',
+        'updatedAt',
+        'version',
+      ]) ||
+      !uuid(item.appointmentId) ||
+      !uuid(item.availabilitySlotId) ||
+      !uuid(item.userAccountId) ||
+      !uuid(item.specialistAccountId) ||
+      !APPOINTMENT_STATUSES.includes(item.status as AppointmentStatus) ||
+      !['IN_APP_CHAT', 'IN_APP_VIDEO'].includes(String(item.modality)) ||
+      !utcInstant(item.scheduledStartAt) ||
+      !utcInstant(item.scheduledEndAt) ||
+      typeof item.timezone !== 'string' ||
+      item.timezone.length < 1 ||
+      item.timezone.length > 64 ||
+      !utcInstant(item.requestedAt) ||
+      !utcInstant(item.decisionDeadlineAt) ||
+      !nullableInstant(item.decidedAt) ||
+      !nullableCode(item.decisionReasonCode) ||
+      !nullableInstant(item.cancelledAt) ||
+      !nullableCode(item.cancellationReasonCode) ||
+      ![null, 'RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT'].includes(
+        item.cancellationCreditOutcome as never,
+      ) ||
+      !nullableInstant(item.sessionEndedAt) ||
+      !nullableInstant(item.sessionSettledAt) ||
+      ![
+        null,
+        'COMPLETED',
+        'USER_NO_SHOW',
+        'SPECIALIST_NO_SHOW',
+        'BOTH_NO_SHOW',
+        'INSUFFICIENT_EVIDENCE',
+        'EVIDENCE_REVIEW',
+      ].includes(item.sessionOutcome as never) ||
+      !nullableCode(item.sessionOutcomeReasonCode) ||
+      !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
+        String(item.settlementState),
+      ) ||
+      !utcInstant(item.updatedAt) ||
+      !Number.isInteger(item.version) ||
+      (item.version as number) < 0
+    )
+      return null
+    items.push(item as AdminAppointmentItem)
+  }
+  return { ...page, items } as AdminAppointmentPage
+}
+
+function nullableInstant(value: unknown) {
+  return value === null || utcInstant(value)
+}
+
+function nullableCode(value: unknown) {
+  return (
+    value === null ||
+    (typeof value === 'string' && value.length >= 1 && value.length <= 64)
+  )
+}
+
+const DISPUTE_REASONS = [
+  'OUTCOME_INCORRECT',
+  'PARTICIPATION_EVIDENCE_INCORRECT',
+  'SESSION_DELIVERY_NOT_RECOGNIZED',
+  'TECHNICAL_FAILURE',
+] as const
+const DISPUTE_EVIDENCE_TYPES = [
+  'ACCESS_LOG',
+  'CONNECTION_INCIDENT',
+  'PROVIDER_INCIDENT',
+] as const
+const DISPUTE_RESOLUTION_OUTCOMES = [
+  'UPHOLD_RECORDED_OUTCOME',
+  'RELEASE_USER_CREDIT',
+] as const
+const DISPUTE_RESOLUTION_REASONS = [
+  'EVIDENCE_SUPPORTS_RECORDED_OUTCOME',
+  'EVIDENCE_INCONCLUSIVE_RELEASED',
+  'TECHNICAL_FAILURE_CONFIRMED',
+] as const
+
+export function parseOpenAppointmentDisputeInput(
+  value: unknown,
+): OpenAppointmentDisputeInput {
+  const input = record(value)
+  if (!input) throw new ConsultationInputError('body')
+  const keys = Object.keys(input)
+  if (
+    keys.length < 1 ||
+    keys.length > 3 ||
+    !keys.every((key) =>
+      ['reasonCode', 'evidenceType', 'evidenceOccurredAt'].includes(key),
+    ) ||
+    !DISPUTE_REASONS.includes(input.reasonCode as never)
+  )
+    throw new ConsultationInputError('reasonCode')
+  const evidenceType = input.evidenceType ?? null
+  const evidenceOccurredAt = input.evidenceOccurredAt ?? null
+  if (
+    ![...DISPUTE_EVIDENCE_TYPES, null].includes(evidenceType as never) ||
+    !instantOrNull(evidenceOccurredAt) ||
+    (evidenceType === null) !== (evidenceOccurredAt === null)
+  )
+    throw new ConsultationInputError('evidence')
+  return {
+    reasonCode: input.reasonCode as OpenAppointmentDisputeInput['reasonCode'],
+    evidenceType: evidenceType as OpenAppointmentDisputeInput['evidenceType'],
+    evidenceOccurredAt:
+      evidenceOccurredAt as OpenAppointmentDisputeInput['evidenceOccurredAt'],
+  }
+}
+
+export function parseResolveAppointmentDisputeInput(
+  value: unknown,
+): ResolveAppointmentDisputeInput {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['outcome', 'reasonCode']) ||
+    !DISPUTE_RESOLUTION_OUTCOMES.includes(input.outcome as never) ||
+    !DISPUTE_RESOLUTION_REASONS.includes(input.reasonCode as never) ||
+    (input.outcome === 'UPHOLD_RECORDED_OUTCOME') !==
+      (input.reasonCode === 'EVIDENCE_SUPPORTS_RECORDED_OUTCOME')
+  )
+    throw new ConsultationInputError('resolution')
+  return input as ResolveAppointmentDisputeInput
+}
+
+export function parseAppointmentDispute(
+  value: unknown,
+): AppointmentDispute | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'id',
+      'appointmentId',
+      'appointmentVersion',
+      'status',
+      'openedByRole',
+      'reasonCode',
+      'evidenceType',
+      'evidenceOccurredAt',
+      'openedAt',
+      'eligibleUntil',
+      'settlementGated',
+      'resolutionOutcome',
+      'resolutionReason',
+      'resolvedAt',
+      'priorAppointmentStatus',
+      'priorSessionOutcome',
+      'resultingAppointmentStatus',
+      'resultingSessionOutcome',
+      'creditAction',
+      'version',
+    ]) ||
+    !uuid(item.id) ||
+    !uuid(item.appointmentId) ||
+    !Number.isSafeInteger(item.appointmentVersion) ||
+    Number(item.appointmentVersion) < 0 ||
+    !['OPEN', 'RESOLVED'].includes(String(item.status)) ||
+    !['USER', 'SPECIALIST'].includes(String(item.openedByRole)) ||
+    !DISPUTE_REASONS.includes(item.reasonCode as never) ||
+    ![...DISPUTE_EVIDENCE_TYPES, null].includes(item.evidenceType as never) ||
+    !instantOrNull(item.evidenceOccurredAt) ||
+    (item.evidenceType === null) !== (item.evidenceOccurredAt === null) ||
+    !utcInstant(item.openedAt) ||
+    !utcInstant(item.eligibleUntil) ||
+    typeof item.settlementGated !== 'boolean' ||
+    ![...DISPUTE_RESOLUTION_OUTCOMES, null].includes(
+      item.resolutionOutcome as never,
+    ) ||
+    ![...DISPUTE_RESOLUTION_REASONS, null].includes(
+      item.resolutionReason as never,
+    ) ||
+    !instantOrNull(item.resolvedAt) ||
+    ![
+      null,
+      ...[
+        'REQUESTED',
+        'CONFIRMED',
+        'IN_PROGRESS',
+        'SESSION_ENDED',
+        'COMPLETED',
+        'REJECTED',
+        'EXPIRED',
+        'CANCELLED',
+      ],
+    ].includes(item.priorAppointmentStatus as never) ||
+    ![
+      null,
+      ...[
+        'REQUESTED',
+        'CONFIRMED',
+        'IN_PROGRESS',
+        'SESSION_ENDED',
+        'COMPLETED',
+        'REJECTED',
+        'EXPIRED',
+        'CANCELLED',
+      ],
+    ].includes(item.resultingAppointmentStatus as never) ||
+    ![
+      ...[
+        'COMPLETED',
+        'USER_NO_SHOW',
+        'SPECIALIST_NO_SHOW',
+        'BOTH_NO_SHOW',
+        'INSUFFICIENT_EVIDENCE',
+        'EVIDENCE_REVIEW',
+      ],
+      null,
+    ].includes(item.priorSessionOutcome as never) ||
+    ![
+      ...[
+        'COMPLETED',
+        'USER_NO_SHOW',
+        'SPECIALIST_NO_SHOW',
+        'BOTH_NO_SHOW',
+        'INSUFFICIENT_EVIDENCE',
+        'EVIDENCE_REVIEW',
+      ],
+      null,
+    ].includes(item.resultingSessionOutcome as never) ||
+    !['NONE', 'ALREADY_AVAILABLE', 'ADJUSTED_RELEASED', null].includes(
+      item.creditAction as never,
+    ) ||
+    !Number.isSafeInteger(item.version) ||
+    Number(item.version) < 0
+  )
+    return null
+  const resolved = item.status === 'RESOLVED'
+  if (
+    resolved !== (item.resolutionOutcome !== null) ||
+    resolved !== (item.resolutionReason !== null) ||
+    resolved !== (item.resolvedAt !== null) ||
+    resolved !== (item.creditAction !== null)
+  )
+    return null
+  return item as AppointmentDispute
+}
+
+export function parseAppointmentDisputeList(
+  value: unknown,
+): AppointmentDisputeList | null {
+  const result = record(value)
+  if (
+    !result ||
+    !exactKeys(result, ['items', 'count', 'generatedAt']) ||
+    !Array.isArray(result.items) ||
+    result.items.length > 100 ||
+    result.count !== result.items.length ||
+    !utcInstant(result.generatedAt)
+  )
+    return null
+  const items = result.items.map(parseAppointmentDispute)
+  return items.some((item) => item === null)
+    ? null
+    : ({ ...result, items } as AppointmentDisputeList)
+}
 export function parseAppointmentRequestInput(
   value: unknown,
 ): AppointmentRequestInput {

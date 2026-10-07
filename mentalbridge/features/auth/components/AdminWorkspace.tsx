@@ -7,6 +7,8 @@ import AdminSpecialistReviewSection from '@/features/specialist-profile/componen
 import AdminAccountManager from './AdminAccountManager'
 import AdminCommunityModerationSection from '@/features/community/components/AdminCommunityModerationSection'
 import AdminAuditLog from '@/features/audit/components/AdminAuditLog'
+import AdminAppointmentMonitor from '@/features/appointments/components/AdminAppointmentMonitor'
+import AdminAppointmentDisputes from '@/features/appointments/components/AdminAppointmentDisputes'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -34,6 +36,15 @@ const SECTIONS = {
     label: 'Kiểm duyệt Community',
     description:
       'Hàng đợi kiểm duyệt nội dung cộng đồng có nhật ký quyết định.',
+  },
+  appointments: {
+    label: 'Lịch hẹn',
+    description: 'Giám sát vận hành lịch hẹn từ nguồn Consultation.',
+  },
+  disputes: {
+    label: 'Xem xét phiên tư vấn',
+    description:
+      'Xử lý yêu cầu xem xét bằng các kết quả vận hành đã được phê duyệt.',
   },
   audit: {
     label: 'Nhật ký kiểm toán',
@@ -94,6 +105,10 @@ export default function AdminWorkspace({
           <AdminCommunityModerationSection />
         ) : section === 'audit' ? (
           <AdminAuditLog />
+        ) : section === 'appointments' ? (
+          <AdminAppointmentMonitor />
+        ) : section === 'disputes' ? (
+          <AdminAppointmentDisputes />
         ) : (
           <>
             <span className={styles.eyebrow}>

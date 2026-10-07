@@ -32,9 +32,11 @@ type UploadState = Readonly<{ mediaIds: string[]; busy: boolean }>
 
 export default function CommunityMediaUploader({
   disabled = false,
+  compact = false,
   onChange,
 }: Readonly<{
   disabled?: boolean
+  compact?: boolean
   onChange: (state: UploadState) => void
 }>) {
   const [items, setItems] = useState<UploadItem[]>([])
@@ -181,8 +183,9 @@ export default function CommunityMediaUploader({
         <div>
           <strong id="media-title">Ảnh hoặc video ngắn</strong>
           <p>
-            Ảnh được loại bỏ dữ liệu vị trí trước khi hiển thị. Video dài tối đa
-            60 giây.
+            {compact
+              ? 'Tối đa 10 tệp · Ảnh ≤ 10 MB · Video ≤ 50 MB, 60 giây.'
+              : 'Ảnh được loại bỏ dữ liệu vị trí trước khi hiển thị. Video dài tối đa 60 giây.'}
           </p>
         </div>
         <label className="community-media-picker">
@@ -237,9 +240,11 @@ export default function CommunityMediaUploader({
           {message}
         </p>
       )}
-      <small>
-        {items.length}/{MAX_MEDIA} tệp
-      </small>
+      {(!compact || items.length > 0) && (
+        <small>
+          {items.length}/{MAX_MEDIA} tệp
+        </small>
+      )}
     </section>
   )
 }

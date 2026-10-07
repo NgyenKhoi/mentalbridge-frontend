@@ -28,7 +28,7 @@ describe('CommunityShell', () => {
       screen.getByRole('link', { name: /Về không gian của bạn/ }),
     ).toHaveAttribute('href', '/dashboard')
     expect(
-      screen.getByRole('link', { name: /Bảng tin đồng hành/ }),
+      screen.getAllByRole('link', { name: 'Bảng tin' })[0],
     ).toHaveAttribute('aria-current', 'page')
   })
 
@@ -45,7 +45,7 @@ describe('CommunityShell', () => {
       screen.getByRole('link', { name: /Bài viết đã lưu/ }),
     ).toHaveAttribute('aria-current', 'page')
     expect(
-      screen.getByRole('link', { name: /Bảng tin đồng hành/ }),
+      screen.getAllByRole('link', { name: 'Bảng tin' })[0],
     ).not.toHaveAttribute('aria-current')
   })
 })

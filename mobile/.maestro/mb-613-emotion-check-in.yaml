@@ -1,0 +1,54 @@
+appId: com.mentalbridge.mobile
+name: MB-613 persisted emotion check-in to history and progress
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- tapOn: 'Đăng nhập'
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Ghi nhận cảm xúc'
+- assertVisible: 'Ghi nhận cảm xúc'
+- runFlow:
+    when:
+      visible: 'Bạn có thể điều chỉnh lựa chọn đã lưu trong hôm nay.'
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: 'Xóa ghi nhận'
+          direction: DOWN
+      - tapOn: 'Xóa ghi nhận'
+      - tapOn: 'Xác nhận xóa'
+      - assertVisible: 'Đã xóa ghi nhận đã chọn.'
+      - scrollUntilVisible:
+          element:
+            text: 'Cảm xúc hôm nay'
+          direction: UP
+- tapOn: 'Tốt'
+- tapOn: 'Mức cảm nhận 4'
+- tapOn: 'Lưu ghi nhận'
+- assertVisible: 'Đã lưu ghi nhận hôm nay.'
+- assertVisible: 'Đã ghi nhận [1-7]/7 ngày'
+- scrollUntilVisible:
+    element:
+      text: 'Lịch sử gần đây'
+    direction: DOWN
+- assertVisible: 'Mức cảm nhận 4/5'
+- scrollUntilVisible:
+    element:
+      text: '← Quay lại'
+    direction: UP
+- tapOn: '← Quay lại'
+- launchApp
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Ghi nhận cảm xúc'
+- assertVisible: 'Bạn có thể điều chỉnh lựa chọn đã lưu trong hôm nay.'
+- assertVisible: 'Đã ghi nhận [1-7]/7 ngày'
+- scrollUntilVisible:
+    element:
+      text: 'Lịch sử gần đây'
+    direction: DOWN
+- assertVisible: 'Mức cảm nhận 4/5'
