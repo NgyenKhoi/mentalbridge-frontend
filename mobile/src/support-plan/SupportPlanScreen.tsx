@@ -1119,8 +1119,8 @@ export function SupportPlanScreen({
             onPress={() =>
               runGovernedMutation(() =>
                 replacementMutation.mutate({
-                  current,
-                  draft,
+                  current: current!,
+                  draft: draft!,
                   review: replacementQuery.data!,
                 }),
               )
