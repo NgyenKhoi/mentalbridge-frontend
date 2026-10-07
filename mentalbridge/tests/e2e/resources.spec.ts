@@ -80,6 +80,33 @@ test.describe('Resources journey', () => {
         status: 'PUBLISHED',
         createdAt: '2026-09-23T00:00:00.000Z',
       },
+      {
+        id: '00000000-0000-4000-8000-000000000214',
+        category: 'ARTICLE',
+        locale: 'vi-VN',
+        title: 'Một khoảng nghỉ cho tâm trí',
+        summary: 'Những gợi ý ngắn để chậm lại giữa một ngày nhiều suy nghĩ.',
+        status: 'PUBLISHED',
+        createdAt: '2026-09-23T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000215',
+        category: 'BREATHING',
+        locale: 'vi-VN',
+        title: 'Nhịp thở 4–4–6',
+        summary: 'Một bài thực hành dịu dàng để đưa sự chú ý về hiện tại.',
+        status: 'PUBLISHED',
+        createdAt: '2026-09-23T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000216',
+        category: 'JOURNALING',
+        locale: 'vi-VN',
+        title: 'Ba dòng cho hôm nay',
+        summary: 'Ghi lại điều đang hiện diện bằng một nhịp thật vừa sức.',
+        status: 'PUBLISHED',
+        createdAt: '2026-09-23T00:00:00.000Z',
+      },
     ]
     await context.route('**/api/resources**', async (route) => {
       const requestUrl = new URL(route.request().url())
@@ -93,29 +120,25 @@ test.describe('Resources journey', () => {
             localDate: date,
             planId: '00000000-0000-4000-8000-000000000302',
             planVersion: 1,
-            items: [
-              {
-                position: 1,
-                resource: catalogue[0],
-                reason: 'PLAN_SELECTED',
-              },
-            ],
+            items: catalogue.map((resource, index) => ({
+              position: index + 1,
+              resource,
+              reason: 'PLAN_SELECTED',
+            })),
             progress: {
               dailyCompleted: 0,
-              dailyTotal: 1,
+              dailyTotal: catalogue.length,
               learningCompleted: 0,
-              learningTotal: 1,
+              learningTotal: catalogue.length,
               practiceStreakDays: 0,
             },
             weekStart: '2026-09-28',
-            bingo: [
-              {
-                position: 1,
-                resourceId,
-                label: catalogue[0].title,
-                stamped: false,
-              },
-            ],
+            bingo: catalogue.map((resource, index) => ({
+              position: index + 1,
+              resourceId: resource.id,
+              label: resource.title,
+              stamped: false,
+            })),
           }),
         })
         return
@@ -174,6 +197,7 @@ test.describe('Resources journey', () => {
       })
     })
 
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/resources')
     await expect(
       page.getByRole('heading', { name: /một chút bình yên/i }),
@@ -181,7 +205,44 @@ test.describe('Resources journey', () => {
     await expect(
       page.getByRole('heading', { name: /bingo tuần này/i }),
     ).toBeVisible()
-    await page.getByRole('link', { name: /khám phá/i }).click()
+    for (const viewport of [
+      { width: 1280, height: 800 },
+      { width: 768, height: 1024 },
+      { width: 375, height: 812 },
+      { width: 640, height: 400 },
+    ]) {
+      await page.setViewportSize(viewport)
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBe(viewport.width)
+    }
+    await page.setViewportSize({ width: 1440, height: 900 })
+    if (process.env.CAPTURE_RESOURCE_EVIDENCE === 'true') {
+      await page.screenshot({
+        path: 'docs/evidence/resources-garden-desktop.png',
+        fullPage: true,
+      })
+      await page.setViewportSize({ width: 375, height: 812 })
+      await expect
+        .poll(() =>
+          page
+            .locator('.ref-sidebar')
+            .evaluate((element) => element.getBoundingClientRect().right),
+        )
+        .toBeLessThanOrEqual(0)
+      await expect(
+        page.getByRole('heading', { name: /đường mòn 7 ngày/i }),
+      ).toBeVisible()
+      await page.screenshot({
+        path: 'docs/evidence/resources-garden-mobile.png',
+        fullPage: true,
+      })
+      await page.setViewportSize({ width: 1440, height: 900 })
+    }
+    await page
+      .getByRole('link', { name: /khám phá/i })
+      .first()
+      .click()
 
     await expect(
       page.getByRole('heading', { name: catalogue[0].title }),
