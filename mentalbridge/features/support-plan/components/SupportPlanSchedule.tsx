@@ -1,8 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Disclosure } from '@/components/ui/Disclosure'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
@@ -17,21 +15,13 @@ import type {
   SupportPlanOccurrenceList,
 } from '../api/support-plan-contract'
 
+import SupportPlanWeekCalendar from './SupportPlanWeekCalendar'
+import SupportPlanFeaturedActivity from './SupportPlanFeaturedActivity'
+import SupportPlanActivityRow from './SupportPlanActivityRow'
+import SupportPlanSidebarCards from './SupportPlanSidebarCards'
+import SupportPlanIcon from './SupportPlanIcon'
+
 const DEFAULT_TIMEZONE = 'Asia/Ho_Chi_Minh'
-
-const stateLabels: Record<SupportPlanOccurrence['displayState'], string> = {
-  SCHEDULED: 'Sắp tới',
-  MISSED: 'Đã qua giờ',
-  COMPLETED: 'Bạn đã ghi nhận là đã làm',
-  SKIPPED: 'Bạn đã ghi nhận là bỏ qua',
-  CANCELLED: 'Đã huỷ theo kế hoạch',
-}
-
-const sourceLabels: Record<SupportPlanOccurrence['source']['type'], string> = {
-  RESOURCE: 'Tài nguyên trong kế hoạch',
-  JOURNAL_PROMPT: 'Gợi ý viết nhật ký',
-  EMOTION_CHECK_IN_PROMPT: 'Gợi ý ghi nhận cảm xúc',
-}
 
 const helpfulnessOptions = [
   ['NOT_HELPFUL', 'Không hữu ích'],
@@ -72,15 +62,6 @@ function addDays(date: string, days: number) {
   return value.toISOString().slice(0, 10)
 }
 
-function timeLabel(occurrence: SupportPlanOccurrence) {
-  return new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: occurrence.timezone,
-    hour12: false,
-  }).format(new Date(occurrence.scheduledAt))
-}
-
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.code === 'OCCURRENCE_VERSION_MISMATCH') {
@@ -110,21 +91,56 @@ function initialDraft(
   }
 }
 
-type Props = Readonly<{ planStatus: 'ACTIVE' | 'PAUSED' }>
+type Props = Readonly<{
+  planStatus: 'ACTIVE' | 'PAUSED'
+  onToggleStatus?: () => void
+  onSwitchToManageTab?: () => void
+}>
 
-export default function SupportPlanSchedule({ planStatus }: Props) {
-  const { confirm, showActionToast } = useFeedback()
+export default function SupportPlanSchedule({
+  planStatus,
+  onToggleStatus,
+  onSwitchToManageTab,
+}: Props) {
+  const { showActionToast } = useFeedback()
   const today = useMemo(() => dateInZone(new Date(), DEFAULT_TIMEZONE), [])
+  const [selectedDate, setSelectedDate] = useState<string>(today)
+  const [weekOffset, setWeekOffset] = useState<number>(0)
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar')
+
   const [schedule, setSchedule] = useState<SupportPlanOccurrenceList>()
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string>()
   const [editingId, setEditingId] = useState<string>()
   const [draft, setDraft] = useState<Draft>()
-  const [expandedUpcomingId, setExpandedUpcomingId] = useState<string | null>(
-    null,
-  )
   const [showAllUpcoming, setShowAllUpcoming] = useState(false)
   const [message, setMessage] = useState('')
+
+  // Compute 7 days of the currently navigated week
+  const weekDays = useMemo(() => {
+    // Determine start of current week (Monday)
+    const todayDate = new Date(`${today}T00:00:00Z`)
+    const dayOfWeek = todayDate.getUTCDay() // 0 = Sun, 1 = Mon ...
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const mondayStr = addDays(today, diffToMonday + weekOffset * 7)
+
+    const days: string[] = []
+    for (let i = 0; i < 7; i++) {
+      days.push(addDays(mondayStr, i))
+    }
+    return days
+  }, [today, weekOffset])
+
+  const weekRangeLabel = useMemo(() => {
+    if (weekDays.length === 0) return ''
+    const startParts = weekDays[0].split('-')
+    const endParts = weekDays[6].split('-')
+    const startDay = parseInt(startParts[2], 10)
+    const endDay = parseInt(endParts[2], 10)
+    const endMonth = parseInt(endParts[1], 10)
+    const endYear = endParts[0]
+    return `${startDay} - ${endDay} Tháng ${endMonth}, ${endYear}`
+  }, [weekDays])
 
   const load = useCallback(
     async (messageAfterLoad = '') => {
@@ -189,6 +205,8 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
         successMessage,
       )
     } catch (error) {
+      setEditingId(undefined)
+      setDraft(undefined)
       await load(errorMessage(error))
     } finally {
       setBusyId(undefined)
@@ -213,14 +231,6 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
   }
 
   const remove = async (occurrence: SupportPlanOccurrence) => {
-    const confirmed = await confirm({
-      title: 'Xóa phần tự ghi nhận?',
-      description:
-        'Đánh giá và ghi chú của bạn cho hoạt động này sẽ bị xóa. Hoạt động gốc vẫn được giữ trong lịch.',
-      confirmLabel: 'Xóa tự ghi nhận',
-      tone: 'danger',
-    })
-    if (!confirmed) return
     setBusyId(occurrence.occurrenceId)
     setMessage('')
     try {
@@ -232,6 +242,8 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
         'Đã xoá phần tự ghi nhận; lịch gốc vẫn được giữ lại.',
       )
     } catch (error) {
+      setEditingId(undefined)
+      setDraft(undefined)
       await load(errorMessage(error))
     } finally {
       setBusyId(undefined)
@@ -239,16 +251,6 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
   }
 
   const toggleVisibility = async (occurrence: SupportPlanOccurrence) => {
-    if (!occurrence.hidden) {
-      const confirmed = await confirm({
-        title: 'Ẩn hoạt động này?',
-        description:
-          'Hoạt động sẽ được chuyển khỏi danh sách chính. Bạn vẫn có thể hiện lại sau.',
-        confirmLabel: 'Ẩn hoạt động',
-        tone: 'warning',
-      })
-      if (!confirmed) return
-    }
     await replace(
       occurrence,
       {
@@ -278,8 +280,18 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
   const authoritativePlanStatus = schedule?.supportPlanStatus ?? planStatus
   const visible = occurrences.filter((item) => !item.hidden)
   const hidden = occurrences.filter((item) => item.hidden)
+
+  // Items for selected date
+  const selectedDateItems = visible.filter(
+    (item) => item.localDate === selectedDate,
+  )
   const todayItems = visible.filter((item) => item.localDate === today)
-  const upcoming = visible.filter((item) => item.localDate !== today)
+  const upcoming = visible.filter(
+    (item) =>
+      item.localDate > today &&
+      item.localDate >= weekDays[0] &&
+      item.localDate <= weekDays[6],
+  )
 
   const renderForm = (occurrence: SupportPlanOccurrence) => {
     if (
@@ -401,114 +413,278 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
     )
   }
 
-  const renderItem = (occurrence: SupportPlanOccurrence) => {
-    const mutable =
-      occurrence.state !== 'CANCELLED' && authoritativePlanStatus === 'ACTIVE'
-    const hasResponse =
-      occurrence.state === 'COMPLETED' ||
-      occurrence.state === 'SKIPPED' ||
-      occurrence.hidden ||
-      occurrence.reflection !== null
-    const busy = busyId === occurrence.occurrenceId
-    const resourceHref =
-      occurrence.source.type === 'RESOURCE' &&
-      occurrence.source.resourceId !== null &&
-      occurrence.source.contentVersion !== null
-        ? `/resources/${occurrence.source.resourceId}?from=support-plan&contentVersion=${encodeURIComponent(occurrence.source.contentVersion)}`
-        : null
-    return (
-      <li
-        className={`support-plan-occurrence state-${occurrence.displayState.toLowerCase()}`}
-        key={occurrence.occurrenceId}
-      >
-        <time dateTime={occurrence.scheduledAt}>
-          <strong>{timeLabel(occurrence)}</strong>
-          <span>{occurrence.timezone}</span>
-        </time>
-        <div className="support-plan-occurrence-copy">
-          <span className="support-plan-occurrence-state">
-            {stateLabels[occurrence.displayState]}
-          </span>
-          <h4>{occurrence.source.title}</h4>
-          {resourceHref && (
-            <Link className="support-plan-resource-link" href={resourceHref}>
-              Mở tài nguyên <span aria-hidden="true">→</span>
-            </Link>
-          )}
-          {occurrence.reflection && (
-            <p className="support-plan-reflection">“{occurrence.reflection}”</p>
-          )}
-          <Disclosure summary="Thông tin kỹ thuật">
-            <p>
-              {sourceLabels[occurrence.source.type]} · lịch{' '}
-              {occurrence.scheduleVersion} · SupportPlan{' '}
-              {occurrence.source.supportPlanVersion}
-            </p>
-            {occurrence.source.type === 'RESOURCE' && (
+  const formattedSelectedDateHeading = (() => {
+    try {
+      const d = new Date(`${selectedDate}T00:00:00Z`)
+      const weekday = new Intl.DateTimeFormat('vi-VN', {
+        weekday: 'long',
+        timeZone: 'UTC',
+      }).format(d)
+      const dayMonthYear = new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(d)
+      const prefix = selectedDate === today ? 'Hoạt động hôm nay' : 'Hoạt động'
+      return `${prefix} · ${weekday}, ${dayMonthYear}`
+    } catch {
+      return `Hoạt động ngày ${selectedDate}`
+    }
+  })()
+
+  return (
+    <section
+      className="support-plan-schedule"
+      aria-labelledby="support-plan-schedule-title"
+    >
+      <h2 id="support-plan-schedule-title" className="sr-only">
+        Hoạt động của tôi
+      </h2>
+      {/* 7-Day Calendar Grid with integrated View Switcher & Title */}
+      <SupportPlanWeekCalendar
+        weekDays={weekDays}
+        selectedDate={selectedDate}
+        today={today}
+        occurrences={occurrences}
+        onSelectDate={(d) => setSelectedDate(d)}
+        onPrevWeek={() => setWeekOffset((prev) => prev - 1)}
+        onNextWeek={() => setWeekOffset((prev) => prev + 1)}
+        weekRangeLabel={weekRangeLabel}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        pausedStatusBadge={
+          authoritativePlanStatus === 'PAUSED' ? (
+            <div className="support-plan-status-badge-paused">
+              <SupportPlanIcon name="pause_circle" size={16} />
+              <span>Kế hoạch đang tạm dừng</span>
+            </div>
+          ) : undefined
+        }
+      />
+
+      {/* Main 2-Column Area: 8 cols activities, 4 cols sidebar */}
+      <div className="support-plan-content-grid">
+        {/* Left Column (8 cols): Activities for selected date */}
+        <div className="support-plan-activities-col">
+          <div className="support-plan-col-header">
+            <div className="support-plan-flex-row">
+              <h4 className="support-plan-section-title">
+                {formattedSelectedDateHeading}
+              </h4>
+              <span className="support-plan-count-badge">
+                {selectedDateItems.length} mục
+              </span>
+            </div>
+          </div>
+
+          {/* Selected Date or Today's Activities */}
+          {occurrences.length === 0 ? (
+            <p>Chưa có hoạt động trong khoảng thời gian này.</p>
+          ) : selectedDateItems.length === 0 ? (
+            <div className="support-plan-empty-date-state">
               <p>
-                Phiên bản tài nguyên {occurrence.source.contentVersion} · slot{' '}
-                {occurrence.source.slotId}
+                {selectedDate === today
+                  ? 'Hôm nay chưa có hoạt động nào được xếp lịch.'
+                  : 'Không có hoạt động nào được xếp lịch cho ngày này.'}
               </p>
+            </div>
+          ) : (
+            <div className="support-plan-activities-list">
+              {/* First activity is rendered as Featured Card */}
+              {selectedDateItems[0] && (
+                <SupportPlanFeaturedActivity
+                  key={selectedDateItems[0].occurrenceId}
+                  occurrence={selectedDateItems[0]}
+                  authoritativePlanStatus={authoritativePlanStatus}
+                  busy={busyId === selectedDateItems[0].occurrenceId}
+                  isEditing={editingId === selectedDateItems[0].occurrenceId}
+                  onStartEditing={(st) => {
+                    setEditingId(selectedDateItems[0].occurrenceId)
+                    setDraft(initialDraft(selectedDateItems[0], st))
+                  }}
+                  onReopen={() =>
+                    void replace(
+                      selectedDateItems[0],
+                      {
+                        state: 'SCHEDULED',
+                        hidden: selectedDateItems[0].hidden,
+                        helpfulness: null,
+                        barrierCode: null,
+                        reflection: null,
+                        summaryReuseApproved: false,
+                      },
+                      'Đã mở lại mục này.',
+                    )
+                  }
+                  onToggleVisibility={() =>
+                    void toggleVisibility(selectedDateItems[0])
+                  }
+                  onRemove={() => void remove(selectedDateItems[0])}
+                  renderForm={() => renderForm(selectedDateItems[0])}
+                />
+              )}
+
+              {/* Remaining activities are rendered as compact rows */}
+              {selectedDateItems.length > 1 && (
+                <div className="support-plan-rows-container">
+                  {selectedDateItems.slice(1).map((item) => (
+                    <SupportPlanActivityRow
+                      key={item.occurrenceId}
+                      occurrence={item}
+                      authoritativePlanStatus={authoritativePlanStatus}
+                      busy={busyId === item.occurrenceId}
+                      isEditing={editingId === item.occurrenceId}
+                      onStartEditing={(st) => {
+                        setEditingId(item.occurrenceId)
+                        setDraft(initialDraft(item, st))
+                      }}
+                      onReopen={() =>
+                        void replace(
+                          item,
+                          {
+                            state: 'SCHEDULED',
+                            hidden: item.hidden,
+                            helpfulness: null,
+                            barrierCode: null,
+                            reflection: null,
+                            summaryReuseApproved: false,
+                          },
+                          'Đã mở lại mục này.',
+                        )
+                      }
+                      onToggleVisibility={() => void toggleVisibility(item)}
+                      onRemove={() => void remove(item)}
+                      renderForm={() => renderForm(item)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Upcoming Section: always shown when viewing today (or list view) and upcoming items exist */}
+          {(selectedDate === today || viewMode === 'list') &&
+            upcoming.length > 0 && (
+              <div className="support-plan-upcoming-section">
+                <div className="support-plan-upcoming-heading">
+                  <h4 className="support-plan-section-title">
+                    Hoạt động sắp tới
+                  </h4>
+                  <span>Trong tuần này</span>
+                </div>
+                <div className="support-plan-activities-list">
+                  {/* First item is featured if today has no items */}
+                  {todayItems.length === 0 && upcoming[0] && (
+                    <SupportPlanFeaturedActivity
+                      key={upcoming[0].occurrenceId}
+                      occurrence={upcoming[0]}
+                      authoritativePlanStatus={authoritativePlanStatus}
+                      busy={busyId === upcoming[0].occurrenceId}
+                      isEditing={editingId === upcoming[0].occurrenceId}
+                      onStartEditing={(st) => {
+                        setEditingId(upcoming[0].occurrenceId)
+                        setDraft(initialDraft(upcoming[0], st))
+                      }}
+                      onReopen={() =>
+                        void replace(
+                          upcoming[0],
+                          {
+                            state: 'SCHEDULED',
+                            hidden: upcoming[0].hidden,
+                            helpfulness: null,
+                            barrierCode: null,
+                            reflection: null,
+                            summaryReuseApproved: false,
+                          },
+                          'Đã mở lại mục này.',
+                        )
+                      }
+                      onToggleVisibility={() =>
+                        void toggleVisibility(upcoming[0])
+                      }
+                      onRemove={() => void remove(upcoming[0])}
+                      renderForm={() => renderForm(upcoming[0])}
+                    />
+                  )}
+
+                  {/* Remaining items rendered as modern rows */}
+                  <div className="support-plan-rows-container">
+                    {(todayItems.length === 0 ? upcoming.slice(1) : upcoming)
+                      .slice(0, showAllUpcoming ? undefined : 3)
+                      .map((item) => (
+                        <SupportPlanActivityRow
+                          key={item.occurrenceId}
+                          occurrence={item}
+                          authoritativePlanStatus={authoritativePlanStatus}
+                          busy={busyId === item.occurrenceId}
+                          isEditing={editingId === item.occurrenceId}
+                          onStartEditing={(st) => {
+                            setEditingId(item.occurrenceId)
+                            setDraft(initialDraft(item, st))
+                          }}
+                          onReopen={() =>
+                            void replace(
+                              item,
+                              {
+                                state: 'SCHEDULED',
+                                hidden: item.hidden,
+                                helpfulness: null,
+                                barrierCode: null,
+                                reflection: null,
+                                summaryReuseApproved: false,
+                              },
+                              'Đã mở lại mục này.',
+                            )
+                          }
+                          onToggleVisibility={() => void toggleVisibility(item)}
+                          onRemove={() => void remove(item)}
+                          renderForm={() => renderForm(item)}
+                        />
+                      ))}
+                  </div>
+                </div>
+
+                {upcoming.length > (todayItems.length === 0 ? 4 : 3) && (
+                  <div className="support-plan-schedule-more">
+                    <button
+                      type="button"
+                      className="support-plan-schedule-more-btn"
+                      onClick={() => setShowAllUpcoming((prev) => !prev)}
+                    >
+                      {showAllUpcoming
+                        ? 'Thu gọn danh sách ↑'
+                        : `Còn ${upcoming.length - (todayItems.length === 0 ? 4 : 3)} hoạt động khác trong tuần này · Xem tất cả →`}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
-            {occurrence.engagementUpdatedAt && (
-              <p>Tự ghi nhận được lưu theo phiên bản {occurrence.version}.</p>
-            )}
-          </Disclosure>
-          {mutable && (
-            <div className="support-plan-occurrence-actions">
-              {occurrence.state === 'SCHEDULED' ? (
-                <>
-                  <button
-                    className="btn btn-primary"
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setEditingId(occurrence.occurrenceId)
-                      setDraft(initialDraft(occurrence, 'COMPLETED'))
+
+          {/* Hidden Items Disclosure */}
+          {hidden.length > 0 && (
+            <Disclosure
+              className="support-plan-hidden-items"
+              summary={`Đã ẩn (${hidden.length})`}
+            >
+              <div className="support-plan-hidden-list">
+                {hidden.map((item) => (
+                  <SupportPlanActivityRow
+                    key={item.occurrenceId}
+                    occurrence={item}
+                    authoritativePlanStatus={authoritativePlanStatus}
+                    busy={busyId === item.occurrenceId}
+                    isEditing={editingId === item.occurrenceId}
+                    onStartEditing={(st) => {
+                      setEditingId(item.occurrenceId)
+                      setDraft(initialDraft(item, st))
                     }}
-                  >
-                    Ghi nhận đã làm
-                  </button>
-                  <button
-                    className="btn btn-ghost"
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setEditingId(occurrence.occurrenceId)
-                      setDraft(initialDraft(occurrence, 'SKIPPED'))
-                    }}
-                  >
-                    Ghi nhận bỏ qua
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    className="btn btn-ghost"
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setEditingId(occurrence.occurrenceId)
-                      setDraft(
-                        initialDraft(
-                          occurrence,
-                          occurrence.state as EditableState,
-                        ),
-                      )
-                    }}
-                  >
-                    Chỉnh sửa tự ghi nhận
-                  </button>
-                  <button
-                    className="btn btn-ghost"
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
+                    onReopen={() =>
                       void replace(
-                        occurrence,
+                        item,
                         {
                           state: 'SCHEDULED',
-                          hidden: occurrence.hidden,
+                          hidden: item.hidden,
                           helpfulness: null,
                           barrierCode: null,
                           reflection: null,
@@ -517,160 +693,43 @@ export default function SupportPlanSchedule({ planStatus }: Props) {
                         'Đã mở lại mục này.',
                       )
                     }
-                  >
-                    Mở lại
-                  </button>
-                </>
-              )}
-              <button
-                className="btn btn-ghost"
-                type="button"
-                disabled={busy}
-                onClick={() => void toggleVisibility(occurrence)}
-              >
-                {occurrence.hidden ? 'Hiện lại' : 'Ẩn khỏi danh sách'}
-              </button>
-              {hasResponse && (
-                <button
-                  className="btn btn-ghost"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void remove(occurrence)}
-                >
-                  Xoá tự ghi nhận
-                </button>
-              )}
-            </div>
-          )}
-          {renderForm(occurrence)}
-        </div>
-      </li>
-    )
-  }
-
-  return (
-    <section
-      className="support-plan-schedule"
-      aria-labelledby="support-plan-schedule-title"
-    >
-      <div className="support-plan-schedule-heading">
-        <div>
-          <span>Giờ địa phương</span>
-          <h3 id="support-plan-schedule-title">Hoạt động của tôi</h3>
-        </div>
-        {authoritativePlanStatus === 'PAUSED' && <strong>Đang tạm dừng</strong>}
-      </div>
-      {occurrences.length === 0 ? (
-        <p>Chưa có hoạt động trong khoảng thời gian này.</p>
-      ) : (
-        <div className="support-plan-schedule-groups">
-          <div>
-            <h4>Hôm nay</h4>
-            {todayItems.length > 0 ? (
-              <ol>{todayItems.map(renderItem)}</ol>
-            ) : (
-              <p>Hôm nay không có mục đang hiển thị.</p>
-            )}
-          </div>
-          <div>
-            <h4>13 ngày sắp tới</h4>
-            {upcoming.length > 0 ? (
-              <ol className="support-plan-upcoming-list">
-                {(showAllUpcoming ? upcoming : upcoming.slice(0, 3)).map(
-                  (item) => {
-                    const activeUpcomingId =
-                      expandedUpcomingId === '__NONE__'
-                        ? null
-                        : (expandedUpcomingId ?? upcoming[0]?.occurrenceId)
-
-                    const isOpen =
-                      item.occurrenceId === activeUpcomingId ||
-                      editingId === item.occurrenceId
-
-                    if (isOpen) {
-                      return renderItem(item)
-                    }
-
-                    return (
-                      <li
-                        className={`support-plan-occurrence-compact state-${item.displayState.toLowerCase()}`}
-                        key={item.occurrenceId}
-                      >
-                        <button
-                          type="button"
-                          className="support-plan-occurrence-compact-btn"
-                          onClick={() =>
-                            setExpandedUpcomingId(item.occurrenceId)
-                          }
-                          aria-expanded={false}
-                        >
-                          <div className="support-plan-occurrence-compact-time">
-                            <strong>{timeLabel(item)}</strong>
-                            <span>{item.timezone}</span>
-                          </div>
-                          <div className="support-plan-occurrence-compact-title">
-                            <h5>{item.source.title}</h5>
-                          </div>
-                          <div className="support-plan-occurrence-compact-meta">
-                            <span className="support-plan-occurrence-badge">
-                              {stateLabels[item.displayState]}
-                            </span>
-                            <svg
-                              className="support-plan-chevron-icon"
-                              viewBox="0 0 20 20"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden="true"
-                            >
-                              <path d="m6 8 4 4 4-4" />
-                            </svg>
-                          </div>
-                        </button>
-                      </li>
-                    )
-                  },
-                )}
-              </ol>
-            ) : (
-              <p>Không có mục sắp tới đang hiển thị.</p>
-            )}
-            {upcoming.length > 3 && (
-              <div className="support-plan-schedule-more">
-                <button
-                  type="button"
-                  className="support-plan-schedule-more-btn"
-                  onClick={() => setShowAllUpcoming((prev) => !prev)}
-                >
-                  {showAllUpcoming
-                    ? 'Thu gọn danh sách ↑'
-                    : `Còn ${upcoming.length - 3} hoạt động khác · Xem tất cả →`}
-                </button>
+                    onToggleVisibility={() => void toggleVisibility(item)}
+                    onRemove={() => void remove(item)}
+                    renderForm={() => renderForm(item)}
+                  />
+                ))}
               </div>
-            )}
-          </div>
-          {hidden.length > 0 && (
-            <Disclosure
-              className="support-plan-hidden-items"
-              summary={`Đã ẩn (${hidden.length})`}
-            >
-              <ol>{hidden.map(renderItem)}</ol>
             </Disclosure>
           )}
+
+          {/* Clinical Boundary Disclaimer */}
+          <div className="support-plan-schedule-boundary">
+            <SupportPlanIcon
+              name="info"
+              size={16}
+              className="support-plan-boundary-icon"
+            />
+            <p>
+              Đây là thông tin bạn tự ghi nhận cho riêng mình, không phải đánh
+              giá tuân thủ điều trị, kết quả lâm sàng hay mức độ hồi phục.
+              Chuyên gia không theo dõi trực tiếp danh sách này. Chỉ trạng thái
+              hoạt động mà bạn cho phép và duyệt mới có thể dùng trong bản tóm
+              tắt; ghi chú riêng không được chia sẻ.
+            </p>
+          </div>
+
+          <p role="status" aria-live="polite">
+            {message}
+          </p>
         </div>
-      )}
-      <p className="support-plan-schedule-boundary">
-        Đây là thông tin bạn tự ghi nhận cho riêng mình, không phải đánh giá
-        tuân thủ điều trị, kết quả lâm sàng hay mức độ hồi phục. Chuyên gia
-        không theo dõi trực tiếp danh sách này. Chỉ trạng thái hoạt động mà bạn
-        cho phép và duyệt mới có thể dùng trong bản tóm tắt; ghi chú riêng không
-        được chia sẻ.
-      </p>
-      <p role="status" aria-live="polite">
-        {message}
-      </p>
+
+        {/* Right Column (4 cols): Sidebar cards */}
+        <SupportPlanSidebarCards
+          planStatus={authoritativePlanStatus}
+          onToggleStatus={onToggleStatus}
+          onSwitchToManageTab={onSwitchToManageTab}
+        />
+      </div>
     </section>
   )
 }

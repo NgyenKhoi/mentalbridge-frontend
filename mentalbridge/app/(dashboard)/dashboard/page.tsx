@@ -193,7 +193,7 @@ export default function DashboardPage() {
         </Link>
       </section>
       <section ref={bentoRef} className="ref-panel">
-        <div id="emotion-check-in" className="ref-panel-col ref-panel-mood">
+        <div className="ref-panel-col ref-panel-mood">
           <DailyEmotionCheckIn
             onPersisted={() => setEmotionRefresh((value) => value + 1)}
           />

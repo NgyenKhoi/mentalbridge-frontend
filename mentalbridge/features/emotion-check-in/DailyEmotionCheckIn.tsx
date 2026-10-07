@@ -63,6 +63,16 @@ function messageFor(error: unknown, saving: boolean) {
     : 'Ghi nhận cảm xúc hôm nay tạm thời chưa tải được.'
 }
 
+const INFLUENCE_FACTORS = [
+  'Giấc ngủ',
+  'Công việc',
+  'Học tập',
+  'Gia đình',
+  'Bạn bè',
+  'Sức khỏe',
+  'Khác',
+]
+
 export function DailyEmotionCheckIn({
   onPersisted,
 }: Readonly<{ onPersisted?: () => void }>) {
@@ -74,6 +84,9 @@ export function DailyEmotionCheckIn({
     localDateInTimeZone(new Date(), timezone),
   )
   const [persisted, setPersisted] = useState<EmotionCheckIn | null>(null)
+  const [yesterdayCheckIn, setYesterdayCheckIn] =
+    useState<EmotionCheckIn | null>(null)
+  const [selectedFactors, setSelectedFactors] = useState<string[]>([])
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [phase, setPhase] = useState<Phase>('loading')
   const [retryKind, setRetryKind] = useState<RetryKind>('load')
@@ -81,6 +94,31 @@ export function DailyEmotionCheckIn({
   const [reload, setReload] = useState(0)
   const activeDate = useRef(localDate)
   const mutation = useRef<{ fingerprint: string; key: string } | null>(null)
+
+  useEffect(() => {
+    let active = true
+    const yDate = new Date()
+    yDate.setDate(yDate.getDate() - 1)
+    const yDateStr = localDateInTimeZone(yDate, timezone)
+
+    void import('./api/browser-emotion-check-in')
+      .then((m) => {
+        if (!active || typeof m.listEmotionCheckIns !== 'function') return
+        return m.listEmotionCheckIns(10)
+      })
+      .then((res) => {
+        if (!active || !res) return
+        const found = res.items?.find((item) => item.localDate === yDateStr)
+        setYesterdayCheckIn(found ?? null)
+      })
+      .catch(() => {
+        if (active) setYesterdayCheckIn(null)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [timezone, reload])
 
   useEffect(() => {
     let active = true
@@ -318,19 +356,157 @@ export function DailyEmotionCheckIn({
       )}
 
       {phase !== 'loading' ? (
-        <div
-          className={`${styles.feedback} ${phase === 'error' ? styles.error : ''}`}
-          role={phase === 'error' ? 'alert' : 'status'}
-          aria-live="polite"
-        >
-          <span>{message}</span>
-          {phase === 'error' ? (
-            <button type="button" onClick={retry}>
-              Thử lại
-            </button>
-          ) : null}
-        </div>
+        <>
+          <div className={styles.divider} aria-hidden="true" />
+          <div
+            className={`${styles.feedback} ${phase === 'error' ? styles.error : ''}`}
+            role={phase === 'error' ? 'alert' : 'status'}
+            aria-live="polite"
+          >
+            <div className={styles.statusRow}>
+              {(phase === 'saved' || persisted) && phase !== 'error' ? (
+                <svg
+                  className={styles.checkIcon}
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="m9 12 2 2 4-4" />
+                </svg>
+              ) : null}
+              <span>{message}</span>
+            </div>
+            {phase === 'error' ? (
+              <button type="button" className={styles.retryBtn} onClick={retry}>
+                Thử lại
+              </button>
+            ) : null}
+          </div>
+        </>
       ) : null}
+
+      {/* 6. MỚI: Điều gì đang ảnh hưởng đến bạn? (tùy chọn) */}
+      <div className={styles.influenceSection}>
+        <h3 className={styles.influenceTitle}>
+          Điều gì đang ảnh hưởng đến bạn?{' '}
+          <span className={styles.optionalTag}>(tùy chọn)</span>
+        </h3>
+        <div
+          className={styles.chipList}
+          role="group"
+          aria-label="Các yếu tố ảnh hưởng"
+        >
+          {INFLUENCE_FACTORS.map((factor) => {
+            const isSelected = selectedFactors.includes(factor)
+            return (
+              <button
+                key={factor}
+                type="button"
+                className={`${styles.chip} ${isSelected ? styles.chipSelected : ''}`}
+                aria-pressed={isSelected}
+                onClick={() =>
+                  setSelectedFactors((prev) =>
+                    prev.includes(factor)
+                      ? prev.filter((f) => f !== factor)
+                      : [...prev, factor],
+                  )
+                }
+              >
+                {factor}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* 7. MỚI: Hôm qua và hôm nay */}
+      <div className={styles.comparisonSection}>
+        <h3 className={styles.comparisonTitle}>Hôm qua và hôm nay</h3>
+        <div className={styles.comparisonBoxes}>
+          {/* Ô trái: Hôm qua */}
+          <div className={styles.boxYesterday}>
+            <span className={styles.boxDate}>
+              {yesterdayCheckIn
+                ? (() => {
+                    const parts = yesterdayCheckIn.localDate.split('-')
+                    return `${parts[2]}/${parts[1]}`
+                  })()
+                : 'Hôm qua'}
+            </span>
+            {yesterdayCheckIn ? (
+              <>
+                <span className={styles.boxMood}>
+                  <span aria-hidden="true">
+                    {
+                      emotions.find((e) => e.value === yesterdayCheckIn.emotion)
+                        ?.emoji
+                    }
+                  </span>
+                  <strong>
+                    {
+                      emotions.find((e) => e.value === yesterdayCheckIn.emotion)
+                        ?.label
+                    }
+                  </strong>
+                </span>
+                <span className={styles.boxIntensity}>
+                  Cường độ {yesterdayCheckIn.intensity}/5
+                </span>
+              </>
+            ) : (
+              <div className={styles.boxEmptyState}>
+                <span className={styles.boxEmptyText}>Chưa có ghi nhận</span>
+              </div>
+            )}
+          </div>
+
+          <span className={styles.boxArrow} aria-hidden="true">
+            →
+          </span>
+
+          {/* Ô phải: Hôm nay */}
+          <div className={styles.boxToday}>
+            <span className={styles.boxTodayDate}>Hôm nay</span>
+            {draft.emotion || persisted?.emotion ? (
+              <>
+                <span className={styles.boxTodayMood}>
+                  <span aria-hidden="true">
+                    {
+                      emotions.find(
+                        (e) =>
+                          e.value === (draft.emotion ?? persisted?.emotion),
+                      )?.emoji
+                    }
+                  </span>
+                  <strong>
+                    {
+                      emotions.find(
+                        (e) =>
+                          e.value === (draft.emotion ?? persisted?.emotion),
+                      )?.label
+                    }
+                  </strong>
+                </span>
+                <span className={styles.boxTodayIntensity}>
+                  Cường độ {draft.intensity ?? persisted?.intensity ?? 3}/5
+                </span>
+              </>
+            ) : (
+              <div className={styles.boxEmptyState}>
+                <span className={styles.boxEmptyText}>Chưa có ghi nhận</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <p className={styles.disclaimer}>
         Đây là ghi nhận do bạn tự chọn, không phải chẩn đoán hay đánh giá an
         toàn.

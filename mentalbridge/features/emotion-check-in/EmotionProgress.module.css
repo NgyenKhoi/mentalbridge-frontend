@@ -2,8 +2,9 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: 13px;
+  gap: 12px;
   height: 100%;
+  box-sizing: border-box;
 }
 
 .heading {
@@ -18,7 +19,7 @@
   color: var(--teal-deep);
   font: 650 16px/1.3 var(--font-be-vietnam);
   letter-spacing: -0.01em;
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
 }
 
 .subtitle {
@@ -40,21 +41,94 @@
   flex-shrink: 0;
 }
 
-/* ── 2 số liệu Chuỗi: khoảng cách cực ngắn giữa label và giá trị ── */
-.streaks {
+/* ── Top Section: Progress Ring + Streaks ── */
+.topSection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(233, 239, 227, 0.45);
+  border: 1px solid var(--line);
+}
+
+.progressRingWrapper {
+  position: relative;
+  width: 68px;
+  height: 68px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.progressSvg {
+  width: 68px;
+  height: 68px;
+  transform: rotate(-90deg);
+}
+
+.progressTrack {
+  fill: none;
+  stroke: #e2e8e3;
+  stroke-width: 5;
+}
+
+.progressBar {
+  fill: none;
+  stroke: var(--teal);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: drawProgress 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes drawProgress {
+  from {
+    stroke-dashoffset: 176;
+  }
+}
+
+.progressCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.progressFraction {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.progressUnit {
+  font-size: 9.5px;
+  color: var(--ink-soft);
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.streaks {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
   margin: 0;
+  flex: 1;
 }
 
 .streakItem {
   display: flex;
-  flex-direction: column;
-  gap: 1px; /* Rút ngắn tối đa khoảng cách */
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
   padding: 0;
-  background: transparent;
-  border: none;
 }
 
 .streakLabel {
@@ -62,217 +136,303 @@
   font-size: 11px;
   font-weight: 500;
   margin: 0;
-  line-height: 1.2;
 }
 
 .streakValue {
   margin: 0;
   color: var(--teal-deep);
-  font-size: 17px;
+  font-size: 14.5px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.streakEmpty {
-  display: inline-block;
-  color: var(--ink-faint);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-/* ── 3 tab thời gian: pill-segment ── */
-.periods {
-  display: inline-flex;
-  padding: 3px;
-  border-radius: 999px;
-  background: #edeae4;
-  gap: 2px;
-  width: fit-content;
-}
-
-.periods button {
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink-soft);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  min-height: 26px;
   line-height: 1;
 }
 
-.periods button[aria-pressed='true'] {
-  background: var(--teal-deep);
-  color: #ffffff;
-  box-shadow: 0 1px 4px rgba(30, 74, 67, 0.2);
+.streakEmpty {
+  color: var(--ink-faint);
+  font-size: 11px;
+  font-weight: 500;
 }
 
-.periods button:focus-visible {
+/* ── Calendar Section ── */
+.calendarSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weekdayHeader {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.weekdayLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendarCell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+  background: transparent;
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.18s ease;
+  animation: popIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: var(--cell-delay, 0ms);
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.calendarCell:hover:not(:disabled) {
+  transform: scale(1.12);
+  z-index: 2;
+}
+
+.calendarCell:focus-visible {
   outline: 2px solid var(--amber);
+  outline-offset: 1px;
+  z-index: 3;
+}
+
+/* Cell States */
+.cellRecorded {
+  background-color: var(--emotion-color, var(--teal));
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.cellRecorded .cellDayNumber {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.cellEmoji {
+  font-size: 12px;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.cellEmpty {
+  background: #f7f6f2;
+  border: 1px dashed rgba(27, 42, 34, 0.2);
+  color: var(--ink-soft);
+}
+
+.cellEmpty .cellDayNumber {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+
+.cellToday {
+  outline: 2px solid var(--amber, #e1a651);
   outline-offset: 1px;
 }
 
-/* ── Coverage + progress bar mỏng ── */
-.coverage {
+.cellFuture {
+  opacity: 0.3;
+  cursor: default;
+  border: 1px solid rgba(27, 42, 34, 0.08);
+  background: transparent;
+}
+
+.cellFuture .cellDayNumber {
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+
+.cellSelected {
+  box-shadow:
+    0 0 0 2px #ffffff,
+    0 0 0 4px var(--teal-deep);
+  z-index: 3;
+  animation: breatheGlow 2.5s ease-in-out infinite;
+}
+
+@keyframes breatheGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px #ffffff,
+      0 0 0 3.5px var(--teal-deep);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px #ffffff,
+      0 0 0 5px rgba(30, 74, 67, 0.45);
+  }
+}
+
+/* ── 5-color Legend ── */
+.legendRow {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.coverageHeader {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.coverageHeader h3 {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 650;
-  color: var(--ink);
-}
-
-.progressBar {
-  height: 5px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #e5e2db;
-}
-
-.progressBar > div {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--teal);
-  transition: width 0.25s ease;
-}
-
-.emptyPeriodText {
-  color: var(--ink-soft);
-  font-size: 11px;
-  line-height: 1.45;
-  margin: 0;
-}
-
-/* Distribution list */
-.distributionList {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.distributionList li {
-  display: grid;
-  grid-template-columns: minmax(7rem, 1fr) minmax(4rem, 2fr) 1.2rem;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 3px;
+  padding: 0 2px;
 }
 
-.distributionList li > span {
-  display: flex;
+.legendItem {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
-.distributionList li > div {
-  height: 5px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #e8eeeb;
+.legendDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.distributionList li > div i {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: #5ca88f;
+.legendLabel {
+  font-size: 9px;
+  color: var(--ink-faint);
+  font-weight: 500;
 }
 
-.distributionList li > b {
-  text-align: right;
-  font-size: 11px;
-  color: var(--ink-soft);
-}
-
-/* ── Gộp text trống thành 1 câu ngắn gọn ── */
-.emptyCombinedNote {
-  color: var(--ink-soft);
-  font-size: 11px;
-  line-height: 1.5;
-  margin: 0;
-  background: #f7f6f2;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(27, 42, 34, 0.06);
-}
-
-.history {
+/* ── Selected Day Detail Box ── */
+.detailBox {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-soft, #f0f4ee);
+  border: 1px solid var(--line);
+  animation: detailSlideUp 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-.historyTitle {
-  margin: 0;
-  font-size: 12px;
+@keyframes detailSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.detailDate {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+
+.journalLink {
+  font-size: 11px;
   font-weight: 650;
+  color: var(--teal);
+  text-decoration: none;
+  transition:
+    color 0.15s ease,
+    transform 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+}
+
+.journalLink:hover {
+  color: var(--teal-deep);
+  transform: translateX(2px);
+}
+
+.detailContent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detailEmoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.detailInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.detailEmotionName {
+  font-size: 13px;
+  font-weight: 700;
   color: var(--ink);
 }
 
-.historyList {
-  max-height: 12rem;
-  overflow-y: auto;
-  padding: 0 4px 0 0;
-  margin: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-}
-
-.historyList li {
-  display: grid;
-  grid-template-columns: minmax(6rem, 1fr) minmax(6rem, auto);
-  align-items: center;
-  gap: 6px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--line);
+.detailIntensity {
   font-size: 11px;
+  color: var(--ink-soft);
+  font-weight: 500;
 }
 
-.historyList time {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
+.detailContentEmpty {
+  padding: 4px 0;
 }
 
-.historyList small {
-  grid-column: 1 / -1;
-  color: var(--ink-faint);
-  font-size: 10px;
+.detailEmptyText {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  font-style: italic;
 }
 
 /* ── Disclaimer ── */
 .disclaimer {
   color: var(--ink-faint);
-  font-size: 10px;
-  line-height: 1.4;
-  margin-top: auto;
-  padding-top: 8px;
+  font-size: 9.5px;
+  line-height: 1.35;
+  margin: 0;
+  padding-top: 4px;
 }
 
-/* ── Error ── */
+/* ── Error & Loading Skeletons ── */
 .error {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface-soft);
 }
 
 .error p {
@@ -293,6 +453,46 @@
   font-size: 11px;
 }
 
+.skeletonContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.skeletonTop {
+  height: 68px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #edf2ec 25%, #e2e8e0 50%, #edf2ec 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeletonGrid {
+  height: 150px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #edf2ec 25%, #e2e8e0 50%, #edf2ec 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeletonDetail {
+  height: 56px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #edf2ec 25%, #e2e8e0 50%, #edf2ec 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
@@ -303,8 +503,35 @@
   white-space: nowrap;
 }
 
-@media (max-width: 620px) {
-  .distributionList li {
-    grid-template-columns: minmax(6rem, 1fr) minmax(3rem, 1fr) 1.2rem;
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .progressBar,
+  .calendarCell,
+  .detailBox,
+  .skeletonTop,
+  .skeletonGrid,
+  .skeletonDetail {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .calendarCell {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .cellSelected {
+    box-shadow:
+      0 0 0 2px #ffffff,
+      0 0 0 3px var(--teal-deep) !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .legendLabel {
+    display: none;
+  }
+  .legendItem {
+    gap: 0;
   }
 }

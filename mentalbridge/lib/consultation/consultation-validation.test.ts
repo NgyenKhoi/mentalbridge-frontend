@@ -13,6 +13,8 @@ import {
   parseProfileInput,
   parsePublishAvailabilityInput,
   parseServiceCreditAccount,
+  parseSavePayoutDestinationInput,
+  parseSpecialistEarnings,
   parseSpecialistDiscoveryItem,
   parseSpecialistDiscoveryPage,
   parseSpecialistDecisionInput,
@@ -89,6 +91,61 @@ const discoveryPage = {
 }
 
 describe('Consultation contract validation', () => {
+  it('accepts variable allocation snapshots only when the 70 percent arithmetic is valid', () => {
+    const response = {
+      currency: 'VND',
+      earningPolicyVersion: 'specialist-earning-v1',
+      settlementHoldDays: 7,
+      minimumWithdrawalVnd: 100000,
+      generatedAt: '2026-10-06T10:00:00Z',
+      balance: {
+        pendingSettlementVnd: 175000,
+        availableVnd: 0,
+        processingVnd: 0,
+        paidVnd: 0,
+      },
+      destination: null,
+      earnings: [
+        {
+          id: '2e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
+          appointmentId: '3e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
+          consumedCreditId: '4e3a8903-3d31-48d0-bf1a-4d81bbcef4b8',
+          planVersion: 'future-plan-version',
+          creditAllocationVnd: 250000,
+          sharePercent: 70,
+          earningAmountVnd: 175000,
+          status: 'PENDING_SETTLEMENT',
+          earnedAt: '2026-10-06T09:00:00Z',
+          settlementAvailableAt: '2026-10-13T09:00:00Z',
+        },
+      ],
+      payouts: [],
+    }
+    expect(parseSpecialistEarnings(response)).not.toBeNull()
+    expect(
+      parseSpecialistEarnings({
+        ...response,
+        earnings: [{ ...response.earnings[0], earningAmountVnd: 210000 }],
+      }),
+    ).toBeNull()
+  })
+
+  it('validates provider-ready payout destination details', () => {
+    expect(
+      parseSavePayoutDestinationInput({
+        destinationType: 'MOMO_WALLET',
+        accountReference: '0912345678',
+        accountHolderName: 'Nguyen Thu Ha',
+      }),
+    ).toMatchObject({ accountHolderName: 'Nguyen Thu Ha' })
+    expect(() =>
+      parseSavePayoutDestinationInput({
+        destinationType: 'BANK_ACCOUNT',
+        accountReference: '123456789',
+        accountHolderName: 'Nguyen Thu Ha',
+      }),
+    ).toThrow(ConsultationInputError)
+  })
   it('accepts only a bounded appointment rating and truthful aggregate', () => {
     const rating = {
       appointmentId: '10a7e5d8-7960-42fb-9706-e642f849b78f',

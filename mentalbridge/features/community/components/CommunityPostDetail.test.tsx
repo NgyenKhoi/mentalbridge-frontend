@@ -207,16 +207,15 @@ describe('CommunityPostDetail', () => {
     )
   })
 
-  it('renders full content, safe state and community-context disclaimer', async () => {
+  it('renders full content and keeps the unavailable-media state clear', async () => {
     render(<CommunityPostDetail postId={post.postId} />)
 
     expect(await screen.findByText(post.content)).toBeVisible()
     expect(screen.getByText('Câu chuyện của tôi')).toBeVisible()
     expect(screen.getByText(/hiện chưa khả dụng/)).toBeVisible()
-    expect(screen.getByText(/không thay thế tư vấn chuyên môn/)).toBeVisible()
     expect(
-      screen.getByRole('link', { name: 'Cần hỗ trợ ngay' }),
-    ).toHaveAttribute('href', '/safety-directory')
+      screen.queryByText(/không thay thế tư vấn chuyên môn/),
+    ).not.toBeInTheDocument()
   })
 
   it('keeps warned detail content concealed while safety and report controls remain reachable', async () => {
@@ -230,6 +229,7 @@ describe('CommunityPostDetail', () => {
 
     expect(await screen.findByText('Nội dung nhạy cảm')).toBeVisible()
     expect(screen.queryByText(post.content)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Tùy chọn an toàn' }))
     expect(screen.getByRole('button', { name: 'Báo cáo' })).toBeVisible()
     expect(
       screen.getAllByRole('link', { name: 'Cần hỗ trợ ngay' }),
@@ -276,7 +276,7 @@ describe('CommunityPostDetail', () => {
 
     render(<CommunityPostDetail postId={post.postId} />)
 
-    expect(await screen.findByText(/♡ 3/)).toBeVisible()
+    expect(await screen.findByText(/3 lượt đồng hành/)).toBeVisible()
     expect(
       screen.queryByRole('button', { name: /Äá»“ng hĂ nh/ }),
     ).not.toBeInTheDocument()

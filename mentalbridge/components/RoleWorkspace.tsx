@@ -14,6 +14,10 @@ import SpecialistContinuityManager from '@/features/appointments/components/Spec
 import SpecialistDashboardManager from './SpecialistDashboardManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
+import SpecialistDeferredSection, {
+  type SpecialistDeferredSectionKey,
+} from './SpecialistDeferredSection'
+import SpecialistWorkspaceIdentity from './SpecialistWorkspaceIdentity'
 import AdminUsersManager from './AdminUsersManager'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
 import AdminAssessmentsManager from './AdminAssessmentsManager'
@@ -30,35 +34,17 @@ type Role = 'specialist' | 'admin'
 type Row = { id: string; title: string; meta: string; status: string; detail: string }
 type Section = { label: string; description: string; rows: Row[]; tabs?: string[] }
 
-const specialistSections: Record<string, Section> = {
-  dashboard: { label: 'Tổng quan chuyên gia', description: 'Lịch làm việc và các việc cần theo dõi hôm nay.', rows: [] },
-  appointments: { label: 'Quản lý lịch hẹn', description: 'Xử lý yêu cầu và theo dõi phiên tư vấn theo trạng thái.', rows: [
-    { id: 'a1', title: 'Nguyễn Minh Anh', meta: 'Hôm nay · 10:30–11:15 · Video call', status: 'Đã xác nhận', detail: 'Phiên tư vấn 45 phút. Có thể yêu cầu đổi lịch hoặc đánh dấu hoàn thành sau phiên.' },
-    { id: 'a2', title: 'Trần Gia Hân', meta: 'Ngày mai · 14:00–14:45', status: 'Chờ xác nhận', detail: 'Yêu cầu mới. Hãy xem ghi chú trước khi chấp nhận hoặc từ chối.' },
-    { id: 'a3', title: 'Lê Hoàng Nam', meta: '12/08/2026 · 09:00', status: 'Hoàn thành', detail: 'Phiên đã hoàn thành. Các hành động hủy và đổi lịch đã được ẩn.' },
-  ], tabs: ['Sắp tới', 'Chờ xác nhận', 'Lịch sử'] },
-  availability: { label: 'Lịch khả dụng', description: 'Quản lý các khung tư vấn trực tuyến 60 phút đã lưu.', rows: [] },
-  clients: { label: 'Khách hàng đồng ý chia sẻ', description: 'Chỉ hiển thị dữ liệu nằm trong phạm vi consent hiện hành.', rows: [
-    { id: 'c1', title: 'Nguyễn Minh Anh', meta: 'Được xem: Assessment, xu hướng cảm xúc', status: 'Đã cấp quyền', detail: 'Access granted by user · Không có quyền xem nội dung nhật ký riêng tư.' },
-    { id: 'c2', title: 'Trần Gia Hân', meta: 'Được xem: Tổng quan, follow-up', status: 'Đã cấp quyền', detail: 'Access granted by user · Quyền có thể bị người dùng thu hồi bất kỳ lúc nào.' },
-  ], tabs: ['Tổng quan', 'Assessments', 'Xu hướng cảm xúc', 'Nhật ký', 'Follow-up'] },
-  messages: { label: 'Tin nhắn tư vấn', description: 'Trao đổi chuyên nghiệp, bảo mật với khách hàng.', rows: [
-    { id: 'm1', title: 'Nguyễn Minh Anh', meta: '“Em đã hoàn thành bài tập tuần này…” · 5 phút', status: '2 chưa đọc', detail: 'Cuộc trò chuyện gắn với kế hoạch theo dõi MB-2048.' },
-    { id: 'm2', title: 'Trần Gia Hân', meta: '“Cảm ơn bác sĩ, em đã rõ…” · Hôm qua', status: 'Đã đọc', detail: 'Bạn có thể đóng cuộc trò chuyện khi kế hoạch theo dõi kết thúc.' },
-  ]},
-  'follow-up': { label: 'Tiếp nối sau tư vấn', description: 'Xem lại nội dung đã thống nhất theo từng phiên tư vấn đã hoàn thành.', rows: [] },
-  earnings: { label: 'Thu nhập & thanh toán', description: 'Thu nhập tự động ghi nhận từ các lịch hẹn đã hoàn thành.', rows: [
-    { id: 'e1', title: 'Thu nhập khả dụng', meta: '8.400.000đ · 21 phiên hoàn thành', status: 'Khả dụng', detail: 'Số dư đủ điều kiện được đưa vào kỳ thanh toán tiếp theo.' },
-    { id: 'e2', title: 'Thanh toán tháng 07/2026', meta: '6.800.000đ · PayOS', status: 'Đã thanh toán', detail: 'Mã giao dịch PO-0726-1842 · Hoàn tất 02/08/2026.' },
-  ], tabs: ['Tổng quan', 'Đang chờ', 'Lịch sử'] },
-  notifications: { label: 'Thông báo', description: 'Cập nhật lịch hẹn, tin nhắn và kế hoạch theo dõi.', rows: [
-    { id: 'n1', title: 'Yêu cầu đặt lịch mới', meta: 'Trần Gia Hân · 10 phút trước', status: 'Chưa đọc', detail: 'Khách hàng đề xuất 14:00 ngày mai.' },
-    { id: 'n2', title: 'Thanh toán đã được xử lý', meta: 'Kỳ tháng 07/2026', status: 'Đã đọc', detail: 'Khoản thanh toán đã chuyển sang trạng thái hoàn tất.' },
-  ]},
-  profile: { label: 'Hồ sơ chuyên gia', description: 'Cập nhật thông tin hiển thị và thiết lập tư vấn.', rows: [
-    { id: 'p1', title: 'ThS. Nguyễn Thu Hà', meta: 'Tâm lý lâm sàng · 8 năm kinh nghiệm', status: 'Đang hoạt động', detail: 'Hồ sơ công khai gồm chuyên môn, giới thiệu, ngôn ngữ và phí tư vấn.' },
-  ], tabs: ['Thông tin', 'Chuyên môn', 'Thiết lập tư vấn'] },
-}
+const specialistSections = {
+  dashboard: 'Tổng quan',
+  appointments: 'Lịch hẹn',
+  availability: 'Lịch khả dụng',
+  clients: 'Khách hàng',
+  messages: 'Tin nhắn',
+  'follow-up': 'Sau tư vấn',
+  profile: 'Hồ sơ',
+  earnings: 'Thu nhập & thanh toán',
+  notifications: 'Thông báo',
+} as const
 const adminSections: Record<string, Section> = {
   dashboard: { label: 'Tổng quan hệ thống', description: 'Các chỉ số vận hành và hạng mục cần xử lý.', rows: [
     { id: 'd1', title: '12.480 người dùng', meta: '+8,4% trong 30 ngày', status: 'Ổn định', detail: 'Bao gồm tài khoản đang hoạt động và tạm khóa.' },
@@ -110,7 +96,7 @@ const adminSections: Record<string, Section> = {
   ], tabs: ['Audit log', 'Data retention'] },
 }
 const navByRole = {
-  specialist: [['dashboard','Dashboard'],['appointments','Appointments'],['availability','Availability'],['clients','Clients'],['messages','Messages'],['follow-up','Sau tư vấn'],['earnings','Earnings'],['notifications','Notifications'],['profile','Profile']],
+  specialist: [['dashboard','Tổng quan'],['appointments','Lịch hẹn'],['availability','Lịch khả dụng'],['clients','Khách hàng'],['messages','Tin nhắn'],['follow-up','Sau tư vấn'],['earnings','Thu nhập & thanh toán'],['profile','Hồ sơ']],
   admin: [['dashboard','Dashboard'],['users','Users'],['specialists','Specialists'],['assessments','Assessments'],['payments','Subscriptions & Payments'],['payouts','Payouts'],['appointments','Appointments'],['content','Content'],['moderation','Moderation'],['ai','AI Evaluation'],['reports','Reports'],['audit','Audit & Privacy']],
 } as const
 
@@ -129,8 +115,9 @@ export default function RoleWorkspace({
   workspaces: readonly Workspace[]
   selectedAppointmentId?: string
 }) {
-  const sections = role === 'specialist' ? specialistSections : adminSections
-  const section = sections[sectionKey] || sections.dashboard
+  const section = role === 'specialist'
+    ? { label: specialistSections[sectionKey as keyof typeof specialistSections] ?? specialistSections.dashboard, description: '', rows: [] }
+    : adminSections[sectionKey] || adminSections.dashboard
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState(section.tabs?.[0] || 'Tất cả')
   const [selected, setSelected] = useState<Row | null>(null)
@@ -138,15 +125,6 @@ export default function RoleWorkspace({
   const [toast, setToast] = useState('')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false)
-  const [appointmentForm, setAppointmentForm] = useState({
-    client: '',
-    date: '',
-    startTime: '',
-    duration: '45',
-    format: 'Video call',
-    notes: ''
-  })
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -173,44 +151,29 @@ export default function RoleWorkspace({
     setToast('Thao tác đã được cập nhật thành công.')
     window.setTimeout(() => setToast(''), 3200)
   }
-  
-  const handleCreateAppointment = () => {
-    console.log('Creating appointment:', appointmentForm)
-    setShowAppointmentModal(false)
-    setToast('Lịch hẹn mới đã được tạo thành công.')
-    window.setTimeout(() => setToast(''), 3200)
-    setAppointmentForm({
-      client: '',
-      date: '',
-      startTime: '',
-      duration: '45',
-      format: 'Video call',
-      notes: ''
-    })
-  }
-  
   return <div className={`role-shell role-${role} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     <motion.aside className={`role-sidebar ${mobileOpen ? 'open' : ''}`} layout initial={false} transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <Link href="/" className="role-brand"><motion.span className="role-brand-mark" whileHover={{ rotate: -6, scale: 1.06 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>M</motion.span><span className="role-brand-copy"><strong>MentalBridge</strong><small>{role === 'admin' ? 'Admin Console' : 'Specialist Workspace'}</small></span></Link>
       <button className="role-collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'} title={sidebarCollapsed ? 'Mở rộng' : 'Thu gọn'}><motion.span animate={{ rotate: sidebarCollapsed ? 180 : 0 }}>‹</motion.span></button>
       <nav aria-label={`Điều hướng ${role}`}>
-        {navByRole[role].map(([key,label]) => <div key={key} className="role-nav-item"><Link href={`/${role}/${key}`} className={key === sectionKey ? 'active' : ''} onClick={() => setMobileOpen(false)} title={sidebarCollapsed ? label : undefined}>{key === sectionKey && <motion.span layoutId={`role-active-${role}`} className="role-active-pill" transition={{ type: 'spring', stiffness: 380, damping: 32 }} />}<span className="role-nav-icon" aria-hidden="true">{navIcons[key] || '·'}</span><span className="role-nav-label">{label}</span>{key === 'notifications' && <span className="role-nav-badge">3</span>}</Link></div>)}
+        {navByRole[role].map(([key,label]) => <div key={key} className="role-nav-item"><Link href={`/${role}/${key}`} className={key === sectionKey ? 'active' : ''} onClick={() => setMobileOpen(false)} title={sidebarCollapsed ? label : undefined}>{key === sectionKey && <motion.span layoutId={`role-active-${role}`} className="role-active-pill" transition={{ type: 'spring', stiffness: 380, damping: 32 }} />}<span className="role-nav-icon" aria-hidden="true">{navIcons[key] || '·'}</span><span className="role-nav-label">{label}</span></Link></div>)}
       </nav>
       <WorkspaceSwitcher workspaces={workspaces} currentRole={role === 'admin' ? 'ADMIN' : 'SPECIALIST'} />
-      <motion.div className="role-user" whileHover={{ y: -2 }}><span>{role === 'admin' ? 'AD' : 'TH'}</span><div className="role-user-copy"><strong>{role === 'admin' ? 'Quản trị viên' : 'Nguyễn Thu Hà'}</strong><small>{role === 'admin' ? 'System admin' : 'Chuyên gia tâm lý'}</small></div><span className="role-online" /></motion.div>
+      {role === 'specialist' ? <SpecialistWorkspaceIdentity /> : <motion.div className="role-user" whileHover={{ y: -2 }}><span>AD</span><div className="role-user-copy"><strong>Quản trị viên</strong><small>System admin</small></div><span className="role-online" /></motion.div>}
       <SessionActions compact={sidebarCollapsed} />
     </motion.aside>
     <motion.main className="role-main" layout="position" transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
-      <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div><Link href={`/${role}/notifications`} className="role-bell" aria-label="Thông báo">○<b>3</b></Link></header>
+      <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div>{role === 'specialist' ? <><span className="role-live-dot" />{section.label}</> : <><span className="role-live-dot" /> Hệ thống hoạt động ổn định</>}</div>{role === 'admin' && <Link href="/admin/notifications" className="role-bell" aria-label="Thông báo">○</Link>}</header>
       <div className={`role-content${role === 'specialist' && sectionKey === 'messages' ? ' role-content-messages' : ''}`}>
         {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboardManager />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel />}
-        {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager rows={section.rows} initialAppointmentId={selectedAppointmentId} />}
+        {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'messages' && <AppointmentMessagesWorkspace viewerRole="SPECIALIST" initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'follow-up' && <SpecialistContinuityManager />}
-        {role === 'specialist' && sectionKey === 'earnings' && <SpecialistEarningsManager />}
+		{role === 'specialist' && sectionKey === 'earnings' && <SpecialistEarningsManager />}
+		{role === 'specialist' && sectionKey === 'notifications' && <SpecialistDeferredSection section={sectionKey as SpecialistDeferredSectionKey} />}
         {role === 'admin' && sectionKey === 'users' && <AdminUsersManager onSelect={setSelected} onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'specialists' && <AdminSpecialistReviewSection />}
         {role === 'admin' && sectionKey === 'assessments' && <AdminAssessmentsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
@@ -221,9 +184,8 @@ export default function RoleWorkspace({
         {role === 'admin' && sectionKey === 'payouts' && <AdminPayoutsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'moderation' && <AdminModerationManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'appointments' && <AdminAppointmentsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
-        <div className={`role-generic ${(role === 'specialist' && (sectionKey === 'dashboard' || sectionKey === 'profile' || sectionKey === 'availability' || sectionKey === 'appointments' || sectionKey === 'clients' || sectionKey === 'messages' || sectionKey === 'follow-up' || sectionKey === 'earnings')) || (role === 'admin' && (sectionKey === 'dashboard' || sectionKey === 'users' || sectionKey === 'specialists' || sectionKey === 'assessments' || sectionKey === 'content' || sectionKey === 'reports' || sectionKey === 'payments' || sectionKey === 'payouts' || sectionKey === 'moderation' || sectionKey === 'appointments')) ? 'role-generic-hidden' : ''}`}>
+        {role === 'admin' && <div className={`role-generic ${sectionKey === 'dashboard' || sectionKey === 'users' || sectionKey === 'specialists' || sectionKey === 'assessments' || sectionKey === 'content' || sectionKey === 'reports' || sectionKey === 'payments' || sectionKey === 'payouts' || sectionKey === 'moderation' || sectionKey === 'appointments' ? 'role-generic-hidden' : ''}`}>
         <div className="role-heading"><div><span className="eyebrow">{role === 'admin' ? 'Quản trị nền tảng' : 'Không gian chuyên gia'}</span><h1>{section.label}</h1><p>{section.description}</p></div><button className="btn-primary" onClick={() => {
-          if (role === 'specialist' && sectionKey === 'appointments') return setShowAppointmentModal(true)
           setToast('Biểu mẫu tạo mới đã sẵn sàng để kết nối API.')
         }}>+ Tạo mới</button></div>
         {sectionKey === 'dashboard' && <div className="role-stat-grid">{section.rows.map((row,index) => <button key={row.id} className="role-stat" onClick={() => setSelected(row)}><small>{row.status}</small><strong>{row.title}</strong><span>{row.meta}</span><i style={{'--value': `${72-index*12}%`} as React.CSSProperties} /></button>)}</div>}
@@ -235,13 +197,12 @@ export default function RoleWorkspace({
           </div>
         </section>
         {/clients|follow-up/.test(sectionKey) && <div className="role-disclaimer"><strong>{sectionKey === 'clients' ? 'Access granted by user' : 'Lưu ý chuyên môn'}</strong><p>{sectionKey === 'clients' ? 'Chỉ dữ liệu nằm trong phạm vi đồng ý hiện hành mới được hiển thị. Quyền truy cập có thể bị thu hồi bất kỳ lúc nào.' : 'Kết quả assessment và phân tích AI chỉ mang tính hỗ trợ theo dõi, không thay thế chẩn đoán chuyên môn.'}</p></div>}
-        </div>
+        </div>}
       </div>
     </motion.main>
     {mobileOpen && <button className="role-overlay" aria-label="Đóng menu" onClick={() => setMobileOpen(false)} />}
     {selected && <><button className="role-drawer-backdrop" aria-label="Đóng chi tiết" onClick={() => setSelected(null)} /><aside className="role-drawer" aria-label="Chi tiết"><div className="role-drawer-head"><div><small>CHI TIẾT · {selected.id.toUpperCase()}</small><h2>{selected.title}</h2></div><button onClick={() => setSelected(null)} aria-label="Đóng">×</button></div><span className={`role-status ${statusClass(selected.status)}`}>{selected.status}</span><p className="role-detail-meta">{selected.meta}</p><div className="role-detail-block"><h3>Thông tin</h3><p>{selected.detail}</p></div>{sectionKey === 'clients' && <div className="role-consent">✓ Access granted by user</div>}<div className="role-detail-block"><h3>Dòng thời gian</h3><ul><li><i />Cập nhật gần nhất · Hôm nay, 14:30</li><li><i />Được tạo trên MentalBridge · 12/08/2026</li></ul></div><div className="role-drawer-actions"><button className="btn-primary" onClick={() => setToast('Đã lưu cập nhật thành công.')}>Cập nhật</button>{showAction(selected, role === 'admin' ? 'Xử lý' : 'Hủy lịch') && <button className="btn-outline danger" onClick={() => setConfirmAction(role === 'admin' ? 'Xác nhận thao tác quản trị' : 'Xác nhận hủy lịch')}>{role === 'admin' ? 'Thao tác khác' : 'Hủy lịch'}</button>}</div></aside></>}
     {confirmAction && <div className="role-modal-wrap"><button className="role-drawer-backdrop" aria-label="Đóng xác nhận" onClick={() => setConfirmAction(null)} /><div className="role-modal"><span className="role-modal-icon">!</span><h2>{confirmAction}</h2><p>Thao tác này có thể ảnh hưởng đến dữ liệu hoặc quyền truy cập. Vui lòng kiểm tra kỹ trước khi tiếp tục.</p><div><button className="btn-ghost" onClick={() => setConfirmAction(null)}>Quay lại</button><button className="btn-primary" onClick={finishAction}>Xác nhận</button></div></div></div>}
-    {showAppointmentModal && <div className="role-modal-wrap availability-modal-wrap appointment-modal-wrap"><button className="role-drawer-backdrop" aria-label="Đóng" onClick={() => setShowAppointmentModal(false)} /><div className="availability-modal appointment-modal"><div className="availability-modal-header"><div><span className="availability-modal-eyebrow">TẠO LỊCH HẸN</span><h2>Đặt một phiên tư vấn</h2><p>Chọn khách hàng và thời gian cụ thể cho cuộc hẹn đã được thống nhất.</p></div><button onClick={() => setShowAppointmentModal(false)} aria-label="Đóng" className="availability-modal-close">×</button></div><div className="availability-modal-content"><div className="availability-form-grid"><div className="availability-form-field"><label htmlFor="appointment-client">Khách hàng</label><select id="appointment-client" value={appointmentForm.client} onChange={e => setAppointmentForm({...appointmentForm, client: e.target.value})}><option value="">Chọn khách hàng</option><option value="Nguyễn Minh Anh">Nguyễn Minh Anh</option><option value="Trần Gia Hân">Trần Gia Hân</option><option value="Lê Hoàng Nam">Lê Hoàng Nam</option></select></div><div className="availability-form-row"><div className="availability-form-field"><label htmlFor="appointment-date">Ngày hẹn</label><input type="date" id="appointment-date" value={appointmentForm.date} onChange={e => setAppointmentForm({...appointmentForm, date: e.target.value})} min={new Date().toISOString().split('T')[0]} /></div><div className="availability-form-field"><label htmlFor="appointment-start">Giờ bắt đầu</label><input type="time" id="appointment-start" value={appointmentForm.startTime} onChange={e => setAppointmentForm({...appointmentForm, startTime: e.target.value})} /></div></div><div className="availability-form-row"><div className="availability-form-field"><label htmlFor="appointment-duration">Thời lượng</label><select id="appointment-duration" value={appointmentForm.duration} onChange={e => setAppointmentForm({...appointmentForm, duration: e.target.value})}><option value="30">30 phút</option><option value="45">45 phút</option><option value="60">60 phút</option><option value="90">90 phút</option></select></div><div className="availability-form-field"><label htmlFor="appointment-format">Hình thức tư vấn</label><select id="appointment-format" value={appointmentForm.format} onChange={e => setAppointmentForm({...appointmentForm, format: e.target.value})}><option value="Video call">Video call</option><option value="Tại phòng tư vấn">Tại phòng tư vấn</option><option value="Điện thoại">Điện thoại</option></select></div></div><div className="availability-form-field"><label htmlFor="appointment-notes">Ghi chú (tùy chọn)</label><textarea id="appointment-notes" value={appointmentForm.notes} onChange={e => setAppointmentForm({...appointmentForm, notes: e.target.value})} placeholder="Thêm ghi chú chuẩn bị cho phiên tư vấn..." rows={3} /></div></div><div className="availability-info-box appointment-info-box"><span className="availability-info-icon">ⓘ</span><div><strong>Cuộc hẹn sẽ được thêm vào lịch làm việc</strong><p>Khách hàng có thể nhận thông báo sau khi cuộc hẹn được xác nhận.</p></div></div><div className="availability-summary"><h3>Tóm tắt cuộc hẹn</h3><div className="availability-summary-grid"><div className="availability-summary-item"><small>Khách hàng</small><strong>{appointmentForm.client || 'Chưa chọn'}</strong></div><div className="availability-summary-item"><small>Thời gian</small><strong>{appointmentForm.startTime ? `${appointmentForm.startTime} · ${appointmentForm.duration} phút` : 'Chưa chọn'}</strong></div></div></div></div><div className="availability-modal-footer"><button className="btn-ghost" onClick={() => setShowAppointmentModal(false)}>Hủy</button><button className="btn-primary" onClick={handleCreateAppointment} disabled={!appointmentForm.client || !appointmentForm.date || !appointmentForm.startTime}>Tạo lịch hẹn</button></div></div></div>}
     {toast && <div className="role-toast"><span>✓</span>{toast}</div>}
   </div>
 }

@@ -2,8 +2,14 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--ink);
+  font-family: inherit;
   height: 100%;
+  box-sizing: border-box;
 }
 
 .header {
@@ -14,28 +20,32 @@
   color: var(--teal-deep);
   font: 650 16px/1.3 var(--font-be-vietnam);
   letter-spacing: -0.01em;
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
 }
 
 .subtitle {
   color: var(--ink-soft);
-  font-size: 11.5px;
+  font-size: 12px;
   margin: 0;
   line-height: 1.4;
 }
 
-.status {
-  min-height: 120px;
+.loadingState {
+  min-height: 200px;
   display: grid;
   place-items: center;
+}
+
+.status {
   color: var(--ink-soft);
-  font-size: 12.5px;
+  font-size: 13px;
+  margin: 0;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 16px;
 }
 
 /* ── 5 Emoji emotion selector ── */
@@ -46,72 +56,66 @@
   border: 0;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  gap: 7px;
 }
 
 .emotionLabel {
   min-width: 0;
-  min-height: 72px;
+  min-height: 74px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 8px 3px;
-  border: 1.5px solid transparent;
+  gap: 6px;
+  padding: 10px 4px;
+  border: 1px solid rgba(30, 74, 67, 0.12);
   border-radius: 12px;
-  background: #f4f2ec; /* Nền be nhạt */
+  background: #f4f2ec;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
+  user-select: none;
 }
 
-.emojiIcon {
+.emotionLabel:hover:not(.selected) {
+  border-color: rgba(30, 74, 67, 0.28);
+  background: #e8ecdf;
+  transform: translateY(-1px);
+}
+
+.selected {
+  background: var(--teal-deep) !important;
+  border-color: var(--teal-deep) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(30, 74, 67, 0.25);
+}
+
+.emotionIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 24px;
-  filter: grayscale(0.5) opacity(0.85);
-  transition: all 0.2s ease;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.faceSvg {
+  stroke: currentColor;
+  display: block;
 }
 
 .emotionText {
   max-width: 100%;
-  overflow: hidden;
-  color: #717d6f; /* Label xám */
-  font-size: 9.5px;
+  color: var(--ink);
+  font-size: 11px;
   line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-  transition: color 0.2s ease;
-}
-
-.emotionLabel:hover:not(.selected) {
-  background: #eae7df;
-  border-color: rgba(30, 74, 67, 0.15);
-}
-
-.emotionLabel:hover:not(.selected) .emojiIcon {
-  filter: grayscale(0.2) opacity(0.95);
-  transform: translateY(-1px);
-}
-
-.emotionLabel:active {
-  transform: scale(0.97);
-}
-
-/* KHI ĐƯỢC CHỌN: Nền xanh thương hiệu đậm, icon full màu, label chữ trắng đậm */
-.selected {
-  background: var(--teal-deep) !important;
-  border-color: var(--teal-deep) !important;
-  box-shadow: 0 4px 14px -2px rgba(30, 74, 67, 0.4) !important;
-}
-
-.selected .emojiIcon {
-  filter: none !important;
-  transform: scale(1.12);
+  text-align: center;
+  font-weight: 600;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .selected .emotionText {
   color: #ffffff !important;
-  font-weight: 700 !important;
 }
 
 .emotions input,
@@ -127,7 +131,7 @@
 
 .emotionLabel:has(input:focus-visible),
 .intensityBtn:has(input:focus-visible) {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--teal);
   outline-offset: 2px;
 }
 
@@ -137,20 +141,17 @@
   margin: 0;
   padding: 0;
   border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.intensity legend {
+.intensityTitle {
   color: var(--ink);
-  font-size: 12.5px;
-  font-weight: 650;
+  font-size: 13.5px;
+  font-weight: 700;
   margin: 0;
-}
-
-.intensityNote {
-  color: var(--ink-soft);
-  font-size: 10.5px;
-  margin: 2px 0 8px 0;
-  line-height: 1.35;
+  padding: 0;
 }
 
 .intensityRow {
@@ -160,56 +161,54 @@
 }
 
 .intensityBtn {
-  cursor: pointer;
-}
-
-.intensityBtn span {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
-  border: 1.5px solid var(--line);
-  border-radius: 50%;
-  color: var(--ink-soft);
-  font-size: 11.5px;
-  font-weight: 650;
-  background: #ffffff;
-  transition: all 0.16s ease;
+  border: 1px solid rgba(30, 74, 67, 0.14);
+  border-radius: 9px;
+  background: #f4f2ec;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
 }
 
-.intensityBtn:hover:not(.intensitySelected) span {
-  border-color: var(--teal);
-  background: #f0f5f3;
+.intensityBtn:hover:not(.intensitySelected) {
+  border-color: rgba(30, 74, 67, 0.28);
+  background: #e8ecdf;
 }
 
-/* KHI ĐƯỢC CHỌN: Tô đầy màu xanh thương hiệu, chữ trắng */
-.intensitySelected span {
-  border-color: var(--teal-deep) !important;
+.intensitySelected {
   background: var(--teal-deep) !important;
+  border-color: var(--teal-deep) !important;
   color: #ffffff !important;
-  font-weight: 700 !important;
-  box-shadow: 0 2px 8px rgba(30, 74, 67, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(30, 74, 67, 0.25);
 }
 
-/* ── Actions: Nút Lưu ghi nhận + Viết thêm ── */
+/* ── Action buttons ── */
 .actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 4px;
+  gap: 10px;
+  margin-top: 2px;
 }
 
 .saveBtn {
-  min-height: 38px;
-  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
+  border: none;
   border-radius: 9px;
   background: var(--teal-deep);
   color: #ffffff;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
-  border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
   box-shadow: 0 3px 10px -1px rgba(30, 74, 67, 0.3);
 }
 
@@ -220,90 +219,236 @@
 }
 
 .saveBtn:disabled {
-  cursor: not-allowed;
   opacity: 0.45;
   background: #9aa8a3 !important;
   color: #ffffff !important;
   box-shadow: none !important;
-  transform: none !important;
+  cursor: not-allowed;
 }
 
 .journalLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1.5px solid rgba(30, 74, 67, 0.2);
+  border-radius: 9px;
+  background: transparent;
   color: var(--teal-deep);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 650;
   text-decoration: none;
-  transition: color 0.15s ease;
+  transition: all 0.18s ease;
 }
 
 .journalLink:hover {
-  color: var(--teal);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  background: rgba(30, 74, 67, 0.06);
+  border-color: var(--teal-deep);
 }
 
-/* ── Status & Feedback ── */
+.arrowIcon {
+  display: inline-block;
+  font-size: 14px;
+}
+
+/* ── Divider ── */
+.divider {
+  border-top: 1px solid var(--line);
+  margin: 2px 0 0 0;
+}
+
+/* ── Feedback & Status Row ── */
 .feedback {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
+  min-height: 24px;
+}
+
+.statusRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: var(--ink-soft);
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 12.5px;
 }
 
-.feedback span {
-  flex: 1;
-}
-
-.feedback button {
-  flex: none;
-  color: var(--teal-deep);
-  font-size: 11px;
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
+.checkIcon {
+  flex-shrink: 0;
+  color: var(--teal);
 }
 
 .error {
-  color: #8b3528;
+  color: #c53030;
 }
 
-/* ── Disclaimer 1 dòng ngắn ── */
+.retryBtn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(30, 74, 67, 0.2);
+  background: #ffffff;
+  color: var(--teal-deep);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── Influence section ── */
+.influenceSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.influenceTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.optionalTag {
+  color: var(--ink-soft);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.chip {
+  padding: 6px 13px;
+  border: 1px solid rgba(30, 74, 67, 0.12);
+  border-radius: 9px;
+  background: #f4f2ec;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  line-height: 1.2;
+}
+
+.chip:hover {
+  border-color: rgba(30, 74, 67, 0.28);
+  background: #e8ecdf;
+}
+
+.chipSelected {
+  background: var(--teal-deep) !important;
+  border-color: var(--teal-deep) !important;
+  color: #ffffff !important;
+}
+
+/* ── Comparison section ── */
+.comparisonSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comparisonTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.comparisonBoxes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.boxYesterday {
+  flex: 1;
+  background: #f4f2ec;
+  border: 1px solid rgba(30, 74, 67, 0.12);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.boxDate {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.boxMood {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.boxIntensity {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.boxArrow {
+  color: var(--ink-soft);
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.boxToday {
+  flex: 1.1;
+  background: #e3f3ea;
+  border: 1px solid #bce1ce;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--teal-deep);
+}
+
+.boxTodayDate {
+  font-size: 11.5px;
+  color: var(--teal-deep);
+  font-weight: 600;
+}
+
+.boxTodayMood {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+
+.boxTodayIntensity {
+  font-size: 11.5px;
+  color: var(--teal-deep);
+}
+
+/* ── Disclaimer ── */
 .disclaimer {
-  color: var(--ink-faint);
-  font-size: 10px;
-  line-height: 1.4;
   margin-top: auto;
-  padding-top: 8px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  line-height: 1.4;
+  padding-top: 4px;
 }
 
 .srOnly {
   position: absolute;
   width: 1px;
   height: 1px;
+  padding: 0;
+  margin: -1px;
   overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-}
-
-@media (max-width: 520px) {
-  .emotions {
-    gap: 4px;
-  }
-  .emotionLabel {
-    min-height: 58px;
-  }
-  .emojiIcon {
-    font-size: 18px;
-  }
-  .emotionText {
-    display: none;
-  }
+  border: 0;
 }

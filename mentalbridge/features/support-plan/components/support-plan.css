@@ -1,10 +1,14 @@
 .support-plan-page {
   position: relative;
   isolation: isolate;
-  width: min(100%, 1040px);
+  width: 100%;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: var(--space-8) var(--space-4) 64px;
+  padding: 0 0 64px;
   color: var(--ink);
+  font-family:
+    var(--font-plus-jakarta), var(--font-be-vietnam-variable), var(--font-sans),
+    sans-serif;
   animation: mb-page-enter var(--motion-medium) var(--ease-standard) both;
 }
 
@@ -92,114 +96,24 @@
   }
 }
 .support-plan-page::before {
-  position: absolute;
-  z-index: -1;
-  top: -120px;
-  left: -170px;
-  width: 430px;
-  height: 430px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--teal-pale) 62%, transparent),
-    transparent 68%
-  );
-  content: '';
-  pointer-events: none;
+  display: none;
 }
 
 .support-plan-page-header {
-  position: relative;
-  overflow: hidden;
-  display: grid;
-  gap: var(--space-3);
-  max-width: none;
-  margin-bottom: var(--space-8);
-  padding: clamp(var(--space-6), 4vw, var(--space-10));
-  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--line));
-  border-radius: var(--radius-shell);
-  background: linear-gradient(
-    118deg,
-    color-mix(in srgb, var(--surface) 96%, transparent),
-    color-mix(in srgb, var(--amber-soft) 52%, var(--surface))
-  );
-  box-shadow: var(--elevation-2);
-}
-.support-plan-page-header::after {
-  position: absolute;
-  top: -96px;
-  right: 5%;
-  width: 250px;
-  height: 250px;
-  border: 1px solid color-mix(in srgb, var(--amber) 22%, transparent);
-  border-radius: 42% 58% 55% 45%;
-  background: color-mix(in srgb, var(--amber-soft) 42%, transparent);
-  box-shadow:
-    0 0 0 30px color-mix(in srgb, var(--surface) 30%, transparent),
-    0 0 0 62px color-mix(in srgb, var(--teal-pale) 22%, transparent);
-  content: '';
-  pointer-events: none;
-  transform: rotate(18deg);
-  animation: support-plan-mark-enter var(--motion-slow) var(--ease-standard)
-    both;
-}
-.support-plan-page-header > * {
-  position: relative;
-  z-index: 1;
-}
-
-.support-plan-page-header > span,
-.support-plan-card-header > div > span,
-.support-plan-rationale > span,
-.support-plan-section-heading > div > span {
-  color: var(--teal-deep);
-  font-size: 0.8125rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.support-plan-page-header h1 {
-  margin: 0;
-  font:
-    600 clamp(2rem, 5vw, 3rem) / 1.1 var(--font-fraunces),
-    Georgia,
-    serif;
-  letter-spacing: -0.025em;
-  text-wrap: balance;
-}
-
-.support-plan-page-header p {
-  max-width: 730px;
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 1.0625rem;
-  line-height: 1.65;
+  display: none;
 }
 
 .support-plan-card {
-  position: relative;
-  overflow: hidden;
-  display: grid;
-  gap: var(--space-6);
-  padding: clamp(var(--space-5), 3vw, var(--space-8));
-  border: 1px solid var(--line);
-  border-radius: var(--radius-shell);
-  background: var(--surface);
-  box-shadow: var(--elevation-2);
-  animation: mb-data-enter var(--motion-medium) var(--ease-standard) both;
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
 }
+
 .support-plan-card::before {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 4px;
-  background: linear-gradient(
-    90deg,
-    var(--teal),
-    var(--amber),
-    transparent 84%
-  );
-  content: '';
+  display: none;
 }
 .support-plan-card > * {
   animation: mb-data-enter var(--motion-medium) var(--ease-standard) both;
@@ -235,10 +149,10 @@
 
 .support-plan-card h2 {
   margin-top: 0.25rem;
-  font:
-    600 clamp(1.45rem, 3vw, 2rem) / 1.2 var(--font-fraunces),
-    Georgia,
-    serif;
+  font-family: var(--font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .support-plan-status,
@@ -632,23 +546,45 @@
   border-color: var(--teal);
 }
 
-.support-plan-schedule {
-  display: grid;
-  gap: 1.25rem;
-  padding: clamp(1.1rem, 3vw, 1.6rem);
+#panel-plan {
+  background: #ffffff;
   border: 1px solid var(--line);
-  border-radius: var(--radius-shell);
-  background: var(--surface-soft);
+  border-radius: 1.5rem;
+  padding: clamp(var(--space-5), 3vw, var(--space-8));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.support-plan-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: clamp(var(--space-5), 3vw, var(--space-8));
+  box-shadow: none;
 }
 
 .support-plan-schedule-heading {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-.support-plan-schedule-heading span,
+.support-plan-schedule-heading span {
+  display: none;
+}
+
+.support-plan-schedule-heading h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #03251b;
+}
+
 .support-plan-occurrence-state {
   color: var(--teal);
   font-size: 0.78rem;
@@ -657,7 +593,6 @@
   text-transform: uppercase;
 }
 
-.support-plan-schedule-heading h3,
 .support-plan-occurrence-copy h4 {
   margin: 0.25rem 0 0;
 }
@@ -898,11 +833,30 @@
 }
 
 .support-plan-schedule-boundary {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.85rem 1.15rem;
+  border-radius: 0.75rem;
+  background: #f2f5ef;
+  border: 1px solid #e0e5de;
+  color: #5d6f68;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  margin-top: 1.25rem;
+}
+
+.support-plan-schedule-boundary p {
   margin: 0;
-  padding-top: 1rem;
-  border-top: 1px solid var(--line);
-  color: var(--ink-soft);
-  line-height: 1.55;
+  font-size: 0.8125rem;
+  color: #5d6f68;
+  line-height: 1.5;
+}
+
+.support-plan-boundary-icon {
+  flex-shrink: 0;
+  color: #727975;
+  margin-top: 0.1rem;
 }
 
 .support-plan-provenance dl {
@@ -1278,8 +1232,22 @@
   display: block;
 }
 
-.support-plan-tab-pane.is-hidden {
-  display: none;
+.support-plan-tab-pane.is-hidden,
+.support-plan-tab-pane[hidden],
+#panel-plan.is-hidden,
+#panel-plan[hidden],
+#panel-schedule.is-hidden,
+#panel-schedule[hidden],
+#panel-manage.is-hidden,
+#panel-manage[hidden] {
+  display: none !important;
+}
+
+#panel-manage {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: clamp(var(--space-5), 3vw, var(--space-8));
 }
 
 /* Accordion for 3 confirmed contents (!isDraft) */
@@ -1289,8 +1257,9 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
   background: var(--surface);
-  transition: border-color var(--motion-fast) var(--ease-standard),
-              box-shadow var(--motion-fast) var(--ease-standard);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
   overflow: hidden;
 }
 
@@ -1423,8 +1392,9 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   background: var(--surface);
-  transition: border-color var(--motion-fast) var(--ease-standard),
-              background var(--motion-fast) var(--ease-standard);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
 }
 
 .support-plan-occurrence-compact:hover {
@@ -1525,4 +1495,1278 @@
   .support-plan-slot-accordion-body {
     padding-left: var(--space-5);
   }
+}
+
+/* ==========================================================================
+   TARGET DESIGN REDESIGN: Hero, Calendar, 2-Col Activities, Sidebar & Footer
+   ========================================================================== */
+
+/* 1. Hero Banner */
+.support-plan-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: linear-gradient(
+    135deg,
+    #f2f4ee 0%,
+    #f4f7f2 50%,
+    rgba(192, 233, 215, 0.3) 100%
+  );
+  padding: 1.75rem 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+.support-plan-hero-blob-1 {
+  position: absolute;
+  top: -6rem;
+  right: -4rem;
+  width: 20rem;
+  height: 20rem;
+  border-radius: 9999px;
+  background: rgba(195, 235, 218, 0.3);
+  filter: blur(48px);
+  pointer-events: none;
+}
+
+.support-plan-hero-blob-2 {
+  position: absolute;
+  bottom: -20%;
+  right: 9rem;
+  width: 15rem;
+  height: 15rem;
+  border-radius: 9999px;
+  background: rgba(199, 235, 218, 0.2);
+  filter: blur(32px);
+  pointer-events: none;
+}
+
+.support-plan-hero-inner {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .support-plan-hero-inner {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.support-plan-hero-content {
+  max-width: 36rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.support-plan-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: fit-content;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  background: #1b3b30;
+  color: #ffffff !important;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.support-plan-badge-pill * {
+  color: #ffffff !important;
+}
+
+.support-plan-hero-title {
+  margin: 0.25rem 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #03251b;
+  font-family:
+    var(--font-plus-jakarta),
+    var(--font-be-vietnam-variable),
+    var(--font-sans),
+    system-ui,
+    -apple-system,
+    sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.support-plan-hero-desc {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: #414845;
+}
+
+.support-plan-hero-verifier {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #416658;
+}
+
+.support-plan-hero-mini-card {
+  width: 100%;
+  max-width: 20rem;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.support-plan-mini-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.support-plan-mini-card-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #414845;
+}
+
+.support-plan-mini-card-percent {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #03251b;
+}
+
+.support-plan-mini-card-bar-track {
+  width: 100%;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #e7e9e3;
+  overflow: hidden;
+}
+
+.support-plan-mini-card-bar-fill {
+  height: 100%;
+  background: #03251b;
+  border-radius: 9999px;
+  transition: width 0.5s ease;
+}
+
+.support-plan-mini-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.support-plan-mini-card-done {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: #414845;
+}
+
+.support-plan-mini-card-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #416658;
+}
+
+.support-plan-mini-card-remaining {
+  color: #416658;
+  font-weight: 600;
+}
+
+/* 2. Nav Row, Tabs & Controls */
+.support-plan-nav-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.support-plan-tabs {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  background: #edefe9;
+  gap: 0.25rem;
+  border: none;
+  box-sizing: border-box;
+}
+
+.support-plan-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: #414845;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1.25;
+}
+
+.support-plan-tab-btn:hover {
+  color: #191c19;
+}
+
+.support-plan-tab-btn.is-active {
+  background: #03251b;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.support-plan-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.support-plan-date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  background: #f2f4ee;
+  color: #414845;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-sizing: border-box;
+  line-height: 1.25;
+}
+
+/* 3. 7-Day Calendar */
+.support-plan-week-calendar {
+  border-radius: 1.5rem;
+  background: #ffffff;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.support-plan-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.support-plan-calendar-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.support-plan-calendar-heading-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.support-plan-calendar-icon-wrap {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.75rem;
+  background: #c0e9d7;
+  color: #456a5c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.support-plan-calendar-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #191c19;
+}
+
+.support-plan-calendar-subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #414845;
+}
+
+.support-plan-calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.support-plan-calendar-range {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #03251b;
+}
+
+.support-plan-calendar-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.support-plan-cal-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: none;
+  background: #edefe9;
+  color: #414845;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.support-plan-cal-btn:hover {
+  background: #e7e9e3;
+  color: #191c19;
+}
+
+.support-plan-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .support-plan-calendar-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.support-plan-cal-col {
+  position: relative;
+  padding: 0.75rem 0.5rem;
+  border-radius: 1rem;
+  background: #f2f4ee;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 120px;
+  min-width: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.support-plan-cal-col:hover {
+  background: #edefe9;
+}
+
+.support-plan-cal-col.is-today {
+  background: rgba(195, 235, 218, 0.25);
+  border-color: #03251b;
+  box-shadow: 0 2px 6px rgba(3, 37, 27, 0.08);
+}
+
+.support-plan-cal-col.is-selected {
+  outline: 2px solid #416658;
+}
+
+.support-plan-today-badge {
+  position: absolute;
+  top: -0.65rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  background: #03251b;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.support-plan-cal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.support-plan-cal-weekday {
+  font-size: 0.75rem;
+  color: #414845;
+  font-weight: 500;
+}
+
+.support-plan-cal-col.is-today .support-plan-cal-weekday {
+  color: #03251b;
+  font-weight: 700;
+}
+
+.support-plan-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+}
+
+.support-plan-legend-dot.state-done,
+.state-done .support-plan-status-dot {
+  background: #416658;
+}
+
+.support-plan-legend-dot.state-today,
+.state-today .support-plan-status-dot {
+  background: #03251b;
+}
+
+.support-plan-legend-dot.state-upcoming,
+.state-upcoming .support-plan-status-dot {
+  background: #abcebf;
+}
+
+.support-plan-legend-dot.state-rest,
+.state-rest .support-plan-status-dot {
+  background: #c1c8c3;
+}
+
+.support-plan-cal-day-number {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #191c19;
+}
+
+.support-plan-cal-col.is-today .support-plan-cal-day-number {
+  color: #03251b;
+}
+
+.support-plan-cal-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.support-plan-cal-chip {
+  padding: 0.25rem 0.45rem;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.support-plan-cal-chip-text,
+.support-plan-cal-chip span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 0%;
+}
+
+.support-plan-cal-more-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #416658;
+  background: #edefe9;
+  border-radius: 9999px;
+  padding: 0.1rem 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.support-plan-cal-chip.is-done {
+  background: #edefe9;
+  color: #416658;
+}
+
+.support-plan-cal-chip.is-active-item {
+  color: #03251b;
+  font-weight: 600;
+}
+
+.support-plan-cal-chip.is-rest {
+  color: #727975;
+}
+
+.support-plan-cal-chip-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.support-plan-calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  padding-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #414845;
+}
+
+.support-plan-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.support-plan-legend-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+}
+
+/* 4. Controls Row & View Switcher (integrated into calendar header) */
+.support-plan-schedule-controls-row {
+  display: none;
+}
+
+.support-plan-status-badge-paused {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.support-plan-view-switcher {
+  display: inline-flex;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  background: #edefe9;
+  gap: 0.25rem;
+}
+
+.support-plan-view-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: #414845;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.support-plan-view-btn.is-active {
+  background: #ffffff;
+  color: #03251b;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* 5. 2-Column Content Grid */
+.support-plan-content-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .support-plan-content-grid {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+.support-plan-activities-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.support-plan-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.support-plan-empty-date-state {
+  padding: 2.25rem 1.5rem;
+  border-radius: 1.5rem;
+  background: #ffffff;
+  border: 1px dashed #dbe5df;
+  text-align: center;
+  color: #5d6f68;
+  font-size: 0.9375rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.support-plan-section-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #03251b;
+}
+
+.support-plan-count-badge {
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  background: #c0e9d7;
+  color: #456a5c;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Featured Activity Card */
+.support-plan-featured-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: #ffffff;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.support-plan-featured-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.support-plan-featured-accent-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: #03251b;
+}
+
+.support-plan-featured-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.support-plan-featured-icon-box {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  background: rgba(195, 235, 218, 0.4);
+  color: #03251b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.support-plan-featured-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.support-plan-featured-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.support-plan-featured-status-badge {
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.support-plan-featured-status-badge.is-upcoming {
+  background: #03251b;
+  color: #ffffff !important;
+}
+
+.support-plan-featured-status-badge.is-completed {
+  background: #c0e9d7;
+  color: #03251b;
+}
+
+.support-plan-featured-status-badge.is-skipped {
+  background: #edefe9;
+  color: #727975;
+}
+
+.support-plan-featured-type-badge {
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  background: #edefe9;
+  color: #414845;
+  font-size: 0.75rem;
+}
+
+.support-plan-featured-time-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #414845;
+}
+
+.support-plan-featured-title {
+  margin: 0.25rem 0 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #191c19;
+}
+
+.support-plan-featured-desc {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: #414845;
+}
+
+.support-plan-featured-disclosure {
+  margin-top: 0.5rem;
+}
+
+.support-plan-featured-disclosure summary {
+  min-height: 28px !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  color: #416658 !important;
+  gap: 0.35rem !important;
+}
+
+.support-plan-featured-disclosure summary:hover {
+  color: #03251b !important;
+}
+
+.support-plan-featured-disclosure summary svg {
+  width: 15px !important;
+  height: 15px !important;
+  color: #416658 !important;
+}
+
+.support-plan-featured-disclosure p {
+  margin: 0.25rem 0;
+  font-size: 0.75rem;
+  color: #727975;
+}
+
+.support-plan-featured-actions {
+  margin: 0.75rem -1.5rem -1.5rem;
+  padding: 0.85rem 1.5rem;
+  background: rgba(242, 244, 238, 0.6);
+  border-bottom-left-radius: 1.5rem;
+  border-bottom-right-radius: 1.5rem;
+}
+
+.support-plan-featured-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.support-plan-featured-start-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 9999px;
+  background: #03251b;
+  color: #ffffff !important;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-decoration: none;
+}
+
+.support-plan-featured-start-btn:hover {
+  background: #1b3b30;
+  color: #ffffff !important;
+}
+
+.support-plan-featured-done-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.65rem 1rem;
+  border-radius: 9999px;
+  background: #edefe9;
+  color: #191c19;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.support-plan-featured-done-btn:hover {
+  background: #e7e9e3;
+}
+
+.support-plan-featured-skip-btn {
+  font-size: 0.8125rem;
+  color: #414845;
+}
+
+/* Unified Ghost Button for all secondary actions (Card & Rows) */
+.support-plan-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid #dbe5df;
+  background: #ffffff;
+  color: #416658;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  line-height: 1.25;
+}
+
+.support-plan-btn-ghost:hover {
+  background: #eef5f1;
+  color: #03251b;
+  border-color: #c0e9d7;
+}
+
+.support-plan-btn-ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Activity Lists & Rows */
+.support-plan-upcoming-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.support-plan-upcoming-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.support-plan-upcoming-heading span {
+  font-size: 0.875rem;
+  color: #727975;
+}
+
+.support-plan-activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.support-plan-rows-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.support-plan-activity-row {
+  border-radius: 1rem;
+  background: #ffffff;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid #dbe5df;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  transition: all 0.2s ease;
+}
+
+.support-plan-activity-row:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.07);
+}
+
+.support-plan-row-left {
+  padding-top: 0.15rem;
+}
+
+.support-plan-row-check-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  border: 1px solid #c1c8c3;
+  background: #edefe9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #727975;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.support-plan-row-check-btn.is-checked {
+  background: #416658;
+  color: #ffffff;
+  border-color: #416658;
+}
+
+.support-plan-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.support-plan-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.support-plan-row-time {
+  font-weight: 600;
+  color: #03251b;
+}
+
+.support-plan-row-type {
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.375rem;
+  background: #f2f4ee;
+  color: #456a5c;
+}
+
+.support-plan-row-duration {
+  color: #414845;
+}
+
+.support-plan-row-title {
+  margin: 0.15rem 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #191c19;
+}
+
+.support-plan-row-desc {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #414845;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.support-plan-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+/* Sidebar Cards */
+.support-plan-sidebar-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.support-plan-side-card {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.support-plan-safety-card {
+  background: #eff6f2;
+}
+
+.support-plan-safety-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.support-plan-safety-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: #c0e9d7;
+  color: #456a5c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.support-plan-side-card-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #03251b;
+}
+
+.support-plan-side-card-subtitle {
+  font-size: 0.75rem;
+  color: #416658;
+}
+
+.support-plan-side-card-desc {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #414845;
+}
+
+.support-plan-safety-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+}
+
+.support-plan-hotline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 9999px;
+  background: #c0e9d7;
+  color: #456a5c;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.support-plan-hotline-btn:hover {
+  background: #a7cfbf;
+}
+
+.support-plan-crisis-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid #c0e9d7;
+  color: #1b3b30;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.support-plan-crisis-btn:hover {
+  background: #eef6f2;
+  border-color: #a7cfbf;
+}
+
+.support-plan-metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.support-plan-metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.support-plan-metric-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #191c19;
+}
+
+.support-plan-metric-track {
+  width: 100%;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #edefe9;
+  overflow: hidden;
+}
+
+.support-plan-metric-fill {
+  height: 100%;
+  background: #1b3b30;
+  border-radius: 9999px;
+}
+
+.support-plan-side-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.support-plan-metric-subtext-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+  color: #727975;
+}
+
+.support-plan-metric-delta {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.support-plan-quick-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.support-plan-quick-action-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: transparent;
+  color: #191c19;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.support-plan-quick-action-btn:hover {
+  background: #edefe9;
+}
+
+.support-plan-side-link-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  background: #edefe9;
+  color: #191c19;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.support-plan-side-link-btn:hover {
+  background: #e7e9e3;
+}
+
+/* 6. Footer */
+.support-plan-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+}
+
+.support-plan-footer-inner {
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  background: #f2f4ee;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: #414845;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+@media (min-width: 768px) {
+  .support-plan-footer-inner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.support-plan-footer-privacy {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.support-plan-footer-privacy p {
+  margin: 0;
+}
+
+.support-plan-footer-lock-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background: #e7e9e3;
+  color: #03251b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.support-plan-footer-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #727975;
+  flex-shrink: 0;
+}
+
+.support-plan-flex-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
