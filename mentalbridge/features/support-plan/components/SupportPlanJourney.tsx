@@ -584,12 +584,8 @@ export default function SupportPlanJourney() {
 
         <div className="support-plan-nav-controls">
           <div className="support-plan-date-chip">
-            <SupportPlanIcon
-              name="calendar_today"
-              size={16}
-              className="text-secondary"
-            />
-            <span className="font-semibold text-on-surface">
+            <SupportPlanIcon name="calendar_today" size={16} />
+            <span>
               {(() => {
                 const now = new Date()
                 const month = now.getMonth() + 1

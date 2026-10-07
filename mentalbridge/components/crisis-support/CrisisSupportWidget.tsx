@@ -62,9 +62,13 @@ function ArrowIcon() {
   )
 }
 
-export default function CrisisSupportWidget() {
-  const [isOpen, setIsOpen] = useState(false)
-  const triggerRef = useRef<HTMLButtonElement>(null)
+export function CrisisSupportModal({
+  isOpen,
+  onClose,
+}: Readonly<{
+  isOpen: boolean
+  onClose: () => void
+}>) {
   const panelRef = useRef<HTMLElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
@@ -72,13 +76,12 @@ export default function CrisisSupportWidget() {
     if (!isOpen) return
 
     const releaseScrollLock = lockBodyScroll()
-    const trigger = triggerRef.current
     closeRef.current?.focus()
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        setIsOpen(false)
+        onClose()
         return
       }
 
@@ -106,11 +109,100 @@ export default function CrisisSupportWidget() {
     return () => {
       releaseScrollLock()
       document.removeEventListener('keydown', handleKeyDown)
-      trigger?.focus()
     }
-  }, [isOpen])
+  }, [isOpen, onClose])
 
-  const closePanel = () => setIsOpen(false)
+  if (!isOpen) return null
+
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.backdrop}
+        aria-label="Đóng khi chạm bên ngoài bảng hỗ trợ"
+        tabIndex={-1}
+        onClick={onClose}
+      />
+      <section
+        ref={panelRef}
+        id="crisis-support-panel"
+        className={styles.panel}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Bảng hỗ trợ khẩn cấp"
+        data-content-version={CRISIS_SUPPORT_CONTENT.version}
+      >
+        <header className={styles.header}>
+          <div>
+            <span>Hỗ trợ ngay</span>
+            <h2>Bạn không đơn độc</h2>
+            <p>Các số hỗ trợ dưới đây luôn hiện sẵn để bạn có thể gọi ngay.</p>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            className={styles.close}
+            aria-label="Đóng bảng hỗ trợ khẩn cấp"
+            onClick={onClose}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </header>
+
+        <div className={styles.body}>
+          <div className={styles.contacts} aria-label="Số điện thoại hỗ trợ">
+            {CRISIS_SUPPORT_CONTENT.contacts.map((contact) => (
+              <article className={styles.contact} key={contact.id}>
+                <div>
+                  <p>
+                    {contact.name}
+                    {contact.availability && (
+                      <span>{contact.availability}</span>
+                    )}
+                  </p>
+                  <strong>{contact.displayPhone}</strong>
+                </div>
+                <a
+                  className={styles.call}
+                  href={contact.href}
+                  aria-label={`Gọi ${contact.name} số ${contact.displayPhone}`}
+                >
+                  <PhoneIcon />
+                  Gọi
+                </a>
+              </article>
+            ))}
+          </div>
+
+          <nav className={styles.links} aria-label="Các lựa chọn hỗ trợ khác">
+            <Link href="/safety-directory" onClick={onClose}>
+              <span>Tìm cơ sở gần bạn</span>
+              <ArrowIcon />
+            </Link>
+            <Link href="/resources" onClick={onClose}>
+              <span>Bài tập ổn định cảm xúc</span>
+              <ArrowIcon />
+            </Link>
+          </nav>
+        </div>
+
+        <footer className={styles.footer}>
+          Không cần đăng nhập hay điền form để gọi hotline. Thông tin này luôn
+          sẵn sàng, mọi lúc.
+        </footer>
+      </section>
+    </>
+  )
+}
+
+export default function CrisisSupportWidget() {
+  const [isOpen, setIsOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  const handleClose = () => {
+    setIsOpen(false)
+    triggerRef.current?.focus()
+  }
 
   return (
     <>
@@ -130,93 +222,7 @@ export default function CrisisSupportWidget() {
         <span className={styles.fabLabel}>Cần hỗ trợ ngay</span>
       </button>
 
-      {isOpen && (
-        <>
-          <button
-            type="button"
-            className={styles.backdrop}
-            aria-label="Đóng khi chạm bên ngoài bảng hỗ trợ"
-            tabIndex={-1}
-            onClick={closePanel}
-          />
-          <section
-            ref={panelRef}
-            id="crisis-support-panel"
-            className={styles.panel}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Bảng hỗ trợ khẩn cấp"
-            data-content-version={CRISIS_SUPPORT_CONTENT.version}
-          >
-            <header className={styles.header}>
-              <div>
-                <span>Hỗ trợ ngay</span>
-                <h2>Bạn không đơn độc</h2>
-                <p>
-                  Các số hỗ trợ dưới đây luôn hiện sẵn để bạn có thể gọi ngay.
-                </p>
-              </div>
-              <button
-                ref={closeRef}
-                type="button"
-                className={styles.close}
-                aria-label="Đóng bảng hỗ trợ khẩn cấp"
-                onClick={closePanel}
-              >
-                <span aria-hidden="true">×</span>
-              </button>
-            </header>
-
-            <div className={styles.body}>
-              <div
-                className={styles.contacts}
-                aria-label="Số điện thoại hỗ trợ"
-              >
-                {CRISIS_SUPPORT_CONTENT.contacts.map((contact) => (
-                  <article className={styles.contact} key={contact.id}>
-                    <div>
-                      <p>
-                        {contact.name}
-                        {contact.availability && (
-                          <span>{contact.availability}</span>
-                        )}
-                      </p>
-                      <strong>{contact.displayPhone}</strong>
-                    </div>
-                    <a
-                      className={styles.call}
-                      href={contact.href}
-                      aria-label={`Gọi ${contact.name} số ${contact.displayPhone}`}
-                    >
-                      <PhoneIcon />
-                      Gọi
-                    </a>
-                  </article>
-                ))}
-              </div>
-
-              <nav
-                className={styles.links}
-                aria-label="Các lựa chọn hỗ trợ khác"
-              >
-                <Link href="/safety-directory" onClick={closePanel}>
-                  <span>Tìm cơ sở gần bạn</span>
-                  <ArrowIcon />
-                </Link>
-                <Link href="/resources" onClick={closePanel}>
-                  <span>Bài tập ổn định cảm xúc</span>
-                  <ArrowIcon />
-                </Link>
-              </nav>
-            </div>
-
-            <footer className={styles.footer}>
-              Không cần đăng nhập hay điền form để gọi hotline. Thông tin này
-              luôn sẵn sàng, mọi lúc.
-            </footer>
-          </section>
-        </>
-      )}
+      <CrisisSupportModal isOpen={isOpen} onClose={handleClose} />
     </>
   )
 }

@@ -30,13 +30,15 @@ export default function SupportPlanHero({
 
       <div className="support-plan-hero-inner">
         <div className="support-plan-hero-content">
-          <div className="support-plan-badge-pill">
+          <div className="support-plan-badge-pill" style={{ color: '#ffffff' }}>
             <SupportPlanIcon
               name="star"
               size={14}
               className="support-plan-hero-star"
             />
-            <span>DÀNH CHO GÓI PLUS &amp; PREMIUM</span>
+            <span style={{ color: '#ffffff' }}>
+              DÀNH CHO GÓI PLUS &amp; PREMIUM
+            </span>
           </div>
 
           <h1 className="support-plan-hero-title">Kế hoạch hỗ trợ của bạn</h1>

@@ -4,23 +4,12 @@
   width: 100%;
   max-width: 1080px;
   margin: 0 auto;
-  padding: 0 0 120px;
+  padding: 0 0 64px;
   color: var(--ink);
-  font-family: var(--font-be-vietnam), sans-serif;
+  font-family:
+    var(--font-plus-jakarta), var(--font-be-vietnam-variable), var(--font-sans),
+    sans-serif;
   animation: mb-page-enter var(--motion-medium) var(--ease-standard) both;
-}
-
-.support-plan-page :is(h1, h2, h3, h4, h5) {
-  font-family: var(--font-be-vietnam), sans-serif;
-  letter-spacing: -0.02em;
-}
-
-.support-plan-icon {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
 }
 
 .support-plan-reassessment-callout,
@@ -575,7 +564,7 @@
   width: 100%;
   background: transparent;
   border: none;
-  padding: 0;
+  padding: clamp(var(--space-5), 3vw, var(--space-8));
   box-shadow: none;
 }
 
@@ -1254,6 +1243,13 @@
   display: none !important;
 }
 
+#panel-manage {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: clamp(var(--space-5), 3vw, var(--space-8));
+}
+
 /* Accordion for 3 confirmed contents (!isDraft) */
 .support-plan-slot-item {
   display: block !important;
@@ -1581,6 +1577,10 @@
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.05em;
+}
+
+.support-plan-badge-pill * {
+  color: #ffffff !important;
 }
 
 .support-plan-hero-title {
@@ -2373,6 +2373,23 @@
 }
 
 /* Activity Lists & Rows */
+.support-plan-upcoming-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.support-plan-upcoming-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.support-plan-upcoming-heading span {
+  font-size: 0.875rem;
+  color: #727975;
+}
+
 .support-plan-activities-list {
   display: flex;
   flex-direction: column;
@@ -2748,492 +2765,8 @@
   flex-shrink: 0;
 }
 
-.support-plan-hero {
-  padding: var(--space-8);
-  border-radius: var(--radius-shell);
-  box-shadow: var(--elevation-1);
-}
-
-.support-plan-hero-content {
-  max-width: 39rem;
-}
-
-.support-plan-hero-title {
-  font-family: var(--font-be-vietnam), sans-serif;
-}
-
-.support-plan-badge-pill,
-.support-plan-badge-pill svg,
-.support-plan-featured-start-btn,
-.support-plan-featured-start-btn svg {
-  color: #fff;
-}
-
-.support-plan-hero-mini-card {
-  max-width: 23rem;
-  border: 1px solid color-mix(in srgb, var(--teal-pale) 58%, white);
-  border-radius: var(--radius-panel);
-}
-
-.support-plan-mini-card-footer {
-  display: grid;
-  grid-template-columns: auto auto;
-  justify-content: space-between;
-  gap: var(--space-4);
-  font-size: 0.75rem;
-}
-
-.support-plan-mini-card-done,
-.support-plan-mini-card-remaining {
-  white-space: nowrap;
-}
-
-.support-plan-nav-row {
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.support-plan-tabs {
-  margin-bottom: 0;
-}
-
-#panel-schedule {
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-shell);
-  background: transparent;
-  box-shadow: none;
-}
-
-.support-plan-card.support-plan-card--schedule,
-.support-plan-card--schedule > #panel-schedule,
-.support-plan-card--schedule .support-plan-schedule,
-.support-plan-card--schedule .support-plan-content-grid,
-.support-plan-card--schedule .support-plan-activities-col {
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.support-plan-card.support-plan-card--schedule,
-.support-plan-card--schedule > #panel-schedule,
-.support-plan-card--schedule .support-plan-schedule {
-  padding: 0 !important;
-}
-
-.support-plan-week-calendar {
-  border: 1px solid color-mix(in srgb, var(--teal-pale) 48%, var(--line));
-  border-radius: var(--radius-shell);
-  box-shadow: var(--elevation-1);
-}
-
-.support-plan-calendar-title {
-  font-weight: 700;
-}
-
-.support-plan-calendar-subtitle,
-.support-plan-featured-time-meta,
-.support-plan-row-meta,
-.support-plan-calendar-legend {
-  color: var(--ink-soft);
-  font-size: 0.8125rem;
-}
-
-.support-plan-cal-btn {
-  transition:
-    background var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
-}
-
-.support-plan-cal-btn:active {
-  transform: scale(0.96);
-}
-
-.support-plan-cal-col {
-  min-height: 116px;
-  transition:
-    background var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
-}
-
-.support-plan-cal-col:active {
-  transform: scale(0.98);
-}
-
-.support-plan-cal-col:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.support-plan-empty-date-state,
-.support-plan-featured-card,
-.support-plan-footer-inner {
-  border-radius: var(--radius-shell);
-}
-
-.support-plan-upcoming-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-
-.support-plan-upcoming-heading > span {
-  color: var(--ink-soft);
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.support-plan-featured-card {
-  border: 1px solid color-mix(in srgb, var(--teal-pale) 54%, var(--line));
-  box-shadow: var(--elevation-1);
-}
-
-.support-plan-featured-disclosure {
-  margin-top: var(--space-2);
-  border-top: 1px solid color-mix(in srgb, var(--teal-pale) 58%, var(--line));
-}
-
-.support-plan-featured-disclosure summary {
-  min-height: 40px !important;
-  padding-inline: var(--space-2);
-  border-radius: var(--radius-control);
-}
-
-.support-plan-featured-disclosure summary:hover {
-  background: color-mix(in srgb, var(--teal-pale) 30%, transparent);
-}
-
-.support-plan-featured-start-btn {
-  transition:
-    background var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
-}
-
-.support-plan-row-start-btn,
-.support-plan-btn-secondary,
-.support-plan-btn-ghost {
-  display: inline-flex;
-  min-height: 36px;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  border-radius: var(--radius-control);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.25;
-  text-decoration: none;
-  cursor: pointer;
-  transition:
-    background var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
-}
-
-.support-plan-row-start-btn {
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--teal-deep);
-  background: var(--teal-deep);
-  color: #fff;
-}
-
-.support-plan-row-start-btn:hover {
-  border-color: #163b35;
-  background: #163b35;
-  color: #fff;
-}
-
-.support-plan-btn-secondary {
-  padding: 0.45rem 0.85rem;
-  border: 1px solid color-mix(in srgb, var(--teal) 42%, var(--line));
-  background: var(--surface);
-  color: var(--teal-deep);
-}
-
-.support-plan-btn-secondary:hover {
-  border-color: var(--teal);
-  background: color-mix(in srgb, var(--teal-pale) 36%, var(--surface));
-}
-
-.support-plan-btn-ghost {
-  min-height: 32px;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--ink-soft);
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.support-plan-btn-ghost:hover {
-  border-color: transparent;
-  background: color-mix(in srgb, var(--teal-pale) 30%, transparent);
-  color: var(--teal-deep);
-}
-
-.support-plan-featured-start-btn:active,
-.support-plan-row-start-btn:active,
-.support-plan-btn-secondary:active,
-.support-plan-btn-ghost:active {
-  transform: scale(0.98);
-}
-
-.support-plan-btn-secondary:disabled,
-.support-plan-btn-ghost:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.support-plan-activity-row {
-  border-radius: var(--radius-panel);
-}
-
-.support-plan-row-left {
-  padding-top: 0.1rem;
-}
-
-.support-plan-row-check-btn {
-  background: var(--surface);
-}
-
-.support-plan-row-check-btn.is-empty {
-  color: transparent;
-}
-
-.support-plan-row-check-btn.is-empty:hover:not(:disabled) {
-  border-color: var(--teal);
-  background: color-mix(in srgb, var(--teal-pale) 32%, var(--surface));
-}
-
-.support-plan-row-actions {
-  gap: var(--space-2);
-}
-
-.support-plan-side-card {
-  border: 1px solid color-mix(in srgb, var(--teal-pale) 48%, var(--line));
-  border-radius: var(--radius-panel);
-  box-shadow: var(--elevation-1);
-}
-
-.support-plan-side-card-header {
+.support-plan-flex-row {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-}
-
-.support-plan-safety-icon,
-.support-plan-side-card-icon-tile {
-  display: flex;
-  width: 2.5rem;
-  height: 2.5rem;
-  flex: 0 0 2.5rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-control);
-  background: var(--teal-pale);
-  color: var(--teal-deep);
-}
-
-.support-plan-side-card-heading {
-  min-width: 0;
-  flex: 1;
-}
-
-.support-plan-side-title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.support-plan-metric-subtext-row {
-  color: var(--ink-soft);
-  font-size: 0.75rem;
-}
-
-.support-plan-metric-value {
-  color: var(--ink);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.support-plan-side-card-footer {
-  padding-top: var(--space-2);
-}
-
-.support-plan-quick-action-btn {
-  justify-content: flex-start;
-  gap: var(--space-3);
-  padding: 0.75rem 1rem;
-  font-size: 0.8125rem;
-}
-
-.support-plan-quick-action-icon,
-.support-plan-quick-action-chevron {
-  flex: 0 0 auto;
-}
-
-.support-plan-quick-action-label {
-  min-width: 0;
-  flex: 1;
-  text-align: left;
-}
-
-.support-plan-footer-inner {
-  border: 1px solid color-mix(in srgb, var(--teal-pale) 38%, var(--line));
-}
-
-.support-plan-footer-timestamp {
-  color: var(--ink-soft);
-}
-
-@media (min-width: 900px) {
-  .support-plan-hero-inner {
-    flex-direction: row;
-    align-items: center;
-  }
-}
-
-@media (max-width: 899px) {
-  .support-plan-hero {
-    padding: var(--space-6);
-  }
-
-  .support-plan-hero-inner {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .support-plan-hero-mini-card {
-    max-width: none;
-  }
-
-  .support-plan-content-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .support-plan-page {
-    padding-bottom: 112px;
-  }
-
-  .support-plan-nav-row {
-    align-items: stretch;
-  }
-
-  .support-plan-tabs {
-    width: 100%;
-    flex-direction: row;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .support-plan-tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .support-plan-tab-btn {
-    min-height: 40px;
-    flex: 0 0 auto;
-    padding-inline: var(--space-4);
-  }
-
-  .support-plan-nav-controls {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .support-plan-calendar-header,
-  .support-plan-calendar-controls-right {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .support-plan-calendar-controls-right,
-  .support-plan-calendar-nav {
-    width: 100%;
-  }
-
-  .support-plan-calendar-nav {
-    justify-content: space-between;
-  }
-
-  .support-plan-calendar-grid {
-    grid-template-columns: repeat(7, minmax(104px, 1fr));
-    overflow-x: auto;
-    padding: var(--space-2) 2px;
-    scroll-snap-type: x proximity;
-  }
-
-  .support-plan-cal-col {
-    min-height: 112px;
-    scroll-snap-align: start;
-  }
-
-  .support-plan-calendar-legend {
-    gap: var(--space-3) var(--space-5);
-  }
-
-  .support-plan-footer-privacy {
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 480px) {
-  .support-plan-tabs {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    overflow: visible;
-  }
-
-  .support-plan-tab-btn {
-    width: auto;
-    min-width: 0;
-    padding-inline: var(--space-2);
-    font-size: 0.75rem;
-    white-space: normal;
-  }
-
-  .support-plan-hero,
-  .support-plan-week-calendar {
-    padding: var(--space-4);
-  }
-
-  .support-plan-mini-card-footer {
-    grid-template-columns: 1fr;
-    gap: var(--space-2);
-  }
-
-  .support-plan-featured-card {
-    padding: var(--space-4);
-  }
-
-  .support-plan-featured-body {
-    gap: var(--space-3);
-  }
-
-  .support-plan-featured-actions {
-    margin: var(--space-3) calc(-1 * var(--space-4)) calc(-1 * var(--space-4));
-    padding: var(--space-3) var(--space-4);
-  }
-
-  .support-plan-activity-row {
-    gap: var(--space-3);
-    padding: var(--space-4);
-  }
-
-  .support-plan-row-actions {
-    align-items: stretch;
-  }
-
-  .support-plan-row-start-btn,
-  .support-plan-btn-secondary,
-  .support-plan-btn-ghost {
-    justify-content: center;
-  }
+  gap: 0.5rem;
 }
