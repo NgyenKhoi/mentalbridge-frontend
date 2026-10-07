@@ -82,7 +82,13 @@ When exact-head proof is required before merging a `dev` pull request, a
 maintainer applies the `run-mobile-staging-e2e` label. The existing frontend
 workflow then checks out `github.event.pull_request.head.sha`, verifies the
 checkout identity, and runs only the native boot plus MB-626 Resource journey
-inside the protected `staging-mobile-e2e` Environment. The conditional
-`quality-gate` requires that job to succeed while the label is present. Its
-`android-mb-626-real-contract-<head-sha>` artifact contains the same sanitized
-manifest and screenshot; ordinary pull requests continue to skip native builds.
+inside the protected `staging-mobile-e2e` Environment. When protected staging
+inputs exist, the journey uses that edge and fixture. Otherwise it checks out
+the backend `dev` provider, creates ephemeral Identity and Content databases,
+generates a one-run synthetic USER, and runs the APK through a routing-only
+public edge. Both modes execute the real Identity and Content server contracts;
+neither uses a response fixture or client-owned progress. The conditional
+`quality-gate` requires the job to succeed while the label is present. Its
+`android-mb-626-real-contract-<head-sha>` artifact contains the sanitized
+manifest and screenshot, including the provider commit for a controlled run;
+ordinary pull requests continue to skip native builds.

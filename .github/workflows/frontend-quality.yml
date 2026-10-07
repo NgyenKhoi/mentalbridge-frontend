@@ -147,12 +147,9 @@ jobs:
       CI: 'true'
       EVIDENCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
       EXPO_NO_TELEMETRY: '1'
-      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}
       EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
       MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
       MAESTRO_CLI_NO_ANALYTICS: 'true'
-      MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}
-      MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
       MAESTRO_VERSION: '2.11.0'
       ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
     steps:
@@ -163,6 +160,33 @@ jobs:
 
       - name: Verify exact pull-request head
         run: test "$(git rev-parse HEAD)" = "$EVIDENCE_COMMIT_SHA"
+
+      - name: Select protected evidence provider
+        id: provider
+        env:
+          PROTECTED_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}
+          PROTECTED_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}
+          PROTECTED_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
+        run: |
+          if [[ -n "$PROTECTED_API_BASE_URL" && -n "$PROTECTED_USER_EMAIL" && -n "$PROTECTED_USER_PASSWORD" ]]; then
+            echo "mode=staging" >> "$GITHUB_OUTPUT"
+            echo "EXPO_PUBLIC_API_BASE_URL=$PROTECTED_API_BASE_URL" >> "$GITHUB_ENV"
+            echo "MAESTRO_MB_USER_EMAIL=$PROTECTED_USER_EMAIL" >> "$GITHUB_ENV"
+            echo "MAESTRO_MB_USER_PASSWORD=$PROTECTED_USER_PASSWORD" >> "$GITHUB_ENV"
+            echo "PROVIDER_EVIDENCE=protected-staging" >> "$GITHUB_ENV"
+          else
+            echo "mode=controlled" >> "$GITHUB_OUTPUT"
+            echo "EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8088" >> "$GITHUB_ENV"
+            echo "PROVIDER_EVIDENCE=protected-controlled-real-contract" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check out real provider services
+        if: steps.provider.outputs.mode == 'controlled'
+        uses: actions/checkout@v4
+        with:
+          repository: NgyenKhoi/mentalbridge-backend
+          ref: dev
+          path: backend-provider
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -180,10 +204,63 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Require protected staging inputs
+      - name: Prepare controlled real-contract provider
+        if: steps.provider.outputs.mode == 'controlled'
+        working-directory: backend-provider
+        run: |
+          pwsh scripts/generate-local-jwt-keys.ps1 -OutputDirectory .local/mobile-e2e
+          private_key="$(sed -n 's/^IDENTITY_JWT_PRIVATE_KEY=//p' .local/mobile-e2e/identity-secrets.env)"
+          public_key="$(sed -n 's/^IDENTITY_JWT_PUBLIC_KEY=//p' .local/mobile-e2e/identity-secrets.env)"
+          encryption_key="$(sed -n 's/^IDENTITY_ENCRYPTION_KEY=//p' .local/mobile-e2e/identity-secrets.env)"
+          user_password="$(openssl rand -hex 24)"
+          content_secret="$(openssl rand -hex 32)"
+          care_secret="$(openssl rand -hex 32)"
+          printf '::add-mask::%s\n' "$user_password"
+          {
+            printf 'E2E_IDENTITY_JWT_PRIVATE_KEY=%s\n' "$private_key"
+            printf 'E2E_IDENTITY_JWT_PUBLIC_KEY=%s\n' "$public_key"
+            printf 'E2E_IDENTITY_ENCRYPTION_KEY=%s\n' "$encryption_key"
+            printf 'E2E_CARE_IDEMPOTENCY_HMAC_KEY=%s\n' "$care_secret"
+            printf 'E2E_CONTENT_TEST_SECRET=%s\n' "$content_secret"
+            printf 'E2E_USER_A_EMAIL=e2e-user-a@synthetic.invalid\n'
+            printf 'E2E_USER_B_EMAIL=e2e-user-b@synthetic.invalid\n'
+            printf 'E2E_USER_PASSWORD=%s\n' "$user_password"
+          } > .env.mobile-resources-e2e
+          echo "MAESTRO_MB_USER_EMAIL=e2e-user-a@synthetic.invalid" >> "$GITHUB_ENV"
+          echo "MAESTRO_MB_USER_PASSWORD=$user_password" >> "$GITHUB_ENV"
+          echo "PROVIDER_COMMIT_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Start controlled real provider services
+        if: steps.provider.outputs.mode == 'controlled'
+        working-directory: backend-provider
+        run: |
+          docker compose \
+            --env-file .env.mobile-resources-e2e \
+            -f docker-compose.local.yml \
+            -f docker-compose.e2e.yml \
+            -f docker-compose.e2e.local.yml \
+            -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml \
+            up -d --build redis identity content-notification
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null && \
+              curl -fsS http://127.0.0.1:3003/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose \
+            --env-file .env.mobile-resources-e2e \
+            -f docker-compose.local.yml \
+            -f docker-compose.e2e.yml \
+            -f docker-compose.e2e.local.yml \
+            -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml \
+            ps
+          exit 1
+
+      - name: Require resolved evidence inputs
         run: |
           if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" ]]; then
-            echo "Protected staging edge and USER fixture secrets are required." >&2
+            echo "The evidence API edge and dedicated USER fixture are required." >&2
             exit 1
           fi
 
@@ -209,7 +286,19 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           working-directory: mobile
-          script: npm run native:android:smoke && npm run e2e:android:resources
+          script: npm run e2e:android:resources:evidence
+
+      - name: Stop controlled real provider services
+        if: always() && steps.provider.outputs.mode == 'controlled'
+        working-directory: backend-provider
+        run: |
+          docker compose \
+            --env-file .env.mobile-resources-e2e \
+            -f docker-compose.local.yml \
+            -f docker-compose.e2e.yml \
+            -f docker-compose.e2e.local.yml \
+            -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml \
+            down --volumes --remove-orphans
 
       - name: Upload exact-head Android evidence
         if: always()

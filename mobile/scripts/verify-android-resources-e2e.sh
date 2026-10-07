@@ -35,6 +35,10 @@ adb -s "$device" exec-out screencap -p \
 {
   printf 'MB-626 Android real-contract journey passed.\n'
   printf 'Commit: %s\n' "${EVIDENCE_COMMIT_SHA:-${GITHUB_SHA:-local}}"
+  printf 'Provider: %s\n' "${PROVIDER_EVIDENCE:-protected-staging}"
+  if [[ -n "${PROVIDER_COMMIT_SHA:-}" ]]; then
+    printf 'Provider commit: %s\n' "$PROVIDER_COMMIT_SHA"
+  fi
   printf 'Run: %s/%s/actions/runs/%s\n' \
     "${GITHUB_SERVER_URL:-https://github.com}" \
     "${GITHUB_REPOSITORY:-local}" \

@@ -110,13 +110,17 @@ describe('Mobile Delivery Contract v1', () => {
       'EVIDENCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}',
     )
     expect(androidEvidence).toContain(
-      'npm run native:android:smoke && npm run e2e:android:resources',
+      'repository: NgyenKhoi/mentalbridge-backend',
     )
     expect(androidEvidence).toContain(
-      'MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}',
+      'PROVIDER_EVIDENCE=protected-controlled-real-contract',
+    )
+    expect(androidEvidence).toContain('npm run e2e:android:resources:evidence')
+    expect(androidEvidence).toContain(
+      'PROTECTED_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}',
     )
     expect(androidEvidence).toContain(
-      'MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}',
+      'PROTECTED_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}',
     )
 
     expect(android).toContain('runs-on: ubuntu-24.04')
