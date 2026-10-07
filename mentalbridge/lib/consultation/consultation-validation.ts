@@ -51,6 +51,7 @@ export type SpecialistProfile = SpecialistProfileInput &
     createdAt: string
     updatedAt: string
     version: number
+    publishedVersion?: number
   }>
 
 export type SpecialistProfiles = Readonly<{
@@ -58,6 +59,97 @@ export type SpecialistProfiles = Readonly<{
   count: number
 }>
 export type PendingProfiles = SpecialistProfiles
+
+export type ProfileAmendment =
+  consultationComponents['schemas']['ProfileAmendment']
+export type ProfileAmendmentDetail = Readonly<{
+  approvedProfile: SpecialistProfile
+  amendment: ProfileAmendment | null
+}>
+export type ProfileAmendments = Readonly<{
+  items: ProfileAmendment[]
+  count: number
+  hasMore: boolean
+}>
+
+export function parseProfileAmendment(value: unknown): ProfileAmendment | null {
+  const item = record(value)
+  if (
+    !item ||
+    !uuid(item.id) ||
+    !uuid(item.specialistAccountId) ||
+    !Number.isInteger(item.basePublishedVersion) ||
+    Number(item.basePublishedVersion) < 1 ||
+    !['DRAFT', 'PENDING_REVIEW', 'REJECTED', 'APPROVED'].includes(
+      String(item.status),
+    ) ||
+    !Number.isInteger(item.version) ||
+    Number(item.version) < 0 ||
+    !utcInstant(item.createdAt) ||
+    !utcInstant(item.updatedAt) ||
+    !instantOrNull(item.submittedAt) ||
+    !instantOrNull(item.reviewedAt) ||
+    !(item.reviewedBy === null || uuid(item.reviewedBy))
+  )
+    return null
+  try {
+    parseProfileInput(item.proposedProfile)
+  } catch {
+    return null
+  }
+  const reviewed = item.status === 'APPROVED' || item.status === 'REJECTED'
+  if (
+    (reviewed
+      ? item.reviewedAt === null || item.reviewedBy === null
+      : item.reviewedAt !== null || item.reviewedBy !== null) ||
+    (item.status === 'DRAFT'
+      ? item.submittedAt !== null
+      : item.submittedAt === null) ||
+    (item.status === 'REJECTED'
+      ? !SPECIALIST_REJECTION_REASONS.includes(
+          item.reasonCode as SpecialistRejectionReason,
+        )
+      : item.reasonCode !== null)
+  )
+    return null
+  return item as ProfileAmendment
+}
+
+export function parseProfileAmendmentDetail(
+  value: unknown,
+): ProfileAmendmentDetail | null {
+  const item = record(value)
+  const approvedProfile = parseProfile(item?.approvedProfile)
+  if (!item || !approvedProfile) return null
+  const amendment =
+    item.amendment === null ? null : parseProfileAmendment(item.amendment)
+  if (item.amendment !== null && !amendment) return null
+  if (amendment && amendment.specialistAccountId !== approvedProfile.accountId)
+    return null
+  return { approvedProfile, amendment }
+}
+
+export function parseProfileAmendments(
+  value: unknown,
+): ProfileAmendments | null {
+  const item = record(value)
+  if (
+    !item ||
+    !Array.isArray(item.items) ||
+    item.items.length > 100 ||
+    item.count !== item.items.length ||
+    typeof item.hasMore !== 'boolean'
+  )
+    return null
+  const items = item.items.map(parseProfileAmendment)
+  if (items.some((entry) => !entry || entry.status !== 'PENDING_REVIEW'))
+    return null
+  return {
+    items: items as ProfileAmendment[],
+    count: Number(item.count),
+    hasMore: item.hasMore,
+  }
+}
 
 export type SpecialistSuspensionResult = Readonly<{
   profile: SpecialistProfile

@@ -93,7 +93,9 @@ export default function AdminWorkspace({
         </div>
       </aside>
 
-      <main className={styles.main}>
+      <main
+        className={`${styles.main} ${section === 'specialists' ? styles.reviewMain : ''}`}
+      >
         {section === 'content' ? (
           <AdminContentSection />
         ) : section === 'specialists' ? (
