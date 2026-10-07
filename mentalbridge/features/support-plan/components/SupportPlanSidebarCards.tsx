@@ -236,7 +236,7 @@ export default function SupportPlanSidebarCards({
             <SupportPlanIcon
               name={planStatus === 'ACTIVE' ? 'pause_circle' : 'play_circle'}
               size={18}
-              className="support-plan-quick-action-icon text-outline"
+              className="support-plan-quick-action-icon"
             />
             <span className="support-plan-quick-action-label">
               {planStatus === 'ACTIVE'
@@ -246,7 +246,7 @@ export default function SupportPlanSidebarCards({
             <SupportPlanIcon
               name="chevron_right"
               size={18}
-              className="support-plan-quick-action-chevron text-outline"
+              className="support-plan-quick-action-chevron"
             />
           </button>
 
@@ -258,7 +258,7 @@ export default function SupportPlanSidebarCards({
             <SupportPlanIcon
               name="auto_mode"
               size={18}
-              className="support-plan-quick-action-icon text-outline"
+              className="support-plan-quick-action-icon"
             />
             <span className="support-plan-quick-action-label">
               Tạo lại phương án cá nhân mới
@@ -266,7 +266,7 @@ export default function SupportPlanSidebarCards({
             <SupportPlanIcon
               name="chevron_right"
               size={18}
-              className="support-plan-quick-action-chevron text-outline"
+              className="support-plan-quick-action-chevron"
             />
           </button>
 
@@ -278,7 +278,7 @@ export default function SupportPlanSidebarCards({
             <SupportPlanIcon
               name="share"
               size={18}
-              className="support-plan-quick-action-icon text-outline"
+              className="support-plan-quick-action-icon"
             />
             <span className="support-plan-quick-action-label">
               Xuất báo cáo PDF cho chuyên gia
@@ -286,7 +286,7 @@ export default function SupportPlanSidebarCards({
             <SupportPlanIcon
               name="chevron_right"
               size={18}
-              className="support-plan-quick-action-chevron text-outline"
+              className="support-plan-quick-action-chevron"
             />
           </button>
         </div>

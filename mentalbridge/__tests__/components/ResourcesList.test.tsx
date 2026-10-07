@@ -46,6 +46,17 @@ describe('ResourcesList', () => {
 
     render(<ResourcesList />)
 
+    await waitFor(() =>
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({
+          headers: {
+            Accept: 'application/json',
+            'Accept-Language': 'vi-VN',
+          },
+        }),
+      ),
+    )
     const link = await screen.findByRole('link', {
       name: /mở nguồn: bài viết đã kiểm duyệt/i,
     })

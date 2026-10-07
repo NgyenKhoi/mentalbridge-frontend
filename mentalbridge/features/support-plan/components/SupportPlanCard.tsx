@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo, useState } from 'react'
 
@@ -230,6 +230,7 @@ export default function SupportPlanCard({
           </div>
           <span
             className={`support-plan-status ${plan.status === 'ACTIVE' ? 'active' : ''}`}
+            style={{ color: plan.status === 'ACTIVE' ? '#ffffff' : undefined }}
           >
             {statusLabel}
           </span>
