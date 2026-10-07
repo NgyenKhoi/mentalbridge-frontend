@@ -140,13 +140,19 @@ describe('Mobile Delivery Contract v1', () => {
     )
     expect(android).toContain("MAESTRO_VERSION: '2.11.0'")
     expect(android).toContain(
-      'npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion && npm run e2e:android:resources',
+      'npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion && npm run e2e:android:support-plan && npm run e2e:android:resources',
     )
     expect(android).toContain(
       'MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}',
     )
     expect(android).toContain(
       'MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}',
+    )
+    expect(android).toContain(
+      'MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL: ${{ secrets.MB_SUPPORT_PLAN_USER_EMAIL }}',
+    )
+    expect(android).toContain(
+      'MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD: ${{ secrets.MB_SUPPORT_PLAN_USER_PASSWORD }}',
     )
 
     expect(ios).toContain('runs-on: macos-26')

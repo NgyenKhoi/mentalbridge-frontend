@@ -135,6 +135,12 @@ help-now directory contract without local scoring or safety inference. See
 [`docs/MB-612_ASSESSMENT_GUIDANCE.md`](docs/MB-612_ASSESSMENT_GUIDANCE.md) for
 the API, state, safety, test, and staging Android demo evidence.
 
+MB-625 adds the governed USER SupportPlan journey for authoritative draft/current
+state, eligible choices and lifecycle actions, scheduled activity engagement,
+terminal history, replacement review, and specialist proposal decisions. See
+[`docs/MB-625_SUPPORT_PLAN.md`](docs/MB-625_SUPPORT_PLAN.md) for contract, cache,
+failure-state, test, and Android persisted-activity evidence.
+
 MB-613 adds the Journal-backed daily emotion check-in, owner-scoped history,
 authoritative streaks and bounded 7/14/30-day coverage. It supports same-day
 revision-aware updates and deletion without client-side mood scoring, averages,
@@ -168,11 +174,12 @@ npm run quality
 compile or boot evidence. Native compile/install/launch is verified separately
 by `npm run native:android:smoke` and `npm run native:ios:smoke` in the staging
 release gate; Android also runs the MB-612 assessment and MB-613 emotion
-real-contract journeys for MB-612 assessment, MB-613 emotion, and MB-626
-Resources against the protected staging edge and dedicated USER fixture. Pull
-requests into `dev` run only `npm run typecheck` for mobile;
+real-contract journeys plus the MB-625 SupportPlan and MB-626 Resources
+journeys against the protected staging edge. Assessment, emotion, and Resources
+share one dedicated USER fixture; SupportPlan uses a separate resettable
+fixture. Pull requests into `dev` run only `npm run typecheck` for mobile;
 formatting, lint, Jest, bundle export, native boot, and real-contract checks
-wait for staging.
+wait for staging unless an explicit evidence label enables an exact-head run.
 
 The synthetic welcome-screen review capture is documented in
 [`docs/evidence/README.md`](docs/evidence/README.md).

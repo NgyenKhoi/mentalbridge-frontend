@@ -8,10 +8,10 @@ prove that Gradle or Xcode can compile, install, and launch the native app.
 
 Promotions from `dev` to `staging` run two required smoke jobs:
 
-| Job                                | Agreed path exercised                                                                                       | Passing evidence                                                                                                                                                                                                      |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Android native boot and journeys` | Release native boot, then MB-612, MB-613, and MB-626 Maestro journeys against the approved staging API edge | CNG prebuild, Gradle compile, APK install, live foreground app, assessment → persisted SupportGuide, emotion check-in → history/progress, reviewed Resource → persisted progress, screenshots and sanitized manifests |
-| `iOS native boot`                  | `expo run:ios --configuration Release --no-bundler`                                                         | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                                                                                                        |
+| Job                                | Agreed path exercised                                                                                               | Passing evidence                                                                                                                                                                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Android native boot and journeys` | Release native boot, then MB-612, MB-613, MB-625, and MB-626 Maestro journeys against the approved staging API edge | CNG prebuild, Gradle compile, APK install, live foreground app, persisted SupportGuide, emotion history/progress, SupportPlan occurrence complete/reload/reopen/reload, reviewed Resource progress/restart/reload, screenshots and sanitized manifests |
+| `iOS native boot`                  | `expo run:ios --configuration Release --no-bundler`                                                                 | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                                                                                                                                         |
 
 Both jobs embed only the public environment configuration from the workflow.
 The Android job is attached to the protected `staging-mobile-e2e` Environment;
@@ -69,6 +69,19 @@ npm run e2e:android:assessment
 It fails unless the real server accepts PHQ-9 followed by GAD-7, returns the
 authoritative result and SupportGuide, and the app can return to history and
 reopen that persisted guide.
+
+The MB-625 real-contract journey uses a separate protected USER fixture with an
+active SupportPlan and a scheduled occurrence:
+
+```powershell
+$env:MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL = 'dedicated-plan-user@example.invalid'
+$env:MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD = 'from-protected-secret-store'
+npm run e2e:android:support-plan
+```
+
+It fails unless the occurrence can be completed, reloaded from Care as
+completed, reopened, and reloaded again as scheduled. The fixture must be
+resettable and contain no production personal data.
 
 The MB-613 journey uses the same protected fixture and already installed APK:
 
