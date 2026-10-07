@@ -2,26 +2,29 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   width: 100%;
+  padding-bottom: 2px;
 }
 
 .reactions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .reactions button,
 .bookmark {
   min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
   color: var(--ink-soft);
-  background: var(--surface);
+  background: transparent;
   font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
   transition:
     color var(--motion-fast) var(--ease-standard),
@@ -34,6 +37,17 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.reactions svg,
+.bookmark svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.mobileLabel {
+  display: none;
 }
 
 .reactions button:hover:not(:disabled),
@@ -63,7 +77,7 @@
 
 .count {
   color: var(--ink-soft);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .bookmark {
@@ -86,8 +100,18 @@
   }
 
   .reactions button {
-    flex: 1 1 120px;
+    flex: 0 1 auto;
     justify-content: center;
+    padding-inline: 4px;
+    font-size: 0.8125rem;
+  }
+
+  .desktopLabel {
+    display: none;
+  }
+
+  .mobileLabel {
+    display: inline;
   }
 
   .bookmark {

@@ -50,18 +50,27 @@ test.describe('MB-618 Community closure journey', () => {
     await login(page)
     await page.goto('/community')
 
-    await page.locator('.community-composer-collapsed button').click()
+    await page.getByRole('button', { name: 'Viết bài' }).click()
     await page
       .locator('#community-post-content')
       .fill('A governed Community closure story with two safe image previews.')
-    await page.locator('.community-topic-choices label').last().click()
+    await page
+      .getByRole('group', { name: 'Chọn 1–3 chủ đề' })
+      .locator('label')
+      .last()
+      .click()
+    await page
+      .getByRole('dialog', { name: 'Tạo bài viết' })
+      .getByRole('button', { name: /^Tài nguyên/ })
+      .click()
     await page
       .locator('#community-resource-select')
       .selectOption(publishedResourceId)
     await page
-      .locator('.community-sensitive-choice input[type="checkbox"]')
+      .getByRole('checkbox', { name: 'Thêm cảnh báo nội dung nhạy cảm' })
       .check()
-    await page.locator('.community-identity-choices label').last().click()
+    await page.getByText('Đăng ẩn danh', { exact: true }).click()
+    await page.getByRole('button', { name: /^Ảnh \/ video/ }).click()
     await page.locator('input[type="file"][multiple]').setInputFiles([
       {
         name: 'calm-preview-one.png',
@@ -82,7 +91,7 @@ test.describe('MB-618 Community closure journey', () => {
         .locator('.community-upload-list li')
         .filter({ hasText: 'S\u1eb5n s\u00e0ng' }),
     ).toHaveCount(2)
-    await page.locator('.community-form-actions button').last().click()
+    await page.getByRole('button', { name: 'Đăng câu chuyện' }).click()
 
     await expect(page).toHaveURL(/\/community\/[0-9a-f-]+$/)
     await page.reload()
@@ -126,28 +135,40 @@ test.describe('MB-618 Community closure journey', () => {
     await login(page)
     await page.goto(`/community/${firstPostId}`)
 
-    const safetyButtons = page.locator(
-      '.community-safety-actions > div > button',
-    )
-    await safetyButtons.nth(2).click()
-    await expect(safetyButtons.nth(2)).toContainText('B\u1ecf ch\u1eb7n')
-    await safetyButtons.nth(2).click()
-    await expect(safetyButtons.nth(2)).toContainText('Ch\u1eb7n')
+    const safetyTrigger = page
+      .getByRole('article')
+      .getByRole('button', { name: 'T\u00f9y ch\u1ecdn an to\u00e0n' })
+    await safetyTrigger.click()
+    await page
+      .getByRole('button', { name: 'Ch\u1eb7n th\u00e0nh vi\u00ean' })
+      .click()
+    await expect(safetyTrigger).toBeEnabled()
+    await safetyTrigger.click()
+    await page
+      .getByRole('button', { name: 'B\u1ecf ch\u1eb7n th\u00e0nh vi\u00ean' })
+      .click()
 
-    await safetyButtons.nth(1).click()
+    await safetyTrigger.click()
+    await page.getByRole('button', { name: 'B\u00e1o c\u00e1o' }).click()
     await page
       .locator('.community-report-form select')
       .selectOption('SELF_HARM_OR_CRISIS_CONCERN')
     await page
       .locator('.community-report-form textarea')
       .fill('Please review this synthetic closure case.')
-    await page.locator('.community-report-form button').click()
+    await page
+      .locator('.community-report-form button')
+      .filter({ hasText: 'G\u1eedi b\u00e1o c\u00e1o' })
+      .click()
     await expect(page.locator('.community-report-form')).toHaveCount(0)
 
     await page.goto(`/community/${secondPostId}`)
     await page
-      .locator('.community-safety-actions > div > button')
-      .first()
+      .getByRole('article')
+      .getByRole('button', { name: 'T\u00f9y ch\u1ecdn an to\u00e0n' })
+      .click()
+    await page
+      .getByRole('button', { name: '\u1ea8n n\u1ed9i dung n\u00e0y' })
       .click()
     await expect(page).toHaveURL(/\/community$/)
     await expect(

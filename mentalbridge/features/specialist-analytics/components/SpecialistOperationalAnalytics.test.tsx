@@ -55,10 +55,10 @@ const readyAnalytics = {
   financials: {
     source: 'CONSULTATION',
     asOf: generatedAt,
-    state: 'UNAVAILABLE',
-    currency: null,
-    earnedAmountMinor: null,
-    paidAmountMinor: null,
+    state: 'AVAILABLE',
+    currency: 'VND',
+    earnedAmountMinor: 420000,
+    paidAmountMinor: 210000,
   },
 } satisfies Analytics
 
@@ -70,15 +70,16 @@ describe('SpecialistOperationalAnalytics', () => {
     api.get.mockResolvedValue(readyAnalytics)
   })
 
-  it('renders factual operational metrics and an explicit unavailable financial state', async () => {
+  it('renders factual operational and MB-516 financial metrics', async () => {
     render(<SpecialistOperationalAnalytics />)
 
     expect(
       await screen.findByRole('heading', { name: 'Hoạt động tư vấn của bạn' }),
     ).toBeInTheDocument()
     expect(screen.getByText('75%')).toBeInTheDocument()
-    expect(screen.getByText('Chưa có dữ liệu để hiển thị')).toBeInTheDocument()
-    expect(screen.queryByText(/8\.400\.000/)).not.toBeInTheDocument()
+    expect(screen.getByText('Tài chính trong kỳ')).toBeInTheDocument()
+    expect(screen.getByText(/420\.000/)).toBeInTheDocument()
+    expect(screen.getByText(/210\.000/)).toBeInTheDocument()
     expect(
       screen.getByText(/không sử dụng dữ liệu sức khỏe tinh thần/i),
     ).toBeInTheDocument()

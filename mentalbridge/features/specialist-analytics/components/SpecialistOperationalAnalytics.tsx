@@ -54,6 +54,14 @@ function formatTime(value: string) {
   }).format(new Date(value))
 }
 
+function formatMoney(value: number, currency: string) {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
 function friendlyError(error: unknown) {
   if (error instanceof ApiError) {
     if (error.code === 'UNAUTHENTICATED')
@@ -168,6 +176,7 @@ export default function SpecialistOperationalAnalytics() {
   ].includes('STALE')
   const availability = analytics.availability
   const appointments = analytics.appointments
+  const financials = analytics.financials
 
   return (
     <div className={styles.analytics}>
@@ -309,12 +318,47 @@ export default function SpecialistOperationalAnalytics() {
         <span aria-hidden="true">◈</span>
         <div>
           <p className={styles.eyebrow}>Thu nhập và thanh toán</p>
-          <h2 id="financial-title">Chưa có dữ liệu để hiển thị</h2>
-          <p>
-            MentalBridge sẽ hiển thị số liệu tài chính tại đây khi chức năng ghi
-            nhận thu nhập và thanh toán được đưa vào sử dụng. Hiện tại hệ thống
-            không ước tính hoặc hiển thị số mẫu.
-          </p>
+          {financials.state === 'UNAVAILABLE' ? (
+            <>
+              <h2 id="financial-title">Chưa thể tải dữ liệu tài chính</h2>
+              <p>
+                Nguồn thu nhập và thanh toán hiện không khả dụng. Hệ thống không
+                ước tính hoặc thay thế bằng số mẫu.
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 id="financial-title">
+                {financials.state === 'EMPTY'
+                  ? 'Chưa phát sinh tài chính trong kỳ'
+                  : 'Tài chính trong kỳ'}
+              </h2>
+              <div className={styles.financialFacts}>
+                <span>
+                  <small>Thu nhập ghi nhận</small>
+                  <strong>
+                    {formatMoney(
+                      financials.earnedAmountMinor ?? 0,
+                      financials.currency ?? 'VND',
+                    )}
+                  </strong>
+                </span>
+                <span>
+                  <small>Đã thanh toán</small>
+                  <strong>
+                    {formatMoney(
+                      financials.paidAmountMinor ?? 0,
+                      financials.currency ?? 'VND',
+                    )}
+                  </strong>
+                </span>
+              </div>
+              <p>
+                Tổng hợp từ khoản thu MB-516 và các payout thành công phát sinh
+                trong khoảng thời gian đã chọn.
+              </p>
+            </>
+          )}
         </div>
       </section>
 

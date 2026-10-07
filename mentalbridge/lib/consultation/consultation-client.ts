@@ -7,6 +7,8 @@ import {
   parseAppointment,
   parseAppointmentRating,
   parseAppointmentList,
+  parseAppointmentDispute,
+  parseAppointmentDisputeList,
   parseAppointmentChatEligibility,
   parseBookableSlotList,
   parsePendingProfiles,
@@ -15,6 +17,9 @@ import {
   parseServiceCreditAccount,
   parseSpecialistDashboard,
   parseSpecialistOperationalAnalytics,
+  parseSpecialistEarnings,
+  parsePayoutDestination,
+  parseAdminPayoutList,
   parseSpecialistDiscoveryItem,
   parseSpecialistDiscoveryPage,
   parseSpecialistSuspensionResult,
@@ -33,9 +38,17 @@ import {
   type SpecialistSuspensionResult,
   type SpecialistDashboard,
   type SpecialistOperationalAnalytics,
+  type SpecialistEarnings,
+  type PayoutDestination,
+  type SavePayoutDestinationInput,
+  type AdminPayoutList,
   type Appointment,
   type AppointmentRating,
   type AppointmentList,
+  type AppointmentDispute,
+  type AppointmentDisputeList,
+  type OpenAppointmentDisputeInput,
+  type ResolveAppointmentDisputeInput,
   type AppointmentChatEligibility,
   type AppointmentRequestInput,
   type BookableSlotList,
@@ -190,6 +203,120 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseAdminAppointmentPage,
+    })
+  },
+  participantAppointmentDispute(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+    role: 'USER' | 'SPECIALIST',
+  ) {
+    const prefix = role === 'USER' ? '' : '/specialist'
+    return request<AppointmentDispute>({
+      method: 'GET',
+      path: `/api/v1${prefix}/appointments/${encodeURIComponent(appointmentId)}/dispute`,
+      token,
+      correlationId,
+      parse: parseAppointmentDispute,
+    })
+  },
+  openAppointmentDispute(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+    role: 'USER' | 'SPECIALIST',
+    body: OpenAppointmentDisputeInput,
+    idempotencyKey: string,
+  ) {
+    const prefix = role === 'USER' ? '' : '/specialist'
+    return request<AppointmentDispute>({
+      method: 'POST',
+      path: `/api/v1${prefix}/appointments/${encodeURIComponent(appointmentId)}/dispute`,
+      token,
+      correlationId,
+      body,
+      idempotencyKey,
+      parse: parseAppointmentDispute,
+    })
+  },
+  appointmentDisputes(
+    token: string,
+    correlationId: string,
+    status: 'OPEN' | 'RESOLVED',
+  ) {
+    return request<AppointmentDisputeList>({
+      method: 'GET',
+      path: `/api/v1/admin/appointment-disputes?status=${status}`,
+      token,
+      correlationId,
+      parse: parseAppointmentDisputeList,
+    })
+  },
+  resolveAppointmentDispute(
+    token: string,
+    correlationId: string,
+    disputeId: string,
+    body: ResolveAppointmentDisputeInput,
+    etag: string,
+    idempotencyKey: string,
+  ) {
+    return request<AppointmentDispute>({
+      method: 'POST',
+      path: `/api/v1/admin/appointment-disputes/${encodeURIComponent(disputeId)}/resolve`,
+      token,
+      correlationId,
+      body,
+      ifMatch: etag,
+      idempotencyKey,
+      parse: parseAppointmentDispute,
+    })
+  },
+  specialistEarnings(token: string, correlationId: string) {
+    return request<SpecialistEarnings>({
+      method: 'GET',
+      path: '/api/v1/specialist/earnings',
+      token,
+      correlationId,
+      parse: parseSpecialistEarnings,
+    })
+  },
+  saveSpecialistPayoutDestination(
+    token: string,
+    correlationId: string,
+    body: SavePayoutDestinationInput,
+  ) {
+    return request<PayoutDestination>({
+      method: 'PUT',
+      path: '/api/v1/specialist/payout-destination',
+      token,
+      correlationId,
+      body,
+      parse: parsePayoutDestination,
+    })
+  },
+  createSpecialistPayout(
+    token: string,
+    correlationId: string,
+    destinationId: string,
+    idempotencyKey: string,
+  ) {
+    return request<SpecialistEarnings>({
+      method: 'POST',
+      path: '/api/v1/specialist/payouts',
+      token,
+      correlationId,
+      body: { destinationId },
+      idempotencyKey,
+      parse: parseSpecialistEarnings,
+    })
+  },
+  adminPayouts(token: string, correlationId: string) {
+    return request<AdminPayoutList>({
+      method: 'GET',
+      path: '/api/v1/admin/payouts',
+      token,
+      correlationId,
+      parse: parseAdminPayoutList,
     })
   },
   appointmentRating(

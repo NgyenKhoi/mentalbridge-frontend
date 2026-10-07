@@ -1,5 +1,11 @@
 # Synthetic browser evidence
 
+MB-620 closes the Specialist Portal production surface around owner-backed
+capabilities and truthful deferred states. Unit, route-composition, responsive,
+and fixture-browser coverage is recorded in
+[`../mb-620-specialist-portal-closure-evidence.md`](../mb-620-specialist-portal-closure-evidence.md),
+with controlled desktop, laptop, and mobile captures in this directory.
+
 MB-616 adds a private, server-owned Community saved-post collection. Its BFF,
 component, reload, unbookmark, and fixture-browser evidence is recorded in
 [`../mb-616-community-saved-posts-evidence.md`](../mb-616-community-saved-posts-evidence.md),

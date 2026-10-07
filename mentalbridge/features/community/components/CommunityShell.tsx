@@ -20,7 +20,7 @@ const Icon = ({ children }: Readonly<{ children: React.ReactNode }>) => (
 const communityLinks = [
   {
     href: '/community',
-    label: 'Bảng tin đồng hành',
+    label: 'Bảng tin',
     mobileLabel: 'Bảng tin',
     description: 'Câu chuyện mới từ cộng đồng',
     icon: (
@@ -85,30 +85,10 @@ export default function CommunityShell({
           </span>
           <span>
             <strong>MentalBridge</strong>
-            <small>Cộng đồng đồng hành</small>
+            <small>Cộng đồng</small>
           </span>
         </Link>
-        <nav aria-label="Lối tắt cộng đồng">
-          <Link href="/community/profile">Danh tính của tôi</Link>
-          <Link className="community-help-link" href="/safety-directory">
-            Cần hỗ trợ ngay
-          </Link>
-          <Link className="community-dashboard-link" href="/dashboard">
-            Không gian của bạn
-          </Link>
-        </nav>
-      </header>
-
-      <aside className="community-shell-sidebar">
-        <div className="community-sidebar-intro">
-          <span>Đồng hành cùng nhau</span>
-          <h2>Một nơi để được lắng nghe</h2>
-          <p>
-            Chia sẻ trải nghiệm, nâng đỡ nhau và giữ quyền quyết định về danh
-            tính của bạn trong từng bài viết.
-          </p>
-        </div>
-        <nav aria-label="Điều hướng cộng đồng">
+        <nav className="community-header-tabs" aria-label="Khu vực cộng đồng">
           {communityLinks.map((item) => {
             const active = isActive(item.href)
             return (
@@ -120,25 +100,31 @@ export default function CommunityShell({
               >
                 {item.icon}
                 <span>
-                  <strong>{item.label}</strong>
-                  <small>{item.description}</small>
+                  {item.mobileLabel === 'Danh tính' ? 'Danh tính' : item.label}
                 </span>
               </Link>
             )
           })}
         </nav>
-        <div className="community-sidebar-principles">
-          <strong>Ở đây, hỗ trợ không phải là phán xét</strong>
-          <ul>
-            <li>Không xếp hạng bằng dữ liệu sức khỏe riêng tư</li>
-            <li>Không chẩn đoán hay thay thế hỗ trợ chuyên môn</li>
-            <li>Không có lượt thích, không thích hay bảng thành tích</li>
-          </ul>
-        </div>
-        <Link className="community-sidebar-exit" href="/dashboard">
-          <span aria-hidden="true">←</span> Về không gian của bạn
-        </Link>
-      </aside>
+        <nav
+          className="community-header-actions"
+          aria-label="Lối tắt cộng đồng"
+        >
+          <Link className="community-help-link" href="/safety-directory">
+            Cần hỗ trợ ngay
+          </Link>
+          <Link
+            className="community-dashboard-link"
+            href="/dashboard"
+            aria-label="Về không gian của bạn"
+          >
+            <Icon>
+              <path d="m10 6-6 6 6 6M4 12h16" />
+            </Icon>
+            <span>Trang cá nhân</span>
+          </Link>
+        </nav>
+      </header>
 
       <main id="community-content" className="community-shell-main">
         {children}

@@ -198,6 +198,30 @@
   font-size: 22px;
 }
 
+.financialFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--space-4) 0;
+}
+
+.financialFacts > span {
+  display: grid;
+  min-width: 180px;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--teal-pale);
+}
+
+.financialFacts small {
+  color: var(--ink-soft);
+}
+
+.financialFacts strong {
+  font-size: 20px;
+}
+
 .footer {
   display: flex;
   align-items: center;

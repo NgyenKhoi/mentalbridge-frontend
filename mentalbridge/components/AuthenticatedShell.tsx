@@ -94,14 +94,6 @@ const groups = [
         </Svg>,
         '3',
       ],
-      [
-        '/community',
-        'Cộng đồng',
-        <Svg key="community">
-          <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM16.5 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-          <path d="M2.5 20c.7-4.2 2.8-6.3 5.5-6.3s4.8 2.1 5.5 6.3M13 15.2c1-.9 2.1-1.3 3.5-1.3 2.5 0 4.2 1.9 4.8 5.6" />
-        </Svg>,
-      ],
     ],
   },
   {
@@ -306,6 +298,13 @@ export default function AuthenticatedShell({
             <kbd>⌘ K</kbd>
           </label>
           <div className="ref-top-actions">
+            <Link className="ref-community-entry" href="/community">
+              <Svg>
+                <path d="M8.2 11.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4ZM16.6 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+                <path d="M2.8 20c.7-4.2 2.8-6.2 5.4-6.2s4.7 2 5.4 6.2M13.4 15.3c.9-.9 2-1.3 3.3-1.3 2.3 0 4 1.8 4.5 5.5" />
+              </Svg>
+              <span>Cộng đồng</span>
+            </Link>
             <Link
               href="/notifications"
               className="ref-notify"

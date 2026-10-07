@@ -11,9 +11,9 @@ aggregate, source timestamps, and the specialist operational state. Runtime
 validation rejects extra client, Journal, assessment, emotion, recovery,
 adherence, chat, or private-note fields rather than forwarding them to the UI.
 
-Earnings and payout values remain explicitly unavailable until the owner
-capability is delivered. The former hard-coded specialist earnings figures are
-removed from the production path. Empty, stale, dependency-error, unapproved,
+Earnings and successful payout values are sourced from the MB-516 owner facts
+and bounded to the selected period. The dedicated earnings workspace remains
+the authoritative detailed view. Empty, stale, dependency-error, unapproved,
 and suspended states have distinct user-facing explanations; suspension keeps
 historical facts visible while clearly stating that new activity is disabled.
 

@@ -48,20 +48,20 @@ function analytics() {
     financials: {
       source: 'CONSULTATION',
       asOf: generatedAt,
-      state: 'UNAVAILABLE',
-      currency: null,
-      earnedAmountMinor: null,
-      paidAmountMinor: null,
+      state: 'AVAILABLE',
+      currency: 'VND',
+      earnedAmountMinor: 420000,
+      paidAmountMinor: 210000,
     },
   }
 }
 
 describe('specialist operational analytics validation', () => {
-  it('accepts Consultation-owned factual metrics and explicit unavailable financials', () => {
+  it('accepts Consultation-owned operational and financial facts', () => {
     expect(parseSpecialistOperationalAnalytics(analytics())).toMatchObject({
       availability: { utilizationRate: 75 },
       appointments: { acceptedCount: 15, completedCount: 12 },
-      financials: { state: 'UNAVAILABLE' },
+      financials: { state: 'AVAILABLE', earnedAmountMinor: 420000 },
     })
   })
 
@@ -71,6 +71,13 @@ describe('specialist operational analytics validation', () => {
       phq9Outcome: 4,
       clientSegments: ['improved'],
     })
+
+    expect(parseSpecialistOperationalAnalytics(value)).toBeNull()
+  })
+
+  it('rejects a non-empty financial state without owner-backed amounts', () => {
+    const value = analytics()
+    value.financials.earnedAmountMinor = null as never
 
     expect(parseSpecialistOperationalAnalytics(value)).toBeNull()
   })

@@ -15,12 +15,63 @@ import styles from './CommunityInteractions.module.css'
 const REACTIONS: ReadonlyArray<{
   value: SupportiveReaction
   label: string
-  icon: string
+  mobileLabel: string
+  icon: 'support' | 'relate' | 'thanks'
 }> = [
-  { value: 'SUPPORT', label: 'Đồng hành', icon: '🤝' },
-  { value: 'RELATE', label: 'Mình cũng vậy', icon: '🌿' },
-  { value: 'THANK_YOU', label: 'Cảm ơn bạn', icon: '💛' },
+  {
+    value: 'SUPPORT',
+    label: 'Đồng hành',
+    mobileLabel: 'Đồng hành',
+    icon: 'support',
+  },
+  {
+    value: 'RELATE',
+    label: 'Mình cũng vậy',
+    mobileLabel: 'Đồng cảm',
+    icon: 'relate',
+  },
+  {
+    value: 'THANK_YOU',
+    label: 'Cảm ơn bạn',
+    mobileLabel: 'Cảm ơn',
+    icon: 'thanks',
+  },
 ]
+
+function InteractionIcon({
+  name,
+}: Readonly<{
+  name: 'support' | 'relate' | 'thanks' | 'bookmark'
+}>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {name === 'support' && (
+        <>
+          <path d="m8.2 12.5 2.1 2.1a2 2 0 0 0 2.8 0l3.6-3.6" />
+          <path d="m3.5 10.5 3.2-3.2 3 1 2.3-1.8 2.2 1.6 3.1-.8 3.2 3.2-5.8 7.2a3.5 3.5 0 0 1-5.4.1L3.5 10.5Z" />
+        </>
+      )}
+      {name === 'relate' && (
+        <>
+          <path d="M12 20V8" />
+          <path d="M12 13c-4.2 0-6.5-2.2-6.5-6.5 4.3 0 6.5 2.2 6.5 6.5ZM12 16c4.2 0 6.5-2.2 6.5-6.5-4.3 0-6.5 2.2-6.5 6.5Z" />
+        </>
+      )}
+      {name === 'thanks' && (
+        <path d="M20.5 9.4c0 4.4-5.2 8-8.5 10.1C8.7 17.4 3.5 13.8 3.5 9.4A4.4 4.4 0 0 1 12 7.8a4.4 4.4 0 0 1 8.5 1.6Z" />
+      )}
+      {name === 'bookmark' && <path d="M6.5 4.5h11v15L12 16.1l-5.5 3.4v-15Z" />}
+    </svg>
+  )
+}
 
 type Props = Readonly<{
   postId: string
@@ -103,9 +154,11 @@ export default function CommunityInteractions({
             aria-pressed={state.reaction === reaction.value}
             disabled={pending !== undefined}
             onClick={() => void chooseReaction(reaction.value)}
+            aria-label={reaction.label}
           >
-            <span aria-hidden="true">{reaction.icon}</span>
-            <span>{reaction.label}</span>
+            <InteractionIcon name={reaction.icon} />
+            <span className={styles.desktopLabel}>{reaction.label}</span>
+            <span className={styles.mobileLabel}>{reaction.mobileLabel}</span>
           </button>
         ))}
         <span className={styles.count} aria-live="polite">
@@ -119,7 +172,7 @@ export default function CommunityInteractions({
         disabled={pending !== undefined}
         onClick={() => void toggleBookmark()}
       >
-        <span aria-hidden="true">{state.bookmarked ? '🔖' : '♡'}</span>
+        <InteractionIcon name="bookmark" />
         {state.bookmarked ? 'Đã lưu' : 'Lưu bài'}
       </button>
       {error && (

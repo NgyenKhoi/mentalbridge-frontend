@@ -13,6 +13,7 @@ import {
   getCurrentSupportPlan,
   getCurrentSupportPlanDraft,
   getSupportPlanHistory,
+  getSupportPlanOccurrences,
   proposeSupportPlanDraft,
   replaceSupportPlan,
   replaceSupportPlanChoices,
@@ -24,7 +25,10 @@ import type {
   SupportPlanReplacementReview,
 } from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
+import SupportPlanFooter from './SupportPlanFooter'
+import SupportPlanHero, { type WeeklyProgressStats } from './SupportPlanHero'
 import SupportPlanHistory from './SupportPlanHistory'
+import SupportPlanIcon from './SupportPlanIcon'
 import SupportPlanReplacementReviewView from './SupportPlanReplacementReview'
 
 import './support-plan.css'
@@ -172,6 +176,21 @@ async function optionalPlan(request: Promise<SupportPlan>) {
   }
 }
 
+function currentWeekBounds(localDate: string) {
+  const date = new Date(`${localDate}T00:00:00Z`)
+  const dayOfWeek = date.getUTCDay()
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  const monday = new Date(date)
+  monday.setUTCDate(monday.getUTCDate() + mondayOffset)
+  const sunday = new Date(monday)
+  sunday.setUTCDate(sunday.getUTCDate() + 6)
+
+  return {
+    from: monday.toISOString().slice(0, 10),
+    through: sunday.toISOString().slice(0, 10),
+  }
+}
+
 export default function SupportPlanJourney() {
   const { showActionToast } = useFeedback()
   const [plan, setPlan] = useState<SupportPlan>()
@@ -190,6 +209,9 @@ export default function SupportPlanJourney() {
   const [recoveryVersion, setRecoveryVersion] = useState(0)
   const [activeTab, setActiveTab] = useState<'plan' | 'schedule' | 'manage'>(
     'plan',
+  )
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyProgressStats | null>(
+    null,
   )
   const [history, setHistory] = useState<SupportPlan[]>([])
   const [historyCursor, setHistoryCursor] = useState<string>()
@@ -245,9 +267,40 @@ export default function SupportPlanJourney() {
         setReason('NONE')
         if (current && draft) await loadReplacementReview(current, draft)
         else setReplacementReview(undefined)
+
+        if (current && current.status === 'ACTIVE') {
+          try {
+            const todayStr = new Intl.DateTimeFormat('en-CA', {
+              timeZone: 'Asia/Ho_Chi_Minh',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            }).format(new Date())
+            const week = currentWeekBounds(todayStr)
+            const loadedOcc = await getSupportPlanOccurrences(
+              week.from,
+              week.through,
+            )
+            const visibleOcc = loadedOcc.occurrences.filter((o) => !o.hidden)
+            const total = visibleOcc.length
+            const completed = visibleOcc.filter(
+              (o) => o.state === 'COMPLETED',
+            ).length
+            const percent =
+              total > 0 ? Math.round((completed / total) * 100) : 0
+            const remaining = Math.max(0, total - completed)
+            setWeeklyStats({ total, completed, percent, remaining })
+          } catch {
+            setWeeklyStats(null)
+          }
+        } else {
+          setWeeklyStats(null)
+        }
+
         if (options?.messageAfterLoad) setMessage(options.messageAfterLoad)
       } catch (error) {
         const state = stateFor(error)
+        setWeeklyStats(null)
         if (!options?.preserveOnError) {
           setPlan(undefined)
           setCurrentPlan(undefined)
@@ -485,55 +538,72 @@ export default function SupportPlanJourney() {
 
   return (
     <div className="support-plan-page">
-      <header className="support-plan-page-header">
-        <span>Dành cho gói Plus & Premium</span>
-        <h1>Kế hoạch hỗ trợ của bạn</h1>
-        <p>
-          Chọn nội dung bạn muốn thực hiện, lưu lựa chọn rồi bắt đầu kế hoạch
-          khi đã sẵn sàng.
-        </p>
-      </header>
+      <SupportPlanHero stats={weeklyStats} />
 
-      {/* Thanh tab điều hướng 3 tab */}
-      <nav
-        className="support-plan-tabs"
-        role="tablist"
-        aria-label="Phân loại kế hoạch hỗ trợ"
-      >
-        <button
-          type="button"
-          role="tab"
-          id="tab-plan"
-          aria-controls="panel-plan"
-          aria-selected={activeTab === 'plan'}
-          className={`support-plan-tab-btn ${activeTab === 'plan' ? 'is-active' : ''}`}
-          onClick={() => setActiveTab('plan')}
+      {/* Thanh tab điều hướng 3 tab & controls */}
+      <div className="support-plan-nav-row">
+        <nav
+          className="support-plan-tabs"
+          role="tablist"
+          aria-label="Phân loại kế hoạch hỗ trợ"
         >
-          Kế hoạch
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-schedule"
-          aria-controls="panel-schedule"
-          aria-selected={activeTab === 'schedule'}
-          className={`support-plan-tab-btn ${activeTab === 'schedule' ? 'is-active' : ''}`}
-          onClick={() => setActiveTab('schedule')}
-        >
-          Hoạt động của tôi
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-manage"
-          aria-controls="panel-manage"
-          aria-selected={activeTab === 'manage'}
-          className={`support-plan-tab-btn ${activeTab === 'manage' ? 'is-active' : ''}`}
-          onClick={() => setActiveTab('manage')}
-        >
-          Quản lý & Lịch sử
-        </button>
-      </nav>
+          <button
+            type="button"
+            role="tab"
+            id="tab-plan"
+            aria-controls="panel-plan"
+            aria-selected={activeTab === 'plan'}
+            className={`support-plan-tab-btn ${activeTab === 'plan' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('plan')}
+          >
+            Kế hoạch
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-schedule"
+            aria-controls="panel-schedule"
+            aria-selected={activeTab === 'schedule'}
+            className={`support-plan-tab-btn ${activeTab === 'schedule' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('schedule')}
+          >
+            Hoạt động của tôi
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-manage"
+            aria-controls="panel-manage"
+            aria-selected={activeTab === 'manage'}
+            className={`support-plan-tab-btn ${activeTab === 'manage' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('manage')}
+          >
+            Quản lý & Lịch sử
+          </button>
+        </nav>
+
+        <div className="support-plan-nav-controls">
+          <div className="support-plan-date-chip">
+            <SupportPlanIcon
+              name="calendar_today"
+              size={16}
+              className="text-secondary"
+            />
+            <span className="font-semibold text-on-surface">
+              {(() => {
+                const now = new Date()
+                const month = now.getMonth() + 1
+                const year = now.getFullYear()
+                const week = Math.min(
+                  4,
+                  Math.max(1, Math.ceil(now.getDate() / 7)),
+                )
+                return `Tháng ${month}, ${year} · Tuần ${week}`
+              })()}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {loading && (
         <div className="support-plan-state support-plan-loading" role="status">
@@ -698,6 +768,8 @@ export default function SupportPlanJourney() {
           onLoadMore={() => void loadHistory(historyCursor)}
         />
       </div>
+
+      <SupportPlanFooter updatedAt={plan?.updatedAt} />
     </div>
   )
 }
