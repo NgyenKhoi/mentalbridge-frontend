@@ -18,7 +18,7 @@ describe('USER home screen', () => {
     jest.clearAllMocks()
   })
 
-  it('opens the personal profile as the primary USER action', async () => {
+  it('opens the personal profile action', async () => {
     await render(<UserHomeScreen />)
 
     await fireEvent.press(
@@ -46,5 +46,15 @@ describe('USER home screen', () => {
     )
 
     expect(mockPush).toHaveBeenCalledWith('./emotion')
+  })
+
+  it('opens the reviewed Content resources journey', async () => {
+    await render(<UserHomeScreen />)
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Khám phá tài nguyên' }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('./resources')
   })
 })

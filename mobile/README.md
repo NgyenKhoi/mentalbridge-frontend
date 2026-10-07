@@ -142,6 +142,12 @@ causal analysis, recovery claims, or actor selection. See
 [`docs/MB-613_EMOTION_CHECK_IN.md`](docs/MB-613_EMOTION_CHECK_IN.md) for the API,
 state, cache, test, and staging Android persistence evidence.
 
+MB-626 adds the Content-backed published Resources catalogue, reviewed detail,
+supported article/practice/video interactions, and owner-scoped daily progress.
+It preserves server completion semantics and keeps editorial authority out of
+the app. See [`docs/MB-626_RESOURCES.md`](docs/MB-626_RESOURCES.md) for the API,
+state, safety, test, and staging Android persistence evidence.
+
 ## Quality commands
 
 ```powershell
@@ -162,8 +168,9 @@ npm run quality
 compile or boot evidence. Native compile/install/launch is verified separately
 by `npm run native:android:smoke` and `npm run native:ios:smoke` in the staging
 release gate; Android also runs the MB-612 assessment and MB-613 emotion
-real-contract journeys against the protected staging edge and dedicated USER
-fixture. Pull requests into `dev` run only `npm run typecheck` for mobile;
+real-contract journeys for MB-612 assessment, MB-613 emotion, and MB-626
+Resources against the protected staging edge and dedicated USER fixture. Pull
+requests into `dev` run only `npm run typecheck` for mobile;
 formatting, lint, Jest, bundle export, native boot, and real-contract checks
 wait for staging.
 
