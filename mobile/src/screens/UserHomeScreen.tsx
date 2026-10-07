@@ -30,6 +30,16 @@ export function UserHomeScreen() {
         />
         <Pressable
           accessibilityRole="button"
+          onPress={() => router.push('./support-plan')}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.secondaryLabel}>Mở kế hoạch hỗ trợ</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           onPress={() => router.push('./profile')}
           style={({ pressed }) => [
             styles.secondaryButton,
