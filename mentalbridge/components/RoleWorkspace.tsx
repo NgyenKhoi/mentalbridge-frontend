@@ -30,6 +30,7 @@ import AdminPayoutsManager from './AdminPayoutsManager'
 import AdminModerationManager from './AdminModerationManager'
 import AdminAppointmentsManager from './AdminAppointmentsManager'
 import './role-workspace.css'
+import profileStyles from '@/features/specialist-profile/components/ProfilePage.module.css'
 
 type Role = 'specialist' | 'admin'
 type Row = { id: string; title: string; meta: string; status: string; detail: string }
@@ -153,7 +154,7 @@ export default function RoleWorkspace({
     setToast('Thao tác đã được cập nhật thành công.')
     window.setTimeout(() => setToast(''), 3200)
   }
-  return <div className={`role-shell role-${role} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+  return <div className={`role-shell role-${role} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${role === 'specialist' && sectionKey === 'profile' ? profileStyles.shell : ''}`}>
     <motion.aside className={`role-sidebar ${mobileOpen ? 'open' : ''}`} layout initial={false} transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <Link href="/" className="role-brand"><motion.span className="role-brand-mark" whileHover={{ rotate: -6, scale: 1.06 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>M</motion.span><span className="role-brand-copy"><strong>MentalBridge</strong><small>{role === 'admin' ? 'Admin Console' : 'Specialist Workspace'}</small></span></Link>
       <button className="role-collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'} title={sidebarCollapsed ? 'Mở rộng' : 'Thu gọn'}><motion.span animate={{ rotate: sidebarCollapsed ? 180 : 0 }}>‹</motion.span></button>

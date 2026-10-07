@@ -4,6 +4,159 @@
  */
 
 export interface paths {
+    "/api/v1/specialist-profile/amendments/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the live approved profile and latest private amendment (null when absent). Amendment ETag when present; otherwise current profile ETag. */
+        get: operations["getOwnProfileAmendment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Requires the approved profile If-Match. Returns the existing non-approved amendment or starts a draft derived from the latest published profile. Does not mutate the public profile. */
+        post: operations["startOwnProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments/{amendmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Replaces the six proposed fields. Editing PENDING_REVIEW withdraws to DRAFT. REJECTED retains review feedback until explicit resubmission. Approved amendments are immutable. */
+        put: operations["updateOwnProfileAmendment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments/{amendmentId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Private approved-profile amendment operation; never changes appointments or availability. */
+        post: operations["submitOwnProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments/{amendmentId}/resubmit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Private approved-profile amendment operation; never changes appointments or availability. */
+        post: operations["resubmitOwnProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/amendments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists only pending-review amendments separately from initial submissions. Suspension removes an amendment from the reviewable queue. Stable submission/id ordering; bounded page offset and limit. */
+        get: operations["listProfileAmendmentsForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/amendments/{amendmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Private approved-profile amendment operation; never changes appointments or availability. */
+        get: operations["getProfileAmendmentForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/amendments/{amendmentId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Atomically promotes a pending amendment against its base published version, appends immutable approved history, and leaves all appointments unchanged. */
+        post: operations["approveProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/amendments/{amendmentId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Rejects only the amendment, preserving the live approved profile exactly; reason and review payload are retained for audit. */
+        post: operations["rejectProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/appointments/{appointmentId}/notification-eligibility": {
         parameters: {
             query?: never;
@@ -908,6 +1061,39 @@ export interface components {
         SpecialistSuspensionReasonCode: "POLICY_VIOLATION" | "QUALITY_REVIEW_REQUIRED" | "ACCOUNT_REVIEW_REQUIRED";
         /** @enum {string} */
         LanguageTag: "vi" | "en";
+        ProfileAmendment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            /** Format: int64 */
+            basePublishedVersion: number;
+            /** @enum {string} */
+            status: "DRAFT" | "PENDING_REVIEW" | "REJECTED" | "APPROVED";
+            proposedProfile: components["schemas"]["SpecialistProfileRequest"];
+            /** Format: date-time */
+            submittedAt: string | null;
+            /** Format: date-time */
+            reviewedAt: string | null;
+            /** Format: uuid */
+            reviewedBy: string | null;
+            reasonCode: components["schemas"]["SpecialistRejectionReasonCode"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        ProfileAmendmentDetail: {
+            approvedProfile: components["schemas"]["SpecialistProfile"];
+            amendment: components["schemas"]["ProfileAmendment"] | null;
+        };
+        ProfileAmendments: {
+            items: components["schemas"]["ProfileAmendment"][];
+            count: number;
+            hasMore: boolean;
+        };
         SpecialistProfileRequest: {
             displayName: string;
             bio: string;
@@ -921,6 +1107,11 @@ export interface components {
             /** Format: uuid */
             accountId: string;
             displayName: string;
+            /**
+             * Format: int64
+             * @description Monotonic approved-content version; unaffected by draft edits and suspension/restoration.
+             */
+            publishedVersion?: number;
             bio: string;
             supportAreas: components["schemas"]["SupportArea"][];
             languages: components["schemas"]["LanguageTag"][];
@@ -2041,7 +2232,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description If-Match does not equal the current profile version (SPECIALIST_PROFILE_VERSION_MISMATCH). */
+        /** @description If-Match does not equal the current version (SPECIALIST_PROFILE_VERSION_MISMATCH for initial/operational profile commands; PROFILE_AMENDMENT_VERSION_MISMATCH for amendment commands). */
         VersionProblem: {
             headers: {
                 [name: string]: unknown;
@@ -2141,6 +2332,294 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendmentDetail"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    startOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    updateOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpecialistProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    submitOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    resubmitOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    listProfileAmendmentsForAdmin: {
+        parameters: {
+            query?: {
+                limit?: number;
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded review queue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendments"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getProfileAmendmentForAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendmentDetail"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    approveProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    rejectProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectSpecialistRequest"];
+            };
+        };
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
     getAppointmentNotificationEligibility: {
         parameters: {
             query: {

@@ -121,4 +121,32 @@ describe('SpecialistProfileWorkspace', () => {
       screen.queryByRole('button', { name: 'Lưu hồ sơ' }),
     ).not.toBeInTheDocument()
   })
+  it('does not submit unsaved changes and focuses an invalid field on save', async () => {
+    const user = userEvent.setup()
+    render(<SpecialistProfileWorkspace />)
+    const name = await screen.findByLabelText('Tên hiển thị')
+    await user.clear(name)
+    expect(screen.getByRole('button', { name: 'Gửi xét duyệt' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }))
+    expect(name).toHaveFocus()
+    expect(name).toHaveAttribute('aria-invalid', 'true')
+    expect(api.save).not.toHaveBeenCalled()
+  })
+  it('recovers a failed initial read without creating a blank replacement', async () => {
+    api.own.mockRejectedValueOnce(new Error('offline'))
+    const user = userEvent.setup()
+    render(<SpecialistProfileWorkspace />)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Chưa thể tải hồ sơ',
+    )
+    expect(screen.getByRole('button', { name: 'Lưu hồ sơ' })).toBeDisabled()
+    expect(screen.queryByLabelText('Tên hiển thị')).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Kiểm tra trạng thái mới nhất' }),
+    )
+    expect(await screen.findByLabelText('Tên hiển thị')).toHaveValue(
+      'Nguyễn An',
+    )
+    expect(api.save).not.toHaveBeenCalled()
+  })
 })

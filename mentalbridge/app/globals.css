@@ -1,4 +1,6 @@
 :root {
+  scrollbar-color: var(--teal) var(--bg);
+  scrollbar-width: auto;
   --bg: #f1f4eb;
   --bg-deep: #e7ede1;
   --surface: #ffffff;
