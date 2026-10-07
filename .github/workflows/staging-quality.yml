@@ -116,7 +116,7 @@ jobs:
         run: npm run quality
 
   mobile-android-smoke:
-    name: Staging Android native boot and real-contract assessment
+    name: Staging Android native boot and real-contract mobile journeys
     needs: [promotion-policy]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -134,6 +134,8 @@ jobs:
       MAESTRO_CLI_NO_ANALYTICS: 'true'
       MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}
       MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
+      MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL: ${{ secrets.MB_SUPPORT_PLAN_USER_EMAIL }}
+      MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD: ${{ secrets.MB_SUPPORT_PLAN_USER_PASSWORD }}
       MAESTRO_VERSION: '2.11.0'
       ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
     steps:
@@ -158,8 +160,8 @@ jobs:
 
       - name: Require protected staging inputs
         run: |
-          if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" ]]; then
-            echo "Protected staging edge and USER fixture secrets are required." >&2
+          if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD" ]]; then
+            echo "Protected staging edge, assessment USER, and SupportPlan USER fixture secrets are required." >&2
             exit 1
           fi
 
@@ -185,13 +187,13 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           working-directory: mobile
-          script: npm run native:android:smoke && npm run e2e:android:assessment
+          script: npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:support-plan
 
       - name: Upload Android native evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-native-and-assessment-${{ github.sha }}
+          name: android-native-and-mobile-journeys-${{ github.sha }}
           path: mobile/native-evidence
           if-no-files-found: warn
 

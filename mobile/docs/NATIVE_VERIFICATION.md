@@ -8,16 +8,16 @@ prove that Gradle or Xcode can compile, install, and launch the native app.
 
 Promotions from `dev` to `staging` run two required smoke jobs:
 
-| Job                                  | Agreed path exercised                                                                  | Passing evidence                                                                                                                                                                  |
-| ------------------------------------ | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Android native boot and assessment` | Release native boot, then MB-612 Maestro journey against the approved staging API edge | CNG prebuild, Gradle compile, APK install, live foreground app, PHQ-9 → GAD-7 → authoritative result → persisted SupportGuide reopen, screenshot and sanitized manifest artifacts |
-| `iOS native boot`                    | `expo run:ios --configuration Release --no-bundler`                                    | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                                                                    |
+| Job                                       | Agreed path exercised                                                                                                     | Passing evidence                                                                                                                                                                                            |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Android native boot and mobile journeys` | Release native boot, then MB-612 assessment and MB-625 SupportPlan Maestro journeys against the approved staging API edge | CNG prebuild, Gradle compile, APK install, live foreground app, persisted SupportGuide reopen, persisted SupportPlan occurrence complete/reload/reopen/reload, screenshots and sanitized manifest artifacts |
+| `iOS native boot`                         | `expo run:ios --configuration Release --no-bundler`                                                                       | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                                                                                              |
 
 Both jobs embed only the public environment configuration from the workflow.
 The Android job is attached to the protected `staging-mobile-e2e` Environment;
 its staging API edge and dedicated USER fixture credentials come from
 Environment secrets and are never included in artifacts. The
-`android-native-and-assessment-*` and `ios-native-boot-*` artifacts contain the
+`android-native-and-mobile-journeys-*` and `ios-native-boot-*` artifacts contain the
 screenshot and sanitized diagnostics produced for that exact commit. The repository
 `staging-quality-gate` depends on both jobs, so bundle-only verification cannot
 satisfy the release gate. Pull requests into `dev` intentionally run only the
@@ -55,6 +55,19 @@ npm run e2e:android:assessment
 It fails unless the real server accepts PHQ-9 followed by GAD-7, returns the
 authoritative result and SupportGuide, and the app can return to history and
 reopen that persisted guide.
+
+The MB-625 real-contract journey uses a separate protected USER fixture with an
+active SupportPlan and a scheduled occurrence:
+
+```powershell
+$env:MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL = 'dedicated-plan-user@example.invalid'
+$env:MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD = 'from-protected-secret-store'
+npm run e2e:android:support-plan
+```
+
+It fails unless the occurrence can be completed, reloaded from Care as
+completed, reopened, and reloaded again as scheduled. The fixture must be
+resettable and contain no production personal data.
 
 iOS requires macOS, Xcode 26.4.1 (`17E202`), CocoaPods, `jq`, and the iOS 26.4.1
 `iPhone 17` simulator used by staging:
