@@ -16,6 +16,7 @@ import {
   parseProfile,
   parseServiceCreditAccount,
   parseSpecialistDashboard,
+  parseSpecialistOperationalAnalytics,
   parseSpecialistEarnings,
   parsePayoutDestination,
   parseAdminPayoutList,
@@ -36,6 +37,7 @@ import {
   type SpecialistDecisionReason,
   type SpecialistSuspensionResult,
   type SpecialistDashboard,
+  type SpecialistOperationalAnalytics,
   type SpecialistEarnings,
   type PayoutDestination,
   type SavePayoutDestinationInput,
@@ -354,6 +356,21 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseSpecialistDashboard,
+    })
+  },
+  specialistOperationalAnalytics(
+    token: string,
+    correlationId: string,
+    from: string,
+    to: string,
+  ) {
+    const query = new URLSearchParams({ from, to })
+    return request<SpecialistOperationalAnalytics>({
+      method: 'GET',
+      path: `/api/v1/specialist/analytics?${query.toString()}`,
+      token,
+      correlationId,
+      parse: parseSpecialistOperationalAnalytics,
     })
   },
   userSessionSummaries(

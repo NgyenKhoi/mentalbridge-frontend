@@ -24,6 +24,10 @@ vi.mock('./SpecialistDashboardManager', () => ({
   default: () => <h1>Tổng quan thật</h1>,
 }))
 vi.mock(
+  '@/features/specialist-analytics/components/SpecialistOperationalAnalytics',
+  () => ({ default: () => <h1>Phân tích vận hành thật</h1> }),
+)
+vi.mock(
   '@/features/appointments/components/SpecialistAppointmentDecisionPanel',
   () => ({ default: () => <h1>Lịch hẹn thật</h1> }),
 )
@@ -62,7 +66,10 @@ describe('RoleWorkspace specialist production closure', () => {
     const navigation = screen.getByRole('navigation', {
       name: 'Điều hướng specialist',
     })
-    expect(within(navigation).getAllByRole('link')).toHaveLength(8)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(9)
+    expect(
+      within(navigation).getByRole('link', { name: /Phân tích vận hành/i }),
+    ).toBeInTheDocument()
     expect(
       within(navigation).getByRole('link', { name: /Thu nhập/i }),
     ).toBeInTheDocument()

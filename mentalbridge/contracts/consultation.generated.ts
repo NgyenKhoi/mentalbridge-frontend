@@ -446,6 +446,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialist/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns Consultation-owned operational analytics for the authenticated specialist. Lifecycle counts come from immutable transition facts in the half-open requested period; slot utilization is based on slots scheduled in that period and remains true after later appointment changes. Financial metrics sum MB-516 earning facts and successful payouts completed within the same period. */
+        get: operations["getSpecialistOperationalAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist/dashboard": {
         parameters: {
             query?: never;
@@ -1101,6 +1118,92 @@ export interface components {
             nextAppointment: components["schemas"]["SpecialistDashboardNextAppointment"];
             availability: components["schemas"]["SpecialistDashboardAvailabilityCollection"];
             actionRequired: components["schemas"]["SpecialistDashboardActionItem"][];
+        };
+        /** @enum {string} */
+        SpecialistAnalyticsDataState: "AVAILABLE" | "EMPTY" | "BLOCKED" | "UNAVAILABLE" | "STALE";
+        SpecialistAnalyticsPeriod: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            timezone: string;
+        };
+        SpecialistAvailabilityMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["SpecialistAnalyticsDataState"];
+            /** Format: int64 */
+            publishedSlotCount: number | null;
+            /** Format: int64 */
+            utilizedSlotCount: number | null;
+            /** Format: int64 */
+            unusedSlotCount: number | null;
+            /** Format: double */
+            utilizationRate: number | null;
+        };
+        SpecialistAppointmentMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["SpecialistAnalyticsDataState"];
+            /** Format: int64 */
+            requestedCount: number | null;
+            /** Format: int64 */
+            acceptedCount: number | null;
+            /** Format: int64 */
+            rejectedCount: number | null;
+            /** Format: int64 */
+            expiredCount: number | null;
+            /** Format: int64 */
+            cancelledCount: number | null;
+            /** Format: int64 */
+            rescheduledCount: number | null;
+            /** Format: int64 */
+            completedCount: number | null;
+            /** Format: int64 */
+            userNoShowCount: number | null;
+            /** Format: int64 */
+            specialistNoShowCount: number | null;
+            /** Format: int64 */
+            bothNoShowCount: number | null;
+        };
+        SpecialistRatingMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["SpecialistAnalyticsDataState"];
+            /** Format: double */
+            averageRating: number | null;
+            /** Format: int64 */
+            ratingCount: number | null;
+        };
+        SpecialistFinancialMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["SpecialistAnalyticsDataState"];
+            currency: string | null;
+            /** Format: int64 */
+            earnedAmountMinor: number | null;
+            /** Format: int64 */
+            paidAmountMinor: number | null;
+        };
+        SpecialistOperationalAnalytics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            generatedAt: string;
+            operationalStatus: components["schemas"]["SpecialistOperationalStatus"];
+            period: components["schemas"]["SpecialistAnalyticsPeriod"];
+            availability: components["schemas"]["SpecialistAvailabilityMetrics"];
+            appointments: components["schemas"]["SpecialistAppointmentMetrics"];
+            rating: components["schemas"]["SpecialistRatingMetrics"];
+            financials: components["schemas"]["SpecialistFinancialMetrics"];
         };
         PayoutDestination: {
             /** Format: uuid */
@@ -2922,6 +3025,34 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
             412: components["responses"]["VersionProblem"];
             428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    getSpecialistOperationalAnalytics: {
+        parameters: {
+            query?: {
+                /** @description Inclusive UTC period start. Must be supplied together with to; defaults to 30 days before server time. */
+                from?: string;
+                /** @description Exclusive UTC period end. Must be supplied together with from and defaults to server time. A small forward clock skew is clamped to server time; materially future values are rejected. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Factual specialist operational analytics or explicitly blocked sections */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistOperationalAnalytics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     getSpecialistOperationalDashboard: {
