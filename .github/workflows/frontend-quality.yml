@@ -3,6 +3,7 @@ name: Frontend quality
 on:
   pull_request:
     branches: [dev]
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - 'mentalbridge/**'
       - 'mobile/**'
@@ -129,14 +130,108 @@ jobs:
       - name: Compile mobile TypeScript without emitting files
         run: npm run typecheck
 
+  mobile-android-evidence:
+    name: Protected Android MB-626 real-contract evidence
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: staging-mobile-e2e
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      ANDROID_DEVICE: emulator-5554
+      CI: 'true'
+      EVIDENCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}
+      EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
+      MAESTRO_CLI_NO_ANALYTICS: 'true'
+      MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}
+      MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
+      MAESTRO_VERSION: '2.11.0'
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
+    steps:
+      - name: Check out exact pull-request head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Verify exact pull-request head
+        run: test "$(git rev-parse HEAD)" = "$EVIDENCE_COMMIT_SHA"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Require protected staging inputs
+        run: |
+          if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" ]]; then
+            echo "Protected staging edge and USER fixture secrets are required." >&2
+            exit 1
+          fi
+
+      - name: Install pinned Maestro CLI
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+          "$HOME/.maestro/bin/maestro" --version
+
+      - name: Enable KVM permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Compile exact head and run MB-626 real-contract journey
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          working-directory: mobile
+          script: npm run native:android:smoke && npm run e2e:android:resources
+
+      - name: Upload exact-head Android evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-mb-626-real-contract-${{ github.event.pull_request.head.sha }}
+          path: mobile/native-evidence
+          if-no-files-found: warn
+
   quality-gate:
     name: quality-gate
     if: always()
-    needs: [quality, mobile-compile]
+    needs: [quality, mobile-compile, mobile-android-evidence]
     runs-on: ubuntu-24.04
     steps:
       - name: Require frontend checks
-        if: needs.quality.result != 'success' || needs.mobile-compile.result != 'success'
+        if: >-
+          needs.quality.result != 'success' ||
+          needs.mobile-compile.result != 'success' ||
+          (github.event_name == 'pull_request' &&
+          contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e') &&
+          needs.mobile-android-evidence.result != 'success')
         run: exit 1
       - name: Confirm quality gate
         run: echo "All required frontend quality checks passed."

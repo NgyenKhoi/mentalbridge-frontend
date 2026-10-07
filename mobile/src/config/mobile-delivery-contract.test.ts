@@ -86,6 +86,10 @@ describe('Mobile Delivery Contract v1', () => {
       'utf8',
     )
     const mobileCompile = workflowJob(developmentWorkflow, 'mobile-compile')
+    const androidEvidence = workflowJob(
+      developmentWorkflow,
+      'mobile-android-evidence',
+    )
     const mobileQuality = workflowJob(stagingWorkflow, 'mobile-release-quality')
     const android = workflowJob(stagingWorkflow, 'mobile-android-smoke')
     const ios = workflowJob(stagingWorkflow, 'mobile-ios-smoke')
@@ -94,6 +98,26 @@ describe('Mobile Delivery Contract v1', () => {
     expect(mobileCompile).toContain("node-version: '22.13.0'")
     expect(mobileQuality).toContain('runs-on: ubuntu-24.04')
     expect(mobileQuality).toContain("node-version: '22.13.0'")
+
+    expect(androidEvidence).toContain('environment: staging-mobile-e2e')
+    expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e')",
+    )
+    expect(androidEvidence).toContain(
+      'ref: ${{ github.event.pull_request.head.sha }}',
+    )
+    expect(androidEvidence).toContain(
+      'EVIDENCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}',
+    )
+    expect(androidEvidence).toContain(
+      'npm run native:android:smoke && npm run e2e:android:resources',
+    )
+    expect(androidEvidence).toContain(
+      'MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}',
+    )
+    expect(androidEvidence).toContain(
+      'MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}',
+    )
 
     expect(android).toContain('runs-on: ubuntu-24.04')
     expect(android).toContain("node-version: '22.13.0'")

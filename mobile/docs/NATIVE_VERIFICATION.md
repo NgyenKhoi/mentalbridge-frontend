@@ -23,6 +23,14 @@ screenshot and sanitized diagnostics produced for that exact commit. The reposit
 satisfy the release gate. Pull requests into `dev` intentionally run only the
 mobile TypeScript compile check.
 
+For a review that explicitly requires Android evidence before `dev` merge, a
+maintainer can apply the `run-mobile-staging-e2e` pull-request label. That
+opt-in job uses the same protected Environment, checks out and verifies the
+exact PR head SHA, compiles/boots Android, runs the MB-626 Resource journey,
+and uploads `android-mb-626-real-contract-<head-sha>`. While the label is
+present, the PR `quality-gate` cannot pass unless this protected job succeeds.
+Unlabeled development PRs retain the fast compile-only mobile path.
+
 Release configuration is intentional in CI: the JavaScript bundle is embedded,
 so the app can boot without leaving a long-running Metro process. Local feature
 development continues to use the documented Debug paths, `npm run android` and

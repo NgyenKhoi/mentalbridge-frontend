@@ -77,3 +77,12 @@ CI retains `android-resource-progress.png` and a sanitized manifest inside
 `android-native-and-real-contract-<commit>`. Evidence excludes fixture
 credentials, Resource bodies, private notes, and request payloads. The `dev`
 pull-request gate remains the short mobile TypeScript compile only.
+
+When exact-head proof is required before merging a `dev` pull request, a
+maintainer applies the `run-mobile-staging-e2e` label. The existing frontend
+workflow then checks out `github.event.pull_request.head.sha`, verifies the
+checkout identity, and runs only the native boot plus MB-626 Resource journey
+inside the protected `staging-mobile-e2e` Environment. The conditional
+`quality-gate` requires that job to succeed while the label is present. Its
+`android-mb-626-real-contract-<head-sha>` artifact contains the same sanitized
+manifest and screenshot; ordinary pull requests continue to skip native builds.
