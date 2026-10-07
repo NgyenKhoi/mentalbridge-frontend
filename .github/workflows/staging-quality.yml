@@ -116,7 +116,7 @@ jobs:
         run: npm run quality
 
   mobile-android-smoke:
-    name: Staging Android native boot and real-contract assessment
+    name: Staging Android native boot and real-contract journeys
     needs: [promotion-policy]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -175,7 +175,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Compile, install, boot, and run Android real-contract journey
+      - name: Compile, install, boot, and run Android real-contract journeys
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 36
@@ -185,13 +185,13 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           working-directory: mobile
-          script: npm run native:android:smoke && npm run e2e:android:assessment
+          script: npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion
 
       - name: Upload Android native evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-native-and-assessment-${{ github.sha }}
+          name: android-native-and-real-contract-${{ github.sha }}
           path: mobile/native-evidence
           if-no-files-found: warn
 

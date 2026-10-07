@@ -8,16 +8,16 @@ prove that Gradle or Xcode can compile, install, and launch the native app.
 
 Promotions from `dev` to `staging` run two required smoke jobs:
 
-| Job                                  | Agreed path exercised                                                                  | Passing evidence                                                                                                                                                                  |
-| ------------------------------------ | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Android native boot and assessment` | Release native boot, then MB-612 Maestro journey against the approved staging API edge | CNG prebuild, Gradle compile, APK install, live foreground app, PHQ-9 → GAD-7 → authoritative result → persisted SupportGuide reopen, screenshot and sanitized manifest artifacts |
-| `iOS native boot`                    | `expo run:ios --configuration Release --no-bundler`                                    | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                                                                    |
+| Job                                | Agreed path exercised                                                                              | Passing evidence                                                                                                                                                                        |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Android native boot and journeys` | Release native boot, then MB-612 and MB-613 Maestro journeys against the approved staging API edge | CNG prebuild, Gradle compile, APK install, live foreground app, assessment → persisted SupportGuide, persisted emotion check-in → history/progress, screenshots and sanitized manifests |
+| `iOS native boot`                  | `expo run:ios --configuration Release --no-bundler`                                                | CNG prebuild, CocoaPods/Xcode compile, simulator install, explicit relaunch, live app PID, screenshot artifact                                                                          |
 
 Both jobs embed only the public environment configuration from the workflow.
 The Android job is attached to the protected `staging-mobile-e2e` Environment;
 its staging API edge and dedicated USER fixture credentials come from
 Environment secrets and are never included in artifacts. The
-`android-native-and-assessment-*` and `ios-native-boot-*` artifacts contain the
+`android-native-and-real-contract-*` and `ios-native-boot-*` artifacts contain the
 screenshot and sanitized diagnostics produced for that exact commit. The repository
 `staging-quality-gate` depends on both jobs, so bundle-only verification cannot
 satisfy the release gate. Pull requests into `dev` intentionally run only the
@@ -55,6 +55,19 @@ npm run e2e:android:assessment
 It fails unless the real server accepts PHQ-9 followed by GAD-7, returns the
 authoritative result and SupportGuide, and the app can return to history and
 reopen that persisted guide.
+
+The MB-613 journey uses the same protected fixture and already installed APK:
+
+```powershell
+$env:MAESTRO_MB_USER_EMAIL = 'dedicated-user@example.invalid'
+$env:MAESTRO_MB_USER_PASSWORD = 'from-protected-secret-store'
+npm run e2e:android:emotion
+```
+
+It creates a deterministic current-day check-in, verifies the returned history
+and factual 7-day coverage, restarts the app, and verifies that the real server
+state reloads. A prior same-day fixture record is deleted through the product UI
+first so repeated protected runs remain reproducible.
 
 iOS requires macOS, Xcode 26.4.1 (`17E202`), CocoaPods, `jq`, and the iOS 26.4.1
 `iPhone 17` simulator used by staging:
