@@ -323,6 +323,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/community/admin/operations/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommunityOperationsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -591,6 +607,14 @@ export interface components {
         CreateModerationActionRequest: {
             action: components["schemas"]["ModerationAction"];
             reasonCode: string;
+        };
+        CommunityOperationsSummary: {
+            /** @enum {string} */
+            source: "COMMUNITY";
+            /** Format: date-time */
+            asOf: string;
+            openModerationCases: number;
+            totalModerationCases: number;
         };
         Problem: {
             /** Format: uri */
@@ -1404,6 +1428,28 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    getCommunityOperationsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative aggregate community moderation facts for admin operations dashboard. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityOperationsSummary"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
         };
     };
 }

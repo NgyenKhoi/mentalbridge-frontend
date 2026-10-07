@@ -21,6 +21,8 @@ export type ResourceProgressUpdate =
 export type ResourceJourney = components['schemas']['ResourceJourney']
 export type ResourceJourneyRequest =
   components['schemas']['ResourceJourneyRequest']
+export type NotificationOperationsSummary =
+  components['schemas']['NotificationOperationsSummary']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -866,4 +868,68 @@ export function parseContentProblem(
     }
   }
   return problem as ContentProblem
+}
+
+export function parseNotificationOperationsSummary(
+  value: unknown,
+): NotificationOperationsSummary | null {
+  const data = record(value)
+  if (!data) return null
+  if (
+    data.source !== 'CONTENT_NOTIFICATION' ||
+    typeof data.asOf !== 'string' ||
+    !Number.isFinite(Date.parse(data.asOf))
+  ) {
+    return null
+  }
+  const inApp = record(data.inApp)
+  const email = record(data.emailReminders)
+  if (!inApp || !email) return null
+
+  if (
+    typeof inApp.total !== 'number' ||
+    typeof inApp.delivered !== 'number' ||
+    typeof inApp.pending !== 'number' ||
+    typeof inApp.failed !== 'number' ||
+    typeof inApp.cancelled !== 'number' ||
+    typeof inApp.unread !== 'number' ||
+    typeof inApp.read !== 'number'
+  ) {
+    return null
+  }
+
+  if (
+    typeof email.total !== 'number' ||
+    typeof email.pending !== 'number' ||
+    typeof email.processing !== 'number' ||
+    typeof email.delivered !== 'number' ||
+    typeof email.failed !== 'number' ||
+    typeof email.suppressed !== 'number' ||
+    typeof email.invalidated !== 'number'
+  ) {
+    return null
+  }
+
+  return {
+    source: 'CONTENT_NOTIFICATION',
+    asOf: data.asOf,
+    inApp: {
+      total: inApp.total,
+      delivered: inApp.delivered,
+      pending: inApp.pending,
+      failed: inApp.failed,
+      cancelled: inApp.cancelled,
+      unread: inApp.unread,
+      read: inApp.read,
+    },
+    emailReminders: {
+      total: email.total,
+      pending: email.pending,
+      processing: email.processing,
+      delivered: email.delivered,
+      failed: email.failed,
+      suppressed: email.suppressed,
+      invalidated: email.invalidated,
+    },
+  }
 }

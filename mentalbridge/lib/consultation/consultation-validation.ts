@@ -2346,3 +2346,80 @@ export function parseSpecialistDecisionInput(
 export function validUuid(value: string) {
   return uuid(value)
 }
+
+export type ConsultationOperationsSummary =
+  consultationComponents['schemas']['ConsultationOperationsSummary']
+export type AdminSpecialistOperationsSummary =
+  consultationComponents['schemas']['AdminSpecialistOperationsSummary']
+export type AdminAppointmentOperationsSummary =
+  consultationComponents['schemas']['AdminAppointmentOperationsSummary']
+
+export function parseConsultationOperationsSummary(
+  value: unknown,
+): ConsultationOperationsSummary | null {
+  const data = record(value)
+  if (!data) return null
+  if (
+    data.source !== 'CONSULTATION' ||
+    typeof data.asOf !== 'string' ||
+    !Number.isFinite(Date.parse(data.asOf))
+  ) {
+    return null
+  }
+  const spec = record(data.specialists)
+  const appt = record(data.appointments)
+  if (!spec || !appt) return null
+
+  if (
+    typeof spec.total !== 'number' ||
+    typeof spec.pendingReview !== 'number' ||
+    typeof spec.active !== 'number' ||
+    typeof spec.rejected !== 'number' ||
+    typeof spec.suspended !== 'number'
+  ) {
+    return null
+  }
+
+  if (
+    typeof appt.total !== 'number' ||
+    typeof appt.requested !== 'number' ||
+    typeof appt.confirmed !== 'number' ||
+    typeof appt.inProgress !== 'number' ||
+    typeof appt.sessionEnded !== 'number' ||
+    typeof appt.completed !== 'number' ||
+    typeof appt.cancelled !== 'number' ||
+    typeof appt.rejected !== 'number' ||
+    typeof appt.expired !== 'number' ||
+    typeof appt.userNoShow !== 'number' ||
+    typeof appt.specialistNoShow !== 'number' ||
+    typeof appt.bothNoShow !== 'number'
+  ) {
+    return null
+  }
+
+  return {
+    source: 'CONSULTATION',
+    asOf: data.asOf,
+    specialists: {
+      total: spec.total,
+      pendingReview: spec.pendingReview,
+      active: spec.active,
+      rejected: spec.rejected,
+      suspended: spec.suspended,
+    },
+    appointments: {
+      total: appt.total,
+      requested: appt.requested,
+      confirmed: appt.confirmed,
+      inProgress: appt.inProgress,
+      sessionEnded: appt.sessionEnded,
+      completed: appt.completed,
+      cancelled: appt.cancelled,
+      rejected: appt.rejected,
+      expired: appt.expired,
+      userNoShow: appt.userNoShow,
+      specialistNoShow: appt.specialistNoShow,
+      bothNoShow: appt.bothNoShow,
+    },
+  }
+}

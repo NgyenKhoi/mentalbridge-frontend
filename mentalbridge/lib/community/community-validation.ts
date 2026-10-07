@@ -53,6 +53,8 @@ export type ModerationCaseState = components['schemas']['ModerationCaseState']
 export type ModerationPriority = components['schemas']['ModerationPriority']
 export type CreateModerationActionRequest =
   components['schemas']['CreateModerationActionRequest']
+export type CommunityOperationsSummary =
+  components['schemas']['CommunityOperationsSummary']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -297,6 +299,27 @@ export function parseModerationCases(value: unknown): ModerationCase[] | null {
   return parsed.every((item): item is ModerationCase => item !== null)
     ? parsed
     : null
+}
+
+export function parseCommunityOperationsSummary(
+  value: unknown,
+): CommunityOperationsSummary | null {
+  const summary = record(value)
+  if (
+    !summary ||
+    summary.source !== 'COMMUNITY' ||
+    !dateTime(summary.asOf) ||
+    !nonNegativeInteger(summary.openModerationCases) ||
+    !nonNegativeInteger(summary.totalModerationCases)
+  ) {
+    return null
+  }
+  return {
+    source: 'COMMUNITY',
+    asOf: summary.asOf as string,
+    openModerationCases: summary.openModerationCases as number,
+    totalModerationCases: summary.totalModerationCases as number,
+  }
 }
 
 function parseAuthor(value: unknown): CommunityAuthor | null {

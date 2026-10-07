@@ -15,6 +15,7 @@ import {
   parseCommunityCommentPage,
   parseModerationCase,
   parseModerationCases,
+  parseCommunityOperationsSummary,
   parseCommunityReaction,
   type CommunityFeedPage,
   type CommunityProfile,
@@ -34,6 +35,7 @@ import {
   type ReportTargetType,
   type ModerationCase,
   type CreateModerationActionRequest,
+  type CommunityOperationsSummary,
   type CommunityReaction,
   type PutReactionRequest,
 } from './community-validation'
@@ -610,6 +612,19 @@ export const communityClient = {
         accessToken,
         correlationId,
         parseModerationCases,
+      )
+    ).data
+  },
+  async operationsSummary(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<CommunityOperationsSummary> {
+    return (
+      await request<CommunityOperationsSummary>(
+        '/api/v1/community/admin/operations/summary',
+        accessToken,
+        correlationId,
+        parseCommunityOperationsSummary,
       )
     ).data
   },
