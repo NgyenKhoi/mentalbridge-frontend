@@ -33,6 +33,7 @@ describe('CommunitySafetyActions', () => {
       />,
     )
 
+    await user.click(screen.getByRole('button', { name: 'Tùy chọn an toàn' }))
     await user.click(screen.getByRole('button', { name: 'Báo cáo' }))
     await user.selectOptions(screen.getByLabelText('Lý do'), 'SPAM')
     await user.type(
@@ -57,6 +58,7 @@ describe('CommunitySafetyActions', () => {
         communityProfileId={null}
       />,
     )
+    await user.click(screen.getByRole('button', { name: 'Tùy chọn an toàn' }))
     await user.click(screen.getByRole('button', { name: 'Báo cáo' }))
     await user.selectOptions(
       screen.getByLabelText('Lý do'),
@@ -78,7 +80,9 @@ describe('CommunitySafetyActions', () => {
         communityProfileId="20000000-0000-4000-8000-000000000003"
       />,
     )
+    await user.click(screen.getByRole('button', { name: 'Tùy chọn an toàn' }))
     await user.click(screen.getByRole('button', { name: 'Chặn thành viên' }))
+    await user.click(screen.getByRole('button', { name: 'Tùy chọn an toàn' }))
     await user.click(
       await screen.findByRole('button', { name: 'Bỏ chặn thành viên' }),
     )
