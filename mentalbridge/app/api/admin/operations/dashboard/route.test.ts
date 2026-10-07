@@ -188,6 +188,19 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
       expect(item.rationale).toBeTruthy()
     }
 
+    const unintegratedById = Object.fromEntries(
+      payload.unintegrated.map((item: { id: string }) => [item.id, item]),
+    )
+    expect(unintegratedById['uptime-sla'].status).toBe('UNAVAILABLE')
+    expect(unintegratedById['platform-security-score'].status).toBe(
+      'UNAVAILABLE',
+    )
+    expect(unintegratedById['platform-revenue'].status).toBe('UNAVAILABLE')
+
+    const serializedPayload = JSON.stringify(payload)
+    expect(serializedPayload).not.toContain('99.98')
+    expect(serializedPayload).not.toContain('96/100')
+
     // Assert strictly aggregate facts - no sensitive fields exist
     expect(payload).not.toHaveProperty('journal')
     expect(payload).not.toHaveProperty('notes')

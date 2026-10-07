@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
       targetDomain: 'Infrastructure / Platform Observability',
       status: 'UNAVAILABLE',
       rationale:
-        'Chưa có exporter tổng hợp và SLA projection có thẩm quyền từ hệ thống hạ tầng giám sát. Số liệu 99.98% trước đây là mock và đã bị loại bỏ.',
+        'Chưa có exporter tổng hợp và SLA projection có thẩm quyền từ hệ thống hạ tầng giám sát. Số liệu mock trước đây đã bị loại bỏ.',
       authoritativeOwnerNeeded:
         'Platform Infrastructure / Prometheus Monitoring',
     },
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
       targetDomain: 'Compliance & Security Auditing',
       status: 'UNAVAILABLE',
       rationale:
-        'Chưa có hệ thống đánh giá tuân thủ và chứng chỉ bảo mật tự động trong kiến trúc hiện tại. Điểm số 96/100 trước đây là giả định và đã bị loại bỏ.',
+        'Chưa có hệ thống đánh giá tuân thủ và chứng chỉ bảo mật tự động trong kiến trúc hiện tại. Điểm số giả định trước đây đã bị loại bỏ.',
       authoritativeOwnerNeeded: 'SecOps / Compliance Audit Service',
     },
     {
