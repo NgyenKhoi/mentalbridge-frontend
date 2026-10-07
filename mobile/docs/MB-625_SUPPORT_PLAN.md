@@ -41,6 +41,10 @@ and SupportPlan remain separate product objects.
 - `409` and `412` responses synchronously lock every governed command while
   current, draft, history, occurrence and proposal authority are refreshed. If
   any refresh fails, the lock remains until an explicit reload succeeds.
+- Successful activation, lifecycle, replacement and PlanChange commands use the
+  same lock until their follow-up authority refresh succeeds. Stable command
+  keys are reset only after that reconciliation, never while stale controls are
+  still visible.
 - Activation, replacement and PlanChange review/decision reuse one command key
   across an ambiguous retry and reset it only after success or signature change.
 - Occurrence completion, skip, helpfulness, barrier, reflection and bounded
@@ -64,9 +68,9 @@ npm run build:bundle
 
 Focused Jest coverage verifies strict response parsing, concurrency and
 idempotency headers, empty/draft/active/paused/completed presentation, ambiguous
-activation retry, paused occurrence read-only behavior, blocking stale recovery
-and explicit recovery retry, occurrence engagement, proposal decision,
-unauthorized actor and dependency failure.
+activation retry, paused occurrence read-only behavior, blocking stale and
+post-success reconciliation, explicit recovery retry, occurrence engagement,
+proposal decision, unauthorized actor and dependency failure.
 
 ## Android real-contract evidence
 

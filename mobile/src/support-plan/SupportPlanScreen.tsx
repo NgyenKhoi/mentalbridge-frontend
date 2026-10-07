@@ -30,6 +30,10 @@ import type {
 type Notice = Readonly<{ message: string; tone: 'error' | 'success' }>
 type CommandKey = { signature: string; key: string } | null
 type AuthorityRecovery = 'idle' | 'refreshing' | 'blocked'
+type AuthorityRecoveryContext = Readonly<{
+  successMessage: string
+  onRecovered?: () => void
+}>
 
 const statusLabels: Record<SupportPlan['status'], string> = {
   DRAFT: 'Bản đề xuất',
@@ -523,6 +527,7 @@ export function SupportPlanScreen({
     useState<AuthorityRecovery>('idle')
   const authorityLockedRef = useRef(false)
   const recoveryRunningRef = useRef(false)
+  const recoveryContextRef = useRef<AuthorityRecoveryContext | null>(null)
   const activationKey = useRef<CommandKey>(null)
   const replacementKey = useRef<CommandKey>(null)
   const proposalReviewKey = useRef<CommandKey>(null)
@@ -629,7 +634,8 @@ export function SupportPlanScreen({
     }
   }
 
-  const recoverAuthority = async () => {
+  const recoverAuthority = async (context?: AuthorityRecoveryContext) => {
+    if (context) recoveryContextRef.current = context
     if (recoveryRunningRef.current) return
     authorityLockedRef.current = true
     recoveryRunningRef.current = true
@@ -638,10 +644,14 @@ export function SupportPlanScreen({
     const recovered = await refreshAuthority()
     recoveryRunningRef.current = false
     if (recovered) {
+      const completedRecovery = recoveryContextRef.current
+      recoveryContextRef.current = null
+      completedRecovery?.onRecovered?.()
       authorityLockedRef.current = false
       setAuthorityRecovery('idle')
       setNotice({
         message:
+          completedRecovery?.successMessage ??
           'Đã tải trạng thái mới nhất. Hãy kiểm tra lại trước khi tiếp tục.',
         tone: 'success',
       })
@@ -663,7 +673,10 @@ export function SupportPlanScreen({
       (error.status === 409 || error.status === 412)
     ) {
       authorityLockedRef.current = true
-      void recoverAuthority()
+      void recoverAuthority({
+        successMessage:
+          'Đã tải trạng thái mới nhất. Hãy kiểm tra lại trước khi tiếp tục.',
+      })
     }
   }
 
@@ -716,9 +729,12 @@ export function SupportPlanScreen({
         ),
       ),
     onSuccess: () => {
-      activationKey.current = null
-      setNotice({ message: 'Kế hoạch hỗ trợ đã bắt đầu.', tone: 'success' })
-      void refreshAuthority()
+      void recoverAuthority({
+        successMessage: 'Kế hoạch hỗ trợ đã bắt đầu.',
+        onRecovered: () => {
+          activationKey.current = null
+        },
+      })
     },
     onError: handleMutationError,
   })
@@ -731,11 +747,9 @@ export function SupportPlanScreen({
       status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
     }) => api.changeStatus(plan, status),
     onSuccess: () => {
-      setNotice({
-        message: 'Đã cập nhật trạng thái kế hoạch.',
-        tone: 'success',
+      void recoverAuthority({
+        successMessage: 'Đã cập nhật trạng thái kế hoạch.',
       })
-      void refreshAuthority()
     },
     onError: handleMutationError,
   })
@@ -776,11 +790,12 @@ export function SupportPlanScreen({
         commandKey(proposalReviewKey, `${id}:review`),
       ),
     onSuccess: (request) => {
-      proposalReviewKey.current = null
       queryClient.setQueryData(proposalKey, request)
-      setNotice({
-        message: 'Đề xuất đã sẵn sàng để bạn quyết định.',
-        tone: 'success',
+      void recoverAuthority({
+        successMessage: 'Đề xuất đã sẵn sàng để bạn quyết định.',
+        onRecovered: () => {
+          proposalReviewKey.current = null
+        },
       })
     },
     onError: handleMutationError,
@@ -802,16 +817,16 @@ export function SupportPlanScreen({
         ),
       ),
     onSuccess: (request) => {
-      proposalDecisionKey.current = null
       queryClient.setQueryData(proposalKey, request)
-      setNotice({
-        message:
+      void recoverAuthority({
+        successMessage:
           request.status === 'ACCEPTED'
             ? 'Đã áp dụng đề xuất sau khi kiểm tra lại.'
             : 'Đã giữ nguyên kế hoạch hiện tại.',
-        tone: 'success',
+        onRecovered: () => {
+          proposalDecisionKey.current = null
+        },
       })
-      void refreshAuthority()
     },
     onError: handleMutationError,
   })
@@ -835,12 +850,13 @@ export function SupportPlanScreen({
         ),
       ),
     onSuccess: () => {
-      replacementKey.current = null
-      setNotice({
-        message: 'Đã thay thế kế hoạch. Kế hoạch trước vẫn có trong lịch sử.',
-        tone: 'success',
+      void recoverAuthority({
+        successMessage:
+          'Đã thay thế kế hoạch. Kế hoạch trước vẫn có trong lịch sử.',
+        onRecovered: () => {
+          replacementKey.current = null
+        },
       })
-      void refreshAuthority()
     },
     onError: handleMutationError,
   })

@@ -335,6 +335,101 @@ describe('mobile SupportPlan journey', () => {
     expect(screen.queryByText(/điểm tuân thủ/i)).toBeTruthy()
   })
 
+  it('keeps commands locked after a successful pause until refreshed authority resolves', async () => {
+    const active = makePlan('ACTIVE')
+    const paused = makePlan('PAUSED', { version: 4 })
+    const scheduled = makeOccurrence()
+    let resolveRefresh: (plan: typeof paused) => void = () => undefined
+    const pendingRefresh = new Promise<typeof paused>((resolve) => {
+      resolveRefresh = resolve
+    })
+    const api = makeApi({
+      getCurrent: jest
+        .fn()
+        .mockResolvedValueOnce(active)
+        .mockReturnValueOnce(pendingRefresh),
+      getOccurrences: jest
+        .fn()
+        .mockResolvedValue(makeOccurrenceList([scheduled])),
+      changeStatus: jest.fn().mockResolvedValue(paused),
+    })
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    const complete = await screen.findByRole('button', {
+      name: 'Đã hoàn thành',
+    })
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tạm dừng kế hoạch' }),
+    )
+
+    expect(
+      await screen.findByText('Đang tải lại trạng thái có thẩm quyền…'),
+    ).toBeTruthy()
+    const stalePause = screen.getByRole('button', {
+      name: 'Tạm dừng kế hoạch',
+    })
+    expect(stalePause).toBeDisabled()
+    expect(complete).toBeDisabled()
+    await fireEvent.press(stalePause)
+    await fireEvent.press(complete)
+    expect(api.changeStatus).toHaveBeenCalledTimes(1)
+    expect(api.replaceOccurrenceEngagement).not.toHaveBeenCalled()
+
+    await act(async () => resolveRefresh(paused))
+
+    expect(
+      await screen.findByRole('button', { name: 'Tiếp tục kế hoạch' }),
+    ).not.toBeDisabled()
+    expect(
+      screen.queryByRole('button', { name: 'Tạm dừng kế hoạch' }),
+    ).toBeNull()
+    expect(
+      await screen.findByText('Tiếp tục kế hoạch để ghi nhận hoạt động này.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Đã hoàn thành' })).toBeNull()
+  })
+
+  it('stays fail-closed when authority refresh fails after a successful lifecycle command', async () => {
+    const active = makePlan('ACTIVE')
+    const paused = makePlan('PAUSED', { version: 4 })
+    const api = makeApi({
+      getCurrent: jest
+        .fn()
+        .mockResolvedValueOnce(active)
+        .mockRejectedValueOnce(
+          new ApiError({
+            message: 'offline',
+            code: 'CARE_UNAVAILABLE',
+            status: 503,
+          }),
+        )
+        .mockResolvedValueOnce(paused),
+      getOccurrences: jest.fn().mockResolvedValue(makeOccurrenceList([])),
+      changeStatus: jest.fn().mockResolvedValue(paused),
+    })
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Tạm dừng kế hoạch' }),
+    )
+
+    expect(await screen.findByText(/Các thay đổi đang bị khóa/)).toBeTruthy()
+    const stalePause = screen.getByRole('button', {
+      name: 'Tạm dừng kế hoạch',
+    })
+    expect(stalePause).toBeDisabled()
+    await fireEvent.press(stalePause)
+    expect(api.changeStatus).toHaveBeenCalledTimes(1)
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tải lại trạng thái an toàn' }),
+    )
+    expect(
+      await screen.findByRole('button', { name: 'Tiếp tục kế hoạch' }),
+    ).not.toBeDisabled()
+    expect(api.getCurrent).toHaveBeenCalledTimes(3)
+  })
+
   it('blocks governed actions until stale recovery resolves with new authority', async () => {
     const active = makePlan('ACTIVE')
     const paused = makePlan('PAUSED', { version: 4 })
