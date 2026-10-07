@@ -17,7 +17,11 @@ import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type { EmotionApi } from './emotion-api'
-import type { Emotion, EmotionCheckInList } from './emotion-contract'
+import type {
+  Emotion,
+  EmotionCheckIn,
+  EmotionCheckInList,
+} from './emotion-contract'
 
 const emotions: readonly {
   value: Emotion
@@ -39,6 +43,17 @@ type Draft = Readonly<{
 
 const emptyDraft: Draft = { emotion: null, intensity: null }
 const historyLimit = 30
+
+function draftSyncKey(
+  subject: string | undefined,
+  localDate: string,
+  checkIn: EmotionCheckIn | null,
+) {
+  const ownerKey = subject ?? 'no-subject'
+  return checkIn
+    ? `${ownerKey}:${localDate}:${checkIn.id}:${checkIn.revision}`
+    : `${ownerKey}:${localDate}:empty`
+}
 
 export function localDateInTimeZone(now: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -158,7 +173,7 @@ export function EmotionCheckInScreen({
   const [pendingDeleteDate, setPendingDeleteDate] = useState<string | null>(
     null,
   )
-  const syncedRevision = useRef<number | null | undefined>(undefined)
+  const syncedDraftKey = useRef<string | undefined>(undefined)
 
   const todayQuery = useQuery({
     queryKey: todayKey,
@@ -189,16 +204,16 @@ export function EmotionCheckInScreen({
   const current = todayQuery.data ?? null
 
   useEffect(() => {
-    if (!todayQuery.isSuccess) return
-    const revision = current?.revision ?? null
-    if (syncedRevision.current === revision) return
-    syncedRevision.current = revision
+    if (!subject || !todayQuery.isSuccess) return
+    const syncKey = draftSyncKey(subject, localDate, current)
+    if (syncedDraftKey.current === syncKey) return
+    syncedDraftKey.current = syncKey
     setDraft(
       current
         ? { emotion: current.emotion, intensity: current.intensity }
         : emptyDraft,
     )
-  }, [current, todayQuery.isSuccess])
+  }, [current, localDate, subject, todayQuery.isSuccess])
 
   const refreshHistoryAndProgress = async () => {
     await Promise.all([
@@ -223,7 +238,7 @@ export function EmotionCheckInScreen({
     },
     onSuccess: async (saved) => {
       queryClient.setQueryData(todayKey, saved)
-      syncedRevision.current = saved.revision
+      syncedDraftKey.current = draftSyncKey(subject, localDate, saved)
       setDraft({ emotion: saved.emotion, intensity: saved.intensity })
       setNotice({
         message: current
@@ -240,7 +255,11 @@ export function EmotionCheckInScreen({
       ) {
         const refreshed = await todayQuery.refetch()
         if (refreshed.isSuccess && refreshed.data) {
-          syncedRevision.current = refreshed.data.revision
+          syncedDraftKey.current = draftSyncKey(
+            subject,
+            localDate,
+            refreshed.data,
+          )
           setDraft({
             emotion: refreshed.data.emotion,
             intensity: refreshed.data.intensity,
@@ -262,7 +281,7 @@ export function EmotionCheckInScreen({
     onSuccess: async (tombstone) => {
       if (tombstone.localDate === localDate) {
         queryClient.setQueryData(todayKey, null)
-        syncedRevision.current = null
+        syncedDraftKey.current = draftSyncKey(subject, localDate, null)
         setDraft(emptyDraft)
       }
       queryClient.setQueryData<EmotionCheckInList>(historyKey, (history) =>

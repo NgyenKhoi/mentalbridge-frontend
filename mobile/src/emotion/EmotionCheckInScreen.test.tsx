@@ -233,6 +233,96 @@ describe('mobile daily emotion check-in journey', () => {
     ).toBeOnTheScreen()
   })
 
+  it('syncs a new local day with the same revision without carrying over the previous draft', async () => {
+    const nextDay = {
+      ...today,
+      id: '33333333-3333-4333-8333-333333333333',
+      localDate: '2026-10-08',
+      emotion: 'GREAT' as const,
+      intensity: 5,
+      revision: 1,
+      recordedAt: '2026-10-08T01:00:00.000Z',
+      createdAt: '2026-10-08T01:00:00.000Z',
+      updatedAt: '2026-10-08T01:00:00.000Z',
+    }
+    const api = emotionApi({
+      getCheckIn: jest
+        .fn()
+        .mockResolvedValueOnce(today)
+        .mockResolvedValue(nextDay),
+    })
+    const queryClient = createTestQueryClient()
+    const view = await renderEmotion(
+      <EmotionCheckInScreen
+        api={api}
+        now={() => new Date('2026-10-07T03:00:00.000Z')}
+        timezone="Asia/Ho_Chi_Minh"
+      />,
+      queryClient,
+    )
+
+    expect(
+      await screen.findByRole('radio', { name: 'Tốt', checked: true }),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByRole('radio', { name: 'Mức cảm nhận 4', checked: true }),
+    ).toBeOnTheScreen()
+
+    await view.rerender(
+      <QueryClientProvider client={queryClient}>
+        <EmotionCheckInScreen
+          api={api}
+          now={() => new Date('2026-10-08T03:00:00.000Z')}
+          timezone="Asia/Ho_Chi_Minh"
+        />
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() =>
+      expect(api.getCheckIn).toHaveBeenCalledWith('2026-10-08'),
+    )
+    expect(
+      await screen.findByRole('radio', { name: 'Rất tốt', checked: true }),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByRole('radio', { name: 'Mức cảm nhận 5', checked: true }),
+    ).toBeOnTheScreen()
+    const save = screen.getByRole('button', { name: 'Cập nhật ghi nhận' })
+    expect(save).toBeDisabled()
+    await fireEvent.press(save)
+    expect(api.updateCheckIn).not.toHaveBeenCalled()
+  })
+
+  it('clears a previous subject draft when the next subject has no daily record', async () => {
+    const api = emotionApi({
+      getCheckIn: jest
+        .fn()
+        .mockResolvedValueOnce(today)
+        .mockRejectedValue(
+          new ApiError({ code: 'NOT_FOUND', message: 'Missing', status: 404 }),
+        ),
+    })
+    const queryClient = createTestQueryClient()
+    const view = await renderEmotion(screenFor(api), queryClient)
+
+    expect(
+      await screen.findByRole('radio', { name: 'Tốt', checked: true }),
+    ).toBeOnTheScreen()
+
+    mockSubject = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    await view.rerender(
+      <QueryClientProvider client={queryClient}>
+        {screenFor(api)}
+      </QueryClientProvider>,
+    )
+
+    expect(
+      await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.'),
+    ).toBeOnTheScreen()
+    expect(screen.queryByRole('radio', { checked: true })).not.toBeOnTheScreen()
+    expect(api.updateCheckIn).not.toHaveBeenCalled()
+  })
+
   it('shows sparse history as missing data and only authoritative 7/14/30 periods', async () => {
     const api = emotionApi({
       getProgress: jest.fn().mockResolvedValue(progress([2, 4, 6])),
