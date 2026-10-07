@@ -73,7 +73,7 @@ function makeApi(
 async function renderScreen(ui: ReactElement) {
   const client = new QueryClient({
     defaultOptions: {
-      queries: { retry: false, gcTime: Infinity },
+      queries: { retry: false, gcTime: Infinity, staleTime: 30_000 },
       mutations: { gcTime: Infinity, retry: false },
     },
   })
@@ -226,6 +226,109 @@ describe('mobile SupportPlan journey', () => {
       ),
     )
     expect(api.activate).not.toHaveBeenCalled()
+  })
+
+  it('does not reuse fresh occurrences from a replaced current plan', async () => {
+    const current = makePlan('ACTIVE')
+    const draft = makePlan('DRAFT')
+    const replaced = makePlan('ACTIVE', {
+      supportPlanId: draft.supportPlanId,
+      version: 4,
+    })
+    const oldOccurrence = makeOccurrence({
+      source: {
+        ...makeOccurrence().source,
+        title: 'Hoạt động của kế hoạch cũ',
+      },
+    })
+    const newOccurrence = makeOccurrence({
+      occurrenceId: '50000000-0000-4000-8000-000000000099',
+      supportPlanId: replaced.supportPlanId,
+      version: 1,
+      source: {
+        ...makeOccurrence().source,
+        supportPlanVersion: replaced.version,
+        title: 'Hoạt động của kế hoạch mới',
+      },
+    })
+    const review = {
+      outcome: 'CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE' as const,
+      rationaleCodes: [
+        'CURRENT_PLAN_ADMISSIBLE' as const,
+        'PROPOSED_PLAN_ADMISSIBLE' as const,
+      ],
+      currentPlan: current,
+      proposedPlan: draft,
+      comparison: [
+        {
+          change: 'UNCHANGED' as const,
+          currentSlotId: current.slots[0]!.slotId,
+          currentResource: current.slots[0]!.selectedResource,
+          proposedSlotId: draft.slots[0]!.slotId,
+          proposedResource: draft.slots[0]!.selectedResource,
+        },
+      ],
+      reassessmentSummary: makeReassessmentSummary(),
+      reviewedAt: '2026-10-07T02:00:00.000Z',
+    }
+    const api = makeApi({
+      getCurrent: jest
+        .fn()
+        .mockResolvedValueOnce(current)
+        .mockResolvedValueOnce(replaced),
+      getCurrentDraft: jest
+        .fn()
+        .mockResolvedValueOnce(draft)
+        .mockRejectedValueOnce(missing('SUPPORT_PLAN_DRAFT_NOT_FOUND')),
+      getOccurrences: jest
+        .fn()
+        .mockResolvedValueOnce(makeOccurrenceList([oldOccurrence]))
+        .mockResolvedValueOnce({
+          ...makeOccurrenceList([newOccurrence]),
+          supportPlanId: replaced.supportPlanId,
+          occurrences: [newOccurrence],
+        }),
+      reviewReplacement: jest.fn().mockResolvedValue(review),
+      replaceCurrent: jest.fn().mockResolvedValue(replaced),
+    })
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    expect(await screen.findByText('Hoạt động của kế hoạch cũ')).toBeTruthy()
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Dùng phương án mới' }),
+    )
+
+    expect(await screen.findByText('Hoạt động của kế hoạch mới')).toBeTruthy()
+    expect(screen.queryByText('Hoạt động của kế hoạch cũ')).toBeNull()
+    expect(api.getOccurrences).toHaveBeenCalledTimes(2)
+    expect(
+      screen.getByRole('button', { name: 'Đã hoàn thành' }),
+    ).not.toBeDisabled()
+  })
+
+  it('fails closed when occurrence authority does not match the current plan', async () => {
+    const current = makePlan('ACTIVE')
+    const wrongPlanOccurrence = makeOccurrence({
+      supportPlanId: '10000000-0000-4000-8000-000000000099',
+    })
+    const api = makeApi({
+      getCurrent: jest.fn().mockResolvedValue(current),
+      getOccurrences: jest.fn().mockResolvedValue({
+        ...makeOccurrenceList([wrongPlanOccurrence]),
+        supportPlanId: wrongPlanOccurrence.supportPlanId,
+        occurrences: [wrongPlanOccurrence],
+      }),
+    })
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    expect(
+      await screen.findByText(/Hoạt động vừa thay đổi theo kế hoạch mới/),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Đã hoàn thành' })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Tạm dừng kế hoạch' }),
+    ).toBeDisabled()
+    expect(api.replaceOccurrenceEngagement).not.toHaveBeenCalled()
   })
 
   it('shows only server-valid lifecycle actions for active, paused and completed states', async () => {

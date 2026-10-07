@@ -536,13 +536,28 @@ export function SupportPlanScreen({
   const currentKey = ['support-plan', subject, 'current'] as const
   const draftKey = ['support-plan', subject, 'draft'] as const
   const historyKey = ['support-plan', subject, 'history'] as const
-  const occurrenceKey = [
-    'support-plan',
-    subject,
-    'occurrences',
-    window.from,
-    window.through,
-  ] as const
+  const occurrenceKeyFor = (supportPlanId: string | null | undefined) =>
+    [
+      'support-plan',
+      subject,
+      'occurrences',
+      supportPlanId ?? null,
+      window.from,
+      window.through,
+    ] as const
+  const replacementReviewKeyFor = (
+    currentPlan: SupportPlan | null | undefined,
+    draftPlan: SupportPlan | null | undefined,
+  ) =>
+    [
+      'support-plan',
+      subject,
+      'replacement-review',
+      currentPlan?.supportPlanId ?? null,
+      currentPlan?.version ?? null,
+      draftPlan?.supportPlanId ?? null,
+      draftPlan?.version ?? null,
+    ] as const
   const proposalKey = ['support-plan', subject, 'proposal', proposalId] as const
 
   const currentQuery = useQuery({
@@ -562,6 +577,7 @@ export function SupportPlanScreen({
     enabled: Boolean(subject),
     queryFn: () => api.getHistory(),
   })
+  const occurrenceKey = occurrenceKeyFor(currentQuery.data?.supportPlanId)
   const occurrenceQuery = useQuery({
     queryKey: occurrenceKey,
     enabled:
@@ -571,21 +587,18 @@ export function SupportPlanScreen({
     queryFn: () => api.getOccurrences(window.from, window.through),
   })
   const replacementQuery = useQuery({
-    queryKey: [
-      'support-plan',
-      subject,
-      'replacement-review',
-      currentQuery.data?.version,
-      draftQuery.data?.version,
-    ],
+    queryKey: replacementReviewKeyFor(currentQuery.data, draftQuery.data),
     enabled: Boolean(currentQuery.data && draftQuery.data),
     retry: false,
+    staleTime: 0,
     queryFn: () => api.reviewReplacement(currentQuery.data!, draftQuery.data!),
   })
   const proposalQuery = useQuery({
     queryKey: proposalKey,
     enabled: Boolean(subject && proposalId),
+    refetchOnMount: 'always',
     retry: false,
+    staleTime: 0,
     queryFn: async () => {
       try {
         return await api.getPlanChangeRequest(proposalId!)
@@ -595,6 +608,17 @@ export function SupportPlanScreen({
       }
     },
   })
+
+  const currentSupportsOccurrences =
+    currentQuery.data?.status === 'ACTIVE' ||
+    currentQuery.data?.status === 'PAUSED'
+  const occurrenceAuthorityMismatch = Boolean(
+    currentSupportsOccurrences &&
+      occurrenceQuery.data &&
+      (occurrenceQuery.data.supportPlanId !==
+        currentQuery.data?.supportPlanId ||
+        occurrenceQuery.data.supportPlanStatus !== currentQuery.data?.status),
+  )
 
   const refreshAuthority = async () => {
     try {
@@ -616,12 +640,31 @@ export function SupportPlanScreen({
         refreshedCurrent?.status === 'ACTIVE' ||
         refreshedCurrent?.status === 'PAUSED'
       ) {
-        await queryClient.fetchQuery({
-          queryKey: occurrenceKey,
-          queryFn: () => api.getOccurrences(window.from, window.through),
+        const refreshedOccurrenceKey = occurrenceKeyFor(
+          refreshedCurrent.supportPlanId,
+        )
+        await queryClient.invalidateQueries({
+          queryKey: refreshedOccurrenceKey,
+          exact: true,
+          refetchType: 'none',
         })
+        const refreshedOccurrences = await queryClient.fetchQuery({
+          queryKey: refreshedOccurrenceKey,
+          queryFn: () => api.getOccurrences(window.from, window.through),
+          staleTime: 0,
+        })
+        if (
+          refreshedOccurrences.supportPlanId !==
+            refreshedCurrent.supportPlanId ||
+          refreshedOccurrences.supportPlanStatus !== refreshedCurrent.status
+        ) {
+          return false
+        }
       } else {
-        queryClient.removeQueries({ queryKey: occurrenceKey, exact: true })
+        queryClient.removeQueries({
+          queryKey: ['support-plan', subject, 'occurrences'],
+          exact: false,
+        })
       }
 
       if (proposalId) {
@@ -681,7 +724,7 @@ export function SupportPlanScreen({
   }
 
   const runGovernedMutation = (command: () => void) => {
-    if (!authorityLockedRef.current) command()
+    if (!authorityLockedRef.current && !occurrenceAuthorityMismatch) command()
   }
 
   const choiceMutation = useMutation({
@@ -863,6 +906,7 @@ export function SupportPlanScreen({
 
   const busy =
     authorityRecovery !== 'idle' ||
+    occurrenceAuthorityMismatch ||
     choiceMutation.isPending ||
     activationMutation.isPending ||
     statusMutation.isPending ||
@@ -933,9 +977,21 @@ export function SupportPlanScreen({
   const current = currentQuery.data
   const draft = draftQuery.data
   const activePlan = current ?? draft
-  const replaceEligible =
+  const replacementAuthorityMatchesPlans = Boolean(
     current &&
-    draft &&
+      draft &&
+      replacementQuery.data &&
+      replacementQuery.data.currentPlan.supportPlanId ===
+        current.supportPlanId &&
+      replacementQuery.data.currentPlan.version === current.version &&
+      replacementQuery.data.proposedPlan.supportPlanId ===
+        draft.supportPlanId &&
+      replacementQuery.data.proposedPlan.version === draft.version,
+  )
+  const replaceEligible =
+    replacementAuthorityMatchesPlans &&
+    replacementQuery.isSuccess &&
+    !replacementQuery.isFetching &&
     replacementQuery.data?.rationaleCodes.includes('PROPOSED_PLAN_ADMISSIBLE')
 
   return (
@@ -1082,55 +1138,73 @@ export function SupportPlanScreen({
         />
       )}
 
-      {current && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Hoạt động gần đây và sắp tới</Text>
-          {occurrenceQuery.isPending && (
-            <Text
-              accessibilityLiveRegion="polite"
-              style={styles.supportingText}
-            >
-              Đang tải hoạt động…
-            </Text>
-          )}
-          {occurrenceQuery.isError && (
-            <View style={styles.partialError}>
-              <StateMessage
-                notice={{
-                  message:
-                    'Chưa thể tải hoạt động. Trạng thái kế hoạch vẫn được giữ nguyên.',
-                  tone: 'error',
-                }}
-              />
-              <SecondaryButton
-                label="Thử tải lại hoạt động"
-                onPress={() => void occurrenceQuery.refetch()}
-              />
-            </View>
-          )}
-          {occurrenceQuery.data?.occurrences.filter((item) => !item.hidden)
-            .length === 0 && (
-            <Text style={styles.supportingText}>
-              Chưa có hoạt động trong khoảng thời gian này.
-            </Text>
-          )}
-          {occurrenceQuery.data?.occurrences
-            .filter((item) => !item.hidden)
-            .map((occurrence) => (
-              <OccurrenceCard
-                busy={busy}
-                canEdit={current.status === 'ACTIVE'}
-                key={`${occurrence.occurrenceId}:${occurrence.version}`}
-                occurrence={occurrence}
-                onSave={(engagement) =>
-                  runGovernedMutation(() =>
-                    occurrenceMutation.mutate({ occurrence, engagement }),
-                  )
-                }
-              />
-            ))}
-        </View>
-      )}
+      {current &&
+        (current.status === 'ACTIVE' || current.status === 'PAUSED') && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Hoạt động gần đây và sắp tới</Text>
+            {occurrenceAuthorityMismatch && (
+              <View style={styles.partialError}>
+                <StateMessage
+                  notice={{
+                    message:
+                      'Hoạt động vừa thay đổi theo kế hoạch mới. Hãy tải lại trạng thái trước khi ghi nhận.',
+                    tone: 'error',
+                  }}
+                />
+                <SecondaryButton
+                  label="Tải lại hoạt động an toàn"
+                  onPress={() => void recoverAuthority()}
+                />
+              </View>
+            )}
+            {!occurrenceAuthorityMismatch && occurrenceQuery.isPending && (
+              <Text
+                accessibilityLiveRegion="polite"
+                style={styles.supportingText}
+              >
+                Đang tải hoạt động…
+              </Text>
+            )}
+            {!occurrenceAuthorityMismatch && occurrenceQuery.isError && (
+              <View style={styles.partialError}>
+                <StateMessage
+                  notice={{
+                    message:
+                      'Chưa thể tải hoạt động. Trạng thái kế hoạch vẫn được giữ nguyên.',
+                    tone: 'error',
+                  }}
+                />
+                <SecondaryButton
+                  label="Thử tải lại hoạt động"
+                  onPress={() => void occurrenceQuery.refetch()}
+                />
+              </View>
+            )}
+            {!occurrenceAuthorityMismatch &&
+              occurrenceQuery.data?.occurrences.filter((item) => !item.hidden)
+                .length === 0 && (
+                <Text style={styles.supportingText}>
+                  Chưa có hoạt động trong khoảng thời gian này.
+                </Text>
+              )}
+            {!occurrenceAuthorityMismatch &&
+              occurrenceQuery.data?.occurrences
+                .filter((item) => !item.hidden)
+                .map((occurrence) => (
+                  <OccurrenceCard
+                    busy={busy}
+                    canEdit={current.status === 'ACTIVE'}
+                    key={`${occurrence.occurrenceId}:${occurrence.version}`}
+                    occurrence={occurrence}
+                    onSave={(engagement) =>
+                      runGovernedMutation(() =>
+                        occurrenceMutation.mutate({ occurrence, engagement }),
+                      )
+                    }
+                  />
+                ))}
+          </View>
+        )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Kế hoạch trước đây</Text>
