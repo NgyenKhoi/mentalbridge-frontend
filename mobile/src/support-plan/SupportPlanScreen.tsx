@@ -29,6 +29,7 @@ import type {
 
 type Notice = Readonly<{ message: string; tone: 'error' | 'success' }>
 type CommandKey = { signature: string; key: string } | null
+type AuthorityRecovery = 'idle' | 'refreshing' | 'blocked'
 
 const statusLabels: Record<SupportPlan['status'], string> = {
   DRAFT: 'Bản đề xuất',
@@ -369,15 +370,17 @@ function ProposalCard({
 
 function OccurrenceCard({
   busy,
+  canEdit,
   onSave,
   occurrence,
 }: Readonly<{
   busy: boolean
+  canEdit: boolean
   onSave: (engagement: OccurrenceEngagement) => void
   occurrence: SupportPlanOccurrence
 }>) {
   const [reflection, setReflection] = useState(occurrence.reflection ?? '')
-  const editable = occurrence.state !== 'CANCELLED'
+  const editable = canEdit && occurrence.state !== 'CANCELLED'
   const save = (change: Partial<OccurrenceEngagement>) => {
     if (!editable) return
     const state = change.state ?? occurrence.state
@@ -415,6 +418,11 @@ function OccurrenceCard({
       <Text style={styles.supportingText}>
         {formatDate(occurrence.scheduledAt)}
       </Text>
+      {!canEdit && occurrence.state !== 'CANCELLED' && (
+        <Text style={styles.supportingText}>
+          Tiếp tục kế hoạch để ghi nhận hoạt động này.
+        </Text>
+      )}
       {editable && (
         <View style={styles.actions}>
           {occurrence.state !== 'COMPLETED' && (
@@ -440,7 +448,7 @@ function OccurrenceCard({
           )}
         </View>
       )}
-      {occurrence.state === 'COMPLETED' && (
+      {editable && occurrence.state === 'COMPLETED' && (
         <View style={styles.choiceList}>
           <Text style={styles.label}>Hoạt động này hữu ích thế nào?</Text>
           {helpfulnessOptions.map(([value, label]) => (
@@ -453,7 +461,7 @@ function OccurrenceCard({
           ))}
         </View>
       )}
-      {occurrence.state === 'SKIPPED' && (
+      {editable && occurrence.state === 'SKIPPED' && (
         <View style={styles.choiceList}>
           <Text style={styles.label}>Điều gì khiến bạn bỏ qua?</Text>
           {barrierOptions.map(([value, label]) => (
@@ -466,34 +474,36 @@ function OccurrenceCard({
           ))}
         </View>
       )}
-      {(occurrence.state === 'COMPLETED' || occurrence.state === 'SKIPPED') && (
-        <View style={styles.reflectionField}>
-          <Text style={styles.label}>Ghi chú riêng (không bắt buộc)</Text>
-          <TextInput
-            accessibilityLabel={`Ghi chú cho ${occurrence.source.title}`}
-            editable={!busy}
-            maxLength={500}
-            multiline
-            onChangeText={setReflection}
-            placeholder="Điều bạn muốn ghi nhớ về hoạt động này"
-            placeholderTextColor={colors.inkFaint}
-            style={styles.input}
-            value={reflection}
-          />
-          <SecondaryButton
-            disabled={busy}
-            label="Lưu ghi chú"
-            onPress={() => save({ reflection: reflection.trim() || null })}
-          />
-          <SecondaryButton
-            disabled={busy}
-            label={`${occurrence.summaryReuseApproved ? '✓ ' : ''}Cho phép dùng trong bản tổng hợp sau này`}
-            onPress={() =>
-              save({ summaryReuseApproved: !occurrence.summaryReuseApproved })
-            }
-          />
-        </View>
-      )}
+      {editable &&
+        (occurrence.state === 'COMPLETED' ||
+          occurrence.state === 'SKIPPED') && (
+          <View style={styles.reflectionField}>
+            <Text style={styles.label}>Ghi chú riêng (không bắt buộc)</Text>
+            <TextInput
+              accessibilityLabel={`Ghi chú cho ${occurrence.source.title}`}
+              editable={!busy}
+              maxLength={500}
+              multiline
+              onChangeText={setReflection}
+              placeholder="Điều bạn muốn ghi nhớ về hoạt động này"
+              placeholderTextColor={colors.inkFaint}
+              style={styles.input}
+              value={reflection}
+            />
+            <SecondaryButton
+              disabled={busy}
+              label="Lưu ghi chú"
+              onPress={() => save({ reflection: reflection.trim() || null })}
+            />
+            <SecondaryButton
+              disabled={busy}
+              label={`${occurrence.summaryReuseApproved ? '✓ ' : ''}Cho phép dùng trong bản tổng hợp sau này`}
+              onPress={() =>
+                save({ summaryReuseApproved: !occurrence.summaryReuseApproved })
+              }
+            />
+          </View>
+        )}
       <Text style={styles.disclaimer}>
         Đây là ghi nhận của bạn, không phải điểm tuân thủ hay đánh giá hồi phục.
       </Text>
@@ -509,6 +519,10 @@ export function SupportPlanScreen({
   const subject = session?.subject
   const queryClient = useQueryClient()
   const [notice, setNotice] = useState<Notice | null>(null)
+  const [authorityRecovery, setAuthorityRecovery] =
+    useState<AuthorityRecovery>('idle')
+  const authorityLockedRef = useRef(false)
+  const recoveryRunningRef = useRef(false)
   const activationKey = useRef<CommandKey>(null)
   const replacementKey = useRef<CommandKey>(null)
   const proposalReviewKey = useRef<CommandKey>(null)
@@ -578,13 +592,68 @@ export function SupportPlanScreen({
   })
 
   const refreshAuthority = async () => {
-    await Promise.all([
-      currentQuery.refetch(),
-      draftQuery.refetch(),
-      historyQuery.refetch(),
-    ])
-    await queryClient.invalidateQueries({ queryKey: occurrenceKey })
-    if (proposalId) await proposalQuery.refetch()
+    try {
+      const [currentResult, draftResult, historyResult] = await Promise.all([
+        currentQuery.refetch(),
+        draftQuery.refetch(),
+        historyQuery.refetch(),
+      ])
+      if (
+        currentResult.isError ||
+        draftResult.isError ||
+        historyResult.isError
+      ) {
+        return false
+      }
+
+      const refreshedCurrent = currentResult.data
+      if (
+        refreshedCurrent?.status === 'ACTIVE' ||
+        refreshedCurrent?.status === 'PAUSED'
+      ) {
+        await queryClient.fetchQuery({
+          queryKey: occurrenceKey,
+          queryFn: () => api.getOccurrences(window.from, window.through),
+        })
+      } else {
+        queryClient.removeQueries({ queryKey: occurrenceKey, exact: true })
+      }
+
+      if (proposalId) {
+        const proposalResult = await proposalQuery.refetch()
+        if (proposalResult.isError) return false
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const recoverAuthority = async () => {
+    if (recoveryRunningRef.current) return
+    authorityLockedRef.current = true
+    recoveryRunningRef.current = true
+    setAuthorityRecovery('refreshing')
+
+    const recovered = await refreshAuthority()
+    recoveryRunningRef.current = false
+    if (recovered) {
+      authorityLockedRef.current = false
+      setAuthorityRecovery('idle')
+      setNotice({
+        message:
+          'Đã tải trạng thái mới nhất. Hãy kiểm tra lại trước khi tiếp tục.',
+        tone: 'success',
+      })
+      return
+    }
+
+    setAuthorityRecovery('blocked')
+    setNotice({
+      message:
+        'Chưa thể tải trạng thái mới nhất. Các thay đổi đang bị khóa để bảo vệ kế hoạch của bạn.',
+      tone: 'error',
+    })
   }
 
   const handleMutationError = (error: unknown) => {
@@ -593,8 +662,13 @@ export function SupportPlanScreen({
       error instanceof ApiError &&
       (error.status === 409 || error.status === 412)
     ) {
-      void refreshAuthority()
+      authorityLockedRef.current = true
+      void recoverAuthority()
     }
+  }
+
+  const runGovernedMutation = (command: () => void) => {
+    if (!authorityLockedRef.current) command()
   }
 
   const choiceMutation = useMutation({
@@ -772,6 +846,7 @@ export function SupportPlanScreen({
   })
 
   const busy =
+    authorityRecovery !== 'idle' ||
     choiceMutation.isPending ||
     activationMutation.isPending ||
     statusMutation.isPending ||
@@ -860,18 +935,35 @@ export function SupportPlanScreen({
       </Text>
 
       {notice && <StateMessage notice={notice} />}
+      {authorityRecovery === 'refreshing' && (
+        <Text accessibilityLiveRegion="polite" style={styles.supportingText}>
+          Đang tải lại trạng thái có thẩm quyền…
+        </Text>
+      )}
+      {authorityRecovery === 'blocked' && (
+        <View style={styles.partialError}>
+          <SecondaryButton
+            label="Tải lại trạng thái an toàn"
+            onPress={() => void recoverAuthority()}
+          />
+        </View>
+      )}
 
       {proposalId && !proposalQuery.isPending && !proposalQuery.isError && (
         <ProposalCard
           busy={busy}
           request={proposalQuery.data}
-          onReview={() => proposalReviewMutation.mutate(proposalId)}
+          onReview={() =>
+            runGovernedMutation(() => proposalReviewMutation.mutate(proposalId))
+          }
           onDecision={(decision) => {
             if (proposalQuery.data) {
-              proposalDecisionMutation.mutate({
-                request: proposalQuery.data,
-                decision,
-              })
+              runGovernedMutation(() =>
+                proposalDecisionMutation.mutate({
+                  request: proposalQuery.data!,
+                  decision,
+                }),
+              )
             }
           }}
         />
@@ -909,7 +1001,9 @@ export function SupportPlanScreen({
           onActivate={() => undefined}
           onChangeChoice={() => undefined}
           onStatus={(status) =>
-            statusMutation.mutate({ plan: current, status })
+            runGovernedMutation(() =>
+              statusMutation.mutate({ plan: current, status }),
+            )
           }
         />
       )}
@@ -919,11 +1013,19 @@ export function SupportPlanScreen({
           canActivate={!current}
           plan={draft}
           title={current ? 'Phương án thay thế' : 'Kế hoạch đề xuất'}
-          onActivate={() => activationMutation.mutate(draft)}
-          onChangeChoice={(slotId, resourceId) =>
-            choiceMutation.mutate({ plan: draft, slotId, resourceId })
+          onActivate={() =>
+            runGovernedMutation(() => activationMutation.mutate(draft))
           }
-          onStatus={(status) => statusMutation.mutate({ plan: draft, status })}
+          onChangeChoice={(slotId, resourceId) =>
+            runGovernedMutation(() =>
+              choiceMutation.mutate({ plan: draft, slotId, resourceId }),
+            )
+          }
+          onStatus={(status) =>
+            runGovernedMutation(() =>
+              statusMutation.mutate({ plan: draft, status }),
+            )
+          }
         />
       )}
 
@@ -943,11 +1045,13 @@ export function SupportPlanScreen({
             disabled={busy}
             label="Dùng phương án mới"
             onPress={() =>
-              replacementMutation.mutate({
-                current,
-                draft,
-                review: replacementQuery.data!,
-              })
+              runGovernedMutation(() =>
+                replacementMutation.mutate({
+                  current,
+                  draft,
+                  review: replacementQuery.data!,
+                }),
+              )
             }
           />
         </View>
@@ -999,10 +1103,13 @@ export function SupportPlanScreen({
             .map((occurrence) => (
               <OccurrenceCard
                 busy={busy}
+                canEdit={current.status === 'ACTIVE'}
                 key={`${occurrence.occurrenceId}:${occurrence.version}`}
                 occurrence={occurrence}
                 onSave={(engagement) =>
-                  occurrenceMutation.mutate({ occurrence, engagement })
+                  runGovernedMutation(() =>
+                    occurrenceMutation.mutate({ occurrence, engagement }),
+                  )
                 }
               />
             ))}

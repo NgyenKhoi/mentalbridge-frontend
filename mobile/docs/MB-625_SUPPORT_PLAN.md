@@ -36,8 +36,11 @@ and SupportPlan remain separate product objects.
 - Cached data is presentation-only. Mutations are considered successful only
   after a parsed server response; failed commands keep the last confirmed
   state.
-- `409` and `412` responses show a stale-state recovery message and refetch
-  current, draft, history and occurrence authority before another action.
+- Occurrences remain visible for a paused plan, but every engagement control is
+  read-only until Care confirms a successful resume to `ACTIVE`.
+- `409` and `412` responses synchronously lock every governed command while
+  current, draft, history, occurrence and proposal authority are refreshed. If
+  any refresh fails, the lock remains until an explicit reload succeeds.
 - Activation, replacement and PlanChange review/decision reuse one command key
   across an ambiguous retry and reset it only after success or signature change.
 - Occurrence completion, skip, helpfulness, barrier, reflection and bounded
@@ -61,8 +64,9 @@ npm run build:bundle
 
 Focused Jest coverage verifies strict response parsing, concurrency and
 idempotency headers, empty/draft/active/paused/completed presentation, ambiguous
-activation retry, stale transition recovery, occurrence engagement, proposal
-decision, unauthorized actor and dependency failure.
+activation retry, paused occurrence read-only behavior, blocking stale recovery
+and explicit recovery retry, occurrence engagement, proposal decision,
+unauthorized actor and dependency failure.
 
 ## Android real-contract evidence
 
