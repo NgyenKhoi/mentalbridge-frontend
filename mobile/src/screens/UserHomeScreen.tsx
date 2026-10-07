@@ -21,6 +21,10 @@ export function UserHomeScreen() {
       </Text>
       <View style={styles.actions}>
         <PrimaryButton
+          label="Ghi nhận cảm xúc"
+          onPress={() => router.push('./emotion')}
+        />
+        <PrimaryButton
           label="Bắt đầu sàng lọc"
           onPress={() => router.push('./assessment')}
         />
