@@ -125,7 +125,9 @@ describe('AdminOperationsDashboard Component', () => {
 
     expect(screen.getByText('Hồ sơ chuyên gia')).toBeInTheDocument()
     expect(screen.getByText('Lịch hẹn tư vấn')).toBeInTheDocument()
-    expect(screen.getByText('Giao nhận thông báo & Nhắc hẹn')).toBeInTheDocument()
+    expect(
+      screen.getByText('Giao nhận thông báo & Nhắc hẹn'),
+    ).toBeInTheDocument()
     expect(screen.getByText('Kiểm duyệt cộng đồng')).toBeInTheDocument()
 
     // Sources badges
@@ -143,16 +145,24 @@ describe('AdminOperationsDashboard Component', () => {
     expect(screen.queryByText('12.480')).not.toBeInTheDocument()
     expect(screen.queryByText(/Kiểm duyệt viên/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Đang khiếu nại/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Báo cáo đang chờ xử lý/i)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/Báo cáo đang chờ xử lý/i),
+    ).not.toBeInTheDocument()
 
     // Verify community moderation cases semantics
     expect(screen.getByText('Vụ việc kiểm duyệt đang mở')).toBeInTheDocument()
     expect(screen.getByText('Tổng vụ việc kiểm duyệt')).toBeInTheDocument()
 
     // Verify appointment states and settlement outcomes are rendered
-    expect(screen.getByText('Người dùng vắng mặt (User No-show):')).toBeInTheDocument()
-    expect(screen.getByText('Chuyên gia vắng mặt (Specialist No-show):')).toBeInTheDocument()
-    expect(screen.getByText('Cả hai vắng mặt (Both No-show):')).toBeInTheDocument()
+    expect(
+      screen.getByText('Người dùng vắng mặt (User No-show):'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Chuyên gia vắng mặt (Specialist No-show):'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Cả hai vắng mặt (Both No-show):'),
+    ).toBeInTheDocument()
   })
 
   it('renders unintegrated metrics clearly marked as UNAVAILABLE', async () => {
@@ -164,11 +174,17 @@ describe('AdminOperationsDashboard Component', () => {
     render(<AdminOperationsDashboard />)
 
     await waitFor(() => {
-      expect(screen.getByText('Chỉ số chưa tích hợp / Chưa có nguồn xác thực')).toBeInTheDocument()
+      expect(
+        screen.getByText('Chỉ số chưa tích hợp / Chưa có nguồn xác thực'),
+      ).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Tỷ lệ sẵn sàng nền tảng (Uptime SLA)')).toBeInTheDocument()
-    expect(screen.getByText('Chỉ số bảo mật (Platform Security Score)')).toBeInTheDocument()
+    expect(
+      screen.getByText('Tỷ lệ sẵn sàng nền tảng (Uptime SLA)'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Chỉ số bảo mật (Platform Security Score)'),
+    ).toBeInTheDocument()
     expect(screen.getAllByText('UNAVAILABLE').length).toBeGreaterThan(0)
   })
 
@@ -197,7 +213,9 @@ describe('AdminOperationsDashboard Component', () => {
 
     // Consultation shows unavailable with safe error
     expect(
-      screen.getAllByText('Consultation service summary is currently unreachable.').length,
+      screen.getAllByText(
+        'Consultation service summary is currently unreachable.',
+      ).length,
     ).toBeGreaterThan(0)
 
     // Identity is still available
@@ -218,11 +236,15 @@ describe('AdminOperationsDashboard Component', () => {
       expect(screen.getByText('Tài khoản người dùng')).toBeInTheDocument()
     })
 
-    const refreshButton = screen.getByRole('button', { name: /Làm mới dữ liệu/i })
+    const refreshButton = screen.getByRole('button', {
+      name: /Làm mới dữ liệu/i,
+    })
     fireEvent.click(refreshButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/Dữ liệu đang hiển thị có thể bị cũ \(STALE\)/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(/Dữ liệu đang hiển thị có thể bị cũ \(STALE\)/i),
+      ).toBeInTheDocument()
     })
 
     expect(screen.getAllByText('STALE').length).toBeGreaterThan(0)
@@ -230,4 +252,3 @@ describe('AdminOperationsDashboard Component', () => {
     expect(screen.getByText('100')).toBeInTheDocument()
   })
 })
-

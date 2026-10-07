@@ -61,7 +61,10 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
     })
     auth.carrySession.mockImplementation((res: NextResponse) => res)
     auth.authenticationFailure.mockImplementation((error: unknown) => {
-      const status = typeof error === 'object' && error && 'status' in error ? (error as { status: number }).status : 401
+      const status =
+        typeof error === 'object' && error && 'status' in error
+          ? (error as { status: number }).status
+          : 401
       return NextResponse.json({ code: 'UNAUTHORIZED' }, { status })
     })
 
@@ -193,7 +196,9 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
   })
 
   it('gracefully degrades to UNAVAILABLE when a downstream service is down without demo fallback', async () => {
-    consultation.getOperationsSummary.mockRejectedValueOnce(new Error('Connection refused'))
+    consultation.getOperationsSummary.mockRejectedValueOnce(
+      new Error('Connection refused'),
+    )
 
     const response = await GET(request())
     expect(response.status).toBe(200)
@@ -208,4 +213,3 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
     expect(payload.identity.data.total).toBe(120)
   })
 })
-

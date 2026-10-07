@@ -28,20 +28,29 @@ export async function GET(request: NextRequest) {
   let actor: Awaited<ReturnType<typeof authenticatedConsultationActor>>
 
   try {
-    actor = await authenticatedConsultationActor(request, correlationId, ['ADMIN'])
+    actor = await authenticatedConsultationActor(request, correlationId, [
+      'ADMIN',
+    ])
   } catch (error) {
     return consultationAuthenticationFailure(error, correlationId)
   }
 
   const now = new Date().toISOString()
 
-  const [identityResult, consultationResult, notificationResult, communityResult] =
-    await Promise.allSettled([
-      identityClient.getAccountsSummary(actor.accessToken, correlationId),
-      consultationClient.getOperationsSummary(actor.accessToken, correlationId),
-      contentAdminClient.getNotificationOperationsSummary(actor.accessToken, correlationId),
-      communityClient.operationsSummary(actor.accessToken, correlationId),
-    ])
+  const [
+    identityResult,
+    consultationResult,
+    notificationResult,
+    communityResult,
+  ] = await Promise.allSettled([
+    identityClient.getAccountsSummary(actor.accessToken, correlationId),
+    consultationClient.getOperationsSummary(actor.accessToken, correlationId),
+    contentAdminClient.getNotificationOperationsSummary(
+      actor.accessToken,
+      correlationId,
+    ),
+    communityClient.operationsSummary(actor.accessToken, correlationId),
+  ])
 
   const identityBlock: AuthoritativeBlock<IdentityAccountsData> =
     identityResult.status === 'fulfilled'
@@ -105,7 +114,8 @@ export async function GET(request: NextRequest) {
           source: 'CONTENT_NOTIFICATION',
           asOf: now,
           data: null,
-          error: 'Content notification service summary is currently unreachable.',
+          error:
+            'Content notification service summary is currently unreachable.',
         }
 
   const communityBlock: AuthoritativeBlock<CommunityOperationsData> =
@@ -135,7 +145,8 @@ export async function GET(request: NextRequest) {
       status: 'UNAVAILABLE',
       rationale:
         'Chưa có exporter tổng hợp và SLA projection có thẩm quyền từ hệ thống hạ tầng giám sát. Số liệu 99.98% trước đây là mock và đã bị loại bỏ.',
-      authoritativeOwnerNeeded: 'Platform Infrastructure / Prometheus Monitoring',
+      authoritativeOwnerNeeded:
+        'Platform Infrastructure / Prometheus Monitoring',
     },
     {
       id: 'platform-security-score',
@@ -176,4 +187,3 @@ export async function GET(request: NextRequest) {
 
   return carryConsultationSession(response, actor)
 }
-
