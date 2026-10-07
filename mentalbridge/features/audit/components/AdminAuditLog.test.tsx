@@ -38,11 +38,47 @@ describe('AdminAuditLog', () => {
 
   it('renders only minimized audit metadata and a safe tombstone', async () => {
     render(<AdminAuditLog />)
-    expect(await screen.findByText('Tạm ngưng tài khoản')).toBeInTheDocument()
-    expect(screen.getByText(/Đối tượng đã xóa/)).toBeInTheDocument()
+    expect(await screen.findByText(/Đối tượng đã xóa/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('cell', { name: /Quản trị viên/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('account:948f9e80-d3bc-45aa-91f6-044dd5afbf78'),
+    ).toBeInTheDocument()
     expect(
       screen.queryByText(/email|journal body|assessment answer/i),
     ).not.toBeInTheDocument()
+  })
+
+  it('renders deleted admin actor tombstone, system actor, and absent target safely', async () => {
+    const deletedAdminEvent = {
+      ...event,
+      eventId: 'd8239c17-a472-4d72-a70b-a81322c40eb4',
+      actorType: 'ADMIN' as const,
+      actorIdentifier: 'tombstone:' + 'b'.repeat(64),
+      targetIdentifier: null,
+    }
+    const systemEvent = {
+      ...event,
+      eventId: 'e8239c17-a472-4d72-a70b-a81322c40eb5',
+      actorType: 'SYSTEM' as const,
+      actorIdentifier: 'system',
+      targetIdentifier: undefined,
+    }
+    api.browse.mockResolvedValueOnce({
+      ...page,
+      items: [deletedAdminEvent, systemEvent],
+    })
+
+    render(<AdminAuditLog />)
+    expect(
+      await screen.findByRole('cell', { name: /Hệ thống/ }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('system')).toBeInTheDocument()
+    expect(
+      screen.getByText(/Tài khoản đã xóa · bbbbbbbbbbbb/),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('Không áp dụng')).toHaveLength(2)
   })
 
   it('applies filters and reuses the applied filters for export', async () => {

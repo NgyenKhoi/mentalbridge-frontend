@@ -45,7 +45,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SAFE_CODE_PATTERN = /^[A-Z0-9_]{1,96}$/
-const SAFE_ACTOR_PATTERN = /^(account:[0-9a-f-]{36}|system)$/i
+const SAFE_ACTOR_PATTERN =
+  /^(account:[0-9a-f-]{36}|tombstone:[0-9a-f]{64}|system)$/i
 const SAFE_TARGET_PATTERN = /^(account:[0-9a-f-]{36}|tombstone:[0-9a-f]{64})$/i
 const VALID_AUDIT_SERVICES = new Set([
   'IDENTITY',
@@ -527,10 +528,15 @@ function parseAdministrationAuditEvent(
       (typeof value.reasonCode !== 'string' ||
         !SAFE_CODE_PATTERN.test(value.reasonCode))) ||
     typeof value.correlationId !== 'string' ||
+    !UUID_PATTERN.test(value.correlationId) ||
     !VALID_AUDIT_SERVICES.has(String(value.sourceService)) ||
     !VALID_AUDIT_DOMAINS.has(String(value.domain)) ||
-    typeof value.targetIdentifier !== 'string' ||
-    !SAFE_TARGET_PATTERN.test(value.targetIdentifier)
+    (value.actorType === 'SYSTEM' && value.actorIdentifier !== 'system') ||
+    (value.actorType === 'ADMIN' && value.actorIdentifier === 'system') ||
+    (value.targetIdentifier !== null &&
+      value.targetIdentifier !== undefined &&
+      (typeof value.targetIdentifier !== 'string' ||
+        !SAFE_TARGET_PATTERN.test(value.targetIdentifier)))
   ) {
     return null
   }

@@ -79,4 +79,98 @@ describe('admin account validation', () => {
     }
     expect(parseAdministrationAuditEventPage(page)).toEqual(page)
   })
+
+  it('parses deleted admin actors and nullable targets safely', () => {
+    const page = {
+      items: [
+        {
+          eventId: '94464b2b-a7fd-46fd-9310-64ef4eac7de7',
+          occurredAt: '2026-10-01T00:00:00Z',
+          actorType: 'ADMIN',
+          actorIdentifier: 'tombstone:' + 'a'.repeat(64),
+          action: 'RESOURCE_PUBLISHED',
+          result: 'SUCCEEDED',
+          reasonCode: null,
+          correlationId: '94464b2b-a7fd-46fd-9310-64ef4eac7de7',
+          sourceService: 'CONTENT',
+          domain: 'RESOURCE_MANAGEMENT',
+          targetIdentifier: null,
+        },
+      ],
+      nextCursor: null,
+      effectiveFrom: '2026-09-01T00:00:00Z',
+      effectiveTo: '2026-10-01T00:00:00Z',
+      retentionCutoff: '2025-10-01T00:00:00Z',
+    }
+    expect(parseAdministrationAuditEventPage(page)).toEqual(page)
+  })
+
+  it('rejects invalid actor, target, or correlationId in audit events', () => {
+    const baseEvent = {
+      eventId: '94464b2b-a7fd-46fd-9310-64ef4eac7de7',
+      occurredAt: '2026-10-01T00:00:00Z',
+      actorType: 'ADMIN',
+      actorIdentifier: 'account:94464b2b-a7fd-46fd-9310-64ef4eac7de7',
+      action: 'RESOURCE_PUBLISHED',
+      result: 'SUCCEEDED',
+      reasonCode: null,
+      correlationId: '94464b2b-a7fd-46fd-9310-64ef4eac7de7',
+      sourceService: 'CONTENT',
+      domain: 'RESOURCE_MANAGEMENT',
+      targetIdentifier: null,
+    }
+    const wrap = (item: unknown) => ({
+      items: [item],
+      nextCursor: null,
+      effectiveFrom: '2026-09-01T00:00:00Z',
+      effectiveTo: '2026-10-01T00:00:00Z',
+      retentionCutoff: '2025-10-01T00:00:00Z',
+    })
+
+    // invalid actorType
+    expect(
+      parseAdministrationAuditEventPage(
+        wrap({ ...baseEvent, actorType: 'STAFF' }),
+      ),
+    ).toBeNull()
+
+    // SYSTEM actor with accountIdentifier
+    expect(
+      parseAdministrationAuditEventPage(
+        wrap({
+          ...baseEvent,
+          actorType: 'SYSTEM',
+          actorIdentifier: 'account:94464b2b-a7fd-46fd-9310-64ef4eac7de7',
+        }),
+      ),
+    ).toBeNull()
+
+    // ADMIN actor with 'system'
+    expect(
+      parseAdministrationAuditEventPage(
+        wrap({ ...baseEvent, actorType: 'ADMIN', actorIdentifier: 'system' }),
+      ),
+    ).toBeNull()
+
+    // Actor with raw email (PII)
+    expect(
+      parseAdministrationAuditEventPage(
+        wrap({ ...baseEvent, actorIdentifier: 'admin@example.com' }),
+      ),
+    ).toBeNull()
+
+    // Malformed correlationId
+    expect(
+      parseAdministrationAuditEventPage(
+        wrap({ ...baseEvent, correlationId: 'not-a-uuid' }),
+      ),
+    ).toBeNull()
+
+    // Invalid targetIdentifier format
+    expect(
+      parseAdministrationAuditEventPage(
+        wrap({ ...baseEvent, targetIdentifier: 'invalid-target' }),
+      ),
+    ).toBeNull()
+  })
 })

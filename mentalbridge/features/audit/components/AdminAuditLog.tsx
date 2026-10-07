@@ -56,10 +56,18 @@ function inputToIso(value: string) {
   return value ? new Date(value).toISOString() : undefined
 }
 
-function technicalIdentifier(value: string) {
+function technicalIdentifier(value?: string | null) {
+  if (!value) return 'Không áp dụng'
   return value.startsWith('tombstone:')
     ? `Đối tượng đã xóa · ${value.slice(-12)}`
     : value
+}
+
+function actorLabel(identifier: string) {
+  if (identifier.startsWith('tombstone:')) {
+    return `Tài khoản đã xóa · ${identifier.slice(-12)}`
+  }
+  return identifier
 }
 
 export default function AdminAuditLog() {
@@ -377,7 +385,14 @@ export default function AdminAuditLog() {
                     </span>
                   </td>
                   <td>
-                    {event.actorType === 'ADMIN' ? 'Quản trị viên' : 'Hệ thống'}
+                    <div>
+                      <strong>
+                        {event.actorType === 'ADMIN'
+                          ? 'Quản trị viên'
+                          : 'Hệ thống'}
+                      </strong>
+                    </div>
+                    <code>{actorLabel(event.actorIdentifier)}</code>
                   </td>
                   <td>
                     <code>{technicalIdentifier(event.targetIdentifier)}</code>

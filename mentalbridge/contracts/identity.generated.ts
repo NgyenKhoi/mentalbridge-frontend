@@ -592,7 +592,7 @@ export interface components {
             /** Format: date-time */
             occurredAt: string;
             actorType: components["schemas"]["AuditActorType"];
-            /** @description Safe account identifier or the literal system actor. */
+            /** @description Safe account identifier, actor tombstone, or the literal system actor. */
             actorIdentifier: string;
             action: string;
             result: components["schemas"]["AuditResult"];
@@ -601,7 +601,7 @@ export interface components {
             correlationId: string;
             sourceService: components["schemas"]["AuditSourceService"];
             domain: components["schemas"]["AuditDomain"];
-            targetIdentifier: string;
+            targetIdentifier?: string | null;
         };
         AdministrationAuditEventPage: {
             items: components["schemas"]["AdministrationAuditEvent"][];
