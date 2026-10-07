@@ -38,7 +38,9 @@ describe('AdminAuditLog', () => {
 
   it('renders only minimized audit metadata and a safe tombstone', async () => {
     render(<AdminAuditLog />)
-    expect(await screen.findByText(/Đối tượng đã xóa/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/Đối tượng không còn khả dụng/),
+    ).toBeInTheDocument()
     expect(
       screen.getByRole('cell', { name: /Quản trị viên/ }),
     ).toBeInTheDocument()
@@ -141,4 +143,33 @@ describe('AdminAuditLog', () => {
       'Bạn không có quyền xem nhật ký kiểm toán.',
     )
   })
+
+  it.each([
+    ['ACCOUNT_DISABLED', 'Tạm ngưng tài khoản'],
+    ['ACCOUNT_RESTORED', 'Khôi phục tài khoản'],
+    ['SPECIALIST_APPROVED', 'Duyệt chuyên gia'],
+    ['SPECIALIST_REJECTED', 'Từ chối chuyên gia'],
+    ['SPECIALIST_SUSPENDED', 'Đình chỉ chuyên gia'],
+    ['SPECIALIST_RESTORED', 'Khôi phục chuyên gia'],
+    ['RESOURCE_PUBLISHED', 'Xuất bản tài nguyên'],
+    ['RESOURCE_ARCHIVED', 'Lưu trữ tài nguyên'],
+    ['SAFETY_DIRECTORY_REVIEWED', 'Duyệt danh mục an toàn'],
+    ['SAFETY_DIRECTORY_DEACTIVATED', 'Ngừng kích hoạt danh mục an toàn'],
+    ['MODERATION_ACTION_APPLIED', 'Xử lý kiểm duyệt'],
+    ['MODERATION_CASE_RESOLVED', 'Hoàn tất vụ việc kiểm duyệt'],
+    ['COMMUNITY_POST_REMOVED', 'Gỡ bài viết cộng đồng'],
+    ['COMMUNITY_USER_SUSPENDED', 'Đình chỉ người dùng cộng đồng'],
+  ])(
+    'supports selecting action %s with label %s',
+    async (actionValue, expectedLabel) => {
+      const user = userEvent.setup()
+      render(<AdminAuditLog />)
+      const select = screen.getByLabelText('Hành động')
+      await user.selectOptions(select, actionValue)
+      expect(select).toHaveValue(actionValue)
+      expect(
+        screen.getByRole('option', { name: expectedLabel }),
+      ).toBeInTheDocument()
+    },
+  )
 })

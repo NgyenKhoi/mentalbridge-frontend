@@ -18,7 +18,13 @@ const actionLabels: Record<string, string> = {
   SPECIALIST_SUSPENDED: 'Đình chỉ chuyên gia',
   SPECIALIST_RESTORED: 'Khôi phục chuyên gia',
   RESOURCE_PUBLISHED: 'Xuất bản tài nguyên',
+  RESOURCE_ARCHIVED: 'Lưu trữ tài nguyên',
+  SAFETY_DIRECTORY_REVIEWED: 'Duyệt danh mục an toàn',
+  SAFETY_DIRECTORY_DEACTIVATED: 'Ngừng kích hoạt danh mục an toàn',
   MODERATION_ACTION_APPLIED: 'Xử lý kiểm duyệt',
+  MODERATION_CASE_RESOLVED: 'Hoàn tất vụ việc kiểm duyệt',
+  COMMUNITY_POST_REMOVED: 'Gỡ bài viết cộng đồng',
+  COMMUNITY_USER_SUSPENDED: 'Đình chỉ người dùng cộng đồng',
   UNKNOWN_EVENT: 'Sự kiện không xác định',
 }
 
@@ -59,7 +65,7 @@ function inputToIso(value: string) {
 function technicalIdentifier(value?: string | null) {
   if (!value) return 'Không áp dụng'
   return value.startsWith('tombstone:')
-    ? `Đối tượng đã xóa · ${value.slice(-12)}`
+    ? `Đối tượng không còn khả dụng · ${value.slice(-12)}`
     : value
 }
 
@@ -295,7 +301,23 @@ export default function AdminAuditLog() {
             <option value="SPECIALIST_SUSPENDED">Đình chỉ chuyên gia</option>
             <option value="SPECIALIST_RESTORED">Khôi phục chuyên gia</option>
             <option value="RESOURCE_PUBLISHED">Xuất bản tài nguyên</option>
+            <option value="RESOURCE_ARCHIVED">Lưu trữ tài nguyên</option>
+            <option value="SAFETY_DIRECTORY_REVIEWED">
+              Duyệt danh mục an toàn
+            </option>
+            <option value="SAFETY_DIRECTORY_DEACTIVATED">
+              Ngừng kích hoạt danh mục an toàn
+            </option>
             <option value="MODERATION_ACTION_APPLIED">Xử lý kiểm duyệt</option>
+            <option value="MODERATION_CASE_RESOLVED">
+              Hoàn tất vụ việc kiểm duyệt
+            </option>
+            <option value="COMMUNITY_POST_REMOVED">
+              Gỡ bài viết cộng đồng
+            </option>
+            <option value="COMMUNITY_USER_SUSPENDED">
+              Đình chỉ người dùng cộng đồng
+            </option>
           </select>
         </label>
         <label>
