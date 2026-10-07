@@ -35,7 +35,9 @@ test.describe('Community feed journey', () => {
     await expect(
       page.getByRole('heading', { name: 'Cộng đồng MentalBridge' }),
     ).toBeVisible()
-    await expect(page.getByText(/không dùng nhật ký, cảm xúc/)).toBeVisible()
+    await expect(
+      page.getByText(/Ở đây, hỗ trợ không phải là phán xét/),
+    ).toHaveCount(0)
     await expect(page.getByText('Minh An')).toBeVisible()
     await expect(page.getByText(/Một số nội dung đa phương tiện/)).toBeVisible()
 
@@ -61,7 +63,7 @@ test.describe('Community feed journey', () => {
     await expect(page.getByText(/dành mười phút để đi bộ/)).toBeVisible()
     await expect(
       page.getByText(/không thay thế tư vấn chuyên môn/),
-    ).toBeVisible()
+    ).toHaveCount(0)
   })
 
   test('creates, edits and deletes an owned personal story', async ({
@@ -117,15 +119,23 @@ test.describe('Community feed journey', () => {
     await login(page)
     await page.goto('/community')
 
-    await page.locator('.community-composer-collapsed button').click()
+    await page.getByRole('button', { name: 'Viết bài' }).click()
     await page
       .locator('#community-post-content')
       .fill('Tài nguyên này đã giúp mình dừng lại và thở chậm hơn.')
-    await page.locator('.community-topic-choices label').last().click()
+    await page
+      .getByRole('group', { name: 'Chọn 1–3 chủ đề' })
+      .locator('label')
+      .last()
+      .click()
+    await page
+      .getByRole('dialog', { name: 'Tạo bài viết' })
+      .getByRole('button', { name: /^Tài nguyên/ })
+      .click()
     await page
       .locator('#community-resource-select')
       .selectOption('30000000-0000-4000-8000-000000000001')
-    await page.locator('.community-form-actions button').last().click()
+    await page.getByRole('button', { name: 'Đăng câu chuyện' }).click()
 
     await expect(page).toHaveURL(/\/community\/[0-9a-f-]+$/)
     await page.reload()
@@ -144,6 +154,125 @@ test.describe('Community feed journey', () => {
     await expect(
       page.getByRole('heading', { name: 'Published Resource' }),
     ).toBeVisible()
+  })
+
+  test('keeps the overview and composer usable across viewport sizes and preserves a paused draft', async ({
+    page,
+    request,
+  }) => {
+    expect(
+      (await request.post(`${identityFixtureUrl}/__test/reset`)).status(),
+    ).toBe(204)
+    await login(page)
+    await page.goto('/community')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await expect(page.getByText('Minh An')).toBeVisible()
+    for (const viewport of [
+      { width: 1920, height: 1080 },
+      { width: 1440, height: 900 },
+      { width: 1280, height: 800 },
+      { width: 768, height: 1024 },
+      { width: 375, height: 812 },
+      { width: 640, height: 400 },
+    ]) {
+      await page.setViewportSize(viewport)
+      await expect(page.getByRole('button', { name: 'Viết bài' })).toBeVisible()
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true)
+      const main = await page.getByRole('main').boundingBox()
+      const feed = await page.locator('.community-feed-content').boundingBox()
+      const topics = await page
+        .getByRole('complementary', { name: 'Khám phá chủ đề' })
+        .boundingBox()
+      expect(main).not.toBeNull()
+      expect(feed).not.toBeNull()
+      expect(topics).not.toBeNull()
+      const gutter = viewport.width <= 760 ? 16 : 24
+      expect(main!.width).toBe(viewport.width)
+      expect(feed!.x).toBe(gutter)
+      expect(topics!.x + topics!.width).toBeCloseTo(viewport.width - gutter, 0)
+      if (viewport.width > 900) {
+        expect(topics!.x - (feed!.x + feed!.width)).toBeCloseTo(32, 0)
+        const brand = await page
+          .getByRole('link', { name: 'Cộng đồng MentalBridge' })
+          .boundingBox()
+        expect(brand!.x).toBe(gutter)
+      }
+      if (
+        viewport.width === 1920 ||
+        viewport.width === 1440 ||
+        viewport.width === 375
+      )
+        await page.screenshot({
+          path: `docs/evidence/community-overview-${viewport.width}.png`,
+          fullPage: true,
+        })
+      await page.getByRole('button', { name: 'Viết bài' }).click()
+      const dialog = page.getByRole('dialog', { name: 'Tạo bài viết' })
+      await expect(dialog).toBeVisible()
+      await expect(page.getByLabel('Nội dung', { exact: true })).toBeFocused()
+      const publish = page.getByRole('button', { name: 'Đăng câu chuyện' })
+      await expect(publish).toBeInViewport()
+      const box = await dialog.boundingBox()
+      expect(box).not.toBeNull()
+      expect(box!.width).toBeLessThanOrEqual(viewport.width)
+      expect(box!.height).toBeLessThanOrEqual(viewport.height)
+      if (viewport.width === 1440 || viewport.width === 375)
+        await page.screenshot({
+          path: `docs/evidence/community-composer-${viewport.width}.png`,
+        })
+      await page.keyboard.press('Escape')
+      await expect(dialog).not.toBeVisible()
+      await expect(page.getByRole('button', { name: 'Viết bài' })).toBeFocused()
+    }
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await page
+      .getByRole('button', { name: 'Hỏi cộng đồng', exact: true })
+      .click()
+    await expect(
+      page.getByRole('heading', { name: 'Chưa có bài viết trong chủ đề này' }),
+    ).toBeVisible()
+    const empty = await page.locator('.community-state').boundingBox()
+    const emptyTopics = await page
+      .getByRole('complementary', { name: 'Khám phá chủ đề' })
+      .boundingBox()
+    expect(empty).not.toBeNull()
+    expect(emptyTopics).not.toBeNull()
+    expect(empty!.x).toBe(24)
+    expect(emptyTopics!.x - (empty!.x + empty!.width)).toBeCloseTo(32, 0)
+    await page.screenshot({
+      path: 'docs/evidence/community-overview-empty-1920.png',
+      fullPage: true,
+    })
+    await page.getByRole('button', { name: 'Xóa bộ lọc' }).click()
+    await expect(page.getByText('Minh An')).toBeVisible()
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.getByRole('button', { name: 'Viết bài' }).click()
+    await page
+      .getByLabel('Nội dung', { exact: true })
+      .fill('Bài viết đang soạn của mình.')
+    await page.getByText('Đăng ẩn danh', { exact: true }).click()
+    await page.getByRole('button', { name: 'Để sau' }).click()
+    await page.getByRole('button', { name: 'Viết tiếp' }).click()
+    await expect(page.getByLabel('Nội dung', { exact: true })).toHaveValue(
+      'Bài viết đang soạn của mình.',
+    )
+    await expect(
+      page.getByRole('radio', { name: 'Đăng ẩn danh' }),
+    ).toBeChecked()
+    await page.getByRole('button', { name: 'Đăng câu chuyện' }).click()
+    await expect(
+      page.getByRole('dialog', { name: 'Tạo bài viết' }).getByRole('alert'),
+    ).toHaveText('Chọn ít nhất một chủ đề cho bài viết.')
+    await expect(
+      page
+        .getByRole('group', { name: 'Chọn 1–3 chủ đề' })
+        .getByRole('checkbox')
+        .first(),
+    ).toBeFocused()
   })
 
   test('persists an author warning and requires an explicit reveal on detail', async ({

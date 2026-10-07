@@ -139,6 +139,8 @@ describe('AppointmentChatPanel', () => {
     const button = await screen.findByRole('button', {
       name: 'Xác nhận tham gia',
     })
+    await waitFor(() => expect(realtime.connect).toHaveBeenCalledOnce())
+    expect(realtime.checkIn).not.toHaveBeenCalled()
     fireEvent.click(button)
 
     await waitFor(() => expect(realtime.checkIn).toHaveBeenCalledOnce())

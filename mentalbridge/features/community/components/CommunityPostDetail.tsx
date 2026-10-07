@@ -31,6 +31,24 @@ function communityTime(value: string) {
   }).format(new Date(value))
 }
 
+const DetailStatIcon = ({ name }: Readonly<{ name: 'heart' | 'comment' }>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {name === 'comment' ? (
+      <path d="M5 5h14v10H9l-4 4V5Z" />
+    ) : (
+      <path d="M20.5 9.4c0 4.4-5.2 8-8.5 10.1C8.7 17.4 3.5 13.8 3.5 9.4A4.4 4.4 0 0 1 12 7.8a4.4 4.4 0 0 1 8.5 1.6Z" />
+    )}
+  </svg>
+)
+
 export default function CommunityPostDetail({ postId }: { postId: string }) {
   const router = useRouter()
   const { confirm, showActionToast } = useFeedback()
@@ -418,9 +436,15 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
             ) : null}
             <footer>
               {!post.viewerState && (
-                <span>♡ {post.counts.reactions} lượt đồng cảm</span>
+                <span className="community-card-stat">
+                  <DetailStatIcon name="heart" />
+                  {post.counts.reactions} lượt đồng hành
+                </span>
               )}
-              <span>◇ {post.counts.comments} bình luận</span>
+              <span className="community-card-stat">
+                <DetailStatIcon name="comment" />
+                {post.counts.comments} bình luận
+              </span>
             </footer>
             {version === null && (
               <CommunitySafetyActions
@@ -449,14 +473,6 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
           )
         }
       />
-      <aside className="community-safety-note">
-        <strong>Chia sẻ từ cộng đồng</strong>
-        <p>
-          Nội dung thể hiện trải nghiệm cá nhân, không thay thế tư vấn chuyên
-          môn hoặc hỗ trợ khẩn cấp.
-        </p>
-        <Link href="/safety-directory">Cần hỗ trợ ngay</Link>
-      </aside>
     </div>
   )
 }
