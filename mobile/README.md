@@ -135,6 +135,19 @@ help-now directory contract without local scoring or safety inference. See
 [`docs/MB-612_ASSESSMENT_GUIDANCE.md`](docs/MB-612_ASSESSMENT_GUIDANCE.md) for
 the API, state, safety, test, and staging Android demo evidence.
 
+MB-625 adds the governed USER SupportPlan journey for authoritative draft/current
+state, eligible choices and lifecycle actions, scheduled activity engagement,
+terminal history, replacement review, and specialist proposal decisions. See
+[`docs/MB-625_SUPPORT_PLAN.md`](docs/MB-625_SUPPORT_PLAN.md) for contract, cache,
+failure-state, test, and Android persisted-activity evidence.
+
+MB-613 adds the Journal-backed daily emotion check-in, owner-scoped history,
+authoritative streaks and bounded 7/14/30-day coverage. It supports same-day
+revision-aware updates and deletion without client-side mood scoring, averages,
+causal analysis, recovery claims, or actor selection. See
+[`docs/MB-613_EMOTION_CHECK_IN.md`](docs/MB-613_EMOTION_CHECK_IN.md) for the API,
+state, cache, test, and staging Android persistence evidence.
+
 ## Quality commands
 
 ```powershell
@@ -154,10 +167,12 @@ npm run quality
 `build:bundle` exports Android and iOS JavaScript bundles only; it is not native
 compile or boot evidence. Native compile/install/launch is verified separately
 by `npm run native:android:smoke` and `npm run native:ios:smoke` in the staging
-release gate; Android also runs `npm run e2e:android:assessment` against the
-protected staging edge and dedicated USER fixture. Pull requests into `dev` run
-only `npm run typecheck` for mobile; formatting, lint, Jest, bundle export,
-native boot, and real-contract checks wait for staging.
+release gate; Android also runs the MB-612 assessment and MB-613 emotion
+real-contract journeys plus the MB-625 SupportPlan journey against the protected
+staging edge. Assessment and emotion share one dedicated USER fixture; the
+SupportPlan journey uses a separate resettable fixture. Pull requests into
+`dev` run only `npm run typecheck` for mobile; formatting, lint, Jest, bundle
+export, native boot, and real-contract checks wait for staging.
 
 The synthetic welcome-screen review capture is documented in
 [`docs/evidence/README.md`](docs/evidence/README.md).
