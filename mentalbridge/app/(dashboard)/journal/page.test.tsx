@@ -226,6 +226,8 @@ describe('Journal page', () => {
   })
 
   it('loads the authoritative revision after 412 and retains the editable draft', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-12T03:00:00.000Z'))
     const original = entry('nội dung ban đầu')
     const authoritative = entry('nội dung từ nơi khác', 2, ['remote'])
     const saved = entry('bản nháp của tôi', 3, ['mine'])

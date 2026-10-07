@@ -2,22 +2,22 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-import { Disclosure } from '@/components/ui/Disclosure'
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import { ApiError } from '@/lib/api/api-error'
 import type {
   AssessmentProgress,
   AssessmentProgressPoint,
-  ScreeningLevel,
 } from '../api/care-contract'
 import { getAssessmentProgress } from '../api/browser-care'
+import {
+  formatShortDateTime,
+  friendlyDuration,
+  getLevelClass,
+  levelLabels,
+} from './assessment-meanings'
 
-const levelLabels: Record<ScreeningLevel, string> = {
-  MINIMAL: 'Tối thiểu',
-  MILD: 'Nhẹ',
-  MODERATE: 'Trung bình',
-  MODERATELY_SEVERE: 'Khá nặng',
-  SEVERE: 'Nặng',
-}
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 function directionLabel(progress: AssessmentProgress) {
   const amount = Math.abs(progress.rawDelta)
@@ -26,24 +26,6 @@ function directionLabel(progress: AssessmentProgress) {
   if (progress.scoreDirection === 'DECREASED')
     return `Điểm đã giảm ${amount} điểm.`
   return 'Điểm không thay đổi.'
-}
-
-function elapsedLabel(duration: string) {
-  const match = duration.match(
-    /^PT(?=\d)(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d{1,9})?)S)?$/,
-  )
-  if (!match) return duration
-  const hours = Number(match[1] ?? 0)
-  const minutes = Number(match[2] ?? 0)
-  const seconds = Number(match[3] ?? 0)
-  const days = Math.floor(hours / 24)
-  const parts = [
-    days > 0 ? `${days} ngày` : null,
-    hours % 24 > 0 ? `${hours % 24} giờ` : null,
-    minutes > 0 ? `${minutes} phút` : null,
-    seconds > 0 ? `${seconds} giây` : null,
-  ].filter(Boolean)
-  return parts.length > 0 ? parts.join(' ') : '0 giây'
 }
 
 function errorState(error: unknown) {
@@ -98,20 +80,31 @@ function errorState(error: unknown) {
   }
 }
 
-function ProgressPoint({
+function ProgressCard({
   label,
   point,
+  isCurrent,
 }: {
   label: string
   point: AssessmentProgressPoint
+  isCurrent?: boolean
 }) {
   return (
-    <article className="assessment-progress-point">
-      <span>{label}</span>
-      <strong>{point.totalScore} điểm</strong>
-      <p>{levelLabels[point.screeningLevel]}</p>
-      <time dateTime={point.submittedAt}>
-        {new Date(point.submittedAt).toLocaleString('vi-VN')}
+    <article
+      className={`assessment-compare-card ${isCurrent ? 'card-current' : 'card-previous'}`}
+    >
+      <span className="compare-card-label">{label}</span>
+      <div className="compare-card-score-row">
+        <span className="compare-card-score">{point.totalScore}</span>
+        <span className="compare-card-unit">điểm</span>
+      </div>
+      <span
+        className={`screening-level-pill ${getLevelClass(point.screeningLevel)}`}
+      >
+        Mức {levelLabels[point.screeningLevel]?.toLowerCase() ?? ''}
+      </span>
+      <time className="compare-card-time" dateTime={point.submittedAt}>
+        {formatShortDateTime(point.submittedAt)}
       </time>
     </article>
   )
@@ -128,6 +121,8 @@ export default function AssessmentProgressPanel({
   const [error, setError] = useState<unknown>()
   const [loading, setLoading] = useState(true)
   const [attempt, setAttempt] = useState(0)
+
+  const dialogRef = useRef<HTMLDivElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
@@ -148,8 +143,42 @@ export default function AssessmentProgressPanel({
   }, [assessmentId, attempt])
 
   useEffect(() => {
+    const releaseScrollLock = lockBodyScroll()
     headingRef.current?.focus()
-  }, [assessmentId])
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+
+      if (event.key !== 'Tab' || !dialogRef.current) return
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      )
+      const first = focusable[0]
+      const last = focusable.at(-1)
+
+      if (!first || !last) return
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      releaseScrollLock()
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [onClose])
 
   const failure = errorState(error)
   const retry = () => {
@@ -158,78 +187,160 @@ export default function AssessmentProgressPanel({
     setError(undefined)
     setAttempt((value) => value + 1)
   }
-  return (
-    <section
-      id="assessment-progress-panel"
-      className="assessment-progress-panel"
-      aria-labelledby="assessment-progress-title"
-      aria-live="polite"
-    >
-      <div className="assessment-progress-heading">
-        <div>
-          <span>So sánh mô tả</span>
-          <h3 id="assessment-progress-title" ref={headingRef} tabIndex={-1}>
-            Thay đổi giữa các lần sàng lọc
-          </h3>
-        </div>
-        <button type="button" onClick={onClose} aria-label="Đóng so sánh">
-          ×
-        </button>
-      </div>
 
-      {loading ? (
-        <p className="assessment-progress-status">Đang tải dữ liệu so sánh…</p>
-      ) : progress ? (
-        <>
-          <p className="assessment-progress-direction">
-            {directionLabel(progress)}
-          </p>
-          <div className="assessment-progress-points">
-            <ProgressPoint label="Kết quả trước" point={progress.previous} />
-            <span className="assessment-progress-arrow" aria-hidden="true">
-              →
-            </span>
-            <ProgressPoint label="Kết quả được chọn" point={progress.current} />
+  const instrumentLabel =
+    progress?.instrument === 'PHQ9'
+      ? 'PHQ-9 · Đánh giá tâm trạng'
+      : progress?.instrument === 'GAD7'
+        ? 'GAD-7 · Đánh giá lo âu'
+        : 'Bài sàng lọc'
+
+  return (
+    <>
+      <div
+        className="assessment-modal-overlay"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        ref={dialogRef}
+        id="assessment-progress-panel"
+        className="assessment-modal-dialog assessment-modal-compare"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="assessment-progress-title"
+      >
+        <header className="assessment-modal-header">
+          <div>
+            <h2 id="assessment-progress-title" ref={headingRef} tabIndex={-1}>
+              Thay đổi giữa các lần sàng lọc
+            </h2>
+            <p className="assessment-modal-subtitle">
+              {loading ? 'Đang tải thông tin…' : instrumentLabel}
+            </p>
           </div>
-          <dl className="assessment-progress-meta">
-            <div>
-              <dt>Khoảng thời gian</dt>
-              <dd>{elapsedLabel(progress.elapsedDuration)}</dd>
+          <button
+            type="button"
+            className="assessment-modal-close-btn"
+            onClick={onClose}
+            aria-label="Đóng so sánh"
+          >
+            ×
+          </button>
+        </header>
+
+        <div className="assessment-modal-body">
+          {loading ? (
+            <div className="assessment-modal-loading">
+              <p className="assessment-progress-status">
+                Đang tải dữ liệu so sánh…
+              </p>
             </div>
-          </dl>
-          <Disclosure summary="Thông tin kỹ thuật">
-            <dl>
-              <div>
-                <dt>Kết quả trước</dt>
-                <dd>{progress.previous.questionnaireVersion}</dd>
+          ) : progress ? (
+            <>
+              {/* Pill kết luận thay đổi */}
+              <div className="assessment-change-pill-row">
+                <div
+                  className={`assessment-change-pill pill-${progress.scoreDirection.toLowerCase()}`}
+                >
+                  <span className="pill-arrow-icon" aria-hidden="true">
+                    {progress.scoreDirection === 'DECREASED'
+                      ? '↓'
+                      : progress.scoreDirection === 'INCREASED'
+                        ? '↑'
+                        : '—'}
+                  </span>
+                  <span className="pill-text">{directionLabel(progress)}</span>
+                </div>
               </div>
-              <div>
-                <dt>Kết quả được chọn</dt>
-                <dd>{progress.current.questionnaireVersion}</dd>
+
+              {/* Hai thẻ kết quả cạnh nhau */}
+              <div className="assessment-modal-compare-cards">
+                <ProgressCard label="Lần trước" point={progress.previous} />
+                <div className="assessment-compare-divider" aria-hidden="true">
+                  <span className="divider-arrow-desktop">→</span>
+                  <span className="divider-arrow-mobile">↓</span>
+                </div>
+                <ProgressCard
+                  label="Lần được chọn"
+                  point={progress.current}
+                  isCurrent
+                />
               </div>
-              <div>
-                <dt>Cách chấm điểm</dt>
-                <dd>{progress.scoringVersion}</dd>
+
+              {/* Khoảng thời gian */}
+              <div className="assessment-modal-elapsed">
+                <svg
+                  aria-hidden="true"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span>
+                  Cách nhau{' '}
+                  <strong>{friendlyDuration(progress.elapsedDuration)}</strong>
+                </span>
               </div>
-            </dl>
-          </Disclosure>
-          <p className="assessment-progress-boundary">
-            Đây chỉ là chênh lệch mô tả giữa hai lần sàng lọc. Kết quả không
-            phải chẩn đoán, không xác định nguyên nhân và không cho biết trạng
-            thái an toàn đã được giải quyết.
-          </p>
-        </>
-      ) : (
-        <div className="assessment-progress-error" role="alert">
-          <strong>{failure.title}</strong>
-          <p>{failure.message}</p>
-          {failure.retryable && (
-            <button type="button" onClick={retry}>
-              Thử lại
-            </button>
+
+              {/* Thông tin kỹ thuật */}
+              <details className="assessment-modal-tech">
+                <summary>Thông tin kỹ thuật</summary>
+                <dl className="assessment-modal-tech-list">
+                  <div>
+                    <dt>Kết quả trước:</dt>
+                    <dd>{progress.previous.questionnaireVersion}</dd>
+                  </div>
+                  <div>
+                    <dt>Kết quả được chọn:</dt>
+                    <dd>{progress.current.questionnaireVersion}</dd>
+                  </div>
+                  <div>
+                    <dt>Cách chấm điểm:</dt>
+                    <dd>{progress.scoringVersion}</dd>
+                  </div>
+                </dl>
+              </details>
+
+              {/* Ghi chú cuối popup */}
+              <div className="assessment-modal-disclaimer">
+                <p>
+                  Đây chỉ là chênh lệch mô tả giữa hai lần sàng lọc. Không phải
+                  chẩn đoán, không xác định nguyên nhân và không cho biết trạng
+                  thái an toàn đã được giải quyết.
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="assessment-progress-error" role="alert">
+              <strong>{failure.title}</strong>
+              <p>{failure.message}</p>
+              {failure.retryable && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={retry}
+                >
+                  Thử lại
+                </button>
+              )}
+            </div>
           )}
         </div>
-      )}
-    </section>
+
+        <footer className="assessment-modal-footer">
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Đóng
+          </button>
+        </footer>
+      </div>
+    </>
   )
 }

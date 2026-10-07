@@ -47,4 +47,14 @@ describe('USER home screen', () => {
 
     expect(mockPush).toHaveBeenCalledWith('./support-plan')
   })
+
+  it('opens the Journal-backed daily emotion journey', async () => {
+    await render(<UserHomeScreen />)
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Ghi nhận cảm xúc' }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('./emotion')
+  })
 })

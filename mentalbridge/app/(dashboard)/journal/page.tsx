@@ -1,6 +1,24 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  Laugh,
+  Smile,
+  Meh,
+  Frown,
+  CloudRain,
+  Lock,
+  X,
+  Clock,
+  RotateCw,
+  HeartHandshake,
+  Briefcase,
+  Users,
+  GraduationCap,
+  Activity,
+  Moon,
+} from 'lucide-react'
+import Link from 'next/link'
 import type {
   JournalEntry,
   JournalMood,
@@ -9,8 +27,11 @@ import type {
 import {
   JOURNAL_MOODS,
   JOURNAL_PROMPTS,
+  MOOD_PROMPTS,
+  getMoodCategory,
   journalMood,
 } from '@/features/journal/authoring'
+
 import { JournalReflection } from '@/features/journal/reflection/JournalReflection'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
@@ -23,6 +44,13 @@ import {
   formatJournalLocalDateTime,
   journalLocalDateTimeToIso,
 } from '@/lib/journal/journal-datetime'
+import { JournalHero } from './components/JournalHero'
+import { JournalStats } from './components/JournalStats'
+import { JournalFilters } from './components/JournalFilters'
+import { JournalTimeline } from './components/JournalTimeline'
+import { JournalCalendar } from './components/JournalCalendar'
+import { MoodDistribution } from './components/MoodDistribution'
+import { useJournalTimeline } from './hooks/useJournalTimeline'
 import './journal.css'
 
 type Problem = { code?: string; title?: string }
@@ -100,6 +128,23 @@ async function fetchJournalEntry(id: string) {
   )
 }
 
+const MOOD_ICONS: Record<JournalMood, typeof Laugh> = {
+  GREAT: Laugh,
+  GOOD: Smile,
+  OKAY: Meh,
+  LOW: Frown,
+  VERY_LOW: CloudRain,
+}
+
+const PRESET_TAGS = [
+  { id: 'cong-viec', label: 'Công việc', icon: Briefcase },
+  { id: 'gia-dinh', label: 'Gia đình', icon: Users },
+  { id: 'hoc-tap', label: 'Học tập', icon: GraduationCap },
+  { id: 'moi-quan-he', label: 'Các mối quan hệ', icon: HeartHandshake },
+  { id: 'suc-khoe', label: 'Sức khỏe', icon: Activity },
+  { id: 'giac-ngu', label: 'Giấc ngủ', icon: Moon },
+] as const
+
 export default function JournalPage() {
   const { showActionToast } = useFeedback()
   const [entries, setEntries] = useState<JournalSummary[]>([])
@@ -119,11 +164,47 @@ export default function JournalPage() {
   const [occurredAt, setOccurredAt] = useState('')
   const [mood, setMood] = useState<JournalMood | null>(null)
   const [promptIndex, setPromptIndex] = useState(0)
+  const [promptOffset, setPromptOffset] = useState(0)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [editorBaseline, setEditorBaseline] = useState<EditorSnapshot | null>(
     null,
   )
   const [clientEntryId, setClientEntryId] = useState('')
+
+  // Timeline calendar and filters
+  const [yearMonth, setYearMonth] = useState<[number, number]>(() => {
+    const now = new Date()
+    return [now.getFullYear(), now.getMonth()]
+  })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedMood, setSelectedMood] = useState<'all' | JournalMood>('all')
+  const [selectedTag, setSelectedTag] = useState('all')
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+
+  const { stats, calendarData, groupedByDate, availableTags } =
+    useJournalTimeline({
+      entries,
+      yearMonth,
+      searchQuery,
+      selectedMood,
+      selectedTag,
+      selectedDay,
+    })
+
+  const shiftMonth = (offset: number) => {
+    setYearMonth(([y, m]) => {
+      const nextMonthDate = new Date(y, m + offset, 1)
+      return [nextMonthDate.getFullYear(), nextMonthDate.getMonth()]
+    })
+    setSelectedDay(null)
+  }
+
+  const handleResetFilters = () => {
+    setSearchQuery('')
+    setSelectedMood('all')
+    setSelectedTag('all')
+    setSelectedDay(null)
+  }
   const mutationKeys = useRef(new Map<string, string>())
   const triggerRef = useRef<HTMLElement | null>(null)
   const backgroundRef = useRef<HTMLDivElement | null>(null)
@@ -133,6 +214,66 @@ export default function JournalPage() {
   const occurredAtRef = useRef<HTMLInputElement | null>(null)
   const tagsRef = useRef<HTMLInputElement | null>(null)
   const navigationAllowedRef = useRef(false)
+
+  const moodCategory = getMoodCategory(mood)
+  const activePrompts = MOOD_PROMPTS[moodCategory]
+
+  const updateMood = (nextMood: JournalMood | null) => {
+    setMood(nextMood)
+    setPromptOffset(0)
+  }
+
+  const currentDisplayedPrompts = [
+    activePrompts[promptOffset % activePrompts.length],
+    activePrompts[(promptOffset + 1) % activePrompts.length],
+    activePrompts[(promptOffset + 2) % activePrompts.length],
+  ]
+
+  const handleRotatePrompts = () => {
+    setPromptOffset((prev) => (prev + 3) % activePrompts.length)
+  }
+
+  const handleInsertPrompt = (promptText: string) => {
+    setText((prev) => {
+      const trimmed = prev.trim()
+      if (!trimmed) return promptText + '\n'
+      return trimmed + '\n\n' + promptText + '\n'
+    })
+    setFieldErrors((current) => ({ ...current, text: undefined }))
+    textAreaRef.current?.focus()
+  }
+
+  const togglePresetTag = (presetLabel: string) => {
+    const currentTags = tagsOf(tagText)
+    const exists = currentTags.some(
+      (t) => t.toLowerCase() === presetLabel.toLowerCase(),
+    )
+    let nextTags: string[]
+    if (exists) {
+      nextTags = currentTags.filter(
+        (t) => t.toLowerCase() !== presetLabel.toLowerCase(),
+      )
+    } else {
+      if (currentTags.length >= 20) {
+        setFieldErrors((c) => ({
+          ...c,
+          tags: 'Dùng tối đa 20 thẻ không trùng nhau, mỗi thẻ tối đa 40 ký tự.',
+        }))
+        return
+      }
+      nextTags = [...currentTags, presetLabel]
+    }
+    setTagText(nextTags.join(', '))
+    setFieldErrors((c) => ({ ...c, tags: undefined }))
+  }
+
+  const removeTag = (tagToRemove: string) => {
+    const currentTags = tagsOf(tagText)
+    const nextTags = currentTags.filter(
+      (t) => t.toLowerCase() !== tagToRemove.toLowerCase(),
+    )
+    setTagText(nextTags.join(', '))
+  }
 
   const editorSnapshot = { text, tagText, occurredAt, mood }
   const baseline = editorBaseline
@@ -301,12 +442,17 @@ export default function JournalPage() {
     })
     return () => window.cancelAnimationFrame(frame)
   }, [detailLoading, mode])
-  function openCreate(event: React.MouseEvent<HTMLButtonElement>) {
-    triggerRef.current = event.currentTarget
+  function openCreate(
+    event?: React.MouseEvent<HTMLButtonElement> | HTMLElement | null,
+  ) {
+    if (event) {
+      triggerRef.current =
+        'currentTarget' in event ? event.currentTarget : event
+    }
     const initialOccurredAt = formatJournalLocalDateTime(new Date())
     setText('')
     setTagText('')
-    setMood(null)
+    updateMood(null)
     setPromptIndex(0)
     setFieldErrors({})
     setModalError('')
@@ -330,7 +476,7 @@ export default function JournalPage() {
       setSelected(parsed)
       setText(parsed.content.text)
       setTagText(parsed.tags.join(', '))
-      setMood(parsed.mood)
+      updateMood(parsed.mood)
     } catch (error) {
       setModalError(
         error instanceof Error
@@ -351,7 +497,7 @@ export default function JournalPage() {
     }
     setText(initial.text)
     setTagText(initial.tagText)
-    setMood(initial.mood)
+    updateMood(initial.mood)
     setFieldErrors({})
     setModalError('')
     setEditorBaseline(initial)
@@ -480,7 +626,7 @@ export default function JournalPage() {
         parseJournalEntry,
       )) as JournalEntry
       setSelected(updated)
-      setMood(updated.mood)
+      updateMood(updated.mood)
       setEditorBaseline(null)
       setMode('view')
       setPageNotice('Nhật ký đã được cập nhật.')
@@ -538,104 +684,74 @@ export default function JournalPage() {
   }
 
   return (
-    <main className="journal-live">
+    <div className="journal-live">
       <div ref={backgroundRef} className="journal-page-content">
-        <header className="journal-live-hero">
-          <div>
-            <span>Nhật ký riêng tư</span>
-            <h1>Nhật ký của bạn</h1>
-            <p>
-              Ghi lại cảm xúc và những điều bạn muốn nhìn lại theo nhịp riêng.
-            </p>
-          </div>
-          <button onClick={openCreate}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Viết nhật ký
-          </button>
-        </header>
-        <section
-          aria-labelledby="journal-list-title"
-          className="journal-live-list"
-        >
-          <div className="journal-live-heading">
-            <h2 id="journal-list-title">Các ghi chép gần đây</h2>
-            <button onClick={() => void load()} disabled={loading}>
-              Tải lại
-            </button>
-          </div>
+        <div className="journal-wrap">
           {pageNotice && (
             <p className="journal-save-notice" role="status">
               {pageNotice}
             </p>
           )}
-          {loading && (
-            <p className="journal-status" role="status">
-              Đang tải nhật ký…
-            </p>
-          )}
-          {!loading && pageError && (
-            <div className="journal-status journal-error" role="alert">
-              <p>{pageError}</p>
-              <button onClick={() => void load()}>Thử lại</button>
+
+          {/* 1. Hero card (full width) */}
+          <JournalHero onOpenCreate={openCreate} />
+
+          {/* 2. Stats cards */}
+          <JournalStats stats={stats} />
+
+          {/* 3. Two columns */}
+          <div className="cols">
+            <div className="col-main">
+              {/* Filters */}
+              <JournalFilters
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                selectedMood={selectedMood}
+                onMoodSelect={setSelectedMood}
+                selectedTag={selectedTag}
+                onTagSelect={setSelectedTag}
+                availableTags={availableTags}
+              />
+
+              {/* Timeline */}
+              <JournalTimeline
+                year={yearMonth[0]}
+                month={yearMonth[1]}
+                groupedByDate={groupedByDate}
+                hasTotalEntries={entries.length > 0}
+                loading={loading}
+                error={pageError}
+                onRetry={() => void load()}
+                onOpenCreate={openCreate}
+                onResetFilters={handleResetFilters}
+                onOpenDetail={(entry, target) => void openDetail(entry, target)}
+                hasMore={hasMore}
+                loadingMore={loadingMore}
+                onLoadMore={() => void load(cursor)}
+              />
             </div>
-          )}
-          {!loading && !pageError && entries.length === 0 && (
-            <div className="journal-status">
-              <h3>Chưa có nhật ký</h3>
-              <p>Ghi lại điều bạn muốn lưu giữ theo cách riêng của mình.</p>
-              <button onClick={openCreate}>Viết nhật ký đầu tiên</button>
-            </div>
-          )}
-          <div className="journal-live-grid">
-            {entries.map((entry, index) => (
-              <article
-                key={entry.id}
-                className="journal-live-card"
-                style={
-                  {
-                    '--entry-delay': `${Math.min(index, 7) * 45}ms`,
-                  } as React.CSSProperties
-                }
-              >
-                <header>
-                  <time>{formatDate(entry.occurredAt)}</time>
-                  {journalMood(entry.mood) && (
-                    <span className="journal-mood-badge">
-                      <span aria-hidden="true">
-                        {journalMood(entry.mood)?.emoji}
-                      </span>{' '}
-                      {journalMood(entry.mood)?.label}
-                    </span>
-                  )}
-                </header>
-                <p>{entry.content.preview}</p>
-                <div>
-                  {entry.tags.map((tag) => (
-                    <span key={tag}>#{tag}</span>
-                  ))}
-                </div>
-                <button
-                  onClick={(event) =>
-                    void openDetail(entry, event.currentTarget)
-                  }
-                >
-                  Xem chi tiết
-                </button>
-              </article>
-            ))}
+
+            <aside className="side">
+              {/* Calendar */}
+              <JournalCalendar
+                year={yearMonth[0]}
+                month={yearMonth[1]}
+                calendarData={calendarData}
+                selectedDay={selectedDay}
+                onSelectDay={setSelectedDay}
+                onPrevMonth={() => shiftMonth(-1)}
+                onNextMonth={() => shiftMonth(1)}
+              />
+
+              {/* Mood distribution */}
+              <MoodDistribution
+                month={yearMonth[1]}
+                moodCounts={stats.moodCounts}
+                totalInMonth={stats.totalInMonth}
+              />
+            </aside>
           </div>
-          {hasMore && !pageError && (
-            <button
-              className="journal-load-more"
-              onClick={() => void load(cursor)}
-              disabled={loadingMore}
-            >
-              {loadingMore ? 'Đang tải…' : 'Xem thêm'}
-            </button>
-          )}
-        </section>
+        </div>
       </div>
       {mode !== 'closed' && (
         <div
@@ -646,17 +762,37 @@ export default function JournalPage() {
         >
           <section
             ref={dialogRef}
-            className="journal-dialog"
+            className={`journal-dialog ${
+              mode === 'create' || mode === 'edit'
+                ? 'journal-dialog-editor'
+                : ''
+            }`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="journal-dialog-title"
             aria-busy={working || detailLoading}
             tabIndex={-1}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault()
+                if (!working && (mode === 'create' || mode === 'edit')) {
+                  void (mode === 'create' ? create() : revise())
+                }
+              }
+            }}
           >
-            <header>
-              <div>
-                <span>Nhật ký riêng tư</span>
-                <h2 id="journal-dialog-title">
+            <header className="journal-dialog-header">
+              <div className="journal-dialog-header-left">
+                <div className="journal-dialog-header-topline">
+                  <span className="journal-dialog-kicker">
+                    Nhật ký riêng tư
+                  </span>
+                  <div className="journal-privacy-badge">
+                    <Lock size={12} aria-hidden="true" />
+                    <span>Chỉ mình bạn xem được</span>
+                  </div>
+                </div>
+                <h2 id="journal-dialog-title" className="journal-dialog-title">
                   {mode === 'create'
                     ? 'Viết nhật ký'
                     : mode === 'edit'
@@ -667,11 +803,13 @@ export default function JournalPage() {
                 </h2>
               </div>
               <button
+                type="button"
+                className="journal-dialog-close-btn"
                 onClick={requestClose}
                 disabled={working}
                 aria-label="Đóng"
               >
-                ×
+                <X size={18} aria-hidden="true" />
               </button>
             </header>
             {detailLoading && (
@@ -714,194 +852,407 @@ export default function JournalPage() {
               </div>
             )}
             {(mode === 'create' || (mode === 'edit' && selected)) && (
-              <div className="journal-form">
-                <fieldset
-                  className="journal-mood-field"
-                  aria-describedby={
-                    fieldErrors.mood ? 'journal-mood-error' : undefined
-                  }
-                >
-                  <legend>Bạn đang cảm thấy thế nào? (bắt buộc)</legend>
-                  <div className="journal-mood-options">
-                    {JOURNAL_MOODS.map((option, index) => (
-                      <label
-                        key={option.value}
-                        className={
-                          mood === option.value ? 'selected' : undefined
-                        }
-                      >
+              <div className="journal-editor-form">
+                <div className="journal-editor-body">
+                  {/* Cột trái: Chọn cảm xúc, Thời điểm ghi, Thẻ */}
+                  <div className="journal-col-left">
+                    {/* 1. Chọn cảm xúc (bắt buộc) */}
+                    <fieldset
+                      className="journal-mood-fieldset"
+                      aria-describedby={
+                        fieldErrors.mood ? 'journal-mood-error' : undefined
+                      }
+                      role="radiogroup"
+                      aria-label="Bạn đang cảm thấy thế nào?"
+                    >
+                      <legend className="journal-field-title">
+                        Bạn đang cảm thấy thế nào?{' '}
+                        <span className="journal-required">*</span>
+                      </legend>
+                      <div className="journal-mood-grid">
+                        {JOURNAL_MOODS.map((option, index) => {
+                          const isSelected = mood === option.value
+                          const MoodIcon = MOOD_ICONS[option.value]
+                          return (
+                            <label
+                              key={option.value}
+                              className={`journal-mood-card mood-${option.value.toLowerCase()} ${
+                                isSelected ? 'selected' : ''
+                              }`}
+                            >
+                              <input
+                                ref={index === 0 ? firstMoodRef : undefined}
+                                type="radio"
+                                name="journal-mood"
+                                value={option.value}
+                                checked={isSelected}
+                                aria-checked={isSelected}
+                                onChange={() => {
+                                  updateMood(option.value)
+                                  setFieldErrors((current) => ({
+                                    ...current,
+                                    mood: undefined,
+                                  }))
+                                }}
+                              />
+                              <span
+                                className="journal-mood-icon"
+                                aria-hidden="true"
+                              >
+                                <MoodIcon size={22} strokeWidth={1.8} />
+                              </span>
+                              <strong className="journal-mood-name">
+                                {option.label}
+                              </strong>
+                            </label>
+                          )
+                        })}
+                      </div>
+                      {fieldErrors.mood && (
+                        <small
+                          id="journal-mood-error"
+                          className="journal-field-error"
+                        >
+                          {fieldErrors.mood}
+                        </small>
+                      )}
+                    </fieldset>
+
+                    {/* 2. Thời điểm ghi */}
+                    {mode === 'create' && (
+                      <div className="journal-time-field">
+                        <div className="journal-field-header-row">
+                          <label
+                            htmlFor="journal-occurred-at"
+                            className="journal-field-title"
+                          >
+                            Thời điểm ghi
+                          </label>
+                          <button
+                            type="button"
+                            className="journal-btn-set-now"
+                            onClick={() => {
+                              const nowFormatted = formatJournalLocalDateTime(
+                                new Date(),
+                              )
+                              setOccurredAt(nowFormatted)
+                              setFieldErrors((current) => ({
+                                ...current,
+                                occurredAt: undefined,
+                              }))
+                            }}
+                            title="Đặt lại về thời điểm hiện tại"
+                          >
+                            <Clock size={12} aria-hidden="true" />
+                            <span>Bây giờ</span>
+                          </button>
+                        </div>
                         <input
-                          ref={index === 0 ? firstMoodRef : undefined}
-                          type="radio"
-                          name="journal-mood"
-                          value={option.value}
-                          checked={mood === option.value}
-                          onChange={() => {
-                            setMood(option.value)
+                          id="journal-occurred-at"
+                          ref={occurredAtRef}
+                          aria-label="Thời điểm ghi"
+                          type="datetime-local"
+                          value={occurredAt}
+                          max={formatJournalLocalDateTime(new Date())}
+                          aria-invalid={Boolean(fieldErrors.occurredAt)}
+                          aria-describedby={
+                            fieldErrors.occurredAt
+                              ? 'journal-occurred-error'
+                              : undefined
+                          }
+                          onChange={(event) => {
+                            setOccurredAt(event.target.value)
                             setFieldErrors((current) => ({
                               ...current,
-                              mood: undefined,
+                              occurredAt: undefined,
                             }))
                           }}
+                          className="journal-input-time"
                         />
-                        <span aria-hidden="true">{option.emoji}</span>
-                        <strong>{option.label}</strong>
-                      </label>
-                    ))}
-                  </div>
-                  {fieldErrors.mood && (
-                    <small
-                      id="journal-mood-error"
-                      className="journal-field-error"
-                    >
-                      {fieldErrors.mood}
-                    </small>
-                  )}
-                </fieldset>
-                <section
-                  className="journal-prompts"
-                  aria-labelledby="journal-prompts-title"
-                >
-                  <div>
-                    <span>Gợi ý viết</span>
-                    <h3 id="journal-prompts-title">
-                      Nếu bạn chưa biết bắt đầu từ đâu
-                    </h3>
-                  </div>
-                  <div className="journal-prompt-options">
-                    {JOURNAL_PROMPTS.map((prompt, index) => (
-                      <button
-                        type="button"
-                        key={prompt}
-                        aria-pressed={promptIndex === index}
-                        onClick={() => {
-                          setPromptIndex(index)
-                          textAreaRef.current?.focus()
+                        {fieldErrors.occurredAt && (
+                          <small
+                            id="journal-occurred-error"
+                            className="journal-field-error"
+                          >
+                            {fieldErrors.occurredAt}
+                          </small>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 3. Thẻ */}
+                    <div className="journal-tags-section">
+                      <div className="journal-field-header-row">
+                        <label
+                          htmlFor="journal-tags-input"
+                          className="journal-field-title"
+                        >
+                          Thẻ do bạn đặt
+                        </label>
+                        <span className="journal-tags-count">
+                          {tagsOf(tagText).length}/20 thẻ
+                        </span>
+                      </div>
+
+                      {/* Chip gợi ý có icon */}
+                      <div className="journal-preset-chips">
+                        {PRESET_TAGS.map((preset) => {
+                          const TagIcon = preset.icon
+                          const currentTags = tagsOf(tagText)
+                          const isPresetActive = currentTags.some(
+                            (t) =>
+                              t.toLowerCase() === preset.label.toLowerCase(),
+                          )
+                          return (
+                            <button
+                              type="button"
+                              key={preset.id}
+                              className={`journal-preset-chip ${
+                                isPresetActive ? 'active' : ''
+                              }`}
+                              onClick={() => togglePresetTag(preset.label)}
+                              aria-pressed={isPresetActive}
+                            >
+                              <TagIcon size={12} aria-hidden="true" />
+                              <span>{preset.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {/* Danh sách thẻ đang chọn có nút xóa */}
+                      {tagsOf(tagText).length > 0 && (
+                        <div className="journal-selected-tags">
+                          {tagsOf(tagText).map((tag) => (
+                            <span key={tag} className="journal-selected-pill">
+                              <span>#{tag}</span>
+                              <button
+                                type="button"
+                                className="journal-tag-remove-btn"
+                                onClick={() => removeTag(tag)}
+                                aria-label={`Xóa thẻ ${tag}`}
+                              >
+                                <X size={11} aria-hidden="true" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Ô nhập thẻ */}
+                      <input
+                        id="journal-tags-input"
+                        ref={tagsRef}
+                        aria-label="Thẻ do bạn đặt"
+                        value={tagText}
+                        aria-invalid={Boolean(fieldErrors.tags)}
+                        aria-describedby={
+                          fieldErrors.tags
+                            ? 'journal-tags-help journal-tags-error'
+                            : 'journal-tags-help'
+                        }
+                        onChange={(event) => {
+                          setTagText(event.target.value)
+                          setFieldErrors((current) => ({
+                            ...current,
+                            tags: undefined,
+                          }))
                         }}
+                        placeholder="Nhập thêm thẻ, ví dụ: thư giãn, đi dạo"
+                        className="journal-input-tags"
+                      />
+                      <small
+                        id="journal-tags-help"
+                        className="journal-tags-help"
                       >
-                        {prompt}
-                      </button>
-                    ))}
+                        Phân cách bằng dấu phẩy hoặc Enter, tối đa 20 thẻ.
+                      </small>
+                      {fieldErrors.tags && (
+                        <small
+                          id="journal-tags-error"
+                          className="journal-field-error"
+                        >
+                          {fieldErrors.tags}
+                        </small>
+                      )}
+                    </div>
                   </div>
-                </section>
-                {mode === 'create' && (
-                  <label>
-                    Thời điểm ghi
-                    <input
-                      ref={occurredAtRef}
-                      aria-label="Thời điểm ghi"
-                      type="datetime-local"
-                      value={occurredAt}
-                      aria-invalid={Boolean(fieldErrors.occurredAt)}
-                      aria-describedby={
-                        fieldErrors.occurredAt
-                          ? 'journal-occurred-error'
-                          : undefined
-                      }
-                      onChange={(event) => {
-                        setOccurredAt(event.target.value)
-                        setFieldErrors((current) => ({
-                          ...current,
-                          occurredAt: undefined,
-                        }))
-                      }}
-                    />
-                    {fieldErrors.occurredAt && (
-                      <small
-                        id="journal-occurred-error"
-                        className="journal-field-error"
-                      >
-                        {fieldErrors.occurredAt}
-                      </small>
+
+                  {/* Cột phải: gợi ý viết, ô nội dung, thanh đếm ký tự */}
+                  <div className="journal-col-right">
+                    {/* Banner hỗ trợ nhẹ nhàng khi chọn tâm trạng Không tốt hoặc Rất tệ */}
+                    {(mood === 'LOW' || mood === 'VERY_LOW') && (
+                      <div className="journal-support-banner" role="status">
+                        <div
+                          className="journal-support-banner-icon"
+                          aria-hidden="true"
+                        >
+                          <HeartHandshake size={18} />
+                        </div>
+                        <p className="journal-support-banner-text">
+                          Có những ngày cảm xúc trở nên nặng nề hơn bình thường.
+                          Bạn không cần phải chịu đựng một mình — bạn luôn có
+                          thể{' '}
+                          <Link
+                            href="/specialists"
+                            className="journal-support-banner-link"
+                          >
+                            kết nối với chuyên gia
+                          </Link>{' '}
+                          để được lắng nghe và đồng hành.
+                        </p>
+                      </div>
                     )}
-                  </label>
-                )}
-                <label>
-                  Nội dung (bắt buộc)
-                  <textarea
-                    ref={textAreaRef}
-                    aria-label="Nội dung"
-                    aria-invalid={Boolean(fieldErrors.text)}
-                    aria-describedby={
-                      fieldErrors.text ? 'journal-text-error' : undefined
-                    }
-                    data-dialog-initial-focus
-                    value={text}
-                    maxLength={12_000}
-                    placeholder={JOURNAL_PROMPTS[promptIndex]}
-                    onChange={(event) => {
-                      setText(event.target.value)
-                      setFieldErrors((current) => ({
-                        ...current,
-                        text: undefined,
-                      }))
-                    }}
-                    rows={10}
-                  />
-                  <span className="journal-field-meta">
-                    {fieldErrors.text && (
-                      <small
-                        id="journal-text-error"
-                        className="journal-field-error"
-                      >
-                        {fieldErrors.text}
-                      </small>
-                    )}
-                    <small>{text.length}/12000</small>
-                  </span>
-                </label>
-                <label>
-                  Thẻ do bạn đặt
-                  <input
-                    ref={tagsRef}
-                    aria-label="Thẻ do bạn đặt"
-                    value={tagText}
-                    aria-invalid={Boolean(fieldErrors.tags)}
-                    aria-describedby={
-                      fieldErrors.tags
-                        ? 'journal-tags-help journal-tags-error'
-                        : 'journal-tags-help'
-                    }
-                    onChange={(event) => {
-                      setTagText(event.target.value)
-                      setFieldErrors((current) => ({
-                        ...current,
-                        tags: undefined,
-                      }))
-                    }}
-                    placeholder="công việc, gia đình"
-                  />
-                  <small id="journal-tags-help">
-                    Phân cách bằng dấu phẩy, tối đa 20 thẻ.
-                  </small>
-                  {fieldErrors.tags && (
-                    <small
-                      id="journal-tags-error"
-                      className="journal-field-error"
+
+                    {/* Khối gợi ý viết */}
+                    <section
+                      className="journal-prompts-section"
+                      aria-labelledby="journal-prompts-title"
                     >
-                      {fieldErrors.tags}
-                    </small>
-                  )}
-                </label>
-                <p className="journal-draft-state" role="status">
-                  {working
-                    ? 'Đang lưu thay đổi an toàn…'
-                    : dirty
-                      ? 'Có thay đổi chưa lưu. Bản nháp chỉ được giữ trên màn hình này.'
-                      : 'Chưa có thay đổi mới.'}
-                </p>
-                <footer>
-                  <button onClick={requestClose} disabled={working}>
-                    Hủy
-                  </button>
-                  <button
-                    onClick={() =>
-                      void (mode === 'create' ? create() : revise())
-                    }
-                    disabled={working}
-                  >
-                    {working ? 'Đang lưu…' : 'Lưu nhật ký'}
-                  </button>
+                      <div className="journal-prompts-header">
+                        <div>
+                          <span className="journal-prompts-kicker">
+                            Gợi ý viết
+                          </span>
+                          <h3 id="journal-prompts-title">
+                            {moodCategory === 'positive'
+                              ? 'Ghi lại những điều tích cực hôm nay'
+                              : moodCategory === 'low'
+                                ? 'Dành vài phút vỗ về cảm xúc của mình'
+                                : 'Nếu bạn chưa biết bắt đầu từ đâu'}
+                          </h3>
+                        </div>
+                        <button
+                          type="button"
+                          className="journal-btn-rotate-prompts"
+                          onClick={handleRotatePrompts}
+                          aria-label="Đổi gợi ý khác"
+                        >
+                          <RotateCw size={13} aria-hidden="true" />
+                          <span>Gợi ý khác</span>
+                        </button>
+                      </div>
+                      <div className="journal-prompt-options">
+                        {currentDisplayedPrompts.map((prompt) => (
+                          <button
+                            type="button"
+                            key={prompt}
+                            className="journal-prompt-chip"
+                            onClick={() => handleInsertPrompt(prompt)}
+                            title="Chèn gợi ý này vào nội dung"
+                          >
+                            <span>{prompt}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+
+                    {/* Ô nội dung tự giãn */}
+                    <div className="journal-content-section">
+                      <div className="journal-field-header-row">
+                        <label
+                          htmlFor="journal-content-textarea"
+                          className="journal-field-title"
+                        >
+                          Nội dung <span className="journal-required">*</span>
+                        </label>
+                      </div>
+                      <textarea
+                        id="journal-content-textarea"
+                        ref={textAreaRef}
+                        aria-label="Nội dung"
+                        aria-invalid={Boolean(fieldErrors.text)}
+                        aria-describedby={
+                          fieldErrors.text ? 'journal-text-error' : undefined
+                        }
+                        data-dialog-initial-focus
+                        value={text}
+                        maxLength={12_000}
+                        placeholder={
+                          currentDisplayedPrompts[0] ||
+                          JOURNAL_PROMPTS[promptIndex]
+                        }
+                        onChange={(event) => {
+                          setText(event.target.value)
+                          setFieldErrors((current) => ({
+                            ...current,
+                            text: undefined,
+                          }))
+                        }}
+                        className="journal-content-textarea"
+                      />
+
+                      {/* Thanh tiến độ mảnh & đếm ký tự */}
+                      <div className="journal-textarea-footer">
+                        <div className="journal-char-progress-track">
+                          <div
+                            className={`journal-char-progress-bar ${
+                              text.length > 11_000 ? 'near-limit' : ''
+                            }`}
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                (text.length / 12_000) * 100,
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="journal-field-meta">
+                          {fieldErrors.text ? (
+                            <small
+                              id="journal-text-error"
+                              className="journal-field-error"
+                            >
+                              {fieldErrors.text}
+                            </small>
+                          ) : (
+                            <span />
+                          )}
+                          <small className="journal-char-count">
+                            {new Intl.NumberFormat('vi-VN').format(text.length)}{' '}
+                            / 12.000 ký tự
+                          </small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer cố định */}
+                <footer className="journal-editor-footer">
+                  <div className="journal-footer-meta">
+                    <p className="journal-draft-state" role="status">
+                      {working
+                        ? 'Đang lưu thay đổi an toàn…'
+                        : dirty
+                          ? 'Có thay đổi chưa lưu. Bản nháp chỉ được giữ trên màn hình này.'
+                          : 'Chưa có thay đổi mới.'}
+                    </p>
+                    <span className="journal-shortcut-hint">
+                      Nhấn <kbd>Ctrl</kbd> + <kbd>Enter</kbd> để lưu
+                    </span>
+                  </div>
+                  <div className="journal-footer-actions">
+                    <button
+                      type="button"
+                      className="journal-btn-cancel"
+                      onClick={requestClose}
+                      disabled={working}
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      className="journal-btn-save"
+                      onClick={() =>
+                        void (mode === 'create' ? create() : revise())
+                      }
+                      disabled={working}
+                      data-ready={Boolean(mood && text.trim().length > 0)}
+                    >
+                      {working ? 'Đang lưu…' : 'Lưu nhật ký'}
+                    </button>
+                  </div>
                 </footer>
               </div>
             )}
@@ -930,6 +1281,6 @@ export default function JournalPage() {
           </section>
         </div>
       )}
-    </main>
+    </div>
   )
 }

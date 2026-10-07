@@ -75,11 +75,10 @@ describe('SupportPlanSchedule', () => {
     const details = screen.getByRole('button', {
       name: 'Chi tiết hoạt động',
     })
-    expect(details).toHaveAttribute('aria-expanded', 'false')
+    const disclosure = details.closest('details')
+    expect(disclosure).not.toHaveAttribute('open')
     fireEvent.click(details)
-    await waitFor(() =>
-      expect(details).toHaveAttribute('aria-expanded', 'true'),
-    )
+    await waitFor(() => expect(disclosure).toHaveAttribute('open'))
     expect(
       screen.getByText(/Tài nguyên trong kế hoạch · lịch 1 · SupportPlan 1/),
     ).toBeVisible()

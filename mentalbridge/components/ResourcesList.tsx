@@ -84,7 +84,10 @@ export default function ResourcesList({
         endpoint.search = params.toString()
         const response = await fetch(endpoint, {
           method: 'GET',
-          headers: { Accept: 'application/json' },
+          headers: {
+            Accept: 'application/json',
+            'Accept-Language': 'vi-VN',
+          },
           signal: controller.signal,
         })
 

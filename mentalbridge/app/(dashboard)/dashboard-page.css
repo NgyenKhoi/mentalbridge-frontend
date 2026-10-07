@@ -89,9 +89,6 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: transparent;
-  box-shadow: none;
-  border: none;
 }
 
 /* Các cột ngăn cách bằng đường kẻ dọc mảnh */
@@ -109,6 +106,10 @@
   font: 650 16px/1.3 var(--font-be-vietnam);
   letter-spacing: -0.01em;
   margin: 0;
+}
+
+.ref-panel-result .ref-col-header {
+  display: none;
 }
 
 /* ================================================================ */
@@ -255,7 +256,8 @@
   gap: 20px;
   margin-top: 20px;
 }
-.ref-appointment, .ref-tasks {
+.ref-appointment,
+.ref-tasks {
   min-height: 286px;
 }
 .ref-appointment {
@@ -266,7 +268,9 @@
   color: var(--teal-deep);
   font-size: 12px;
   font-weight: 650;
-  transition: color 0.18s ease, transform 0.18s ease;
+  transition:
+    color 0.18s ease,
+    transform 0.18s ease;
 }
 .ref-appointment header a:hover {
   color: var(--teal);
@@ -352,7 +356,9 @@
   color: var(--ink);
   text-align: left;
   font-size: 14px;
-  transition: color 0.18s ease, background 0.18s ease;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
 }
 .ref-tasks > button:hover {
   color: var(--teal-deep);
@@ -370,7 +376,10 @@
   place-items: center;
   color: #fff;
   font-style: normal;
-  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease;
 }
 .ref-tasks > button.done {
   color: var(--ink-faint);
@@ -412,7 +421,11 @@
   border: 1px solid rgba(27, 42, 34, 0.1);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.68);
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   will-change: transform;
 }
 .ref-quick > div > a:hover {
@@ -649,7 +662,9 @@
   color: #fff;
   font-size: 13px;
   font-weight: 700;
-  transition: background 0.18s ease, transform 0.18s ease;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
 }
 .ref-initial-check > a:hover {
   background: #173e38;
@@ -667,14 +682,6 @@
 /* RESPONSIVE: DƯỚI 900PX XẾP DỌC, BORDER-LEFT -> BORDER-TOP         */
 /* ================================================================ */
 @media (max-width: 1180px) {
-  .ref-panel {
-    grid-template-columns: 1.25fr 1fr;
-  }
-  .ref-panel-progress {
-    grid-column: 1 / -1;
-    border-top: 1px solid var(--line);
-    border-left: none !important;
-  }
   .ref-quick > div {
     grid-template-columns: 1fr 1fr;
   }
@@ -683,7 +690,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .ref-panel {
     grid-template-columns: 1fr;
   }
@@ -705,7 +712,8 @@
   .ref-dashboard {
     padding-inline: 18px;
   }
-  .ref-today, .ref-quick > div {
+  .ref-today,
+  .ref-quick > div {
     grid-template-columns: 1fr;
   }
   .ref-quick > header span {
@@ -759,7 +767,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ref-dashboard *, .ref-dashboard *::before, .ref-dashboard *::after {
+  .ref-dashboard *,
+  .ref-dashboard *::before,
+  .ref-dashboard *::after {
     transition-duration: 0.001ms !important;
   }
 }
