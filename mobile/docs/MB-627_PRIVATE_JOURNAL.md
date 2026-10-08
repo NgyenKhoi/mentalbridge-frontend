@@ -121,6 +121,11 @@ MB-626 evidence and ordinary short `dev` checks remain supported.
 
 Reproduce from `mobile/` with a dedicated synthetic verified USER and approved
 public edge, then run `npm run native:android:smoke` and
-`npm run e2e:android:journal`. CI must pass for the final head and the artifact
-must contain the successful manifest before this story is handed off. No merge
-is performed by this task; reviewer approval remains separate.
+`npm run e2e:android:journal`. Actual Android proof requires a successful
+manifest for the exact tested head; a committed flow is not execution evidence.
+
+Delivery decision (2026-10-09): the owner requested review handoff with the
+ordinary `dev` gate and mobile TypeScript compile only. The Android opt-in label
+is removed from this PR; Android E2E is **not verified** and that Jira DoD item
+remains open for protected staging execution before release. No merge is
+performed by this task; reviewer approval remains separate.
