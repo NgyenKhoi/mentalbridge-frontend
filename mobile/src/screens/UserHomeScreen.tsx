@@ -21,6 +21,10 @@ export function UserHomeScreen() {
       </Text>
       <View style={styles.actions}>
         <PrimaryButton
+          label="Khám phá tài nguyên"
+          onPress={() => router.push('./resources')}
+        />
+        <PrimaryButton
           label="Ghi nhận cảm xúc"
           onPress={() => router.push('./emotion')}
         />

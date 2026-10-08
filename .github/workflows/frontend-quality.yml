@@ -3,6 +3,7 @@ name: Frontend quality
 on:
   pull_request:
     branches: [dev]
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - 'mentalbridge/**'
       - 'mobile/**'
@@ -129,14 +130,220 @@ jobs:
       - name: Compile mobile TypeScript without emitting files
         run: npm run typecheck
 
+  mobile-android-evidence:
+    name: Protected Android MB-626 real-contract evidence
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: staging-mobile-e2e
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      ANDROID_DEVICE: emulator-5554
+      CI: 'true'
+      EVIDENCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
+      MAESTRO_CLI_NO_ANALYTICS: 'true'
+      MAESTRO_VERSION: '2.11.0'
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
+    steps:
+      - name: Check out exact pull-request head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Verify exact pull-request head
+        run: test "$(git rev-parse HEAD)" = "$EVIDENCE_COMMIT_SHA"
+
+      - name: Select protected evidence provider
+        id: provider
+        env:
+          PROTECTED_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}
+          PROTECTED_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}
+          PROTECTED_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
+        run: |
+          if [[ -n "$PROTECTED_API_BASE_URL" && -n "$PROTECTED_USER_EMAIL" && -n "$PROTECTED_USER_PASSWORD" ]]; then
+            echo "mode=staging" >> "$GITHUB_OUTPUT"
+            echo "EXPO_PUBLIC_API_BASE_URL=$PROTECTED_API_BASE_URL" >> "$GITHUB_ENV"
+            echo "MAESTRO_MB_USER_EMAIL=$PROTECTED_USER_EMAIL" >> "$GITHUB_ENV"
+            echo "MAESTRO_MB_USER_PASSWORD=$PROTECTED_USER_PASSWORD" >> "$GITHUB_ENV"
+            echo "PROVIDER_EVIDENCE=protected-staging" >> "$GITHUB_ENV"
+          else
+            echo "mode=controlled" >> "$GITHUB_OUTPUT"
+            echo "EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8088" >> "$GITHUB_ENV"
+            echo "PROVIDER_EVIDENCE=protected-controlled-real-contract" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check out real provider services
+        if: steps.provider.outputs.mode == 'controlled'
+        uses: actions/checkout@v4
+        with:
+          repository: NgyenKhoi/mentalbridge-backend
+          ref: dev
+          path: backend-provider
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare controlled real-contract provider
+        if: steps.provider.outputs.mode == 'controlled'
+        working-directory: backend-provider
+        run: |
+          pwsh scripts/generate-local-jwt-keys.ps1 -OutputDirectory .local/mobile-e2e
+          private_key="$(sed -n 's/^IDENTITY_JWT_PRIVATE_KEY=//p' .local/mobile-e2e/identity-secrets.env)"
+          public_key="$(sed -n 's/^IDENTITY_JWT_PUBLIC_KEY=//p' .local/mobile-e2e/identity-secrets.env)"
+          encryption_key="$(sed -n 's/^IDENTITY_ENCRYPTION_KEY=//p' .local/mobile-e2e/identity-secrets.env)"
+          user_password="$(openssl rand -hex 24)"
+          content_secret="$(openssl rand -hex 32)"
+          care_secret="$(openssl rand -hex 32)"
+          printf '::add-mask::%s\n' "$user_password"
+          {
+            printf 'E2E_IDENTITY_JWT_PRIVATE_KEY=%s\n' "$private_key"
+            printf 'E2E_IDENTITY_JWT_PUBLIC_KEY=%s\n' "$public_key"
+            printf 'E2E_IDENTITY_ENCRYPTION_KEY=%s\n' "$encryption_key"
+            printf 'E2E_CARE_IDEMPOTENCY_HMAC_KEY=%s\n' "$care_secret"
+            printf 'E2E_CONTENT_TEST_SECRET=%s\n' "$content_secret"
+            printf 'E2E_USER_A_EMAIL=e2e-user-a@synthetic.invalid\n'
+            printf 'E2E_USER_B_EMAIL=e2e-user-b@synthetic.invalid\n'
+            printf 'E2E_USER_PASSWORD=%s\n' "$user_password"
+          } > .env.mobile-resources-e2e
+          echo "MAESTRO_MB_USER_EMAIL=e2e-user-a@synthetic.invalid" >> "$GITHUB_ENV"
+          echo "MAESTRO_MB_USER_PASSWORD=$user_password" >> "$GITHUB_ENV"
+          echo "PROVIDER_COMMIT_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Start controlled real provider services
+        if: steps.provider.outputs.mode == 'controlled'
+        working-directory: backend-provider
+        run: |
+          compose=(docker compose \
+            --env-file .env.mobile-resources-e2e \
+            -f docker-compose.local.yml \
+            -f docker-compose.e2e.yml \
+            -f docker-compose.e2e.local.yml \
+            -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml)
+          print_provider_diagnostics() {
+            "${compose[@]}" ps --all
+            "${compose[@]}" logs --no-color --tail 200 identity content-notification
+          }
+          "${compose[@]}" up -d --build redis identity content-notification
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null && \
+              curl -fsS http://127.0.0.1:3003/health/ready >/dev/null; then
+              login_payload="$(jq -n \
+                --arg email "$MAESTRO_MB_USER_EMAIL" \
+                --arg password "$MAESTRO_MB_USER_PASSWORD" \
+                '{email: $email, password: $password}')"
+              login_response="$(curl -fsS \
+                -H 'Content-Type: application/json' \
+                --data "$login_payload" \
+                http://127.0.0.1:8080/api/v1/auth/login)"
+              access_token="$(jq -er '.accessToken' <<<"$login_response")"
+              curl -fsS \
+                -H "Authorization: Bearer $access_token" \
+                http://127.0.0.1:8080/api/v1/account >/dev/null
+              curl -fsS \
+                -H "Authorization: Bearer $access_token" \
+                http://127.0.0.1:3003/api/v1/resources >/dev/null
+              echo 'Controlled provider login, account, and resource contracts are ready.'
+              exit 0
+            fi
+            for service in identity content-notification; do
+              container_id="$("${compose[@]}" ps --all -q "$service")"
+              if [[ -n "$container_id" && "$(docker inspect --format '{{.State.Status}}' "$container_id")" == 'exited' ]]; then
+                echo "$service exited before becoming ready." >&2
+                print_provider_diagnostics
+                exit 1
+              fi
+            done
+            sleep 5
+          done
+          echo 'Controlled provider did not become ready before the deadline.' >&2
+          print_provider_diagnostics
+          exit 1
+
+      - name: Require resolved evidence inputs
+        run: |
+          if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" ]]; then
+            echo "The evidence API edge and dedicated USER fixture are required." >&2
+            exit 1
+          fi
+
+      - name: Install pinned Maestro CLI
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+          "$HOME/.maestro/bin/maestro" --version
+
+      - name: Enable KVM permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Compile exact head and run MB-626 real-contract journey
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          working-directory: mobile
+          script: npm run e2e:android:resources:evidence
+
+      - name: Stop controlled real provider services
+        if: always() && steps.provider.outputs.mode == 'controlled'
+        working-directory: backend-provider
+        run: |
+          docker compose \
+            --env-file .env.mobile-resources-e2e \
+            -f docker-compose.local.yml \
+            -f docker-compose.e2e.yml \
+            -f docker-compose.e2e.local.yml \
+            -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml \
+            down --volumes --remove-orphans
+
+      - name: Upload exact-head Android evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-mb-626-real-contract-${{ github.event.pull_request.head.sha }}
+          path: mobile/native-evidence
+          if-no-files-found: warn
+
   quality-gate:
     name: quality-gate
     if: always()
-    needs: [quality, mobile-compile]
+    needs: [quality, mobile-compile, mobile-android-evidence]
     runs-on: ubuntu-24.04
     steps:
       - name: Require frontend checks
-        if: needs.quality.result != 'success' || needs.mobile-compile.result != 'success'
+        if: >-
+          needs.quality.result != 'success' ||
+          needs.mobile-compile.result != 'success' ||
+          (github.event_name == 'pull_request' &&
+          contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e') &&
+          needs.mobile-android-evidence.result != 'success')
         run: exit 1
       - name: Confirm quality gate
         run: echo "All required frontend quality checks passed."
