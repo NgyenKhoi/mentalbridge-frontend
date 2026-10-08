@@ -8,6 +8,7 @@ name: MB-626 reviewed resource catalogue to persisted progress
 - inputText: '${MAESTRO_MB_USER_EMAIL}'
 - tapOn: 'Mật khẩu'
 - inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
 - tapOn: 'Đăng nhập'
 - assertVisible: 'Chào mừng bạn quay lại'
 - tapOn: 'Khám phá tài nguyên'
