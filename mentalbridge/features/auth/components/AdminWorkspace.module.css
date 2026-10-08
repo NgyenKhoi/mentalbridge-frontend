@@ -71,6 +71,12 @@
   text-transform: uppercase;
 }
 
+.reviewMain {
+  max-width: none;
+  min-width: 0;
+  padding: 32px clamp(20px, 3vw, 40px);
+}
+
 .main h1 {
   margin: 12px 0 8px;
   font-size: clamp(34px, 5vw, 52px);

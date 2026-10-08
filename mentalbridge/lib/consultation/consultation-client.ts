@@ -14,8 +14,12 @@ import {
   parsePendingProfiles,
   parseProblem,
   parseProfile,
+  parseProfileAmendment,
+  parseProfileAmendmentDetail,
+  parseProfileAmendments,
   parseServiceCreditAccount,
   parseSpecialistDashboard,
+  parseSpecialistOperationalAnalytics,
   parseSpecialistEarnings,
   parsePayoutDestination,
   parseAdminPayoutList,
@@ -36,6 +40,7 @@ import {
   type SpecialistDecisionReason,
   type SpecialistSuspensionResult,
   type SpecialistDashboard,
+  type SpecialistOperationalAnalytics,
   type SpecialistEarnings,
   type PayoutDestination,
   type SavePayoutDestinationInput,
@@ -194,6 +199,94 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  ownAmendment(token: string, correlationId: string) {
+    return request({
+      method: 'GET',
+      path: '/api/v1/specialist-profile/amendments/current',
+      token,
+      correlationId,
+      parse: parseProfileAmendmentDetail,
+    })
+  },
+  startAmendment(token: string, correlationId: string, etag: string) {
+    return request({
+      method: 'POST',
+      path: '/api/v1/specialist-profile/amendments',
+      token,
+      correlationId,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  saveAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    body: SpecialistProfileInput,
+    etag: string,
+  ) {
+    return request({
+      method: 'PUT',
+      path: `/api/v1/specialist-profile/amendments/${encodeURIComponent(id)}`,
+      token,
+      correlationId,
+      body,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  submitAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    action: 'submit' | 'resubmit',
+    etag: string,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/specialist-profile/amendments/${encodeURIComponent(id)}/${action}`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  profileAmendments(token: string, correlationId: string, page: number) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/admin/specialist-profiles/amendments?limit=20&page=${page}`,
+      token,
+      correlationId,
+      parse: parseProfileAmendments,
+    })
+  },
+  amendmentDetail(token: string, correlationId: string, id: string) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/admin/specialist-profiles/amendments/${encodeURIComponent(id)}`,
+      token,
+      correlationId,
+      parse: parseProfileAmendmentDetail,
+    })
+  },
+  decideAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    action: 'approve' | 'reject',
+    etag: string,
+    reasonCode?: SpecialistDecisionReason,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/admin/specialist-profiles/amendments/${encodeURIComponent(id)}/${action}`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      ...(action === 'reject' ? { body: { reasonCode } } : {}),
+      parse: parseProfileAmendment,
+    })
+  },
   adminAppointments(token: string, correlationId: string, query: string) {
     return request<AdminAppointmentPage>({
       method: 'GET',
@@ -354,6 +447,21 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseSpecialistDashboard,
+    })
+  },
+  specialistOperationalAnalytics(
+    token: string,
+    correlationId: string,
+    from: string,
+    to: string,
+  ) {
+    const query = new URLSearchParams({ from, to })
+    return request<SpecialistOperationalAnalytics>({
+      method: 'GET',
+      path: `/api/v1/specialist/analytics?${query.toString()}`,
+      token,
+      correlationId,
+      parse: parseSpecialistOperationalAnalytics,
     })
   },
   userSessionSummaries(

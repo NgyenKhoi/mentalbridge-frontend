@@ -11,6 +11,7 @@ import SpecialistAvailabilityManager from '@/features/specialist-availability/co
 import SpecialistAppointmentDecisionPanel from '@/features/appointments/components/SpecialistAppointmentDecisionPanel'
 import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
 import SpecialistContinuityManager from '@/features/appointments/components/SpecialistContinuityManager'
+import SpecialistOperationalAnalytics from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics'
 import SpecialistDashboardManager from './SpecialistDashboardManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
@@ -29,6 +30,7 @@ import AdminPayoutsManager from './AdminPayoutsManager'
 import AdminModerationManager from './AdminModerationManager'
 import AdminAppointmentsManager from './AdminAppointmentsManager'
 import './role-workspace.css'
+import profileStyles from '@/features/specialist-profile/components/ProfilePage.module.css'
 
 type Role = 'specialist' | 'admin'
 type Row = { id: string; title: string; meta: string; status: string; detail: string }
@@ -36,6 +38,7 @@ type Section = { label: string; description: string; rows: Row[]; tabs?: string[
 
 const specialistSections = {
   dashboard: 'Tổng quan',
+  analytics: 'Phân tích vận hành',
   appointments: 'Lịch hẹn',
   availability: 'Lịch khả dụng',
   clients: 'Khách hàng',
@@ -96,11 +99,11 @@ const adminSections: Record<string, Section> = {
   ], tabs: ['Audit log', 'Data retention'] },
 }
 const navByRole = {
-  specialist: [['dashboard','Tổng quan'],['appointments','Lịch hẹn'],['availability','Lịch khả dụng'],['clients','Khách hàng'],['messages','Tin nhắn'],['follow-up','Sau tư vấn'],['earnings','Thu nhập & thanh toán'],['profile','Hồ sơ']],
+  specialist: [['dashboard','Tổng quan'],['analytics','Phân tích vận hành'],['appointments','Lịch hẹn'],['availability','Lịch khả dụng'],['clients','Khách hàng'],['messages','Tin nhắn'],['follow-up','Sau tư vấn'],['earnings','Thu nhập & thanh toán'],['profile','Hồ sơ']],
   admin: [['dashboard','Dashboard'],['users','Users'],['specialists','Specialists'],['assessments','Assessments'],['payments','Subscriptions & Payments'],['payouts','Payouts'],['appointments','Appointments'],['content','Content'],['moderation','Moderation'],['ai','AI Evaluation'],['reports','Reports'],['audit','Audit & Privacy']],
 } as const
 
-const navIcons: Record<string, string> = { dashboard: '⌂', appointments: '◷', availability: '▦', clients: '♙', messages: '◇', 'follow-up': '✓', earnings: '◈', notifications: '♢', profile: '○', users: '♙', specialists: '✦', assessments: '✓', payments: '▤', payouts: '↗', content: '▣', moderation: '◉', ai: '✧', reports: '⌁', audit: '◎' }
+const navIcons: Record<string, string> = { dashboard: '⌂', analytics: '⌁', appointments: '◷', availability: '▦', clients: '♙', messages: '◇', 'follow-up': '✓', earnings: '◈', notifications: '♢', profile: '○', users: '♙', specialists: '✦', assessments: '✓', payments: '▤', payouts: '↗', content: '▣', moderation: '◉', ai: '✧', reports: '⌁', audit: '◎' }
 
 const statusClass = (status: string) => /hoàn thành|thành công|hoạt động|đã duyệt|khả dụng|sẵn sàng|xuất bản|cấp quyền|xác nhận/i.test(status) ? 'ok' : /chờ|cần|thất bại|tạm khóa|ẩn/i.test(status) ? 'attention' : 'neutral'
 
@@ -151,7 +154,7 @@ export default function RoleWorkspace({
     setToast('Thao tác đã được cập nhật thành công.')
     window.setTimeout(() => setToast(''), 3200)
   }
-  return <div className={`role-shell role-${role} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+  return <div className={`role-shell role-${role} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${role === 'specialist' && sectionKey === 'profile' ? profileStyles.shell : ''}`}>
     <motion.aside className={`role-sidebar ${mobileOpen ? 'open' : ''}`} layout initial={false} transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <Link href="/" className="role-brand"><motion.span className="role-brand-mark" whileHover={{ rotate: -6, scale: 1.06 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>M</motion.span><span className="role-brand-copy"><strong>MentalBridge</strong><small>{role === 'admin' ? 'Admin Console' : 'Specialist Workspace'}</small></span></Link>
       <button className="role-collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'} title={sidebarCollapsed ? 'Mở rộng' : 'Thu gọn'}><motion.span animate={{ rotate: sidebarCollapsed ? 180 : 0 }}>‹</motion.span></button>
@@ -166,6 +169,7 @@ export default function RoleWorkspace({
       <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div>{role === 'specialist' ? <><span className="role-live-dot" />{section.label}</> : <><span className="role-live-dot" /> Hệ thống hoạt động ổn định</>}</div>{role === 'admin' && <Link href="/admin/notifications" className="role-bell" aria-label="Thông báo">○</Link>}</header>
       <div className={`role-content${role === 'specialist' && sectionKey === 'messages' ? ' role-content-messages' : ''}`}>
         {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboardManager />}
+        {role === 'specialist' && sectionKey === 'analytics' && <SpecialistOperationalAnalytics />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel />}

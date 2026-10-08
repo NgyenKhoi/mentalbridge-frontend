@@ -51,6 +51,7 @@ export type SpecialistProfile = SpecialistProfileInput &
     createdAt: string
     updatedAt: string
     version: number
+    publishedVersion?: number
   }>
 
 export type SpecialistProfiles = Readonly<{
@@ -58,6 +59,97 @@ export type SpecialistProfiles = Readonly<{
   count: number
 }>
 export type PendingProfiles = SpecialistProfiles
+
+export type ProfileAmendment =
+  consultationComponents['schemas']['ProfileAmendment']
+export type ProfileAmendmentDetail = Readonly<{
+  approvedProfile: SpecialistProfile
+  amendment: ProfileAmendment | null
+}>
+export type ProfileAmendments = Readonly<{
+  items: ProfileAmendment[]
+  count: number
+  hasMore: boolean
+}>
+
+export function parseProfileAmendment(value: unknown): ProfileAmendment | null {
+  const item = record(value)
+  if (
+    !item ||
+    !uuid(item.id) ||
+    !uuid(item.specialistAccountId) ||
+    !Number.isInteger(item.basePublishedVersion) ||
+    Number(item.basePublishedVersion) < 1 ||
+    !['DRAFT', 'PENDING_REVIEW', 'REJECTED', 'APPROVED'].includes(
+      String(item.status),
+    ) ||
+    !Number.isInteger(item.version) ||
+    Number(item.version) < 0 ||
+    !utcInstant(item.createdAt) ||
+    !utcInstant(item.updatedAt) ||
+    !instantOrNull(item.submittedAt) ||
+    !instantOrNull(item.reviewedAt) ||
+    !(item.reviewedBy === null || uuid(item.reviewedBy))
+  )
+    return null
+  try {
+    parseProfileInput(item.proposedProfile)
+  } catch {
+    return null
+  }
+  const reviewed = item.status === 'APPROVED' || item.status === 'REJECTED'
+  if (
+    (reviewed
+      ? item.reviewedAt === null || item.reviewedBy === null
+      : item.reviewedAt !== null || item.reviewedBy !== null) ||
+    (item.status === 'DRAFT'
+      ? item.submittedAt !== null
+      : item.submittedAt === null) ||
+    (item.status === 'REJECTED'
+      ? !SPECIALIST_REJECTION_REASONS.includes(
+          item.reasonCode as SpecialistRejectionReason,
+        )
+      : item.reasonCode !== null)
+  )
+    return null
+  return item as ProfileAmendment
+}
+
+export function parseProfileAmendmentDetail(
+  value: unknown,
+): ProfileAmendmentDetail | null {
+  const item = record(value)
+  const approvedProfile = parseProfile(item?.approvedProfile)
+  if (!item || !approvedProfile) return null
+  const amendment =
+    item.amendment === null ? null : parseProfileAmendment(item.amendment)
+  if (item.amendment !== null && !amendment) return null
+  if (amendment && amendment.specialistAccountId !== approvedProfile.accountId)
+    return null
+  return { approvedProfile, amendment }
+}
+
+export function parseProfileAmendments(
+  value: unknown,
+): ProfileAmendments | null {
+  const item = record(value)
+  if (
+    !item ||
+    !Array.isArray(item.items) ||
+    item.items.length > 100 ||
+    item.count !== item.items.length ||
+    typeof item.hasMore !== 'boolean'
+  )
+    return null
+  const items = item.items.map(parseProfileAmendment)
+  if (items.some((entry) => !entry || entry.status !== 'PENDING_REVIEW'))
+    return null
+  return {
+    items: items as ProfileAmendment[],
+    count: Number(item.count),
+    hasMore: item.hasMore,
+  }
+}
 
 export type SpecialistSuspensionResult = Readonly<{
   profile: SpecialistProfile
@@ -275,6 +367,8 @@ export type SpecialistDiscoveryPage =
   ConsultationSchemas['SpecialistDiscoveryPage']
 export type AppointmentRating = ConsultationSchemas['AppointmentRating']
 export type SpecialistDashboard = ConsultationSchemas['SpecialistDashboard']
+export type SpecialistOperationalAnalytics =
+  ConsultationSchemas['SpecialistOperationalAnalytics']
 export type OpenAppointmentDisputeInput =
   ConsultationSchemas['OpenAppointmentDispute']
 export type ResolveAppointmentDisputeInput =
@@ -1071,6 +1165,245 @@ export function parseSpecialistDashboard(
     availability,
     actionRequired: actions as SpecialistDashboard['actionRequired'],
   }
+}
+
+const ANALYTICS_STATES = [
+  'AVAILABLE',
+  'EMPTY',
+  'BLOCKED',
+  'UNAVAILABLE',
+  'STALE',
+] as const
+
+function nullableCount(value: unknown): value is number | null {
+  return value === null || (Number.isSafeInteger(value) && Number(value) >= 0)
+}
+
+function analyticsMetadata(
+  value: Record<string, unknown>,
+  generatedAt: string,
+) {
+  return (
+    value.source === 'CONSULTATION' &&
+    value.asOf === generatedAt &&
+    ANALYTICS_STATES.includes(value.state as never)
+  )
+}
+
+function allNull(values: unknown[]) {
+  return values.every((value) => value === null)
+}
+
+export function parseSpecialistOperationalAnalytics(
+  value: unknown,
+): SpecialistOperationalAnalytics | null {
+  const analytics = record(value)
+  if (
+    !analytics ||
+    !exactKeys(analytics, [
+      'source',
+      'generatedAt',
+      'operationalStatus',
+      'period',
+      'availability',
+      'appointments',
+      'rating',
+      'financials',
+    ]) ||
+    analytics.source !== 'CONSULTATION' ||
+    !utcInstant(analytics.generatedAt) ||
+    !DASHBOARD_OPERATIONAL_STATUSES.includes(
+      analytics.operationalStatus as never,
+    )
+  )
+    return null
+  const generatedAt = analytics.generatedAt
+  const period = record(analytics.period)
+  const availability = record(analytics.availability)
+  const appointments = record(analytics.appointments)
+  const rating = record(analytics.rating)
+  const financials = record(analytics.financials)
+  if (
+    !period ||
+    !exactKeys(period, ['from', 'to', 'timezone']) ||
+    !utcInstant(period.from) ||
+    !utcInstant(period.to) ||
+    Date.parse(period.from) >= Date.parse(period.to) ||
+    !ianaTimezone(period.timezone) ||
+    !availability ||
+    !exactKeys(availability, [
+      'source',
+      'asOf',
+      'state',
+      'publishedSlotCount',
+      'utilizedSlotCount',
+      'unusedSlotCount',
+      'utilizationRate',
+    ]) ||
+    !analyticsMetadata(availability, generatedAt) ||
+    !appointments ||
+    !exactKeys(appointments, [
+      'source',
+      'asOf',
+      'state',
+      'requestedCount',
+      'acceptedCount',
+      'rejectedCount',
+      'expiredCount',
+      'cancelledCount',
+      'rescheduledCount',
+      'completedCount',
+      'userNoShowCount',
+      'specialistNoShowCount',
+      'bothNoShowCount',
+    ]) ||
+    !analyticsMetadata(appointments, generatedAt) ||
+    !rating ||
+    !exactKeys(rating, [
+      'source',
+      'asOf',
+      'state',
+      'averageRating',
+      'ratingCount',
+    ]) ||
+    !analyticsMetadata(rating, generatedAt) ||
+    !financials ||
+    !exactKeys(financials, [
+      'source',
+      'asOf',
+      'state',
+      'currency',
+      'earnedAmountMinor',
+      'paidAmountMinor',
+    ]) ||
+    !analyticsMetadata(financials, generatedAt)
+  )
+    return null
+
+  const availabilityValues = [
+    availability.publishedSlotCount,
+    availability.utilizedSlotCount,
+    availability.unusedSlotCount,
+    availability.utilizationRate,
+  ]
+  const appointmentValues = [
+    appointments.requestedCount,
+    appointments.acceptedCount,
+    appointments.rejectedCount,
+    appointments.expiredCount,
+    appointments.cancelledCount,
+    appointments.rescheduledCount,
+    appointments.completedCount,
+    appointments.userNoShowCount,
+    appointments.specialistNoShowCount,
+    appointments.bothNoShowCount,
+  ]
+  const appointmentTotal = appointmentValues.reduce<number>(
+    (total, count) => total + (typeof count === 'number' ? count : 0),
+    0,
+  )
+  if (
+    !nullableCount(availability.publishedSlotCount) ||
+    !nullableCount(availability.utilizedSlotCount) ||
+    !nullableCount(availability.unusedSlotCount) ||
+    !(
+      availability.utilizationRate === null ||
+      (typeof availability.utilizationRate === 'number' &&
+        Number.isFinite(availability.utilizationRate) &&
+        availability.utilizationRate >= 0 &&
+        availability.utilizationRate <= 100)
+    ) ||
+    !appointmentValues.every(nullableCount) ||
+    !(
+      rating.averageRating === null ||
+      (typeof rating.averageRating === 'number' &&
+        Number.isFinite(rating.averageRating) &&
+        rating.averageRating >= 1 &&
+        rating.averageRating <= 5)
+    ) ||
+    !nullableCount(rating.ratingCount) ||
+    !(
+      financials.currency === null ||
+      (typeof financials.currency === 'string' &&
+        /^[A-Z]{3}$/.test(financials.currency))
+    ) ||
+    !nullableCount(financials.earnedAmountMinor) ||
+    !nullableCount(financials.paidAmountMinor)
+  )
+    return null
+
+  const blocked =
+    analytics.operationalStatus === 'PROFILE_REQUIRED' ||
+    analytics.operationalStatus === 'PENDING_APPROVAL' ||
+    analytics.operationalStatus === 'PROFILE_REJECTED'
+  if (
+    (blocked &&
+      ([
+        availability.state,
+        appointments.state,
+        rating.state,
+        financials.state,
+      ].some((state) => state !== 'BLOCKED') ||
+        !allNull(availabilityValues) ||
+        !allNull(appointmentValues) ||
+        !allNull([rating.averageRating, rating.ratingCount]) ||
+        !allNull([
+          financials.currency,
+          financials.earnedAmountMinor,
+          financials.paidAmountMinor,
+        ]))) ||
+    (!blocked &&
+      [availability.state, appointments.state, rating.state].some(
+        (state) => state === 'BLOCKED' || state === 'UNAVAILABLE',
+      )) ||
+    (!blocked && financials.state === 'BLOCKED') ||
+    (!blocked &&
+      (availability.publishedSlotCount === null ||
+        availability.utilizedSlotCount === null ||
+        availability.unusedSlotCount === null ||
+        appointmentValues.some((count) => count === null) ||
+        rating.ratingCount === null)) ||
+    (availability.publishedSlotCount !== null &&
+      availability.utilizedSlotCount !== null &&
+      availability.unusedSlotCount !== null &&
+      (availability.utilizedSlotCount + availability.unusedSlotCount !==
+        availability.publishedSlotCount ||
+        (availability.publishedSlotCount === 0) !==
+          (availability.utilizationRate === null))) ||
+    (availability.state === 'EMPTY' &&
+      (availability.publishedSlotCount !== 0 ||
+        availability.utilizedSlotCount !== 0 ||
+        availability.unusedSlotCount !== 0)) ||
+    (['AVAILABLE', 'STALE'].includes(String(availability.state)) &&
+      availability.publishedSlotCount === 0) ||
+    (appointments.state === 'EMPTY' && appointmentTotal !== 0) ||
+    (['AVAILABLE', 'STALE'].includes(String(appointments.state)) &&
+      appointmentTotal === 0) ||
+    ['AVAILABLE', 'STALE'].includes(String(rating.state)) !==
+      (rating.ratingCount !== null &&
+        rating.ratingCount > 0 &&
+        rating.averageRating !== null) ||
+    (rating.state === 'EMPTY' &&
+      (rating.ratingCount !== 0 || rating.averageRating !== null)) ||
+    (financials.state === 'UNAVAILABLE' &&
+      !allNull([
+        financials.currency,
+        financials.earnedAmountMinor,
+        financials.paidAmountMinor,
+      ])) ||
+    (['AVAILABLE', 'EMPTY', 'STALE'].includes(String(financials.state)) &&
+      (financials.currency === null ||
+        financials.earnedAmountMinor === null ||
+        financials.paidAmountMinor === null)) ||
+    (financials.state === 'EMPTY' &&
+      (financials.earnedAmountMinor !== 0 ||
+        financials.paidAmountMinor !== 0)) ||
+    (['AVAILABLE', 'STALE'].includes(String(financials.state)) &&
+      financials.earnedAmountMinor === 0 &&
+      financials.paidAmountMinor === 0)
+  )
+    return null
+  return analytics as SpecialistOperationalAnalytics
 }
 
 const DISCOVERY_COMPATIBILITY = [
