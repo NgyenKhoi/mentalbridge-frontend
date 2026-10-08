@@ -18,6 +18,12 @@ describe('USER home screen', () => {
     jest.clearAllMocks()
   })
 
+  it('opens the private Journal journey', async () => {
+    await render(<UserHomeScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Viết nhật ký' }))
+    expect(mockPush).toHaveBeenCalledWith('./journal')
+  })
+
   it('opens the personal profile action', async () => {
     await render(<UserHomeScreen />)
 
