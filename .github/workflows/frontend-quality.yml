@@ -234,27 +234,34 @@ jobs:
         if: steps.provider.outputs.mode == 'controlled'
         working-directory: backend-provider
         run: |
-          docker compose \
+          compose=(docker compose \
             --env-file .env.mobile-resources-e2e \
             -f docker-compose.local.yml \
             -f docker-compose.e2e.yml \
             -f docker-compose.e2e.local.yml \
-            -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml \
-            up -d --build redis identity content-notification
+            -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml)
+          print_provider_diagnostics() {
+            "${compose[@]}" ps --all
+            "${compose[@]}" logs --no-color --tail 200 identity content-notification
+          }
+          "${compose[@]}" up -d --build redis identity content-notification
           for attempt in {1..60}; do
             if curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null && \
               curl -fsS http://127.0.0.1:3003/health/ready >/dev/null; then
               exit 0
             fi
+            for service in identity content-notification; do
+              container_id="$("${compose[@]}" ps -q "$service")"
+              if [[ -n "$container_id" && "$(docker inspect --format '{{.State.Status}}' "$container_id")" == 'exited' ]]; then
+                echo "$service exited before becoming ready." >&2
+                print_provider_diagnostics
+                exit 1
+              fi
+            done
             sleep 5
           done
-          docker compose \
-            --env-file .env.mobile-resources-e2e \
-            -f docker-compose.local.yml \
-            -f docker-compose.e2e.yml \
-            -f docker-compose.e2e.local.yml \
-            -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml \
-            ps
+          echo 'Controlled provider did not become ready before the deadline.' >&2
+          print_provider_diagnostics
           exit 1
 
       - name: Require resolved evidence inputs
