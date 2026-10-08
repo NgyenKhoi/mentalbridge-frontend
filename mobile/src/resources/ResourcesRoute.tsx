@@ -7,6 +7,7 @@ import { secureCredentialStore } from '@/security/credential-store'
 
 import { createResourceApi } from './resource-api'
 import { resourceCategorySchema } from './resource-contract'
+import { resourceDetailHref } from './resource-route'
 import { ResourcesScreen } from './ResourcesScreen'
 
 function first(value: string | string[] | undefined) {
@@ -37,9 +38,7 @@ export function ResourcesRoute() {
       {...(initialDate ? { initialDate } : {})}
       onBack={() => router.back()}
       onOpenResource={(resourceId, localDate, selectedCategory) =>
-        router.push(
-          `./${encodeURIComponent(resourceId)}?date=${encodeURIComponent(localDate)}&category=${encodeURIComponent(selectedCategory)}`,
-        )
+        router.push(resourceDetailHref(resourceId, localDate, selectedCategory))
       }
     />
   )
