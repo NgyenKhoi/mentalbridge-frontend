@@ -14,6 +14,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ "${PROVIDER_EVIDENCE:-protected-staging}" == "protected-controlled-real-contract" ]]; then
+  adb reverse tcp:8088 tcp:8088
   node scripts/controlled-resource-edge.mjs \
     >"$evidence_dir/android-resource-edge.log" 2>&1 &
   edge_pid="$!"

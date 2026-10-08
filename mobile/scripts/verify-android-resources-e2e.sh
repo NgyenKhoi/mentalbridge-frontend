@@ -27,7 +27,11 @@ mkdir -p "$evidence_dir"
 rm -f "$evidence_dir/android-resource-progress.png" \
   "$evidence_dir/android-resource-real-contract.txt"
 
-maestro --device "$device" test "$flow"
+if ! maestro --device "$device" test "$flow"; then
+  adb -s "$device" exec-out screencap -p \
+    >"$evidence_dir/android-resource-failure.png"
+  exit 1
+fi
 
 adb -s "$device" exec-out screencap -p \
   >"$evidence_dir/android-resource-progress.png"

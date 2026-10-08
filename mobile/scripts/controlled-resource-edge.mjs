@@ -72,9 +72,16 @@ const server = createServer(async (request, response) => {
     }
     const correlationId = upstream.headers.get('x-correlation-id')
     if (correlationId) responseHeaders['x-correlation-id'] = correlationId
+    console.log(
+      `${request.method} ${requestUrl.pathname} -> ${upstream.status}`,
+    )
     response.writeHead(upstream.status, responseHeaders)
     response.end(responseBody)
-  } catch {
+  } catch (error) {
+    console.error(
+      `${request.method} ${request.url ?? '/'} -> upstream_unavailable`,
+      error instanceof Error ? error.name : 'UnknownError',
+    )
     response.writeHead(502, { 'content-type': 'application/json' })
     response.end('{"error":"upstream_unavailable"}')
   }

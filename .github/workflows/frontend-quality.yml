@@ -176,7 +176,7 @@ jobs:
             echo "PROVIDER_EVIDENCE=protected-staging" >> "$GITHUB_ENV"
           else
             echo "mode=controlled" >> "$GITHUB_OUTPUT"
-            echo "EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8088" >> "$GITHUB_ENV"
+            echo "EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8088" >> "$GITHUB_ENV"
             echo "PROVIDER_EVIDENCE=protected-controlled-real-contract" >> "$GITHUB_ENV"
           fi
 
@@ -248,6 +248,22 @@ jobs:
           for attempt in {1..60}; do
             if curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null && \
               curl -fsS http://127.0.0.1:3003/health/ready >/dev/null; then
+              login_payload="$(jq -n \
+                --arg email "$MAESTRO_MB_USER_EMAIL" \
+                --arg password "$MAESTRO_MB_USER_PASSWORD" \
+                '{email: $email, password: $password}')"
+              login_response="$(curl -fsS \
+                -H 'Content-Type: application/json' \
+                --data "$login_payload" \
+                http://127.0.0.1:8080/api/v1/auth/login)"
+              access_token="$(jq -er '.accessToken' <<<"$login_response")"
+              curl -fsS \
+                -H "Authorization: Bearer $access_token" \
+                http://127.0.0.1:8080/api/v1/account >/dev/null
+              curl -fsS \
+                -H "Authorization: Bearer $access_token" \
+                http://127.0.0.1:3003/api/v1/resources >/dev/null
+              echo 'Controlled provider login, account, and resource contracts are ready.'
               exit 0
             fi
             for service in identity content-notification; do
