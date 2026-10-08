@@ -40,7 +40,10 @@ name: MB-626 reviewed resource catalogue to persisted progress
 - tapOn:
     id: 'resource-detail-back'
     retryTapIfNoChange: true
-- assertVisible: 'Chọn một nội dung phù hợp lúc này'
+- scrollUntilVisible:
+    element:
+      id: 'resource-card-00000000-0000-4000-8000-000000000205'
+    direction: DOWN
 - launchApp
 - assertVisible: 'Chào mừng bạn quay lại'
 - tapOn: 'Khám phá tài nguyên'
