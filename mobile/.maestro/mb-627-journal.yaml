@@ -76,9 +76,11 @@ name: MB-627 private Journal to explicit authoritative AI safe outcome
 - tapOn: 'Viết nhật ký'
 - scrollUntilVisible:
     element:
-      text: 'MB627 synthetic journal persistence demo.'
+      id: 'journal-entry-.*'
     direction: DOWN
-- tapOn: 'MB627 synthetic journal persistence demo.'
+- tapOn:
+    id: 'journal-entry-.*'
+    index: 0
 - assertVisible: 'MB627 synthetic journal persistence demo.'
 - scrollUntilVisible:
     element:

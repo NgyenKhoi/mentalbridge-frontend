@@ -103,6 +103,9 @@ job and the existing optional exact-head job. A maintainer applies
 3. uses the dedicated protected staging USER and public edge when all inputs
    exist, or runs unmodified Identity, Care and Journal/AI services plus real
    ephemeral PostgreSQL/MongoDB databases on backend `dev`;
+   controlled setup creates only a synthetic Care profile through public
+   `PUT /api/v1/profile`, because consent requires an existing profile. Consent
+   itself is still an explicit UI action, not seeded or bypassed;
 4. compiles/installs/boots the exact-head Android release app;
 5. proves save → explicit consent when needed → explicit AI request →
    authoritative terminal outcome → app restart → persisted entry/job GET;

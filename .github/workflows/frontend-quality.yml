@@ -284,6 +284,14 @@ jobs:
                 http://127.0.0.1:8080/api/v1/account >/dev/null
               if [[ "$MOBILE_EVIDENCE_FEATURE" == 'journal' ]]; then
                 curl -fsS -H "Authorization: Bearer $access_token" http://127.0.0.1:3000/api/v1/journals >/dev/null
+                profile_status="$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $access_token" http://127.0.0.1:8081/api/v1/profile)"
+                if [[ "$profile_status" == '404' ]]; then
+                  curl -fsS -X PUT -H "Authorization: Bearer $access_token" -H 'Content-Type: application/json' \
+                    --data '{"displayName":"Mobile Journal E2E"}' http://127.0.0.1:8081/api/v1/profile >/dev/null
+                elif [[ "$profile_status" != '200' ]]; then
+                  echo "Controlled Care profile preflight failed with HTTP $profile_status." >&2
+                  exit 1
+                fi
                 curl -fsS -H "Authorization: Bearer $access_token" http://127.0.0.1:8081/api/v1/consents/ai-processing/authorization >/dev/null
               else
                 curl -fsS -H "Authorization: Bearer $access_token" http://127.0.0.1:3003/api/v1/resources >/dev/null

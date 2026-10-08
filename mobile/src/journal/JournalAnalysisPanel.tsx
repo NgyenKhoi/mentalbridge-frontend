@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { router } from 'expo-router'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
@@ -217,6 +218,9 @@ function AnalysisPanel({
   const changedSource =
     requestError instanceof ApiError &&
     (requestError.status === 409 || requestError.status === 404)
+  const needsProfile =
+    state.consent.error instanceof ApiError &&
+    state.consent.error.code === 'PROFILE_NOT_FOUND'
   const canRequest =
     !state.marker?.jobId ||
     (job?.status === 'FAILED' && !nonRetryable.has(job.terminalReason ?? ''))
@@ -317,7 +321,20 @@ function AnalysisPanel({
         />
       )}
       {state.consent.isError && (
-        <Notice error>{journalError(state.consent.error)}</Notice>
+        <>
+          <Notice error>
+            {needsProfile
+              ? 'Cần hoàn tất hồ sơ cá nhân trước khi lưu sự đồng ý cho AI. Bạn vẫn có thể viết và lưu nhật ký.'
+              : journalError(state.consent.error)}
+          </Notice>
+          {needsProfile && (
+            <TextAction
+              label="Mở hồ sơ cá nhân để tiếp tục"
+              disabled={blocked || busy}
+              onPress={() => router.push('./profile')}
+            />
+          )}
+        </>
       )}
       {!state.restored && <Notice>Đang kiểm tra yêu cầu đã gửi…</Notice>}
       {state.storageError && (

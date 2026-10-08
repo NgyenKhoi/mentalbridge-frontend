@@ -25,6 +25,7 @@ let mockSession: AppSession | null = { subject, role: 'USER' }
 jest.mock('@/auth/session-context', () => ({
   useSession: () => ({ session: mockSession }),
 }))
+jest.mock('expo-router', () => ({ router: { push: jest.fn() } }))
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn().mockResolvedValue(null),
   setItemAsync: jest.fn(),

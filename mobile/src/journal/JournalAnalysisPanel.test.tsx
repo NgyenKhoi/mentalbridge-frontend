@@ -30,6 +30,10 @@ const target: AnalysisTarget = {
   journalId: entry.id,
   revision: 1,
 }
+const mockOpenProfile = jest.fn()
+jest.mock('expo-router', () => ({
+  router: { push: (path: string) => mockOpenProfile(path) },
+}))
 function store(): AnalysisRequestStore {
   return {
     read: jest.fn().mockResolvedValue(null),
@@ -53,6 +57,40 @@ async function mount(ui: ReactElement) {
 }
 
 describe('Explicit mobile Journal AI', () => {
+  it('explains a missing Care profile without granting consent or blocking manual writing', async () => {
+    const api = journalApi({
+      consent: jest
+        .fn()
+        .mockRejectedValue(
+          new ApiError({
+            status: 404,
+            code: 'PROFILE_NOT_FOUND',
+            message: 'private details',
+          }),
+        ),
+    })
+    await mount(
+      <JournalAnalysisPanel
+        api={api}
+        subject={subject}
+        target={target}
+        store={store()}
+      />,
+    )
+    await screen.findByText(disclosure.title)
+    await fireEvent.press(screen.getByTestId('journal-ai-consent-check'))
+    await fireEvent.press(screen.getByTestId('journal-ai-consent'))
+    await screen.findByText(
+      'Cần hoàn tất hồ sơ cá nhân trước khi lưu sự đồng ý cho AI. Bạn vẫn có thể viết và lưu nhật ký.',
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Mở hồ sơ cá nhân để tiếp tục' }),
+    )
+    expect(mockOpenProfile).toHaveBeenCalledWith('./profile')
+    expect(api.requestAnalysis).not.toHaveBeenCalled()
+    expect(screen.getByTestId('journal-ai-request')).toBeDisabled()
+    expect(screen.queryByText('private details')).toBeNull()
+  })
   it.each(['MISSING', 'REVOKED', 'POLICY_OUTDATED'] as const)(
     'blocks AI for %s without auto-requesting consent or processing',
     async (reason) => {

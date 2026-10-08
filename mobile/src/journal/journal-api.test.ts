@@ -109,6 +109,22 @@ describe('Mobile Journal public contract', () => {
       '/api/v1/consents/ai-processing/authorization',
     ])
     expect(requests[0]?.params).toEqual({ locale: 'vi-VN' })
+    await client(
+      {
+        decisionId: entry.id,
+        consentType: 'AI_PROCESSING',
+        policyVersion: disclosure.version,
+        granted: true,
+        decidedAt: entry.createdAt,
+      },
+      requests,
+    ).consent(disclosure.version, true, 'consent-request-key')
+    expect(requests[2]?.url).toBe('/api/v1/consent-decisions')
+    expect(JSON.parse(requests[2]?.data as string)).toEqual({
+      consentType: 'AI_PROCESSING',
+      policyVersion: disclosure.version,
+      granted: true,
+    })
   })
   it('requests exact-revision AI without text, actor, score, or consent claims in the body', async () => {
     const requests: InternalAxiosRequestConfig[] = []
