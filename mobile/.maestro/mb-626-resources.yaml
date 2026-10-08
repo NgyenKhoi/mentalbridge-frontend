@@ -20,24 +20,26 @@ name: MB-626 reviewed resource catalogue to persisted progress
     element:
       text: 'Hiểu các dấu hiệu thường gặp của trầm cảm.*'
     direction: DOWN
-- tapOn: 'Mở Hiểu các dấu hiệu thường gặp của trầm cảm.*'
+- tapOn:
+    id: 'resource-card-00000000-0000-4000-8000-000000000205'
+    retryTapIfNoChange: true
 - assertVisible: 'Hiểu các dấu hiệu thường gặp của trầm cảm.*'
-- runFlow:
-    when:
-      visible: 'Đánh dấu hoàn thành'
-    commands:
-      - scrollUntilVisible:
-          element:
-            text: 'Đánh dấu hoàn thành'
-          direction: DOWN
-      - tapOn: 'Đánh dấu hoàn thành'
-      - assertVisible: 'Đã lưu tiến độ.'
+- scrollUntilVisible:
+    element:
+      id: 'resource-complete'
+    direction: DOWN
+- tapOn:
+    id: 'resource-complete'
+    retryTapIfNoChange: true
+- assertVisible: 'Đã lưu tiến độ.'
 - assertVisible: 'Đã hoàn thành'
 - scrollUntilVisible:
     element:
-      text: '← Quay lại tài nguyên'
+      id: 'resource-detail-back'
     direction: UP
-- tapOn: '← Quay lại tài nguyên'
+- tapOn:
+    id: 'resource-detail-back'
+    retryTapIfNoChange: true
 - assertVisible: 'Chọn một nội dung phù hợp lúc này'
 - launchApp
 - assertVisible: 'Chào mừng bạn quay lại'
@@ -47,5 +49,7 @@ name: MB-626 reviewed resource catalogue to persisted progress
     element:
       text: 'Hiểu các dấu hiệu thường gặp của trầm cảm.*'
     direction: DOWN
-- tapOn: 'Mở Hiểu các dấu hiệu thường gặp của trầm cảm.*'
+- tapOn:
+    id: 'resource-card-00000000-0000-4000-8000-000000000205'
+    retryTapIfNoChange: true
 - assertVisible: 'Đã hoàn thành'

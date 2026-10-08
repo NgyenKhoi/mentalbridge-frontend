@@ -301,6 +301,7 @@ export function ResourcesScreen({
                   onPress={() =>
                     onOpenResource(resource.id, selectedDate, category)
                   }
+                  testID={`resource-card-${resource.id}`}
                   style={({ pressed }) => [
                     styles.card,
                     pressed && styles.pressed,

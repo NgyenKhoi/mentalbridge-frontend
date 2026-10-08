@@ -381,6 +381,7 @@ export function ResourceDetailScreen({
       <Pressable
         accessibilityRole="button"
         onPress={onBack}
+        testID="resource-detail-back"
         style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
       >
         <Text style={styles.backLabel}>← Quay lại tài nguyên</Text>
@@ -543,6 +544,7 @@ export function ResourceDetailScreen({
                         : 'Đánh dấu hoàn thành'
                 }
                 onPress={completeResource}
+                testID="resource-complete"
               />
             )}
           </>
