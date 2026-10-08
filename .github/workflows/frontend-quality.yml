@@ -251,7 +251,7 @@ jobs:
               exit 0
             fi
             for service in identity content-notification; do
-              container_id="$("${compose[@]}" ps -q "$service")"
+              container_id="$("${compose[@]}" ps --all -q "$service")"
               if [[ -n "$container_id" && "$(docker inspect --format '{{.State.Status}}' "$container_id")" == 'exited' ]]; then
                 echo "$service exited before becoming ready." >&2
                 print_provider_diagnostics
