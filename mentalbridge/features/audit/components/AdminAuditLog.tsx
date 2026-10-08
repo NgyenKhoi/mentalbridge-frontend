@@ -17,7 +17,6 @@ const actionLabels: Record<string, string> = {
   SPECIALIST_REJECTED: 'Từ chối chuyên gia',
   SPECIALIST_SUSPENDED: 'Đình chỉ chuyên gia',
   SPECIALIST_RESTORED: 'Khôi phục chuyên gia',
-  RESOURCE_PUBLISHED: 'Xuất bản tài nguyên',
   RESOURCE_ARCHIVED: 'Lưu trữ tài nguyên',
   SAFETY_DIRECTORY_REVIEWED: 'Duyệt danh mục an toàn',
   SAFETY_DIRECTORY_DEACTIVATED: 'Ngừng kích hoạt danh mục an toàn',
@@ -300,7 +299,6 @@ export default function AdminAuditLog() {
             <option value="SPECIALIST_REJECTED">Từ chối chuyên gia</option>
             <option value="SPECIALIST_SUSPENDED">Đình chỉ chuyên gia</option>
             <option value="SPECIALIST_RESTORED">Khôi phục chuyên gia</option>
-            <option value="RESOURCE_PUBLISHED">Xuất bản tài nguyên</option>
             <option value="RESOURCE_ARCHIVED">Lưu trữ tài nguyên</option>
             <option value="SAFETY_DIRECTORY_REVIEWED">
               Duyệt danh mục an toàn

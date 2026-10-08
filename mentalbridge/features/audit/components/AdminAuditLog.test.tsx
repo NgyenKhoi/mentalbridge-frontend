@@ -151,7 +151,6 @@ describe('AdminAuditLog', () => {
     ['SPECIALIST_REJECTED', 'Từ chối chuyên gia'],
     ['SPECIALIST_SUSPENDED', 'Đình chỉ chuyên gia'],
     ['SPECIALIST_RESTORED', 'Khôi phục chuyên gia'],
-    ['RESOURCE_PUBLISHED', 'Xuất bản tài nguyên'],
     ['RESOURCE_ARCHIVED', 'Lưu trữ tài nguyên'],
     ['SAFETY_DIRECTORY_REVIEWED', 'Duyệt danh mục an toàn'],
     ['SAFETY_DIRECTORY_DEACTIVATED', 'Ngừng kích hoạt danh mục an toàn'],
