@@ -118,3 +118,62 @@
     width: 100%;
   }
 }
+
+.specialist {
+  grid-column: 1 / -1;
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  font-size: 14px;
+}
+.specialist > summary {
+  min-height: 44px;
+  padding: 12px 16px;
+  color: var(--teal-deep);
+}
+.briefLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+}
+.specialist .heading h4 {
+  color: var(--ink);
+  font-family: var(--font-body), sans-serif;
+}
+.specialist .heading button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--teal-deep);
+}
+.specialist .heading p,
+.specialist .notice {
+  color: var(--ink-soft);
+}
+.specialist .snapshot {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.specialist .snapshot > div {
+  min-width: 0;
+  padding: 16px;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.specialist .snapshot p,
+.specialist .snapshot ul {
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+}
