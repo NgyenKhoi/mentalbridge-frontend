@@ -1,0 +1,536 @@
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--space-8);
+  width: min(100%, var(--wrap));
+  margin-inline: auto;
+  padding: var(--space-8) var(--space-5) var(--space-12);
+  color: var(--ink);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-8);
+  padding: clamp(var(--space-6), 4vw, var(--space-10));
+  border: 1px solid color-mix(in srgb, var(--teal-pale) 70%, var(--line));
+  border-radius: var(--radius-shell);
+  background: linear-gradient(115deg, var(--surface), color-mix(in srgb, var(--teal-pale) 47%, var(--surface)));
+  box-shadow: var(--elevation-1);
+}
+
+.heroContent {
+  min-width: 0;
+  max-width: 760px;
+}
+
+.heroContent h1,
+.sectionHeading h2,
+.metricsCard h2,
+.safetyCard h2,
+.choiceCard h2,
+.resourcesPanel h2 {
+  margin: 0;
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces), Georgia, serif;
+  line-height: 1.2;
+}
+
+.heroContent h1 {
+  margin-top: var(--space-3);
+  font-size: 32px;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+@media (max-width: 860px) {
+  .heroContent h1 {
+    font-size: 26px;
+  }
+}
+
+.heroContent p {
+  max-width: 70ch;
+  margin: var(--space-3) 0 0;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.heroMeta > * {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--teal-deep);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.heroMeta .heroStatus,
+.heroStatus {
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.heroActions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  min-width: max-content;
+}
+
+.heroPrimary,
+.heroSecondary,
+.actionLink,
+.safetyLink,
+.resourceLink,
+.historyLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+}
+
+.heroPrimary {
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--teal-deep);
+  background: var(--teal-deep);
+  color: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+
+.heroPrimary:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.heroSecondary {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid transparent;
+  color: var(--teal-deep);
+  font-size: 0.86rem;
+}
+
+.loading,
+.state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 82px;
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-shell);
+  background: var(--surface);
+  color: var(--ink-soft);
+  box-shadow: var(--elevation-1);
+}
+
+.state {
+  flex-wrap: wrap;
+}
+
+.state p {
+  margin: 0;
+}
+
+.spinner {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  animation: support-guide-spin 800ms linear infinite;
+}
+
+.priority,
+.resourcesPanel {
+  min-width: 0;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.sectionHeading h2,
+.resourcesPanel h2 {
+  font-size: clamp(1.5rem, 2.4vw, 1.85rem);
+}
+
+.sectionHeading small {
+  color: var(--teal-deep);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sectionHeading p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.priorityGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.actionCard,
+.metricsCard,
+.safetyCard,
+.choiceCard,
+.resourcesPanel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-shell);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+
+.actionCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: 290px;
+  padding: var(--space-5);
+}
+
+.actionCard h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+
+.actionCard p,
+.resourceCard p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.actionIcon {
+  display: grid;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: var(--radius-control);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.actionTag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 26px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--teal-pale) 75%, var(--surface));
+  color: var(--teal-deep);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.actionLink {
+  width: 100%;
+  margin-top: auto;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--teal-pale);
+  background: color-mix(in srgb, var(--teal-pale) 44%, var(--surface));
+  color: var(--teal-deep);
+}
+
+.actionCard:first-child .actionLink {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  color: var(--surface);
+}
+
+.evaluationGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-5);
+}
+
+.metricsCard,
+.safetyCard,
+.choiceCard {
+  padding: var(--space-6);
+}
+
+.metricHeading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.metricHeading h2,
+.safetyCard h2,
+.choiceCard h2 {
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+}
+
+.scoreRow {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-soft) 48%, var(--surface));
+}
+
+.scoreTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.scoreTop strong {
+  color: var(--teal-deep);
+}
+
+.scoreTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+}
+
+.scoreFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal-deep);
+}
+
+.mainFinding {
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--teal-pale) 42%, var(--surface));
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.mainFinding p {
+  margin: 0;
+}
+
+.sideStack {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.safetyCard {
+  background: color-mix(in srgb, var(--terracotta-soft) 48%, var(--surface));
+}
+
+.safetyCard p,
+.choiceCard p {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.safetyLink {
+  width: fit-content;
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--teal-deep);
+  background: var(--teal-deep);
+  color: var(--surface);
+}
+
+.resourcesPanel {
+  padding: var(--space-6);
+}
+
+.resourceGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.resourceCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: 190px;
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--teal-pale) 62%, var(--line));
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--teal-pale) 28%, var(--surface));
+}
+
+.resourceCard h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.resourceLink {
+  justify-content: flex-start;
+  width: fit-content;
+  margin-top: auto;
+  padding: 0;
+  color: var(--teal-deep);
+  font-size: 0.85rem;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-2) 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.footer p {
+  margin: 0;
+}
+
+.historyLink {
+  min-height: 44px;
+  color: var(--teal-deep);
+}
+
+.history {
+  flex-basis: 100%;
+}
+
+.history summary,
+.history a,
+.history button {
+  color: var(--teal-deep);
+  cursor: pointer;
+}
+
+.history summary {
+  width: fit-content;
+  min-height: 44px;
+  align-content: center;
+  font-weight: 700;
+}
+
+.history ul {
+  display: grid;
+  gap: var(--space-2);
+  padding-left: var(--space-5);
+}
+
+.history button {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+}
+
+.page :is(a, button):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal) 35%, transparent);
+  outline-offset: 3px;
+}
+
+@container (max-width: 760px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .heroActions {
+    align-items: flex-start;
+    min-width: 0;
+  }
+
+  .priorityGrid,
+  .resourceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .evaluationGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container (max-width: 650px) {
+  .priorityGrid,
+  .resourceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionCard {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .page {
+    gap: var(--space-6);
+    padding: var(--space-5) var(--space-4) var(--space-8);
+  }
+
+  .hero,
+  .metricsCard,
+  .safetyCard,
+  .choiceCard,
+  .resourcesPanel {
+    padding: var(--space-5);
+  }
+
+  .heroActions,
+  .heroPrimary {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+@keyframes support-guide-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

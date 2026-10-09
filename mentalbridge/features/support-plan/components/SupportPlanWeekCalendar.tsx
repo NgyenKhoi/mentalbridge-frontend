@@ -17,6 +17,9 @@ interface SupportPlanWeekCalendarProps {
   weekRangeLabel: string
   viewMode?: 'calendar' | 'list'
   onViewModeChange?: (mode: 'calendar' | 'list') => void
+  listFilter?: 'all' | 'incomplete' | 'completed'
+  onListFilterChange?: (filter: 'all' | 'incomplete' | 'completed') => void
+  listCounts?: { all: number; incomplete: number; completed: number }
   pausedStatusBadge?: React.ReactNode
 }
 
@@ -49,11 +52,14 @@ export default function SupportPlanWeekCalendar({
   weekRangeLabel,
   viewMode = 'calendar',
   onViewModeChange,
+  listFilter = 'all',
+  onListFilterChange,
+  listCounts,
   pausedStatusBadge,
 }: SupportPlanWeekCalendarProps) {
   return (
     <section
-      className="support-plan-week-calendar"
+      className={`support-plan-week-calendar${viewMode === 'list' ? ' is-list-view' : ''}`}
       aria-label="Lịch trình chăm sóc 7 ngày"
     >
       {/* Calendar Header Controls: Aligned horizontally */}
@@ -67,7 +73,9 @@ export default function SupportPlanWeekCalendar({
               Lịch trình chăm sóc 7 ngày
             </h3>
             <p className="support-plan-calendar-subtitle">
-              Chọn một ngày để lọc và xem bài tập tương ứng
+              {viewMode === 'list'
+                ? 'Các hoạt động trong tuần theo thứ tự thời gian'
+                : 'Chọn một ngày để lọc và xem bài tập tương ứng'}
             </p>
           </div>
           {pausedStatusBadge}
@@ -83,6 +91,7 @@ export default function SupportPlanWeekCalendar({
               <button
                 type="button"
                 className={`support-plan-view-btn ${viewMode === 'calendar' ? 'is-active' : ''}`}
+                aria-pressed={viewMode === 'calendar'}
                 onClick={() => onViewModeChange('calendar')}
               >
                 <SupportPlanIcon name="calendar_view_week" size={16} />
@@ -91,6 +100,7 @@ export default function SupportPlanWeekCalendar({
               <button
                 type="button"
                 className={`support-plan-view-btn ${viewMode === 'list' ? 'is-active' : ''}`}
+                aria-pressed={viewMode === 'list'}
                 onClick={() => onViewModeChange('list')}
               >
                 <SupportPlanIcon name="view_agenda" size={16} />
@@ -125,6 +135,27 @@ export default function SupportPlanWeekCalendar({
         </div>
       </div>
 
+      {viewMode === 'list' && onListFilterChange && listCounts ? (
+        <div className="support-plan-list-filters" role="group" aria-label="Lọc hoạt động trong tuần">
+          {([
+            ['all', 'Tất cả'],
+            ['incomplete', 'Chưa hoàn thành'],
+            ['completed', 'Đã hoàn thành'],
+          ] as const).map(([filter, label]) => (
+            <button
+              key={filter}
+              type="button"
+              className={`support-plan-list-filter${listFilter === filter ? ' is-active' : ''}`}
+              aria-pressed={listFilter === filter}
+              onClick={() => onListFilterChange(filter)}
+            >
+              {label} <span>{listCounts[filter]}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {viewMode === 'calendar' ? <>
       {/* 7-Day Grid */}
       <div
         className="support-plan-calendar-grid"
@@ -254,6 +285,7 @@ export default function SupportPlanWeekCalendar({
           <span>Nghỉ ngơi linh hoạt</span>
         </div>
       </div>
+      </> : null}
     </section>
   )
 }
