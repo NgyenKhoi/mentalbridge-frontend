@@ -16,14 +16,24 @@ export function SpecialistHomeScreen() {
         Không gian chuyên môn của bạn
       </Text>
       <Text style={styles.description}>
-        Hoàn thiện hồ sơ nghề nghiệp, theo dõi trạng thái xét duyệt và quản lý
-        các khung giờ tư vấn trực tuyến từ một nơi.
+        Quản lý lịch hẹn được giao, chuẩn bị cho phiên tư vấn và cập nhật hồ sơ,
+        lịch làm việc của bạn từ một nơi.
       </Text>
       <View style={styles.actions}>
         <PrimaryButton
-          label="Quản lý hồ sơ nghề nghiệp"
-          onPress={() => router.push('./profile')}
+          label="Mở lịch hẹn tư vấn"
+          onPress={() => router.push('./appointments')}
         />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('./profile')}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.secondaryLabel}>Quản lý hồ sơ nghề nghiệp</Text>
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => router.push('./availability')}
