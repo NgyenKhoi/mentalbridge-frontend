@@ -72,6 +72,17 @@ describe('ResourcesExperience', () => {
     vi.setSystemTime(new Date('2026-09-29T09:00:00+07:00'))
     sessionStorage.clear()
     vi.stubGlobal('scrollTo', vi.fn())
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    )
+    vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(
+      () => undefined,
+    )
     api.getResourceCatalogue.mockResolvedValue({
       items: resources,
       hasMore: false,
@@ -120,6 +131,7 @@ describe('ResourcesExperience', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('renders the daily journey, filters, bingo, and recent section', async () => {
@@ -129,13 +141,13 @@ describe('ResourcesExperience', () => {
       await screen.findByRole('heading', { name: /một chút bình yên/i }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: /chọn điều bạn cần/i }),
+      screen.getByRole('heading', { name: /kho tài nguyên/i }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: /bingo tuần này/i }),
+      screen.getByRole('heading', { name: /bingo chăm sóc tuần này/i }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: /vừa hoàn thành/i }),
+      screen.getByRole('heading', { name: /dấu ấn gần đây/i }),
     ).toBeVisible()
     expect(screen.getAllByRole('checkbox')).toHaveLength(4)
     expect(screen.getByRole('button', { name: 'Nhẹ nhàng' })).toBeVisible()
@@ -169,19 +181,24 @@ describe('ResourcesExperience', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     render(<ResourcesExperience />)
 
-    await screen.findByRole('heading', { name: /chọn điều bạn cần/i })
+    await screen.findByRole('heading', { name: /kho tài nguyên/i })
     await user.click(screen.getByRole('button', { name: 'Thử thách' }))
-    expect(screen.getByRole('status')).toHaveTextContent('1 hoạt động phù hợp')
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '1 hoạt động để khám phá',
+    )
 
     await user.click(screen.getByRole('button', { name: 'Video' }))
     expect(
       screen.getByRole('heading', { name: /chưa có hoạt động khớp bộ lọc/i }),
     ).toBeVisible()
 
-    await user.click(
-      screen.getByRole('button', { name: 'Xem tất cả hoạt động' }),
-    )
-    expect(screen.getAllByRole('link', { name: /khám phá:/i })).toHaveLength(4)
+    await user.click(screen.getByRole('button', { name: 'Tất cả' }))
+    await user.click(screen.getByRole('button', { name: 'Mọi loại' }))
+    expect(
+      within(
+        screen.getByRole('region', { name: 'Kho tài nguyên' }),
+      ).getAllByRole('link', { name: /khám phá hoạt động:/i }),
+    ).toHaveLength(4)
   })
 
   it('does not celebrate completion when the selected day has no activities', async () => {
@@ -197,16 +214,20 @@ describe('ResourcesExperience', () => {
     await screen.findByRole('heading', { name: /một chút bình yên/i })
     await user.click(
       within(
-        screen.getByRole('group', { name: 'Chọn ngày trong 7 ngày gần đây' }),
+        screen.getByRole('complementary', {
+          name: 'Nhịp chăm sóc của bạn',
+        }),
       ).getAllByRole('button')[0],
     )
 
-    expect(screen.getByText('Ngày này chưa có hoạt động')).toBeVisible()
+    expect(
+      screen.getByText('Ngày này chưa có hoạt động được xếp lịch.'),
+    ).toBeVisible()
     expect(
       screen.queryByText('Bạn đã dành trọn một khoảng nhỏ cho mình.'),
     ).toBeNull()
     expect(
-      screen.getByRole('heading', { name: /chọn điều bạn cần/i }),
+      screen.getByRole('heading', { name: /kho tài nguyên/i }),
     ).toBeVisible()
   })
 })

@@ -87,9 +87,13 @@ describe('SupportPlanSchedule', () => {
       screen.getByText(/không phải đánh giá tuân thủ điều trị/),
     ).toBeVisible()
     expect(api.getSupportPlanOccurrences).toHaveBeenCalledWith(
-      today,
-      expect.any(String),
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     )
+    const [weekStart, weekEnd] = api.getSupportPlanOccurrences.mock.calls[0]
+    expect(new Date(`${weekStart}T00:00:00Z`).getUTCDay()).toBe(1)
+    expect(new Date(`${weekEnd}T00:00:00Z`).getUTCDay()).toBe(0)
+    expect(weekStart <= today && today <= weekEnd).toBe(true)
   })
 
   it('allows selecting a calendar day with the keyboard', async () => {

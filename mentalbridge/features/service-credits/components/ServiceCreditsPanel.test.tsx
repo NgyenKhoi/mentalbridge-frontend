@@ -51,17 +51,21 @@ describe('ServiceCreditsPanel', () => {
 
   it('shows the provider balance and labels demo provenance truthfully', async () => {
     get.mockResolvedValue(demo)
+    const user = userEvent.setup()
     render(<ServiceCreditsPanel />)
-    expect(
-      await screen.findByRole('heading', { name: 'Plus' }),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/Lượt tư vấn dùng thử/)).toBeInTheDocument()
-    expect(screen.getByText('Còn lại').previousSibling).toHaveTextContent('4')
+    expect(await screen.findByText('Gói Plus dùng thử')).toBeInTheDocument()
+    expect(screen.getByLabelText('Số lượt tư vấn')).toHaveTextContent(
+      'Còn lại4 buổi',
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Lịch sử lượt tư vấn' }),
+    )
     expect(
       screen.getByRole('heading', { name: '2/2 lịch' }),
     ).toBeInTheDocument()
     expect(screen.getByText(/đang diễn ra/)).toBeInTheDocument()
     expect(screen.getByText(/chỉ cấp thêm phần chênh lệch/)).toBeInTheDocument()
+    expect(screen.getAllByText('Demo')).not.toHaveLength(0)
   })
 
   it('reloads the owner balance after a transient failure', async () => {
@@ -70,8 +74,6 @@ describe('ServiceCreditsPanel', () => {
     render(<ServiceCreditsPanel />)
     await user.click(await screen.findByRole('button', { name: 'Thử lại' }))
     await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
-    expect(
-      await screen.findByRole('heading', { name: 'Plus' }),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Gói Plus dùng thử')).toBeInTheDocument()
   })
 })
