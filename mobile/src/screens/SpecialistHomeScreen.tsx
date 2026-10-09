@@ -1,19 +1,50 @@
-import { StyleSheet, Text } from 'react-native'
+import { router } from 'expo-router'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
+import { useSession } from '@/auth/session-context'
+import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
-import { colors, spacing, typography } from '@/theme/tokens'
+import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 export function SpecialistHomeScreen() {
+  const { signOut } = useSession()
+
   return (
     <Screen>
       <Text style={styles.eyebrow}>DÀNH CHO CHUYÊN GIA</Text>
       <Text accessibilityRole="header" style={styles.title}>
-        Không gian làm việc của bạn
+        Không gian chuyên môn của bạn
       </Text>
       <Text style={styles.description}>
-        Nội dung dành cho chuyên gia sẽ xuất hiện tại đây sau khi phiên đăng
-        nhập và vai trò được xác nhận.
+        Hoàn thiện hồ sơ nghề nghiệp, theo dõi trạng thái xét duyệt và quản lý
+        các khung giờ tư vấn trực tuyến từ một nơi.
       </Text>
+      <View style={styles.actions}>
+        <PrimaryButton
+          label="Quản lý hồ sơ nghề nghiệp"
+          onPress={() => router.push('./profile')}
+        />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('./availability')}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.secondaryLabel}>Quản lý lịch khả dụng</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void signOut()}
+          style={({ pressed }) => [
+            styles.signOutButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.signOutLabel}>Đăng xuất</Text>
+        </Pressable>
+      </View>
     </Screen>
   )
 }
@@ -37,5 +68,37 @@ const styles = StyleSheet.create({
     color: colors.inkSoft,
     fontSize: typography.body,
     lineHeight: typography.bodyLineHeight,
+    marginBottom: spacing.xl,
+  },
+  actions: {
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  secondaryButton: {
+    borderColor: colors.tealDeep,
+    borderRadius: radii.control,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  secondaryLabel: {
+    color: colors.tealDeep,
+    fontSize: typography.body,
+    fontWeight: '700',
+  },
+  signOutButton: {
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+  },
+  signOutLabel: {
+    color: colors.tealDeep,
+    fontSize: typography.body,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.65,
   },
 })

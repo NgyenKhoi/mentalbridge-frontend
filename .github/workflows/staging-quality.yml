@@ -136,6 +136,8 @@ jobs:
       MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
       MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL: ${{ secrets.MB_SUPPORT_PLAN_USER_EMAIL }}
       MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD: ${{ secrets.MB_SUPPORT_PLAN_USER_PASSWORD }}
+      MAESTRO_MB_SPECIALIST_EMAIL: ${{ secrets.MB_SPECIALIST_EMAIL }}
+      MAESTRO_MB_SPECIALIST_PASSWORD: ${{ secrets.MB_SPECIALIST_PASSWORD }}
       MAESTRO_VERSION: '2.11.0'
       ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
     steps:
@@ -160,8 +162,8 @@ jobs:
 
       - name: Require protected staging inputs
         run: |
-          if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD" ]]; then
-            echo "Protected staging edge, assessment USER, and SupportPlan USER fixture secrets are required." >&2
+          if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD" || -z "$MAESTRO_MB_SPECIALIST_EMAIL" || -z "$MAESTRO_MB_SPECIALIST_PASSWORD" ]]; then
+            echo "Protected staging edge, USER, SupportPlan, and SPECIALIST fixture secrets are required." >&2
             exit 1
           fi
 
@@ -187,7 +189,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           working-directory: mobile
-          script: npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion && npm run e2e:android:support-plan && npm run e2e:android:resources && npm run e2e:android:journal
+          script: npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion && npm run e2e:android:support-plan && npm run e2e:android:resources && npm run e2e:android:journal && npm run e2e:android:specialist
 
       - name: Upload Android native evidence
         if: always()
