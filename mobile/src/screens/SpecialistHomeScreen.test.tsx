@@ -18,7 +18,17 @@ describe('SPECIALIST home screen', () => {
     jest.clearAllMocks()
   })
 
-  it('opens the professional profile journey', async () => {
+  it('opens the appointment workbench as the primary journey', async () => {
+    await render(<SpecialistHomeScreen />)
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Mở lịch hẹn tư vấn' }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('./appointments')
+  })
+
+  it('keeps the professional profile journey available', async () => {
     await render(<SpecialistHomeScreen />)
 
     await fireEvent.press(
