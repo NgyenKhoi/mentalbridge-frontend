@@ -65,7 +65,7 @@ describe('product journey metrics BFF', () => {
       sources: [
         {
           source: 'IDENTITY',
-          sourceVersion: 'identity-account-projection-v1',
+          sourceVersion: 'identity-account-projection-v2',
           status: 'AVAILABLE',
           asOf: '2026-10-09T08:00:00Z',
           unavailableReason: null,
@@ -86,7 +86,7 @@ describe('product journey metrics BFF', () => {
         },
       ],
       stages: [
-        ...['REGISTERED_ACCOUNTS', 'ACTIVE_REGISTERED_ACCOUNTS'].map(
+        ...['USER_ACCOUNTS_REGISTERED', 'USER_ACCOUNTS_ACTIVATED'].map(
           (stage) => ({
             stage,
             source: 'IDENTITY',
@@ -137,5 +137,22 @@ describe('product journey metrics BFF', () => {
     expect(url).toContain('/api/v1/admin/product-journey-metrics?')
     expect(url).toContain('from=2026-10-02T08%3A00%3A00Z')
     expect(url).not.toContain('score')
+
+    vi.mocked(fetch).mockReset()
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(json(account()))
+      .mockResolvedValueOnce(
+        json({
+          ...body,
+          window: {
+            from: '2026-10-01T08:00:00Z',
+            to: '2026-10-09T08:00:00Z',
+          },
+        }),
+      )
+    const mismatchedWindow = await GET(
+      request('from=2026-10-02T08%3A00%3A00Z&to=2026-10-09T08%3A00%3A00Z'),
+    )
+    expect(mismatchedWindow.status).toBe(502)
   })
 })

@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Read privacy-bounded appointment journey aggregates
-         * @description Counts appointments requested in the explicit window and whether that same request cohort ever reached confirmed or completed. No participant, brief, summary, chat, clinical, or private-note data is returned.
+         * @description Counts request, confirmation, and completion events whose authoritative timestamps fall inside the explicit half-open window. No participant, brief, summary, chat, clinical, or private-note data is returned.
          */
         get: operations["getConsultationProductJourneyMetrics"];
         put?: never;
@@ -984,7 +984,7 @@ export interface components {
             /** @constant */
             source: "CONSULTATION";
             /** @constant */
-            sourceVersion: "consultation-product-journey-v1";
+            sourceVersion: "consultation-product-journey-v2";
             /** Format: date-time */
             asOf: string;
             /** Format: int64 */
@@ -2378,7 +2378,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Aggregate lifecycle facts for the requested appointment cohort */
+            /** @description Aggregate appointment lifecycle events recorded inside the requested window */
             200: {
                 headers: {
                     [name: string]: unknown;

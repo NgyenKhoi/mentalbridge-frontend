@@ -271,7 +271,7 @@ export interface paths {
         };
         /**
          * Read privacy-bounded aggregate product journey facts
-         * @description Returns descriptive aggregate activity only. It does not represent clinical effectiveness, recovery, or causation. Unavailable owner capabilities remain explicitly unavailable.
+         * @description Returns independent event totals whose authoritative timestamps fall inside the same half-open [from,to) window. Identity stages include USER registrations and USER email-verification activations only; SPECIALIST and ADMIN accounts are excluded. It does not represent conversion, clinical effectiveness, recovery, or causation. Unavailable owner capabilities remain explicitly unavailable.
          */
         get: operations["getProductJourneyMetrics"];
         put?: never;
@@ -421,7 +421,7 @@ export interface components {
         };
         ProductJourneyStage: {
             /** @enum {string} */
-            stage: "REGISTERED_ACCOUNTS" | "ACTIVE_REGISTERED_ACCOUNTS" | "COMPLETED_SCREENING_EPISODES" | "SUPPORT_GUIDES_GENERATED" | "SUPPORT_GUIDES_OPENED" | "PAID_SUPPORT_PLANS_ACTIVATED" | "CONSULTATIONS_REQUESTED" | "CONSULTATIONS_CONFIRMED" | "CONSULTATIONS_COMPLETED";
+            stage: "USER_ACCOUNTS_REGISTERED" | "USER_ACCOUNTS_ACTIVATED" | "COMPLETED_SCREENING_EPISODES" | "SUPPORT_GUIDES_GENERATED" | "SUPPORT_GUIDES_OPENED" | "PAID_SUPPORT_PLANS_ACTIVATED" | "CONSULTATIONS_REQUESTED" | "CONSULTATIONS_CONFIRMED" | "CONSULTATIONS_COMPLETED";
             /** @enum {string} */
             source: "IDENTITY" | "CARE" | "CONSULTATION";
             /** @enum {string} */
@@ -434,7 +434,7 @@ export interface components {
         };
         ProductJourneyRate: {
             /** @enum {string} */
-            denominatorStage: "REGISTERED_ACCOUNTS" | "CONSULTATIONS_REQUESTED";
+            denominatorStage: "USER_ACCOUNTS_REGISTERED" | "CONSULTATIONS_REQUESTED";
             percentage: number;
         };
         /** @enum {string} */

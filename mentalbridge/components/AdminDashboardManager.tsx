@@ -9,8 +9,8 @@ import './admin-dashboard-manager.css'
 type RangeDays = 7 | 30 | 90
 
 const LABELS: Record<string, string> = {
-  REGISTERED_ACCOUNTS: 'Tài khoản đăng ký',
-  ACTIVE_REGISTERED_ACCOUNTS: 'Tài khoản hiện còn hoạt động',
+  USER_ACCOUNTS_REGISTERED: 'Tài khoản người dùng đăng ký',
+  USER_ACCOUNTS_ACTIVATED: 'Tài khoản người dùng được kích hoạt',
   COMPLETED_SCREENING_EPISODES: 'Lượt hoàn thành sàng lọc',
   SUPPORT_GUIDES_GENERATED: 'Gợi ý hỗ trợ đã tạo',
   SUPPORT_GUIDES_OPENED: 'Gợi ý hỗ trợ đã mở',
@@ -48,10 +48,10 @@ async function fetchMetrics(days: RangeDays) {
   return (await response.json()) as ProductJourneyMetrics
 }
 
-export default function AdminDashboardManager({
+export function ProductJourneyMetricsPanel({
   onNotice,
 }: {
-  onNotice: (message: string) => void
+  onNotice?: (message: string) => void
 }) {
   const [range, setRange] = useState<RangeDays>(30)
   const [metrics, setMetrics] = useState<ProductJourneyMetrics | null>(null)
@@ -65,7 +65,7 @@ export default function AdminDashboardManager({
       try {
         const next = await fetchMetrics(days)
         setMetrics(next)
-        if (announce) onNotice('Đã cập nhật số liệu hành trình sản phẩm.')
+        if (announce) onNotice?.('Đã cập nhật số liệu hành trình sản phẩm.')
       } catch {
         setError(true)
         setMetrics(null)
@@ -153,13 +153,21 @@ export default function AdminDashboardManager({
             <span>TỔNG HỢP TOÀN NỀN TẢNG</span>
             <h2 id="journey-title">Các mốc hoạt động</h2>
             <p>
-              Mỗi con số là một sự kiện hoặc trạng thái trong cửa sổ đã chọn.
-              Chúng không chứng minh hiệu quả lâm sàng hay quan hệ nguyên
-              nhân–kết quả.
+              Mỗi con số là một sự kiện được nguồn thẩm quyền ghi nhận trong cửa
+              sổ nửa mở [từ, đến). Các mốc là tổng độc lập, không phải một
+              cohort chuyển đổi và không chứng minh hiệu quả lâm sàng hay quan
+              hệ nguyên nhân–kết quả.
             </p>
           </div>
           {metrics ? (
-            <small>Chốt lúc {formatInstant(metrics.asOf)}</small>
+            <div className="adm-window-provenance">
+              <small>
+                Khoảng dữ liệu: {formatInstant(metrics.window.from)} –{' '}
+                {formatInstant(metrics.window.to)} (không gồm thời điểm kết
+                thúc)
+              </small>
+              <small>Chốt dữ liệu: {formatInstant(metrics.asOf)}</small>
+            </div>
           ) : null}
         </header>
 
@@ -233,3 +241,5 @@ export default function AdminDashboardManager({
     </div>
   )
 }
+
+export default ProductJourneyMetricsPanel
