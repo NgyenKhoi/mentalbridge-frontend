@@ -1,0 +1,248 @@
+.workspace {
+  display: grid;
+  gap: 24px;
+  width: min(1180px, 100%);
+}
+
+.header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.header > div {
+  max-width: 720px;
+}
+
+.header span {
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.header h1 {
+  margin: 10px 0 8px;
+  font-size: clamp(32px, 4vw, 48px);
+}
+
+.header p,
+.retention {
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.header button,
+.filterActions button,
+.pagination button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--teal-deep);
+  border-radius: 10px;
+  background: var(--teal-deep);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.header button:disabled,
+.filterActions button:disabled,
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.filters label {
+  display: grid;
+  gap: 7px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.filters input,
+.filters select {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.filters input:focus-visible,
+.filters select:focus-visible,
+.header button:focus-visible,
+.filterActions button:focus-visible,
+.pagination button:focus-visible {
+  outline: 3px solid var(--teal-pale);
+  outline-offset: 2px;
+}
+
+.target {
+  grid-column: span 2;
+}
+
+.filterActions {
+  grid-column: span 2;
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.filterActions button:last-child,
+.pagination button {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--teal-deep);
+}
+
+.error {
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, #b42318 32%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, #b42318 8%, var(--surface));
+  color: #8f1f17;
+}
+
+.summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.summary strong {
+  color: var(--ink);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tableWrap table {
+  width: 100%;
+  min-width: 960px;
+  border-collapse: collapse;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.tableWrap th {
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tableWrap td {
+  font-size: 14px;
+}
+
+.tableWrap td strong,
+.tableWrap td small {
+  display: block;
+}
+
+.tableWrap td small {
+  margin-top: 4px;
+  color: var(--ink-soft);
+}
+
+.tableWrap code {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.tableWrap [data-result='SUCCEEDED'] {
+  color: var(--teal-deep);
+}
+
+.tableWrap [data-result='DENIED'],
+.tableWrap [data-result='FAILED'] {
+  color: #9a3412;
+}
+
+.empty {
+  padding: 36px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.empty p {
+  margin-top: 6px;
+  color: var(--ink-soft);
+}
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.retention {
+  margin: 0;
+  font-size: 13px;
+}
+
+@media (max-width: 980px) {
+  .header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .target,
+  .filterActions {
+    grid-column: auto;
+  }
+
+  .filterActions,
+  .summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header button,
+  .filterActions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace * {
+    scroll-behavior: auto;
+  }
+}

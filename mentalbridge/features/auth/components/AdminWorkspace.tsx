@@ -6,6 +6,7 @@ import AdminContentSection from './AdminContentSection'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
 import AdminAccountManager from './AdminAccountManager'
 import AdminCommunityModerationSection from '@/features/community/components/AdminCommunityModerationSection'
+import AdminAuditLog from '@/features/audit/components/AdminAuditLog'
 import AdminAppointmentMonitor from '@/features/appointments/components/AdminAppointmentMonitor'
 import AdminAppointmentDisputes from '@/features/appointments/components/AdminAppointmentDisputes'
 import styles from './AdminWorkspace.module.css'
@@ -48,7 +49,7 @@ const SECTIONS = {
   audit: {
     label: 'Nhật ký kiểm toán',
     description:
-      'Khu vực theo dõi hoạt động quản trị sau khi nguồn dữ liệu audit được tích hợp.',
+      'Tra cứu và xuất dấu vết hoạt động quản trị đã được tối thiểu hóa.',
   },
 } as const
 
@@ -104,6 +105,8 @@ export default function AdminWorkspace({
           <AdminAccountManager />
         ) : section === 'moderation' ? (
           <AdminCommunityModerationSection />
+        ) : section === 'audit' ? (
+          <AdminAuditLog />
         ) : section === 'appointments' ? (
           <AdminAppointmentMonitor />
         ) : section === 'disputes' ? (

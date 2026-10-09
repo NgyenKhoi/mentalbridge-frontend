@@ -3,6 +3,8 @@ import type {
   AccountPage,
   AccountStateChangeRequest,
   AccountStatus,
+  AdministrationAuditEvent,
+  AdministrationAuditEventPage,
   AccountSummary,
   ChallengeRequest,
   EmailRequest,
@@ -42,6 +44,22 @@ const PUBLIC_REGISTRATION_ROLES = new Set<PublicRegistrationRole>([
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const SAFE_CODE_PATTERN = /^[A-Z0-9_]{1,96}$/
+const SAFE_ACTOR_PATTERN =
+  /^(account:[0-9a-f-]{36}|tombstone:[0-9a-f]{64}|system)$/i
+const SAFE_TARGET_PATTERN = /^(account:[0-9a-f-]{36}|tombstone:[0-9a-f]{64})$/i
+const VALID_AUDIT_SERVICES = new Set([
+  'IDENTITY',
+  'CONSULTATION',
+  'CONTENT',
+  'COMMUNITY',
+])
+const VALID_AUDIT_DOMAINS = new Set([
+  'ACCOUNT_ADMINISTRATION',
+  'SPECIALIST_REVIEW',
+  'RESOURCE_MANAGEMENT',
+  'COMMUNITY_MODERATION',
+])
 const PLATFORM_REPORT_STATUSES = new Set([
   'QUEUED',
   'RUNNING',
@@ -473,6 +491,87 @@ export function parseAccountPage(value: unknown): AccountPage | null {
   if (value.nextCursor !== null && typeof value.nextCursor !== 'string')
     return null
   return { items, nextCursor: value.nextCursor as string | null }
+}
+
+function parseAdministrationAuditEvent(
+  value: unknown,
+): AdministrationAuditEvent | null {
+  if (!isRecord(value)) return null
+  if (
+    !hasOnlyKeys(value, [
+      'eventId',
+      'occurredAt',
+      'actorType',
+      'actorIdentifier',
+      'action',
+      'result',
+      'reasonCode',
+      'correlationId',
+      'sourceService',
+      'domain',
+      'targetIdentifier',
+    ])
+  ) {
+    return null
+  }
+  if (
+    typeof value.eventId !== 'string' ||
+    !UUID_PATTERN.test(value.eventId) ||
+    !isDateTime(value.occurredAt) ||
+    !['ADMIN', 'SYSTEM'].includes(String(value.actorType)) ||
+    typeof value.actorIdentifier !== 'string' ||
+    !SAFE_ACTOR_PATTERN.test(value.actorIdentifier) ||
+    typeof value.action !== 'string' ||
+    !SAFE_CODE_PATTERN.test(value.action) ||
+    !['SUCCEEDED', 'DENIED', 'FAILED'].includes(String(value.result)) ||
+    (value.reasonCode !== null &&
+      (typeof value.reasonCode !== 'string' ||
+        !SAFE_CODE_PATTERN.test(value.reasonCode))) ||
+    typeof value.correlationId !== 'string' ||
+    !UUID_PATTERN.test(value.correlationId) ||
+    !VALID_AUDIT_SERVICES.has(String(value.sourceService)) ||
+    !VALID_AUDIT_DOMAINS.has(String(value.domain)) ||
+    (value.actorType === 'SYSTEM' && value.actorIdentifier !== 'system') ||
+    (value.actorType === 'ADMIN' && value.actorIdentifier === 'system') ||
+    (value.targetIdentifier !== null &&
+      value.targetIdentifier !== undefined &&
+      (typeof value.targetIdentifier !== 'string' ||
+        !SAFE_TARGET_PATTERN.test(value.targetIdentifier)))
+  ) {
+    return null
+  }
+  return value as AdministrationAuditEvent
+}
+
+export function parseAdministrationAuditEventPage(
+  value: unknown,
+): AdministrationAuditEventPage | null {
+  if (!isRecord(value)) return null
+  if (
+    !hasOnlyKeys(value, [
+      'items',
+      'nextCursor',
+      'effectiveFrom',
+      'effectiveTo',
+      'retentionCutoff',
+    ]) ||
+    !Array.isArray(value.items) ||
+    (value.nextCursor !== null && typeof value.nextCursor !== 'string') ||
+    !isDateTime(value.effectiveFrom) ||
+    !isDateTime(value.effectiveTo) ||
+    !isDateTime(value.retentionCutoff)
+  ) {
+    return null
+  }
+  const items = value.items.map(parseAdministrationAuditEvent)
+  if (items.some((item) => item === null)) return null
+  return {
+    items: items as AdministrationAuditEvent[],
+    nextCursor: value.nextCursor as string | null,
+    effectiveFrom: value.effectiveFrom,
+    effectiveTo: value.effectiveTo,
+    retentionCutoff: value.retentionCutoff,
+  }
 }
 
 export function validateAccountStateChangeRequest(
