@@ -74,6 +74,12 @@ export const browserConsultation = {
       { method: 'POST', headers: { 'If-Match': etag } },
     )
   },
+  cancelAmendment(id: string, etag: string) {
+    return call<ProfileAmendment>(
+      `/api/consultation/specialist-profile/amendments/${encodeURIComponent(id)}/cancel`,
+      { method: 'POST', headers: { 'If-Match': etag } },
+    )
+  },
   profileAmendments(page = 0, signal?: AbortSignal) {
     return call<ProfileAmendments>(
       `/api/admin/specialist-profiles/amendments?page=${page}`,

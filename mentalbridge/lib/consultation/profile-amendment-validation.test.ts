@@ -22,6 +22,25 @@ describe('profile amendment provider validation', () => {
       }),
     ).not.toBeNull()
   })
+  it('accepts terminal cancellation only with cleared current review metadata', () => {
+    const cancelled = { ...draftAmendment, status: 'CANCELLED' }
+    expect(parseProfileAmendment(cancelled)).toEqual(cancelled)
+    expect(
+      parseProfileAmendment({
+        ...cancelled,
+        submittedAt: '2026-10-08T03:00:00Z',
+      }),
+    ).toBeNull()
+    expect(
+      parseProfileAmendment({
+        ...cancelled,
+        reasonCode: 'PROFILE_CONTENT_NOT_APPROVED',
+      }),
+    ).toBeNull()
+    expect(
+      parseProfileAmendments({ items: [cancelled], count: 1, hasMore: false }),
+    ).toBeNull()
+  })
   it('rejects malformed review provenance, mismatched owners and incomplete drafts', () => {
     expect(
       parseProfileAmendment({ ...draftAmendment, status: 'APPROVED' }),
