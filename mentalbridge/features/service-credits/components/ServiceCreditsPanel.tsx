@@ -1,5 +1,14 @@
 'use client'
 
+import {
+  CalendarCheck2,
+  CalendarX2,
+  CircleCheck,
+  History,
+  Hourglass,
+  RotateCw,
+  ShieldCheck,
+} from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { ServiceCreditAccount } from '@/lib/consultation/consultation-validation'
 import {
@@ -51,6 +60,7 @@ export default function ServiceCreditsPanel() {
   const [account, setAccount] = useState<ServiceCreditAccount | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showDetails, setShowDetails] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -74,13 +84,13 @@ export default function ServiceCreditsPanel() {
 
   if (loading)
     return (
-      <section className={styles.panel} aria-busy="true">
+      <section className={`${styles.panel} ${styles.feedback}`} aria-busy="true">
         <p>Đang tải lượt tư vấn…</p>
       </section>
     )
   if (error)
     return (
-      <section className={styles.panel}>
+      <section className={`${styles.panel} ${styles.feedback}`}>
         <p role="alert" className={styles.error}>
           {error}
         </p>
@@ -93,44 +103,51 @@ export default function ServiceCreditsPanel() {
 
   const paid = account.source === 'PAID'
   const demo = account.source === 'DEMO'
+  const balance = [
+    { label: 'Còn lại', value: account.balance.available, Icon: Hourglass },
+    { label: 'Đang giữ lịch', value: account.balance.held, Icon: CalendarCheck2 },
+    { label: 'Đã sử dụng', value: account.balance.consumed, Icon: CircleCheck },
+    { label: 'Hết hiệu lực', value: account.balance.forfeited, Icon: CalendarX2 },
+  ]
   return (
     <section className={styles.panel} aria-labelledby="credit-title">
-      <header>
-        <div>
-          <span className={styles.eyebrow}>Gói hiện tại</span>
-          <h1 id="credit-title">{PACKAGE_LABELS[account.packageCode]}</h1>
+      <header className={styles.status}>
+        <span className={styles.statusIcon} aria-hidden="true"><ShieldCheck size={20} /></span>
+        <div className={styles.statusCopy}>
+          <span className={styles.eyebrow}>Tài khoản hoạt động</span>
           <p>
-            {demo
-              ? 'Lượt tư vấn dùng thử — không phải quyền lợi đã thanh toán.'
-              : paid
-                ? 'Lượt tư vấn thuộc kỳ dịch vụ đã thanh toán.'
-                : 'Gói miễn phí không bao gồm lượt tư vấn.'}
+            Bạn đang sử dụng <strong id="credit-title">Gói {PACKAGE_LABELS[account.packageCode]}{demo ? ' dùng thử' : ''}</strong>.
+            {' '}{account.reservationCapacity.active === 0
+              ? 'Hiện tại chưa có lịch hẹn tư vấn nào đang chờ.'
+              : `Bạn đang giữ ${account.reservationCapacity.active} lịch hẹn tư vấn.`}
           </p>
         </div>
-        <button type="button" onClick={() => void load()}>
-          Tải lại
-        </button>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            onClick={() => setShowDetails((visible) => !visible)}
+            aria-expanded={showDetails}
+            aria-controls="service-credit-details"
+          >
+            <History size={16} aria-hidden="true" /> Lịch sử lượt tư vấn
+          </button>
+          <button type="button" onClick={() => void load()}>
+            <RotateCw size={16} aria-hidden="true" /> Tải lại
+          </button>
+        </div>
       </header>
 
       <div className={styles.balance} aria-label="Số lượt tư vấn">
-        <div className={styles.primary}>
-          <strong>{account.balance.available}</strong>
-          <span>Còn lại</span>
-        </div>
-        <div>
-          <strong>{account.balance.held}</strong>
-          <span>Đã dành cho lịch hẹn</span>
-        </div>
-        <div>
-          <strong>{account.balance.consumed}</strong>
-          <span>Đã sử dụng</span>
-        </div>
-        <div>
-          <strong>{account.balance.forfeited}</strong>
-          <span>Đã hết hiệu lực</span>
-        </div>
+        {balance.map(({ label, value, Icon }) => (
+          <div key={label} className={styles.metric}>
+            <span>{label}</span>
+            <strong>{value}<small> buổi</small></strong>
+            <span className={styles.metricIcon} aria-hidden="true"><Icon size={18} /></span>
+          </div>
+        ))}
       </div>
 
+      <div id="service-credit-details" className={styles.details} hidden={!showDetails}>
       <section className={styles.capacity} aria-labelledby="capacity-title">
         <div>
           <span className={styles.eyebrow}>Giới hạn lịch đang giữ</span>
@@ -202,6 +219,7 @@ export default function ServiceCreditsPanel() {
             ))}
           </ul>
         )}
+      </div>
       </div>
     </section>
   )
