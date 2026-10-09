@@ -58,13 +58,19 @@ function makeApi(overrides: Partial<SpecialistApi> = {}): SpecialistApi {
   }
 }
 
-async function renderScreen(ui: ReactElement) {
-  const client = new QueryClient({
+function createTestQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: Infinity },
       mutations: { retry: false, gcTime: Infinity },
     },
   })
+}
+
+async function renderScreen(
+  ui: ReactElement,
+  client = createTestQueryClient(),
+) {
   return await render(
     <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
   )
@@ -271,5 +277,70 @@ describe('SPECIALIST availability screen', () => {
     expect(await screen.findByText('Đang tạm ngưng')).toBeOnTheScreen()
     expect(screen.queryByText('Rút khung giờ')).toBeNull()
     expect(screen.queryByTestId('availability-publish')).toBeNull()
+  })
+
+  it('fails closed when cached approval cannot be refreshed, then unlocks after reload', async () => {
+    const slot = makeAvailabilitySlot()
+    const cachedProfile = makeSpecialistProfile({
+      approvalStatus: 'APPROVED',
+      version: 3,
+    })
+    const refreshedProfile = makeSpecialistProfile({
+      approvalStatus: 'APPROVED',
+      version: 4,
+    })
+    const list = makeAvailabilityList([slot])
+    const getProfile = jest
+      .fn()
+      .mockRejectedValueOnce(
+        new ApiError({
+          code: 'CONSULTATION_UNAVAILABLE',
+          message: 'unavailable',
+          status: 503,
+        }),
+      )
+      .mockResolvedValueOnce(refreshedProfile)
+    const api = makeApi({
+      getProfile,
+      listAvailability: jest.fn().mockResolvedValue(list),
+    })
+    const client = createTestQueryClient()
+    client.setQueryData(
+      ['specialist-profile', '11111111-1111-4111-8111-111111111111'],
+      cachedProfile,
+    )
+    client.setQueryData(
+      ['specialist-availability', '11111111-1111-4111-8111-111111111111'],
+      list,
+    )
+
+    await renderScreen(<SpecialistAvailabilityScreen api={api} />, client)
+
+    expect(
+      await screen.findByText(
+        'Chưa thể xác nhận trạng thái phê duyệt mới nhất. Các thao tác lịch đang được khóa cho đến khi tải lại thành công.',
+      ),
+    ).toBeOnTheScreen()
+    const publish = screen.getByTestId('availability-publish')
+    const withdraw = screen.getByRole('button', { name: 'Rút khung giờ' })
+    expect(publish).toBeDisabled()
+    expect(withdraw).toBeDisabled()
+    await fireEvent.press(publish)
+    await fireEvent.press(withdraw)
+    expect(api.publishAvailability).not.toHaveBeenCalled()
+    expect(api.withdrawAvailability).not.toHaveBeenCalled()
+
+    const reload = screen.getByRole('button', { name: 'Tải lại' })
+    expect(reload).not.toBeDisabled()
+    await fireEvent.press(reload)
+
+    expect(
+      await screen.findByText('Đã tải hồ sơ và lịch mới nhất.'),
+    ).toBeOnTheScreen()
+    expect(screen.getByTestId('availability-publish')).not.toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'Rút khung giờ' }),
+    ).not.toBeDisabled()
+    expect(getProfile).toHaveBeenCalledTimes(2)
   })
 })

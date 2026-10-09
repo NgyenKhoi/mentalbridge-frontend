@@ -58,13 +58,19 @@ function makeApi(overrides: Partial<SpecialistApi> = {}): SpecialistApi {
   }
 }
 
-async function renderScreen(ui: ReactElement) {
-  const client = new QueryClient({
+function createTestQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: Infinity },
       mutations: { retry: false, gcTime: Infinity },
     },
   })
+}
+
+async function renderScreen(
+  ui: ReactElement,
+  client = createTestQueryClient(),
+) {
   return await render(
     <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
   )
@@ -193,6 +199,53 @@ describe('SPECIALIST professional profile screen', () => {
       screen.getByRole('button', { name: 'Lưu và rút hồ sơ' }),
     )
     await waitFor(() => expect(api.saveProfile).toHaveBeenCalledTimes(1))
+  })
+
+  it('fails closed when a cached profile refetch fails, then unlocks after reload', async () => {
+    const cached = makeSpecialistProfile({ version: 4 })
+    const refreshed = makeSpecialistProfile({
+      displayName: 'Chuyên gia đã xác nhận',
+      version: 5,
+    })
+    const getProfile = jest
+      .fn()
+      .mockRejectedValueOnce(
+        new ApiError({
+          code: 'CONSULTATION_UNAVAILABLE',
+          message: 'unavailable',
+          status: 503,
+        }),
+      )
+      .mockResolvedValueOnce(refreshed)
+    const api = makeApi({ getProfile })
+    const client = createTestQueryClient()
+    client.setQueryData(
+      ['specialist-profile', '11111111-1111-4111-8111-111111111111'],
+      cached,
+    )
+
+    await renderScreen(<SpecialistProfileScreen api={api} />, client)
+
+    expect(
+      await screen.findByText(
+        'Chưa thể làm mới hồ sơ. Các thao tác đang được khóa cho đến khi tải lại thành công.',
+      ),
+    ).toBeOnTheScreen()
+    expect(screen.getByLabelText('Tên hiển thị nghề nghiệp')).toBeDisabled()
+    expect(screen.getByTestId('specialist-profile-save')).toBeDisabled()
+    expect(screen.getByTestId('specialist-profile-submit')).toBeDisabled()
+    await fireEvent.press(screen.getByTestId('specialist-profile-save'))
+    await fireEvent.press(screen.getByTestId('specialist-profile-submit'))
+    expect(api.saveProfile).not.toHaveBeenCalled()
+    expect(api.submitProfile).not.toHaveBeenCalled()
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Tải lại hồ sơ' }))
+
+    expect(
+      await screen.findByDisplayValue('Chuyên gia đã xác nhận'),
+    ).toBeOnTheScreen()
+    expect(screen.getByTestId('specialist-profile-submit')).not.toBeDisabled()
+    expect(getProfile).toHaveBeenCalledTimes(2)
   })
 
   it('shows rejection feedback and resubmits the saved revision', async () => {

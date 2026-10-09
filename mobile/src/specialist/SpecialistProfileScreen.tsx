@@ -323,7 +323,9 @@ export function SpecialistProfileScreen({
     !editable ||
     saveMutation.isPending ||
     reviewMutation.isPending ||
-    authorityRecovery !== 'idle'
+    authorityRecovery !== 'idle' ||
+    profileQuery.isFetching ||
+    profileQuery.isError
 
   const updateField = (field: SpecialistProfileField, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))

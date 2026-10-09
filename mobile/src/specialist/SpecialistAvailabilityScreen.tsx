@@ -229,7 +229,7 @@ export function SpecialistAvailabilityScreen({
 
   const profile = profileQuery.data ?? null
   const state = profileState(profile)
-  const approved = state === 'APPROVED'
+  const profileApproved = state === 'APPROVED'
   const list = availabilityQuery.data
 
   if (profile && seededProfileVersion !== profile.version) {
@@ -345,10 +345,24 @@ export function SpecialistAvailabilityScreen({
     },
   })
 
-  const busy =
+  const mutationBusy =
     publishMutation.isPending ||
     withdrawMutation.isPending ||
     authorityRecovery !== 'idle'
+  const authorityConfirmed =
+    profileQuery.isSuccess &&
+    !profileQuery.isError &&
+    !profileQuery.isFetching &&
+    availabilityQuery.isSuccess &&
+    !availabilityQuery.isError &&
+    !availabilityQuery.isFetching
+  const governedBusy = mutationBusy || !authorityConfirmed
+  const reloadDisabled =
+    publishMutation.isPending ||
+    withdrawMutation.isPending ||
+    authorityRecovery === 'refreshing' ||
+    profileQuery.isFetching ||
+    availabilityQuery.isFetching
 
   const updateForm = <Field extends keyof AvailabilityForm>(
     field: Field,
@@ -361,7 +375,7 @@ export function SpecialistAvailabilityScreen({
   }
 
   const publish = () => {
-    if (!approved || busy || authorityLockedRef.current) return
+    if (!profileApproved || governedBusy || authorityLockedRef.current) return
     try {
       new Intl.DateTimeFormat('vi-VN', { timeZone: form.timezone }).format()
       const range = localSlotToUtc(form.date, form.startTime, form.timezone)
@@ -387,7 +401,7 @@ export function SpecialistAvailabilityScreen({
   }
 
   const withdraw = (slot: AvailabilitySlot) => {
-    if (!approved || busy || authorityLockedRef.current) return
+    if (!profileApproved || governedBusy || authorityLockedRef.current) return
     if (confirmingSlotId !== slot.id) {
       setConfirmingSlotId(slot.id)
       return
@@ -397,7 +411,13 @@ export function SpecialistAvailabilityScreen({
   }
 
   const reloadAuthority = () => {
-    if (publishMutation.isPending || withdrawMutation.isPending) return
+    if (
+      publishMutation.isPending ||
+      withdrawMutation.isPending ||
+      authorityRecovery === 'refreshing'
+    ) {
+      return
+    }
     void refreshAuthority('Đang tải hồ sơ và lịch mới nhất.')
   }
 
@@ -481,7 +501,7 @@ export function SpecialistAvailabilityScreen({
         <Text accessibilityLiveRegion="polite" style={styles.statusValue}>
           {specialistProfileStatusLabels[state]}
         </Text>
-        {!approved && (
+        {!profileApproved && (
           <Text style={styles.statusDescription}>
             Lịch đã lưu vẫn có thể xem, nhưng chỉ hồ sơ đã được phê duyệt mới có
             thể xuất bản hoặc rút khung giờ.
@@ -496,7 +516,21 @@ export function SpecialistAvailabilityScreen({
         />
       )}
 
-      {approved && (
+      {profileQuery.isError && profileQuery.data !== undefined && (
+        <StateMessage
+          message="Chưa thể xác nhận trạng thái phê duyệt mới nhất. Các thao tác lịch đang được khóa cho đến khi tải lại thành công."
+          tone="error"
+        />
+      )}
+
+      {availabilityQuery.isError && availabilityQuery.data !== undefined && (
+        <StateMessage
+          message="Chưa thể xác nhận phiên bản lịch mới nhất. Các thao tác lịch đang được khóa cho đến khi tải lại thành công."
+          tone="error"
+        />
+      )}
+
+      {profileApproved && (
         <View style={styles.publishPanel}>
           <Text style={styles.sectionTitle}>Thêm khung giờ</Text>
           <Text style={styles.sectionDescription}>
@@ -507,8 +541,8 @@ export function SpecialistAvailabilityScreen({
             <Text style={styles.label}>Ngày</Text>
             <TextInput
               accessibilityLabel="Ngày khả dụng"
-              accessibilityState={{ disabled: busy }}
-              editable={!busy}
+              accessibilityState={{ disabled: governedBusy }}
+              editable={!governedBusy}
               inputMode="numeric"
               maxLength={10}
               onChangeText={(value) => updateForm('date', value)}
@@ -523,8 +557,8 @@ export function SpecialistAvailabilityScreen({
             <Text style={styles.label}>Giờ bắt đầu</Text>
             <TextInput
               accessibilityLabel="Giờ bắt đầu"
-              accessibilityState={{ disabled: busy }}
-              editable={!busy}
+              accessibilityState={{ disabled: governedBusy }}
+              editable={!governedBusy}
               inputMode="numeric"
               maxLength={5}
               onChangeText={(value) => updateForm('startTime', value)}
@@ -539,9 +573,9 @@ export function SpecialistAvailabilityScreen({
             <Text style={styles.label}>Múi giờ hiển thị</Text>
             <TextInput
               accessibilityLabel="Múi giờ hiển thị"
-              accessibilityState={{ disabled: busy }}
+              accessibilityState={{ disabled: governedBusy }}
               autoCapitalize="none"
-              editable={!busy}
+              editable={!governedBusy}
               maxLength={64}
               onChangeText={(value) => updateForm('timezone', value)}
               style={styles.input}
@@ -553,13 +587,13 @@ export function SpecialistAvailabilityScreen({
             <Text style={styles.label}>Hình thức</Text>
             <View style={styles.choiceGroup}>
               <ModalityChoice
-                disabled={busy}
+                disabled={governedBusy}
                 label="Chat trong ứng dụng"
                 onPress={() => updateForm('modality', 'IN_APP_CHAT')}
                 selected={selectedModality === 'IN_APP_CHAT'}
               />
               <ModalityChoice
-                disabled={busy || !list?.videoPublishingEnabled}
+                disabled={governedBusy || !list?.videoPublishingEnabled}
                 label="Video trong ứng dụng"
                 onPress={() => updateForm('modality', 'IN_APP_VIDEO')}
                 selected={selectedModality === 'IN_APP_VIDEO'}
@@ -579,7 +613,7 @@ export function SpecialistAvailabilityScreen({
             </Text>
           )}
           <PrimaryButton
-            disabled={busy}
+            disabled={governedBusy}
             label={
               publishMutation.isPending
                 ? 'Đang xuất bản…'
@@ -600,12 +634,12 @@ export function SpecialistAvailabilityScreen({
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: busy }}
-          disabled={busy}
+          accessibilityState={{ disabled: reloadDisabled }}
+          disabled={reloadDisabled}
           onPress={reloadAuthority}
           style={({ pressed }) => [
             styles.reloadButton,
-            busy && styles.disabled,
+            reloadDisabled && styles.disabled,
             pressed && styles.pressed,
           ]}
         >
@@ -640,7 +674,7 @@ export function SpecialistAvailabilityScreen({
         <View style={styles.slotList}>
           {list.items.map((slot) => {
             const canWithdraw =
-              approved &&
+              profileApproved &&
               slot.status === 'ACTIVE' &&
               slot.readiness === 'AVAILABLE'
             const confirming = confirmingSlotId === slot.id
@@ -659,12 +693,12 @@ export function SpecialistAvailabilityScreen({
                   <View style={styles.inlineActions}>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityState={{ disabled: busy }}
-                      disabled={busy}
+                      accessibilityState={{ disabled: governedBusy }}
+                      disabled={governedBusy}
                       onPress={() => withdraw(slot)}
                       style={({ pressed }) => [
                         styles.withdrawButton,
-                        busy && styles.disabled,
+                        governedBusy && styles.disabled,
                         pressed && styles.pressed,
                       ]}
                       testID={`availability-withdraw-${slot.id}`}
