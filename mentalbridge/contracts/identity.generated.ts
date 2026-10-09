@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/internal/v1/accounts/{accountId}/verified-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve the current verified email for one exact USER owner */
+        get: operations["getVerifiedDeliveryAddress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/registrations": {
         parameters: {
             query?: never;
@@ -245,6 +262,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/product-journey-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read privacy-bounded aggregate product journey facts
+         * @description Returns descriptive aggregate activity only. It does not represent clinical effectiveness, recovery, or causation. Unavailable owner capabilities remain explicitly unavailable.
+         */
+        get: operations["getProductJourneyMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/platform-reports": {
         parameters: {
             query?: never;
@@ -355,6 +392,51 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ProductJourneyMetrics: {
+            /** @constant */
+            projectionVersion: "product-journey-metrics-v1";
+            window: {
+                /** Format: date-time */
+                from: string;
+                /** Format: date-time */
+                to: string;
+            };
+            /** Format: date-time */
+            asOf: string;
+            /** @constant */
+            interpretation: "DESCRIPTIVE_PRODUCT_ACTIVITY_NOT_CLINICAL_EFFECTIVENESS";
+            sources: components["schemas"]["ProductJourneySource"][];
+            stages: components["schemas"]["ProductJourneyStage"][];
+        };
+        ProductJourneySource: {
+            /** @enum {string} */
+            source: "IDENTITY" | "CARE" | "CONSULTATION";
+            sourceVersion?: string | null;
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /** Format: date-time */
+            asOf?: string | null;
+            /** @enum {string|null} */
+            unavailableReason?: "DEPENDENCY_UNAVAILABLE" | null;
+        };
+        ProductJourneyStage: {
+            /** @enum {string} */
+            stage: "REGISTERED_ACCOUNTS" | "ACTIVE_REGISTERED_ACCOUNTS" | "COMPLETED_SCREENING_EPISODES" | "SUPPORT_GUIDES_GENERATED" | "SUPPORT_GUIDES_OPENED" | "PAID_SUPPORT_PLANS_ACTIVATED" | "CONSULTATIONS_REQUESTED" | "CONSULTATIONS_CONFIRMED" | "CONSULTATIONS_COMPLETED";
+            /** @enum {string} */
+            source: "IDENTITY" | "CARE" | "CONSULTATION";
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /** Format: int64 */
+            count?: number | null;
+            rate?: null | components["schemas"]["ProductJourneyRate"];
+            /** @enum {string|null} */
+            unavailableReason?: "SOURCE_UNAVAILABLE" | "AUTHORITATIVE_USAGE_FACT_UNAVAILABLE" | null;
+        };
+        ProductJourneyRate: {
+            /** @enum {string} */
+            denominatorStage: "REGISTERED_ACCOUNTS" | "CONSULTATIONS_REQUESTED";
+            percentage: number;
+        };
         /** @enum {string} */
         PlatformReportTypeCode: "ACCOUNT_ACTIVITY";
         /** @enum {string} */
@@ -411,6 +493,12 @@ export interface components {
         PlatformReportPage: {
             items: components["schemas"]["PlatformReport"][];
             nextCursor?: string | null;
+        };
+        VerifiedDeliveryAddress: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: email */
+            email: string;
         };
         RegistrationRequest: {
             /** Format: email */
@@ -711,6 +799,30 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getVerifiedDeliveryAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized current delivery address */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifiedDeliveryAddress"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
     registerAccount: {
         parameters: {
             query?: never;
@@ -1058,6 +1170,35 @@ export interface operations {
                     "application/json": components["schemas"]["PlatformReportType"][];
                 };
             };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getProductJourneyMetrics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate platform journey projection for the explicit half-open window */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductJourneyMetrics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
         };

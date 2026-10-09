@@ -18,6 +18,7 @@ import type {
   PlatformReportPage,
   PlatformReportRequest,
   PlatformReportType,
+  ProductJourneyMetrics,
 } from '@/features/auth/api/identity-contract'
 
 const ACCOUNT_STATUSES = new Set([
@@ -673,4 +674,128 @@ export function parsePlatformReportPage(
   if (value.nextCursor !== null && typeof value.nextCursor !== 'string')
     return null
   return { items, nextCursor: value.nextCursor as string | null }
+}
+
+const PRODUCT_JOURNEY_SOURCES = new Set(['IDENTITY', 'CARE', 'CONSULTATION'])
+const PRODUCT_JOURNEY_STAGES = new Set([
+  'REGISTERED_ACCOUNTS',
+  'ACTIVE_REGISTERED_ACCOUNTS',
+  'COMPLETED_SCREENING_EPISODES',
+  'SUPPORT_GUIDES_GENERATED',
+  'SUPPORT_GUIDES_OPENED',
+  'PAID_SUPPORT_PLANS_ACTIVATED',
+  'CONSULTATIONS_REQUESTED',
+  'CONSULTATIONS_CONFIRMED',
+  'CONSULTATIONS_COMPLETED',
+])
+
+export function parseProductJourneyMetrics(
+  value: unknown,
+): ProductJourneyMetrics | null {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'projectionVersion',
+      'window',
+      'asOf',
+      'interpretation',
+      'sources',
+      'stages',
+    ]) ||
+    value.projectionVersion !== 'product-journey-metrics-v1' ||
+    value.interpretation !==
+      'DESCRIPTIVE_PRODUCT_ACTIVITY_NOT_CLINICAL_EFFECTIVENESS' ||
+    !isDateTime(value.asOf) ||
+    !isRecord(value.window) ||
+    !hasOnlyKeys(value.window, ['from', 'to']) ||
+    !isDateTime(value.window.from) ||
+    !isDateTime(value.window.to) ||
+    !Array.isArray(value.sources) ||
+    value.sources.length !== 3 ||
+    !Array.isArray(value.stages) ||
+    value.stages.length !== 9
+  )
+    return null
+
+  if (
+    new Set(
+      value.sources.map((source) => (isRecord(source) ? source.source : null)),
+    ).size !== 3 ||
+    !value.sources.every((source) => {
+      if (
+        !isRecord(source) ||
+        !hasOnlyKeys(source, [
+          'source',
+          'sourceVersion',
+          'status',
+          'asOf',
+          'unavailableReason',
+        ]) ||
+        !PRODUCT_JOURNEY_SOURCES.has(String(source.source)) ||
+        !['AVAILABLE', 'UNAVAILABLE'].includes(String(source.status))
+      )
+        return false
+      return source.status === 'AVAILABLE'
+        ? typeof source.sourceVersion === 'string' &&
+            isDateTime(source.asOf) &&
+            source.unavailableReason === null
+        : source.sourceVersion === null &&
+            source.asOf === null &&
+            source.unavailableReason === 'DEPENDENCY_UNAVAILABLE'
+    })
+  )
+    return null
+
+  if (
+    new Set(value.stages.map((stage) => (isRecord(stage) ? stage.stage : null)))
+      .size !== 9 ||
+    !value.stages.every((stage) => {
+      if (
+        !isRecord(stage) ||
+        !hasOnlyKeys(stage, [
+          'stage',
+          'source',
+          'status',
+          'count',
+          'rate',
+          'unavailableReason',
+        ]) ||
+        !PRODUCT_JOURNEY_STAGES.has(String(stage.stage)) ||
+        !PRODUCT_JOURNEY_SOURCES.has(String(stage.source)) ||
+        !['AVAILABLE', 'UNAVAILABLE'].includes(String(stage.status))
+      )
+        return false
+      if (stage.status === 'AVAILABLE') {
+        if (
+          !Number.isSafeInteger(stage.count) ||
+          Number(stage.count) < 0 ||
+          stage.unavailableReason !== null
+        )
+          return false
+      } else if (
+        stage.count !== null ||
+        stage.rate !== null ||
+        ![
+          'SOURCE_UNAVAILABLE',
+          'AUTHORITATIVE_USAGE_FACT_UNAVAILABLE',
+        ].includes(String(stage.unavailableReason))
+      )
+        return false
+      if (stage.rate === null) return true
+      if (!isRecord(stage.rate)) return false
+      return (
+        hasOnlyKeys(stage.rate, ['denominatorStage', 'percentage']) &&
+        ['REGISTERED_ACCOUNTS', 'CONSULTATIONS_REQUESTED'].includes(
+          String(stage.rate.denominatorStage),
+        ) &&
+        typeof stage.rate.percentage === 'number' &&
+        Number.isFinite(stage.rate.percentage) &&
+        stage.rate.percentage >= 0 &&
+        stage.rate.percentage <= 100
+      )
+    })
+  )
+    return null
+
+  return value as ProductJourneyMetrics
 }

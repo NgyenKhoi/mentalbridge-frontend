@@ -1,87 +1,235 @@
 'use client'
 
-import Link from 'next/link'
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+
+import type { ProductJourneyMetrics } from '@/features/auth/api/identity-contract'
+
 import './admin-dashboard-manager.css'
 
-type Range = '7 ngày' | '30 ngày' | 'Quý III'
+type RangeDays = 7 | 30 | 90
 
-const CHARTS: Record<Range, number[]> = {
-  '7 ngày': [46, 58, 52, 69, 64, 78, 86],
-  '30 ngày': [51, 63, 59, 72, 68, 82, 91],
-  'Quý III': [43, 56, 61, 70, 76, 84, 94],
+const LABELS: Record<string, string> = {
+  REGISTERED_ACCOUNTS: 'Tài khoản đăng ký',
+  ACTIVE_REGISTERED_ACCOUNTS: 'Tài khoản hiện còn hoạt động',
+  COMPLETED_SCREENING_EPISODES: 'Lượt hoàn thành sàng lọc',
+  SUPPORT_GUIDES_GENERATED: 'Gợi ý hỗ trợ đã tạo',
+  SUPPORT_GUIDES_OPENED: 'Gợi ý hỗ trợ đã mở',
+  PAID_SUPPORT_PLANS_ACTIVATED: 'Kế hoạch hỗ trợ trả phí đã kích hoạt',
+  CONSULTATIONS_REQUESTED: 'Lịch tư vấn đã yêu cầu',
+  CONSULTATIONS_CONFIRMED: 'Lịch tư vấn đã xác nhận',
+  CONSULTATIONS_COMPLETED: 'Lịch tư vấn đã hoàn thành',
 }
 
-export default function AdminDashboardManager({ onNotice }: { onNotice: (message: string) => void }) {
-  const [range, setRange] = useState<Range>('30 ngày')
+function windowFor(days: RangeDays) {
+  const to = new Date()
+  const from = new Date(to)
+  from.setUTCDate(from.getUTCDate() - days)
+  return { from: from.toISOString(), to: to.toISOString() }
+}
 
-  return <div className="admin-dashboard-manager">
-    <div className="role-heading adm-heading">
-      <div><span className="eyebrow">Quản trị nền tảng</span><h1>Tổng quan hệ thống</h1><p>Các chỉ số vận hành và hạng mục cần xử lý.</p></div>
-      <div className="adm-heading-actions"><span><i />Hệ thống hoạt động ổn định</span><button className="btn-primary" onClick={() => onNotice('Đã cập nhật dữ liệu tổng quan lúc 09:18.')}>↻ Làm mới dữ liệu</button></div>
-    </div>
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('vi-VN').format(value)
+}
 
-    <section className="adm-metrics" aria-label="Chỉ số vận hành chính">
-      <article className="primary"><span>Người dùng hoạt động</span><strong>12.480</strong><p><b>↑ 8,4%</b> trong 30 ngày</p><i style={{'--progress':'84%'} as React.CSSProperties} /></article>
-      <article><span>Chuyên gia đang hoạt động</span><strong>128</strong><p>6 hồ sơ đang chờ duyệt</p><i style={{'--progress':'72%'} as React.CSSProperties} /></article>
-      <article><span>Phiên tư vấn tháng này</span><strong>1.284</strong><p>92,6% đã hoàn thành</p><i style={{'--progress':'92.6%'} as React.CSSProperties} /></article>
-      <article className="attention"><span>Việc cần xử lý</span><strong>11</strong><p>6 xác minh · 5 kiểm duyệt</p><i style={{'--progress':'36%'} as React.CSSProperties} /></article>
-    </section>
+function formatInstant(value: string) {
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
 
-    <section className="adm-command-grid">
-      <article className="adm-activity-chart">
-        <header><div><span>NHỊP VẬN HÀNH</span><h2>Hoạt động trên MentalBridge</h2><p>Người dùng có hoạt động hợp lệ trong khoảng thời gian đã chọn.</p></div><select value={range} onChange={event => setRange(event.target.value as Range)} aria-label="Khoảng thời gian"><option>7 ngày</option><option>30 ngày</option><option>Quý III</option></select></header>
-        <div className="adm-chart"><div className="adm-axis"><span>12k</span><span>8k</span><span>4k</span><span>0</span></div><div className="adm-bars">{CHARTS[range].map((value,index) => <div key={`${range}-${index}`}><span style={{'--bar':`${value}%`} as React.CSSProperties}><i>{(value * 0.13).toFixed(1)}k</i></span><small>{['21/08','22/08','23/08','24/08','25/08','26/08','27/08'][index]}</small></div>)}</div></div>
-        <footer><p><span><i />Người dùng hoạt động</span><b>Trung bình 8.742/ngày</b></p><Link href="/admin/reports">Xem báo cáo đầy đủ <span>→</span></Link></footer>
-      </article>
+async function fetchMetrics(days: RangeDays) {
+  const query = new URLSearchParams(windowFor(days))
+  const response = await fetch(
+    `/api/admin/product-journey-metrics?${query.toString()}`,
+    { cache: 'no-store' },
+  )
+  if (!response.ok) throw new Error('Unable to load product journey metrics')
+  return (await response.json()) as ProductJourneyMetrics
+}
 
-      <aside className="adm-priority">
-        <header><span>CẦN ƯU TIÊN</span><h2>Việc đang chờ bạn</h2><b>11</b></header>
-        <Link href="/admin/specialists"><i className="amber">✦</i><div><strong>Xác minh chuyên gia</strong><p>6 hồ sơ đang chờ, lâu nhất 3 ngày</p></div><span>6</span><b>→</b></Link>
-        <Link href="/admin/moderation"><i className="rose">◉</i><div><strong>Báo cáo nội dung</strong><p>5 báo cáo cần kiểm duyệt hôm nay</p></div><span>5</span><b>→</b></Link>
-        <Link href="/admin/payments"><i>↔</i><div><strong>Thanh toán cần theo dõi</strong><p>3 giao dịch thất bại trong 24 giờ</p></div><span>3</span><b>→</b></Link>
-        <footer><i>i</i><p>Ưu tiên theo mức độ ảnh hưởng và thời gian chờ.</p></footer>
-      </aside>
-    </section>
+export default function AdminDashboardManager({
+  onNotice,
+}: {
+  onNotice: (message: string) => void
+}) {
+  const [range, setRange] = useState<RangeDays>(30)
+  const [metrics, setMetrics] = useState<ProductJourneyMetrics | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
-    <section className="adm-health">
-      <header><div><span>SỨC KHỎE HỆ THỐNG</span><h2>Dịch vụ đang vận hành</h2></div><small>Cập nhật 2 phút trước</small></header>
-      <div>
-        <article><span className="adm-health-icon">◌</span><div><strong>API & đăng nhập</strong><small>99,98% uptime</small></div><b><i />Ổn định</b></article>
-        <article><span className="adm-health-icon">↔</span><div><strong>Payments</strong><small>Đối soát lúc 09:10</small></div><b><i />Ổn định</b></article>
-        <article><span className="adm-health-icon">◇</span><div><strong>Tin nhắn tư vấn</strong><small>Độ trễ trung bình 184ms</small></div><b><i />Ổn định</b></article>
-        <article><span className="adm-health-icon">▣</span><div><strong>Dữ liệu & sao lưu</strong><small>Sao lưu gần nhất 03:00</small></div><b><i />An toàn</b></article>
-      </div>
-    </section>
+  const load = useCallback(
+    async (days: RangeDays, announce = false) => {
+      setLoading(true)
+      setError(false)
+      try {
+        const next = await fetchMetrics(days)
+        setMetrics(next)
+        if (announce) onNotice('Đã cập nhật số liệu hành trình sản phẩm.')
+      } catch {
+        setError(true)
+        setMetrics(null)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [onNotice],
+  )
 
-    <section className="adm-lower-grid">
-      <article className="adm-journey">
-        <header><div><span>HÀNH TRÌNH NGƯỜI DÙNG</span><h2>Từ đăng ký đến chăm sóc</h2></div><small>30 ngày gần nhất</small></header>
-        <div className="adm-journey-flow">
-          <p><span>01</span><strong>4.286</strong><small>Đăng ký mới</small><i /></p>
-          <p><span>02</span><strong>3.712</strong><small>Hoàn thành đánh giá</small><i /></p>
-          <p><span>03</span><strong>2.948</strong><small>Duy trì hoạt động</small><i /></p>
-          <p><span>04</span><strong>684</strong><small>Đặt lịch tư vấn</small></p>
+  useEffect(() => {
+    let cancelled = false
+    void fetchMetrics(range)
+      .then((next) => {
+        if (cancelled) return
+        setMetrics(next)
+        setError(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setError(true)
+        setMetrics(null)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [range])
+
+  const unavailableCount = useMemo(
+    () =>
+      metrics?.sources.filter((source) => source.status === 'UNAVAILABLE')
+        .length ?? 0,
+    [metrics],
+  )
+
+  return (
+    <div className="admin-dashboard-manager">
+      <div className="role-heading adm-heading">
+        <div>
+          <span className="eyebrow">Vận hành sản phẩm</span>
+          <h1>Hành trình trên MentalBridge</h1>
+          <p>
+            Theo dõi hoạt động tổng hợp mà không mở hồ sơ sức khỏe của từng
+            người.
+          </p>
         </div>
-        <footer><span>Tỷ lệ chuyển đổi sang chăm sóc chuyên gia</span><strong>16,0%</strong></footer>
-      </article>
-
-      <aside className="adm-privacy">
-        <header><span>QUYỀN RIÊNG TƯ</span><h2>Kiểm soát dữ liệu</h2></header>
-        <div className="adm-privacy-score"><strong>96</strong><span>/100</span><i><b /></i></div>
-        <p>Không phát hiện truy cập bất thường trong 24 giờ qua.</p>
-        <ul><li><i>✓</i>Audit log đang ghi nhận</li><li><i>✓</i>Sao lưu đã mã hóa</li><li><i>✓</i>Phân quyền đúng vai trò</li></ul>
-        <Link href="/admin/audit">Xem Audit &amp; Privacy <span>→</span></Link>
-      </aside>
-    </section>
-
-    <section className="adm-recent">
-      <header><div><span>HOẠT ĐỘNG GẦN ĐÂY</span><h2>Cập nhật vận hành mới nhất</h2></div><Link href="/admin/audit">Xem audit log →</Link></header>
-      <div>
-        <article><span className="tone-green">✓</span><div><strong>Hồ sơ BS. Nguyễn Thu Hà đã được xác minh</strong><small>Quản trị viên Nguyễn Hoài An · 09:02</small></div><b>VERIFICATION_APPROVED</b></article>
-        <article><span className="tone-blue">↔</span><div><strong>Kỳ đối soát payments hoàn tất</strong><small>Hệ thống tự động · 08:46</small></div><b>PAYMENT_RECONCILED</b></article>
-        <article><span className="tone-amber">▤</span><div><strong>Báo cáo hoạt động tháng 08 đã sẵn sàng</strong><small>Hệ thống báo cáo · 08:15</small></div><b>REPORT_READY</b></article>
+        <div className="adm-heading-actions">
+          <label>
+            <span>Khoảng thời gian</span>
+            <select
+              aria-label="Khoảng thời gian thống kê"
+              value={range}
+              onChange={(event) => {
+                setLoading(true)
+                setError(false)
+                setRange(Number(event.target.value) as RangeDays)
+              }}
+              disabled={loading}
+            >
+              <option value={7}>7 ngày</option>
+              <option value={30}>30 ngày</option>
+              <option value={90}>90 ngày</option>
+            </select>
+          </label>
+          <button
+            className="btn-primary"
+            onClick={() => void load(range, true)}
+            disabled={loading}
+          >
+            {loading ? 'Đang cập nhật…' : 'Làm mới số liệu'}
+          </button>
+        </div>
       </div>
-    </section>
-  </div>
+
+      <section
+        className="adm-journey-panel"
+        aria-labelledby="journey-title"
+        aria-busy={loading}
+      >
+        <header>
+          <div>
+            <span>TỔNG HỢP TOÀN NỀN TẢNG</span>
+            <h2 id="journey-title">Các mốc hoạt động</h2>
+            <p>
+              Mỗi con số là một sự kiện hoặc trạng thái trong cửa sổ đã chọn.
+              Chúng không chứng minh hiệu quả lâm sàng hay quan hệ nguyên
+              nhân–kết quả.
+            </p>
+          </div>
+          {metrics ? (
+            <small>Chốt lúc {formatInstant(metrics.asOf)}</small>
+          ) : null}
+        </header>
+
+        {loading ? (
+          <div className="adm-journey-state" role="status">
+            Đang tổng hợp số liệu…
+          </div>
+        ) : error ? (
+          <div className="adm-journey-state adm-journey-error" role="alert">
+            <strong>Chưa thể tải số liệu.</strong>
+            <span>Dữ liệu cũ không được giữ lại. Hãy thử lại sau ít phút.</span>
+            <button onClick={() => void load(range)}>Thử lại</button>
+          </div>
+        ) : metrics ? (
+          <>
+            {unavailableCount > 0 ? (
+              <p className="adm-partial-notice" role="status">
+                {unavailableCount} nguồn đang tạm thời không phản hồi. Các mục
+                liên quan được đánh dấu chưa có dữ liệu thay vì ước đoán.
+              </p>
+            ) : null}
+            <div className="adm-journey-flow">
+              {metrics.stages.map((stage, index) => (
+                <article
+                  key={stage.stage}
+                  className={
+                    stage.status === 'UNAVAILABLE' ? 'unavailable' : ''
+                  }
+                >
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <strong>
+                    {stage.count == null ? '—' : formatNumber(stage.count)}
+                  </strong>
+                  <h3>{LABELS[stage.stage] ?? stage.stage}</h3>
+                  {stage.status === 'UNAVAILABLE' ? (
+                    <p>
+                      {stage.unavailableReason ===
+                      'AUTHORITATIVE_USAGE_FACT_UNAVAILABLE'
+                        ? 'Chưa có nguồn sử dụng đáng tin cậy'
+                        : 'Nguồn dữ liệu đang không khả dụng'}
+                    </p>
+                  ) : stage.rate ? (
+                    <p>
+                      {stage.rate.percentage.toLocaleString('vi-VN')}% so với
+                      mốc tham chiếu
+                    </p>
+                  ) : (
+                    <p>Số lượng trong khoảng đã chọn</p>
+                  )}
+                </article>
+              ))}
+            </div>
+            <details className="adm-source-details">
+              <summary>Thông tin kỹ thuật</summary>
+              <dl>
+                {metrics.sources.map((source) => (
+                  <div key={source.source}>
+                    <dt>{source.source}</dt>
+                    <dd>
+                      {source.status === 'AVAILABLE'
+                        ? `${source.sourceVersion} · ${source.asOf ? formatInstant(source.asOf) : ''}`
+                        : 'Không khả dụng'}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
+          </>
+        ) : null}
+      </section>
+    </div>
+  )
 }

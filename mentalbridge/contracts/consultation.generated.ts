@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/admin/product-journey-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read privacy-bounded appointment journey aggregates
+         * @description Counts appointments requested in the explicit window and whether that same request cohort ever reached confirmed or completed. No participant, brief, summary, chat, clinical, or private-note data is returned.
+         */
+        get: operations["getConsultationProductJourneyMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile/amendments/current": {
         parameters: {
             query?: never;
@@ -960,6 +980,20 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ConsultationProductJourneyMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** @constant */
+            sourceVersion: "consultation-product-journey-v1";
+            /** Format: date-time */
+            asOf: string;
+            /** Format: int64 */
+            consultationsRequested: number;
+            /** Format: int64 */
+            consultationsConfirmed: number;
+            /** Format: int64 */
+            consultationsCompleted: number;
+        };
         AppointmentNotificationEligibility: {
             /** Format: uuid */
             appointmentId: string;
@@ -2332,6 +2366,32 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getConsultationProductJourneyMetrics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate lifecycle facts for the requested appointment cohort */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationProductJourneyMetrics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     getOwnProfileAmendment: {
         parameters: {
             query?: never;
