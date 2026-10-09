@@ -10,7 +10,7 @@ export { consentCollectionSchema, consentDecisionSchema }
 const instant = z.iso.datetime({ offset: true })
 const revision = z.number().int().min(1).max(200)
 const signals = z.array(z.string().min(1).max(64)).max(12)
-const provider = z.enum(['DETERMINISTIC_FAKE', 'GEMINI', 'OPENAI'])
+const provider = z.enum(['DETERMINISTIC_FAKE', 'GEMINI', 'OPENAI', 'BEDROCK'])
 export const journalMoodSchema = z.enum([
   'GREAT',
   'GOOD',

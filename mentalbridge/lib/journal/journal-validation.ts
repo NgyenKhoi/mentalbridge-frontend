@@ -148,7 +148,9 @@ const longitudinalEvidence = (value: unknown) =>
   boundedStrings(value.barriers) &&
   boundedStrings(value.helpfulPatterns) &&
   longitudinalCoverage(value.dataCoverage) &&
-  ['DETERMINISTIC_FAKE', 'GEMINI', 'OPENAI'].includes(String(value.provider)) &&
+  ['DETERMINISTIC_FAKE', 'GEMINI', 'OPENAI', 'BEDROCK'].includes(
+    String(value.provider),
+  ) &&
   boundedString(value.model, 128) &&
   value.promptVersion === 'longitudinal-v1' &&
   value.schemaVersion === 1 &&
@@ -304,7 +306,7 @@ function parseAnalysisResult(value: unknown): AnalysisResult | null {
     !optionalNonNegativeInteger(value.entitlementVersion) ||
     !optionalBoundedString(value.routingPolicyVersion, 96) ||
     !optionalBoundedString(value.providerApprovalVersion, 96) ||
-    !['DETERMINISTIC_FAKE', 'GEMINI', 'OPENAI'].includes(
+    !['DETERMINISTIC_FAKE', 'GEMINI', 'OPENAI', 'BEDROCK'].includes(
       String(value.provider),
     ) ||
     !boundedString(value.model, 128) ||

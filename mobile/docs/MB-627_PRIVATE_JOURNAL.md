@@ -13,8 +13,12 @@ consent and entitlement server-side before processing; mobile never calls an
 internal entitlement endpoint or decides that a subscription permits AI.
 
 Source contracts are the backend `dev` OpenAPI files
-`contracts/openapi/journal-ai-service-v1.yaml` (1.7.0) and
-`contracts/openapi/care-service-v1.yaml`. No backend contract or schema changes.
+`contracts/openapi/journal-ai-service-v1.yaml` (1.8.0) and
+`contracts/openapi/care-service-v1.yaml`. The MB-627 review follow-up publishes
+the already-approved `BEDROCK` provider in the Journal public result enums and
+aligns mobile/Web parsers and generated types. Exact and longitudinal parser
+regressions accept BEDROCK and still reject an unapproved provider. No runtime
+routing, approval, consent or persisted schema changes.
 
 | Action           | Public contract                                                                        | Mobile boundary                                                                                                        |
 | ---------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -124,8 +128,9 @@ public edge, then run `npm run native:android:smoke` and
 `npm run e2e:android:journal`. Actual Android proof requires a successful
 manifest for the exact tested head; a committed flow is not execution evidence.
 
-Delivery decision (2026-10-09): the owner requested review handoff with the
-ordinary `dev` gate and mobile TypeScript compile only. The Android opt-in label
-is removed from this PR; Android E2E is **not verified** and that Jira DoD item
-remains open for protected staging execution before release. No merge is
-performed by this task; reviewer approval remains separate.
+Review follow-up (2026-10-09): the request to close both blocking review items
+supersedes the earlier compile-only handoff. Reapply the protected Android
+opt-in and require a successful exact-head artifact before review handoff.
+Record the tested SHA, workflow and manifest in the PR after execution; do not
+count preparation or a failed/cancelled run as proof. No merge is performed by
+this task; reviewer approval remains separate.

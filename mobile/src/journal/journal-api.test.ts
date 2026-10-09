@@ -141,6 +141,42 @@ describe('Mobile Journal public contract', () => {
     expect(requests[1]?.method).toBe('get')
     expect(requests[1]?.headers.has('Idempotency-Key')).toBe(false)
   })
+  it('accepts an authoritative exact result from the approved BEDROCK route', async () => {
+    const job = {
+      ...completed,
+      result: {
+        ...completed.result,
+        provider: 'BEDROCK',
+        model: 'bedrock-fixture-v1',
+      },
+    }
+    expect(await client(job).analysisJob(job.jobId)).toEqual(job)
+  })
+  it('accepts authoritative longitudinal evidence from the approved BEDROCK route', async () => {
+    const job = {
+      ...trend,
+      result: {
+        ...trend.result,
+        provider: 'BEDROCK',
+        model: 'bedrock-fixture-v1',
+      },
+    }
+    expect(await client(job).trendJob(job.jobId)).toEqual(job)
+  })
+  it('still fails closed for unapproved exact and trend providers', () => {
+    expect(
+      analysisJobSchema.safeParse({
+        ...completed,
+        result: { ...completed.result, provider: 'UNAPPROVED' },
+      }).success,
+    ).toBe(false)
+    expect(
+      trendJobSchema.safeParse({
+        ...trend,
+        result: { ...trend.result, provider: 'UNAPPROVED' },
+      }).success,
+    ).toBe(false)
+  })
   it('rejects invalid terminal states and mismatched exact-head provenance', () => {
     expect(
       analysisJobSchema.safeParse({ ...running, result: completed.result })
