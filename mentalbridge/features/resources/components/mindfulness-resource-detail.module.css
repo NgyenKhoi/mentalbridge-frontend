@@ -1,0 +1,941 @@
+.page {
+  min-height: calc(100dvh - 72px);
+  padding: 18px clamp(16px, 2.7vw, 40px) 42px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-be-vietnam), sans-serif;
+}
+
+.container {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  container-type: inline-size;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.toolbar,
+.breadcrumb,
+.typeTag,
+.eyebrow,
+.guideMeta,
+.guideProgress,
+.audioControl,
+.practiceControls,
+.volumeControl,
+.sectionHeading,
+.stageCardTop,
+.stageCardBottom,
+.progressCard {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar {
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.breadcrumb {
+  min-width: 0;
+  gap: 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.breadcrumb a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--teal-deep);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.breadcrumb > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typeTag {
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.intro {
+  margin-bottom: 22px;
+  padding: clamp(22px, 3.2vw, 38px);
+  border: 1px solid rgba(61, 122, 110, 0.1);
+  border-radius: var(--radius-shell);
+  background: radial-gradient(circle at 88% 16%, #e5f5ee 0, transparent 48%),
+    linear-gradient(110deg, #fff 0%, #f7faf8 58%, #eef7f1 100%);
+  box-shadow: var(--elevation-1);
+}
+
+.eyebrow {
+  gap: 8px;
+  color: var(--teal-deep);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.065em;
+  text-transform: uppercase;
+}
+
+.eyebrow i {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--teal);
+}
+
+.intro h1 {
+  margin: 10px 0 8px;
+  color: var(--ink);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(30px, 3.4vw, 43px);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.16;
+  text-wrap: balance;
+}
+
+.intro p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.practice {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  grid-template-areas: 'visual guide' 'audio controls' 'error error';
+  gap: 22px 34px;
+  overflow: hidden;
+  padding: clamp(24px, 3.2vw, 38px);
+  border: 1px solid rgba(61, 122, 110, 0.12);
+  border-radius: var(--radius-shell);
+  background: radial-gradient(circle at 8% 10%, #e4faf0 0, transparent 39%),
+    radial-gradient(circle at 96% 92%, #e9effc 0, transparent 36%),
+    var(--surface);
+  box-shadow: var(--elevation-2);
+}
+
+.practiceVisual {
+  position: relative;
+  grid-area: visual;
+  display: grid;
+  min-height: 288px;
+  place-items: center;
+}
+
+.scene,
+.scene > div {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.timerRing {
+  position: relative;
+  display: grid;
+  width: min(246px, 76%);
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(var(--teal-deep) var(--mindfulness-progress), #dcece3 0);
+  box-shadow: 0 12px 32px -26px rgba(30, 74, 67, 0.65);
+}
+
+.timerInner {
+  display: flex;
+  width: calc(100% - 16px);
+  aspect-ratio: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  text-align: center;
+}
+
+.timerInner > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  background: #e6f5ec;
+  color: var(--teal-deep);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.timerInner strong {
+  margin: 6px 0 0;
+  color: var(--ink);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(40px, 4vw, 56px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.timerInner small {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.guide {
+  grid-area: guide;
+  display: flex;
+  min-width: 0;
+  min-height: 288px;
+  flex-direction: column;
+  padding: 22px 24px;
+  border-radius: var(--radius-shell);
+  background: rgba(241, 246, 253, 0.82);
+}
+
+.guideMeta {
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.guideMeta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.guideMeta b {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--teal-deep);
+  color: #fff;
+  font-size: 11px;
+}
+
+.guideMeta time {
+  flex: none;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.guide h3 {
+  margin: 14px 0 10px;
+  color: var(--ink);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(20px, 2.1vw, 27px);
+  font-weight: 600;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.guide ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.guide li::marker {
+  color: var(--teal);
+}
+
+.guideInstructionLabel {
+  display: block;
+  margin-top: 14px;
+  color: var(--teal-deep);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.guideInstructions {
+  display: grid;
+  gap: 7px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.guideInstructions li::marker {
+  color: var(--teal-deep);
+  font-weight: 750;
+}
+
+.guide p {
+  display: -webkit-box;
+  max-width: 70ch;
+  margin: 12px 0 0;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.guideProgress {
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 16px;
+  color: var(--teal-deep);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.guideProgress > div {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.guideProgress i {
+  width: 21px;
+  height: 5px;
+  border-radius: 999px;
+  background: #d7e2eb;
+}
+
+.guideProgress i.filled {
+  background: var(--teal-deep);
+}
+
+.audioControl {
+  grid-area: audio;
+  min-width: 0;
+  min-height: 58px;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  background: #f1f5fc;
+}
+
+.audioIcon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: #e1eee8;
+  color: var(--teal-deep);
+}
+
+.audioControl > div {
+  display: grid;
+  min-width: 0;
+}
+
+.audioControl small {
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+
+.audioControl strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audioControl button {
+  min-width: 44px;
+  min-height: 44px;
+  margin-left: auto;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--teal-deep);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.practiceControls {
+  grid-area: controls;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.practiceControls button,
+.progressCard button,
+.sourceCard a,
+.confirmDialog button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.practiceControls .startButton {
+  flex: 1 1 190px;
+  padding: 0 18px;
+  border: 1px solid var(--teal-deep);
+  background: var(--teal-deep);
+  box-shadow: 0 8px 20px -16px var(--teal-deep);
+  color: #fff;
+}
+
+.practiceControls .restartButton {
+  padding: 0 15px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--teal-deep);
+}
+
+.volumeControl {
+  width: 100%;
+  gap: 12px;
+  padding: 0 8px;
+  color: var(--ink-soft);
+}
+
+.volumeControl > span {
+  min-width: 34px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  text-align: right;
+}
+
+.sliderRoot {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 44px;
+  align-items: center;
+  touch-action: none;
+  user-select: none;
+}
+
+.sliderTrack {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #d8e2dc;
+}
+
+.sliderRange {
+  position: absolute;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal-deep);
+}
+
+.sliderThumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--teal-deep);
+  box-shadow: 0 0 0 1px var(--teal-deep);
+}
+
+.audioError {
+  grid-area: error;
+  margin: 0;
+  color: var(--amber-deep);
+  font-size: 12px;
+}
+
+.stagesSection {
+  margin-top: 26px;
+}
+
+.sectionHeading {
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.sectionHeading h2 {
+  margin: 0 0 3px;
+  color: var(--ink);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(21px, 2vw, 27px);
+  font-weight: 600;
+}
+
+.sectionHeading p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.sectionHeading > span {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--teal-deep);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stageGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stageCard {
+  display: flex;
+  min-height: 360px;
+  flex-direction: column;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+
+.stageCard[data-active='true'] {
+  border-color: rgba(61, 122, 110, 0.45);
+  background: #fbfefc;
+}
+
+.stageCardTop {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stageCardTop > span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.stageCardTop small {
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: #edf4f3;
+  color: var(--teal-deep);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.stageCard h3 {
+  margin: 12px 0 8px;
+  color: var(--ink);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.stageCard ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.stageCard li::marker {
+  color: var(--teal);
+}
+
+.stageInstructionLabel {
+  display: block;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--teal-deep);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.stageInstructions {
+  display: grid;
+  gap: 7px;
+  margin: 8px 0 0;
+  padding-left: 19px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.stageInstructions li::marker {
+  color: var(--teal-deep);
+  font-weight: 750;
+}
+
+.stageCardBottom {
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 16px;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.stageCardBottom > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sourceCard {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  margin-top: 22px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+
+.sourceArt {
+  display: grid;
+  height: 96px;
+  place-items: center;
+  border-radius: 18px;
+  background: radial-gradient(circle at 80% 15%, #f7e8c7, transparent 36%),
+    linear-gradient(145deg, #e6f3e9, #d0e4d7);
+}
+
+.sourceArt > div {
+  display: grid;
+  width: 54px;
+  height: 70px;
+  justify-items: center;
+  gap: 3px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #fffdf8;
+  box-shadow: 4px 5px 0 rgba(37, 89, 68, 0.13);
+  color: var(--teal-deep);
+}
+
+.sourceArt span {
+  width: 100%;
+  height: 2px;
+  background: #d4e4d9;
+}
+
+.sourceCard h2 {
+  margin: 5px 0;
+  color: var(--ink);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.sourceCard p {
+  max-width: 70ch;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sourceCard a {
+  padding: 0 15px;
+  border: 1px solid var(--line);
+  background: #f7faf8;
+  color: var(--teal-deep);
+  white-space: nowrap;
+}
+
+.progressCard {
+  gap: 16px;
+  margin-top: 22px;
+  padding: 19px 22px;
+  border: 1px solid rgba(61, 122, 110, 0.1);
+  border-radius: var(--radius-panel);
+  background: linear-gradient(110deg, #eaf5f2, #f1f5fc);
+}
+
+.progressIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: #b8e9d4;
+  color: var(--teal-deep);
+}
+
+.progressCard > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.progressCard h2 {
+  margin: 0 0 3px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.progressCard p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.progressCard button {
+  min-width: 154px;
+  padding: 0 16px;
+  border: 1px solid var(--teal-deep);
+  background: var(--surface);
+  color: var(--teal-deep);
+}
+
+.progressCard button:disabled {
+  border-color: var(--line);
+  color: var(--ink-soft);
+  cursor: not-allowed;
+}
+
+.safetyNote,
+.boundary {
+  max-width: 80ch;
+  margin: 20px auto 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.boundary {
+  margin-top: 10px;
+  font-style: italic;
+}
+
+.confirmDialog {
+  max-width: 440px;
+  padding: 24px;
+  border-radius: var(--radius-shell);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.confirmDialog h2 {
+  margin: 0 0 10px;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 24px;
+}
+
+.confirmDialog p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.confirmDialog > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.confirmDialog button {
+  padding: 0 15px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--teal-deep);
+}
+
+.confirmDialog button:last-child {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  color: #fff;
+}
+
+.page :is(button, a, [role='slider']):focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .page :is(button, a):not(:disabled):hover {
+    filter: brightness(0.95);
+  }
+}
+
+@container (max-width: 850px) {
+  .practice {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'visual' 'guide' 'audio' 'controls' 'error';
+  }
+
+  .stageGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .stageCard {
+    min-height: 0;
+  }
+}
+
+.page button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 900px) {
+  .practice {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'visual' 'guide' 'audio' 'controls' 'error';
+  }
+
+  .practiceVisual {
+    min-height: 260px;
+  }
+
+  .guide {
+    min-height: 220px;
+  }
+
+  .stageGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .stageCard {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .page {
+    padding: 14px 14px 36px;
+  }
+
+  .toolbar {
+    align-items: flex-start;
+  }
+
+  .breadcrumb {
+    width: 100%;
+  }
+
+  .intro {
+    padding: 22px;
+  }
+
+  .intro p {
+    font-size: 14px;
+  }
+
+  .practice {
+    gap: 18px;
+    padding: 18px;
+  }
+
+  .practiceVisual {
+    min-height: 230px;
+  }
+
+  .timerRing {
+    width: min(210px, 75%);
+  }
+
+  .guide {
+    min-height: 0;
+    padding: 20px;
+  }
+
+  .sourceCard {
+    grid-template-columns: 70px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .sourceArt {
+    height: 76px;
+  }
+
+  .sourceCard a {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .progressCard {
+    flex-wrap: wrap;
+  }
+
+  .progressCard button {
+    width: 100%;
+  }
+
+  .sectionHeading > span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page button {
+    transition: none;
+  }
+}

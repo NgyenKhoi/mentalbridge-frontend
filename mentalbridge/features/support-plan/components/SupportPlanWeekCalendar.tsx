@@ -17,6 +17,9 @@ interface SupportPlanWeekCalendarProps {
   weekRangeLabel: string
   viewMode?: 'calendar' | 'list'
   onViewModeChange?: (mode: 'calendar' | 'list') => void
+  listFilter?: 'all' | 'incomplete' | 'completed'
+  onListFilterChange?: (filter: 'all' | 'incomplete' | 'completed') => void
+  listCounts?: { all: number; incomplete: number; completed: number }
   pausedStatusBadge?: React.ReactNode
 }
 
@@ -49,11 +52,14 @@ export default function SupportPlanWeekCalendar({
   weekRangeLabel,
   viewMode = 'calendar',
   onViewModeChange,
+  listFilter = 'all',
+  onListFilterChange,
+  listCounts,
   pausedStatusBadge,
 }: SupportPlanWeekCalendarProps) {
   return (
     <section
-      className="support-plan-week-calendar"
+      className={`support-plan-week-calendar${viewMode === 'list' ? ' is-list-view' : ''}`}
       aria-label="Lịch trình chăm sóc 7 ngày"
     >
       {/* Calendar Header Controls: Aligned horizontally */}
@@ -67,7 +73,9 @@ export default function SupportPlanWeekCalendar({
               Lịch trình chăm sóc 7 ngày
             </h3>
             <p className="support-plan-calendar-subtitle">
-              Chọn một ngày để lọc và xem bài tập tương ứng
+              {viewMode === 'list'
+                ? 'Các hoạt động trong tuần theo thứ tự thời gian'
+                : 'Chọn một ngày để lọc và xem bài tập tương ứng'}
             </p>
           </div>
           {pausedStatusBadge}
@@ -83,6 +91,7 @@ export default function SupportPlanWeekCalendar({
               <button
                 type="button"
                 className={`support-plan-view-btn ${viewMode === 'calendar' ? 'is-active' : ''}`}
+                aria-pressed={viewMode === 'calendar'}
                 onClick={() => onViewModeChange('calendar')}
               >
                 <SupportPlanIcon name="calendar_view_week" size={16} />
@@ -91,6 +100,7 @@ export default function SupportPlanWeekCalendar({
               <button
                 type="button"
                 className={`support-plan-view-btn ${viewMode === 'list' ? 'is-active' : ''}`}
+                aria-pressed={viewMode === 'list'}
                 onClick={() => onViewModeChange('list')}
               >
                 <SupportPlanIcon name="view_agenda" size={16} />
@@ -125,135 +135,165 @@ export default function SupportPlanWeekCalendar({
         </div>
       </div>
 
-      {/* 7-Day Grid */}
-      <div
-        className="support-plan-calendar-grid"
-        role="listbox"
-        aria-label="Chọn ngày trong tuần"
-      >
-        {weekDays.map((dateStr, idx) => {
-          const isToday = dateStr === today
-          const isSelected = dateStr === selectedDate
-          const dayOccurrences = occurrences.filter(
-            (o) => !o.hidden && o.localDate === dateStr,
-          )
-          const allCompleted =
-            dayOccurrences.length > 0 &&
-            dayOccurrences.every((o) => o.state === 'COMPLETED')
-          const isRestDay = dayOccurrences.length === 0
-          const isPast = dateStr < today
-          let statusClass = 'state-upcoming'
-          let statusTitle = 'Lịch trình kế tiếp'
-          if (allCompleted) {
-            statusClass = 'state-done'
-            statusTitle = 'Đã hoàn thành'
-          } else if (isToday) {
-            statusClass = 'state-today'
-            statusTitle = 'Hôm nay & Đang làm'
-          } else if (isRestDay) {
-            statusClass = 'state-rest'
-            statusTitle = 'Nghỉ ngơi linh hoạt'
-          } else if (isPast) {
-            statusClass = 'state-past'
-            statusTitle = 'Đã qua'
-          }
-
-          return (
-            <div
-              key={dateStr}
-              role="option"
-              tabIndex={0}
-              aria-selected={isSelected}
-              className={`support-plan-cal-col ${statusClass} ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}`}
-              onClick={() => onSelectDate(dateStr)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onSelectDate(dateStr)
-                }
-              }}
+      {viewMode === 'list' && onListFilterChange && listCounts ? (
+        <div
+          className="support-plan-list-filters"
+          role="group"
+          aria-label="Lọc hoạt động trong tuần"
+        >
+          {(
+            [
+              ['all', 'Tất cả'],
+              ['incomplete', 'Chưa hoàn thành'],
+              ['completed', 'Đã hoàn thành'],
+            ] as const
+          ).map(([filter, label]) => (
+            <button
+              key={filter}
+              type="button"
+              className={`support-plan-list-filter${listFilter === filter ? ' is-active' : ''}`}
+              aria-pressed={listFilter === filter}
+              onClick={() => onListFilterChange(filter)}
             >
-              {isToday && (
-                <div className="support-plan-today-badge">Hôm nay</div>
-              )}
+              {label} <span>{listCounts[filter]}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
-              <div className="support-plan-cal-day-top">
-                <div className="support-plan-cal-header-row">
-                  <span className="support-plan-cal-weekday">
-                    {VI_WEEKDAYS[idx]}
-                  </span>
-                  <span
-                    className={`support-plan-status-dot ${isToday ? 'animate-pulse' : ''}`}
-                    title={statusTitle}
-                    aria-hidden="true"
-                  />
-                </div>
-                <span className="support-plan-cal-day-number">
-                  {formatDayNumber(dateStr)}
-                </span>
-              </div>
+      {viewMode === 'calendar' ? (
+        <>
+          {/* 7-Day Grid */}
+          <div
+            className="support-plan-calendar-grid"
+            role="listbox"
+            aria-label="Chọn ngày trong tuần"
+          >
+            {weekDays.map((dateStr, idx) => {
+              const isToday = dateStr === today
+              const isSelected = dateStr === selectedDate
+              const dayOccurrences = occurrences.filter(
+                (o) => !o.hidden && o.localDate === dateStr,
+              )
+              const allCompleted =
+                dayOccurrences.length > 0 &&
+                dayOccurrences.every((o) => o.state === 'COMPLETED')
+              const isRestDay = dayOccurrences.length === 0
+              const isPast = dateStr < today
+              let statusClass = 'state-upcoming'
+              let statusTitle = 'Lịch trình kế tiếp'
+              if (allCompleted) {
+                statusClass = 'state-done'
+                statusTitle = 'Đã hoàn thành'
+              } else if (isToday) {
+                statusClass = 'state-today'
+                statusTitle = 'Hôm nay & Đang làm'
+              } else if (isRestDay) {
+                statusClass = 'state-rest'
+                statusTitle = 'Nghỉ ngơi linh hoạt'
+              } else if (isPast) {
+                statusClass = 'state-past'
+                statusTitle = 'Đã qua'
+              }
 
-              {/* Tối đa 2 chip rút gọn + badge +N nếu nhiều hơn */}
-              <div className="support-plan-cal-chips">
-                {dayOccurrences.slice(0, 2).map((item) => (
-                  <div
-                    key={item.occurrenceId}
-                    className="support-plan-cal-chip"
-                    title={`${formatTime(item.scheduledAt, item.timezone)} ${item.source.title}`}
-                  >
-                    <SupportPlanIcon
-                      name={
-                        item.state === 'COMPLETED'
-                          ? 'check_circle'
-                          : item.source.type === 'RESOURCE'
-                            ? 'psychology'
-                            : 'self_improvement'
-                      }
-                      size={12}
-                      className="support-plan-cal-chip-icon"
-                    />
-                    <span className="support-plan-cal-chip-text">
-                      {formatTime(item.scheduledAt, item.timezone)}{' '}
-                      {item.source.title}
+              return (
+                <div
+                  key={dateStr}
+                  role="option"
+                  tabIndex={0}
+                  aria-selected={isSelected}
+                  className={`support-plan-cal-col ${statusClass} ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}`}
+                  onClick={() => onSelectDate(dateStr)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onSelectDate(dateStr)
+                    }
+                  }}
+                >
+                  {isToday && (
+                    <div className="support-plan-today-badge">Hôm nay</div>
+                  )}
+
+                  <div className="support-plan-cal-day-top">
+                    <div className="support-plan-cal-header-row">
+                      <span className="support-plan-cal-weekday">
+                        {VI_WEEKDAYS[idx]}
+                      </span>
+                      <span
+                        className={`support-plan-status-dot ${isToday ? 'animate-pulse' : ''}`}
+                        title={statusTitle}
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <span className="support-plan-cal-day-number">
+                      {formatDayNumber(dateStr)}
                     </span>
                   </div>
-                ))}
-                {dayOccurrences.length > 2 && (
-                  <span
-                    className="support-plan-cal-more-badge"
-                    title={`Còn ${dayOccurrences.length - 2} hoạt động khác`}
-                  >
-                    +{dayOccurrences.length - 2}
-                  </span>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
 
-      {/* Status Legend Bar */}
-      <div
-        className="support-plan-calendar-legend"
-        aria-label="Chú thích trạng thái"
-      >
-        <div className="support-plan-legend-item">
-          <span className="support-plan-legend-dot state-done" />
-          <span>Đã hoàn thành</span>
-        </div>
-        <div className="support-plan-legend-item">
-          <span className="support-plan-legend-dot state-today" />
-          <span>Hôm nay &amp; Đang làm</span>
-        </div>
-        <div className="support-plan-legend-item">
-          <span className="support-plan-legend-dot state-upcoming" />
-          <span>Lịch trình kế tiếp</span>
-        </div>
-        <div className="support-plan-legend-item">
-          <span className="support-plan-legend-dot state-rest" />
-          <span>Nghỉ ngơi linh hoạt</span>
-        </div>
-      </div>
+                  {/* Tối đa 2 chip rút gọn + badge +N nếu nhiều hơn */}
+                  <div className="support-plan-cal-chips">
+                    {dayOccurrences.slice(0, 2).map((item) => (
+                      <div
+                        key={item.occurrenceId}
+                        className="support-plan-cal-chip"
+                        title={`${formatTime(item.scheduledAt, item.timezone)} ${item.source.title}`}
+                      >
+                        <SupportPlanIcon
+                          name={
+                            item.state === 'COMPLETED'
+                              ? 'check_circle'
+                              : item.source.type === 'RESOURCE'
+                                ? 'psychology'
+                                : 'self_improvement'
+                          }
+                          size={12}
+                          className="support-plan-cal-chip-icon"
+                        />
+                        <span className="support-plan-cal-chip-text">
+                          {formatTime(item.scheduledAt, item.timezone)}{' '}
+                          {item.source.title}
+                        </span>
+                      </div>
+                    ))}
+                    {dayOccurrences.length > 2 && (
+                      <span
+                        className="support-plan-cal-more-badge"
+                        title={`Còn ${dayOccurrences.length - 2} hoạt động khác`}
+                      >
+                        +{dayOccurrences.length - 2}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Status Legend Bar */}
+          <div
+            className="support-plan-calendar-legend"
+            aria-label="Chú thích trạng thái"
+          >
+            <div className="support-plan-legend-item">
+              <span className="support-plan-legend-dot state-done" />
+              <span>Đã hoàn thành</span>
+            </div>
+            <div className="support-plan-legend-item">
+              <span className="support-plan-legend-dot state-today" />
+              <span>Hôm nay &amp; Đang làm</span>
+            </div>
+            <div className="support-plan-legend-item">
+              <span className="support-plan-legend-dot state-upcoming" />
+              <span>Lịch trình kế tiếp</span>
+            </div>
+            <div className="support-plan-legend-item">
+              <span className="support-plan-legend-dot state-rest" />
+              <span>Nghỉ ngơi linh hoạt</span>
+            </div>
+          </div>
+        </>
+      ) : null}
     </section>
   )
 }

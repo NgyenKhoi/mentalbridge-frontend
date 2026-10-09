@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 import {
   getResourceProgress,
@@ -29,6 +29,7 @@ import {
   type ResourceFormat,
 } from '../model/resource-experience'
 import { AnimatedResourceSticker } from './AnimatedResourceSticker'
+import { ResourcePreview } from './ResourcePreview'
 
 const VIEW_STATE_KEY = 'mentalbridge:resources:view'
 
@@ -40,12 +41,6 @@ type ViewState = Readonly<{
 }>
 
 type Reward = 'resource' | 'day' | null
-
-function greeting(hour: number) {
-  if (hour < 11) return 'Chào buổi sáng'
-  if (hour < 18) return 'Chào buổi chiều'
-  return 'Chào buổi tối'
-}
 
 function statusLabel(progress: ResourceProgressItem | undefined) {
   if (progress?.status === 'COMPLETED') return 'Đã hoàn thành'
@@ -100,68 +95,101 @@ export default function ResourcesExperience() {
   const [resources, setResources] = useState<PublicResourceSummary[]>([])
   const [progress, setProgress] = useState<ResourceProgressItem[]>([])
   const [journeys, setJourneys] = useState<Record<string, ResourceJourney>>({})
-  const [state, setState] = useState<
-    'loading' | 'ready' | 'empty' | 'plan-required' | 'error'
+  const [state, setState] = useState<'loading' | 'ready' | 'empty' | 'error'>(
+    'loading',
+  )
+  const [progressState, setProgressState] = useState<
+    'loading' | 'ready' | 'error'
+  >('loading')
+  const [journeyState, setJourneyState] = useState<
+    'loading' | 'ready' | 'plan-required' | 'error'
   >('loading')
   const [pendingId, setPendingId] = useState('')
   const [message, setMessage] = useState('')
   const [reward, setReward] = useState<Reward>(null)
+  const heroVideoRef = useRef<HTMLVideoElement>(null)
 
   const dates = useMemo(() => recentDates(today), [today])
 
   useEffect(() => {
     const controller = new AbortController()
+    let active = true
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    Promise.all([
-      getResourceCatalogue(controller.signal),
-      getResourceProgress(shiftDate(today, -14), today),
-      Promise.all(
-        dates.map(async (date) => {
-          try {
-            return await getResourceJourney(date, timeZone, controller.signal)
-          } catch (error) {
-            if (
-              error instanceof ResourceJourneyBrowserError &&
-              error.status === 404
-            ) {
-              return null
-            }
-            throw error
-          }
-        }),
-      ),
-    ])
-      .then(([catalogue, history, dailyJourneys]) => {
+    void getResourceCatalogue(controller.signal, 'vi-VN')
+      .then((catalogue) => {
+        if (!active) return
         if (catalogue.unavailable) throw new Error('unavailable')
+        setResources(catalogue.items)
+        setState(catalogue.items.length === 0 ? 'empty' : 'ready')
+        window.requestAnimationFrame(() => window.scrollTo(0, initial.scrollY))
+      })
+      .catch((error: unknown) => {
+        if (
+          !active ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
+          return
+        }
+        setState('error')
+      })
+
+    void getResourceProgress(shiftDate(today, -14), today)
+      .then((history) => {
+        if (!active) return
+        setProgress([...history])
+        setProgressState('ready')
+      })
+      .catch(() => {
+        if (active) setProgressState('error')
+      })
+
+    void Promise.all(
+      dates.map(async (date) => {
+        try {
+          return await getResourceJourney(date, timeZone, controller.signal)
+        } catch (error) {
+          if (
+            error instanceof ResourceJourneyBrowserError &&
+            error.status === 404
+          ) {
+            return null
+          }
+          throw error
+        }
+      }),
+    )
+      .then((dailyJourneys) => {
+        if (!active) return
         const availableJourneys = dailyJourneys.filter(
           (journey): journey is ResourceJourney => journey !== null,
         )
-        setResources(catalogue.items)
-        setProgress([...history])
         setJourneys(
           Object.fromEntries(
             availableJourneys.map((journey) => [journey.localDate, journey]),
           ),
         )
-        setState(
-          availableJourneys.every((journey) => journey.items.length === 0)
-            ? 'empty'
-            : 'ready',
-        )
-        window.requestAnimationFrame(() => window.scrollTo(0, initial.scrollY))
+        setJourneyState('ready')
       })
       .catch((error: unknown) => {
-        if (error instanceof Error && error.name === 'AbortError') return
+        if (
+          !active ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
+          return
+        }
         if (
           error instanceof ResourceJourneyBrowserError &&
           error.status === 409
         ) {
-          setState('plan-required')
+          setJourneyState('plan-required')
           return
         }
-        setState('error')
+        setJourneyState('error')
       })
-    return () => controller.abort()
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [dates, initial.scrollY, today])
 
   useEffect(() => {
@@ -201,7 +229,6 @@ export default function ResourcesExperience() {
       (format === 'ALL' || meta.format === format)
     )
   })
-  const hasActiveFilters = difficulty !== 'ALL' || format !== 'ALL'
   const streak = journeys[today]?.progress.practiceStreakDays ?? 0
   const completedRecent = progress
     .filter((entry) => entry.status === 'COMPLETED')
@@ -215,6 +242,20 @@ export default function ResourcesExperience() {
       )
       return resource ? [{ entry, resource }] : []
     })
+  const spotlight =
+    (progressState === 'ready' ? nextResource : undefined) ??
+    resources.find((resource) => resource.resourceKind === 'PRACTICE') ??
+    resources[0]
+
+  function playHeroPreview() {
+    if (
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      const video = heroVideoRef.current
+      if (video) void video.play().catch(() => video.pause())
+    }
+  }
 
   async function toggleDaily(
     resource: PublicResourceSummary,
@@ -297,30 +338,14 @@ export default function ResourcesExperience() {
     )
   }
 
-  if (state === 'plan-required') {
-    return (
-      <section className="resource-journey-state" role="status">
-        <div className="resource-journey-state-sticker">
-          <AnimatedResourceSticker variant="garden" size="large" />
-        </div>
-        <h1>Hãy chọn kế hoạch phù hợp với bạn trước nhé</h1>
-        <p>
-          Thử thách mỗi ngày được sắp xếp từ kế hoạch hỗ trợ đang hoạt động để
-          các gợi ý luôn đúng với điều bạn đã chọn.
-        </p>
-        <Link href="/support-plan">Xem kế hoạch hỗ trợ</Link>
-      </section>
-    )
-  }
-
   if (state === 'empty') {
     return (
       <section className="resource-journey-state" role="status">
         <div className="resource-journey-state-sticker">
           <AnimatedResourceSticker variant="garden" size="large" />
         </div>
-        <h1>Chưa có hoạt động cho hôm nay</h1>
-        <p>Khi tài nguyên mới sẵn sàng, chúng sẽ xuất hiện ở khu vườn này.</p>
+        <h1>Chưa có tài nguyên</h1>
+        <p>Khi tài nguyên mới sẵn sàng, chúng sẽ xuất hiện ở đây.</p>
       </section>
     )
   }
@@ -332,439 +357,455 @@ export default function ResourcesExperience() {
   }).format(new Date(`${selectedDate}T12:00:00`))
 
   return (
-    <div className="resource-garden">
-      <header className="resource-garden__welcome">
-        <div className="resource-garden__intro">
-          <span className="resource-garden__eyebrow">Góc tài nguyên</span>
-          <h1>{greeting(new Date().getHours())}, mình chọn một bước nhỏ nhé</h1>
+    <div className="resource-journey resource-journey-v2">
+      <header
+        className="resource-welcome resource-hero"
+        onMouseEnter={playHeroPreview}
+        onMouseLeave={() => heroVideoRef.current?.pause()}
+      >
+        <video
+          ref={heroVideoRef}
+          className="resource-hero-video"
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-hidden="true"
+        >
+          <source
+            src="/videos/openhero/cloud-forest-sanctuaries.mp4"
+            type="video/mp4"
+          />
+        </video>
+        <div className="resource-hero-copy">
+          <span className="resource-eyebrow">Một khoảng dành cho bạn</span>
+          <h1>Hôm nay, bạn muốn dành cho mình điều gì?</h1>
           <p>
-            Chọn một ngày, tiếp tục hoạt động đang chờ bạn hoặc thong thả khám
-            phá điều phù hợp với nhịp của mình.
+            Chọn một nhịp vừa sức, xem trước nội dung và bắt đầu khi bạn sẵn
+            sàng.
           </p>
-          <div className="resource-garden__meta">
-            <span>
-              {new Intl.DateTimeFormat('vi-VN', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              }).format(new Date())}
-            </span>
-            <span className="resource-garden__streak">
-              <i aria-hidden="true">🌱</i>
-              <strong>{streak} ngày</strong> bạn đã quay lại với mình
-            </span>
-          </div>
-        </div>
-        <div className="resource-garden__mascot" aria-hidden="true">
-          <AnimatedResourceSticker variant="garden" size="large" />
-          <span>Mỗi bước nhỏ đều đáng quý.</span>
-        </div>
-      </header>
-
-      <section className="resource-path" aria-labelledby="resource-date-title">
-        <div className="resource-section-intro">
-          <div>
-            <span className="resource-section-intro__eyebrow">
-              Chọn nhịp hôm nay
-            </span>
-            <h2 id="resource-date-title">Đường mòn 7 ngày</h2>
-          </div>
-          <p>Chạm vào một ngày để xem hoạt động và tiến độ đã lưu.</p>
-        </div>
-        <div className="resource-dayrail-shell">
           <div
-            className="resource-dayrail"
+            className="resource-hero-choices"
             role="group"
-            aria-label="Chọn ngày trong 7 ngày gần đây"
+            aria-label="Chọn nhịp hoạt động"
           >
-            {dates.map((date) => {
-              const journey = journeys[date]
-              const total = journey?.items.length ?? 0
-              const count = (journey?.items ?? []).filter(
-                (item) =>
-                  progressFor(progress, item.resource.id, date)?.status ===
-                  'COMPLETED',
-              ).length
-              const complete = total > 0 && count === total
-              const instant = new Date(`${date}T12:00:00`)
-              return (
-                <button
-                  type="button"
-                  key={date}
-                  className={`${date === selectedDate ? 'is-selected' : ''} ${date === today ? 'is-today' : ''} ${complete ? 'is-complete' : ''}`}
-                  aria-pressed={date === selectedDate}
-                  aria-label={`${new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }).format(instant)}${complete ? ', đã hoàn thành' : ''}`}
-                  onClick={() => setSelectedDate(date)}
-                >
-                  <span>
-                    {new Intl.DateTimeFormat('vi-VN', {
-                      weekday: 'short',
-                    }).format(instant)}
-                  </span>
-                  <strong>{instant.getDate()}</strong>
-                  <i aria-hidden="true">{complete ? '✓' : '·'}</i>
-                </button>
-              )
-            })}
-          </div>
-          <span className="resource-dayrail-hint" aria-hidden="true">
-            Vuốt để xem đủ 7 ngày →
-          </span>
-        </div>
-
-        <article className="resource-focus" aria-labelledby="daily-title">
-          <aside
-            className="resource-focus__progress"
-            aria-label="Tiến độ ngày đã chọn"
-          >
-            <AnimatedResourceSticker
-              variant={
-                selected.length > 0 && selectedCompleted === selected.length
-                  ? 'complete'
-                  : 'garden'
-              }
-              size="large"
-            />
-            <span>Tiến độ ngày đã chọn</span>
-            <strong>
-              {selectedCompleted}
-              <small>/{selected.length}</small>
-            </strong>
-            <progress
-              value={selectedCompleted}
-              max={Math.max(selected.length, 1)}
-              aria-label={`${selectedCompleted} trên ${selected.length} hoạt động đã hoàn thành`}
-            />
-            <p>Không cần làm hết một lúc. Một bước vừa sức là đủ.</p>
-          </aside>
-          <div className="resource-focus__copy">
-            <span className="resource-focus__eyebrow">
-              {selectedDate === today
-                ? 'Thử thách hôm nay'
-                : 'Hành trình ngày đã chọn'}
-            </span>
-            <h2 id="daily-title">Một chút bình yên cho {selectedDateLabel}</h2>
-            <p>
-              Bắt đầu từ hoạt động tiếp theo, hoặc đánh dấu một việc nhỏ khi bạn
-              đã hoàn thành. Bỏ lỡ một ngày cũng không sao.
-            </p>
-            <ul className="resource-focus__tasks">
-              {selected.map((resource) => {
-                const item = progressFor(progress, resource.id, selectedDate)
-                const complete = item?.status === 'COMPLETED'
-                return (
-                  <li
-                    key={resource.id}
-                    className={complete ? 'is-complete' : ''}
-                  >
-                    {complete ? (
-                      <span
-                        className="resource-focus__task-done"
-                        aria-label={`${resource.title}, đã hoàn thành`}
-                      >
-                        <i aria-hidden="true">✓</i>
-                        <b>{resource.title}</b>
-                      </span>
-                    ) : (
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={false}
-                          disabled={pendingId !== ''}
-                          aria-label={`Đánh dấu ${resource.title} đã hoàn thành`}
-                          onChange={(event) =>
-                            void toggleDaily(resource, event.target.checked)
-                          }
-                        />
-                        <span aria-hidden="true" />
-                        <b>{resource.title}</b>
-                      </label>
-                    )}
-                    <small>{resourcePresentation(resource).minutes} phút</small>
-                  </li>
-                )
-              })}
-            </ul>
-            {message && (
-              <p className="resource-inline-error" role="alert">
-                {message}
-              </p>
-            )}
-            {nextResource ? (
-              <Link
-                className="resource-focus__start"
-                href={`/resources/${nextResource.id}?from=resources&date=${selectedDate}`}
-              >
-                <span>
-                  <small>Bước tiếp theo</small>
-                  Bắt đầu: {nextResource.title}
-                </span>
-                <i aria-hidden="true">→</i>
-              </Link>
-            ) : selected.length === 0 ? (
-              <div className="resource-focus__complete" role="status">
-                Ngày này chưa có hoạt động
-              </div>
-            ) : (
-              <div className="resource-focus__complete">
-                <span aria-hidden="true">🌟</span>
-                Bạn đã dành trọn một khoảng nhỏ cho mình.
-              </div>
-            )}
-          </div>
-        </article>
-      </section>
-
-      <section className="resource-library" aria-labelledby="catalogue-title">
-        <div className="resource-section-intro resource-section-intro--library">
-          <div>
-            <span className="resource-section-intro__eyebrow">
-              Khám phá thêm
-            </span>
-            <h2 id="catalogue-title">Chọn điều bạn cần lúc này</h2>
-          </div>
-          <p role="status" aria-live="polite">
-            {filtered.length} hoạt động phù hợp
-          </p>
-        </div>
-        <div className="resource-filters">
-          <div
-            className="resource-filter-row"
-            role="group"
-            aria-labelledby="resource-energy-filter"
-          >
-            <span id="resource-energy-filter">Mức năng lượng</span>
-            <div>
-              {(['ALL', 'GENTLE', 'BALANCED', 'CHALLENGE'] as const).map(
-                (value) => (
-                  <button
-                    type="button"
-                    key={value}
-                    className={difficulty === value ? 'is-active' : ''}
-                    aria-pressed={difficulty === value}
-                    onClick={() => setDifficulty(value)}
-                  >
-                    <i aria-hidden="true">
-                      {value === 'GENTLE'
-                        ? '☁'
-                        : value === 'BALANCED'
-                          ? '🌿'
-                          : value === 'CHALLENGE'
-                            ? '✦'
-                            : '◌'}
-                    </i>
-                    {value === 'ALL' ? 'Tất cả' : difficultyLabels[value]}
-                  </button>
-                ),
-              )}
-            </div>
-          </div>
-          <div
-            className="resource-filter-row"
-            role="group"
-            aria-labelledby="resource-format-filter"
-          >
-            <span id="resource-format-filter">Hình thức</span>
-            <div>
-              {(['ALL', 'READ', 'VIDEO', 'PRACTICE'] as const).map((value) => (
+            {(['ALL', 'GENTLE', 'BALANCED', 'CHALLENGE'] as const).map(
+              (value) => (
                 <button
                   type="button"
                   key={value}
-                  className={format === value ? 'is-active' : ''}
-                  aria-pressed={format === value}
-                  onClick={() => setFormat(value)}
+                  aria-pressed={difficulty === value}
+                  className={difficulty === value ? 'is-active' : ''}
+                  onClick={() => setDifficulty(value)}
                 >
-                  {value === 'ALL' ? 'Mọi loại' : formatLabels[value]}
+                  {value === 'ALL' ? 'Tất cả' : difficultyLabels[value]}
                 </button>
-              ))}
-            </div>
+              ),
+            )}
           </div>
-          {hasActiveFilters && (
-            <button
-              className="resource-filters__reset"
-              type="button"
-              onClick={() => {
-                setDifficulty('ALL')
-                setFormat('ALL')
-              }}
-            >
-              Xóa bộ lọc
-            </button>
-          )}
         </div>
-
-        {filtered.length === 0 ? (
-          <div className="resource-library-empty" role="status">
-            <span aria-hidden="true">🧺</span>
-            <h3>Chưa có hoạt động khớp bộ lọc</h3>
-            <p>Thử một mức độ hoặc loại nội dung khác nhé.</p>
-            <button
-              type="button"
-              onClick={() => {
-                setDifficulty('ALL')
-                setFormat('ALL')
-              }}
+        {spotlight && (
+          <div className="resource-hero-spotlight">
+            <span>Gợi ý để bắt đầu</span>
+            <strong>{spotlight.title}</strong>
+            <small>
+              {resourcePresentation(spotlight).minutes} phút ·{' '}
+              {formatLabels[resourcePresentation(spotlight).format]}
+            </small>
+            <Link
+              href={`/resources/${spotlight.id}?from=resources&date=${selectedDate}`}
+              aria-label={`Khám phá hoạt động: ${spotlight.title}`}
             >
-              Xem tất cả hoạt động
-            </button>
-          </div>
-        ) : (
-          <div className="resource-shelf">
-            {filtered.map((resource, index) => {
-              const meta = resourcePresentation(resource)
-              const item = progressFor(progress, resource.id, selectedDate)
-              const action =
-                item?.status === 'IN_PROGRESS'
-                  ? 'Tiếp tục'
-                  : item?.status === 'COMPLETED'
-                    ? 'Xem lại'
-                    : 'Khám phá'
-              return (
-                <article
-                  key={resource.id}
-                  className={`resource-tile resource-tile--${meta.accent} ${index === 0 ? 'resource-tile--featured' : ''}`}
-                >
-                  <div className="resource-tile__art" aria-hidden="true">
-                    <AnimatedResourceSticker
-                      variant={meta.sticker}
-                      size={index === 0 ? 'large' : 'medium'}
-                    />
-                    <i>✦</i>
-                  </div>
-                  <div className="resource-tile__body">
-                    {index === 0 && (
-                      <span className="resource-tile__lead">Lối vào gợi ý</span>
-                    )}
-                    <div className="resource-tile__badges">
-                      <span>{formatLabels[meta.format]}</span>
-                      <span>{difficultyLabels[meta.difficulty]}</span>
-                    </div>
-                    <h3>{resource.title}</h3>
-                    <p>{resource.summary}</p>
-                    <div className="resource-tile__meta">
-                      <span>◷ {meta.minutes} phút</span>
-                      <span
-                        className={`status-${item?.status?.toLowerCase() ?? 'new'}`}
-                      >
-                        {statusLabel(item)}
-                      </span>
-                    </div>
-                    <Link
-                      href={`/resources/${resource.id}?from=resources&date=${selectedDate}`}
-                      aria-label={`${action}: ${resource.title}`}
-                    >
-                      {action}
-                      <span aria-hidden="true">→</span>
-                    </Link>
-                  </div>
-                </article>
-              )
-            })}
+              Khám phá hoạt động <span aria-hidden="true">→</span>
+            </Link>
           </div>
         )}
-      </section>
+      </header>
 
-      <section className="resource-keepsakes" aria-labelledby="keepsakes-title">
-        <div className="resource-section-intro resource-section-intro--keepsakes">
-          <div>
-            <span className="resource-section-intro__eyebrow">Nhìn lại</span>
-            <h2 id="keepsakes-title">Góc nhỏ bạn đã vun bồi</h2>
-          </div>
-          <p>Những dấu mốc ở đây chỉ để ghi nhận, không phải để tạo áp lực.</p>
-        </div>
-        <div className="resource-keepsakes__grid">
-          <section className="resource-bingo" aria-labelledby="bingo-title">
-            <div className="resource-keepsakes__heading">
-              <div>
-                <span aria-hidden="true">✿</span>
-                <h3 id="bingo-title">Bingo tuần này</h3>
-              </div>
-              <p>Mỗi hoạt động hoàn thành sẽ nhận một con dấu nhỏ.</p>
-            </div>
-            {(selectedJourney?.bingo ?? []).length === 0 ? (
-              <p className="resource-keepsakes__empty">
-                Những ô đầu tiên sẽ xuất hiện khi hành trình bắt đầu.
-              </p>
-            ) : (
-              <div className="resource-bingo-grid">
-                {(selectedJourney?.bingo ?? []).map((bingoItem) => {
-                  const resource = resources.find(
-                    (candidate) => candidate.id === bingoItem.resourceId,
-                  )
-                  const stamped =
-                    bingoItem.stamped ||
-                    progress.some(
-                      (entry) =>
-                        entry.resourceId === bingoItem.resourceId &&
-                        dates.includes(entry.localDate) &&
-                        entry.status === 'COMPLETED',
+      <div className="resource-workspace">
+        <aside
+          className="resource-companion"
+          aria-label="Nhịp chăm sóc của bạn"
+        >
+          {journeyState === 'ready' ? (
+            <>
+              <section
+                className="resource-date-section"
+                aria-labelledby="resource-date-title"
+              >
+                <div className="resource-section-heading compact">
+                  <div>
+                    <span>01</span>
+                    <h2 id="resource-date-title">Nhịp chăm sóc</h2>
+                  </div>
+                  <p>Chọn ngày để xem những bước nhỏ của bạn.</p>
+                </div>
+                <div className="resource-streak-pill">
+                  <strong>{streak} ngày</strong> duy trì nhịp chăm sóc
+                </div>
+                <div className="resource-date-strip">
+                  {dates.map((date) => {
+                    const journey = journeys[date]
+                    const total = journey?.items.length ?? 0
+                    const count = (journey?.items ?? []).filter(
+                      (item) =>
+                        progressFor(progress, item.resource.id, date)
+                          ?.status === 'COMPLETED',
+                    ).length
+                    const complete =
+                      progressState === 'ready' && total > 0 && count === total
+                    const instant = new Date(`${date}T12:00:00`)
+                    return (
+                      <button
+                        type="button"
+                        key={date}
+                        className={`${date === selectedDate ? 'is-selected' : ''} ${date === today ? 'is-today' : ''}`}
+                        aria-pressed={date === selectedDate}
+                        aria-label={`${new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }).format(instant)}${complete ? ', đã hoàn thành' : ''}`}
+                        onClick={() => setSelectedDate(date)}
+                      >
+                        <span>
+                          {new Intl.DateTimeFormat('vi-VN', {
+                            weekday: 'short',
+                          }).format(instant)}
+                        </span>
+                        <strong>{instant.getDate()}</strong>
+                        <i aria-hidden="true">
+                          {complete ? '✓' : date === today ? '•' : ''}
+                        </i>
+                      </button>
                     )
-                  return (
-                    <div
-                      key={bingoItem.resourceId}
-                      className={stamped ? 'is-stamped' : ''}
-                      title={bingoItem.label}
-                    >
-                      <AnimatedResourceSticker
-                        variant={
-                          resource
-                            ? resourcePresentation(resource).sticker
-                            : 'garden'
-                        }
-                        size="small"
-                      />
-                      <small>{bingoItem.label}</small>
-                      {stamped && <b aria-label="Đã hoàn thành">✓</b>}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </section>
+                  })}
+                </div>
+              </section>
 
-          <section className="resource-recent" aria-labelledby="recent-title">
-            <div className="resource-keepsakes__heading">
-              <div>
-                <span aria-hidden="true">⌁</span>
-                <h3 id="recent-title">Vừa hoàn thành</h3>
+              <div className="resource-pattern-divider" aria-hidden="true">
+                <span>☁</span>
+                <i>✦</i>
+                <span>❧</span>
+                <i>✦</i>
+                <span>☁</span>
               </div>
-              <p>Mở lại một hoạt động khi bạn muốn quay về nhịp quen.</p>
+
+              <section
+                className="resource-daily-card"
+                aria-labelledby="daily-title"
+              >
+                <div
+                  className="resource-progress-orb"
+                  style={
+                    {
+                      '--progress': `${selected.length === 0 ? 0 : (selectedCompleted / selected.length) * 100}%`,
+                    } as CSSProperties
+                  }
+                >
+                  <div>
+                    <strong>
+                      {progressState === 'ready'
+                        ? `${selectedCompleted}/${selected.length}`
+                        : '—'}
+                    </strong>
+                    <span>
+                      {progressState === 'ready' ? 'đã xong' : 'tiến độ'}
+                    </span>
+                  </div>
+                </div>
+                <div className="resource-daily-copy">
+                  <span>
+                    {selectedDate === today
+                      ? 'Thử thách hôm nay'
+                      : 'Hành trình ngày đã chọn'}
+                  </span>
+                  <h2 id="daily-title">
+                    Một chút bình yên cho {selectedDateLabel}
+                  </h2>
+                  <p>
+                    Chọn nhịp độ phù hợp với bạn. Bỏ lỡ một ngày cũng không sao.
+                  </p>
+                  {selected.length === 0 ? (
+                    <p role="status">
+                      Ngày này chưa có hoạt động được xếp lịch.
+                    </p>
+                  ) : progressState === 'ready' ? (
+                    <ul>
+                      {selected.map((resource) => {
+                        const item = progressFor(
+                          progress,
+                          resource.id,
+                          selectedDate,
+                        )
+                        const complete = item?.status === 'COMPLETED'
+                        return (
+                          <li
+                            key={resource.id}
+                            className={complete ? 'is-complete' : ''}
+                          >
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={complete}
+                                disabled={pendingId !== '' || complete}
+                                onChange={(event) =>
+                                  void toggleDaily(
+                                    resource,
+                                    event.target.checked,
+                                  )
+                                }
+                              />
+                              <span aria-hidden="true">
+                                {complete ? '✓' : ''}
+                              </span>
+                              <b>{resource.title}</b>
+                            </label>
+                            <small>
+                              {resourcePresentation(resource).minutes} phút
+                            </small>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : (
+                    <p role="status">
+                      {progressState === 'loading'
+                        ? 'Đang tải tiến độ của bạn…'
+                        : 'Chưa tải được tiến độ. Bạn vẫn có thể xem tài nguyên bên dưới.'}
+                    </p>
+                  )}
+                  {message && (
+                    <p className="resource-inline-error" role="alert">
+                      {message}
+                    </p>
+                  )}
+                  {progressState === 'ready' && nextResource ? (
+                    <Link
+                      className="resource-start-button"
+                      href={`/resources/${nextResource.id}?from=resources&date=${selectedDate}`}
+                    >
+                      Bắt đầu việc kế tiếp <span aria-hidden="true">→</span>
+                    </Link>
+                  ) : progressState === 'ready' && selected.length > 0 ? (
+                    <div className="resource-day-complete">
+                      <span aria-hidden="true">🌟</span>
+                      Bạn đã dành trọn một khoảng nhỏ cho mình.
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+            </>
+          ) : (
+            <section
+              className="resource-journey-state resource-journey-inline-state"
+              role="status"
+            >
+              <h2>
+                {journeyState === 'loading'
+                  ? 'Đang tải hành trình 7 ngày'
+                  : journeyState === 'plan-required'
+                    ? 'Cần có kế hoạch hỗ trợ để xem hành trình'
+                    : 'Chưa tải được hành trình 7 ngày'}
+              </h2>
+              <p>Danh mục tài nguyên vẫn có thể xem và sử dụng bên dưới.</p>
+              {journeyState === 'plan-required' && (
+                <Link href="/support-plan">Xem kế hoạch hỗ trợ</Link>
+              )}
+              {journeyState === 'error' && (
+                <button type="button" onClick={() => window.location.reload()}>
+                  Thử tải lại hành trình
+                </button>
+              )}
+            </section>
+          )}
+        </aside>
+
+        <section
+          className="resource-catalogue"
+          aria-labelledby="catalogue-title"
+        >
+          <div className="resource-section-heading">
+            <div>
+              <span>02</span>
+              <h2 id="catalogue-title">Kho tài nguyên</h2>
             </div>
-            {completedRecent.length === 0 ? (
-              <div className="resource-recent-empty">
-                <AnimatedResourceSticker variant="complete" size="medium" />
-                <p>Huy hiệu đầu tiên đang chờ bạn.</p>
-              </div>
-            ) : (
-              <div className="resource-recent-strip">
-                {completedRecent.map(({ entry, resource }) => (
-                  <Link
-                    key={`${entry.localDate}:${resource.id}`}
-                    href={`/resources/${resource.id}?from=resources&date=${entry.localDate}`}
+            <p role="status">{filtered.length} hoạt động để khám phá</p>
+          </div>
+          <div
+            className="resource-filter-group secondary"
+            aria-label="Lọc theo loại nội dung"
+          >
+            {(['ALL', 'READ', 'VIDEO', 'PRACTICE'] as const).map((value) => (
+              <button
+                type="button"
+                key={value}
+                className={format === value ? 'is-active' : ''}
+                aria-pressed={format === value}
+                onClick={() => setFormat(value)}
+              >
+                {value === 'ALL' ? 'Mọi loại' : formatLabels[value]}
+              </button>
+            ))}
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="resource-filter-empty" role="status">
+              <span aria-hidden="true">🧺</span>
+              <h3>Chưa có hoạt động khớp bộ lọc</h3>
+              <p>Thử một mức độ hoặc loại nội dung khác nhé.</p>
+            </div>
+          ) : (
+            <div className="resource-experience-grid">
+              {filtered.map((resource, index) => {
+                const meta = resourcePresentation(resource)
+                const item = progressFor(progress, resource.id, selectedDate)
+                return (
+                  <article
+                    key={resource.id}
+                    className={`resource-experience-card accent-${meta.accent}${index === 0 ? ' is-featured' : ''}`}
                   >
-                    <AnimatedResourceSticker variant="complete" size="small" />
-                    <b>{resource.title}</b>
-                    <small>
-                      {new Intl.DateTimeFormat('vi-VN', {
-                        day: 'numeric',
-                        month: 'short',
-                      }).format(new Date(`${entry.localDate}T12:00:00`))}
-                    </small>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-      </section>
+                    <ResourcePreview
+                      resource={resource}
+                      featured={index === 0}
+                    />
+                    <div className="resource-card-body">
+                      <div className="resource-card-badges">
+                        <span>{formatLabels[meta.format]}</span>
+                        <span>{difficultyLabels[meta.difficulty]}</span>
+                      </div>
+                      <h3>{resource.title}</h3>
+                      <p>{resource.summary}</p>
+                      <div className="resource-card-meta">
+                        <span>◷ {meta.minutes} phút</span>
+                        <span
+                          className={`status-${item?.status?.toLowerCase() ?? 'new'}`}
+                        >
+                          {progressState === 'ready'
+                            ? statusLabel(item)
+                            : progressState === 'loading'
+                              ? 'Đang tải tiến độ'
+                              : 'Chưa rõ tiến độ'}
+                        </span>
+                      </div>
+                      <Link
+                        href={`/resources/${resource.id}?from=resources&date=${selectedDate}`}
+                        aria-label={`${item?.status === 'IN_PROGRESS' ? 'Tiếp tục' : item?.status === 'COMPLETED' ? 'Xem lại' : 'Khám phá hoạt động'}: ${resource.title}`}
+                      >
+                        {item?.status === 'IN_PROGRESS'
+                          ? 'Tiếp tục'
+                          : item?.status === 'COMPLETED'
+                            ? 'Xem lại'
+                            : 'Khám phá hoạt động'}
+                        <span aria-hidden="true">→</span>
+                      </Link>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="resource-lower-grid">
+        <section className="resource-bingo" aria-labelledby="bingo-title">
+          <div className="resource-section-heading compact">
+            <div>
+              <span>03</span>
+              <h2 id="bingo-title">Bingo chăm sóc tuần này</h2>
+            </div>
+          </div>
+          <p>Mỗi hoạt động hoàn thành được ghi dấu trong tuần của bạn.</p>
+          {journeyState === 'ready' &&
+          progressState === 'ready' &&
+          (selectedJourney?.bingo.length ?? 0) === 0 ? (
+            <p role="status">Tuần này chưa có ô bingo để ghi dấu.</p>
+          ) : journeyState === 'ready' && progressState === 'ready' ? (
+            <div className="resource-bingo-grid">
+              {(selectedJourney?.bingo ?? []).map((bingoItem) => {
+                const resource = resources.find(
+                  (candidate) => candidate.id === bingoItem.resourceId,
+                )
+                const stamped =
+                  bingoItem.stamped ||
+                  progress.some(
+                    (entry) =>
+                      entry.resourceId === bingoItem.resourceId &&
+                      dates.includes(entry.localDate) &&
+                      entry.status === 'COMPLETED',
+                  )
+                return (
+                  <div
+                    key={bingoItem.resourceId}
+                    className={stamped ? 'is-stamped' : ''}
+                    title={bingoItem.label}
+                  >
+                    <AnimatedResourceSticker
+                      variant={
+                        resource
+                          ? resourcePresentation(resource).sticker
+                          : 'garden'
+                      }
+                      size="small"
+                    />
+                    <small>{bingoItem.label}</small>
+                    {stamped && <b aria-label="Đã hoàn thành">✓</b>}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p role="status">
+              {journeyState === 'loading' || progressState === 'loading'
+                ? 'Đang tải bingo…'
+                : 'Chưa tải được trạng thái bingo.'}
+            </p>
+          )}
+        </section>
+
+        <section className="resource-recent" aria-labelledby="recent-title">
+          <div className="resource-section-heading compact">
+            <div>
+              <span>04</span>
+              <h2 id="recent-title">Dấu ấn gần đây</h2>
+            </div>
+          </div>
+          {progressState !== 'ready' ? (
+            <p role="status">
+              {progressState === 'loading'
+                ? 'Đang tải lịch sử hoàn thành…'
+                : 'Chưa tải được lịch sử hoàn thành.'}
+            </p>
+          ) : completedRecent.length === 0 ? (
+            <div className="resource-recent-empty">
+              <AnimatedResourceSticker variant="complete" size="medium" />
+              <p>Hoạt động bạn hoàn thành sẽ hiện ở đây.</p>
+            </div>
+          ) : (
+            <div className="resource-recent-strip">
+              {completedRecent.map(({ entry, resource }) => (
+                <Link
+                  key={`${entry.localDate}:${resource.id}`}
+                  href={`/resources/${resource.id}?from=resources&date=${entry.localDate}`}
+                >
+                  <AnimatedResourceSticker variant="complete" size="small" />
+                  <b>{resource.title}</b>
+                  <small>
+                    {new Intl.DateTimeFormat('vi-VN', {
+                      day: 'numeric',
+                      month: 'short',
+                    }).format(new Date(`${entry.localDate}T12:00:00`))}
+                  </small>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
 
       {reward && (
         <div
-          className={`resource-garden__reward ${reward === 'day' ? 'is-day' : ''}`}
+          className={`resource-reward ${reward === 'day' ? 'is-day' : ''}`}
           role="status"
         >
-          <div className="resource-garden__confetti" aria-hidden="true">
+          <div className="resource-confetti" aria-hidden="true">
             {Array.from({ length: reward === 'day' ? 18 : 8 }, (_, index) => (
               <i key={index} />
             ))}
@@ -773,7 +814,7 @@ export default function ResourcesExperience() {
             variant={reward === 'day' ? 'garden' : 'complete'}
             size="medium"
           />
-          <div className="resource-garden__reward-copy">
+          <div>
             <strong>
               {reward === 'day'
                 ? 'Trọn vẹn một ngày dịu dàng!'
@@ -781,7 +822,7 @@ export default function ResourcesExperience() {
             </strong>
             <small>
               {reward === 'day'
-                ? 'Các hoạt động của ngày đã chọn đã được hoàn thành.'
+                ? 'Streak của bạn vừa có thêm một nhịp.'
                 : 'Cảm ơn bạn đã dành thời gian cho chính mình.'}
             </small>
           </div>
