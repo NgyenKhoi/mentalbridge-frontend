@@ -32,7 +32,16 @@
           "faceIDPermission": "Cho phép MentalBridge xác thực để bảo vệ phiên đăng nhập của bạn."
         }
       ],
-      "expo-router"
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Chọn ảnh hoặc video bạn muốn chia sẻ trong cộng đồng MentalBridge.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true
