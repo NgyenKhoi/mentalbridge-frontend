@@ -145,6 +145,34 @@ describe('AppointmentMessagesWorkspace', () => {
     expect(
       screen.getByText(/sau khi một lịch hẹn chat được xác nhận/i),
     ).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Chưa có tin nhắn để hiển thị' }),
+    ).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Xem lịch hẹn' })).toHaveAttribute(
+      'href',
+      '/appointments',
+    )
+    expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Gửi tin nhắn' })).toBeDisabled()
+  })
+
+  it('preserves user inbox recovery after integrating specialist enhancements', async () => {
+    navigation.pathname = '/messages'
+    api.list.mockRejectedValueOnce(new Error('offline'))
+    render(<AppointmentMessagesWorkspace viewerRole="USER" />)
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Không thể tải cuộc trò chuyện',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.queryByText('Chưa có cuộc trò chuyện'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gửi tin nhắn' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại' }))
+    expect(await screen.findByText('ThS. Thảo Nguyễn')).toBeVisible()
+    expect(api.list).toHaveBeenCalledTimes(2)
+    expect(api.assigned).not.toHaveBeenCalled()
   })
 
   it('recovers empty search/filter without losing the selected session', async () => {
