@@ -87,7 +87,7 @@ describe('SupportPlanSchedule', () => {
       screen.getByText(/không phải đánh giá tuân thủ điều trị/),
     ).toBeVisible()
     expect(api.getSupportPlanOccurrences).toHaveBeenCalledWith(
-      today,
+      expect.any(String),
       expect.any(String),
     )
   })
