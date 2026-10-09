@@ -35,7 +35,7 @@
     .ref-shell,
     .role-shell
   )
-  :is(h1, h2, h3, h4, strong) {
+  :is(h1, h2, h3, h4, strong):not(:where([data-availability-ui] *)) {
   color: var(--ink);
 }
 
@@ -167,7 +167,7 @@
   .role-brand-mark,
   .role-user > span:first-child,
   .role-toast
-) {
+):not(:where([data-availability-ui] *)) {
   background: linear-gradient(
     135deg,
     var(--primary),
@@ -203,14 +203,14 @@
 
 /* Inputs and controls */
 :is(.auth-layout, .anonymous-assessment, .ref-shell, .role-shell)
-  :is(input, select, textarea) {
+  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
   background: #120d19 !important;
   border-color: var(--line) !important;
   color: var(--ink) !important;
   color-scheme: dark;
 }
 :is(.auth-layout, .anonymous-assessment, .ref-shell, .role-shell)
-  :is(input, select, textarea):focus {
+  :is(input, select, textarea):focus:not(:where([data-availability-ui] *)) {
   background: #17111f !important;
   border-color: #aa98e8 !important;
   box-shadow: 0 0 0 3px rgba(169, 147, 236, 0.15) !important;
@@ -664,7 +664,7 @@
 }
 
 :is(.auth-layout, .anonymous-assessment, .ref-shell, .role-shell)
-  :is(input, select, textarea) {
+  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
   font-size: 14px !important;
   line-height: 1.5 !important;
 }
@@ -1355,11 +1355,11 @@
   border-color: var(--line) !important;
 }
 .ref-shell :is(h1, h2, h3, h4, strong),
-.role-shell :is(h1, h2, h3, h4, strong) {
+.role-shell :is(h1, h2, h3, h4, strong):not(:where([data-availability-ui] *)) {
   color: var(--ink) !important;
 }
 .ref-shell :is(p, span, small),
-.role-shell :is(p, span, small) {
+.role-shell :is(p, span, small):not(:where([data-availability-ui] *)) {
   color: var(--ink-soft) !important;
 }
 .ref-sidebar nav h2 {
@@ -1577,7 +1577,7 @@
   .role-brand-mark,
   .role-user > span:first-child,
   .role-toast
-) {
+):not(:where([data-availability-ui] *)) {
   background: linear-gradient(135deg, var(--teal), var(--teal-deep)) !important;
   border-color: rgba(30, 74, 67, 0.18) !important;
   color: var(--primary-foreground) !important;
@@ -1607,7 +1607,8 @@
 }
 
 /* Final light product-surface pass: legacy dark rules above must not leak into user pages. */
-:is(.ref-shell, .role-shell) :is(input, select, textarea) {
+:is(.ref-shell, .role-shell)
+  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
   background: var(--surface) !important;
   color: var(--ink) !important;
   color-scheme: light;
@@ -2664,7 +2665,7 @@ html {
     .ref-shell,
     .role-shell
   )
-  :is(input, select, textarea) {
+  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
   background-color: var(--surface) !important;
   color: var(--ink) !important;
   color-scheme: light !important;
@@ -2678,7 +2679,9 @@ html {
     .ref-shell,
     .role-shell
   )
-  :is(input, select, textarea):is(:focus, :focus-visible) {
+  :is(input, select, textarea):is(:focus, :focus-visible):not(
+    :where([data-availability-ui] *)
+  ) {
   background-color: var(--surface) !important;
   color: var(--ink) !important;
   border-color: var(--teal) !important;

@@ -28,8 +28,8 @@ test('specialist publishes and withdraws a mobile 60-minute chat slot', async ({
     page.getByRole('radio', { name: 'Video trong ứng dụng' }),
   ).toBeDisabled()
 
-  await page.getByLabel('Ngày').fill('2098-01-03')
-  await page.getByLabel('Giờ bắt đầu').fill('09:30')
+  await page.getByLabel('Ngày', { exact: true }).fill('2098-01-03')
+  await page.getByLabel('Giờ bắt đầu', { exact: true }).fill('09:30')
   await page.getByLabel('Múi giờ hiển thị').fill('Asia/Ho_Chi_Minh')
   const publishResponse = page.waitForResponse(
     (response) =>
@@ -43,7 +43,7 @@ test('specialist publishes and withdraws a mobile 60-minute chat slot', async ({
   expect(
     Date.parse(publishedBody.endAt) - Date.parse(publishedBody.startAt),
   ).toBe(3_600_000)
-  await expect(page.getByText(/Đã xuất bản khung giờ/)).toBeVisible()
+  await expect(page.getByText(/Đã xuất bản khung giờ/).first()).toBeVisible()
 
   const createdSlot = page.locator('li').filter({ hasText: '09:30' })
   await expect(createdSlot).toContainText('Chat trong ứng dụng')
@@ -53,6 +53,10 @@ test('specialist publishes and withdraws a mobile 60-minute chat slot', async ({
       response.request().method() === 'DELETE',
   )
   await createdSlot.getByRole('button', { name: 'Rút khung giờ' }).click()
+  await page
+    .getByRole('dialog', { name: 'Rút khung giờ này?' })
+    .getByRole('button', { name: 'Rút khung giờ', exact: true })
+    .click()
   expect((await withdrawResponse).status()).toBe(200)
   await expect(createdSlot).toContainText('Đã rút')
 
