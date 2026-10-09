@@ -183,7 +183,7 @@ describe('ResourceDetail', () => {
     expect(youtube.player.playVideo).toHaveBeenCalled()
     expect(screen.getByRole('complementary', { name: 'Mục lục' })).toBeVisible()
     expect(
-      screen.getByRole('link', { name: /quay lại resources/i }),
+      screen.getByRole('link', { name: /quay lại tài nguyên/i }),
     ).toHaveAttribute('href', '/resources')
   })
 

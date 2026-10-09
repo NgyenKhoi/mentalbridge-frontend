@@ -50,13 +50,14 @@ describe('ServiceCreditsPanel', () => {
   beforeEach(() => get.mockReset())
 
   it('shows the provider balance and labels demo provenance truthfully', async () => {
+    const user = userEvent.setup()
     get.mockResolvedValue(demo)
     render(<ServiceCreditsPanel />)
-    expect(
-      await screen.findByRole('heading', { name: 'Plus' }),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/Lượt tư vấn dùng thử/)).toBeInTheDocument()
-    expect(screen.getByText('Còn lại').previousSibling).toHaveTextContent('4')
+    expect(await screen.findByText('Gói Plus dùng thử')).toBeInTheDocument()
+    expect(screen.getByText('Còn lại').nextSibling).toHaveTextContent('4')
+    await user.click(
+      screen.getByRole('button', { name: 'Lịch sử lượt tư vấn' }),
+    )
     expect(
       screen.getByRole('heading', { name: '2/2 lịch' }),
     ).toBeInTheDocument()
@@ -70,8 +71,6 @@ describe('ServiceCreditsPanel', () => {
     render(<ServiceCreditsPanel />)
     await user.click(await screen.findByRole('button', { name: 'Thử lại' }))
     await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
-    expect(
-      await screen.findByRole('heading', { name: 'Plus' }),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Gói Plus dùng thử')).toBeInTheDocument()
   })
 })
