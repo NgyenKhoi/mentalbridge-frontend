@@ -259,7 +259,7 @@ export function CommunityDetail({
       }
     })
   const value = query.data
-  if (query.isPending || query.isFetching)
+  if (query.isPending)
     return (
       <View style={styles.column}>
         <CommunityButton label="Quay lại danh sách" onPress={onBack} />
@@ -288,137 +288,151 @@ export function CommunityDetail({
       <Text accessibilityRole="header" style={styles.title}>
         Chia sẻ trong cộng đồng
       </Text>
-      <Text style={styles.heading}>{post.author.displayName}</Text>
-      {post.author.state === 'ANONYMOUS' && (
-        <Text style={styles.muted}>
-          Bài viết ẩn danh · Không có liên kết hồ sơ tác giả
-        </Text>
+      {query.isFetching && (
+        <CommunityMessage>
+          Đang xác nhận bài viết còn hiển thị…
+        </CommunityMessage>
       )}
-      {warning ? (
-        <View style={styles.card}>
-          <Text style={styles.body}>
-            Nội dung có cảnh báo nhạy cảm. Bạn có thể chọn xem khi thấy phù hợp.
+      <View style={[styles.column, query.isFetching && { display: 'none' }]}>
+        <Text style={styles.heading}>{post.author.displayName}</Text>
+        {post.author.state === 'ANONYMOUS' && (
+          <Text style={styles.muted}>
+            Bài viết ẩn danh · Không có liên kết hồ sơ tác giả
           </Text>
-          <CommunityButton
-            label="Xem nội dung nhạy cảm"
-            onPress={() => setRevealed(true)}
-          />
-        </View>
-      ) : (
-        <>
-          <Text style={styles.body}>{post.content}</Text>
-          <CommunityMediaView media={post.media} />
-          {['PARTIAL', 'UNAVAILABLE'].includes(post.mediaAvailability) && (
-            <CommunityMessage>
-              Một số ảnh hoặc video chưa thể hiển thị. Không có nội dung thay
-              thế được tạo ra.
-            </CommunityMessage>
-          )}
-          {post.resourceAttachment && (
+        )}
+        {warning ? (
+          <View style={styles.card}>
+            <Text style={styles.body}>
+              Nội dung có cảnh báo nhạy cảm. Bạn có thể chọn xem khi thấy phù
+              hợp.
+            </Text>
             <CommunityButton
-              label="Mở tài nguyên tham khảo"
-              onPress={() => onResource(post.resourceAttachment!.resourceId)}
+              label="Xem nội dung nhạy cảm"
+              onPress={() => setRevealed(true)}
             />
-          )}
-        </>
-      )}
-      <Text
-        style={styles.muted}
-      >{`${post.counts.comments} bình luận · ${post.counts.reactions} lời động viên`}</Text>
-      <View style={styles.row}>
-        {reactions.map(({ value: reaction, label }) => (
-          <CommunityButton
-            key={reaction}
-            label={label}
-            selected={post.viewerState.reaction === reaction}
-            disabled={action.busy}
-            onPress={() =>
-              void mutate(() =>
-                api.react(
-                  postId,
-                  post.viewerState.reaction === reaction ? null : reaction,
-                ),
-              )
-            }
-          />
-        ))}
-      </View>
-      <CommunityButton
-        label={post.viewerState.bookmarked ? 'Bỏ lưu bài viết' : 'Lưu bài viết'}
-        selected={post.viewerState.bookmarked}
-        disabled={action.busy}
-        onPress={() =>
-          void mutate(() => api.bookmark(postId, !post.viewerState.bookmarked))
-        }
-      />
-      {etag !== null && (
-        <View style={styles.column}>
-          <CommunityButton
-            label="Sửa bài viết của tôi"
-            disabled={
-              action.busy || !['NONE', 'READY'].includes(post.mediaAvailability)
-            }
-            onPress={() => onEdit(value)}
-          />
-          {!['NONE', 'READY'].includes(post.mediaAvailability) && (
-            <CommunityMessage>
-              Tải lại media trước khi sửa để không vô tình bỏ tệp chưa hiển thị.
-            </CommunityMessage>
-          )}
-          <CommunityButton
-            label="Xóa bài viết của tôi"
-            disabled={action.busy}
-            onPress={() => setConfirmDelete(true)}
-          />
-          {confirmDelete && (
-            <View style={styles.card}>
-              <Text style={styles.body}>
-                Xóa chia sẻ này? Bài sẽ không còn hiển thị trong cộng đồng.
-              </Text>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.body}>{post.content}</Text>
+            <CommunityMediaView media={post.media} />
+            {['PARTIAL', 'UNAVAILABLE'].includes(post.mediaAvailability) && (
+              <CommunityMessage>
+                Một số ảnh hoặc video chưa thể hiển thị. Không có nội dung thay
+                thế được tạo ra.
+              </CommunityMessage>
+            )}
+            {post.resourceAttachment && (
               <CommunityButton
-                label="Giữ bài viết"
-                onPress={() => setConfirmDelete(false)}
+                label="Mở tài nguyên tham khảo"
+                onPress={() => onResource(post.resourceAttachment!.resourceId)}
               />
-              <CommunityButton
-                label="Xác nhận xóa bài viết"
-                disabled={action.busy}
-                onPress={() =>
-                  void action.run(async () => {
-                    await api.remove(postId, etag)
-                    await hidden()
-                  })
-                }
-              />
-            </View>
-          )}
+            )}
+          </>
+        )}
+        <Text
+          style={styles.muted}
+        >{`${post.counts.comments} bình luận · ${post.counts.reactions} lời động viên`}</Text>
+        <View style={styles.row}>
+          {reactions.map(({ value: reaction, label }) => (
+            <CommunityButton
+              key={reaction}
+              label={label}
+              selected={post.viewerState.reaction === reaction}
+              disabled={action.busy}
+              onPress={() =>
+                void mutate(() =>
+                  api.react(
+                    postId,
+                    post.viewerState.reaction === reaction ? null : reaction,
+                  ),
+                )
+              }
+            />
+          ))}
         </View>
-      )}
-      {action.error && <CommunityMessage>{action.error}</CommunityMessage>}
-      <CommunitySafetyActions
-        api={api}
-        targetType="POST"
-        targetId={postId}
-        blockableProfileId={
-          etag === null && post.author.state === 'ACTIVE'
-            ? post.author.communityProfileId
-            : null
-        }
-        onHidden={hidden}
-        onHelp={onHelp}
-        onRefresh={async () => {
-          await query.refetch()
-        }}
-      />
-      {!warning && (
-        <Comments
+        <CommunityButton
+          label={
+            post.viewerState.bookmarked ? 'Bỏ lưu bài viết' : 'Lưu bài viết'
+          }
+          selected={post.viewerState.bookmarked}
+          disabled={action.busy}
+          onPress={() =>
+            void mutate(() =>
+              api.bookmark(postId, !post.viewerState.bookmarked),
+            )
+          }
+        />
+        {etag !== null && (
+          <View style={styles.column}>
+            <CommunityButton
+              label="Sửa bài viết của tôi"
+              disabled={
+                action.busy ||
+                !['NONE', 'READY'].includes(post.mediaAvailability)
+              }
+              onPress={() => onEdit(value)}
+            />
+            {!['NONE', 'READY'].includes(post.mediaAvailability) && (
+              <CommunityMessage>
+                Tải lại media trước khi sửa để không vô tình bỏ tệp chưa hiển
+                thị.
+              </CommunityMessage>
+            )}
+            <CommunityButton
+              label="Xóa bài viết của tôi"
+              disabled={action.busy}
+              onPress={() => setConfirmDelete(true)}
+            />
+            {confirmDelete && (
+              <View style={styles.card}>
+                <Text style={styles.body}>
+                  Xóa chia sẻ này? Bài sẽ không còn hiển thị trong cộng đồng.
+                </Text>
+                <CommunityButton
+                  label="Giữ bài viết"
+                  onPress={() => setConfirmDelete(false)}
+                />
+                <CommunityButton
+                  label="Xác nhận xóa bài viết"
+                  disabled={action.busy}
+                  onPress={() =>
+                    void action.run(async () => {
+                      await api.remove(postId, etag)
+                      await hidden()
+                    })
+                  }
+                />
+              </View>
+            )}
+          </View>
+        )}
+        {action.error && <CommunityMessage>{action.error}</CommunityMessage>}
+        <CommunitySafetyActions
           api={api}
-          subject={subject}
-          postId={postId}
-          onRefresh={refresh}
+          targetType="POST"
+          targetId={postId}
+          blockableProfileId={
+            etag === null && post.author.state === 'ACTIVE'
+              ? post.author.communityProfileId
+              : null
+          }
           onHidden={hidden}
           onHelp={onHelp}
+          onRefresh={async () => {
+            await query.refetch()
+          }}
         />
-      )}
+        {!warning && (
+          <Comments
+            api={api}
+            subject={subject}
+            postId={postId}
+            onRefresh={refresh}
+            onHidden={hidden}
+            onHelp={onHelp}
+          />
+        )}
+      </View>
     </View>
   )
 }

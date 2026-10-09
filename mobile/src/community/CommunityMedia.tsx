@@ -118,6 +118,8 @@ export function CommunityMediaEditor({
         change(key, { intentId: intent.mediaId })
         await transport.upload(file, intent, controller.current.signal)
         const record = await api.finalize(intent.mediaId)
+        if (record.mediaType !== file.request.mediaType)
+          throw new Error('MEDIA_TYPE_MISMATCH')
         change(key, {
           record,
           status:
@@ -153,6 +155,8 @@ export function CommunityMediaEditor({
     setPicking(true)
     try {
       const record = await api.finalize(item.intentId)
+      if (record.mediaType !== item.file.request.mediaType)
+        throw new Error('MEDIA_TYPE_MISMATCH')
       change(item.key, {
         record,
         status:

@@ -221,6 +221,64 @@ describe('mobile Community peer-support journey', () => {
     await waitFor(() => expect(create).toHaveBeenCalledTimes(2))
     expect(create.mock.calls[0]).toEqual(create.mock.calls[1])
   })
+
+  it('retains a report acknowledgement through a genuinely asynchronous visibility refresh', async () => {
+    let complete: ((value: VersionedPost) => void) | undefined
+    const detail = jest
+      .fn()
+      .mockResolvedValueOnce({ post: fixturePost, etag: null })
+      .mockImplementationOnce(
+        () =>
+          new Promise<VersionedPost>((resolve) => {
+            complete = resolve
+          }),
+      )
+    await mount(api({ detail }))
+    await openPost()
+    await press('An toàn cho bài viết')
+    await press('Báo cáo bài viết')
+    await press('Gửi báo cáo')
+    await screen.findByText('Đang xác nhận bài viết còn hiển thị…')
+    expect(screen.queryByText(fixturePost.content)).not.toBeOnTheScreen()
+    complete?.({ post: fixturePost, etag: null })
+    expect(
+      await screen.findByText(
+        /Báo cáo đã được gửi để đội ngũ quản trị xem xét/,
+      ),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByRole('button', { name: 'Chặn tác giả' }),
+    ).toBeOnTheScreen()
+  })
+
+  it('preserves a draft on stale If-Match without automatically overwriting the new version', async () => {
+    const community = api({
+      detail: jest.fn().mockResolvedValue({ post: fixturePost, etag: '"4"' }),
+      update: jest
+        .fn()
+        .mockRejectedValue(
+          new ApiError({
+            code: 'VERSION_CONFLICT',
+            message: 'stale',
+            status: 412,
+          }),
+        ),
+    })
+    await mount(community)
+    await openPost()
+    await press('Sửa bài viết của tôi')
+    await fireEvent.changeText(
+      screen.getByLabelText('Nội dung chia sẻ'),
+      'Nháp chưa lưu',
+    )
+    await press('Lưu thay đổi')
+    await screen.findByText(/Nội dung đã thay đổi/)
+    expect(screen.getByLabelText('Nội dung chia sẻ').props.value).toBe(
+      'Nháp chưa lưu',
+    )
+    expect(screen.getByRole('button', { name: 'Lưu thay đổi' })).toBeDisabled()
+    expect(community.update).toHaveBeenCalledTimes(1)
+  })
   it('never infers ownership or a blockable identity from an anonymous author', async () => {
     const anonymous: VersionedPost = {
       etag: null,
