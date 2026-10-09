@@ -136,7 +136,8 @@ jobs:
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       (contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e'))
+      contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') ||
+      contains(github.event.pull_request.labels.*.name, 'run-mobile-specialist-e2e'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: staging-mobile-e2e
@@ -152,8 +153,8 @@ jobs:
       MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
       MAESTRO_CLI_NO_ANALYTICS: 'true'
       MAESTRO_VERSION: '2.11.0'
-      MOBILE_EVIDENCE_FEATURE: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'journal' || 'resources' }}
-      MOBILE_EVIDENCE_STORY: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'mb-627' || 'mb-626' }}
+      MOBILE_EVIDENCE_FEATURE: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-specialist-e2e') && 'specialist' || (contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'journal' || 'resources') }}
+      MOBILE_EVIDENCE_STORY: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-specialist-e2e') && 'mb-634' || (contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'mb-627' || 'mb-626') }}
       ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
     steps:
       - name: Check out exact pull-request head
@@ -170,7 +171,21 @@ jobs:
           PROTECTED_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}
           PROTECTED_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}
           PROTECTED_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
+          PROTECTED_SPECIALIST_EMAIL: ${{ secrets.MB_SPECIALIST_EMAIL }}
+          PROTECTED_SPECIALIST_PASSWORD: ${{ secrets.MB_SPECIALIST_PASSWORD }}
         run: |
+          if [[ "$MOBILE_EVIDENCE_FEATURE" == 'specialist' ]]; then
+            if [[ -z "$PROTECTED_API_BASE_URL" || -z "$PROTECTED_SPECIALIST_EMAIL" || -z "$PROTECTED_SPECIALIST_PASSWORD" ]]; then
+              echo "The protected staging edge and resettable MB-634 SPECIALIST fixture are required." >&2
+              exit 1
+            fi
+            echo "mode=staging" >> "$GITHUB_OUTPUT"
+            echo "EXPO_PUBLIC_API_BASE_URL=$PROTECTED_API_BASE_URL" >> "$GITHUB_ENV"
+            echo "MAESTRO_MB_SPECIALIST_EMAIL=$PROTECTED_SPECIALIST_EMAIL" >> "$GITHUB_ENV"
+            echo "MAESTRO_MB_SPECIALIST_PASSWORD=$PROTECTED_SPECIALIST_PASSWORD" >> "$GITHUB_ENV"
+            echo "PROVIDER_EVIDENCE=protected-staging" >> "$GITHUB_ENV"
+            exit 0
+          fi
           if [[ -n "$PROTECTED_API_BASE_URL" && -n "$PROTECTED_USER_EMAIL" && -n "$PROTECTED_USER_PASSWORD" ]]; then
             echo "mode=staging" >> "$GITHUB_OUTPUT"
             echo "EXPO_PUBLIC_API_BASE_URL=$PROTECTED_API_BASE_URL" >> "$GITHUB_ENV"
@@ -213,6 +228,13 @@ jobs:
           npm run lint
           npm run typecheck
           npm run test:ci -- --runTestsByPath src/journal/JournalScreen.test.tsx src/journal/JournalAnalysisPanel.test.tsx src/journal/journal-api.test.ts src/journal/analysis-request-store.test.ts src/screens/UserHomeScreen.test.tsx src/config/mobile-delivery-contract.test.ts
+
+      - name: Verify Specialist continuity implementation and authority boundaries
+        if: env.MOBILE_EVIDENCE_FEATURE == 'specialist'
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run test:ci -- --runTestsByPath src/specialist-appointments/specialist-appointment-api.test.ts src/specialist-appointments/SpecialistAppointmentsScreen.test.tsx src/specialist-appointments/SpecialistAppointmentDetailScreen.test.tsx src/specialist-summary/SpecialistSummaryPanel.test.tsx
 
       - name: Prepare controlled real-contract provider
         if: steps.provider.outputs.mode == 'controlled'
@@ -315,6 +337,13 @@ jobs:
 
       - name: Require resolved evidence inputs
         run: |
+          if [[ "$MOBILE_EVIDENCE_FEATURE" == 'specialist' ]]; then
+            if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_SPECIALIST_EMAIL" || -z "$MAESTRO_MB_SPECIALIST_PASSWORD" ]]; then
+              echo "The evidence API edge and resettable MB-634 SPECIALIST fixture are required." >&2
+              exit 1
+            fi
+            exit 0
+          fi
           if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" ]]; then
             echo "The evidence API edge and dedicated USER fixture are required." >&2
             exit 1
@@ -342,7 +371,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           working-directory: mobile
-          script: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'npm run e2e:android:journal:evidence' || 'npm run e2e:android:resources:evidence' }}
+          script: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-specialist-e2e') && 'npm run e2e:android:specialist-continuity:evidence' || (contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'npm run e2e:android:journal:evidence' || 'npm run e2e:android:resources:evidence') }}
 
       - name: Stop controlled real provider services
         if: always() && steps.provider.outputs.mode == 'controlled'
@@ -377,7 +406,8 @@ jobs:
           needs.mobile-compile.result != 'success' ||
           (github.event_name == 'pull_request' &&
           (contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e') ||
-          contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e')) &&
+          contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') ||
+          contains(github.event.pull_request.labels.*.name, 'run-mobile-specialist-e2e')) &&
           needs.mobile-android-evidence.result != 'success')
         run: exit 1
       - name: Confirm quality gate

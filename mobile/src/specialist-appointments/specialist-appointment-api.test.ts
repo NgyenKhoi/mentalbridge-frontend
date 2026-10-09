@@ -3,6 +3,7 @@ import {
   type AxiosAdapter,
   type InternalAxiosRequestConfig,
 } from 'axios'
+import { QueryClient } from '@tanstack/react-query'
 
 import {
   makeContinuityList,
@@ -19,6 +20,7 @@ import { createSpecialistAppointmentApi } from './specialist-appointment-api'
 import {
   makeAppointment,
   makeAppointmentList,
+  SPECIALIST_ID,
 } from './specialist-appointment-test-fixtures'
 
 function response(request: InternalAxiosRequestConfig, data: unknown) {
@@ -120,7 +122,7 @@ describe('MB-634 public mobile contract clients', () => {
           : makeSessionSummary({ version: 2 }),
       )
     }
-    const api = createSpecialistSummaryApi(create({ adapter }))
+    const api = createSpecialistSummaryApi(create({ adapter }), SPECIALIST_ID)
     const appointmentId = makeAppointment().id
     const body = {
       topicsDiscussed: ['Nhịp ngủ'],
@@ -154,7 +156,7 @@ describe('MB-634 public mobile contract clients', () => {
       requests.push(request)
       return response(request, makeSessionSummary())
     }
-    const api = createSpecialistSummaryApi(create({ adapter }))
+    const api = createSpecialistSummaryApi(create({ adapter }), SPECIALIST_ID)
 
     await api.publish(
       makeAppointment().id,
@@ -170,5 +172,85 @@ describe('MB-634 public mobile contract clients', () => {
     )
 
     expect(requests[0]?.headers.get('If-Match')).toBeUndefined()
+  })
+
+  it.each([
+    [
+      'another appointment',
+      { appointmentId: '77777777-7777-4777-8777-777777777777' },
+    ],
+    [
+      'another specialist',
+      { specialistAccountId: '66666666-6666-4666-8666-666666666666' },
+    ],
+  ])('rejects a summary list item owned by %s', async (_label, drift) => {
+    const adapter: AxiosAdapter = async (request) =>
+      response(request, makeSessionSummaryList([makeSessionSummary(drift)]))
+    const api = createSpecialistSummaryApi(create({ adapter }), SPECIALIST_ID)
+
+    await expect(api.list(makeAppointment().id)).rejects.toMatchObject({
+      code: 'SESSION_SUMMARY_AUTHORITY_MISMATCH',
+      status: 502,
+    })
+  })
+
+  it('does not cache a cross-specialist summary list response', async () => {
+    const appointmentId = makeAppointment().id
+    const adapter: AxiosAdapter = async (request) =>
+      response(
+        request,
+        makeSessionSummaryList([
+          makeSessionSummary({
+            specialistAccountId: '66666666-6666-4666-8666-666666666666',
+            specialistNoteForUser: 'private foreign summary',
+          }),
+        ]),
+      )
+    const api = createSpecialistSummaryApi(create({ adapter }), SPECIALIST_ID)
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const queryKey = ['specialist-session-summaries', appointmentId]
+
+    await expect(
+      queryClient.fetchQuery({
+        queryKey,
+        queryFn: () => api.list(appointmentId),
+      }),
+    ).rejects.toMatchObject({ code: 'SESSION_SUMMARY_AUTHORITY_MISMATCH' })
+    expect(queryClient.getQueryData(queryKey)).toBeUndefined()
+  })
+
+  it.each([
+    [
+      'another appointment',
+      { appointmentId: '77777777-7777-4777-8777-777777777777' },
+    ],
+    [
+      'another specialist',
+      { specialistAccountId: '66666666-6666-4666-8666-666666666666' },
+    ],
+  ])('rejects a publish response owned by %s', async (_label, drift) => {
+    const adapter: AxiosAdapter = async (request) =>
+      response(request, makeSessionSummary(drift))
+    const api = createSpecialistSummaryApi(create({ adapter }), SPECIALIST_ID)
+
+    await expect(
+      api.publish(
+        makeAppointment().id,
+        {
+          topicsDiscussed: ['Nhịp ngủ'],
+          progressSummary: null,
+          specialistNoteForUser: null,
+          followUpSuggested: false,
+          agreedNextSteps: [],
+        },
+        'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        undefined,
+      ),
+    ).rejects.toMatchObject({
+      code: 'SESSION_SUMMARY_AUTHORITY_MISMATCH',
+      status: 502,
+    })
   })
 })

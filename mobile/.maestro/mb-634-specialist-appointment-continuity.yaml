@@ -40,3 +40,6 @@ name: MB-634 specialist appointment continuity journey
 - hideKeyboard
 - tapOn: 'Xuất bản tóm tắt'
 - assertVisible: 'Đã xuất bản tóm tắt và các bước đã thống nhất.'
+- tapOn: '← Danh sách lịch hẹn'
+- tapOn: '← Không gian chuyên gia'
+- assertVisible: 'Không gian chuyên môn của bạn'

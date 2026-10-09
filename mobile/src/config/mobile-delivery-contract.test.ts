@@ -121,6 +121,18 @@ describe('Mobile Delivery Contract v1', () => {
       "contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e')",
     )
     expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-specialist-e2e')",
+    )
+    expect(androidEvidence).toContain(
+      'npm run e2e:android:specialist-continuity:evidence',
+    )
+    expect(androidEvidence).toContain(
+      'PROTECTED_SPECIALIST_EMAIL: ${{ secrets.MB_SPECIALIST_EMAIL }}',
+    )
+    expect(androidEvidence).toContain(
+      'PROTECTED_SPECIALIST_PASSWORD: ${{ secrets.MB_SPECIALIST_PASSWORD }}',
+    )
+    expect(androidEvidence).toContain(
       '-f ../mobile/ci/docker-compose.mobile-journal-e2e.yml',
     )
     expect(androidEvidence).toContain(

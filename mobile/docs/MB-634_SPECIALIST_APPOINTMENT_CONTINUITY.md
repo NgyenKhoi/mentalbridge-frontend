@@ -80,12 +80,13 @@ fail-closed behavior, continuity authorization/revocation/dependency recovery,
 completion-gated summaries, summary concurrency, reload behavior, and the chat
 handoff seam.
 
-## Android real-contract evidence seam
+## Android real-contract evidence
 
-`.maestro/mb-634-specialist-appointment-continuity.yaml` is intentionally not
-classified as passing evidence yet. It requires a protected, resettable staging
-SPECIALIST account whose data is isolated from shared reviewers and reset
-before every run with:
+`.maestro/mb-634-specialist-appointment-continuity.yaml` runs only through the
+protected `staging-mobile-e2e` Environment when the pull request carries the
+`run-mobile-specialist-e2e` label. It requires a resettable staging SPECIALIST
+account whose data is isolated from shared reviewers and reset before every run
+with:
 
 1. exactly one assigned `REQUESTED` chat appointment eligible for confirmation;
 2. an approved, version-matched ConsultationBrief shared for that appointment;
@@ -94,14 +95,15 @@ before every run with:
 4. deterministic reset of decision, summary, consent, access-window, and credit
    side effects after the run.
 
-The flow never fabricates server success. After that fixture is provisioned,
-run it directly with protected runtime credentials:
+The flow never fabricates server success. The protected job checks out and
+verifies the exact pull-request head, compiles and installs that head, then runs
+the journey with runtime-only credentials:
 
 ```powershell
-$env:MAESTRO_MB_SPECIALIST_EMAIL = 'from-protected-secret-store'
-$env:MAESTRO_MB_SPECIALIST_PASSWORD = 'from-protected-secret-store'
-maestro test .maestro/mb-634-specialist-appointment-continuity.yaml
+npm run e2e:android:specialist-continuity:evidence
 ```
 
-Evidence must record the exact commit and run URL without credentials,
-ConsultationBrief content, summary content, or chat messages.
+The resulting manifest records the exact commit and run URL. The flow returns
+to the SPECIALIST home before its final screenshot, so the artifact contains no
+credentials, ConsultationBrief content, SessionSummary content, or chat
+messages.

@@ -1,7 +1,8 @@
 import { useLocalSearchParams } from 'expo-router'
-import { useState } from 'react'
+import { useMemo } from 'react'
 
 import { createApiClient } from '@/api/api-client'
+import { useSession } from '@/auth/session-context'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
 import { secureCredentialStore } from '@/security/credential-store'
 import { createSpecialistContinuityApi } from '@/specialist-continuity/specialist-continuity-api'
@@ -13,8 +14,11 @@ import { pendingSharedChatHandoff } from './specialist-chat-handoff'
 
 export function SpecialistAppointmentDetailRoute() {
   const runtimeConfig = useRuntimeConfig()
+  const { session } = useSession()
   const { appointmentId } = useLocalSearchParams<{ appointmentId: string }>()
-  const [apis] = useState(() => {
+  const specialistAccountId =
+    session?.role === 'SPECIALIST' ? session.subject : ''
+  const apis = useMemo(() => {
     const client = createApiClient({
       config: runtimeConfig,
       getBearerToken: () => secureCredentialStore.getAccessToken(),
@@ -22,9 +26,9 @@ export function SpecialistAppointmentDetailRoute() {
     return {
       appointment: createSpecialistAppointmentApi(client),
       continuity: createSpecialistContinuityApi(client),
-      summary: createSpecialistSummaryApi(client),
+      summary: createSpecialistSummaryApi(client, specialistAccountId),
     }
-  })
+  }, [runtimeConfig, specialistAccountId])
 
   return (
     <SpecialistAppointmentDetailScreen

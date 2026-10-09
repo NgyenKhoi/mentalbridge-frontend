@@ -1,5 +1,7 @@
 import type { AxiosInstance } from 'axios'
 
+import { ApiError } from '@/api/api-error'
+
 import {
   publishSessionSummaryRequestSchema,
   sessionSummaryListSchema,
@@ -21,13 +23,36 @@ export interface SpecialistSummaryApi {
 
 export function createSpecialistSummaryApi(
   client: AxiosInstance,
+  specialistAccountId: string,
 ): SpecialistSummaryApi {
+  const assertAuthority = (
+    summary: SessionSummary,
+    appointmentId: string,
+  ): SessionSummary => {
+    if (
+      summary.appointmentId !== appointmentId ||
+      summary.specialistAccountId !== specialistAccountId
+    ) {
+      throw new ApiError({
+        code: 'SESSION_SUMMARY_AUTHORITY_MISMATCH',
+        message:
+          'The SessionSummary response does not match the requested authority.',
+        status: 502,
+      })
+    }
+    return summary
+  }
+
   return {
     async list(appointmentId) {
       const response = await client.get(
         `/api/v1/specialist/appointments/${encodeURIComponent(appointmentId)}/session-summaries`,
       )
-      return sessionSummaryListSchema.parse(response.data)
+      const summaries = sessionSummaryListSchema.parse(response.data)
+      summaries.items.forEach((summary) =>
+        assertAuthority(summary, appointmentId),
+      )
+      return summaries
     },
     async publish(appointmentId, request, idempotencyKey, currentVersion) {
       const body = publishSessionSummaryRequestSchema.parse(request)
@@ -43,7 +68,10 @@ export function createSpecialistSummaryApi(
           },
         },
       )
-      return sessionSummarySchema.parse(response.data)
+      return assertAuthority(
+        sessionSummarySchema.parse(response.data),
+        appointmentId,
+      )
     },
   }
 }
