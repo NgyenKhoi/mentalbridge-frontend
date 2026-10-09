@@ -311,8 +311,8 @@
 
 @media (max-width: 640px) {
   .fab {
-    right: calc(24px + env(safe-area-inset-right));
-    bottom: calc(24px + env(safe-area-inset-bottom));
+    right: calc(16px + env(safe-area-inset-right));
+    bottom: calc(16px + env(safe-area-inset-bottom));
     min-height: 52px;
     padding: 0;
   }
