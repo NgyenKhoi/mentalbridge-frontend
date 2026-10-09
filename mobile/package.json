@@ -54,6 +54,7 @@
     "e2e:android:resources:evidence": "bash scripts/verify-android-resources-evidence.sh",
     "e2e:android:journal": "bash scripts/verify-android-journal-e2e.sh",
     "e2e:android:journal:evidence": "bash scripts/verify-android-journal-evidence.sh",
+    "e2e:android:specialist": "bash scripts/verify-android-specialist-e2e.sh",
     "native:ios:smoke": "bash scripts/verify-native-ios.sh",
     "build:bundle": "expo export --platform android --output-dir dist/android && expo export --platform ios --output-dir dist/ios",
     "format": "prettier --write .",
