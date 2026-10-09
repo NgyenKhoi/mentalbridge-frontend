@@ -254,15 +254,13 @@ describe('mobile Community peer-support journey', () => {
   it('preserves a draft on stale If-Match without automatically overwriting the new version', async () => {
     const community = api({
       detail: jest.fn().mockResolvedValue({ post: fixturePost, etag: '"4"' }),
-      update: jest
-        .fn()
-        .mockRejectedValue(
-          new ApiError({
-            code: 'VERSION_CONFLICT',
-            message: 'stale',
-            status: 412,
-          }),
-        ),
+      update: jest.fn().mockRejectedValue(
+        new ApiError({
+          code: 'VERSION_CONFLICT',
+          message: 'stale',
+          status: 412,
+        }),
+      ),
     })
     await mount(community)
     await openPost()
@@ -424,6 +422,77 @@ describe('mobile Community peer-support journey', () => {
     expect(screen.queryByText(fixturePost.content)).not.toBeOnTheScreen()
     expect(community.block).toHaveBeenCalledWith(
       fixtureProfile.profile.communityProfileId,
+    )
+  })
+
+  it('closes stale content when report intake confirms the target is no longer visible', async () => {
+    const community = api({
+      feed: jest.fn().mockResolvedValueOnce(page()).mockResolvedValue(page([])),
+      report: jest
+        .fn()
+        .mockRejectedValue(
+          new ApiError({
+            code: 'NOT_FOUND',
+            message: 'not visible',
+            status: 404,
+          }),
+        ),
+    })
+    await mount(community)
+    await openPost()
+    await press('An toàn cho bài viết')
+    await press('Báo cáo bài viết')
+    await press('Gửi báo cáo')
+    await screen.findByText('Chưa có chia sẻ hiển thị cho chủ đề này.')
+    expect(screen.queryByText(fixturePost.content)).not.toBeOnTheScreen()
+    expect(
+      screen.queryByRole('button', { name: 'Gửi bình luận' }),
+    ).not.toBeOnTheScreen()
+  })
+
+  it('does not initialize profile drafts from a cached identity before the fresh owner GET completes', async () => {
+    let complete: ((value: typeof fixtureProfile) => void) | undefined
+    const community = api({
+      profile: jest.fn(
+        () =>
+          new Promise<typeof fixtureProfile>((resolve) => {
+            complete = resolve
+          }),
+      ),
+    })
+    const mounted = await mount(community)
+    await screen.findByText(fixturePost.content)
+    mounted.client.setQueryData(
+      ['community', mockSession?.subject, 'profile'],
+      fixtureProfile,
+    )
+    await press('Danh tính cộng đồng')
+    await screen.findByText('Đang tải danh tính…')
+    expect(
+      screen.queryByLabelText('Tên hiển thị cộng đồng'),
+    ).not.toBeOnTheScreen()
+    complete?.({
+      etag: '"1"',
+      profile: {
+        ...fixtureProfile.profile,
+        displayName: 'Danh tính mới từ máy chủ',
+        version: 1,
+      },
+    })
+    await screen.findByLabelText('Tên hiển thị cộng đồng')
+    expect(screen.getByLabelText('Tên hiển thị cộng đồng').props.value).toBe(
+      'Danh tính mới từ máy chủ',
+    )
+    await fireEvent.changeText(
+      screen.getByLabelText('Tên hiển thị cộng đồng'),
+      'Tên chỉnh sửa',
+    )
+    await press('Lưu danh tính cộng đồng')
+    await waitFor(() =>
+      expect(community.saveProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ displayName: 'Tên chỉnh sửa' }),
+        '"1"',
+      ),
     )
   })
   it('hides warned content until explicitly revealed and routes only the resource reference', async () => {

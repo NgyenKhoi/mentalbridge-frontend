@@ -36,7 +36,7 @@ are returned by Community, never inferred from health data or local ranking.
 
 ## Verification status
 
-Focused contract/API/native-media/UI tests (48 tests), mobile lint and TypeScript
+Focused contract/API/native-media/UI tests, mobile lint and TypeScript
 compile have run locally. Execution status is recorded in
 [PR #122](https://github.com/NgyenKhoi/mentalbridge-frontend/pull/122), its current
 head checks and the generated evidence manifest, not inferred from this source

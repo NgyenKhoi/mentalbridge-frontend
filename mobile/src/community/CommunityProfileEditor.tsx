@@ -126,6 +126,7 @@ export function CommunityProfileEditor({
   })
   const [generation, setGeneration] = useState(0)
   const [savedMessage, setSavedMessage] = useState(false)
+  const verified = query.isFetchedAfterMount
   return (
     <View style={styles.column}>
       <CommunityButton label="Quay lại cộng đồng" onPress={onBack} />
@@ -139,7 +140,10 @@ export function CommunityProfileEditor({
       {savedMessage && (
         <CommunityMessage>Danh tính hiển thị đã được lưu.</CommunityMessage>
       )}
-      {query.isPending ? (
+      {query.isFetching && verified && (
+        <CommunityMessage>Đang tải lại danh tính…</CommunityMessage>
+      )}
+      {query.isPending || (!verified && !query.isError) ? (
         <CommunityMessage>Đang tải danh tính…</CommunityMessage>
       ) : query.isError ? (
         <>
@@ -154,19 +158,25 @@ export function CommunityProfileEditor({
           Danh tính này không còn hoạt động. Không thể chỉnh sửa.
         </CommunityMessage>
       ) : (
-        <ProfileForm
-          key={generation}
-          api={api}
-          initial={query.data ?? null}
-          onReload={() => {
-            void query.refetch().then(() => setGeneration((value) => value + 1))
-          }}
-          onSaved={async () => {
-            await client.invalidateQueries({ queryKey: ['community', subject] })
-            setSavedMessage(true)
-            setGeneration((value) => value + 1)
-          }}
-        />
+        <View style={query.isFetching ? { display: 'none' } : undefined}>
+          <ProfileForm
+            key={generation}
+            api={api}
+            initial={query.data ?? null}
+            onReload={() => {
+              void query
+                .refetch()
+                .then(() => setGeneration((value) => value + 1))
+            }}
+            onSaved={async () => {
+              await client.invalidateQueries({
+                queryKey: ['community', subject],
+              })
+              setSavedMessage(true)
+              setGeneration((value) => value + 1)
+            }}
+          />
+        </View>
       )}
     </View>
   )

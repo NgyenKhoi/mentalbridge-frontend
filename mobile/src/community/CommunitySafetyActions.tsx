@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Text, TextInput, View } from 'react-native'
 
 import { PrimaryButton } from '@/components/PrimaryButton'
+import { ApiError } from '@/api/api-error'
 
 import type { CommunityApi } from './community-api'
 import { reportReasonSchema, type ReportWrite } from './community-contract'
@@ -47,6 +48,19 @@ export function CommunitySafetyActions({
   const [reported, setReported] = useState(false)
   const [confirmBlock, setConfirmBlock] = useState(false)
   const action = useCommunityAction()
+  const execute = (command: () => Promise<void>) =>
+    action.run(async () => {
+      try {
+        await command()
+      } catch (error) {
+        if (
+          error instanceof ApiError &&
+          [401, 403, 404].includes(error.status ?? 0)
+        )
+          await onHidden()
+        throw error
+      }
+    })
   const key = useCommandKey()
   const targetLabel = targetType === 'POST' ? 'bài viết' : 'bình luận'
   const body: ReportWrite = {
@@ -76,7 +90,7 @@ export function CommunitySafetyActions({
             label={`Ẩn ${targetLabel} với tôi`}
             disabled={action.busy}
             onPress={() =>
-              void action.run(async () => {
+              void execute(async () => {
                 await api.hide(targetType, targetId)
                 await onHidden()
               })
@@ -103,7 +117,7 @@ export function CommunitySafetyActions({
                 label="Xác nhận chặn tác giả"
                 disabled={action.busy}
                 onPress={() =>
-                  void action.run(async () => {
+                  void execute(async () => {
                     if (blockableProfileId) {
                       await api.block(blockableProfileId)
                       await onHidden()
@@ -151,7 +165,7 @@ export function CommunitySafetyActions({
                 label={action.busy ? 'Đang gửi…' : 'Gửi báo cáo'}
                 disabled={action.busy || reported}
                 onPress={() =>
-                  void action.run(async () => {
+                  void execute(async () => {
                     await api.report(body, key(body))
                     setReported(true)
                     await onRefresh()
