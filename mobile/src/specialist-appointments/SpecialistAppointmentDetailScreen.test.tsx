@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -369,18 +370,20 @@ describe('SPECIALIST appointment detail and continuity', () => {
     await waitFor(() => expect(client.isFetching()).toBe(0))
 
     const reloadedClient = testClient()
-    first.view.rerender(
-      <QueryClientProvider client={reloadedClient}>
-        <SpecialistAppointmentDetailScreen
-          key="app-reload"
-          appointmentApi={detailProps.appointmentApi}
-          appointmentId={APPOINTMENT_ID}
-          chatHandoff={detailProps.chatHandoff}
-          continuityApi={detailProps.continuityApi}
-          summaryApi={detailProps.summaryApi}
-        />
-      </QueryClientProvider>,
-    )
+    await act(async () => {
+      first.view.rerender(
+        <QueryClientProvider client={reloadedClient}>
+          <SpecialistAppointmentDetailScreen
+            key="app-reload"
+            appointmentApi={detailProps.appointmentApi}
+            appointmentId={APPOINTMENT_ID}
+            chatHandoff={detailProps.chatHandoff}
+            continuityApi={detailProps.continuityApi}
+            summaryApi={detailProps.summaryApi}
+          />
+        </QueryClientProvider>,
+      )
+    })
     expect(await screen.findByText('Đã từ chối')).toBeOnTheScreen()
     await waitFor(() => expect(listAssigned).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(reloadedClient.isFetching()).toBe(0))
