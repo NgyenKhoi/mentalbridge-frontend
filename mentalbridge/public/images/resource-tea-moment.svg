@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" role="img" aria-labelledby="title">
+  <title id="title">Tách trà ấm bên cửa sổ và cây xanh</title>
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#e8e8d3"/><stop offset="1" stop-color="#a6bd9c"/></linearGradient>
+    <linearGradient id="table" x2="0" y2="1"><stop stop-color="#8d765d"/><stop offset="1" stop-color="#4f4032"/></linearGradient>
+    <linearGradient id="cup" x2="0" y2="1"><stop stop-color="#eee0c5"/><stop offset="1" stop-color="#a98f70"/></linearGradient>
+    <radialGradient id="light"><stop stop-color="#fff9dd" stop-opacity=".74"/><stop offset="1" stop-color="#fff9dd" stop-opacity="0"/></radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="15"/></filter>
+  </defs>
+  <rect width="960" height="360" fill="#789278"/>
+  <rect x="0" y="0" width="960" height="248" fill="url(#sky)"/>
+  <circle cx="650" cy="80" r="220" fill="url(#light)"/>
+  <path d="M0 160Q140 75 320 151T680 118T960 140V250H0" fill="#769a79" opacity=".55" filter="url(#blur)"/>
+  <path d="M0 215Q210 125 400 193T800 162T960 195V270H0" fill="#4d795f" opacity=".68" filter="url(#blur)"/>
+  <rect x="82" width="20" height="260" fill="#d8c8a9"/><rect x="456" width="19" height="260" fill="#d8c8a9"/><rect x="0" y="225" width="960" height="21" fill="#d3c1a5"/>
+  <path d="M16 253Q315 234 960 248V360H0Z" fill="url(#table)"/>
+  <path d="M0 274Q300 257 960 271" fill="none" stroke="#b49a78" stroke-width="5" opacity=".45"/>
+  <g fill="#325a40" opacity=".95">
+    <path d="M95 225Q24 184 54 125Q116 133 95 225"/><path d="M99 225Q93 151 151 132Q170 190 99 225"/><path d="M114 222Q144 176 209 183Q190 230 114 222"/>
+    <path d="M798 237Q731 175 758 112Q812 129 798 237"/><path d="M800 241Q814 151 882 130Q894 204 800 241"/><path d="M813 231Q867 196 936 206Q919 252 813 231"/>
+  </g>
+  <g fill="#6d9870" opacity=".9"><ellipse cx="140" cy="137" rx="19" ry="38" transform="rotate(42 140 137)"/><ellipse cx="837" cy="118" rx="20" ry="42" transform="rotate(-34 837 118)"/><ellipse cx="55" cy="164" rx="17" ry="32" transform="rotate(-35 55 164)"/></g>
+  <path d="M97 240V167M100 212L148 149M802 251V157M801 206L854 128" stroke="#345943" stroke-width="6" fill="none"/>
+  <ellipse cx="540" cy="303" rx="180" ry="22" fill="#241e1b" opacity=".32" filter="url(#blur)"/>
+  <path d="M379 210Q382 284 430 295H621Q667 282 670 211Z" fill="url(#cup)" stroke="#e9d9bd" stroke-width="8"/>
+  <path d="M663 219Q731 213 725 262Q719 293 649 280" fill="none" stroke="#d2bc97" stroke-width="24"/>
+  <ellipse cx="525" cy="211" rx="146" ry="36" fill="#e9d8bb"/><ellipse cx="525" cy="212" rx="129" ry="26" fill="#6b432e"/><ellipse cx="525" cy="208" rx="119" ry="20" fill="#8e6040"/>
+  <path d="M460 158Q438 130 460 101M521 153Q501 125 522 92M581 156Q562 132 587 103" fill="none" stroke="#f9f6e6" stroke-width="9" stroke-linecap="round" opacity=".5" filter="url(#blur)"/>
+</svg>

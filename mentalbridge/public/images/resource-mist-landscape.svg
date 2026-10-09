@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1">
+      <stop stop-color="#b9c8bb"/>
+      <stop offset=".53" stop-color="#d2d7c8"/>
+      <stop offset="1" stop-color="#8ba99a"/>
+    </linearGradient>
+    <linearGradient id="hill" x2="0" y2="1">
+      <stop stop-color="#789987"/>
+      <stop offset="1" stop-color="#21483c"/>
+    </linearGradient>
+    <linearGradient id="mist" x2="0" y2="1">
+      <stop stop-color="#f0f0df" stop-opacity=".62"/>
+      <stop offset="1" stop-color="#dce4d6" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="22"/></filter>
+  </defs>
+  <rect width="1200" height="720" fill="url(#sky)"/>
+  <circle cx="930" cy="143" r="85" fill="#eee8d1" opacity=".37" filter="url(#blur)"/>
+  <path d="M0 355 Q170 250 326 344 T665 318 T1200 315 V720 H0Z" fill="#a9bdb0"/>
+  <path d="M0 408 Q164 320 344 382 T732 342 T1200 391 V720 H0Z" fill="#809f90"/>
+  <path d="M0 481 Q192 355 421 424 T840 404 T1200 435 V720 H0Z" fill="url(#hill)"/>
+  <path d="M0 546 Q240 464 449 519 T880 483 T1200 514 V720 H0Z" fill="#244f41"/>
+  <path d="M0 445 Q250 420 550 440 T1200 420 V505 Q800 488 515 480 T0 498Z" fill="url(#mist)" opacity=".62" filter="url(#blur)"/>
+  <path d="M0 586 Q272 495 540 550 T1200 540 V720 H0Z" fill="#173e33"/>
+  <path d="M0 570 Q220 542 470 558 T1200 558" fill="none" stroke="#d4e0d4" stroke-width="26" opacity=".18" filter="url(#blur)"/>
+</svg>
