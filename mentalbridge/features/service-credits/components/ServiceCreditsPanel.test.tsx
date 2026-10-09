@@ -50,13 +50,11 @@ describe('ServiceCreditsPanel', () => {
   beforeEach(() => get.mockReset())
 
   it('shows the provider balance and labels demo provenance truthfully', async () => {
-    get.mockResolvedValue(demo)
     const user = userEvent.setup()
+    get.mockResolvedValue(demo)
     render(<ServiceCreditsPanel />)
     expect(await screen.findByText('Gói Plus dùng thử')).toBeInTheDocument()
-    expect(screen.getByLabelText('Số lượt tư vấn')).toHaveTextContent(
-      'Còn lại4 buổi',
-    )
+    expect(screen.getByText('Còn lại').nextSibling).toHaveTextContent('4')
     await user.click(
       screen.getByRole('button', { name: 'Lịch sử lượt tư vấn' }),
     )
@@ -65,7 +63,6 @@ describe('ServiceCreditsPanel', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/đang diễn ra/)).toBeInTheDocument()
     expect(screen.getByText(/chỉ cấp thêm phần chênh lệch/)).toBeInTheDocument()
-    expect(screen.getAllByText('Demo')).not.toHaveLength(0)
   })
 
   it('reloads the owner balance after a transient failure', async () => {

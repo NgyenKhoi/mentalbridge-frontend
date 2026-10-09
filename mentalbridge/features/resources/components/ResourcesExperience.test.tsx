@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -72,17 +72,6 @@ describe('ResourcesExperience', () => {
     vi.setSystemTime(new Date('2026-09-29T09:00:00+07:00'))
     sessionStorage.clear()
     vi.stubGlobal('scrollTo', vi.fn())
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn().mockReturnValue({
-        matches: false,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      }),
-    )
-    vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(
-      () => undefined,
-    )
     api.getResourceCatalogue.mockResolvedValue({
       items: resources,
       hasMore: false,
@@ -131,7 +120,6 @@ describe('ResourcesExperience', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
-    vi.restoreAllMocks()
   })
 
   it('renders the daily journey, filters, bingo, and recent section', async () => {
@@ -178,22 +166,21 @@ describe('ResourcesExperience', () => {
   })
 
   it('explains active filters and offers a direct way back to all activities', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     render(<ResourcesExperience />)
 
     await screen.findByRole('heading', { name: /kho tài nguyên/i })
-    await user.click(screen.getByRole('button', { name: 'Thử thách' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Thử thách' }))
     expect(screen.getByRole('status')).toHaveTextContent(
       '1 hoạt động để khám phá',
     )
 
-    await user.click(screen.getByRole('button', { name: 'Video' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Video' }))
     expect(
       screen.getByRole('heading', { name: /chưa có hoạt động khớp bộ lọc/i }),
     ).toBeVisible()
 
-    await user.click(screen.getByRole('button', { name: 'Tất cả' }))
-    await user.click(screen.getByRole('button', { name: 'Mọi loại' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mọi loại' }))
     expect(
       within(
         screen.getByRole('region', { name: 'Kho tài nguyên' }),
@@ -208,15 +195,12 @@ describe('ResourcesExperience', () => {
       progress: { practiceStreakDays: 0 },
       bingo: [],
     })
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     render(<ResourcesExperience />)
 
     await screen.findByRole('heading', { name: /một chút bình yên/i })
-    await user.click(
+    fireEvent.click(
       within(
-        screen.getByRole('complementary', {
-          name: 'Nhịp chăm sóc của bạn',
-        }),
+        screen.getByRole('region', { name: 'Nhịp chăm sóc' }),
       ).getAllByRole('button')[0],
     )
 
