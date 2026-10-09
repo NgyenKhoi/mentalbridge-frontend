@@ -27,5 +27,9 @@ describe('AdminWorkspace', () => {
     expect(container).not.toHaveTextContent('@example.com')
     expect(container).not.toHaveTextContent('Nguyễn Minh Anh')
     expect(container).not.toHaveTextContent('12.480')
+    expect(screen.getByRole('link', { name: 'Báo cáo' })).toHaveAttribute(
+      'href',
+      '/admin/reports',
+    )
   })
 })

@@ -21,6 +21,8 @@ import type {
   PlatformReportPage,
   PlatformReportRequest,
   PlatformReportType,
+  PlatformReportSchedule,
+  PlatformReportScheduleRequest,
 } from '@/features/auth/api/identity-contract'
 import { readIdentityServerConfig } from '@/lib/config/server'
 
@@ -34,9 +36,13 @@ import {
   parsePlatformReportCatalogue,
   parsePlatformReportPage,
 } from './identity-validation'
+import {
+  parseReportSchedule,
+  parseReportSchedules,
+} from './report-schedule-validation'
 
 type RequestOptions<T> = Readonly<{
-  method: 'GET' | 'POST' | 'PUT'
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   path: string
   expectedStatus: number
   correlationId: string
@@ -509,6 +515,67 @@ export const identityClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parsePlatformReportCatalogue,
+    })
+  },
+
+  reportSchedules(accessToken: string, correlationId: string) {
+    return identityRequest<PlatformReportSchedule[]>({
+      method: 'GET',
+      path: '/api/v1/admin/platform-report-schedules',
+      expectedStatus: 200,
+      authorization: accessToken,
+      correlationId,
+      parseSuccess: parseReportSchedules,
+    })
+  },
+
+  createReportSchedule(
+    accessToken: string,
+    body: PlatformReportScheduleRequest,
+    correlationId: string,
+  ) {
+    return identityRequest<PlatformReportSchedule>({
+      method: 'POST',
+      path: '/api/v1/admin/platform-report-schedules',
+      expectedStatus: 201,
+      authorization: accessToken,
+      correlationId,
+      body,
+      parseSuccess: parseReportSchedule,
+    })
+  },
+
+  updateReportSchedule(
+    accessToken: string,
+    id: string,
+    version: number,
+    body: PlatformReportScheduleRequest,
+    correlationId: string,
+  ) {
+    return identityRequest<PlatformReportSchedule>({
+      method: 'PUT',
+      path: `/api/v1/admin/platform-report-schedules/${encodeURIComponent(id)}?expectedVersion=${version}`,
+      expectedStatus: 200,
+      authorization: accessToken,
+      correlationId,
+      body,
+      parseSuccess: parseReportSchedule,
+    })
+  },
+
+  deleteReportSchedule(
+    accessToken: string,
+    id: string,
+    version: number,
+    correlationId: string,
+  ) {
+    return identityRequest<void>({
+      method: 'DELETE',
+      path: `/api/v1/admin/platform-report-schedules/${encodeURIComponent(id)}?expectedVersion=${version}`,
+      expectedStatus: 204,
+      authorization: accessToken,
+      correlationId,
+      emptySuccess: true,
     })
   },
 
