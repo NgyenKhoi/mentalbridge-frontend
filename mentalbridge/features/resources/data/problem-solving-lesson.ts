@@ -43,7 +43,7 @@ export type LessonStep = Readonly<{
   title: string
   summary: string
   start: number // giây bắt đầu (tính từ 0)
-  end: number   // giây kết thúc (mốc mở: start <= t < end)
+  end: number // giây kết thúc (mốc mở: start <= t < end)
   tip: LessonStepTip
   practicePrompt?: LessonStepPracticePrompt
 }>
@@ -114,8 +114,8 @@ export const problemSolvingLessonConfig: ProblemSolvingLessonConfig = {
       stepNumber: 1,
       title: 'Gọi tên vấn đề',
       summary: 'Định nghĩa sự việc khách quan, tách biệt với lo âu.',
-      start: 0,     // 00:00
-      end: 30,      // 00:30
+      start: 0, // 00:00
+      end: 30, // 00:30
       tip: {
         heading: 'Gợi ý từ chuyên gia trị liệu CBT',
         lead: 'Khi lo âu dâng cao, não bộ có xu hướng nhìn mọi vấn đề như một khối đá khổng lồ không thể di dời. Kỹ năng chia nhỏ (micro-chunking) giúp hạ thấp hormone căng thẳng và kích hoạt lại vỏ não trước trán.',
@@ -127,8 +127,10 @@ export const problemSolvingLessonConfig: ProblemSolvingLessonConfig = {
       },
       practicePrompt: {
         stepLabel: 'Ứng dụng ngay Bước 1 vào thực tế',
-        question: 'Vấn đề cụ thể nào đang làm bạn bận tâm nhất hôm nay? Hãy tóm gọn trong 1 câu:',
-        placeholder: 'Ví dụ: Mình đang trì hoãn gửi email báo cáo tuần vì sợ số liệu chưa hoàn hảo...',
+        question:
+          'Vấn đề cụ thể nào đang làm bạn bận tâm nhất hôm nay? Hãy tóm gọn trong 1 câu:',
+        placeholder:
+          'Ví dụ: Mình đang trì hoãn gửi email báo cáo tuần vì sợ số liệu chưa hoàn hảo...',
       },
     },
     {
@@ -136,8 +138,8 @@ export const problemSolvingLessonConfig: ProblemSolvingLessonConfig = {
       stepNumber: 2,
       title: 'Liệt kê phương án',
       summary: 'Mở rộng góc nhìn bằng phương pháp động não (brainstorming).',
-      start: 30,    // 00:30
-      end: 45,     // 00:45
+      start: 30, // 00:30
+      end: 45, // 00:45
       tip: {
         heading: 'Gợi ý từ chuyên gia trị liệu CBT',
         lead: 'Giai đoạn này nhằm kích thích tính sáng tạo và phá vỡ lối mòn tư duy "chỉ có một cách duy nhất hoặc không có lối thoát".',
@@ -149,8 +151,10 @@ export const problemSolvingLessonConfig: ProblemSolvingLessonConfig = {
       },
       practicePrompt: {
         stepLabel: 'Ứng dụng ngay Bước 2 vào thực tế',
-        question: 'Hãy ghi ra ít nhất 3 cách bạn có thể xử lý việc này (chưa cần chọn vội):',
-        placeholder: 'Cách 1: Nhờ đồng nghiệp xem qua trước...\nCách 2: Gửi bản nháp sớm để xin góp ý...\nCách 3: Hoàn thành phần quan trọng nhất trước...',
+        question:
+          'Hãy ghi ra ít nhất 3 cách bạn có thể xử lý việc này (chưa cần chọn vội):',
+        placeholder:
+          'Cách 1: Nhờ đồng nghiệp xem qua trước...\nCách 2: Gửi bản nháp sớm để xin góp ý...\nCách 3: Hoàn thành phần quan trọng nhất trước...',
       },
     },
     {
@@ -158,8 +162,8 @@ export const problemSolvingLessonConfig: ProblemSolvingLessonConfig = {
       stepNumber: 3,
       title: 'Đánh giá ưu & nhược',
       summary: 'Xem xét tính khả thi & nguồn lực sẵn có của từng phương án.',
-      start: 45,    // 00:45
-      end: 60,     // 01:00
+      start: 45, // 00:45
+      end: 60, // 01:00
       tip: {
         heading: 'Gợi ý từ chuyên gia trị liệu CBT',
         lead: 'Đánh giá dựa trên thực tế và nguồn lực trong tầm tay, không dựa trên kỳ vọng cầu toàn.',
@@ -171,8 +175,10 @@ export const problemSolvingLessonConfig: ProblemSolvingLessonConfig = {
       },
       practicePrompt: {
         stepLabel: 'Ứng dụng ngay Bước 3 vào thực tế',
-        question: 'Phương án nào ít rủi ro và nằm trong khả năng kiểm soát của bạn nhất?',
-        placeholder: 'Ví dụ: Phương án 2 khả thi nhất vì mình chỉ cần 15 phút để hoàn thành...',
+        question:
+          'Phương án nào ít rủi ro và nằm trong khả năng kiểm soát của bạn nhất?',
+        placeholder:
+          'Ví dụ: Phương án 2 khả thi nhất vì mình chỉ cần 15 phút để hoàn thành...',
       },
     },
     {
@@ -180,8 +186,8 @@ export const problemSolvingLessonConfig: ProblemSolvingLessonConfig = {
       stepNumber: 4,
       title: 'Chọn 1 hành động',
       summary: 'Chọn bước đi dễ bắt đầu nhất trong vòng 5–15 phút tới.',
-      start: 60,    // 01:00
-      end: 75,     // 01:15
+      start: 60, // 01:00
+      end: 75, // 01:15
       tip: {
         heading: 'Gợi ý từ chuyên gia trị liệu CBT',
         lead: 'Hành động nhỏ tạo ra động lực lớn. Một hành động siêu nhỏ (micro-action) hoàn thành sẽ kích hoạt dopamine tự nhiên, giúp bạn tiếp tục.',
@@ -193,8 +199,10 @@ export const problemSolvingLessonConfig: ProblemSolvingLessonConfig = {
       },
       practicePrompt: {
         stepLabel: 'Ứng dụng ngay Bước 4 vào thực tế cuộc sống',
-        question: 'Hành động nhỏ trong 5–15 phút tới mà bạn có thể làm được là gì?',
-        placeholder: 'Ví dụ: Gửi một tin nhắn ngắn thông báo lùi lịch hẹn 1 ngày; hoặc viết ra 3 gạch đầu dòng cần làm trước 12:00...',
+        question:
+          'Hành động nhỏ trong 5–15 phút tới mà bạn có thể làm được là gì?',
+        placeholder:
+          'Ví dụ: Gửi một tin nhắn ngắn thông báo lùi lịch hẹn 1 ngày; hoặc viết ra 3 gạch đầu dòng cần làm trước 12:00...',
       },
     },
     {
@@ -202,8 +210,8 @@ export const problemSolvingLessonConfig: ProblemSolvingLessonConfig = {
       stepNumber: 5,
       title: 'Xem lại & ghi nhận',
       summary: 'Tự khen ngợi nỗ lực và điều chỉnh nếu cần thiết.',
-      start: 75,    // 01:15
-      end: 100,    // 01:40 (kết thúc video)
+      start: 75, // 01:15
+      end: 100, // 01:40 (kết thúc video)
       tip: {
         heading: 'Gợi ý từ chuyên gia trị liệu CBT',
         lead: 'Não bộ cần được củng cố tích cực sau mỗi nỗ lực, dù kết quả có hoàn hảo hay chỉ mới là bước thử nghiệm đầu tiên.',
@@ -215,8 +223,10 @@ export const problemSolvingLessonConfig: ProblemSolvingLessonConfig = {
       },
       practicePrompt: {
         stepLabel: 'Ứng dụng ngay Bước 5 vào thực tế',
-        question: 'Bạn muốn gửi lời khen ngợi hay động viên nào cho chính mình hôm nay?',
-        placeholder: 'Ví dụ: Mình tự hào vì đã bắt tay vào làm một bước nhỏ thay vì ngồi lo lắng cả buổi...',
+        question:
+          'Bạn muốn gửi lời khen ngợi hay động viên nào cho chính mình hôm nay?',
+        placeholder:
+          'Ví dụ: Mình tự hào vì đã bắt tay vào làm một bước nhỏ thay vì ngồi lo lắng cả buổi...',
       },
     },
   ],

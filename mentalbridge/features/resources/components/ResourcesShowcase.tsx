@@ -90,11 +90,7 @@ function resourceHref(resource: PublicResourceSummary, date: string) {
   return `/resources/${resource.id}?from=resources&date=${date}`
 }
 
-function ResourceArt({
-  resource,
-}: {
-  resource: PublicResourceSummary
-}) {
+function ResourceArt({ resource }: { resource: PublicResourceSummary }) {
   const meta = resourcePresentation(resource)
   const artwork = resourceArtworks.find(({ title }) =>
     resource.title.toLocaleLowerCase('vi-VN').includes(title),
@@ -159,38 +155,45 @@ export default function ResourcesShowcase() {
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(
-        sessionStorage.getItem(VIEW_STATE_KEY) ?? '{}',
-      ) as {
-        showcase?: {
-          mood?: Mood
-          filter?: Filter
-          bingoMarks?: Record<string, boolean>
-          bookmarked?: boolean
+    let active = true
+    queueMicrotask(() => {
+      if (!active) return
+      try {
+        const saved = JSON.parse(
+          sessionStorage.getItem(VIEW_STATE_KEY) ?? '{}',
+        ) as {
+          showcase?: {
+            mood?: Mood
+            filter?: Filter
+            bingoMarks?: Record<string, boolean>
+            bookmarked?: boolean
+          }
         }
-      }
-      const showcase = saved.showcase
-      if (showcase) {
-        if (moods.some((item) => item.label === showcase.mood))
-          setMood(showcase.mood ?? 'Bình an')
-        if (
-          ['all', 'short', 'medium', 'challenge'].includes(
-            showcase.filter ?? '',
+        const showcase = saved.showcase
+        if (showcase) {
+          if (moods.some((item) => item.label === showcase.mood))
+            setMood(showcase.mood ?? 'Bình an')
+          if (
+            ['all', 'short', 'medium', 'challenge'].includes(
+              showcase.filter ?? '',
+            )
           )
-        )
-          setFilter(showcase.filter ?? 'all')
-        if (showcase.bingoMarks && typeof showcase.bingoMarks === 'object')
-          setBingoMarks(showcase.bingoMarks)
-        setBookmarked(Boolean(showcase.bookmarked))
+            setFilter(showcase.filter ?? 'all')
+          if (showcase.bingoMarks && typeof showcase.bingoMarks === 'object')
+            setBingoMarks(showcase.bingoMarks)
+          setBookmarked(Boolean(showcase.bookmarked))
+        }
+      } catch {
+        setMood('Bình an')
+        setFilter('all')
+        setBingoMarks({})
+        setBookmarked(false)
       }
-    } catch {
-      setMood('Bình an')
-      setFilter('all')
-      setBingoMarks({})
-      setBookmarked(false)
+      setHydrated(true)
+    })
+    return () => {
+      active = false
     }
-    setHydrated(true)
   }, [])
 
   useEffect(() => {
@@ -214,9 +217,7 @@ export default function ResourcesShowcase() {
             showcase: { mood, filter, bingoMarks, bookmarked },
           }),
         )
-      } catch {
-        setHydrated(false)
-      }
+      } catch {}
     }
   }, [mood, filter, bingoMarks, bookmarked, hydrated])
 
@@ -811,7 +812,8 @@ export default function ResourcesShowcase() {
                       </small>
                     </strong>
                     <em className={styles.recentReward}>
-                      +{index === 0 ? 25 : 10} XP · +1 {index === 0 ? '🌸' : '🌿'}
+                      +{index === 0 ? 25 : 10} XP · +1{' '}
+                      {index === 0 ? '🌸' : '🌿'}
                     </em>
                   </Link>
                 ))}

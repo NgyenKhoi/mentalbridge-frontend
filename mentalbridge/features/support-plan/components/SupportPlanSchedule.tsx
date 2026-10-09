@@ -110,9 +110,9 @@ export default function SupportPlanSchedule({
   const [selectedDate, setSelectedDate] = useState<string>(today)
   const [weekOffset, setWeekOffset] = useState<number>(0)
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar')
-  const [listFilter, setListFilter] = useState<'all' | 'incomplete' | 'completed'>(
-    'all',
-  )
+  const [listFilter, setListFilter] = useState<
+    'all' | 'incomplete' | 'completed'
+  >('all')
 
   const [schedule, setSchedule] = useState<SupportPlanOccurrenceList>()
   const [loading, setLoading] = useState(true)
@@ -120,7 +120,9 @@ export default function SupportPlanSchedule({
   const [editingId, setEditingId] = useState<string>()
   const [draft, setDraft] = useState<Draft>()
   const [showAllUpcoming, setShowAllUpcoming] = useState(false)
-  const [detailOccurrenceId, setDetailOccurrenceId] = useState<string | null>(null)
+  const [detailOccurrenceId, setDetailOccurrenceId] = useState<string | null>(
+    null,
+  )
   const [detailOpen, setDetailOpen] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -287,8 +289,7 @@ export default function SupportPlanSchedule({
   const hidden = occurrences.filter((item) => item.hidden)
   const weekItems = visible
     .filter(
-      (item) =>
-        item.localDate >= weekDays[0] && item.localDate <= weekDays[6],
+      (item) => item.localDate >= weekDays[0] && item.localDate <= weekDays[6],
     )
     .sort(
       (first, second) =>
@@ -332,10 +333,12 @@ export default function SupportPlanSchedule({
     detailOccurrence?.source.type === 'RESOURCE' &&
     detailOccurrence.source.resourceId &&
     detailOccurrence.source.contentVersion
-      ? `/resources/${detailOccurrence.source.resourceId}?${new URLSearchParams({
-          from: 'support-plan',
-          contentVersion: detailOccurrence.source.contentVersion,
-        }).toString()}`
+      ? `/resources/${detailOccurrence.source.resourceId}?${new URLSearchParams(
+          {
+            from: 'support-plan',
+            contentVersion: detailOccurrence.source.contentVersion,
+          },
+        ).toString()}`
       : null
 
   const renderForm = (occurrence: SupportPlanOccurrence) => {
@@ -594,85 +597,51 @@ export default function SupportPlanSchedule({
               )}
             </div>
           ) : (
-          <>
-          <div className="support-plan-col-header">
-            <div className="support-plan-flex-row">
-              <h4 className="support-plan-section-title">
-                {formattedSelectedDateHeading}
-              </h4>
-              <span className="support-plan-count-badge">
-                {selectedDateItems.length} mục
-              </span>
-            </div>
-          </div>
+            <>
+              <div className="support-plan-col-header">
+                <div className="support-plan-flex-row">
+                  <h4 className="support-plan-section-title">
+                    {formattedSelectedDateHeading}
+                  </h4>
+                  <span className="support-plan-count-badge">
+                    {selectedDateItems.length} mục
+                  </span>
+                </div>
+              </div>
 
-          {/* Selected Date or Today's Activities */}
-          {occurrences.length === 0 ? (
-            <p>Chưa có hoạt động trong khoảng thời gian này.</p>
-          ) : selectedDateItems.length === 0 ? (
-            <div className="support-plan-empty-date-state">
-              <p>
-                {selectedDate === today
-                  ? 'Hôm nay chưa có hoạt động nào được xếp lịch.'
-                  : 'Không có hoạt động nào được xếp lịch cho ngày này.'}
-              </p>
-            </div>
-          ) : (
-            <div className="support-plan-activities-list">
-              {/* First activity is rendered as Featured Card */}
-              {selectedDateItems[0] && (
-                <SupportPlanFeaturedActivity
-                  key={selectedDateItems[0].occurrenceId}
-                  occurrence={selectedDateItems[0]}
-                  authoritativePlanStatus={authoritativePlanStatus}
-                  busy={busyId === selectedDateItems[0].occurrenceId}
-                  isEditing={editingId === selectedDateItems[0].occurrenceId}
-                  onStartEditing={(st) => {
-                    setEditingId(selectedDateItems[0].occurrenceId)
-                    setDraft(initialDraft(selectedDateItems[0], st))
-                  }}
-                  onReopen={() =>
-                    void replace(
-                      selectedDateItems[0],
-                      {
-                        state: 'SCHEDULED',
-                        hidden: selectedDateItems[0].hidden,
-                        helpfulness: null,
-                        barrierCode: null,
-                        reflection: null,
-                        summaryReuseApproved: false,
-                      },
-                      'Đã mở lại mục này.',
-                    )
-                  }
-                  onToggleVisibility={() =>
-                    void toggleVisibility(selectedDateItems[0])
-                  }
-                  onRemove={() => void remove(selectedDateItems[0])}
-                  renderForm={() => renderForm(selectedDateItems[0])}
-                />
-              )}
-
-              {/* Remaining activities are rendered as compact rows */}
-              {selectedDateItems.length > 1 && (
-                <div className="support-plan-rows-container">
-                  {selectedDateItems.slice(1).map((item) => (
-                    <SupportPlanActivityRow
-                      key={item.occurrenceId}
-                      occurrence={item}
+              {/* Selected Date or Today's Activities */}
+              {occurrences.length === 0 ? (
+                <p>Chưa có hoạt động trong khoảng thời gian này.</p>
+              ) : selectedDateItems.length === 0 ? (
+                <div className="support-plan-empty-date-state">
+                  <p>
+                    {selectedDate === today
+                      ? 'Hôm nay chưa có hoạt động nào được xếp lịch.'
+                      : 'Không có hoạt động nào được xếp lịch cho ngày này.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="support-plan-activities-list">
+                  {/* First activity is rendered as Featured Card */}
+                  {selectedDateItems[0] && (
+                    <SupportPlanFeaturedActivity
+                      key={selectedDateItems[0].occurrenceId}
+                      occurrence={selectedDateItems[0]}
                       authoritativePlanStatus={authoritativePlanStatus}
-                      busy={busyId === item.occurrenceId}
-                      isEditing={editingId === item.occurrenceId}
+                      busy={busyId === selectedDateItems[0].occurrenceId}
+                      isEditing={
+                        editingId === selectedDateItems[0].occurrenceId
+                      }
                       onStartEditing={(st) => {
-                        setEditingId(item.occurrenceId)
-                        setDraft(initialDraft(item, st))
+                        setEditingId(selectedDateItems[0].occurrenceId)
+                        setDraft(initialDraft(selectedDateItems[0], st))
                       }}
                       onReopen={() =>
                         void replace(
-                          item,
+                          selectedDateItems[0],
                           {
                             state: 'SCHEDULED',
-                            hidden: item.hidden,
+                            hidden: selectedDateItems[0].hidden,
                             helpfulness: null,
                             barrierCode: null,
                             reflection: null,
@@ -681,73 +650,108 @@ export default function SupportPlanSchedule({
                           'Đã mở lại mục này.',
                         )
                       }
-                      onToggleVisibility={() => void toggleVisibility(item)}
-                      onRemove={() => void remove(item)}
-                      renderForm={() => renderForm(item)}
+                      onToggleVisibility={() =>
+                        void toggleVisibility(selectedDateItems[0])
+                      }
+                      onRemove={() => void remove(selectedDateItems[0])}
+                      renderForm={() => renderForm(selectedDateItems[0])}
                     />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                  )}
 
-          {/* Upcoming Section: always shown when viewing today (or list view) and upcoming items exist */}
-          {selectedDate === today &&
-            upcoming.length > 0 && (
-              <div className="support-plan-upcoming-section">
-                <div className="support-plan-upcoming-heading">
-                  <div>
-                    <h4 className="support-plan-section-title">
-                      Hoạt động sắp tới
-                    </h4>
-                    <p>Các hoạt động còn lại trong tuần của bạn</p>
-                  </div>
-                  <span className="support-plan-upcoming-status">
-                    {authoritativePlanStatus === 'ACTIVE'
-                      ? 'Đang kích hoạt'
-                      : 'Đang tạm dừng'}
-                  </span>
-                </div>
-                <div className="support-plan-activities-list">
-                  <div className="support-plan-rows-container">
-                    {upcoming
-                      .slice(0, showAllUpcoming ? undefined : 3)
-                      .map((item, index) => (
-                        <SupportPlanUpcomingCard
+                  {/* Remaining activities are rendered as compact rows */}
+                  {selectedDateItems.length > 1 && (
+                    <div className="support-plan-rows-container">
+                      {selectedDateItems.slice(1).map((item) => (
+                        <SupportPlanActivityRow
                           key={item.occurrenceId}
                           occurrence={item}
-                          position={index + 1}
-                          isNext={
-                            authoritativePlanStatus === 'ACTIVE' &&
-                            item.occurrenceId === nextOccurrenceId
-                          }
+                          authoritativePlanStatus={authoritativePlanStatus}
+                          busy={busyId === item.occurrenceId}
                           isEditing={editingId === item.occurrenceId}
-                          renderForm={() => renderForm(item)}
-                          onOpen={() => {
-                            setDetailOccurrenceId(item.occurrenceId)
-                            setDetailOpen(true)
+                          onStartEditing={(st) => {
+                            setEditingId(item.occurrenceId)
+                            setDraft(initialDraft(item, st))
                           }}
+                          onReopen={() =>
+                            void replace(
+                              item,
+                              {
+                                state: 'SCHEDULED',
+                                hidden: item.hidden,
+                                helpfulness: null,
+                                barrierCode: null,
+                                reflection: null,
+                                summaryReuseApproved: false,
+                              },
+                              'Đã mở lại mục này.',
+                            )
+                          }
+                          onToggleVisibility={() => void toggleVisibility(item)}
+                          onRemove={() => void remove(item)}
+                          renderForm={() => renderForm(item)}
                         />
                       ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
+              )}
 
-                {upcoming.length > 3 && (
-                  <div className="support-plan-schedule-more">
-                    <button
-                      type="button"
-                      className="support-plan-schedule-more-btn"
-                      onClick={() => setShowAllUpcoming((prev) => !prev)}
-                    >
-                      {showAllUpcoming
-                        ? 'Thu gọn danh sách ↑'
-                        : `Còn ${upcoming.length - 3} hoạt động khác trong tuần này · Xem tất cả →`}
-                    </button>
+              {/* Upcoming Section: always shown when viewing today (or list view) and upcoming items exist */}
+              {selectedDate === today && upcoming.length > 0 && (
+                <div className="support-plan-upcoming-section">
+                  <div className="support-plan-upcoming-heading">
+                    <div>
+                      <h4 className="support-plan-section-title">
+                        Hoạt động sắp tới
+                      </h4>
+                      <p>Các hoạt động còn lại trong tuần của bạn</p>
+                    </div>
+                    <span className="support-plan-upcoming-status">
+                      {authoritativePlanStatus === 'ACTIVE'
+                        ? 'Đang kích hoạt'
+                        : 'Đang tạm dừng'}
+                    </span>
                   </div>
-                )}
-              </div>
-            )}
-          </>
+                  <div className="support-plan-activities-list">
+                    <div className="support-plan-rows-container">
+                      {upcoming
+                        .slice(0, showAllUpcoming ? undefined : 3)
+                        .map((item, index) => (
+                          <SupportPlanUpcomingCard
+                            key={item.occurrenceId}
+                            occurrence={item}
+                            position={index + 1}
+                            isNext={
+                              authoritativePlanStatus === 'ACTIVE' &&
+                              item.occurrenceId === nextOccurrenceId
+                            }
+                            isEditing={editingId === item.occurrenceId}
+                            renderForm={() => renderForm(item)}
+                            onOpen={() => {
+                              setDetailOccurrenceId(item.occurrenceId)
+                              setDetailOpen(true)
+                            }}
+                          />
+                        ))}
+                    </div>
+                  </div>
+
+                  {upcoming.length > 3 && (
+                    <div className="support-plan-schedule-more">
+                      <button
+                        type="button"
+                        className="support-plan-schedule-more-btn"
+                        onClick={() => setShowAllUpcoming((prev) => !prev)}
+                      >
+                        {showAllUpcoming
+                          ? 'Thu gọn danh sách ↑'
+                          : `Còn ${upcoming.length - 3} hoạt động khác trong tuần này · Xem tất cả →`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           {/* Hidden Items Disclosure */}

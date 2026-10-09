@@ -158,7 +158,8 @@ export default function AppointmentMessagesWorkspace({
   )
     ? selectedId
     : (conversations[0]?.id ?? '')
-  const appointmentsHref = viewerRole === 'SPECIALIST' ? '/specialist/appointments' : '/appointments'
+  const appointmentsHref =
+    viewerRole === 'SPECIALIST' ? '/specialist/appointments' : '/appointments'
 
   const selectConversation = (appointmentId: string) => {
     setSelectedId(appointmentId)
@@ -197,11 +198,13 @@ export default function AppointmentMessagesWorkspace({
 
           {loading && conversations.length === 0 ? (
             <p className={styles.state}>Đang tải cuộc trò chuyện…</p>
-          ) : error && conversations.length === 0 ? null : conversations.length === 0 ? (
+          ) : error &&
+            conversations.length === 0 ? null : conversations.length === 0 ? (
             <div className={styles.emptyList}>
               <strong>Chưa có cuộc trò chuyện</strong>
               <p>
-                Cuộc trò chuyện sẽ xuất hiện sau khi một lịch hẹn chat được xác nhận.
+                Cuộc trò chuyện sẽ xuất hiện sau khi một lịch hẹn chat được xác
+                nhận.
               </p>
             </div>
           ) : (
@@ -257,14 +260,26 @@ export default function AppointmentMessagesWorkspace({
           ) : (
             <div className={`${chatStyles.page} ${chatStyles.embedded}`}>
               <div className={chatStyles.layout}>
-                <section className={chatStyles.chat} aria-label="Khung nhắn tin">
+                <section
+                  className={chatStyles.chat}
+                  aria-label="Khung nhắn tin"
+                >
                   <header className={chatStyles.chatHeader}>
-                    <span className={chatStyles.avatar} aria-hidden="true">◇</span>
+                    <span className={chatStyles.avatar} aria-hidden="true">
+                      ◇
+                    </span>
                     <div className={chatStyles.chatIdentity}>
                       <div className={chatStyles.chatTitleRow}>
                         <strong>Tin nhắn tư vấn</strong>
-                        <span className={`${chatStyles.phaseBadge} ${styles.emptyPhase}`}>
-                          <i /> {loading ? 'Đang tải' : error ? 'Chưa kết nối' : 'Chưa có lịch hẹn'}
+                        <span
+                          className={`${chatStyles.phaseBadge} ${styles.emptyPhase}`}
+                        >
+                          <i />{' '}
+                          {loading
+                            ? 'Đang tải'
+                            : error
+                              ? 'Chưa kết nối'
+                              : 'Chưa có lịch hẹn'}
                         </span>
                       </div>
                       <div className={chatStyles.chatMeta}>
@@ -275,7 +290,11 @@ export default function AppointmentMessagesWorkspace({
                     </div>
                   </header>
 
-                  <section className={chatStyles.messages} aria-label="Tin nhắn tư vấn" role="log">
+                  <section
+                    className={chatStyles.messages}
+                    aria-label="Tin nhắn tư vấn"
+                    role="log"
+                  >
                     <div className={chatStyles.empty}>
                       <svg viewBox="0 0 120 84" aria-hidden="true">
                         <path d="M4 84V50a56 56 0 0 1 112 0v34" />
@@ -296,18 +315,30 @@ export default function AppointmentMessagesWorkspace({
                             ? error
                             : 'Tin nhắn sẽ hiển thị khi lịch hẹn chat được xác nhận. Bạn có thể xem lại lịch sử sau khi phiên chat kết thúc.'}
                       </p>
-                      {!loading && (error ? (
-                        <button type="button" className={styles.emptyAction} onClick={() => void load()}>
-                          Thử tải lại
-                        </button>
-                      ) : (
-                        <Link className={styles.emptyAction} href={appointmentsHref}>Xem lịch hẹn</Link>
-                      ))}
+                      {!loading &&
+                        (error ? (
+                          <button
+                            type="button"
+                            className={styles.emptyAction}
+                            onClick={() => void load()}
+                          >
+                            Thử tải lại
+                          </button>
+                        ) : (
+                          <Link
+                            className={styles.emptyAction}
+                            href={appointmentsHref}
+                          >
+                            Xem lịch hẹn
+                          </Link>
+                        ))}
                     </div>
                   </section>
 
                   <div className={chatStyles.composer}>
-                    <label htmlFor="empty-appointment-chat-message">Tin nhắn</label>
+                    <label htmlFor="empty-appointment-chat-message">
+                      Tin nhắn
+                    </label>
                     <div className={chatStyles.composerBox}>
                       <textarea
                         id="empty-appointment-chat-message"

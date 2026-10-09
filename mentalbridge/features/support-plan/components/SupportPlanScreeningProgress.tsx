@@ -56,7 +56,9 @@ function ScreeningMetric({
       >
         <div
           className="support-plan-metric-fill"
-          style={{ width: `${Math.min(100, Math.max(0, (score / max) * 100))}%` }}
+          style={{
+            width: `${Math.min(100, Math.max(0, (score / max) * 100))}%`,
+          }}
         />
       </div>
       <div className="support-plan-metric-subtext-row">
@@ -82,10 +84,12 @@ function ScreeningMetric({
 }
 
 export default function SupportPlanScreeningProgress() {
-  const [results, setResults] =
-    useState<Partial<Record<Instrument, AssessmentSummary>>>({})
-  const [comparisons, setComparisons] =
-    useState<Partial<Record<Instrument, Comparison>>>({})
+  const [results, setResults] = useState<
+    Partial<Record<Instrument, AssessmentSummary>>
+  >({})
+  const [comparisons, setComparisons] = useState<
+    Partial<Record<Instrument, Comparison>>
+  >({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [attempt, setAttempt] = useState(0)

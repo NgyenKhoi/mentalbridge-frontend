@@ -36,10 +36,7 @@ import {
 } from 'react'
 
 import type { PublicResourceDetail } from '../api/browser-resources'
-import {
-  problemSolvingLessonConfig,
-  type LessonStep,
-} from '../data/problem-solving-lesson'
+import { problemSolvingLessonConfig } from '../data/problem-solving-lesson'
 import styles from './problem-solving-resource-detail.module.css'
 
 type Props = Readonly<{
@@ -102,12 +99,10 @@ const SPEED_OPTIONS = [1, 1.25, 1.5, 0.75] as const
 export function ProblemSolvingResourceDetail({
   resource,
   backHref,
-  backLabel,
   status,
   progressLoadState,
   saving,
   message,
-  onRetryProgress,
   onRecord,
 }: Props) {
   const config = problemSolvingLessonConfig
@@ -144,22 +139,23 @@ export function ProblemSolvingResourceDetail({
   const [recordState, setRecordState] = useState<
     'idle' | 'sending' | 'success' | 'error'
   >('idle')
-  const [feedbackOpen, setFeedbackOpen] = useState(false)
-
   // Load bookmark & draft practice note from localStorage
   useEffect(() => {
-    try {
-      setSaved(
-        window.localStorage.getItem(`mb:resource-bookmark:${resource.id}`) ===
-          'true',
-      )
-      const draft = window.localStorage.getItem(
-        `mb:practice-draft:problem-solving:${resource.id}`,
-      )
-      if (draft) setPracticeNote(draft)
-    } catch {
-      // Ignored for restricted storage
-    }
+    const timeout = window.setTimeout(() => {
+      try {
+        setSaved(
+          window.localStorage.getItem(`mb:resource-bookmark:${resource.id}`) ===
+            'true',
+        )
+        const draft = window.localStorage.getItem(
+          `mb:practice-draft:problem-solving:${resource.id}`,
+        )
+        if (draft) setPracticeNote(draft)
+      } catch {
+        // Ignored for restricted storage
+      }
+    }, 0)
+    return () => window.clearTimeout(timeout)
   }, [resource.id])
 
   // Save practice note draft on changes
@@ -511,7 +507,14 @@ export function ProblemSolvingResourceDetail({
       return `Tạm dừng: Bước ${activeStep.stepNumber} – ${activeStep.title} | CBT Framework`
     }
     return `Sẵn sàng: Bước 1 – ${steps[0].title} | CBT Framework`
-  }, [activeStep.stepNumber, activeStep.title, ended, hasPlayed, isPlaying, steps])
+  }, [
+    activeStep.stepNumber,
+    activeStep.title,
+    ended,
+    hasPlayed,
+    isPlaying,
+    steps,
+  ])
 
   return (
     <main className={styles.page}>
@@ -560,9 +563,9 @@ export function ProblemSolvingResourceDetail({
           <div className={styles.titleCol}>
             <h1>{resource.title}</h1>
             <p>
-              Phương pháp 5 bước có cấu trúc từ Liệu pháp Nhận thức Hành vi (CBT),
-              giúp bạn chia nhỏ khó khăn quá tải thành các hành động cụ thể có thể
-              kiểm soát.
+              Phương pháp 5 bước có cấu trúc từ Liệu pháp Nhận thức Hành vi
+              (CBT), giúp bạn chia nhỏ khó khăn quá tải thành các hành động cụ
+              thể có thể kiểm soát.
             </p>
           </div>
           <div className={styles.titleActions}>
@@ -572,7 +575,9 @@ export function ProblemSolvingResourceDetail({
               onClick={toggleBookmark}
               aria-pressed={saved}
               aria-label={
-                saved ? 'Bỏ lưu bài học trên thiết bị' : 'Lưu bài học trên thiết bị'
+                saved
+                  ? 'Bỏ lưu bài học trên thiết bị'
+                  : 'Lưu bài học trên thiết bị'
               }
             >
               <Bookmark
@@ -697,7 +702,11 @@ export function ProblemSolvingResourceDetail({
                   ) : isPlaying ? (
                     <Pause size={28} fill="currentColor" />
                   ) : (
-                    <Play size={28} fill="currentColor" style={{ marginLeft: 3 }} />
+                    <Play
+                      size={28}
+                      fill="currentColor"
+                      style={{ marginLeft: 3 }}
+                    />
                   )}
                 </button>
               )}
@@ -705,7 +714,8 @@ export function ProblemSolvingResourceDetail({
               {/* Subtitles Overlay */}
               {captionsEnabled && isPlaying && (
                 <div className={styles.captionsOverlay} aria-live="polite">
-                  Bước {activeStep.stepNumber}: {activeStep.title} — {activeStep.summary}
+                  Bước {activeStep.stepNumber}: {activeStep.title} —{' '}
+                  {activeStep.summary}
                 </div>
               )}
 
@@ -857,7 +867,10 @@ export function ProblemSolvingResourceDetail({
 
                 <div className={styles.controlsSpacer} />
 
-                <span className={styles.qualityBadge} title="Chất lượng độ nét cao">
+                <span
+                  className={styles.qualityBadge}
+                  title="Chất lượng độ nét cao"
+                >
                   1080p HD
                 </span>
 
@@ -924,8 +937,6 @@ export function ProblemSolvingResourceDetail({
             {steps.map((step, index) => {
               const isComplete = ended || currentTime >= step.end
               const isActive = !ended && index === activeIndex
-              const isUpcoming = !isComplete && !isActive
-
               const stepDuration = step.end - step.start
               const stepElapsed = Math.max(
                 0,
@@ -959,13 +970,17 @@ export function ProblemSolvingResourceDetail({
                     <span className={styles.stepNumberBadge}>
                       {isActive ? (
                         <>
-                          <span>{String(step.stepNumber).padStart(2, '0')}</span>
+                          <span>
+                            {String(step.stepNumber).padStart(2, '0')}
+                          </span>
                           <span>· Đang phát</span>
                         </>
                       ) : isComplete ? (
                         <>
                           <Check size={14} aria-hidden="true" />
-                          <span>{String(step.stepNumber).padStart(2, '0')}</span>
+                          <span>
+                            {String(step.stepNumber).padStart(2, '0')}
+                          </span>
                         </>
                       ) : (
                         <span>{String(step.stepNumber).padStart(2, '0')}</span>
@@ -1065,9 +1080,7 @@ export function ProblemSolvingResourceDetail({
             <div className={styles.practiceFooter}>
               <div className={styles.securityNote}>
                 <ShieldCheck size={16} aria-hidden="true" />
-                <span>
-                  Bảo mật cá nhân & chỉ lưu trong hành trình của bạn
-                </span>
+                <span>Bảo mật cá nhân & chỉ lưu trong hành trình của bạn</span>
               </div>
 
               {!canRecord && (

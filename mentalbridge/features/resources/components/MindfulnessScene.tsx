@@ -97,7 +97,8 @@ export function MindfulnessScene({ active }: Props) {
       const observer = new ResizeObserver(resize)
       observer.observe(mount)
       resize()
-      if (active && !motion.matches) frame = window.requestAnimationFrame(animate)
+      if (active && !motion.matches)
+        frame = window.requestAnimationFrame(animate)
 
       cleanupScene = () => {
         window.cancelAnimationFrame(frame)

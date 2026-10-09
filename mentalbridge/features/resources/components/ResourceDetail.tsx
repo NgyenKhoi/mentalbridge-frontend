@@ -244,7 +244,10 @@ export default function ResourceDetail({
         if (active) setResult({ requestKey, state: 'success', resource })
       })
       .catch((error: unknown) => {
-        if (!active || (error instanceof Error && error.name === 'AbortError')) {
+        if (
+          !active ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
           return
         }
         if (
@@ -329,12 +332,9 @@ export default function ResourceDetail({
   const catalogue =
     catalogueResult?.requestKey === requestKey ? catalogueResult.items : []
   const catalogueUnavailable =
-    catalogueResult?.requestKey === requestKey &&
-    catalogueResult.unavailable
+    catalogueResult?.requestKey === requestKey && catalogueResult.unavailable
   const progressLoadState =
-    progressResult?.requestKey === requestKey
-      ? progressResult.state
-      : 'loading'
+    progressResult?.requestKey === requestKey ? progressResult.state : 'loading'
   const progressReady = progressLoadState === 'ready'
   const interaction = useMemo(
     () => (resource ? resourceInteraction(resource) : null),
@@ -357,7 +357,10 @@ export default function ResourceDetail({
   const isProblemSolving =
     resource?.id === '00000000-0000-4000-8000-000000000209' ||
     resourceId === 'problem-solving' ||
-    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('giải quyết một vấn đề')
+    resource?.title
+      .trim()
+      .toLocaleLowerCase('vi-VN')
+      .includes('giải quyết một vấn đề')
   const totalPracticeSeconds = isFeaturedBreathing
     ? 300
     : (interaction?.durationSeconds ?? 0)
@@ -715,7 +718,10 @@ export default function ResourceDetail({
         onMarkViewed={() =>
           completedActionIds.includes('video-viewed')
             ? Promise.resolve(true)
-            : persistProgress([...completedActionIds, 'video-viewed'], 'IN_PROGRESS')
+            : persistProgress(
+                [...completedActionIds, 'video-viewed'],
+                'IN_PROGRESS',
+              )
         }
         onConfirmCompletion={() =>
           persistProgress([...requiredActions], 'COMPLETED')
@@ -1235,7 +1241,8 @@ export default function ResourceDetail({
                   các dấu tick mà không làm mất kết quả này.
                 </p>
               )}
-              {progressReady && status === 'COMPLETED' &&
+              {progressReady &&
+                status === 'COMPLETED' &&
                 resource.repeatability === 'REPEATABLE' &&
                 !isPractice &&
                 !recordingPracticeSession && (
