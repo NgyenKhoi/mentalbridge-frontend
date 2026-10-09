@@ -1362,6 +1362,21 @@
 .role-shell :is(p, span, small):not(:where([data-availability-ui] *)) {
   color: var(--ink-soft) !important;
 }
+.ref-shell
+  .resources-page
+  [data-resource-surface='dark']
+  :is(h1, h2, h3, h4, p, span, strong, small) {
+  color: #fff !important;
+}
+.ref-shell
+  .resources-page
+  [data-resource-surface='dark']
+  [data-resource-ink='dark'] {
+  color: var(--ink) !important;
+}
+.ref-shell .resources-page [data-resource-ink='light'] {
+  color: #fff !important;
+}
 .ref-sidebar nav h2 {
   color: var(--ink-faint) !important;
 }

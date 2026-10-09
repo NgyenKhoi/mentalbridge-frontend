@@ -614,10 +614,9 @@ export function SupportPlanScreen({
     currentQuery.data?.status === 'PAUSED'
   const occurrenceAuthorityMismatch = Boolean(
     currentSupportsOccurrences &&
-      occurrenceQuery.data &&
-      (occurrenceQuery.data.supportPlanId !==
-        currentQuery.data?.supportPlanId ||
-        occurrenceQuery.data.supportPlanStatus !== currentQuery.data?.status),
+    occurrenceQuery.data &&
+    (occurrenceQuery.data.supportPlanId !== currentQuery.data?.supportPlanId ||
+      occurrenceQuery.data.supportPlanStatus !== currentQuery.data?.status),
   )
 
   const refreshAuthority = async () => {
@@ -979,14 +978,12 @@ export function SupportPlanScreen({
   const activePlan = current ?? draft
   const replacementAuthorityMatchesPlans = Boolean(
     current &&
-      draft &&
-      replacementQuery.data &&
-      replacementQuery.data.currentPlan.supportPlanId ===
-        current.supportPlanId &&
-      replacementQuery.data.currentPlan.version === current.version &&
-      replacementQuery.data.proposedPlan.supportPlanId ===
-        draft.supportPlanId &&
-      replacementQuery.data.proposedPlan.version === draft.version,
+    draft &&
+    replacementQuery.data &&
+    replacementQuery.data.currentPlan.supportPlanId === current.supportPlanId &&
+    replacementQuery.data.currentPlan.version === current.version &&
+    replacementQuery.data.proposedPlan.supportPlanId === draft.supportPlanId &&
+    replacementQuery.data.proposedPlan.version === draft.version,
   )
   const replaceEligible =
     replacementAuthorityMatchesPlans &&
@@ -1141,7 +1138,9 @@ export function SupportPlanScreen({
       {current &&
         (current.status === 'ACTIVE' || current.status === 'PAUSED') && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Hoạt động gần đây và sắp tới</Text>
+            <Text style={styles.sectionTitle}>
+              Hoạt động gần đây và sắp tới
+            </Text>
             {occurrenceAuthorityMismatch && (
               <View style={styles.partialError}>
                 <StateMessage

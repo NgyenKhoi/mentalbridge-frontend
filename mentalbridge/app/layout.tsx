@@ -3,6 +3,7 @@ import {
   Be_Vietnam_Pro,
   Fraunces,
   Lora,
+  Playfair_Display,
   Plus_Jakarta_Sans,
 } from 'next/font/google'
 import CrisisSupportWidget from '../components/crisis-support/CrisisSupportWidget'
@@ -41,6 +42,12 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   display: 'swap',
 })
 
+const playfairDisplay = Playfair_Display({
+  subsets: ['latin', 'vietnamese'],
+  variable: '--font-playfair-variable',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'MentalBridge — Cây cầu đến sự an yên',
   description:
@@ -55,7 +62,7 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body
-        className={`${fraunces.variable} ${beVietnamPro.variable} ${lora.variable} ${plusJakartaSans.variable}`}
+        className={`${fraunces.variable} ${beVietnamPro.variable} ${lora.variable} ${plusJakartaSans.variable} ${playfairDisplay.variable}`}
       >
         <div className="ambient-bg" aria-hidden="true">
           <div className="ambient-blob b1"></div>

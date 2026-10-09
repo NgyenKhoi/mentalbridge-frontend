@@ -106,6 +106,7 @@ export function SignInScreen() {
           disabled={loading}
           label={loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           onPress={() => void submit()}
+          testID="sign-in-submit"
         />
         <Text
           accessibilityRole="link"

@@ -8,6 +8,11 @@
   animation: mb-page-enter var(--motion-medium) var(--ease-standard) both;
 }
 
+:global(.ref-content-page) .page {
+  height: calc(100dvh - 168px);
+  min-height: 560px;
+}
+
 .workspace {
   display: grid;
   width: 100%;
@@ -43,6 +48,7 @@
 }
 
 .inbox h1,
+.inbox h2,
 .inbox p,
 .emptyConversation h2,
 .emptyConversation p {
@@ -237,16 +243,9 @@
   text-align: center;
 }
 
-.emptyConversation > span {
-  display: grid;
-  width: 64px;
-  height: 64px;
+.emptyConversation > svg {
   margin-bottom: var(--space-4);
-  place-items: center;
-  border-radius: 24px 24px 10px 10px;
-  background: var(--teal-pale);
-  color: var(--teal-deep);
-  font-size: 1.75rem;
+  color: var(--teal);
 }
 
 .emptyConversation h2 {
@@ -256,6 +255,28 @@
 
 .emptyConversation p {
   margin-top: var(--space-2);
+}
+
+.emptyPhase {
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+}
+
+.emptyAction {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-5);
+  background: var(--teal-deep);
+  color: var(--surface);
+  font: inherit;
+  font-weight: 750;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .page :is(button, a, textarea):focus-visible {
@@ -282,13 +303,19 @@
 }
 
 @media (max-width: 819px) {
+  :global(.ref-content-page) .page {
+    height: calc(100dvh - 134px);
+    min-height: 640px;
+  }
+
   .workspace {
     grid-template-columns: minmax(0, 1fr);
-    border-radius: 0;
+    grid-template-rows: minmax(190px, 30%) minmax(0, 1fr);
   }
 
   .inbox {
-    display: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
   }
 }
 
@@ -311,6 +338,7 @@
 }
 .specialist .workspace {
   grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   border: 0;
   border-radius: 0;
   box-shadow: none;

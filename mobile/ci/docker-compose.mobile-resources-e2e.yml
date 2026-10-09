@@ -1,0 +1,12 @@
+services:
+  identity:
+    environment:
+      IDENTITY_OUTBOX_RELAY_ENABLED: 'false'
+      SPRING_JPA_HIBERNATE_DDL_AUTO: 'none'
+      SPRING_KAFKA_LISTENER_AUTO_STARTUP: 'false'
+
+  content-notification:
+    environment:
+      CONTENT_ACCOUNT_LIFECYCLE_CONSUMER_ENABLED: 'false'
+      REMINDER_SCHEDULER_ENABLED: 'false'
+      WELLBEING_DIGEST_SCHEDULER_ENABLED: 'false'

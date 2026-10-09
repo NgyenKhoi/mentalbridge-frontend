@@ -1,0 +1,587 @@
+<USER_REQUEST>
+Bạn là một front-end engineer cẩn thận. Nhiệm vụ: chỉnh giao diện trang "Kế hoạch hỗ trợ" HIỆN TẠI (ảnh 2) theo phong cách và bố cục của thiết kế MỤC TIÊU (ảnh 1 + file HTML tham chiếu đính kèm).
+
+## PHẠM VI
+- CHỈ chỉnh phần nội dung chính bên phải (khu vực <main>: hero, tab, lịch, danh sách hoạt động, cột phụ).
+- KHÔNG đụng vào: sidebar trái, topbar/header (thanh tìm kiếm, chuông, avatar), logo, menu, widget nổi (nút tròn cam và icon AI ở góc phải).
+- KHÔNG đổi logic hiện có: dữ liệu thật từ API, múi giờ Asia/Ho_Chi_Minh, các hành động "Ghi nhận đã làm / Ghi nhận bỏ qua / Ẩn khỏi danh sách", "Mở tài nguyên", "Thông tin kỹ thuật", "Thu gọn danh sách", thông điệp quyền riêng tư cuối trang. Chỉ thay lớp trình bày (layout, class, style), giữ nguyên handler và state.
+- Giữ font, bảng màu và design token hiện có của dự án nếu đã có. Nếu thiếu thì mượn từ file tham chiếu (xanh rêu đậm #03251b / #1b3b30, nền #f8faf4, secondary #416658, font Plus Jakarta Sans).
+
+## CÁC THAY ĐỔI CẦN LÀM (theo thứ tự trên xuống)
+
+1. **Hero banner**
+   - Nền gradient nhẹ xanh lá nhạt (surface-container-low → #f4f7f2 → secondary-container/30), bo góc lớn (rounded-3xl), có 2 vòng tròn blur mờ trang trí ở góc. Bỏ vòng tròn màu cam/kem hiện tại.
+   - Bên trái: badge pill "DÀNH CHO GÓI PLUS & PREMIUM" (nền xanh đậm, chữ trắng, kèm icon sao), tiêu đề "Kế hoạch hỗ trợ của bạn" (font sans, đậm, không dùng font serif), đoạn mô tả, dòng xác nhận "Phác đồ được cá nhân hóa bởi ..." kèm icon verified_user.
+   - Bên phải: thẻ "Tiến độ tuần" nhỏ (thanh progress + % + "x / y hoạt động hoàn thành" + "Còn n bài tập"). Tính từ dữ liệu thật; nếu chưa có dữ liệu thì ẩn thẻ này, đừng hardcode số.
+
+2. **Thanh tab + bộ điều khiển**
+   - Tab dạng segmented pill nằm bên trái (nền surface-container, tab active nền xanh đậm chữ trắng), tên tab giữ như hiện tại: Kế hoạch / Hoạt động của tôi / Quản lý & Lịch sử. Không kéo tab giãn hết chiều ngang.
+   - Bên phải cùng hàng: chip ngày tháng hiện tại và nút chuyển chế độ xem "Lịch biểu | Danh sách" (segmented nhỏ).
+
+3. **Khối lịch 7 ngày** (phần mới, thay cho vùng "Hôm nay… / 13 ngày sắp tới" kiểu danh sách phẳng)
+   - Card trắng bo lớn, header có icon, tiêu đề "Lịch trình chăm sóc 7 ngày", phụ đề, khoảng ngày và 2 nút mũi tên tuần trước / tuần kế.
+   - Lưới 7 cột, mỗi ô là 1 ngày: thứ, số ngày, chấm trạng thái (đã xong / hôm nay / sắp tới / nghỉ) và tối đa 2 chip giờ + tên hoạt động rút gọn (truncate).
+   - Ô "Hôm nay" nổi bật: ring xanh đậm, nhãn "Hôm nay" nhô lên ở trên, chấm pulse.
+   - Click vào một ngày sẽ lọc danh sách hoạt động bên dưới theo ngày đó.
+   - Dưới lưới có legend trạng thái.
+
+4. **Khu vực hoạt động trong ngày: bố cục 2 cột (8/4)**
+   - Cột trái (8/12):
+     - Tiêu đề "Hoạt động hôm nay (Thứ, dd/mm)" + badge số mục + nút "Thêm hoạt động".
+     - Thẻ nổi bật cho hoạt động đầu tiên: viền trái xanh đậm, icon trong ô bo tròn, badge "Sắp tới · 08:00", badge loại nội dung, thời lượng, tiêu đề, mô tả ngắn, thanh hành động bên dưới với nút chính "Bắt đầu ngay" (map sang "Mở tài nguyên"), nút "Đánh dấu xong" (map sang "Ghi nhận đã làm"), link phụ "Dời lịch…" (chỉ hiển thị nếu tính năng này tồn tại, nếu không thì thay bằng "Ghi nhận bỏ qua").
+     - Các hoạt động còn lại: danh sách thẻ gọn, mỗi thẻ có nút tròn check bên trái, dòng giờ + tag loại + thời lượng, tiêu đề đậm, mô tả 1 dòng (truncate), icon hành động bên phải. Chỉ hiện các mục của ngày đang chọn, không lặp lại cùng một hoạt động nhiều lần như hiện tại.
+   - Cột phải (4/12), xếp dọc các card:
+     - Card "Nhắc nhở an toàn & Chăm sóc" (nền #eff6f2, nút gọi hotline + nút nhắn tin khẩn cấp). Dùng số hotline thật của dự án.
+     - Card "Chỉ số tiến triển tâm lý" (GAD-7, PHQ-9 với thanh progress, so sánh tuần trước). Chỉ render khi có dữ liệu sàng lọc thật.
+     - Card "Tác vụ nhanh" (Tạm dừng kế hoạch, Tạo lại phương án, Xuất báo cáo PDF).
+
+5. **Chân trang**: giữ thông báo quyền riêng tư hiện tại, trình bày trong thanh bo tròn nền surface-container-low, có icon khóa bên trái và "Cập nhật lần cuối" bên phải.
+
+## PHONG CÁCH CHUNG
+- Bo góc lớn (rounded-2xl/3xl), đổ bóng rất nhẹ, không dùng viền đậm, khoảng trắng thoáng.
+- Bỏ font serif ở tiêu đề, dùng đồng nhất Plus Jakarta Sans.
+- Màu chủ đạo xanh rêu/xanh lá dịu; bỏ tông cam/kem ở hero và viền gradient trên đầu card.
+- Icon dùng Material Symbols Outlined như file tham chiếu.
+- Responsive: dưới `lg` cột phải xuống dưới cột trái; lưới 7 ngày cuộn ngang hoặc thu còn 3-4 cột trên mobile. Hỗ trợ dark mode nếu dự án đang có.
+- Tiếng Việt, giọng văn nhẹ nhàng, không gây áp lực (giữ nguyên các câu chữ hiện có của dự án khi khác với file tham chiếu).
+
+## QUY TẮC DỮ LIỆU
+- File HTML tham chiếu chứa dữ liệu mẫu (tên "Ngọc Quyên", "ThS. Nguyễn An Chi", 42%, GAD-7 7/21, PHQ-9 5/27, các hoạt động cụ thể…). KHÔNG hardcode các giá trị này. Phải bind vào dữ liệu thật của app; thiếu dữ liệu thì ẩn thành phần hoặc hiển thị empty state thân thiện.
+- Dữ liệu y tế/sàng lọc là nhạy cảm: không tự bịa số liệu.
+
+## CÁCH LÀM VIỆC
+1. Đọc code hiện tại, liệt kê component sẽ sửa và component sẽ tạo mới (vd: HeroBanner, WeekCalendar, FeaturedActivityCard, ActivityRow, SafetyCard, ProgressMetricsCard, QuickActionsCard).
+2. Đưa kế hoạch ngắn trước khi sửa.
+3. Sửa từng phần, giữ diff nhỏ gọn, không refactor ngoài phạm vi.
+4. Cuối cùng tóm tắt: file đã đổi, phần nào dùng dữ liệu thật, phần nào đang ẩn vì thiếu dữ liệu, và các điểm cần tôi xác nhận.
+<!DOCTYPE html>
+
+<html lang="vi"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={"darkMode":"class","theme":{"extend":{"colors":{"surface-container-high":"#e7e9e3","tertiary":"#17231c","secondary-fixed":"#c3ebda","on-error-container":"#93000a","on-primary-fixed-variant":"#2d4d41","on-secondary-container":"#456a5c","on-tertiary":"#ffffff","surface-bright":"#f8faf4","background":"#f8faf4","primary-fixed-dim":"#abcebf","surface-container-highest":"#e1e3dd","inverse-surface":"#2e312d","on-tertiary-fixed-variant":"#3d4a42","on-background":"#191c19","surface-variant":"#e1e3dd","on-primary-container":"#83a597","secondary":"#416658","error-container":"#ffdad6","surface-dim":"#d8dbd5","error":"#ba1a1a","inverse-on-surface":"#eff1eb","on-surface":"#191c19","tertiary-fixed":"#d8e6dc","on-error":"#ffffff","inverse-primary":"#abcebf","secondary-container":"#c0e9d7","outline":"#727975","surface-container-lowest":"#ffffff","on-surface-variant":"#414845","on-secondary-fixed":"#002117","secondary-fixed-dim":"#a7cfbf","on-tertiary-fixed":"#121e18","primary-container":"#1b3b30","on-secondary":"#ffffff","primary":"#03251b","surface":"#f8faf4","on-primary":"#ffffff","surface-container-low":"#f2f4ee","on-tertiary-container":"#94a198","tertiary-fixed-dim":"#bccac0","surface-container":"#edefe9","outline-variant":"#c1c8c3","primary-fixed":"#c7ebda","on-secondary-fixed-variant":"#294e41","tertiary-container":"#2c3831","surface-tint":"#456558","on-primary-fixed":"#002117"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-sm":"0.5rem","gutter":"1.5rem","space-xs":"0.25rem","margin":"2.5rem","space-xl":"2.25rem","space-lg":"1.5rem","space-md":"1rem"},"fontFamily":{"body-md":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"headline-xl":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"caption":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"]},"fontSize":{"body-md":["0.9375rem",{"lineHeight":"1.5rem","letterSpacing":"0","fontWeight":"400"}],"body-lg":["1.0625rem",{"lineHeight":"1.75rem","letterSpacing":"0","fontWeight":"400"}],"headline-lg":["1.75rem",{"lineHeight":"2.25rem","letterSpacing":"-0.015em","fontWeight":"700"}],"headline-md":["1.375rem",{"lineHeight":"1.875rem","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-sm":["1.125rem",{"lineHeight":"1.625rem","letterSpacing":"0","fontWeight":"600"}],"headline-xl":["2.25rem",{"lineHeight":"2.75rem","letterSpacing":"-0.02em","fontWeight":"700"}],"label-md":["0.875rem",{"lineHeight":"1.25rem","letterSpacing":"0.02em","fontWeight":"600"}],"caption":["0.75rem",{"lineHeight":"1.125rem","letterSpacing":"0.01em","fontWeight":"400"}],"label-sm":["0.75rem",{"lineHeight":"1rem","letterSpacing":"0.05em","fontWeight":"600"}],"body-sm":["0.8125rem",{"lineHeight":"1.375rem","letterSpacing":"0.01em","fontWeight":"400"}]}}}};</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-screen w-72 bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.03)] z-50 flex flex-col justify-between overflow-y-auto"><div class="p-space-lg"><div class="flex items-center gap-3 mb-space-xl px-space-xs"><div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm"><span class="material-symbols-outlined text-[24px]">spa</span></div><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-primary tracking-tight">MentalBridge</span><span class="font-caption text-caption text-secondary font-semibold uppercase tracking-wider">Health Tech</span></div></div><div class="space-y-space-lg"><div class="space-y-space-xs"><p class="px-space-sm font-label-sm text-label-sm uppercase tracking-wider text-outline">Tổng quan</p><nav class="space-y-1" data-active-classes="bg-primary-container text-on-primary font-semibold"><a class="flex items-center gap-3 px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="tong-quan" href="#"><span class="material-symbols-outlined text-[20px]">grid_view</span><span>Tổng quan</span></a><a class="flex items-center gap-3 px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="nhat-ky" href="#"><span class="material-symbols-outlined text-[20px]">menu_book</span><span>Nhật ký</span></a><a class="flex items-center gap-3 px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="bai-sang-loc" href="#"><span class="material-symbols-outlined text-[20px]">assignment</span><span>Bài sàng lọc</span></a><a class="flex items-center gap-3 px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="goi-y-ho-tro" href="#"><span class="material-symbols-outlined text-[20px]">psychology_alt</span><span>Gợi ý hỗ trợ</span></a><a aria-current="page" class="flex items-center gap-3 px-space-md py-space-sm rounded-xl transition-all bg-primary-container text-on-primary font-semibold" data-path="ke-hoach-ho-tro" href="#"><span class="material-symbols-outlined text-[20px]">checklist_rtl</span><span>Kế hoạch hỗ trợ</span></a></nav></div><div class="space-y-space-xs"><p class="px-space-sm font-label-sm text-label-sm uppercase tracking-wider text-outline">Chăm sóc</p><nav class="space-y-1" data-active-classes="bg-primary-container text-on-primary font-semibold"><a class="flex items-center gap-3 px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="chuyen-gia" href="#"><span class="material-symbols-outlined text-[20px]">medical_services</span><span>Chuyên gia</span></a><a class="flex items-center gap-3 px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="lich-hen" href="#"><span class="material-symbols-outlined text-[20px]">calendar_month</span><span>Lịch hẹn</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="tin-nhan" href="#"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[20px]">chat_bubble</span><span>Tin nhắn</span></div><span class="bg-secondary text-on-secondary px-2 py-0.5 rounded-full font-label-sm text-label-sm">3</span></a></nav></div><div class="space-y-space-xs"><p class="px-space-sm font-label-sm text-label-sm uppercase tracking-wider text-outline">Thông tin</p><nav class="space-y-1" data-active-classes="bg-primary-container text-on-primary font-semibold"><a class="flex items-center gap-3 px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="tai-nguyen" href="#"><span class="material-symbols-outlined text-[20px]">local_library</span><span>Tài nguyên</span></a><a class="flex items-center gap-3 px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="phan-tich" href="#"><span class="material-symbols-outlined text-[20px]">insights</span><span>Phân tích</span></a><a class="flex items-center gap-3 px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="goi-dich-vu" href="#"><span class="material-symbols-outlined text-[20px]">verified</span><span>Gói dịch vụ</span></a><a class="flex items-center gap-3 px-space-md py-space-sm rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="thong-bao" href="#"><span class="material-symbols-outlined text-[20px]">notifications</span><span>Thông báo</span></a></nav></div></div></div><div class="p-space-md m-space-md bg-surface-container rounded-xl flex items-center justify-between shadow-[0_1px_3px_rgba(27,59,48,0.04)]"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center font-label-md text-label-md text-on-primary font-semibold">NQ</div><div class="flex flex-col"><span class="font-label-md text-label-md text-on-surface truncate max-w-[110px]">Ngọc Quyên</span><span class="font-caption text-caption text-on-surface-variant truncate max-w-[110px]">Tài khoản cá nhân</span></div></div><button class="text-on-surface-variant hover:text-on-surface transition-colors p-1 rounded-lg hover:bg-surface-container-high" type="button"><span class="material-symbols-outlined text-[20px]">unfold_more</span></button></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)] z-40 px-space-xl flex items-center justify-between"><div class="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md"><span class="text-on-surface-variant">Không gian của bạn</span><span class="material-symbols-outlined text-[16px] text-outline">chevron_right</span><span class="text-primary font-semibold">Kế hoạch hỗ trợ</span></div><div class="flex items-center gap-4"><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-3 text-[18px] text-outline">search</span><input class="w-80 pl-9 pr-12 py-2 bg-surface-container-lowest rounded-full font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-secondary transition-all shadow-sm" placeholder="Tìm kiếm chuyên gia, bài tập, nhật ký..." type="text"/><div class="absolute right-3 flex items-center px-1.5 py-0.5 rounded bg-surface-container text-outline font-caption text-caption font-semibold">⌘K</div></div><div class="flex items-center gap-2"><button class="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" title="Chế độ xem nhanh" type="button"><span class="material-symbols-outlined text-[20px]">visibility</span></button><button class="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors relative" title="Thông báo" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-error"></span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-label-sm text-label-sm text-on-primary font-semibold ml-1 cursor-pointer">NQ</div></div></div></header><main class="w-full pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<div class="max-w-[1080px] w-full mx-auto px-space-xl py-space-lg space-y-space-xl">
+<!-- 1. BANNER HERO TINH TẾ & ĐỘNG LỰC NHẸ NHÀNG -->
+<section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-surface-container-low via-[#f4f7f2] to-secondary-container/30 p-space-xl shadow-sm">
+<!-- Soft organic background abstract shapes -->
+<div class="absolute -right-16 -top-24 w-80 h-80 rounded-full bg-secondary-fixed/30 blur-3xl pointer-events-none"></div>
+<div class="absolute right-36 bottom-[-20%] w-60 h-60 rounded-full bg-primary-fixed/20 blur-2xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-space-lg">
+<div class="max-w-xl space-y-space-sm">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm tracking-wide">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">hotel_class</span>
+<span>DÀNH CHO GÓI PLUS &amp; PREMIUM</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-primary tracking-tight">
+            Kế hoạch hỗ trợ của bạn
+          </h1>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+            Đồng hành xây dựng thói quen chăm sóc tâm lý mỗi ngày với nhịp độ tự nhiên. Bạn hoàn toàn có thể điều chỉnh thời gian, cá nhân hóa nội dung hoặc tạm dừng kế hoạch bất kỳ lúc nào mà không bị áp lực.
+          </p>
+<div class="pt-space-xs flex items-center gap-3 text-secondary font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+<span>Phác đồ được cá nhân hóa bởi ThS. Tâm lý học Nguyễn An Chi</span>
+</div>
+</div>
+<!-- Mini Progress Card -->
+<div class="w-full md:w-80 p-space-md rounded-2xl bg-surface-container-lowest/90 backdrop-blur-md shadow-sm space-y-3">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Tiến độ tuần 39</span>
+<span class="font-label-md text-label-md text-primary font-bold">42%</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-500" style="width: 42%;"></div>
+</div>
+<div class="flex items-center justify-between text-on-surface font-body-sm text-body-sm">
+<span class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+              3 / 7 hoạt động hoàn thành
+            </span>
+<span class="text-secondary font-medium">Còn 4 bài tập</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. THANH ĐIỀU HƯỚNG TAB & BỘ CHUYỂN CHẾ ĐỘ XEM (VIEW TOGGLE) -->
+<section class="flex flex-wrap items-center justify-between gap-space-md">
+<!-- Segmented Nav Pill -->
+<div class="inline-flex p-1 rounded-full bg-surface-container">
+<button class="px-5 py-2 rounded-full bg-primary text-on-primary font-label-md text-label-md shadow-sm transition-all" type="button">
+          Kế hoạch đề xuất
+        </button>
+<button class="px-5 py-2 rounded-full text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all" type="button">
+          Hoạt động của tôi
+        </button>
+<button class="px-5 py-2 rounded-full text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all" type="button">
+          Quản lý &amp; Lịch sử
+        </button>
+</div>
+<!-- View & Time Period Controls -->
+<div class="flex items-center gap-3">
+<!-- Date range indicator & dropdown -->
+<div class="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary">calendar_today</span>
+<span class="font-semibold text-on-surface">Tháng 9, 2026</span>
+<span class="text-outline">·</span>
+<span>Tuần 4</span>
+</div>
+<!-- View Switcher -->
+<div class="inline-flex p-1 rounded-full bg-surface-container">
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest text-primary shadow-sm font-label-sm text-label-sm" title="Chế độ xem lịch" type="button">
+<span class="material-symbols-outlined text-[16px]">calendar_view_week</span>
+<span>Lịch biểu</span>
+</button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-sm text-label-sm transition-all" title="Chế độ xem danh sách" type="button">
+<span class="material-symbols-outlined text-[16px]">view_agenda</span>
+<span>Danh sách</span>
+</button>
+</div>
+</div>
+</section>
+<!-- 3. KHỐI LỊCH TƯƠNG TÁC (INTERACTIVE SUPPORT PLAN CALENDAR) -->
+<section class="rounded-3xl bg-surface-container-lowest p-space-lg shadow-sm space-y-space-md">
+<!-- Calendar Header Controls -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-[18px]">calendar_month</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Lịch trình chăm sóc 7 ngày</h2>
+<p class="font-caption text-caption text-on-surface-variant">Chọn một ngày để lọc và xem bài tập tương ứng</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-label-md text-label-md text-primary font-semibold">22 - 28 Tháng 9, 2026</span>
+<div class="flex items-center gap-1">
+<button aria-label="Tuần trước" class="w-8 h-8 rounded-full flex items-center justify-center bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button aria-label="Tuần kế tiếp" class="w-8 h-8 rounded-full flex items-center justify-center bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- 7-Day Grid -->
+<div class="grid grid-cols-7 gap-3 pt-space-xs">
+<!-- Day 1: Thứ 2 (22/09) - Đã hoàn tất -->
+<div class="p-3 rounded-2xl bg-surface-container-low flex flex-col justify-between min-h-[148px] hover:bg-surface-container transition-colors cursor-pointer group">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Thứ 2</span>
+<span class="w-2 h-2 rounded-full bg-secondary" title="Đã hoàn thành"></span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">22</span>
+</div>
+<div class="space-y-1.5 mt-2">
+<div class="px-2 py-1 rounded-lg bg-surface-container text-secondary font-caption text-caption flex items-center gap-1 truncate">
+<span class="material-symbols-outlined text-[13px]">check_circle</span>
+<span class="truncate">08:00 Thở 4-7-8</span>
+</div>
+<div class="px-2 py-1 rounded-lg bg-surface-container text-secondary font-caption text-caption flex items-center gap-1 truncate">
+<span class="material-symbols-outlined text-[13px]">check_circle</span>
+<span class="truncate">21:00 Ghi chú cảm xúc</span>
+</div>
+</div>
+</div>
+<!-- Day 2: Thứ 3 (23/09) - Đã hoàn tất -->
+<div class="p-3 rounded-2xl bg-surface-container-low flex flex-col justify-between min-h-[148px] hover:bg-surface-container transition-colors cursor-pointer group">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Thứ 3</span>
+<span class="w-2 h-2 rounded-full bg-secondary" title="Đã hoàn thành"></span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">23</span>
+</div>
+<div class="space-y-1.5 mt-2">
+<div class="px-2 py-1 rounded-lg bg-surface-container text-secondary font-caption text-caption flex items-center gap-1 truncate">
+<span class="material-symbols-outlined text-[13px]">check_circle</span>
+<span class="truncate">08:30 Giãn cơ nhẹ</span>
+</div>
+</div>
+</div>
+<!-- Day 3: Thứ 4 (24/09) - Đã hoàn tất -->
+<div class="p-3 rounded-2xl bg-surface-container-low flex flex-col justify-between min-h-[148px] hover:bg-surface-container transition-colors cursor-pointer group">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Thứ 4</span>
+<span class="w-2 h-2 rounded-full bg-secondary" title="Đã hoàn thành"></span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">24</span>
+</div>
+<div class="space-y-1.5 mt-2">
+<div class="px-2 py-1 rounded-lg bg-surface-container text-secondary font-caption text-caption flex items-center gap-1 truncate">
+<span class="material-symbols-outlined text-[13px]">check_circle</span>
+<span class="truncate">15:00 Đi dạo 10p</span>
+</div>
+</div>
+</div>
+<!-- Day 4: Thứ 5 (25/09) - TODAY / ACTIVE -->
+<div class="relative p-3 rounded-2xl bg-secondary-fixed/20 shadow-md flex flex-col justify-between min-h-[148px] cursor-pointer ring-2 ring-primary">
+<div class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-primary text-on-primary font-caption text-caption font-bold shadow-sm whitespace-nowrap">
+            Hôm nay
+          </div>
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-label-sm text-label-sm text-primary font-bold">Thứ 5</span>
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse" title="Đang diễn ra"></span>
+</div>
+<span class="font-headline-sm text-headline-sm text-primary font-bold">25</span>
+</div>
+<div class="space-y-1.5 mt-2">
+<div class="px-2 py-1 rounded-lg bg-surface-container-lowest text-primary font-caption text-caption font-semibold flex items-center gap-1 shadow-xs truncate">
+<span class="material-symbols-outlined text-[13px] text-secondary">psychology</span>
+<span class="truncate">08:00 Nhận diện...</span>
+</div>
+<div class="px-2 py-1 rounded-lg bg-surface-container-lowest text-on-surface font-caption text-caption flex items-center gap-1 shadow-xs truncate">
+<span class="material-symbols-outlined text-[13px] text-secondary">self_improvement</span>
+<span class="truncate">14:00 Nhịp ngủ</span>
+</div>
+</div>
+</div>
+<!-- Day 5: Thứ 6 (26/09) - Sắp tới -->
+<div class="p-3 rounded-2xl bg-surface-container-low flex flex-col justify-between min-h-[148px] hover:bg-surface-container transition-colors cursor-pointer group">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Thứ 6</span>
+<span class="w-2 h-2 rounded-full bg-primary-fixed-dim" title="Sắp tới"></span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">26</span>
+</div>
+<div class="space-y-1.5 mt-2">
+<div class="px-2 py-1 rounded-lg bg-surface-container-lowest/80 text-on-surface-variant font-caption text-caption flex items-center gap-1 truncate">
+<span class="material-symbols-outlined text-[13px]">timer</span>
+<span class="truncate">09:00 Nghe âm thanh mưa</span>
+</div>
+</div>
+</div>
+<!-- Day 6: Thứ 7 (27/09) - Sắp tới -->
+<div class="p-3 rounded-2xl bg-surface-container-low flex flex-col justify-between min-h-[148px] hover:bg-surface-container transition-colors cursor-pointer group">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Thứ 7</span>
+<span class="w-2 h-2 rounded-full bg-primary-fixed-dim" title="Sắp tới"></span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">27</span>
+</div>
+<div class="space-y-1.5 mt-2">
+<div class="px-2 py-1 rounded-lg bg-surface-container-lowest/80 text-on-surface-variant font-caption text-caption flex items-center gap-1 truncate">
+<span class="material-symbols-outlined text-[13px]">forum</span>
+<span class="truncate">10:00 Phiên trực tuyến</span>
+</div>
+</div>
+</div>
+<!-- Day 7: Chủ Nhật (28/09) - Sắp tới -->
+<div class="p-3 rounded-2xl bg-surface-container-low flex flex-col justify-between min-h-[148px] hover:bg-surface-container transition-colors cursor-pointer group">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">CN</span>
+<span class="w-2 h-2 rounded-full bg-outline-variant" title="Ngày nghỉ / Tự phục hồi"></span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">28</span>
+</div>
+<div class="space-y-1.5 mt-2">
+<div class="px-2 py-1 rounded-lg bg-surface-container-lowest/80 text-on-surface-variant font-caption text-caption flex items-center gap-1 truncate">
+<span class="material-symbols-outlined text-[13px]">favorite</span>
+<span class="truncate">Tự do thư giãn</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Status legend bar -->
+<div class="flex items-center gap-6 pt-2 font-caption text-caption text-on-surface-variant">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Đã hoàn thành</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span>Hôm nay &amp; Đang làm</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary-fixed-dim"></span>
+<span>Lịch trình kế tiếp</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-outline-variant"></span>
+<span>Nghỉ ngơi linh hoạt</span>
+</div>
+</div>
+</section>
+<!-- 4. KHU VỰC CHI TIẾT HOẠT ĐỘNG TRONG NGÀY (DAILY FOCUS & UPCOMING ACTIVITIES) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<!-- CỘT TRÁI (65% ~ 8 cols) -->
+<div class="lg:col-span-8 space-y-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<h3 class="font-headline-md text-headline-md text-primary">Hoạt động hôm nay (Thứ 5, 25/09)</h3>
+<span class="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-semibold">3 mục</span>
+</div>
+<button class="text-secondary hover:text-primary font-label-md text-label-md flex items-center gap-1 transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>Thêm hoạt động</span>
+</button>
+</div>
+<!-- THẺ HOẠT ĐỘNG NỔI BẬT: 08:00 Nhận diện trầm cảm -->
+<article class="p-space-lg rounded-3xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary"></div>
+<div class="flex items-start justify-between gap-4">
+<div class="flex items-start gap-4">
+<div class="w-12 h-12 rounded-2xl bg-secondary-fixed/40 flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[26px]">psychology</span>
+</div>
+<div class="space-y-1">
+<div class="flex flex-wrap items-center gap-2">
+<span class="px-2.5 py-0.5 rounded-full bg-primary text-on-primary font-label-sm text-label-sm font-medium">Sắp tới · 08:00</span>
+<span class="px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">Bài viết cốt lõi</span>
+<span class="flex items-center gap-1 text-on-surface-variant font-caption text-caption">
+<span class="material-symbols-outlined text-[14px]">schedule</span> 10 phút đọc
+                  </span>
+</div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface pt-1">
+                  Hiểu các dấu hiệu thường gặp của trầm cảm nhẹ
+                </h4>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                  Tìm hiểu cách cơ thể và tâm trí phản ứng với căng thẳng kéo dài, giúp bạn nhìn nhận cảm xúc mà không tự phán xét bản thân.
+                </p>
+</div>
+</div>
+<button aria-label="Tùy chọn hoạt động" class="text-outline hover:text-on-surface p-1 rounded-lg" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+<!-- Actions Bar -->
+<div class="mt-space-md pt-space-sm flex flex-wrap items-center justify-between gap-3 bg-surface-container-low/60 -mx-space-lg -mb-space-lg p-space-md rounded-b-3xl">
+<div class="flex items-center gap-2">
+<button class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container shadow-sm transition-all" type="button">
+<span>Bắt đầu ngay</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+<button class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">check</span>
+<span>Đánh dấu xong</span>
+</button>
+</div>
+<button class="inline-flex items-center gap-1 text-on-surface-variant hover:text-primary font-label-sm text-label-sm px-2 py-1 rounded-lg transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">schedule_send</span>
+<span>Dời lịch sang buổi tối</span>
+</button>
+</div>
+</article>
+<!-- TIMELINE HOẠT ĐỘNG TIẾP THEO -->
+<div class="space-y-3 pt-2">
+<!-- Item 2: 10:00 - Bắt đầu bằng một hoạt động nhỏ -->
+<article class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all flex items-start gap-4">
+<div class="pt-0.5">
+<button aria-label="Hoàn tất mục" class="w-6 h-6 rounded-full bg-surface-container flex items-center justify-center text-outline hover:bg-secondary hover:text-on-secondary transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</button>
+</div>
+<div class="flex-1 min-w-0 space-y-1">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-label-sm text-label-sm text-primary font-semibold">10:00</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-low text-on-secondary-container font-caption text-caption">Thói quen vi mô</span>
+<span class="text-on-surface-variant font-caption text-caption">· 5 phút</span>
+</div>
+<h5 class="font-label-md text-label-md text-on-surface font-semibold">
+                Bắt đầu bằng một hành động nhỏ: Uống 1 cốc nước ấm và vươn vai
+              </h5>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">
+                Tạo một khoảng nghỉ ngắn giữa phiên làm việc để tái tạo năng lượng thần kinh phế vị.
+              </p>
+</div>
+<div class="flex items-center gap-2 shrink-0">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">open_in_new</span>
+</button>
+</div>
+</article>
+<!-- Item 3: 14:00 - Chuẩn bị một nhịp ngủ dễ chịu hơn -->
+<article class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all flex items-start gap-4">
+<div class="pt-0.5">
+<button aria-label="Hoàn tất mục" class="w-6 h-6 rounded-full bg-surface-container flex items-center justify-center text-outline hover:bg-secondary hover:text-on-secondary transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</button>
+</div>
+<div class="flex-1 min-w-0 space-y-1">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-label-sm text-label-sm text-primary font-semibold">14:00</span>
+<span class="px-2 py-0.5 rounded-md bg-secondary-container/40 text-on-secondary-container font-caption text-caption">Hỗ trợ lo âu</span>
+<span class="text-on-surface-variant font-caption text-caption">· 15 phút bài tập</span>
+</div>
+<h5 class="font-label-md text-label-md text-on-surface font-semibold">
+                Chuẩn bị một nhịp ngủ dễ chịu hơn: Giảm ánh sáng xanh &amp; thư giãn cơ tiến triển (PMR)
+              </h5>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">
+                Thực hành hướng dẫn bằng giọng nói nhẹ nhàng giúp giảm căng thẳng tích tụ ở vùng vai gáy.
+              </p>
+</div>
+<div class="flex items-center gap-2 shrink-0">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">play_circle</span>
+</button>
+</div>
+</article>
+<!-- Item 4: 20:30 - Viết nhật ký cảm xúc -->
+<article class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all flex items-start gap-4">
+<div class="pt-0.5">
+<button aria-label="Hoàn tất mục" class="w-6 h-6 rounded-full bg-surface-container flex items-center justify-center text-outline hover:bg-secondary hover:text-on-secondary transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</button>
+</div>
+<div class="flex-1 min-w-0 space-y-1">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-label-sm text-label-sm text-primary font-semibold">20:30</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-low text-on-secondary-container font-caption text-caption">Phản tư</span>
+<span class="text-on-surface-variant font-caption text-caption">· 7 phút</span>
+</div>
+<h5 class="font-label-md text-label-md text-on-surface font-semibold">
+                Viết 3 điều biết ơn hôm nay
+              </h5>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">
+                Ghi chép nhanh để chuyển hướng tập trung vào những khoảnh khắc tích cực trước khi ngủ.
+              </p>
+</div>
+<div class="flex items-center gap-2 shrink-0">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+</button>
+</div>
+</article>
+</div>
+</div>
+<!-- CỘT PHẢI (35% ~ 4 cols) -->
+<div class="lg:col-span-4 space-y-space-md">
+<!-- Safety Alert Card -->
+<div class="p-space-md rounded-2xl bg-[#eff6f2] shadow-sm space-y-3 relative overflow-hidden">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-container shrink-0">
+<span class="material-symbols-outlined text-[22px]">health_and_safety</span>
+</div>
+<div>
+<h4 class="font-label-md text-label-md text-primary font-bold">Nhắc nhở an toàn &amp; Chăm sóc</h4>
+<span class="font-caption text-caption text-secondary">Luôn có sự lắng nghe 24/7</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Nếu bạn cảm thấy áp lực vượt quá tầm kiểm soát hoặc có suy nghĩ tiêu cực, hãy chủ động liên hệ hotline hỗ trợ tâm lý bảo mật ngay tức khắc.
+          </p>
+<div class="flex items-center gap-2 pt-1">
+<a class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-semibold hover:bg-secondary-fixed transition-colors" href="tel:19001234">
+<span class="material-symbols-outlined text-[16px]">call</span>
+<span>Hotline: 1900-5999</span>
+</a>
+<button class="px-3 py-1.5 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors" type="button">
+              Nhắn tin khẩn cấp
+            </button>
+</div>
+</div>
+<!-- Psychological Screening Progress Card (GAD-7 & PHQ-9) -->
+<div class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm space-y-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px] text-secondary">show_chart</span>
+<h4 class="font-label-md text-label-md text-on-surface font-bold">Chỉ số tiến triển tâm lý</h4>
+</div>
+<span class="font-caption text-caption text-secondary font-medium">Cải thiện nhẹ</span>
+</div>
+<div class="space-y-3 pt-1">
+<!-- GAD-7 Metric -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between text-on-surface font-label-sm text-label-sm">
+<span class="text-on-surface-variant">Chỉ số Lo âu (GAD-7)</span>
+<span class="font-semibold text-secondary">7 / 21 (Nhẹ)</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 33%;"></div>
+</div>
+<div class="flex justify-between text-[11px] text-outline">
+<span>Tuần trước: 11/21</span>
+<span class="text-secondary font-medium">Giảm -36%</span>
+</div>
+</div>
+<!-- PHQ-9 Metric -->
+<div class="space-y-1.5 pt-1">
+<div class="flex items-center justify-between text-on-surface font-label-sm text-label-sm">
+<span class="text-on-surface-variant">Tâm trạng &amp; Trầm cảm (PHQ-9)</span>
+<span class="font-semibold text-secondary">5 / 27 (Tối thiểu)</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 19%;"></div>
+</div>
+<div class="flex justify-between text-[11px] text-outline">
+<span>Tuần trước: 8/27</span>
+<span class="text-secondary font-medium">Giảm -37.5%</span>
+</div>
+</div>
+</div>
+<div class="pt-2">
+<button class="w-full py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-sm text-label-sm transition-colors flex items-center justify-center gap-1.5" type="button">
+<span>Xem chi tiết báo cáo sàng lọc</span>
+<span class="material-symbols-outlined text-[16px]">arrow_right_alt</span>
+</button>
+</div>
+</div>
+<!-- Quick Actions Card -->
+<div class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm space-y-2">
+<h4 class="font-label-md text-label-md text-on-surface font-bold mb-1">Tác vụ nhanh</h4>
+<button class="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-container text-on-surface font-label-sm text-label-sm transition-colors text-left" type="button">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-outline">pause_circle</span>
+<span>Tạm dừng kế hoạch (Nghỉ ngơi)</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-outline">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-container text-on-surface font-label-sm text-label-sm transition-colors text-left" type="button">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-outline">auto_mode</span>
+<span>Tạo lại phương án cá nhân mới</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-outline">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-container text-on-surface font-label-sm text-label-sm transition-colors text-left" type="button">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-outline">share</span>
+<span>Xuất báo cáo PDF cho chuyên gia</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-outline">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- 5. CHÂN TRANG THÔNG TIN BẢO MẬT & MINH BẠCH -->
+<footer class="pt-space-md space-y-3 text-on-surface-variant">
+<div class="p-space-md rounded-2xl bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-3 text-on-surface-variant font-caption text-caption shadow-xs">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[18px]">lock</span>
+</div>
+<p>
+            Dữ liệu được bảo mật y tế HIPAA &amp; riêng tư hoàn toàn. Chuyên gia điều trị chỉ theo dõi các trạng thái hoạt động bạn chủ động chọn chia sẻ.
+          </p>
+</div>
+<div class="shrink-0 flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-[16px]">history</span>
+<span>Cập nhật lần cuối: 00:49 - 26/09/2026</span>
+</div>
+</div>
+</footer>
+</div>
+</div></main></div></body></html>
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-01T00:04:57+07:00.
+
+The user's current state is as follows:
+Active Document: d:\ĐỒ ÁN\code\frontend\mentalbridge-frontend-dev\mentalbridge\features\emotion-check-in\DailyEmotionCheckIn.tsx (LANGUAGE_UNSPECIFIED)
+Cursor is on line: 66
+Other open documents:
+- d:\ĐỒ ÁN\code\frontend\mentalbridge-frontend-dev\mentalbridge\app\(dashboard)\profile\AccountStatusCard.tsx (LANGUAGE_UNSPECIFIED)
+- d:\ĐỒ ÁN\code\frontend\mentalbridge-frontend-dev\mentalbridge\app\(dashboard)\assessments\page.tsx (LANGUAGE_UNSPECIFIED)
+- d:\ĐỒ ÁN\code\frontend\mentalbridge-frontend-dev\mentalbridge\components\crisis-support\CrisisSupportWidget.tsx (LANGUAGE_UNSPECIFIED)
+- d:\ĐỒ ÁN\code\frontend\mentalbridge-frontend-dev\mentalbridge\features\assessment\components\ReassessmentJourney.tsx (LANGUAGE_UNSPECIFIED)
+- d:\ĐỒ ÁN\code\frontend\mentalbridge-frontend-dev\mentalbridge\features\assessment\components\SupportEvaluationHistory.module.css (LANGUAGE_UNSPECIFIED)
+
+The user has uploaded 1 image(s):
+- C:/Users/Admin/.gemini/antigravity/brain/3f72caff-c408-4194-9194-f7cc5ef13063/.user_uploaded/media_1790787880514.png
+You can embed this image in an artifact if you need the USER to review it.
+</ADDITIONAL_METADATA>

@@ -1,0 +1,58 @@
+appId: com.mentalbridge.mobile
+name: MB-626 reviewed resource catalogue to persisted progress
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Khám phá tài nguyên'
+- assertVisible: 'Chọn một nội dung phù hợp lúc này'
+- tapOn: 'Bài đọc'
+- scrollUntilVisible:
+    element:
+      text: 'Hiểu các dấu hiệu thường gặp của trầm cảm.*'
+    direction: DOWN
+- tapOn:
+    id: 'resource-card-00000000-0000-4000-8000-000000000205'
+    retryTapIfNoChange: true
+- assertVisible: 'Hiểu các dấu hiệu thường gặp của trầm cảm.*'
+- scrollUntilVisible:
+    element:
+      id: 'resource-complete'
+    direction: DOWN
+- tapOn:
+    id: 'resource-complete'
+    retryTapIfNoChange: true
+- assertVisible: 'Đã lưu tiến độ.'
+- assertVisible: 'Đã hoàn thành'
+- scrollUntilVisible:
+    element:
+      id: 'resource-detail-back'
+    direction: UP
+- tapOn:
+    id: 'resource-detail-back'
+    retryTapIfNoChange: true
+- scrollUntilVisible:
+    element:
+      id: 'resource-card-00000000-0000-4000-8000-000000000205'
+    direction: DOWN
+- launchApp
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Khám phá tài nguyên'
+- tapOn: 'Bài đọc'
+- scrollUntilVisible:
+    element:
+      text: 'Hiểu các dấu hiệu thường gặp của trầm cảm.*'
+    direction: DOWN
+- tapOn:
+    id: 'resource-card-00000000-0000-4000-8000-000000000205'
+    retryTapIfNoChange: true
+- assertVisible: 'Đã hoàn thành'

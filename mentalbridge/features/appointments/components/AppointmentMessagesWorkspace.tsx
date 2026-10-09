@@ -10,6 +10,7 @@ import { ApiError } from '@/lib/api/api-error'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
 import AppointmentChatPanel from './AppointmentChatPanel'
+import chatStyles from './AppointmentChatPanel.module.css'
 import styles from './AppointmentMessagesWorkspace.module.css'
 
 type ViewerRole = 'USER' | 'SPECIALIST'
@@ -156,6 +157,8 @@ export default function AppointmentMessagesWorkspace({
         .includes(query.trim().toLocaleLowerCase('vi'))
     )
   })
+  const appointmentsHref =
+    viewerRole === 'SPECIALIST' ? '/specialist/appointments' : '/appointments'
 
   const selectConversation = (appointmentId: string) => {
     setSelectedId(appointmentId)
@@ -361,7 +364,7 @@ export default function AppointmentMessagesWorkspace({
               onBackToInbox={isSpecialist ? backToInbox : undefined}
               embedded
             />
-          ) : (
+          ) : isSpecialist ? (
             <div className={styles.emptyConversation}>
               <MessageCircle size={40} aria-hidden="true" />
               <h2>
@@ -383,6 +386,116 @@ export default function AppointmentMessagesWorkspace({
                   Quay lại hộp thư
                 </button>
               )}
+            </div>
+          ) : (
+            <div className={`${chatStyles.page} ${chatStyles.embedded}`}>
+              <div className={chatStyles.layout}>
+                <section
+                  className={chatStyles.chat}
+                  aria-label="Khung nhắn tin"
+                >
+                  <header className={chatStyles.chatHeader}>
+                    <span className={chatStyles.avatar} aria-hidden="true">
+                      ◇
+                    </span>
+                    <div className={chatStyles.chatIdentity}>
+                      <div className={chatStyles.chatTitleRow}>
+                        <strong>Tin nhắn tư vấn</strong>
+                        <span
+                          className={`${chatStyles.phaseBadge} ${styles.emptyPhase}`}
+                        >
+                          <i />{' '}
+                          {loading
+                            ? 'Đang tải'
+                            : error
+                              ? 'Chưa kết nối'
+                              : 'Chưa có lịch hẹn'}
+                        </span>
+                      </div>
+                      <div className={chatStyles.chatMeta}>
+                        <h1>Phòng chat lịch hẹn</h1>
+                        <span aria-hidden="true">·</span>
+                        <span>Chat trong ứng dụng</span>
+                      </div>
+                    </div>
+                  </header>
+
+                  <section
+                    className={chatStyles.messages}
+                    aria-label="Tin nhắn tư vấn"
+                    role="log"
+                  >
+                    <div className={chatStyles.empty}>
+                      <svg viewBox="0 0 120 84" aria-hidden="true">
+                        <path d="M4 84V50a56 56 0 0 1 112 0v34" />
+                        <path d="M20 84V50a40 40 0 0 1 80 0v34" />
+                        <path d="M36 84V50a24 24 0 0 1 48 0v34" />
+                      </svg>
+                      <h2>
+                        {loading
+                          ? 'Đang tải tin nhắn…'
+                          : error
+                            ? 'Không thể tải cuộc trò chuyện'
+                            : 'Chưa có tin nhắn để hiển thị'}
+                      </h2>
+                      <p>
+                        {loading
+                          ? 'Vui lòng chờ trong giây lát.'
+                          : error
+                            ? error
+                            : 'Tin nhắn sẽ hiển thị khi lịch hẹn chat được xác nhận. Bạn có thể xem lại lịch sử sau khi phiên chat kết thúc.'}
+                      </p>
+                      {!loading &&
+                        (error ? (
+                          <button
+                            type="button"
+                            className={styles.emptyAction}
+                            onClick={() => void load()}
+                          >
+                            Thử tải lại
+                          </button>
+                        ) : (
+                          <Link
+                            className={styles.emptyAction}
+                            href={appointmentsHref}
+                          >
+                            Xem lịch hẹn
+                          </Link>
+                        ))}
+                    </div>
+                  </section>
+
+                  <div className={chatStyles.composer}>
+                    <label htmlFor="empty-appointment-chat-message">
+                      Tin nhắn
+                    </label>
+                    <div className={chatStyles.composerBox}>
+                      <textarea
+                        id="empty-appointment-chat-message"
+                        rows={1}
+                        disabled
+                        placeholder={
+                          loading
+                            ? 'Đang tải tin nhắn…'
+                            : error
+                              ? 'Không thể tải cuộc trò chuyện'
+                              : 'Chọn lịch hẹn chat để nhắn tin'
+                        }
+                      />
+                      <button type="button" disabled aria-label="Gửi tin nhắn">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p>
+                      {error
+                        ? 'Tải lại danh sách cuộc trò chuyện để tiếp tục.'
+                        : 'Chọn một lịch hẹn chat đã xác nhận để gửi tin nhắn.'}
+                    </p>
+                  </div>
+                </section>
+              </div>
             </div>
           )}
         </section>

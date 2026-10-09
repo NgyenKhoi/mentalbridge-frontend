@@ -173,9 +173,7 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
   ).toBeVisible()
 
   await navigation.getByRole('link', { name: 'Tin nhắn' }).click()
-  await expect(
-    page.getByRole('heading', { name: 'Hộp thư' }),
-  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Hộp thư' })).toBeVisible()
   await expect(page.getByText('Chưa có cuộc trò chuyện')).toBeVisible()
 
   await navigation.getByRole('link', { name: 'Sau tư vấn' }).click()
@@ -229,9 +227,9 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
     await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
     const drawer = page.getByRole('dialog', { name: 'Điều hướng chuyên gia' })
     await expect(drawer).toBeVisible()
-    await expect(
-      drawer.getByRole('navigation').getByRole('link'),
-    ).toHaveCount(9)
+    await expect(drawer.getByRole('navigation').getByRole('link')).toHaveCount(
+      9,
+    )
     await expect(
       drawer.getByRole('button', {
         name: 'Mở menu tài khoản chuyên gia',

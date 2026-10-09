@@ -4,6 +4,7 @@ import {
   parseJournalEntry,
   parseJournalPage,
   parseJournalWrite,
+  parseLongitudinalAnalysisJob,
 } from './journal-validation'
 
 const metadata = {
@@ -70,58 +71,121 @@ describe('Journal boundary validation', () => {
     ).toBeNull()
   })
 
-  it('accepts only contract-consistent analysis job states', () => {
+  it.each(['DETERMINISTIC_FAKE', 'BEDROCK'])(
+    'accepts only contract-consistent analysis job states for %s',
+    (provider) => {
+      const job = {
+        jobId: '33333333-3333-4333-8333-333333333333',
+        journalId: metadata.id,
+        journalRevision: 1,
+        status: 'RUNNING',
+        attemptCount: 0,
+        terminalReason: null,
+        result: null,
+        createdAt: metadata.createdAt,
+        updatedAt: metadata.updatedAt,
+        completedAt: null,
+      }
+      expect(parseAnalysisJob(job)).toEqual(job)
+      expect(
+        parseAnalysisJob({
+          ...job,
+          status: 'SUCCEEDED',
+          completedAt: metadata.updatedAt,
+          result: {
+            summary: 'Một phản ánh phi lâm sàng.',
+            contextSignals: ['công việc'],
+            emotionIndicators: ['căng thẳng'],
+            themes: ['nghỉ ngơi'],
+            preferenceSignals: [],
+            barrierSignals: [],
+            suggestedAction: 'GUIDE_APPROVED_ACTIVITY',
+            workload: 'EXACT_REVISION',
+            servicePlan: 'FREE',
+            provider,
+            model: 'deterministic-reflection-v1',
+            promptVersion: 'exact-revision-v1',
+            schemaVersion: 1,
+            createdAt: metadata.updatedAt,
+          },
+        }),
+      ).not.toBeNull()
+      expect(
+        parseAnalysisJob({
+          ...job,
+          status: 'FAILED',
+          terminalReason: 'PROVIDER_TIMEOUT',
+          completedAt: metadata.updatedAt,
+          result: { diagnosis: 'unsupported' },
+        }),
+      ).toBeNull()
+      expect(
+        parseAnalysisJob({
+          ...job,
+          status: 'SUCCEEDED',
+          completedAt: metadata.updatedAt,
+          result: null,
+        }),
+      ).toBeNull()
+    },
+  )
+  it('accepts BEDROCK longitudinal evidence and rejects an unapproved provider', () => {
+    const previousPeriod = {
+      startAt: '2026-08-27T00:00:00Z',
+      endAt: '2026-09-10T00:00:00Z',
+    }
+    const currentPeriod = {
+      startAt: '2026-09-10T00:00:00Z',
+      endAt: '2026-09-24T00:00:00Z',
+    }
+    const sourceJournalRevisions = [
+      { journalId: metadata.id, journalRevision: 1, period: 'CURRENT' },
+    ]
+    const dataCoverage = {
+      previousPeriodJournalEntryCount: 0,
+      currentPeriodJournalEntryCount: 1,
+      sufficientForComparison: false,
+    }
+    const result = {
+      analysisId: '33333333-3333-4333-8333-333333333333',
+      previousPeriod,
+      currentPeriod,
+      sourceJournalRevisions,
+      dataCoverage,
+      contextSignals: [],
+      emotionIndicators: [],
+      recurringThemes: [],
+      changesComparedWithPreviousPeriod: [
+        { signal: 'rest', direction: 'INSUFFICIENT_DATA' },
+      ],
+      preferences: [],
+      barriers: [],
+      helpfulPatterns: [],
+      provider: 'BEDROCK',
+      model: 'bedrock-fixture-v1',
+      promptVersion: 'longitudinal-v1',
+      schemaVersion: 1,
+      createdAt: metadata.updatedAt,
+    }
     const job = {
-      jobId: '33333333-3333-4333-8333-333333333333',
-      journalId: metadata.id,
-      journalRevision: 1,
-      status: 'RUNNING',
-      attemptCount: 0,
+      jobId: result.analysisId,
+      previousPeriod,
+      currentPeriod,
+      sourceJournalRevisions,
+      dataCoverage,
+      status: 'SUCCEEDED',
+      attemptCount: 1,
       terminalReason: null,
-      result: null,
+      result,
       createdAt: metadata.createdAt,
       updatedAt: metadata.updatedAt,
-      completedAt: null,
+      completedAt: metadata.updatedAt,
     }
-    expect(parseAnalysisJob(job)).toEqual(job)
+    expect(parseLongitudinalAnalysisJob(job)).toEqual(job)
     expect(
-      parseAnalysisJob({
+      parseLongitudinalAnalysisJob({
         ...job,
-        status: 'SUCCEEDED',
-        completedAt: metadata.updatedAt,
-        result: {
-          summary: 'Một phản ánh phi lâm sàng.',
-          contextSignals: ['công việc'],
-          emotionIndicators: ['căng thẳng'],
-          themes: ['nghỉ ngơi'],
-          preferenceSignals: [],
-          barrierSignals: [],
-          suggestedAction: 'GUIDE_APPROVED_ACTIVITY',
-          workload: 'EXACT_REVISION',
-          servicePlan: 'FREE',
-          provider: 'DETERMINISTIC_FAKE',
-          model: 'deterministic-reflection-v1',
-          promptVersion: 'exact-revision-v1',
-          schemaVersion: 1,
-          createdAt: metadata.updatedAt,
-        },
-      }),
-    ).not.toBeNull()
-    expect(
-      parseAnalysisJob({
-        ...job,
-        status: 'FAILED',
-        terminalReason: 'PROVIDER_TIMEOUT',
-        completedAt: metadata.updatedAt,
-        result: { diagnosis: 'unsupported' },
-      }),
-    ).toBeNull()
-    expect(
-      parseAnalysisJob({
-        ...job,
-        status: 'SUCCEEDED',
-        completedAt: metadata.updatedAt,
-        result: null,
+        result: { ...result, provider: 'UNAPPROVED' },
       }),
     ).toBeNull()
   })
