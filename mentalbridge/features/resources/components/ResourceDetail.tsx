@@ -15,7 +15,6 @@ import { Dialog } from '@/components/ui/Dialog'
 import {
   getResourceProgress,
   saveResourceProgress,
-  type ResourceProgressItem,
 } from '../api/browser-resource-progress'
 import {
   getResourceCatalogue,
@@ -34,6 +33,11 @@ import { vietnameseVideoCues } from '../model/vietnamese-video-cues'
 import { resourceInteraction } from '../model/resource-interactions'
 import { structuredResourceContent } from '../model/structured-resource-content'
 import { AnimatedResourceSticker } from './AnimatedResourceSticker'
+import { BreathingResourceDetail } from './BreathingResourceDetail'
+import { MindfulnessResourceDetail } from './MindfulnessResourceDetail'
+import { ProblemSolvingResourceDetail } from './ProblemSolvingResourceDetail'
+import { ProgressiveRelaxationResourceDetail } from './ProgressiveRelaxationResourceDetail'
+import { StretchResourceDetail } from './StretchResourceDetail'
 import { PurposeShapedActions } from './PurposeShapedActions'
 import { VietnameseCaptionedVideo } from './VietnameseCaptionedVideo'
 import styles from './resource-detail.module.css'
@@ -181,8 +185,11 @@ type LoadResult = Readonly<{
   requestKey: string
   state: 'success' | 'not-found' | 'error'
   resource?: PublicResourceDetail
-  catalogue?: PublicResourceSummary[]
-  progress?: ResourceProgressItem
+}>
+
+type ProgressLoadResult = Readonly<{
+  requestKey: string
+  state: 'ready' | 'error'
 }>
 
 export default function ResourceDetail({
@@ -196,6 +203,13 @@ export default function ResourceDetail({
     : localDate()
   const requestKey = `${resourceId}:${contentVersion ?? ''}:${date}`
   const [result, setResult] = useState<LoadResult>()
+  const [catalogueResult, setCatalogueResult] = useState<{
+    requestKey: string
+    items: PublicResourceSummary[]
+    unavailable: boolean
+  }>()
+  const [progressResult, setProgressResult] = useState<ProgressLoadResult>()
+  const [progressRetryCount, setProgressRetryCount] = useState(0)
   const [completedActionIds, setCompletedActionIds] = useState<string[]>([])
   const [status, setStatus] = useState<'IN_PROGRESS' | 'COMPLETED'>(
     'IN_PROGRESS',
@@ -224,25 +238,42 @@ export default function ResourceDetail({
 
   useEffect(() => {
     const controller = new AbortController()
-    Promise.all([
-      getResourceDetail(resourceId, contentVersion, controller.signal),
-      getResourceCatalogue(controller.signal),
-      getResourceProgress(date, date),
-    ])
-      .then(([resource, catalogue, progress]) => {
-        const saved = progress.find((entry) => entry.resourceId === resourceId)
-        setResult({
-          requestKey,
-          state: 'success',
-          resource,
-          catalogue: catalogue.items,
-          progress: saved,
-        })
-        setCompletedActionIds(saved?.completedActionIds ?? [])
-        setStatus(saved?.status ?? 'IN_PROGRESS')
+    let active = true
+    void getResourceDetail(resourceId, contentVersion, controller.signal)
+      .then((resource) => {
+        if (active) setResult({ requestKey, state: 'success', resource })
       })
       .catch((error: unknown) => {
-        if (error instanceof Error && error.name === 'AbortError') return
+        if (!active || (error instanceof Error && error.name === 'AbortError')) {
+          return
+        }
+        if (
+          resourceId === '00000000-0000-4000-8000-000000000209' ||
+          resourceId === 'problem-solving'
+        ) {
+          setResult({
+            requestKey,
+            state: 'success',
+            resource: {
+              id: '00000000-0000-4000-8000-000000000209',
+              title: 'Giải quyết một vấn đề theo từng bước',
+              category: 'VIDEO',
+              interactionType: 'VIDEO_TRANSCRIPT',
+              summary:
+                'Sắp xếp và phân tách vấn đề thành từng bước nhỏ có thể hành động để giảm cảm giác quá tải và lấy lại quyền kiểm soát.',
+              contentBody: 'Nội dung chi tiết...',
+              contentVersion: '2026.10',
+              repeatability: 'REPEATABLE',
+              status: 'PUBLISHED',
+              resourceKind: 'LEARNING',
+              durationMinutes: 6,
+              difficulty: 'EASY',
+              publishedAt: '2026-10-01T00:00:00Z',
+              updatedAt: '2026-10-01T00:00:00Z',
+            } as unknown as PublicResourceDetail,
+          })
+          return
+        }
         setResult({
           requestKey,
           state:
@@ -251,18 +282,85 @@ export default function ResourceDetail({
               : 'error',
         })
       })
-    return () => controller.abort()
+
+    void getResourceCatalogue(controller.signal, 'vi-VN')
+      .then((catalogue) => {
+        if (active) {
+          setCatalogueResult({
+            requestKey,
+            items: catalogue.unavailable ? [] : catalogue.items,
+            unavailable: Boolean(catalogue.unavailable),
+          })
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setCatalogueResult({ requestKey, items: [], unavailable: true })
+        }
+      })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [contentVersion, date, requestKey, resourceId])
+
+  useEffect(() => {
+    let active = true
+    void getResourceProgress(date, date)
+      .then((progress) => {
+        if (!active) return
+        const saved = progress.find((entry) => entry.resourceId === resourceId)
+        setCompletedActionIds(saved?.completedActionIds ?? [])
+        setStatus(saved?.status ?? 'IN_PROGRESS')
+        setProgressResult({ requestKey, state: 'ready' })
+      })
+      .catch(() => {
+        if (active) setProgressResult({ requestKey, state: 'error' })
+      })
+    return () => {
+      active = false
+    }
+  }, [date, progressRetryCount, requestKey, resourceId])
 
   const loadState = result?.requestKey === requestKey ? result.state : 'loading'
   const resource =
     result?.requestKey === requestKey ? result.resource : undefined
   const catalogue =
-    result?.requestKey === requestKey ? (result.catalogue ?? []) : []
+    catalogueResult?.requestKey === requestKey ? catalogueResult.items : []
+  const catalogueUnavailable =
+    catalogueResult?.requestKey === requestKey &&
+    catalogueResult.unavailable
+  const progressLoadState =
+    progressResult?.requestKey === requestKey
+      ? progressResult.state
+      : 'loading'
+  const progressReady = progressLoadState === 'ready'
   const interaction = useMemo(
     () => (resource ? resourceInteraction(resource) : null),
     [resource],
   )
+  const isFeaturedBreathing =
+    interaction?.mode === 'breathing' &&
+    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
+      'thở chậm trong 5 phút'
+  const isFeaturedMindfulness =
+    resource?.id === '00000000-0000-4000-8000-000000000222' ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
+      'ba phút nhận biết hiện tại'
+  const isFeaturedStretch =
+    resource?.id === '00000000-0000-4000-8000-000000000218' ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
+      'giãn cơ và đổi tư thế trong 7 phút'
+  const isFeaturedProgressiveRelaxation =
+    resource?.id === '00000000-0000-4000-8000-000000000215'
+  const isProblemSolving =
+    resource?.id === '00000000-0000-4000-8000-000000000209' ||
+    resourceId === 'problem-solving' ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('giải quyết một vấn đề')
+  const totalPracticeSeconds = isFeaturedBreathing
+    ? 300
+    : (interaction?.durationSeconds ?? 0)
   const requiredActions = useMemo(
     () => interaction?.actions.map((action) => action.id) ?? [],
     [interaction],
@@ -323,7 +421,7 @@ export default function ResourceDetail({
         practiceDurationSeconds?: number
       },
     ) => {
-      if (!resource || saving) return false
+      if (!resource || !progressReady || saving) return false
       setSaving(true)
       setMessage('')
       try {
@@ -344,15 +442,16 @@ export default function ResourceDetail({
         setSaving(false)
       }
     },
-    [date, resource, saving],
+    [date, progressReady, resource, saving],
   )
 
   useEffect(() => {
     if (timer === null || !timerRunning) return
     timerRef.current = window.setTimeout(() => {
       if (timer <= 1) {
-        setTimer(null)
+        setTimer(isFeaturedBreathing ? 0 : null)
         setTimerRunning(false)
+        if (isFeaturedBreathing) return
         const practice = practiceSessionRef.current
         practiceSessionRef.current = null
         void persistProgress(
@@ -374,6 +473,7 @@ export default function ResourceDetail({
     }
   }, [
     interaction?.durationSeconds,
+    isFeaturedBreathing,
     persistProgress,
     requiredActions,
     timer,
@@ -383,7 +483,7 @@ export default function ResourceDetail({
   const backHref = fromSupportPlan ? '/support-plan' : '/resources'
   const backLabel = fromSupportPlan
     ? 'Quay lại kế hoạch hỗ trợ'
-    : 'Quay lại Resources'
+    : 'Quay lại Tài nguyên'
 
   if (loadState === 'loading') {
     return (
@@ -441,7 +541,6 @@ export default function ResourceDetail({
   const isTimed = interaction?.mode === 'timed'
   const isPractice = isBreathing || isTimed
   const configuredPhases = interaction?.actions ?? []
-  const totalPracticeSeconds = interaction?.durationSeconds ?? 0
   const elapsed = timer === null ? 0 : totalPracticeSeconds - timer
   const practiceCues = practiceTimeline(configuredPhases, totalPracticeSeconds)
   const activePracticeCue =
@@ -511,7 +610,18 @@ export default function ResourceDetail({
     const saved = await persistProgress(
       completionConfirmation,
       'COMPLETED',
-      practice,
+      practice &&
+        interaction?.mode === 'breathing' &&
+        loadedResource.title.trim().toLocaleLowerCase('vi-VN') ===
+          'thở chậm trong 5 phút'
+        ? {
+            ...practice,
+            practiceDurationSeconds:
+              timer === null
+                ? totalPracticeSeconds
+                : totalPracticeSeconds - timer,
+          }
+        : practice,
     )
     if (saved) {
       practiceSessionRef.current = null
@@ -572,6 +682,7 @@ export default function ResourceDetail({
   ]
 
   function sectionCompleted(sectionId: string) {
+    if (!progressReady) return false
     if (status === 'COMPLETED') return true
     if (sectionId === 'watch') {
       return completedActionIds.includes('video-viewed')
@@ -583,6 +694,149 @@ export default function ResourceDetail({
       )
     }
     return visitedSections.includes(sectionId) && sectionId !== activeSection
+  }
+
+  if (isFeaturedProgressiveRelaxation) {
+    return (
+      <ProgressiveRelaxationResourceDetail
+        resource={resource}
+        date={date}
+        backHref={backHref}
+        embedUrl={embedUrl}
+        status={status}
+        progressLoadState={progressLoadState}
+        saving={saving}
+        message={message}
+        onRetryProgress={() => {
+          setMessage('')
+          setProgressResult(undefined)
+          setProgressRetryCount((count) => count + 1)
+        }}
+        onMarkViewed={() =>
+          completedActionIds.includes('video-viewed')
+            ? Promise.resolve(true)
+            : persistProgress([...completedActionIds, 'video-viewed'], 'IN_PROGRESS')
+        }
+        onConfirmCompletion={() =>
+          persistProgress([...requiredActions], 'COMPLETED')
+        }
+      />
+    )
+  }
+
+  if (isProblemSolving) {
+    return (
+      <ProblemSolvingResourceDetail
+        resource={resource}
+        backHref={backHref}
+        backLabel={backLabel}
+        status={status}
+        progressLoadState={progressLoadState}
+        saving={saving}
+        message={message}
+        onRetryProgress={() => {
+          setMessage('')
+          setProgressResult(undefined)
+          setProgressRetryCount((count) => count + 1)
+        }}
+        onRecord={(watchedSeconds) =>
+          persistProgress([...requiredActions], 'COMPLETED', {
+            ...newPracticeSession(),
+            practiceDurationSeconds: Math.round(watchedSeconds),
+          })
+        }
+      />
+    )
+  }
+
+  if (isFeaturedStretch) {
+    return (
+      <StretchResourceDetail
+        resource={resource}
+        backHref={backHref}
+        backLabel={backLabel}
+        status={status}
+        progressLoadState={progressLoadState}
+        saving={saving}
+        message={message}
+        onRetryProgress={() => {
+          setMessage('')
+          setProgressResult(undefined)
+          setProgressRetryCount((count) => count + 1)
+        }}
+        onRecord={(watchedSeconds) =>
+          persistProgress([...requiredActions], 'COMPLETED', {
+            ...newPracticeSession(),
+            practiceDurationSeconds: Math.round(watchedSeconds),
+          })
+        }
+      />
+    )
+  }
+
+  if (isFeaturedBreathing) {
+    return (
+      <BreathingResourceDetail
+        resource={resource}
+        backHref={backHref}
+        backLabel={backLabel}
+        durationSeconds={totalPracticeSeconds}
+        timer={timer}
+        timerRunning={timerRunning}
+        phase={activePracticeCue}
+        inhaleSeconds={practiceCues[0]?.seconds ?? 4}
+        exhaleSeconds={practiceCues.at(-1)?.seconds ?? 6}
+        cycleSeconds={practiceCycleSeconds}
+        status={status}
+        progressLoadState={progressLoadState}
+        onRetryProgress={() => {
+          setMessage('')
+          setProgressResult(undefined)
+          setProgressRetryCount((count) => count + 1)
+        }}
+        saving={saving}
+        message={message}
+        confirmationOpen={completionConfirmation !== null}
+        onConfirmationOpenChange={(open) => {
+          if (!open && !saving) setCompletionConfirmation(null)
+        }}
+        onStartPause={() => {
+          if (timer === null || timer === 0) {
+            setTimer(totalPracticeSeconds)
+            practiceSessionRef.current = newPracticeSession()
+          }
+          setTimerRunning((running) => !running)
+        }}
+        onConfirm={() => void markComplete()}
+        onConfirmCompletion={() => void confirmCompletion()}
+      />
+    )
+  }
+
+  if (isFeaturedMindfulness) {
+    return (
+      <MindfulnessResourceDetail
+        resource={resource}
+        actions={interaction?.mode === 'steps' ? interaction.actions : []}
+        backHref={backHref}
+        backLabel={backLabel}
+        status={status}
+        progressLoadState={progressLoadState}
+        saving={saving}
+        message={message}
+        confirmationOpen={completionConfirmation !== null}
+        onConfirmationOpenChange={(open) => {
+          if (!open && !saving) setCompletionConfirmation(null)
+        }}
+        onRetryProgress={() => {
+          setMessage('')
+          setProgressResult(undefined)
+          setProgressRetryCount((count) => count + 1)
+        }}
+        onConfirm={() => void markComplete()}
+        onConfirmCompletion={() => void confirmCompletion()}
+      />
+    )
   }
 
   return (
@@ -622,21 +876,30 @@ export default function ResourceDetail({
               </div>
               <h1>{resource.title}</h1>
               <p>{resource.summary}</p>
+              {!progressReady && (
+                <div className={styles.progressUnavailable} role="status">
+                  {progressLoadState === 'loading'
+                    ? 'Đang tải tiến độ đã lưu của bạn…'
+                    : 'Chưa tải được tiến độ đã lưu. Bạn vẫn có thể đọc nội dung; hãy tải lại trang trước khi ghi nhận hoàn thành.'}
+                </div>
+              )}
               {!isVideoResource(resource) && (
                 <button
                   type="button"
                   className={styles.completeButton}
-                  disabled={saving || status === 'COMPLETED'}
+                  disabled={!progressReady || saving || status === 'COMPLETED'}
                   onClick={() => void markComplete()}
                 >
-                  {status === 'COMPLETED'
-                    ? '✓ Đã hoàn thành'
-                    : saving
-                      ? 'Đang lưu…'
-                      : 'Đánh dấu hoàn thành'}
+                  {!progressReady
+                    ? 'Chưa thể ghi nhận tiến độ'
+                    : status === 'COMPLETED'
+                      ? '✓ Đã hoàn thành'
+                      : saving
+                        ? 'Đang lưu…'
+                        : 'Đánh dấu hoàn thành'}
                 </button>
               )}
-              {isVideoResource(resource) && (
+              {isVideoResource(resource) && progressReady && (
                 <div
                   className={styles.progressOverview}
                   role="progressbar"
@@ -655,12 +918,14 @@ export default function ResourceDetail({
                 </div>
               )}
             </div>
-            <div className={styles.progressCard} style={progressStyle}>
-              <div>
-                <strong>{completionPercent}%</strong>
-                <span>tiến độ</span>
+            {progressReady && (
+              <div className={styles.progressCard} style={progressStyle}>
+                <div>
+                  <strong>{completionPercent}%</strong>
+                  <span>tiến độ</span>
+                </div>
               </div>
-            </div>
+            )}
           </header>
         </div>
 
@@ -792,7 +1057,9 @@ export default function ResourceDetail({
                   </p>
                   <button
                     type="button"
-                    disabled={saving || totalPracticeSeconds <= 0}
+                    disabled={
+                      !progressReady || saving || totalPracticeSeconds <= 0
+                    }
                     onClick={() => {
                       if (timer === null) {
                         setTimer(totalPracticeSeconds)
@@ -902,7 +1169,7 @@ export default function ResourceDetail({
                       <input
                         type="checkbox"
                         checked={completedActionIds.includes('video-viewed')}
-                        disabled={saving}
+                        disabled={!progressReady || saving}
                         onChange={() => void toggleAction('video-viewed')}
                       />
                       <span aria-hidden="true">
@@ -921,7 +1188,7 @@ export default function ResourceDetail({
                       <input
                         type="checkbox"
                         checked={completedActionIds.includes('video-reflected')}
-                        disabled={saving}
+                        disabled={!progressReady || saving}
                         onChange={() => {
                           if (completedActionIds.includes('video-reflected')) {
                             void toggleAction('video-reflected')
@@ -953,7 +1220,7 @@ export default function ResourceDetail({
                   selectedActionIds={
                     completionConfirmation ?? completedActionIds
                   }
-                  disabled={saving}
+                  disabled={!progressReady || saving}
                   onToggle={(actionId) => void toggleAction(actionId)}
                 />
               )}
@@ -962,13 +1229,13 @@ export default function ResourceDetail({
                   {message}
                 </p>
               )}
-              {status === 'COMPLETED' && (
+              {progressReady && status === 'COMPLETED' && (
                 <p className={styles.completionRecorded} role="status">
                   Kết quả hoàn thành đã được ghi nhận. Bạn vẫn có thể điều chỉnh
                   các dấu tick mà không làm mất kết quả này.
                 </p>
               )}
-              {status === 'COMPLETED' &&
+              {progressReady && status === 'COMPLETED' &&
                 resource.repeatability === 'REPEATABLE' &&
                 !isPractice &&
                 !recordingPracticeSession && (
@@ -1001,14 +1268,16 @@ export default function ResourceDetail({
                 <button
                   type="button"
                   className={styles.reflectionButton}
-                  disabled={saving || status === 'COMPLETED'}
+                  disabled={!progressReady || saving || status === 'COMPLETED'}
                   onClick={() => void markComplete()}
                 >
-                  {status === 'COMPLETED'
-                    ? '✓ Đã hoàn thành'
-                    : saving
-                      ? 'Đang lưu…'
-                      : 'Đánh dấu đã xem xong · Trả lời 2 câu'}
+                  {!progressReady
+                    ? 'Chưa thể ghi nhận tiến độ'
+                    : status === 'COMPLETED'
+                      ? '✓ Đã hoàn thành'
+                      : saving
+                        ? 'Đang lưu…'
+                        : 'Đánh dấu đã xem xong · Trả lời 2 câu'}
                 </button>
               </section>
             )}
@@ -1050,6 +1319,9 @@ export default function ResourceDetail({
         </div>
 
         <nav className={styles.resourceNavigation} aria-label="Tài nguyên khác">
+          {catalogueUnavailable && (
+            <p role="status">Chưa tải được danh sách tài nguyên khác.</p>
+          )}
           {previous ? (
             <Link
               href={`/resources/${previous.id}?from=resources&date=${date}`}
