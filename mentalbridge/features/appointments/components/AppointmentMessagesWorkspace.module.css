@@ -42,7 +42,7 @@
   padding: var(--space-3) var(--space-4);
 }
 
-.inbox h2,
+.inbox h1,
 .inbox p,
 .emptyConversation h2,
 .emptyConversation p {
@@ -56,7 +56,7 @@
   letter-spacing: 0.12em;
 }
 
-.inbox h2 {
+.inbox h1 {
   margin-top: 2px;
   font-size: 1.08rem;
 }
@@ -298,6 +298,228 @@
   }
 
   .inbox li button {
+    transition: none;
+  }
+}
+
+/* Stitch message journey, scoped away from the user inbox. */
+.specialist {
+  height: calc(100dvh - 64px);
+  min-height: 300px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.specialist .workspace {
+  grid-template-columns: 300px minmax(0, 1fr);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.specialist .inbox {
+  background: var(--surface);
+}
+.specialist .inbox > header {
+  min-height: 72px;
+  flex: 0 0 auto;
+  border: 0;
+  padding: 16px 20px 8px;
+}
+.specialist .inbox h1 {
+  color: var(--teal-deep);
+  font-family: var(--font-body), sans-serif;
+  font-size: 22px;
+  font-weight: 750;
+}
+.specialist .inboxActions button {
+  width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+}
+.inboxTools {
+  min-width: 0;
+  padding: 8px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.search {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding-left: 12px;
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+}
+.search:focus-within {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 12%, transparent);
+}
+.search svg {
+  flex-shrink: 0;
+}
+.search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  padding: 8px 4px;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+.search input::-webkit-search-cancel-button {
+  display: none;
+}
+.search button {
+  display: grid;
+  min-width: 44px;
+  min-height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.filters {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  margin-top: 10px;
+  padding: 4px 2px;
+}
+.filters button {
+  flex-shrink: 0;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.filters button[aria-pressed='true'] {
+  background: var(--teal-deep);
+  color: #fff;
+}
+.specialist .inbox ul {
+  padding: 10px;
+}
+.specialist .inbox li + li {
+  margin-top: 4px;
+}
+.specialist .inbox li button {
+  min-height: 108px;
+  padding: 14px 12px;
+  border-radius: 12px;
+}
+.specialist .inbox li button.selected {
+  background: var(--teal-pale);
+  box-shadow: none;
+}
+.specialist .avatar {
+  width: 32px;
+  min-height: 32px;
+  flex-basis: 32px;
+  border-radius: 50%;
+  font-family: inherit;
+}
+.specialist .conversationCopy {
+  gap: 5px;
+}
+.specialist .conversationCopy small {
+  font-size: 12px;
+}
+.specialist .conversationCopy em {
+  font-size: 11px;
+}
+.inboxFooter {
+  margin-top: auto;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 11px;
+  text-align: center;
+}
+.specialist .emptyList {
+  text-align: center;
+  justify-items: center;
+  margin: 24px 16px;
+  border: 0;
+}
+.specialist .emptyList :is(a, button),
+.backToInbox {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--teal-deep);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+.specialist .state {
+  border: 0;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+.specialist .error {
+  margin: 12px;
+}
+.backToInbox {
+  display: none;
+}
+.specialist :is(button, a, input):focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+@media (min-width: 1600px) {
+  .specialist .workspace {
+    grid-template-columns: 340px minmax(0, 1fr);
+  }
+}
+@media (max-width: 980px) {
+  .specialist .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .specialist .inbox {
+    display: flex;
+    border-right: 0;
+  }
+  .specialist .conversation {
+    display: none;
+  }
+  .specialist .workspace[data-detail-open='true'] .inbox {
+    display: none;
+  }
+  .specialist .workspace[data-detail-open='true'] .conversation {
+    display: flex;
+  }
+  .specialist .backToInbox {
+    display: inline-flex;
+    margin-top: 12px;
+  }
+  .search input {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .specialist *,
+  .specialist {
+    animation: none;
     transition: none;
   }
 }
