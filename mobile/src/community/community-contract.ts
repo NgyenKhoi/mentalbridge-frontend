@@ -54,7 +54,9 @@ export const authorSchema = z
   .refine((author) =>
     author.state === 'ACTIVE'
       ? author.communityProfileId !== null
-      : author.communityProfileId === null && author.avatarPreset === null,
+      : author.state === 'ANONYMOUS'
+        ? author.communityProfileId === null && author.avatarPreset === null
+        : author.avatarPreset === null,
   )
 export const mediaSchema = z.strictObject({
   mediaId: id,

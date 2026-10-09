@@ -41,6 +41,13 @@ describe('Community v1.10 public boundary', () => {
     expect(authorSchema.safeParse(anonymous).success).toBe(true)
     expect(
       authorSchema.safeParse({
+        ...fixturePost.author,
+        state: 'DELETED',
+        avatarPreset: null,
+      }).success,
+    ).toBe(true)
+    expect(
+      authorSchema.safeParse({
         ...anonymous,
         communityProfileId: fixturePostId,
       }).success,
