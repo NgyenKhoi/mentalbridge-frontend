@@ -1,5 +1,5 @@
-import SupportGuideJourney from '@/features/support-guide/components/SupportGuideJourney'
+import SupportGuideOverview from '@/features/support-guide/components/SupportGuideOverview'
 
 export default function SupportGuidesPage() {
-  return <SupportGuideJourney />
+  return <SupportGuideOverview />
 }

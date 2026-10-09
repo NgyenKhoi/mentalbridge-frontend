@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  Ban,
   BookOpen,
   Brain,
   CalendarDays,
@@ -11,6 +12,8 @@ import {
   CircleCheck,
   CirclePause,
   CirclePlay,
+  Eye,
+  EyeOff,
   Flower2,
   Heart,
   History,
@@ -20,14 +23,18 @@ import {
   MessageSquare,
   Minus,
   NotebookPen,
+  Pen,
   Phone,
+  RefreshCcw,
   RotateCw,
   Share2,
   ShieldCheck,
   SlidersHorizontal,
   Smile,
   Sparkles,
+  Trash2,
   TrendingUp,
+  X,
 } from 'lucide-react'
 
 const icons = {
@@ -38,11 +45,15 @@ const icons = {
   calendar_today: CalendarDays,
   calendar_view_week: CalendarRange,
   call: Phone,
+  cancel: Ban,
   chat: MessageSquare,
   check: Check,
   check_circle: CircleCheck,
   chevron_left: ChevronLeft,
   chevron_right: ChevronRight,
+  close: X,
+  delete: Trash2,
+  edit: Pen,
   edit_note: NotebookPen,
   expand_more: ChevronDown,
   favorite: Heart,
@@ -56,6 +67,7 @@ const icons = {
   pause_circle: CirclePause,
   play_circle: CirclePlay,
   psychology: Brain,
+  refresh: RefreshCcw,
   remove: Minus,
   self_improvement: Flower2,
   sentiment_satisfied: Smile,
@@ -65,6 +77,8 @@ const icons = {
   star: Sparkles,
   verified_user: ShieldCheck,
   view_agenda: LayoutList,
+  visibility: Eye,
+  visibility_off: EyeOff,
 } as const
 
 export type SupportPlanIconName = keyof typeof icons

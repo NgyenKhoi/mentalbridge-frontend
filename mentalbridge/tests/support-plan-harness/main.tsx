@@ -409,7 +409,6 @@ function SupportPlanPreviewApp() {
                 planStatus="ACTIVE"
                 onToggleStatus={() => {}}
                 onSwitchToManageTab={() => setActiveTab('manage')}
-                screeningData={screeningData}
               />
             </div>
           </section>
