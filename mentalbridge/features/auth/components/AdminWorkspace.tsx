@@ -8,6 +8,7 @@ import AdminAccountManager from './AdminAccountManager'
 import AdminCommunityModerationSection from '@/features/community/components/AdminCommunityModerationSection'
 import AdminAppointmentMonitor from '@/features/appointments/components/AdminAppointmentMonitor'
 import AdminAppointmentDisputes from '@/features/appointments/components/AdminAppointmentDisputes'
+import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -96,7 +97,9 @@ export default function AdminWorkspace({
       <main
         className={`${styles.main} ${section === 'specialists' ? styles.reviewMain : ''}`}
       >
-        {section === 'content' ? (
+        {section === 'dashboard' ? (
+          <ProductJourneyMetricsPanel />
+        ) : section === 'content' ? (
           <AdminContentSection />
         ) : section === 'specialists' ? (
           <AdminSpecialistReviewSection />
