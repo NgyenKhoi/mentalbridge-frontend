@@ -1,0 +1,42 @@
+appId: com.mentalbridge.mobile
+name: MB-634 specialist appointment continuity journey
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_SPECIALIST_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_SPECIALIST_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Không gian chuyên môn của bạn'
+- tapOn: 'Mở lịch hẹn tư vấn'
+- assertVisible: 'Lịch hẹn được giao cho bạn'
+- assertVisible: 'Chờ xác nhận · 1'
+- tapOn: 'Xác nhận'
+- assertVisible: 'Đã xác nhận lịch hẹn theo trạng thái mới nhất.'
+- tapOn: 'Sắp tới · 1'
+- tapOn:
+    text: 'Xem chi tiết'
+    index: 0
+- assertVisible: 'Chuẩn bị và tiếp nối phiên tư vấn'
+- tapOn: 'Xem thông tin được chia sẻ'
+- assertVisible: 'Điều người dùng muốn bạn biết'
+- tapOn: '← Danh sách lịch hẹn'
+- tapOn: 'Lịch sử · 1'
+- tapOn:
+    text: 'Xem chi tiết'
+    index: 0
+- scrollUntilVisible:
+    element:
+      text: 'Tạo tóm tắt sau phiên'
+    direction: DOWN
+- tapOn: 'Tạo tóm tắt sau phiên'
+- tapOn: 'Chủ đề đã trao đổi'
+- inputText: 'Nhịp sinh hoạt và bước tự chăm sóc'
+- hideKeyboard
+- tapOn: 'Xuất bản tóm tắt'
+- assertVisible: 'Đã xuất bản tóm tắt và các bước đã thống nhất.'
