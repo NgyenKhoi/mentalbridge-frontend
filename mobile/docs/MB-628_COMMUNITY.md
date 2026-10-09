@@ -36,9 +36,12 @@ are returned by Community, never inferred from health data or local ranking.
 
 ## Verification status
 
-Focused contract/API/native-media/UI tests, mobile lint and TypeScript compile
-have run locally. The protected exact-head Android run is still pending; no
-claim of Android execution is made until its manifest is produced successfully.
+Focused contract/API/native-media/UI tests (48 tests), mobile lint and TypeScript
+compile have run locally. Execution status is recorded in
+[PR #122](https://github.com/NgyenKhoi/mentalbridge-frontend/pull/122), its current
+head checks and the generated evidence manifest, not inferred from this source
+document or the presence of a Maestro script. Android DoD is verified only when
+the successful manifest's frontend commit equals the final PR head.
 
 ## Protected Android reproduction
 
