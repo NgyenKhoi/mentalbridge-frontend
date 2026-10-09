@@ -12,7 +12,7 @@ vi.mock('framer-motion', () => ({
   ),
 }))
 vi.mock('@/features/auth/components/SessionActions', () => ({
-  default: () => <button type="button">Đăng xuất</button>,
+  default: () => <button type="button">Người dùng</button>,
 }))
 vi.mock('@/features/auth/components/WorkspaceSwitcher', () => ({
   default: () => null,
@@ -78,6 +78,8 @@ describe('RoleWorkspace specialist production closure', () => {
     ).not.toBeInTheDocument()
     expect(screen.queryByText('3')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Thông báo')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('complementary')).getByText('Chuyên gia từ hồ sơ')).toBeInTheDocument()
+    expect(screen.queryByText('Người dùng')).not.toBeInTheDocument()
   })
 
   it('does not expose unsupported appointment creation actions or modalities', () => {
