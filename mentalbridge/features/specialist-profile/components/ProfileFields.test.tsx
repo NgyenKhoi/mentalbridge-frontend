@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { approvedProfile } from '@/tests/fixtures/profile-amendment'
 import ProfileFields from './ProfileFields'
 import { ProfileChecklist } from './ProfilePresentation'
@@ -27,6 +27,48 @@ function Editor({
 }
 
 describe('prototype profile controls', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each([false, true])(
+    'replays the number bounce only when reduced motion is %s',
+    async (reduced) => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn(() => ({ matches: reduced })),
+      )
+      const user = userEvent.setup()
+      render(<Editor years={4} />)
+      const input = screen.getByRole('spinbutton', {
+        name: 'Số năm kinh nghiệm',
+      })
+      const cancel = vi.fn()
+      const animate = vi.fn().mockReturnValue({ cancel })
+      input.animate = animate
+      await user.click(
+        screen.getByRole('button', { name: 'Tăng năm kinh nghiệm' }),
+      )
+      expect(input).toHaveValue(5)
+      if (reduced) expect(animate).not.toHaveBeenCalled()
+      else
+        expect(animate).toHaveBeenCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({
+              transform: 'scale(1.28) translateY(-2px)',
+            }),
+          ]),
+          expect.objectContaining({ duration: 300 }),
+        )
+      await user.click(
+        screen.getByRole('button', { name: 'Giảm năm kinh nghiệm' }),
+      )
+      expect(input).toHaveValue(4)
+      if (!reduced) {
+        expect(animate).toHaveBeenCalledTimes(2)
+        expect(cancel).toHaveBeenCalled()
+      }
+    },
+  )
+
   it('supports bounded stepper and typed input, counting zero as a valid year', async () => {
     const user = userEvent.setup()
     render(<Editor />)

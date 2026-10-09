@@ -196,4 +196,37 @@ describe('SpecialistAppointmentDecisionPanel', () => {
     ).toBeInTheDocument()
     expect(api.assigned).toHaveBeenCalledTimes(2)
   })
+
+  it('retains loaded requests on refresh failure rather than rendering an empty state', async () => {
+    api.assigned
+      .mockResolvedValueOnce({
+        items: [requested],
+        count: 1,
+        generatedAt: '2099-09-25T02:00:01Z',
+      })
+      .mockRejectedValueOnce(new Error('offline'))
+    const user = userEvent.setup()
+    render(<SpecialistAppointmentDecisionPanel />)
+    await screen.findByRole('button', { name: 'Xác nhận' })
+    await user.click(screen.getByRole('button', { name: 'Tải lại' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Chưa thể cập nhật lịch hẹn',
+    )
+    expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeEnabled()
+    expect(
+      screen.queryByText('Chưa có yêu cầu lịch hẹn'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not report an empty appointment list when the initial request fails', async () => {
+    api.assigned.mockRejectedValueOnce(new Error('offline'))
+    render(<SpecialistAppointmentDecisionPanel />)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Chưa thể tải lịch hẹn',
+    )
+    expect(
+      screen.queryByText('Chưa có yêu cầu lịch hẹn'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeEnabled()
+  })
 })

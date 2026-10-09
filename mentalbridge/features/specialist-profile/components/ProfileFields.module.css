@@ -110,6 +110,21 @@
   color: var(--amber-deep);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+.counter[data-tone='complete'] {
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+.counter[data-tone='warning'] {
+  background: var(--terracotta-soft);
+  color: var(--ink);
+  border-color: var(--terracotta);
+}
+.notebook:focus-within {
+  border-color: var(--teal);
 }
 .notebook {
   overflow: hidden;
@@ -190,6 +205,10 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   background: var(--surface-soft);
+  transition:
+    transform var(--motion-base) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
 }
 .choiceIcon {
   flex: 0 0 30px;
@@ -199,6 +218,7 @@
   border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--teal-deep);
+  transition: transform var(--motion-base) var(--ease-emphasis);
 }
 .choiceText {
   flex: 1;
@@ -263,6 +283,16 @@
   width: 44px;
   height: 44px;
   padding: 0;
+  transition:
+    transform var(--motion-base) var(--ease-emphasis),
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+.section .stepper button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.96);
+}
+.choice:active > input:not(:disabled) + .choiceBody {
+  transform: scale(0.98);
 }
 .stepper > div {
   width: 96px;
@@ -313,6 +343,14 @@
 @media (hover: hover) and (pointer: fine) {
   .choice:hover > input:not(:disabled) + .choiceBody {
     border-color: var(--teal);
+    background: var(--surface);
+  }
+  .choice:hover > input:checked:not(:disabled) + .choiceBody {
+    background: var(--teal-pale);
+  }
+  .choice:hover > input:not(:disabled) + .choiceBody .choiceIcon,
+  .section .stepper button:hover:not(:disabled) {
+    transform: translateY(-2px) rotate(4deg);
   }
 }
 @media (max-width: 680px) {
@@ -333,7 +371,17 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .field input,
-  .field textarea {
+  .field textarea,
+  .counter,
+  .choiceBody,
+  .choiceIcon,
+  .section .stepper button {
     transition: none;
+  }
+  .section .stepper button:hover:not(:disabled),
+  .section .stepper button:active:not(:disabled),
+  .choice:active > input:not(:disabled) + .choiceBody,
+  .choice:hover > input:not(:disabled) + .choiceBody .choiceIcon {
+    transform: none;
   }
 }

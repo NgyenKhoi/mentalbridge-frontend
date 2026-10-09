@@ -65,6 +65,19 @@ describe('SpecialistProfileWorkspace', () => {
     ).toBeInTheDocument()
   })
 
+  it('discards only unsaved initial-profile changes and restores the saved data', async () => {
+    const user = userEvent.setup()
+    render(<SpecialistProfileWorkspace />)
+    const name = await screen.findByLabelText('Tên hiển thị')
+    await user.type(name, ' Chưa lưu')
+    await user.click(
+      screen.getByRole('button', { name: 'Hủy thay đổi chưa lưu' }),
+    )
+    expect(name).toHaveValue('Nguyễn An')
+    expect(name).toHaveFocus()
+    expect(api.save).not.toHaveBeenCalled()
+    expect(api.submit).not.toHaveBeenCalled()
+  })
   it('shows the rejection reason, edits the same profile, and resubmits it', async () => {
     const rejected = {
       ...profile,

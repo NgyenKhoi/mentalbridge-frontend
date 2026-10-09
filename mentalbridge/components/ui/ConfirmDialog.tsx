@@ -9,6 +9,7 @@ export type ConfirmDialogRequest = Readonly<{
   confirmLabel?: string
   cancelLabel?: string
   tone?: 'danger' | 'warning'
+  restoreFocusTo?: () => HTMLElement | null
 }>
 
 type ConfirmDialogProps = Readonly<{
@@ -25,6 +26,7 @@ export function ConfirmDialog({ request, onResolve }: ConfirmDialogProps) {
       }}
       labelledBy="global-confirm-title"
       describedBy="global-confirm-description"
+      restoreFocusTo={request?.restoreFocusTo}
     >
       {request && (
         <div className={styles.content} data-tone={request.tone ?? 'danger'}>

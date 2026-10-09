@@ -7,12 +7,14 @@ import {
 } from '@/tests/fixtures/profile-amendment'
 import ApprovedProfileAmendmentWorkspace from './ApprovedProfileAmendmentWorkspace'
 import { BrowserConsultationError } from '../api/browser-client'
+import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 
 const api = vi.hoisted(() => ({
   ownAmendment: vi.fn(),
   startAmendment: vi.fn(),
   saveAmendment: vi.fn(),
   submitAmendment: vi.fn(),
+  cancelAmendment: vi.fn(),
 }))
 vi.mock('../api/browser-client', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -34,6 +36,10 @@ describe('approved profile amendments', () => {
     api.submitAmendment.mockResolvedValue({
       data: { ...draftAmendment, status: 'PENDING_REVIEW', version: 2 },
       etag: '"2"',
+    })
+    api.cancelAmendment.mockResolvedValue({
+      data: { ...draftAmendment, status: 'CANCELLED', version: 1 },
+      etag: '"1"',
     })
   })
   it('starts from approved, saves privately, then explicitly submits the saved version', async () => {
@@ -196,6 +202,151 @@ describe('approved profile amendments', () => {
       'Tên chỉ ở bản nháp',
     )
   })
+  it('cancels unsaved changes only after confirmation and returns to the retained saved draft', async () => {
+    const user = userEvent.setup()
+    render(
+      <FeedbackProvider>
+        <ApprovedProfileAmendmentWorkspace initialProfile={approvedProfile} />
+      </FeedbackProvider>,
+    )
+    const begin = screen.getByRole('button', { name: 'Chỉnh sửa hồ sơ' })
+    await waitFor(() => expect(begin).toBeEnabled())
+    await user.click(begin)
+    await user.type(screen.getByLabelText('Tên hiển thị'), ' Chưa lưu')
+    await user.click(
+      screen.getByRole('button', { name: 'Hủy thay đổi chưa lưu' }),
+    )
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Tiếp tục viết',
+      }),
+    )
+    expect(screen.getByLabelText('Tên hiển thị')).toHaveValue(
+      'Chuyên gia Bình Chưa lưu',
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Hủy thay đổi chưa lưu' }),
+    )
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Hủy thay đổi',
+      }),
+    )
+    expect(api.cancelAmendment).not.toHaveBeenCalled()
+    const resume = screen.getByRole('button', { name: 'Tiếp tục chỉnh sửa' })
+    await waitFor(() => expect(resume).toHaveFocus())
+    await user.click(resume)
+    expect(screen.getByLabelText('Tên hiển thị')).toHaveValue('Chuyên gia Bình')
+    expect(api.saveAmendment).not.toHaveBeenCalled()
+  })
+
+  it.each(['DRAFT', 'PENDING_REVIEW', 'REJECTED'] as const)(
+    'cancels persisted %s without changing the public profile and can start afresh',
+    async (status) => {
+      api.ownAmendment.mockResolvedValue({
+        data: {
+          approvedProfile,
+          amendment: { ...draftAmendment, status, version: 4 },
+        },
+      })
+      const user = userEvent.setup()
+      render(
+        <FeedbackProvider>
+          <ApprovedProfileAmendmentWorkspace initialProfile={approvedProfile} />
+        </FeedbackProvider>,
+      )
+      await user.click(
+        await screen.findByRole('button', { name: 'Hủy bản chỉnh sửa' }),
+      )
+      await user.click(
+        within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Giữ bản chỉnh sửa',
+        }),
+      )
+      expect(api.cancelAmendment).not.toHaveBeenCalled()
+      await user.click(
+        screen.getByRole('button', { name: 'Hủy bản chỉnh sửa' }),
+      )
+      await user.click(
+        within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Hủy bản chỉnh sửa',
+        }),
+      )
+      await waitFor(() =>
+        expect(api.cancelAmendment).toHaveBeenCalledWith(
+          draftAmendment.id,
+          '"4"',
+        ),
+      )
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('button', { name: 'Hủy bản chỉnh sửa' }),
+        ).not.toBeInTheDocument(),
+      )
+      expect(
+        within(
+          screen.getByRole('region', { name: 'Hồ sơ đang công khai' }),
+        ).getByText('Chuyên gia An'),
+      ).toBeVisible()
+      const begin = screen.getByRole('button', { name: 'Chỉnh sửa hồ sơ' })
+      await waitFor(() => expect(begin).toHaveFocus())
+      await user.click(begin)
+      expect(api.startAmendment).toHaveBeenCalledWith('"2"')
+    },
+  )
+
+  it('ignores a cancelled historical payload on reload', async () => {
+    api.ownAmendment.mockResolvedValue({
+      data: {
+        approvedProfile,
+        amendment: { ...draftAmendment, status: 'CANCELLED' },
+      },
+    })
+    render(
+      <ApprovedProfileAmendmentWorkspace initialProfile={approvedProfile} />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Chỉnh sửa hồ sơ' }),
+      ).toBeEnabled(),
+    )
+    expect(screen.getByLabelText('Tên hiển thị')).toHaveValue('Chuyên gia An')
+    expect(
+      screen.queryByRole('button', { name: 'Hủy bản chỉnh sửa' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('preserves typed content and stops blind cancellation on concurrent approval', async () => {
+    api.cancelAmendment.mockRejectedValue(
+      new BrowserConsultationError(
+        412,
+        'PROFILE_AMENDMENT_VERSION_MISMATCH',
+        'Changed',
+      ),
+    )
+    const user = userEvent.setup()
+    render(
+      <ApprovedProfileAmendmentWorkspace initialProfile={approvedProfile} />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Chỉnh sửa hồ sơ' }),
+      ).toBeEnabled(),
+    )
+    await user.click(screen.getByRole('button', { name: 'Chỉnh sửa hồ sơ' }))
+    await user.type(screen.getByLabelText('Giới thiệu'), ' Giữ nội dung.')
+    await user.click(screen.getByRole('button', { name: 'Hủy bản chỉnh sửa' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Hồ sơ đã thay đổi',
+    )
+    expect(screen.getByLabelText('Giới thiệu')).toHaveValue(
+      'Đồng hành sức khỏe tinh thần. Giữ nội dung.',
+    )
+    expect(
+      screen.getByRole('button', { name: 'Hủy bản chỉnh sửa' }),
+    ).toBeDisabled()
+  })
+
   it('does not present a newly suspended profile as public and blocks amendment writes', async () => {
     api.ownAmendment.mockResolvedValue({
       data: {

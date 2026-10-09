@@ -47,7 +47,37 @@ export default function ProfileFields({
 }: Props) {
   const bio = useRef<HTMLTextAreaElement>(null)
   const caret = useRef<number | null>(null)
+  const experienceInput = useRef<HTMLInputElement>(null)
+  const previousYears = useRef(value.yearsOfExperience)
   const [expanded, setExpanded] = useState(false)
+  useLayoutEffect(() => {
+    const changed = previousYears.current !== value.yearsOfExperience
+    previousYears.current = value.yearsOfExperience
+    const input = experienceInput.current
+    if (
+      !changed ||
+      !input ||
+      !Number.isInteger(value.yearsOfExperience) ||
+      typeof input.animate !== 'function' ||
+      typeof window.matchMedia !== 'function' ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+      disabled
+    )
+      return
+    const tokens = getComputedStyle(input)
+    const animation = input.animate(
+      [
+        { transform: 'scale(1)' },
+        { transform: 'scale(1.28) translateY(-2px)', offset: 0.5 },
+        { transform: 'scale(1)' },
+      ],
+      {
+        duration: parseFloat(tokens.getPropertyValue('--motion-medium')) || 300,
+        easing: tokens.getPropertyValue('--ease-emphasis').trim() || 'ease-out',
+      },
+    )
+    return () => animation.cancel()
+  }, [value.yearsOfExperience, disabled])
   useLayoutEffect(() => {
     if (caret.current === null || !bio.current) return
     bio.current.focus()
@@ -125,7 +155,16 @@ export default function ProfileFields({
               <span id="profile-bio-label">Giới thiệu</span>{' '}
               <span aria-hidden="true">*</span>
             </label>
-            <span className={styles.counter}>
+            <span
+              className={styles.counter}
+              data-tone={
+                value.bio.length > 1800
+                  ? 'warning'
+                  : value.bio.trim().length > 30
+                    ? 'complete'
+                    : 'neutral'
+              }
+            >
               {value.bio.length}/2000 ký tự
             </span>
           </div>
@@ -333,6 +372,7 @@ export default function ProfileFields({
               </button>
               <div>
                 <input
+                  ref={experienceInput}
                   id="profile-yearsOfExperience"
                   aria-labelledby="profile-yearsOfExperience-label"
                   type="number"

@@ -30,7 +30,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Requires the approved profile If-Match. Returns the existing non-approved amendment or starts a draft derived from the latest published profile. Does not mutate the public profile. */
+        /** @description Requires the approved profile If-Match. Returns the existing open amendment or starts a draft derived from the latest published profile after approval or cancellation. Does not mutate the public profile. */
         post: operations["startOwnProfileAmendment"];
         delete?: never;
         options?: never;
@@ -46,7 +46,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** @description Replaces the six proposed fields. Editing PENDING_REVIEW withdraws to DRAFT. REJECTED retains review feedback until explicit resubmission. Approved amendments are immutable. */
+        /** @description Replaces the six proposed fields. Editing PENDING_REVIEW withdraws to DRAFT. REJECTED retains review feedback until explicit resubmission. Approved and cancelled amendments are immutable. */
         put: operations["updateOwnProfileAmendment"];
         post?: never;
         delete?: never;
@@ -83,6 +83,23 @@ export interface paths {
         put?: never;
         /** @description Private approved-profile amendment operation; never changes appointments or availability. */
         post: operations["resubmitOwnProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments/{amendmentId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Only the owning approved specialist may cancel DRAFT, PENDING_REVIEW or REJECTED. Records terminal CANCELLED and an immutable audit revision, removes pending review, and preserves the published profile, appointments and availability. Clears current submission/review metadata; prior revisions retain it. Current resulting ETag replay is a no-op; stale ETag is 412. An approved amendment cannot be cancelled. */
+        post: operations["cancelOwnProfileAmendment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1069,7 +1086,7 @@ export interface components {
             /** Format: int64 */
             basePublishedVersion: number;
             /** @enum {string} */
-            status: "DRAFT" | "PENDING_REVIEW" | "REJECTED" | "APPROVED";
+            status: "DRAFT" | "PENDING_REVIEW" | "REJECTED" | "APPROVED" | "CANCELLED";
             proposedProfile: components["schemas"]["SpecialistProfileRequest"];
             /** Format: date-time */
             submittedAt: string | null;
@@ -2476,6 +2493,39 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    cancelOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled amendment retained for history */
             200: {
                 headers: {
                     ETag: components["headers"]["ProfileETag"];
