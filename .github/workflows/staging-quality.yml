@@ -187,7 +187,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           working-directory: mobile
-          script: npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion && npm run e2e:android:support-plan && npm run e2e:android:resources
+          script: npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion && npm run e2e:android:support-plan && npm run e2e:android:resources && npm run e2e:android:journal
 
       - name: Upload Android native evidence
         if: always()

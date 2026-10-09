@@ -1,0 +1,92 @@
+appId: com.mentalbridge.mobile
+name: MB-627 private Journal to explicit authoritative AI safe outcome
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Viết nhật ký'
+- tapOn:
+    id: 'journal-new'
+- tapOn:
+    id: 'journal-text'
+- inputText: 'MB627 synthetic journal persistence demo.'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'journal-mood-GOOD'
+    direction: DOWN
+- tapOn:
+    id: 'journal-mood-GOOD'
+- scrollUntilVisible:
+    element:
+      id: 'journal-save'
+    direction: DOWN
+- tapOn:
+    id: 'journal-save'
+    enabled: true
+- assertVisible: 'Đã lưu nhật ký.'
+- scrollUntilVisible:
+    element:
+      text: 'Nhìn lại bài viết cùng AI'
+    direction: DOWN
+- extendedWaitUntil:
+    visible:
+      id: 'journal-ai-authorized|journal-ai-consent-needed'
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: 'journal-ai-request'
+    direction: DOWN
+- runFlow:
+    when:
+      visible:
+        id: 'journal-ai-consent-check'
+    commands:
+      - tapOn:
+          id: 'journal-ai-consent-check'
+      - scrollUntilVisible:
+          element:
+            id: 'journal-ai-consent'
+          direction: DOWN
+      - tapOn:
+          id: 'journal-ai-consent'
+          enabled: true
+- scrollUntilVisible:
+    element:
+      id: 'journal-ai-request'
+    direction: DOWN
+- tapOn:
+    id: 'journal-ai-request'
+    enabled: true
+- extendedWaitUntil:
+    visible:
+      text: 'Chưa xác nhận được quyền dùng AI hiện tại.*|Gợi ý để bạn tự nhìn lại|AI chưa phản hồi lúc này.*|Phản hồi AI chưa đáp ứng yêu cầu an toàn.*'
+    timeout: 90000
+- launchApp
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Viết nhật ký'
+- scrollUntilVisible:
+    element:
+      id: 'journal-entry-.*'
+    direction: DOWN
+- tapOn:
+    id: 'journal-entry-.*'
+    index: 0
+- assertVisible: 'MB627 synthetic journal persistence demo.'
+- scrollUntilVisible:
+    element:
+      text: 'Nhìn lại bài viết cùng AI'
+    direction: DOWN
+- extendedWaitUntil:
+    visible:
+      text: 'Chưa xác nhận được quyền dùng AI hiện tại.*|Gợi ý để bạn tự nhìn lại|AI chưa phản hồi lúc này.*|Phản hồi AI chưa đáp ứng yêu cầu an toàn.*'
+    timeout: 30000

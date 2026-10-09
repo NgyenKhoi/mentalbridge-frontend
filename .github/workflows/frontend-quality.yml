@@ -131,11 +131,12 @@ jobs:
         run: npm run typecheck
 
   mobile-android-evidence:
-    name: Protected Android MB-626 real-contract evidence
+    name: Protected Android real-contract evidence
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e')
+      (contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e') ||
+      contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: staging-mobile-e2e
@@ -151,6 +152,8 @@ jobs:
       MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
       MAESTRO_CLI_NO_ANALYTICS: 'true'
       MAESTRO_VERSION: '2.11.0'
+      MOBILE_EVIDENCE_FEATURE: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'journal' || 'resources' }}
+      MOBILE_EVIDENCE_STORY: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'mb-627' || 'mb-626' }}
       ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
     steps:
       - name: Check out exact pull-request head
@@ -204,6 +207,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify Journal implementation and gate boundaries
+        if: env.MOBILE_EVIDENCE_FEATURE == 'journal'
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run test:ci -- --runTestsByPath src/journal/JournalScreen.test.tsx src/journal/JournalAnalysisPanel.test.tsx src/journal/journal-api.test.ts src/journal/analysis-request-store.test.ts src/screens/UserHomeScreen.test.tsx src/config/mobile-delivery-contract.test.ts
+
       - name: Prepare controlled real-contract provider
         if: steps.provider.outputs.mode == 'controlled'
         working-directory: backend-provider
@@ -215,6 +225,8 @@ jobs:
           user_password="$(openssl rand -hex 24)"
           content_secret="$(openssl rand -hex 32)"
           care_secret="$(openssl rand -hex 32)"
+          journal_encryption_key="$(openssl rand -base64 32)"
+          journal_hmac_key="$(openssl rand -base64 32)"
           printf '::add-mask::%s\n' "$user_password"
           {
             printf 'E2E_IDENTITY_JWT_PRIVATE_KEY=%s\n' "$private_key"
@@ -222,6 +234,8 @@ jobs:
             printf 'E2E_IDENTITY_ENCRYPTION_KEY=%s\n' "$encryption_key"
             printf 'E2E_CARE_IDEMPOTENCY_HMAC_KEY=%s\n' "$care_secret"
             printf 'E2E_CONTENT_TEST_SECRET=%s\n' "$content_secret"
+            printf 'E2E_JOURNAL_ENCRYPTION_KEY=%s\n' "$journal_encryption_key"
+            printf 'E2E_JOURNAL_HMAC_KEY=%s\n' "$journal_hmac_key"
             printf 'E2E_USER_A_EMAIL=e2e-user-a@synthetic.invalid\n'
             printf 'E2E_USER_B_EMAIL=e2e-user-b@synthetic.invalid\n'
             printf 'E2E_USER_PASSWORD=%s\n' "$user_password"
@@ -240,14 +254,22 @@ jobs:
             -f docker-compose.e2e.yml \
             -f docker-compose.e2e.local.yml \
             -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml)
+          services=(identity content-notification)
+          if [[ "$MOBILE_EVIDENCE_FEATURE" == 'journal' ]]; then
+            compose+=(-f ../mobile/ci/docker-compose.mobile-journal-e2e.yml)
+            services=(identity care journal-ai)
+          fi
           print_provider_diagnostics() {
             "${compose[@]}" ps --all
-            "${compose[@]}" logs --no-color --tail 200 identity content-notification
+            "${compose[@]}" logs --no-color --tail 100 "${services[@]}"
           }
-          "${compose[@]}" up -d --build redis identity content-notification
+          "${compose[@]}" up -d --build redis "${services[@]}"
           for attempt in {1..60}; do
-            if curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null && \
-              curl -fsS http://127.0.0.1:3003/health/ready >/dev/null; then
+            provider_ready=false
+            if [[ "$MOBILE_EVIDENCE_FEATURE" == 'journal' ]]; then
+              if curl -fsS http://127.0.0.1:8081/actuator/health >/dev/null && curl -fsS http://127.0.0.1:3000/health/ready >/dev/null; then provider_ready=true; fi
+            elif curl -fsS http://127.0.0.1:3003/health/ready >/dev/null; then provider_ready=true; fi
+            if [[ "$provider_ready" == true ]] && curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null; then
               login_payload="$(jq -n \
                 --arg email "$MAESTRO_MB_USER_EMAIL" \
                 --arg password "$MAESTRO_MB_USER_PASSWORD" \
@@ -260,13 +282,24 @@ jobs:
               curl -fsS \
                 -H "Authorization: Bearer $access_token" \
                 http://127.0.0.1:8080/api/v1/account >/dev/null
-              curl -fsS \
-                -H "Authorization: Bearer $access_token" \
-                http://127.0.0.1:3003/api/v1/resources >/dev/null
-              echo 'Controlled provider login, account, and resource contracts are ready.'
+              if [[ "$MOBILE_EVIDENCE_FEATURE" == 'journal' ]]; then
+                curl -fsS -H "Authorization: Bearer $access_token" http://127.0.0.1:3000/api/v1/journals >/dev/null
+                profile_status="$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $access_token" http://127.0.0.1:8081/api/v1/profile)"
+                if [[ "$profile_status" == '404' ]]; then
+                  curl -fsS -X PUT -H "Authorization: Bearer $access_token" -H 'Content-Type: application/json' \
+                    --data '{"displayName":"Mobile Journal E2E"}' http://127.0.0.1:8081/api/v1/profile >/dev/null
+                elif [[ "$profile_status" != '200' ]]; then
+                  echo "Controlled Care profile preflight failed with HTTP $profile_status." >&2
+                  exit 1
+                fi
+                curl -fsS -H "Authorization: Bearer $access_token" http://127.0.0.1:8081/api/v1/consents/ai-processing/authorization >/dev/null
+              else
+                curl -fsS -H "Authorization: Bearer $access_token" http://127.0.0.1:3003/api/v1/resources >/dev/null
+              fi
+              echo 'Controlled provider authentication and public feature contracts are ready.'
               exit 0
             fi
-            for service in identity content-notification; do
+            for service in "${services[@]}"; do
               container_id="$("${compose[@]}" ps --all -q "$service")"
               if [[ -n "$container_id" && "$(docker inspect --format '{{.State.Status}}' "$container_id")" == 'exited' ]]; then
                 echo "$service exited before becoming ready." >&2
@@ -299,7 +332,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Compile exact head and run MB-626 real-contract journey
+      - name: Compile exact head and run selected real-contract journey
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 36
@@ -309,25 +342,26 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           working-directory: mobile
-          script: npm run e2e:android:resources:evidence
+          script: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'npm run e2e:android:journal:evidence' || 'npm run e2e:android:resources:evidence' }}
 
       - name: Stop controlled real provider services
         if: always() && steps.provider.outputs.mode == 'controlled'
         working-directory: backend-provider
         run: |
-          docker compose \
+          compose=(docker compose \
             --env-file .env.mobile-resources-e2e \
             -f docker-compose.local.yml \
             -f docker-compose.e2e.yml \
             -f docker-compose.e2e.local.yml \
-            -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml \
-            down --volumes --remove-orphans
+            -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml)
+          if [[ "$MOBILE_EVIDENCE_FEATURE" == 'journal' ]]; then compose+=(-f ../mobile/ci/docker-compose.mobile-journal-e2e.yml); fi
+          "${compose[@]}" down --volumes --remove-orphans
 
       - name: Upload exact-head Android evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-mb-626-real-contract-${{ github.event.pull_request.head.sha }}
+          name: android-${{ env.MOBILE_EVIDENCE_STORY }}-real-contract-${{ github.event.pull_request.head.sha }}
           path: mobile/native-evidence
           if-no-files-found: warn
 
@@ -342,7 +376,8 @@ jobs:
           needs.quality.result != 'success' ||
           needs.mobile-compile.result != 'success' ||
           (github.event_name == 'pull_request' &&
-          contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e') &&
+          (contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e') ||
+          contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e')) &&
           needs.mobile-android-evidence.result != 'success')
         run: exit 1
       - name: Confirm quality gate

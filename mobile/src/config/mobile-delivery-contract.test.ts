@@ -116,6 +116,13 @@ describe('Mobile Delivery Contract v1', () => {
       'PROVIDER_EVIDENCE=protected-controlled-real-contract',
     )
     expect(androidEvidence).toContain('npm run e2e:android:resources:evidence')
+    expect(androidEvidence).toContain('npm run e2e:android:journal:evidence')
+    expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e')",
+    )
+    expect(androidEvidence).toContain(
+      '-f ../mobile/ci/docker-compose.mobile-journal-e2e.yml',
+    )
     expect(androidEvidence).toContain(
       'PROTECTED_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}',
     )
@@ -134,6 +141,7 @@ describe('Mobile Delivery Contract v1', () => {
     expect(android).toContain(
       'reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d',
     )
+    expect(android).toContain('&& npm run e2e:android:journal')
     expect(android).toContain('environment: staging-mobile-e2e')
     expect(android).toContain(
       'EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}',

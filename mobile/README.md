@@ -156,6 +156,12 @@ state, safety, test, and staging Android persistence evidence.
 
 ## Quality commands
 
+MB-627 adds private USER Journal CRUD and explicit bounded AI reflection/time
+comparison with Care consent, server-side entitlement enforcement and exact
+revision/source provenance. See
+[`docs/MB-627_PRIVATE_JOURNAL.md`](docs/MB-627_PRIVATE_JOURNAL.md) for the contract,
+concurrency/privacy behavior, tests and protected exact-head Android proof.
+
 ```powershell
 npm run format:check
 npm run lint
@@ -175,7 +181,8 @@ compile or boot evidence. Native compile/install/launch is verified separately
 by `npm run native:android:smoke` and `npm run native:ios:smoke` in the staging
 release gate; Android also runs the MB-612 assessment and MB-613 emotion
 real-contract journeys plus the MB-625 SupportPlan and MB-626 Resources
-journeys against the protected staging edge. Assessment, emotion, and Resources
+journeys, plus the MB-627 Journal safe-outcome journey, against the protected
+staging edge. Assessment, emotion, Resources and Journal
 share one dedicated USER fixture; SupportPlan uses a separate resettable
 fixture. Pull requests into `dev` run only `npm run typecheck` for mobile;
 formatting, lint, Jest, bundle export, native boot, and real-contract checks
