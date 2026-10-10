@@ -96,13 +96,17 @@ function initialDraft(
 
 type Props = Readonly<{
   planStatus: 'ACTIVE' | 'PAUSED'
+  compactToday?: boolean
   onToggleStatus?: () => void
+  onEndPlan?: () => void
   onSwitchToManageTab?: () => void
 }>
 
 export default function SupportPlanSchedule({
   planStatus,
+  compactToday = false,
   onToggleStatus,
+  onEndPlan,
   onSwitchToManageTab,
 }: Props) {
   const { showActionToast } = useFeedback()
@@ -509,13 +513,16 @@ export default function SupportPlanSchedule({
 
   return (
     <section
-      className="support-plan-schedule"
+      className={`support-plan-schedule${compactToday ? ' is-compact-today' : ''}`}
       aria-labelledby="support-plan-schedule-title"
     >
-      <h2 id="support-plan-schedule-title" className="sr-only">
+      <h2
+        id="support-plan-schedule-title"
+        className={compactToday ? 'support-plan-compact-title' : 'sr-only'}
+      >
         Hoạt động của tôi
       </h2>
-      {viewMode === 'calendar' ? calendarControls : null}
+      {!compactToday && viewMode === 'calendar' ? calendarControls : null}
 
       {/* Main 2-Column Area: 8 cols activities, 4 cols sidebar */}
       <div className="support-plan-content-grid">
@@ -818,8 +825,10 @@ export default function SupportPlanSchedule({
 
         {/* Right Column (4 cols): Sidebar cards */}
         <SupportPlanSidebarCards
+          occurrences={selectedDateItems}
           planStatus={authoritativePlanStatus}
           onToggleStatus={onToggleStatus}
+          onEndPlan={onEndPlan}
           onSwitchToManageTab={onSwitchToManageTab}
         />
       </div>

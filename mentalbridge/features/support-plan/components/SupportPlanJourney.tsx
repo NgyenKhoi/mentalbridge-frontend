@@ -1,7 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
@@ -26,7 +32,6 @@ import type {
 } from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
 import SupportPlanFooter from './SupportPlanFooter'
-import SupportPlanHero, { type WeeklyProgressStats } from './SupportPlanHero'
 import SupportPlanHistory from './SupportPlanHistory'
 import SupportPlanIcon from './SupportPlanIcon'
 import SupportPlanReplacementReviewView from './SupportPlanReplacementReview'
@@ -35,6 +40,30 @@ import './support-plan.css'
 
 type EmptyReason = 'NONE' | 'FREE' | 'STALE' | 'DEPENDENCY'
 type Busy = 'SAVING' | 'ACTIVATING' | 'LIFECYCLE' | null
+type JourneyTab = 'today' | 'plan' | 'progress' | 'adjust'
+
+type WeeklyProgressStats = {
+  completed: number
+  total: number
+  percent: number
+  remaining: number
+}
+
+const journeyTabs: ReadonlyArray<{ id: JourneyTab; label: string }> = [
+  { id: 'today', label: 'Hôm nay' },
+  { id: 'plan', label: 'Kế hoạch' },
+  { id: 'progress', label: 'Tiến triển' },
+  { id: 'adjust', label: 'Điều chỉnh' },
+]
+
+function todayLabel() {
+  return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date())
+}
 
 function EmptyStateIcon({ reason }: Readonly<{ reason: EmptyReason }>) {
   return (
@@ -207,9 +236,7 @@ export default function SupportPlanJourney() {
   const [message, setMessage] = useState('')
   const [commandMessage, setCommandMessage] = useState('')
   const [recoveryVersion, setRecoveryVersion] = useState(0)
-  const [activeTab, setActiveTab] = useState<'plan' | 'schedule' | 'manage'>(
-    'plan',
-  )
+  const [activeTab, setActiveTab] = useState<JourneyTab>('today')
   const [weeklyStats, setWeeklyStats] = useState<WeeklyProgressStats | null>(
     null,
   )
@@ -264,6 +291,12 @@ export default function SupportPlanJourney() {
         setCurrentPlan(current)
         setReplacementDraft(current ? draft : undefined)
         setPlan(current ?? draft)
+        setActiveTab((selected) => {
+          if (current && draft) return 'adjust'
+          if (!current && draft && selected === 'today') return 'plan'
+          if (!current && !draft) return 'plan'
+          return selected
+        })
         setReason('NONE')
         if (current && draft) await loadReplacementReview(current, draft)
         else setReplacementReview(undefined)
@@ -298,6 +331,7 @@ export default function SupportPlanJourney() {
         }
 
         if (options?.messageAfterLoad) setMessage(options.messageAfterLoad)
+        return { current, draft }
       } catch (error) {
         const state = stateFor(error)
         setWeeklyStats(null)
@@ -306,9 +340,11 @@ export default function SupportPlanJourney() {
           setCurrentPlan(undefined)
           setReplacementDraft(undefined)
           setReplacementReview(undefined)
+          setActiveTab('plan')
         }
         setReason(state.reason)
         setMessage(options?.messageAfterLoad ?? state.message)
+        return undefined
       } finally {
         setLoading(false)
       }
@@ -328,10 +364,12 @@ export default function SupportPlanJourney() {
       )
       setHistoryCursor(page.nextCursor ?? undefined)
       setHistoryHasMore(page.hasMore)
+      return page
     } catch {
       setHistoryMessage(
         'Chưa thể tải các kế hoạch trước đây. Kế hoạch hiện tại không bị thay đổi.',
       )
+      return undefined
     } finally {
       setHistoryLoading(false)
       setHistoryLoadingMore(false)
@@ -340,8 +378,19 @@ export default function SupportPlanJourney() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void load()
-      void loadHistory()
+      void Promise.all([load(), loadHistory()]).then(
+        ([loaded, historyPage]) => {
+          if (
+            loaded &&
+            !loaded.current &&
+            !loaded.draft &&
+            historyPage &&
+            historyPage.items.length > 0
+          ) {
+            setActiveTab('progress')
+          }
+        },
+      )
     }, 0)
     return () => window.clearTimeout(timer)
   }, [load, loadHistory])
@@ -380,9 +429,10 @@ export default function SupportPlanJourney() {
   }
 
   const recover = async (messageAfterLoad?: string) => {
-    await load({ preserveOnError: true, messageAfterLoad })
+    const recovered = await load({ preserveOnError: true, messageAfterLoad })
     setRecoveryVersion((current) => current + 1)
     await loadHistory()
+    return recovered
   }
 
   const saveChoices = async (request: ReplaceSupportPlanChoicesRequest) => {
@@ -424,7 +474,11 @@ export default function SupportPlanJourney() {
         plan.version,
         activationKey.current,
       )
-      setPlan(await getCurrentSupportPlan())
+      const activated = await getCurrentSupportPlan()
+      setPlan(activated)
+      setCurrentPlan(activated)
+      setReplacementDraft(undefined)
+      setActiveTab('today')
       activationKey.current = undefined
       showActionToast({
         title: 'Kế hoạch hỗ trợ đã bắt đầu',
@@ -454,10 +508,13 @@ export default function SupportPlanJourney() {
         completionReason,
       )
       await Promise.all([load(), loadHistory()])
+      if (status === 'COMPLETED' || status === 'DISCARDED') {
+        setActiveTab('progress')
+      }
       const statusMessage = {
         ACTIVE: 'Đã tiếp tục kế hoạch hỗ trợ',
         PAUSED: 'Đã tạm dừng kế hoạch hỗ trợ',
-        COMPLETED: 'Đã kết thúc kế hoạch hỗ trợ',
+        COMPLETED: 'Kế hoạch hỗ trợ đã khép lại',
         DISCARDED: 'Đã bỏ bản nháp kế hoạch',
       }[status]
       showActionToast({ title: statusMessage, tone: 'success' })
@@ -465,7 +522,15 @@ export default function SupportPlanJourney() {
       const errorMessage = mutationMessage(error)
       setCommandMessage(errorMessage)
       setMessage(errorMessage)
-      await recover(errorMessage)
+      const recovered = await recover(errorMessage)
+      if (
+        (status === 'COMPLETED' || status === 'DISCARDED') &&
+        recovered &&
+        !recovered.current &&
+        !recovered.draft
+      ) {
+        setActiveTab('progress')
+      }
     } finally {
       setBusy(null)
     }
@@ -536,70 +601,106 @@ export default function SupportPlanJourney() {
     }
   }
 
+  const cardTab =
+    activeTab === 'today'
+      ? 'schedule'
+      : activeTab === 'adjust'
+        ? 'manage'
+        : 'plan'
+  const availableTabs =
+    !loading && !plan
+      ? journeyTabs.filter(
+          (tab) =>
+            tab.id === 'plan' || (tab.id === 'progress' && history.length > 0),
+        )
+      : journeyTabs
+
+  const handleTabKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentTab: JourneyTab,
+  ) => {
+    const currentIndex = availableTabs.findIndex((tab) => tab.id === currentTab)
+    if (currentIndex < 0) return
+
+    let nextIndex: number | undefined
+    if (event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % availableTabs.length
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex =
+        (currentIndex - 1 + availableTabs.length) % availableTabs.length
+    } else if (event.key === 'Home') {
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      nextIndex = availableTabs.length - 1
+    }
+
+    if (nextIndex === undefined) return
+    event.preventDefault()
+    const nextTab = availableTabs[nextIndex].id
+    setActiveTab(nextTab)
+    window.requestAnimationFrame(() => {
+      document.getElementById(`tab-${nextTab}`)?.focus()
+    })
+  }
+
   return (
     <div className="support-plan-page">
-      <SupportPlanHero stats={weeklyStats} />
-
-      {/* Thanh tab điều hướng 3 tab & controls */}
-      <div className="support-plan-nav-row">
-        <nav
-          className="support-plan-tabs"
-          role="tablist"
-          aria-label="Phân loại kế hoạch hỗ trợ"
-        >
-          <button
-            type="button"
-            role="tab"
-            id="tab-plan"
-            aria-controls="panel-plan"
-            aria-selected={activeTab === 'plan'}
-            className={`support-plan-tab-btn ${activeTab === 'plan' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('plan')}
-          >
-            Kế hoạch
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="tab-schedule"
-            aria-controls="panel-schedule"
-            aria-selected={activeTab === 'schedule'}
-            className={`support-plan-tab-btn ${activeTab === 'schedule' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('schedule')}
-          >
-            Hoạt động của tôi
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="tab-manage"
-            aria-controls="panel-manage"
-            aria-selected={activeTab === 'manage'}
-            className={`support-plan-tab-btn ${activeTab === 'manage' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('manage')}
-          >
-            Quản lý & Lịch sử
-          </button>
-        </nav>
-
-        <div className="support-plan-nav-controls">
-          <div className="support-plan-date-chip">
-            <SupportPlanIcon name="calendar_today" size={16} />
-            <span>
-              {(() => {
-                const now = new Date()
-                const month = now.getMonth() + 1
-                const year = now.getFullYear()
-                const week = Math.min(
-                  4,
-                  Math.max(1, Math.ceil(now.getDate() / 7)),
-                )
-                return `Tháng ${month}, ${year} · Tuần ${week}`
-              })()}
+      <header className="mb-support-workspace-header">
+        <div className="mb-support-workspace-heading">
+          <div>
+            <p className="mb-support-workspace-eyebrow">
+              <span aria-hidden="true" />
+              Kế hoạch hỗ trợ
+            </p>
+            <h1>Hôm nay, mình đi một bước nhỏ</h1>
+            <p className="mb-support-workspace-lead">
+              Kế hoạch này gom những việc hữu ích vào đúng lúc, để bạn không
+              phải tự nhớ mọi thứ.
+            </p>
+          </div>
+          <div className="mb-support-workspace-context">
+            <span className="mb-support-workspace-date">
+              <SupportPlanIcon name="calendar_today" size={17} />
+              {todayLabel()}
             </span>
+            {!loading && plan && (
+              <button
+                type="button"
+                className="mb-support-workspace-adjust"
+                onClick={() => setActiveTab('adjust')}
+              >
+                <SupportPlanIcon name="settings_suggest" size={17} />
+                Điều chỉnh kế hoạch
+              </button>
+            )}
           </div>
         </div>
-      </div>
+
+        {!loading && (
+          <nav
+            className="mb-support-workspace-tabs"
+            role="tablist"
+            aria-label="Các chế độ của kế hoạch hỗ trợ"
+          >
+            {availableTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`tab-${tab.id}`}
+                aria-controls={`panel-${tab.id}`}
+                aria-selected={activeTab === tab.id}
+                tabIndex={activeTab === tab.id ? 0 : -1}
+                className={activeTab === tab.id ? 'is-active' : undefined}
+                onClick={() => setActiveTab(tab.id)}
+                onKeyDown={(event) => handleTabKeyDown(event, tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        )}
+      </header>
 
       {loading && (
         <div className="support-plan-state support-plan-loading" role="status">
@@ -611,46 +712,94 @@ export default function SupportPlanJourney() {
         </div>
       )}
 
-      {!loading && plan && (
+      {!loading && (plan || activeTab === 'progress') && (
         <>
-          <SupportPlanCard
-            key={`${plan.supportPlanId}:${plan.version}:${recoveryVersion}`}
-            plan={plan}
-            busy={busy}
-            message={commandMessage}
-            onSaveChoices={saveChoices}
-            onActivate={activate}
-            onStatusChange={changeStatus}
-            activeTab={activeTab}
-          />
-          {currentPlan && !replacementDraft && (
-            <div
-              className={`support-plan-tab-pane ${activeTab === 'manage' ? 'is-active' : 'is-hidden'}`}
+          {plan && activeTab !== 'progress' && (
+            <SupportPlanCard
+              key={`${plan.supportPlanId}:${plan.version}:${recoveryVersion}`}
+              plan={plan}
+              busy={busy}
+              message={commandMessage}
+              onSaveChoices={saveChoices}
+              onActivate={activate}
+              onStatusChange={changeStatus}
+              activeTab={cardTab}
+            />
+          )}
+
+          {activeTab === 'progress' && (
+            <section
+              id="panel-progress"
+              role="tabpanel"
+              aria-labelledby="tab-progress"
+              className="mb-support-progress"
             >
-              <section className="support-plan-reassessment-callout">
-                <div>
-                  <span>Sau đánh giá lại</span>
-                  <h2>Xem một phương án kế hoạch mới</h2>
+              <div className="mb-support-progress-intro">
+                <p className="mb-support-workspace-eyebrow">
+                  Nhìn lại nhẹ nhàng
+                </p>
+                <h2>Điều gì đã phù hợp với bạn?</h2>
+                <p>
+                  Đây là các ghi nhận để bạn hiểu nhịp của mình, không phải điểm
+                  số hay đánh giá mức độ cố gắng.
+                </p>
+              </div>
+              {message && (
+                <p className="support-plan-notice" role="status">
+                  {message}
+                </p>
+              )}
+              {weeklyStats && weeklyStats.total > 0 ? (
+                <div className="mb-support-progress-facts">
                   <p>
-                    Kế hoạch hiện tại vẫn hoạt động trong khi hệ thống kiểm tra
-                    và so sánh phương án mới.
+                    Bạn đã ghi nhận <strong>{weeklyStats.completed}</strong>{' '}
+                    hoạt động là đã làm trong tuần này.
+                  </p>
+                  <p>
+                    <strong>{weeklyStats.remaining}</strong> hoạt động vẫn đang
+                    mở; bạn có thể làm, dời hoặc bỏ qua tùy nhịp hôm nay.
                   </p>
                 </div>
-                <button
-                  className="btn btn-outline"
-                  type="button"
-                  disabled={creating}
-                  onClick={() => void create()}
-                >
-                  {creating
-                    ? 'Đang tạo phương án…'
-                    : 'Tạo phương án để xem lại'}
-                </button>
-                {message && <p role="status">{message}</p>}
-              </section>
-            </div>
+              ) : (
+                <p className="mb-support-progress-empty">
+                  Chưa có ghi nhận nào trong tuần này. Bạn có thể quay lại sau
+                  khi thực hiện hoặc bỏ qua một hoạt động.
+                </p>
+              )}
+              <SupportPlanHistory
+                items={history}
+                loading={historyLoading}
+                loadingMore={historyLoadingMore}
+                hasMore={historyHasMore}
+                message={historyMessage}
+                onRetry={() => void loadHistory()}
+                onLoadMore={() => void loadHistory(historyCursor)}
+              />
+            </section>
           )}
-          {currentPlan && replacementDraft && (
+
+          {activeTab === 'adjust' && currentPlan && !replacementDraft && (
+            <section className="support-plan-reassessment-callout">
+              <div>
+                <span>Sau đánh giá lại</span>
+                <h2>Xem một phương án kế hoạch mới</h2>
+                <p>
+                  Kế hoạch hiện tại vẫn hoạt động trong khi hệ thống kiểm tra và
+                  so sánh phương án mới.
+                </p>
+              </div>
+              <button
+                className="btn btn-outline"
+                type="button"
+                disabled={creating}
+                onClick={() => void create()}
+              >
+                {creating ? 'Đang tạo phương án…' : 'Tạo phương án để xem lại'}
+              </button>
+              {message && <p role="status">{message}</p>}
+            </section>
+          )}
+          {activeTab === 'adjust' && currentPlan && replacementDraft && (
             <>
               <SupportPlanCard
                 key={`${replacementDraft.supportPlanId}:${replacementDraft.version}:${recoveryVersion}`}
@@ -661,6 +810,8 @@ export default function SupportPlanJourney() {
                 onActivate={activate}
                 onStatusChange={changeReplacementDraftStatus}
                 draftAction="REPLACEMENT"
+                activeTab="plan"
+                embedded
               />
               {replacementLoading && !replacementReview && (
                 <div className="support-plan-state" role="status">
@@ -693,9 +844,12 @@ export default function SupportPlanJourney() {
         </>
       )}
 
-      {!loading && !plan && (
+      {!loading && !plan && activeTab === 'plan' && (
         <div
-          className={`support-plan-tab-pane ${activeTab === 'plan' ? 'is-active' : 'is-hidden'}`}
+          id="panel-plan"
+          role="tabpanel"
+          aria-labelledby="tab-plan"
+          className="support-plan-tab-pane is-active"
         >
           <section
             className={`support-plan-state ${message ? 'notice' : ''}`}
@@ -750,20 +904,6 @@ export default function SupportPlanJourney() {
           </section>
         </div>
       )}
-
-      <div
-        className={`support-plan-tab-pane ${activeTab === 'manage' ? 'is-active' : 'is-hidden'}`}
-      >
-        <SupportPlanHistory
-          items={history}
-          loading={historyLoading}
-          loadingMore={historyLoadingMore}
-          hasMore={historyHasMore}
-          message={historyMessage}
-          onRetry={() => void loadHistory()}
-          onLoadMore={() => void loadHistory(historyCursor)}
-        />
-      </div>
 
       <SupportPlanFooter updatedAt={plan?.updatedAt} />
     </div>

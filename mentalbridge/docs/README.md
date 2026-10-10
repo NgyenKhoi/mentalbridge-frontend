@@ -4,9 +4,9 @@ This directory is the source of truth for MentalBridge frontend engineering
 decisions. Product/design documents describe intent; these documents describe
 how the executable Next.js application is organized and delivered.
 
-All user-visible frontend work starts by loading the repository skill at
-`.agents/skills/mentalbridge-ui/SKILL.md`; the tables below let that skill select
-the smallest relevant contract set.
+Material user-visible redesigns start with a written UX brief and a Stitch
+reference/prototype. The tables below identify the smallest relevant contract
+set for translating that direction into product code.
 
 ## Reading order
 

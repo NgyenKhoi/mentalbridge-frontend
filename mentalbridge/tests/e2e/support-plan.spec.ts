@@ -178,6 +178,20 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     })
   })
   await page.route('**/api/care/support-plans', async (route) => {
+    if (route.request().method() === 'GET' && persisted.status === 'ACTIVE') {
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: '/problems/support-plan-draft-not-found',
+          title: 'Draft not found.',
+          status: 404,
+          code: 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+          correlationId: '72000000-0000-4000-8000-000000000372',
+        }),
+      })
+      return
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -284,6 +298,16 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   })
 
   await page.goto('/support-plan')
+  const typography = await page.evaluate(() => ({
+    body: getComputedStyle(
+      document.querySelector<HTMLElement>('.support-plan-page')!,
+    ).fontFamily,
+    heading: getComputedStyle(
+      document.querySelector<HTMLElement>('.support-plan-page h1')!,
+    ).fontFamily,
+  }))
+  expect(typography.body).toContain('Be Vietnam Pro')
+  expect(typography.heading).toContain('Fraunces')
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -300,18 +324,24 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   await expect(page.getByText('Đã lưu lựa chọn của bạn.')).toBeVisible()
   await page.getByRole('button', { name: 'Bắt đầu kế hoạch' }).click()
 
+  await expect(page.getByRole('tab', { name: 'Hôm nay' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  await expect(page.getByText('Hoạt động của tôi')).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: /Hoạt động hôm nay/ }),
+  ).toBeVisible()
+
+  await page.getByRole('tab', { name: 'Kế hoạch' }).click()
   await expect(page.getByText('Kế hoạch đang thực hiện')).toBeVisible()
   await expect(
     page
       .getByRole('region', { name: 'Nội dung kế hoạch hỗ trợ' })
       .getByRole('heading', { name: 'Lựa chọn thay thế đã duyệt' }),
   ).toBeVisible()
-  await expect(page.getByText('Hoạt động của tôi')).toBeVisible()
-  await expect(page.getByText('Asia/Ho_Chi_Minh')).toBeVisible()
-  await page
-    .locator('.support-plan-occurrence')
-    .getByText('Thông tin kỹ thuật')
-    .click()
+  await page.getByRole('tab', { name: 'Hôm nay' }).click()
+  await page.getByText('Chi tiết hoạt động').click()
   await expect(page.getByText(/Phiên bản tài nguyên 2/)).toBeVisible()
   await page.getByRole('button', { name: 'Ghi nhận đã làm' }).click()
   await page.getByLabel(/Hoạt động này hữu ích với bạn/).selectOption('HELPFUL')
@@ -330,7 +360,10 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
 
   await page.setViewportSize({ width: 667, height: 375 })
   await page.reload()
-  await expect(page.getByText('Kế hoạch đang thực hiện')).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Hôm nay' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
