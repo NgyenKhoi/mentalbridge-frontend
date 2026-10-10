@@ -1,6 +1,7 @@
 import { browserApiClient } from '@/lib/api/browser-client'
 import type {
   ConsultationBrief,
+  ConsultationBriefAiDraftJob,
   ConsultationBriefDraftRequest,
   ConsultationBriefScreeningContextList,
   SpecialistConsultationBrief,
@@ -34,6 +35,27 @@ export const consultationBriefBrowserClient = {
         version === undefined
           ? undefined
           : { headers: { 'If-Match': `"${version}"` } },
+      )
+    ).data
+  },
+  async requestAiDraft(appointmentId: string, version: number) {
+    return (
+      await browserApiClient.post<ConsultationBriefAiDraftJob>(
+        `${base(appointmentId)}/ai-draft-jobs`,
+        undefined,
+        {
+          headers: {
+            'If-Match': `"${version}"`,
+            'Idempotency-Key': crypto.randomUUID(),
+          },
+        },
+      )
+    ).data
+  },
+  async aiDraftJob(appointmentId: string, jobId: string) {
+    return (
+      await browserApiClient.get<ConsultationBriefAiDraftJob>(
+        `${base(appointmentId)}/ai-draft-jobs/${encodeURIComponent(jobId)}`,
       )
     ).data
   },

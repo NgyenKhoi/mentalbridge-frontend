@@ -25,7 +25,7 @@ const account = {
   emailVerified: true,
 }
 
-function request(policyVersion = 'ai-processing-capstone-v1') {
+function request(policyVersion = 'ai-processing-capstone-v2') {
   return new NextRequest('http://localhost/api/care/consent-decisions', {
     method: 'POST',
     headers: {
@@ -53,7 +53,7 @@ describe('AI processing consent BFF', () => {
     careMocks.recordConsent.mockResolvedValue({
       decisionId: '30000000-0000-4000-8000-000000000001',
       consentType: 'AI_PROCESSING',
-      policyVersion: 'ai-processing-capstone-v1',
+      policyVersion: 'ai-processing-capstone-v2',
       granted: true,
       decidedAt: '2026-09-23T00:00:00Z',
     })
@@ -65,7 +65,7 @@ describe('AI processing consent BFF', () => {
       'access-token',
       {
         consentType: 'AI_PROCESSING',
-        policyVersion: 'ai-processing-capstone-v1',
+        policyVersion: 'ai-processing-capstone-v2',
         granted: true,
       },
       'consent-command-0001',

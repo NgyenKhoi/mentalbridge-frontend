@@ -2591,7 +2591,7 @@ const server = createServer(async (request, response) => {
     ) {
       json(response, 200, {
         consentType: 'AI_PROCESSING',
-        version: 'ai-processing-capstone-v1',
+        version: 'ai-processing-capstone-v2',
         locale: 'vi-VN',
         title: 'Đồng ý xử lý nhật ký bằng AI',
         content:
@@ -2626,7 +2626,7 @@ const server = createServer(async (request, response) => {
       const body = await readBody(request)
       const expectedVersion =
         body.consentType === 'AI_PROCESSING'
-          ? 'ai-processing-capstone-v1'
+          ? 'ai-processing-capstone-v2'
           : body.consentType === 'PRIVACY_POLICY'
             ? 'privacy-capstone-v3'
             : null
