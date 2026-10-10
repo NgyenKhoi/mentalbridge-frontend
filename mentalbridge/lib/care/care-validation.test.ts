@@ -121,7 +121,7 @@ describe('Care runtime validation', () => {
     expect(
       parseAiProcessingDisclosure({
         consentType: 'AI_PROCESSING',
-        version: 'ai-processing-capstone-v1',
+        version: 'ai-processing-capstone-v2',
         locale: 'vi-VN',
         title: 'Đồng ý xử lý nhật ký bằng AI',
         content: 'Nội dung do Care sở hữu.',
@@ -134,7 +134,7 @@ describe('Care runtime validation', () => {
           {
             decisionId: '30000000-0000-4000-8000-000000000001',
             consentType: 'AI_PROCESSING',
-            policyVersion: 'ai-processing-capstone-v1',
+            policyVersion: 'ai-processing-capstone-v2',
             granted: true,
             decidedAt: '2026-09-23T00:00:00Z',
           },
@@ -144,7 +144,7 @@ describe('Care runtime validation', () => {
     expect(
       parseConsentRequest({
         consentType: 'AI_PROCESSING',
-        policyVersion: 'ai-processing-capstone-v1',
+        policyVersion: 'ai-processing-capstone-v2',
         granted: true,
       }),
     ).not.toBeNull()

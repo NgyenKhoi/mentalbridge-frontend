@@ -5,6 +5,7 @@ type Schemas = components['schemas']
 export type ConsultationBriefDraftRequest =
   Schemas['ConsultationBriefDraftRequest']
 export type ConsultationBrief = Schemas['ConsultationBrief']
+export type ConsultationBriefAiDraftJob = Schemas['ConsultationBriefAiDraftJob']
 export type ConsultationBriefScreeningContext =
   Schemas['ConsultationBriefScreeningContext']
 export type SpecialistConsultationBrief = Schemas['SpecialistConsultationBrief']

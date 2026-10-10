@@ -1,5 +1,6 @@
 import type {
   ConsultationBrief,
+  ConsultationBriefAiDraftJob,
   ConsultationBriefDraftRequest,
   ConsultationBriefScreeningContext,
   SpecialistConsultationBrief,
@@ -69,6 +70,102 @@ function contexts(
   value: unknown,
 ): value is ConsultationBriefScreeningContext[] {
   return Array.isArray(value) && value.length === 2 && value.every(screening)
+}
+
+const nullableText = (value: unknown, maximum = 200): value is string | null =>
+  value === null || boundedText(value, maximum)
+
+const nullableInteger = (value: unknown): value is number | null =>
+  value === null || (Number.isSafeInteger(value) && Number(value) >= 0)
+
+export function parseConsultationBriefAiDraftJob(
+  value: unknown,
+): ConsultationBriefAiDraftJob | null {
+  const keys = [
+    'jobId',
+    'appointmentId',
+    'consultationBriefId',
+    'consultationBriefVersion',
+    'supportEvaluationId',
+    'sourceSetVersion',
+    'status',
+    'attemptCount',
+    'terminalReason',
+    'currentSituation',
+    'userGoals',
+    'consentPolicyVersion',
+    'servicePlan',
+    'entitlementSource',
+    'entitlementPolicyVersion',
+    'entitlementVersion',
+    'routingPolicyVersion',
+    'providerApprovalVersion',
+    'provider',
+    'model',
+    'promptVersion',
+    'schemaVersion',
+    'createdAt',
+    'updatedAt',
+    'completedAt',
+  ] as const
+  if (!record(value) || !exact(value, keys)) return null
+  const succeeded = value.status === 'SUCCEEDED'
+  const failed = value.status === 'FAILED'
+  if (
+    !UUID.test(String(value.jobId)) ||
+    !UUID.test(String(value.appointmentId)) ||
+    !UUID.test(String(value.consultationBriefId)) ||
+    !Number.isSafeInteger(value.consultationBriefVersion) ||
+    Number(value.consultationBriefVersion) < 0 ||
+    !UUID.test(String(value.supportEvaluationId)) ||
+    value.sourceSetVersion !== 'consultation-brief-ai-source-v1' ||
+    !['RUNNING', 'SUCCEEDED', 'FAILED'].includes(String(value.status)) ||
+    !Number.isSafeInteger(value.attemptCount) ||
+    Number(value.attemptCount) < 0 ||
+    Number(value.attemptCount) > 2 ||
+    !(
+      value.terminalReason === null ||
+      [
+        'CONSENT_REQUIRED',
+        'AUTHORIZATION_REJECTED',
+        'SOURCE_CHANGED',
+        'SOURCE_DELETED',
+        'PROVIDER_UNAVAILABLE',
+        'INVALID_PROVIDER_RESULT',
+      ].includes(String(value.terminalReason))
+    ) ||
+    !nullableText(value.currentSituation, 1000) ||
+    !(value.userGoals === null || goals(value.userGoals)) ||
+    !nullableText(value.consentPolicyVersion, 80) ||
+    !nullableText(value.servicePlan, 40) ||
+    !nullableText(value.entitlementSource, 40) ||
+    !nullableText(value.entitlementPolicyVersion, 80) ||
+    !nullableInteger(value.entitlementVersion) ||
+    !nullableText(value.routingPolicyVersion, 80) ||
+    !nullableText(value.providerApprovalVersion, 80) ||
+    !nullableText(value.provider, 40) ||
+    !nullableText(value.model, 120) ||
+    !nullableText(value.promptVersion, 80) ||
+    !nullableInteger(value.schemaVersion) ||
+    !instant(value.createdAt) ||
+    !instant(value.updatedAt) ||
+    !(value.completedAt === null || instant(value.completedAt)) ||
+    (succeeded &&
+      (value.currentSituation === null ||
+        value.userGoals === null ||
+        value.terminalReason !== null ||
+        value.completedAt === null ||
+        value.consentPolicyVersion === null ||
+        value.provider === null ||
+        value.model === null ||
+        value.promptVersion === null ||
+        value.schemaVersion === null)) ||
+    (failed && (value.terminalReason === null || value.completedAt === null)) ||
+    (!succeeded &&
+      (value.currentSituation !== null || value.userGoals !== null))
+  )
+    return null
+  return value as ConsultationBriefAiDraftJob
 }
 
 export function parseConsultationBriefDraftRequest(
