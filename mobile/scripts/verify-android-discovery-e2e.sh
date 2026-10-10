@@ -16,6 +16,9 @@ if [[ "${CI:-false}" == 'true' ]]; then
 fi
 report_dir="$(mktemp -d)"
 if ! maestro --device "$device" test --debug-output "$report_dir" .maestro/mb-629-discovery.yaml; then
+  adb -s "$device" shell uiautomator dump /data/local/tmp/mb629-failure.xml >/dev/null 2>&1 || true
+  adb -s "$device" shell cat /data/local/tmp/mb629-failure.xml 2>/dev/null |
+    node scripts/sanitize-discovery-diagnostics.mjs >"$evidence_dir/android-discovery-diagnostics.txt" || true
   echo 'Discovery journey failed; sensitive UI dumps are not retained.' >&2; exit 1
 fi
 adb -s "$device" exec-out screencap -p >"$evidence_dir/android-discovery-selection.png"

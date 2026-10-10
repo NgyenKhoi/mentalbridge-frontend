@@ -16,4 +16,7 @@ if [[ "${PROVIDER_EVIDENCE:-protected-staging}" == 'protected-controlled-real-co
   done
 fi
 npm run native:android:smoke
+if [[ "${PROVIDER_EVIDENCE:-protected-staging}" == 'protected-controlled-real-contract' ]]; then
+  adb reverse tcp:8088 tcp:8088
+fi
 npm run e2e:android:discovery

@@ -258,7 +258,7 @@ jobs:
         run: |
           npm run lint
           npm run typecheck
-          npm run test:ci -- --runTestsByPath src/discovery/discovery-contract.test.ts src/discovery/discovery-api.test.ts src/discovery/DiscoveryScreen.test.tsx src/screens/UserHomeScreen.test.tsx src/config/mobile-delivery-contract.test.ts
+          npm run test:ci -- --runTestsByPath src/discovery/discovery-contract.test.ts src/discovery/discovery-api.test.ts src/discovery/DiscoveryScreen.test.tsx src/screens/UserHomeScreen.test.tsx src/screens/SignInScreen.test.tsx src/config/mobile-delivery-contract.test.ts
 
       - name: Start controlled real provider services
         if: steps.provider.outputs.mode == 'controlled'

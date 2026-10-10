@@ -4,9 +4,12 @@ name: MB-629 real approved discovery profile and exact slot handoff
 - launchApp:
     clearState: true
 - tapOn: 'Tiếp tục'
-- tapOn: 'Email'
+- tapOn:
+    id: 'sign-in-email-input'
 - inputText: '${MAESTRO_MB_USER_EMAIL}'
-- tapOn: 'Mật khẩu'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-password-input'
 - inputText: '${MAESTRO_MB_USER_PASSWORD}'
 - hideKeyboard
 - tapOn:

@@ -61,5 +61,8 @@ coverage, not a native-video/provider proof.
 Run `npm run e2e:android:discovery:evidence` in that prepared environment. Retained
 artifacts include `android-discovery-real-contract.txt`, selected-slot screenshot
 and redacted GET route/status log. Maestro debug dumps and login bodies are not
-uploaded. The selection itself remains in memory; MB-630 must recheck policy,
+uploaded. On failure, only whitelisted public error copy and screen-presence
+booleans are extracted from a temporary on-device hierarchy; raw hierarchy,
+input values and credentials are never retained. The selection itself remains
+in memory; MB-630 must recheck policy,
 slot, entitlement, credit and reservation limits before any booking command.
