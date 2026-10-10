@@ -1,0 +1,155 @@
+appId: com.mentalbridge.mobile
+name: MB-628 real Community create interact report and block
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở cộng đồng'
+- tapOn: 'Danh tính cộng đồng'
+- tapOn: 'Tên hiển thị cộng đồng'
+- inputText: 'MB628 synthetic member'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: 'Lưu danh tính cộng đồng'
+    direction: DOWN
+- tapOn: 'Lưu danh tính cộng đồng'
+- scrollUntilVisible:
+    element:
+      text: 'Danh tính hiển thị đã được lưu.'
+    direction: UP
+- assertVisible: 'Danh tính hiển thị đã được lưu.'
+- scrollUntilVisible:
+    element:
+      text: 'Quay lại cộng đồng'
+    direction: UP
+- tapOn: 'Quay lại cộng đồng'
+- tapOn: 'Viết chia sẻ'
+- tapOn:
+    id: 'community-post-content'
+- inputText: 'MB628 synthetic mobile story.'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: 'Câu chuyện của tôi'
+    direction: DOWN
+- tapOn: 'Câu chuyện của tôi'
+- scrollUntilVisible:
+    element:
+      text: 'Ẩn danh'
+    direction: DOWN
+- tapOn: 'Ẩn danh'
+- scrollUntilVisible:
+    element:
+      id: 'community-post-save'
+    direction: DOWN
+- tapOn:
+    id: 'community-post-save'
+    enabled: true
+- assertVisible: 'MB628 synthetic mobile story.'
+- assertVisible: 'Bài viết ẩn danh.*'
+- scrollUntilVisible:
+    element:
+      text: 'Mình ở đây'
+    direction: DOWN
+- tapOn: 'Mình ở đây'
+- assertVisible: '0 bình luận · 1 lời động viên'
+- scrollUntilVisible:
+    element:
+      text: 'Lưu bài viết'
+    direction: DOWN
+- tapOn: 'Lưu bài viết'
+- assertVisible: 'Bỏ lưu bài viết'
+- scrollUntilVisible:
+    element:
+      id: 'community-comment-content'
+    direction: DOWN
+- tapOn:
+    id: 'community-comment-content'
+- inputText: 'MB628 synthetic supportive comment.'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: 'Gửi bình luận'
+    direction: DOWN
+- tapOn: 'Gửi bình luận'
+- scrollUntilVisible:
+    element:
+      text: 'MB628 synthetic supportive comment.'
+    direction: UP
+- assertVisible: 'MB628 synthetic supportive comment.'
+- scrollUntilVisible:
+    element:
+      text: 'Quay lại danh sách'
+    direction: UP
+- tapOn: 'Quay lại danh sách'
+- scrollUntilVisible:
+    element:
+      id: 'community-open-${MAESTRO_MB_COMMUNITY_PEER_POST_ID}'
+    direction: DOWN
+- tapOn:
+    id: 'community-open-${MAESTRO_MB_COMMUNITY_PEER_POST_ID}'
+- scrollUntilVisible:
+    element:
+      text: 'An toàn cho bài viết'
+    direction: DOWN
+- tapOn: 'An toàn cho bài viết'
+- scrollUntilVisible:
+    element:
+      text: 'Báo cáo bài viết'
+    direction: DOWN
+- tapOn: 'Báo cáo bài viết'
+- scrollUntilVisible:
+    element:
+      text: 'Spam hoặc quảng cáo'
+    direction: DOWN
+- tapOn: 'Spam hoặc quảng cáo'
+- scrollUntilVisible:
+    element:
+      text: 'Gửi báo cáo'
+    direction: DOWN
+- tapOn: 'Gửi báo cáo'
+- scrollUntilVisible:
+    element:
+      text: 'Báo cáo đã được gửi.*'
+    direction: DOWN
+- assertVisible: 'Báo cáo đã được gửi.*'
+- scrollUntilVisible:
+    element:
+      text: 'Chặn tác giả'
+    direction: UP
+- tapOn: 'Chặn tác giả'
+- scrollUntilVisible:
+    element:
+      text: 'Xác nhận chặn tác giả'
+    direction: DOWN
+- tapOn: 'Xác nhận chặn tác giả'
+- assertVisible: 'Cộng đồng đồng hành'
+- assertNotVisible:
+    id: 'community-open-${MAESTRO_MB_COMMUNITY_PEER_POST_ID}'
+- launchApp
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở cộng đồng'
+- tapOn: 'Bài đã lưu'
+- scrollUntilVisible:
+    element:
+      text: 'MB628 synthetic mobile story.'
+    direction: DOWN
+- tapOn: 'Mở chia sẻ'
+- assertVisible: 'MB628 synthetic mobile story.'
+- assertVisible: 'Bài viết ẩn danh.*'
+- scrollUntilVisible:
+    element:
+      text: '1 bình luận · 1 lời động viên'
+    direction: DOWN
+- assertVisible: '1 bình luận · 1 lời động viên'
+- assertVisible: 'Bỏ lưu bài viết'

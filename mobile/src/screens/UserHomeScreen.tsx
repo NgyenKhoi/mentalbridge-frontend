@@ -21,6 +21,10 @@ export function UserHomeScreen() {
       </Text>
       <View style={styles.actions}>
         <PrimaryButton
+          label="Mở cộng đồng"
+          onPress={() => router.push('./community')}
+        />
+        <PrimaryButton
           label="Viết nhật ký"
           onPress={() => router.push('./journal')}
         />
