@@ -89,7 +89,7 @@ describe('Journal page', () => {
     const user = userEvent.setup()
     render(<JournalPage />)
     const open = await screen.findByRole('button', {
-      name: 'Viết nhật ký đầu tiên',
+      name: 'Viết nhật ký mới',
     })
 
     await user.click(open)
@@ -134,7 +134,7 @@ describe('Journal page', () => {
     render(<JournalPage />)
 
     await user.click(
-      await screen.findByRole('button', { name: 'Viết nhật ký đầu tiên' }),
+      await screen.findByRole('button', { name: 'Viết nhật ký mới' }),
     )
     const modal = within(screen.getByRole('dialog'))
     await user.type(modal.getByLabelText('Nội dung'), 'bản nháp an toàn')
@@ -179,7 +179,7 @@ describe('Journal page', () => {
     render(<JournalPage />)
 
     await user.click(
-      await screen.findByRole('button', { name: 'Viết nhật ký đầu tiên' }),
+      await screen.findByRole('button', { name: 'Viết nhật ký mới' }),
     )
     const modal = within(screen.getByRole('dialog'))
     await user.click(modal.getByRole('button', { name: 'Lưu nhật ký' }))

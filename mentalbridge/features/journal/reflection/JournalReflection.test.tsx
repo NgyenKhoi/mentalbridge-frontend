@@ -11,7 +11,7 @@ const jobId = '50000000-0000-4000-8000-000000000001'
 const timestamp = '2026-09-23T00:00:00Z'
 const disclosure = {
   consentType: 'AI_PROCESSING',
-  version: 'ai-processing-capstone-v1',
+  version: 'ai-processing-capstone-v2',
   locale: 'vi-VN',
   title: 'Đồng ý xử lý nhật ký bằng AI',
   content: 'Chỉ xử lý phiên bản nhật ký khi bạn chủ động yêu cầu.',
@@ -20,7 +20,7 @@ const disclosure = {
 const decision = {
   decisionId: '30000000-0000-4000-8000-000000000001',
   consentType: 'AI_PROCESSING',
-  policyVersion: 'ai-processing-capstone-v1',
+  policyVersion: 'ai-processing-capstone-v2',
   granted: true,
   decidedAt: timestamp,
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   parseConsultationBrief,
+  parseConsultationBriefAiDraftJob,
   parseConsultationBriefDraftRequest,
   parseSpecialistConsultationBrief,
   parseSpecialistClientContinuityList,
@@ -36,6 +37,43 @@ const ids = {
 }
 
 describe('consultation brief runtime contract', () => {
+  it('accepts exact successful AI provenance and rejects private or partial output', () => {
+    const value = {
+      jobId: ids.snapshot,
+      appointmentId: ids.appointment,
+      consultationBriefId: ids.brief,
+      consultationBriefVersion: 3,
+      supportEvaluationId: ids.evaluation,
+      sourceSetVersion: 'consultation-brief-ai-source-v1',
+      status: 'SUCCEEDED',
+      attemptCount: 1,
+      terminalReason: null,
+      currentSituation: 'Editable suggestion',
+      userGoals: ['Discuss one next step'],
+      consentPolicyVersion: 'ai-processing-capstone-v2',
+      servicePlan: 'PLUS',
+      entitlementSource: 'SUBSCRIPTION',
+      entitlementPolicyVersion: 'service-entitlement-v1',
+      entitlementVersion: 4,
+      routingPolicyVersion: 'exact-revision-routing-v1',
+      providerApprovalVersion: 'benchmark-approval-v1',
+      provider: 'GEMINI',
+      model: 'gemini-approved',
+      promptVersion: 'consultation-brief-draft-v1',
+      schemaVersion: 1,
+      createdAt: '2026-10-10T10:00:00Z',
+      updatedAt: '2026-10-10T10:00:01Z',
+      completedAt: '2026-10-10T10:00:01Z',
+    }
+    expect(parseConsultationBriefAiDraftJob(value)).not.toBeNull()
+    expect(
+      parseConsultationBriefAiDraftJob({ ...value, journalContent: 'private' }),
+    ).toBeNull()
+    expect(
+      parseConsultationBriefAiDraftJob({ ...value, currentSituation: null }),
+    ).toBeNull()
+  })
+
   it('accepts only the three minimized draft fields', () => {
     expect(
       parseConsultationBriefDraftRequest({
