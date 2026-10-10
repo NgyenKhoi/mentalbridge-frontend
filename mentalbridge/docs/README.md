@@ -45,6 +45,7 @@ không khôi phục chúng như coding standard hiện hành.
 
 Story-specific delivery evidence:
 
+- [MB-637 SupportGuide and SupportPlan v3 product boundary](ADR_SUPPORTPLAN_V3_PRODUCT_BOUNDARY.md)
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
 - [MB-177/MB-178/MB-205 Care-backed screening, profile, consent, history, and progress integration](care-assessment-integration.md)
 - [MB-273 initial-check release evidence](initial-check-release-evidence.md)
@@ -105,6 +106,7 @@ to select any additional task-specific material.
 | Community reports, blocks, and auditable moderation  | Implemented | MB-578         |
 | Supportive Community reactions and private bookmarks | Implemented | MB-579         |
 | Governed active Community topic discovery            | Implemented | MB-582         |
+| SupportGuide / SupportPlan v3 boundary and taxonomy  | Proposed    | MB-637         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then
