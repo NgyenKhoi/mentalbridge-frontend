@@ -105,6 +105,33 @@ describe('SupportPlanJourney', () => {
     expect(api.getCurrentSupportPlanDraft).toHaveBeenCalledTimes(1)
   })
 
+  it('exposes the four journey tabs and supports roving keyboard navigation', async () => {
+    api.getCurrentSupportPlan.mockResolvedValue(activePlan())
+
+    render(<SupportPlanJourney />)
+
+    const todayTab = await screen.findByRole('tab', { name: 'Hôm nay' })
+    const planTab = screen.getByRole('tab', { name: 'Kế hoạch' })
+    const progressTab = screen.getByRole('tab', { name: 'Tiến triển' })
+    const adjustTab = screen.getByRole('tab', { name: 'Điều chỉnh' })
+
+    expect(todayTab).toHaveAttribute('aria-selected', 'true')
+    expect(planTab).toHaveAttribute('tabindex', '-1')
+
+    fireEvent.keyDown(todayTab, { key: 'ArrowRight' })
+    await waitFor(() => expect(planTab).toHaveFocus())
+    expect(planTab).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(planTab, { key: 'End' })
+    await waitFor(() => expect(adjustTab).toHaveFocus())
+    expect(adjustTab).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(adjustTab, { key: 'Home' })
+    await waitFor(() => expect(todayTab).toHaveFocus())
+    expect(todayTab).toHaveAttribute('aria-selected', 'true')
+    expect(progressTab).toHaveAttribute('aria-selected', 'false')
+  })
+
   it('falls back to the persisted draft without proposing again', async () => {
     api.getCurrentSupportPlanDraft.mockResolvedValue(supportPlanFixture())
 
@@ -113,6 +140,33 @@ describe('SupportPlanJourney', () => {
     expect(await screen.findByText('Reviewed primary resource')).toBeVisible()
     expect(api.getCurrentSupportPlanDraft).toHaveBeenCalledTimes(1)
     expect(api.proposeSupportPlanDraft).not.toHaveBeenCalled()
+  })
+
+  it('opens progress when only immutable plan history remains', async () => {
+    const completed = {
+      ...activePlan(),
+      status: 'COMPLETED' as const,
+      version: 2,
+      updatedAt: '2026-09-21T05:00:00Z',
+      completedAt: '2026-09-21T05:00:00Z',
+      completionReason: null,
+    }
+    api.getCurrentSupportPlanDraft.mockRejectedValue(
+      problem('SUPPORT_PLAN_DRAFT_NOT_FOUND', 404),
+    )
+    api.getSupportPlanHistory.mockResolvedValue({
+      items: [completed],
+      nextCursor: null,
+      hasMore: false,
+    })
+
+    render(<SupportPlanJourney />)
+
+    expect(await screen.findByText('Đã kết thúc')).toBeVisible()
+    expect(screen.getByRole('tab', { name: 'Tiến triển' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
   })
 
   it('routes a Free user to the one-time Support Guide without creating a draft', async () => {
