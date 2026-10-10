@@ -104,6 +104,90 @@ describe('ReportSchedules', () => {
     ).toEqual(['0', '1', '2', '3'])
   })
 
+  it('keeps the authoritative pause result and locks writes when reconciliation fails', async () => {
+    const paused = { ...schedule, status: 'PAUSED', version: 1 }
+    let reads = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url, options?: RequestInit) => {
+        if (options?.method === 'PUT') return json(paused)
+        reads += 1
+        if (reads === 1) return json([schedule])
+        if (reads === 2) return json({}, 503)
+        return json([paused])
+      }),
+    )
+    const user = userEvent.setup()
+    render(<ReportSchedules onNotice={vi.fn()} onRefreshReports={vi.fn()} />)
+
+    await user.click(
+      await screen.findByRole('button', { name: /Tạm dừng lịch/ }),
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Đã lưu lịch, nhưng danh sách chưa được cập nhật đầy đủ',
+    )
+    expect(
+      screen.queryByRole('button', { name: /Tạm dừng lịch/ }),
+    ).not.toBeInTheDocument()
+    const resume = screen.getByRole('button', { name: /Tiếp tục lịch/ })
+    expect(resume).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Tạo lịch' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Tải lại' }))
+    await waitFor(() => expect(resume).toBeEnabled())
+  })
+
+  it('represents a committed create exactly once and prevents another create when reconciliation fails', async () => {
+    let reads = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url, options?: RequestInit) => {
+        if (options?.method === 'POST') return json(schedule, 201)
+        reads += 1
+        return reads === 1 ? json([]) : json({}, 503)
+      }),
+    )
+    const user = userEvent.setup()
+    render(<ReportSchedules onNotice={vi.fn()} onRefreshReports={vi.fn()} />)
+    await screen.findByText(/Chưa có lịch báo cáo/)
+
+    await user.click(screen.getByRole('button', { name: 'Tạo lịch' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Đã lưu lịch, nhưng danh sách chưa được cập nhật đầy đủ',
+    )
+    expect(
+      screen.getAllByRole('button', { name: /Tạm dừng lịch/ }),
+    ).toHaveLength(1)
+    expect(screen.queryByText(/Chưa có lịch báo cáo/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tạo lịch' })).toBeDisabled()
+  })
+
+  it('removes a committed delete and prevents stale actions when reconciliation fails', async () => {
+    let reads = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url, options?: RequestInit) => {
+        if (options?.method === 'DELETE') return json(null, 204)
+        reads += 1
+        return reads === 1 ? json([schedule]) : json({}, 503)
+      }),
+    )
+    const user = userEvent.setup()
+    render(<ReportSchedules onNotice={vi.fn()} onRefreshReports={vi.fn()} />)
+
+    await user.click(await screen.findByRole('button', { name: /Xóa lịch/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Đã xóa lịch, nhưng danh sách chưa được cập nhật đầy đủ',
+    )
+    expect(
+      screen.queryByRole('button', { name: /Xóa lịch Hàng tuần/ }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText(/Chưa có lịch báo cáo/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tạo lịch' })).toBeDisabled()
+  })
+
   it('keeps the draft after failure and reloads a stale schedule', async () => {
     vi.stubGlobal(
       'fetch',

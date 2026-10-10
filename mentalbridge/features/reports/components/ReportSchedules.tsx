@@ -53,6 +53,7 @@ export function ReportSchedules({
   const [items, setItems] = useState<PlatformReportSchedule[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [needsReload, setNeedsReload] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(initial)
   const [editing, setEditing] = useState<PlatformReportSchedule | null>(null)
@@ -69,8 +70,12 @@ export function ReportSchedules({
       if (!parsed) throw new Error()
       setItems(parsed)
       setError(null)
+      setNeedsReload(false)
+      return true
     } catch {
       setError('Không thể tải lịch báo cáo. Hãy tải lại để tiếp tục.')
+      setNeedsReload(true)
+      return false
     } finally {
       setLoading(false)
     }
@@ -111,11 +116,32 @@ export function ReportSchedules({
         throw new Error(
           'Không thể lưu lịch báo cáo. Hãy kiểm tra kết nối và tải lại danh sách.',
         )
-      if (method !== 'DELETE' && !parseReportSchedule(await response.json()))
-        throw new Error(
-          'Không thể xác nhận kết quả. Hãy tải lại danh sách trước khi thử lại.',
+      if (method === 'DELETE') {
+        if (!selected) throw new Error('Không thể xác nhận lịch cần xóa.')
+        setItems((current) =>
+          current.filter((item) => item.scheduleId !== selected.scheduleId),
         )
-      await load()
+      } else {
+        const saved = parseReportSchedule(await response.json())
+        if (!saved) {
+          setNeedsReload(true)
+          throw new Error(
+            'Thay đổi đã được tiếp nhận nhưng chưa thể xác nhận. Hãy tải lại danh sách trước khi thao tác tiếp.',
+          )
+        }
+        setItems((current) => {
+          const remaining = current.filter(
+            (item) => item.scheduleId !== saved.scheduleId,
+          )
+          return method === 'POST'
+            ? [saved, ...remaining]
+            : current.some((item) => item.scheduleId === saved.scheduleId)
+              ? current.map((item) =>
+                  item.scheduleId === saved.scheduleId ? saved : item,
+                )
+              : [saved, ...current]
+        })
+      }
       setEditing(null)
       setDraft(initial)
       const message =
@@ -124,6 +150,13 @@ export function ReportSchedules({
           : 'Đã lưu lịch báo cáo.'
       setNotice(message)
       onNotice(message)
+      if (!(await load())) {
+        setError(
+          method === 'DELETE'
+            ? 'Đã xóa lịch, nhưng danh sách chưa được cập nhật đầy đủ. Hãy tải lại trước khi thao tác tiếp.'
+            : 'Đã lưu lịch, nhưng danh sách chưa được cập nhật đầy đủ. Hãy tải lại trước khi thao tác tiếp.',
+        )
+      }
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : 'Không thể lưu lịch báo cáo.',
@@ -253,7 +286,9 @@ export function ReportSchedules({
         <div className={styles.actions}>
           <button
             className="btn-primary"
-            disabled={busy || loading || (!editing && items.length >= 50)}
+            disabled={
+              busy || needsReload || loading || (!editing && items.length >= 50)
+            }
           >
             {busy ? 'Đang lưu…' : editing ? 'Lưu lịch' : 'Tạo lịch'}
           </button>
@@ -313,7 +348,7 @@ export function ReportSchedules({
               <div className={styles.actions}>
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || needsReload}
                   onClick={() => {
                     setEditing(item)
                     setDraft(scope(item))
@@ -325,7 +360,7 @@ export function ReportSchedules({
                 </button>
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || needsReload}
                   onClick={() =>
                     void mutate(
                       'PUT',
@@ -339,7 +374,7 @@ export function ReportSchedules({
                 </button>
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || needsReload}
                   onClick={() => void remove(item)}
                   aria-label={`Xóa lịch ${CADENCES[item.cadence]} ${item.localTime.slice(0, 5)}`}
                 >
