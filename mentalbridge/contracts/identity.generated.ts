@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/internal/v1/accounts/{accountId}/verified-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve the current verified email for one exact USER owner */
+        get: operations["getVerifiedDeliveryAddress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/registrations": {
         parameters: {
             query?: never;
@@ -228,6 +245,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/platform-report-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List at most 50 nondeleted ADMIN report schedules */
+        get: operations["listPlatformReportSchedules"];
+        put?: never;
+        /**
+         * Create a bounded recurring aggregate report schedule
+         * @description ADMIN-only in-app report history delivery. Weekly means Monday; monthly means day 1. Period covers the preceding 1–366 completed UTC days. No arbitrary address or URL is accepted.
+         */
+        post: operations["createPlatformReportSchedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/platform-report-schedules/{scheduleId}": {
+        parameters: {
+            query: {
+                expectedVersion: number;
+            };
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace a schedule or pause/resume using its current version
+         * @description Recalculates the next future occurrence; missed occurrences are not replayed. Prior jobs and artifacts remain immutable.
+         */
+        put: operations["updatePlatformReportSchedule"];
+        post?: never;
+        /** Stop future occurrences while retaining report audit history */
+        delete: operations["deletePlatformReportSchedule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/platform-reports/catalogue": {
         parameters: {
             query?: never;
@@ -355,6 +418,51 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        PlatformReportScheduleRequest: {
+            /** @enum {string} */
+            reportType: "ACCOUNT_ACTIVITY";
+            /** @enum {string} */
+            cadence: "DAILY" | "WEEKLY" | "MONTHLY";
+            /** @example Asia/Ho_Chi_Minh */
+            timezone: string;
+            /** @example 08:00:00 */
+            localTime: string;
+            periodDays: number;
+            /** @enum {string} */
+            recipientGroup: "ADMIN";
+            /** @enum {string} */
+            deliveryTarget: "ADMIN_REPORT_HISTORY";
+            enabled: boolean;
+        };
+        PlatformReportSchedule: {
+            /** @enum {string} */
+            reportType: "ACCOUNT_ACTIVITY";
+            /** @enum {string} */
+            cadence: "DAILY" | "WEEKLY" | "MONTHLY";
+            /** @example Asia/Ho_Chi_Minh */
+            timezone: string;
+            /** @example 08:00:00 */
+            localTime: string;
+            periodDays: number;
+            /** @enum {string} */
+            recipientGroup: "ADMIN";
+            /** @enum {string} */
+            deliveryTarget: "ADMIN_REPORT_HISTORY";
+        } & {
+            /** Format: uuid */
+            scheduleId: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED";
+            /** Format: date-time */
+            nextRunAt: string;
+            lastFailureCode: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
         /** @enum {string} */
         PlatformReportTypeCode: "ACCOUNT_ACTIVITY";
         /** @enum {string} */
@@ -411,6 +519,12 @@ export interface components {
         PlatformReportPage: {
             items: components["schemas"]["PlatformReport"][];
             nextCursor?: string | null;
+        };
+        VerifiedDeliveryAddress: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: email */
+            email: string;
         };
         RegistrationRequest: {
             /** Format: email */
@@ -711,6 +825,30 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getVerifiedDeliveryAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized current delivery address */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifiedDeliveryAddress"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
     registerAccount: {
         parameters: {
             query?: never;
@@ -1038,6 +1176,132 @@ export interface operations {
             400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    listPlatformReportSchedules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest-created-first schedules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReportSchedule"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    createPlatformReportSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlatformReportScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Schedule created; first occurrence strictly after creation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReportSchedule"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    updatePlatformReportSchedule: {
+        parameters: {
+            query: {
+                expectedVersion: number;
+            };
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlatformReportScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Schedule updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReportSchedule"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Schedule changed; reload before retrying */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deletePlatformReportSchedule: {
+        parameters: {
+            query: {
+                expectedVersion: number;
+            };
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schedule deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Schedule changed; reload before retrying */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listPlatformReportTypes: {
