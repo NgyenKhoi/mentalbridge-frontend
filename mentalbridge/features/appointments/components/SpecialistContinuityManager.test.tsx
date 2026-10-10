@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -191,5 +191,132 @@ describe('SpecialistContinuityManager', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument()
     expect(summaryApi.list).not.toHaveBeenCalled()
+  })
+
+  it('selects the requested session and keeps the selected immutable version when reloading', async () => {
+    const second = {
+      ...completedAppointment,
+      id: '40000000-0000-4000-8000-000000000001',
+      scheduledStartAt: '2099-10-01T02:00:00Z',
+      scheduledEndAt: '2099-10-01T03:00:00Z',
+    }
+    const amended = {
+      ...summary,
+      id: '50000000-0000-4000-8000-000000000001',
+      appointmentId: second.id,
+      version: 2,
+      amendsSummaryId: summary.id,
+      progressSummary: 'Nội dung bản đính chính',
+    }
+    appointmentApi.assigned.mockResolvedValue({
+      items: [completedAppointment, second],
+      count: 2,
+    })
+    summaryApi.list.mockResolvedValue({
+      items: [{ ...summary, appointmentId: second.id }, amended],
+      count: 2,
+    })
+    const user = userEvent.setup()
+    render(<SpecialistContinuityManager initialAppointmentId={second.id} />)
+    expect(
+      await screen.findByText('Nội dung bản đính chính'),
+    ).toBeInTheDocument()
+    expect(summaryApi.list).toHaveBeenCalledWith(second.id, 'SPECIALIST')
+    expect(
+      screen.getByRole('link', { name: 'Quản lý trong lịch hẹn' }),
+    ).toHaveAttribute(
+      'href',
+      `/specialist/appointments?appointmentId=${second.id}`,
+    )
+    const latest = screen.getByRole('tab', { name: 'Mới nhất · Bản 2' })
+    latest.focus()
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('tab', { name: 'Bản 1' })).toHaveFocus()
+    expect(
+      screen.getByText('Đã cùng nhìn lại nhịp ngủ trong tuần.'),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Tải lại' }))
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Bản 1' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    )
+    expect(
+      screen.getByText('Đã cùng nhìn lại nhịp ngủ trong tuần.'),
+    ).toBeInTheDocument()
+  })
+
+  it('reopening the selected session does not clear the snapshot or leave loading stuck', async () => {
+    const user = userEvent.setup()
+    render(<SpecialistContinuityManager />)
+    expect(
+      await screen.findByText(summary.progressSummary!),
+    ).toBeInTheDocument()
+    const row = screen.getByRole('button', { name: /02\/10\/2099/ })
+    await user.click(row)
+    expect(screen.getByText(summary.progressSummary!)).toBeInTheDocument()
+    expect(
+      screen.queryByText('Đang tải nội dung sau phiên…'),
+    ).not.toBeInTheDocument()
+    expect(summaryApi.list).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not substitute an unrelated session for a missing deep-link', async () => {
+    const user = userEvent.setup()
+    render(
+      <SpecialistContinuityManager initialAppointmentId="missing-session" />,
+    )
+    expect(
+      await screen.findByText('Chọn một phiên đã hoàn thành'),
+    ).toBeInTheDocument()
+    expect(summaryApi.list).not.toHaveBeenCalled()
+    expect(screen.queryByText(summary.progressSummary!)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Tải lại' }))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Tải lại' }),
+      ).not.toBeDisabled(),
+    )
+    expect(screen.getByText('Chọn một phiên đã hoàn thành')).toBeInTheDocument()
+    expect(summaryApi.list).not.toHaveBeenCalled()
+  })
+
+  it('clears protected snapshots after assignment permission is revoked', async () => {
+    const user = userEvent.setup()
+    render(<SpecialistContinuityManager />)
+    expect(
+      await screen.findByText(summary.progressSummary!),
+    ).toBeInTheDocument()
+    appointmentApi.assigned.mockRejectedValue(
+      new ApiError({ message: 'forbidden', code: 'FORBIDDEN', status: 403 }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Tải lại' }))
+    expect(
+      await screen.findByText(
+        'Tài khoản hiện tại không có quyền xem lịch hẹn chuyên gia.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(summary.progressSummary!)).not.toBeInTheDocument()
+    expect(summaryApi.list).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens the linked platform resource instead of a simulated success toast', async () => {
+    const resourceSummary = {
+      ...summary,
+      agreedNextSteps: [
+        {
+          ...summary.agreedNextSteps[0],
+          type: 'PLATFORM_RESOURCE' as const,
+          resourceId: 'sleep-resource',
+          resourceVersion: '7',
+        },
+      ],
+    }
+    summaryApi.list.mockResolvedValue({ items: [resourceSummary], count: 1 })
+    render(<SpecialistContinuityManager />)
+    expect(
+      await screen.findByRole('link', { name: 'Xem tài nguyên đính kèm' }),
+    ).toHaveAttribute('href', '/resources/sleep-resource?contentVersion=7')
   })
 })

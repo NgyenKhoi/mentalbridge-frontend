@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { consultationClient } from './consultation-client'
+import { draftAmendment } from '@/tests/fixtures/profile-amendment'
 
 vi.mock('@/lib/config/server', () => ({
   readConsultationServerConfig: () => ({
@@ -11,6 +12,31 @@ vi.mock('@/lib/config/server', () => ({
 
 describe('Consultation server-only client', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('forwards exact cancellation identity and ETag and validates the terminal provider payload', async () => {
+    const cancelled = { ...draftAmendment, status: 'CANCELLED', version: 1 }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json(cancelled, { headers: { etag: '"1"' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(
+      consultationClient.cancelAmendment(
+        'synthetic-token',
+        'correlation-id',
+        draftAmendment.id,
+        '"0"',
+      ),
+    ).resolves.toMatchObject({ data: cancelled, etag: '"1"' })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe(
+      `http://consultation.test/api/v1/specialist-profile/amendments/${draftAmendment.id}/cancel`,
+    )
+    expect(init.method).toBe('POST')
+    expect(init.headers).toMatchObject({
+      Authorization: 'Bearer synthetic-token',
+      'If-Match': '"0"',
+    })
+  })
 
   it('reads the specialist dashboard through the authenticated provider boundary', async () => {
     const asOf = '2026-10-03T02:00:00Z'

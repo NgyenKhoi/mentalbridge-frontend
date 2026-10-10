@@ -251,6 +251,21 @@ export const consultationClient = {
       parse: parseProfileAmendment,
     })
   },
+  cancelAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    etag: string,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/specialist-profile/amendments/${encodeURIComponent(id)}/cancel`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
   profileAmendments(token: string, correlationId: string, page: number) {
     return request({
       method: 'GET',
