@@ -65,6 +65,41 @@
 .privacy {
   font-size: 0.85rem;
 }
+.aiPanel {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.9rem;
+  border: 1px solid #b8d5cc;
+  border-radius: 0.8rem;
+  background: #eef7f3;
+  color: #294b44;
+}
+.aiPanel p {
+  margin: 0;
+}
+.aiPanel button {
+  width: fit-content;
+  border: 1px solid #2f6e62;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.6rem 0.9rem;
+  color: #205a50;
+  font-weight: 700;
+}
+.aiConsent {
+  display: flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: flex-start;
+  gap: 0.55rem !important;
+  font-weight: 500 !important;
+}
+.aiConsent input {
+  margin-top: 0.2rem;
+}
+.aiNotice {
+  font-weight: 700;
+  color: #155846 !important;
+}
 .actions {
   display: flex;
   flex-wrap: wrap;

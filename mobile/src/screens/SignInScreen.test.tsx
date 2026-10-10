@@ -29,6 +29,16 @@ describe('USER sign-in screen', () => {
     mockSignIn.mockResolvedValue(undefined)
     await render(<SignInScreen />)
 
+    expect(screen.getByTestId('sign-in-email-input')).toEqual(
+      screen.getByLabelText('Email'),
+    )
+    expect(screen.getByTestId('sign-in-password-input')).toEqual(
+      screen.getByLabelText('Mật khẩu'),
+    )
+    expect(
+      screen.getByTestId('sign-in-password-input').props.secureTextEntry,
+    ).toBe(true)
+
     await fireEvent.changeText(
       screen.getByLabelText('Email'),
       ' User@Example.com ',

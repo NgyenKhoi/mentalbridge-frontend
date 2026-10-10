@@ -117,6 +117,33 @@ describe('Mobile Delivery Contract v1', () => {
     )
     expect(androidEvidence).toContain('npm run e2e:android:resources:evidence')
     expect(androidEvidence).toContain('npm run e2e:android:journal:evidence')
+    expect(androidEvidence).toContain('npm run e2e:android:community:evidence')
+    expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e')",
+    )
+    expect(androidEvidence).toContain(
+      '-f ../mobile/ci/docker-compose.mobile-community-e2e.yml',
+    )
+    expect(androidEvidence).toContain('services=(identity community)')
+    expect(androidEvidence).toContain('npm run e2e:android:discovery:evidence')
+    expect(androidEvidence).toContain('services=(identity consultation)')
+    expect(androidEvidence).toContain(
+      '-f ../mobile/ci/docker-compose.mobile-discovery-e2e.yml',
+    )
+    expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-discovery-e2e')",
+    )
+    const compileOnly = workflowJob(developmentWorkflow, 'mobile-compile')
+    expect(compileOnly).not.toMatch(
+      /e2e:android|native:android|native:ios|test:ci|build:bundle/,
+    )
+    const gate = workflowJob(developmentWorkflow, 'quality-gate')
+    expect(gate).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-discovery-e2e')",
+    )
+    expect(gate).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e')",
+    )
     expect(androidEvidence).toContain(
       "contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e')",
     )
