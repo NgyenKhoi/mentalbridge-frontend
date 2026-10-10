@@ -1,0 +1,53 @@
+services:
+  consultation-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mentalbridge_consultation
+      POSTGRES_USER: mentalbridge_consultation
+      POSTGRES_PASSWORD: local-only-consultation-password
+    volumes: [consultation-e2e-data:/var/lib/postgresql/data]
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U mentalbridge_consultation -d mentalbridge_consultation',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  consultation-migrate:
+    build:
+      context: ./consultation-service
+      target: migration
+    environment: &consultation-environment
+      CONSULTATION_DB_URL: jdbc:postgresql://consultation-postgres:5432/mentalbridge_consultation
+      CONSULTATION_DB_USERNAME: mentalbridge_consultation
+      CONSULTATION_DB_PASSWORD: local-only-consultation-password
+      IDENTITY_JWT_ISSUER: https://identity.e2e.mentalbridge
+      IDENTITY_JWT_AUDIENCE: mentalbridge-e2e-api
+      IDENTITY_JWT_PUBLIC_KEY: ${E2E_IDENTITY_JWT_PUBLIC_KEY}
+      CONSULTATION_EVIDENCE_SERVICE_TOKEN: ${E2E_CONTENT_TEST_SECRET}
+      CONSULTATION_VIDEO_AVAILABILITY_ENABLED: 'false'
+      CONSULTATION_ACCOUNT_LIFECYCLE_ENABLED: 'false'
+      CONSULTATION_APPOINTMENT_OUTBOX_RELAY_ENABLED: 'false'
+      CONSULTATION_KAFKA_LISTENER_AUTO_STARTUP: 'false'
+      CONSULTATION_PAYOUT_MODE: FAKE
+      EUREKA_CLIENT_ENABLED: 'false'
+    depends_on:
+      consultation-postgres:
+        condition: service_healthy
+
+  consultation:
+    build: ./consultation-service
+    environment:
+      <<: *consultation-environment
+      CONSULTATION_LIQUIBASE_ENABLED: 'false'
+      SERVER_PORT: '8082'
+    ports: ['8082:8082']
+    depends_on:
+      consultation-migrate:
+        condition: service_completed_successfully
+
+volumes:
+  consultation-e2e-data:

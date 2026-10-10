@@ -137,7 +137,8 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       (contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e') ||
       contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e'))
+      contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e') ||
+      contains(github.event.pull_request.labels.*.name, 'run-mobile-discovery-e2e'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: staging-mobile-e2e
@@ -153,8 +154,8 @@ jobs:
       MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
       MAESTRO_CLI_NO_ANALYTICS: 'true'
       MAESTRO_VERSION: '2.11.0'
-      MOBILE_EVIDENCE_FEATURE: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e') && 'community' || contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'journal' || 'resources' }}
-      MOBILE_EVIDENCE_STORY: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e') && 'mb-628' || contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'mb-627' || 'mb-626' }}
+      MOBILE_EVIDENCE_FEATURE: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-discovery-e2e') && 'discovery' || contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e') && 'community' || contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'journal' || 'resources' }}
+      MOBILE_EVIDENCE_STORY: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-discovery-e2e') && 'mb-629' || contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e') && 'mb-628' || contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'mb-627' || 'mb-626' }}
       ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
     steps:
       - name: Check out exact pull-request head
@@ -172,7 +173,7 @@ jobs:
           PROTECTED_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}
           PROTECTED_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
         run: |
-          if [[ "$MOBILE_EVIDENCE_FEATURE" != 'community' && -n "$PROTECTED_API_BASE_URL" && -n "$PROTECTED_USER_EMAIL" && -n "$PROTECTED_USER_PASSWORD" ]]; then
+          if [[ "$MOBILE_EVIDENCE_FEATURE" != 'community' && "$MOBILE_EVIDENCE_FEATURE" != 'discovery' && -n "$PROTECTED_API_BASE_URL" && -n "$PROTECTED_USER_EMAIL" && -n "$PROTECTED_USER_PASSWORD" ]]; then
             echo "mode=staging" >> "$GITHUB_OUTPUT"
             echo "EXPO_PUBLIC_API_BASE_URL=$PROTECTED_API_BASE_URL" >> "$GITHUB_ENV"
             echo "MAESTRO_MB_USER_EMAIL=$PROTECTED_USER_EMAIL" >> "$GITHUB_ENV"
@@ -252,6 +253,13 @@ jobs:
           npm run typecheck
           npm run test:ci -- --runTestsByPath src/community/community-contract.test.ts src/community/community-api.test.ts src/community/community-media.test.ts src/community/CommunityScreen.test.tsx src/community/CommunityMedia.test.tsx src/screens/UserHomeScreen.test.tsx src/config/mobile-delivery-contract.test.ts
 
+      - name: Verify Discovery implementation and protected gate boundaries
+        if: env.MOBILE_EVIDENCE_FEATURE == 'discovery'
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run test:ci -- --runTestsByPath src/discovery/discovery-contract.test.ts src/discovery/discovery-api.test.ts src/discovery/DiscoveryScreen.test.tsx src/screens/UserHomeScreen.test.tsx src/config/mobile-delivery-contract.test.ts
+
       - name: Start controlled real provider services
         if: steps.provider.outputs.mode == 'controlled'
         working-directory: backend-provider
@@ -269,6 +277,9 @@ jobs:
           elif [[ "$MOBILE_EVIDENCE_FEATURE" == 'community' ]]; then
             compose+=(-f ../mobile/ci/docker-compose.mobile-community-e2e.yml)
             services=(identity community)
+          elif [[ "$MOBILE_EVIDENCE_FEATURE" == 'discovery' ]]; then
+            compose+=(-f ../mobile/ci/docker-compose.mobile-discovery-e2e.yml)
+            services=(identity consultation)
           fi
           print_provider_diagnostics() {
             "${compose[@]}" ps --all
@@ -281,6 +292,8 @@ jobs:
               if curl -fsS http://127.0.0.1:8081/actuator/health >/dev/null && curl -fsS http://127.0.0.1:3000/health/ready >/dev/null; then provider_ready=true; fi
             elif [[ "$MOBILE_EVIDENCE_FEATURE" == 'community' ]]; then
               if curl -fsS http://127.0.0.1:8084/actuator/health >/dev/null; then provider_ready=true; fi
+            elif [[ "$MOBILE_EVIDENCE_FEATURE" == 'discovery' ]]; then
+              if curl -fsS http://127.0.0.1:8082/actuator/health >/dev/null; then provider_ready=true; fi
             elif curl -fsS http://127.0.0.1:3003/health/ready >/dev/null; then provider_ready=true; fi
             if [[ "$provider_ready" == true ]] && curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null; then
               login_payload="$(jq -n \
@@ -308,6 +321,8 @@ jobs:
                 curl -fsS -H "Authorization: Bearer $access_token" http://127.0.0.1:8081/api/v1/consents/ai-processing/authorization >/dev/null
               elif [[ "$MOBILE_EVIDENCE_FEATURE" == 'community' ]]; then
                 curl -fsS -H "Authorization: Bearer $access_token" http://127.0.0.1:8084/api/v1/community/feed >/dev/null
+              elif [[ "$MOBILE_EVIDENCE_FEATURE" == 'discovery' ]]; then
+                curl -fsS -H "Authorization: Bearer $access_token" http://127.0.0.1:8082/api/v1/specialists >/dev/null
               else
                 curl -fsS -H "Authorization: Bearer $access_token" http://127.0.0.1:3003/api/v1/resources >/dev/null
               fi
@@ -331,6 +346,10 @@ jobs:
       - name: Prepare dedicated synthetic Community peer through public contracts
         if: env.MOBILE_EVIDENCE_FEATURE == 'community'
         run: node scripts/prepare-community-e2e-fixture.mjs
+
+      - name: Prepare dedicated synthetic approved specialist and exact slot
+        if: env.MOBILE_EVIDENCE_FEATURE == 'discovery'
+        run: node scripts/prepare-discovery-e2e-fixture.mjs
 
       - name: Require resolved evidence inputs
         run: |
@@ -361,7 +380,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           working-directory: mobile
-          script: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e') && 'npm run e2e:android:community:evidence' || contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'npm run e2e:android:journal:evidence' || 'npm run e2e:android:resources:evidence' }}
+          script: ${{ contains(github.event.pull_request.labels.*.name, 'run-mobile-discovery-e2e') && 'npm run e2e:android:discovery:evidence' || contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e') && 'npm run e2e:android:community:evidence' || contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') && 'npm run e2e:android:journal:evidence' || 'npm run e2e:android:resources:evidence' }}
 
       - name: Stop controlled real provider services
         if: always() && steps.provider.outputs.mode == 'controlled'
@@ -375,6 +394,7 @@ jobs:
             -f ../mobile/ci/docker-compose.mobile-resources-e2e.yml)
           if [[ "$MOBILE_EVIDENCE_FEATURE" == 'journal' ]]; then compose+=(-f ../mobile/ci/docker-compose.mobile-journal-e2e.yml); fi
           if [[ "$MOBILE_EVIDENCE_FEATURE" == 'community' ]]; then compose+=(-f ../mobile/ci/docker-compose.mobile-community-e2e.yml); fi
+          if [[ "$MOBILE_EVIDENCE_FEATURE" == 'discovery' ]]; then compose+=(-f ../mobile/ci/docker-compose.mobile-discovery-e2e.yml); fi
           "${compose[@]}" down --volumes --remove-orphans
 
       - name: Upload exact-head Android evidence
@@ -398,7 +418,8 @@ jobs:
           (github.event_name == 'pull_request' &&
           (contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e') ||
           contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e') ||
-          contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e')) &&
+          contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e') ||
+          contains(github.event.pull_request.labels.*.name, 'run-mobile-discovery-e2e')) &&
           needs.mobile-android-evidence.result != 'success')
         run: exit 1
       - name: Confirm quality gate

@@ -1,0 +1,61 @@
+appId: com.mentalbridge.mobile
+name: MB-629 real approved discovery profile and exact slot handoff
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Tìm chuyên gia'
+- scrollUntilVisible:
+    element:
+      text: 'Lo âu'
+    direction: DOWN
+- tapOn: 'Lo âu'
+- scrollUntilVisible:
+    element:
+      text: 'Tiếng Việt'
+    direction: DOWN
+- tapOn: 'Tiếng Việt'
+- scrollUntilVisible:
+    element:
+      text: 'Tìm theo tiêu chí'
+    direction: DOWN
+- tapOn: 'Tìm theo tiêu chí'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'
+    direction: DOWN
+- tapOn:
+    id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'
+- assertVisible: 'Hồ sơ chuyên gia'
+- assertVisible: 'MB629 synthetic specialist'
+- scrollUntilVisible:
+    element:
+      text: 'Synthetic public profile for the protected mobile discovery journey.'
+    direction: DOWN
+- assertVisible: 'Synthetic public profile for the protected mobile discovery journey.'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-select-${MAESTRO_MB_DISCOVERY_SLOT_ID}'
+    direction: DOWN
+- tapOn:
+    id: 'discovery-select-${MAESTRO_MB_DISCOVERY_SLOT_ID}'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-selection-summary'
+    direction: UP
+- assertVisible: 'Khung giờ đã chọn'
+- assertVisible: 'Chat trong ứng dụng · 60 phút'
+- scrollUntilVisible:
+    element:
+      text: 'Khung giờ đã sẵn sàng cho bước đặt lịch.*'
+    direction: DOWN
+- assertVisible: 'Khung giờ đã sẵn sàng cho bước đặt lịch.*'

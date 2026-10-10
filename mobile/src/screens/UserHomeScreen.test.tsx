@@ -18,6 +18,14 @@ describe('USER home screen', () => {
     jest.clearAllMocks()
   })
 
+  it('opens approved specialist discovery', async () => {
+    await render(<UserHomeScreen />)
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tìm chuyên gia' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith('./specialists')
+  })
+
   it('opens the standalone peer-support Community journey', async () => {
     await render(<UserHomeScreen />)
     await fireEvent.press(screen.getByRole('button', { name: 'Mở cộng đồng' }))
