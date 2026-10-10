@@ -202,6 +202,42 @@ describe('MB-629 daily-current public discovery', () => {
     await selectSlot()
     await screen.findByText(/Chưa gửi yêu cầu và chưa giữ chỗ/)
   })
+  it.each(['BROWSE_ONLY', 'BOOKING_POLICY_CHECK_REQUIRED'] as const)(
+    'exposes booking handoff only for the current server policy %s',
+    async (bookingHandoff) => {
+      const onBook = jest.fn()
+      const service = api({
+        list: jest.fn().mockResolvedValue({
+          ...fixturePage,
+          bookingHandoff,
+          packageCode: bookingHandoff === 'BROWSE_ONLY' ? 'FREE' : 'PLUS',
+        }),
+      })
+      await render(
+        <QueryClientProvider
+          client={
+            new QueryClient({
+              defaultOptions: { queries: { gcTime: 0, retry: false } },
+            })
+          }
+        >
+          <DiscoveryScreen api={service} onBack={jest.fn()} onBook={onBook} />
+        </QueryClientProvider>,
+      )
+      await openProfile()
+      await selectSlot()
+      await screen.findByText('Khung giờ đã chọn')
+      const action = screen.queryByRole('button', { name: 'Tiếp tục đặt lịch' })
+      if (bookingHandoff === 'BROWSE_ONLY') expect(action).toBeNull()
+      else {
+        if (!action) throw new Error('Approved booking handoff missing')
+        await fireEvent.press(action)
+        expect(onBook).toHaveBeenCalledWith(
+          expect.objectContaining({ slot: fixtureSlot, bookingHandoff }),
+        )
+      }
+    },
+  )
   it.each(['missing', 'revision', 'time', 'video-disabled'])(
     'fails closed when selected slot becomes %s',
     async (kind) => {

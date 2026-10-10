@@ -58,6 +58,8 @@
     "e2e:android:community:evidence": "bash scripts/verify-android-community-evidence.sh",
     "e2e:android:discovery": "bash scripts/verify-android-discovery-e2e.sh",
     "e2e:android:discovery:evidence": "bash scripts/verify-android-discovery-evidence.sh",
+    "e2e:android:appointments": "bash scripts/verify-android-appointments-e2e.sh",
+    "e2e:android:appointments:evidence": "bash scripts/verify-android-appointments-evidence.sh",
     "e2e:android:specialist": "bash scripts/verify-android-specialist-e2e.sh",
     "native:ios:smoke": "bash scripts/verify-native-ios.sh",
     "build:bundle": "expo export --platform android --output-dir dist/android && expo export --platform ios --output-dir dist/ios",

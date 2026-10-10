@@ -24,7 +24,11 @@ import {
   type SlotSelection,
 } from './discovery-model'
 
-type Props = Readonly<{ api: DiscoveryApi; onBack: () => void }>
+type Props = Readonly<{
+  api: DiscoveryApi
+  onBack: () => void
+  onBook?: (selection: SlotSelection) => void
+}>
 
 function Choice({
   label,
@@ -95,6 +99,7 @@ function Profile({
 function AccountDiscoveryScreen({
   api,
   onBack,
+  onBook,
   subject,
 }: Props & { subject: string }) {
   const client = useQueryClient()
@@ -418,6 +423,15 @@ function AccountDiscoveryScreen({
                     ? 'Bạn đang xem khung giờ tham khảo. Gói hiện tại chỉ cho phép duyệt xem, chưa thể gửi yêu cầu đặt lịch.'
                     : 'Khung giờ đã sẵn sàng cho bước đặt lịch. Chưa gửi yêu cầu và chưa giữ chỗ. Quyền đặt lịch và khung giờ sẽ được kiểm tra lại ở bước đó.'}
                 </Text>
+                {onBook &&
+                  currentSelection.bookingHandoff ===
+                    'BOOKING_POLICY_CHECK_REQUIRED' && (
+                    <PrimaryButton
+                      label="Tiếp tục đặt lịch"
+                      testID="discovery-book-handoff"
+                      onPress={() => onBook(currentSelection)}
+                    />
+                  )}
                 <Secondary label="Chọn giờ khác" onPress={refresh} />
               </View>
             ) : (

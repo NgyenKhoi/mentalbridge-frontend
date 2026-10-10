@@ -21,6 +21,10 @@ export function UserHomeScreen() {
       </Text>
       <View style={styles.actions}>
         <PrimaryButton
+          label="Lịch hẹn của tôi"
+          onPress={() => router.push('./appointments')}
+        />
+        <PrimaryButton
           label="Tìm chuyên gia"
           onPress={() => router.push('./specialists')}
         />
