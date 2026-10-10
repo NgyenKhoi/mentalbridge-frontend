@@ -40,9 +40,10 @@ async function call<T>(
 }
 
 export const browserAvailability = {
-  list() {
+  list(window?: Readonly<{ from: string; to: string }>) {
+    const query = new URLSearchParams({ includeWithdrawn: 'true', ...window })
     return call<AvailabilitySlotList>(
-      '/api/consultation/availability-slots?includeWithdrawn=true',
+      `/api/consultation/availability-slots?${query}`,
     )
   },
   publish(body: PublishAvailabilityInput, idempotencyKey: string) {

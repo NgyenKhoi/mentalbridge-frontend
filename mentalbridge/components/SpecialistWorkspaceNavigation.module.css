@@ -1,0 +1,92 @@
+.shell :global(.role-menu) {
+  width: 44px;
+  min-height: 44px;
+}
+.drawer {
+  width: min(360px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  color: var(--ink);
+  font:
+    14px/1.6 var(--font-body),
+    sans-serif;
+}
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--surface-soft);
+}
+.heading strong {
+  font-size: 18px;
+  color: var(--teal-deep);
+}
+.heading h2 {
+  margin: var(--space-1) 0 0;
+  font: inherit;
+  color: var(--ink-soft);
+}
+.heading button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--teal-deep);
+  font-size: 24px;
+  cursor: pointer;
+}
+.links {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+}
+.links a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: background var(--motion-fast);
+}
+.links a[aria-current='page'] {
+  color: var(--teal-deep);
+  background: var(--teal-pale);
+  font-weight: 750;
+}
+.links a:hover {
+  background: var(--surface-soft);
+}
+.links span {
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.drawer :is(a, button):focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+.account {
+  padding: 0 var(--space-4) var(--space-4);
+  border-top: 1px solid var(--line);
+}
+.account [data-account-kind='specialist'] {
+  width: 100%;
+  margin: var(--space-3) 0 0;
+}
+@media (max-width: 980px) {
+  .shell :global(.role-sidebar) {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .drawer * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -104,7 +104,8 @@
   cursor: pointer;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
-    background var(--motion-fast) var(--ease-standard);
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard);
 }
 .workspace button:disabled {
   opacity: 0.55;
@@ -139,6 +140,25 @@
   border-left: var(--space-1) solid var(--teal);
   border-radius: var(--radius-control);
   background: var(--surface-soft);
+  flex-wrap: wrap;
+}
+.noticeBanner > div {
+  flex: 1;
+  min-width: 180px;
+}
+.noticeBanner .cancelAmendment {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--ink-soft);
+  background: transparent;
+}
+.spinner {
+  animation: profileSpin 1s linear infinite;
+}
+@keyframes profileSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .noticeIcon {
   display: grid;
@@ -180,7 +200,34 @@
   box-shadow: var(--elevation-1);
 }
 .identity {
+  position: relative;
+  isolation: isolate;
   overflow: hidden;
+}
+.identity,
+.preview {
+  transition:
+    box-shadow var(--motion-medium) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+.identitySheen {
+  position: absolute;
+  z-index: 2;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    color-mix(in srgb, var(--surface) 12%, transparent) 35%,
+    color-mix(in srgb, var(--teal-pale) 22%, transparent) 50%,
+    color-mix(in srgb, var(--amber) 18%, transparent) 60%,
+    transparent 75%
+  );
+  transform: translateX(-150%) rotate(20deg);
+  transition: transform var(--motion-slow) var(--ease-standard);
+  pointer-events: none;
 }
 .identityBanner {
   position: relative;
@@ -243,6 +290,7 @@
     700 26px var(--font-body),
     sans-serif;
   box-shadow: var(--elevation-2);
+  transition: transform var(--motion-medium) var(--ease-standard);
 }
 .identityTags {
   display: flex;
@@ -328,6 +376,7 @@
   font-weight: 700;
   font-size: 22px;
   box-shadow: 0 0 0 5px var(--surface-soft);
+  transition: transform var(--motion-medium) var(--ease-standard);
 }
 .workspace .previewBody h3 {
   font:
@@ -360,6 +409,20 @@
   background: var(--surface-soft);
   color: var(--ink-soft);
   font-size: 10px;
+  animation: profileTagPop var(--motion-base) var(--ease-emphasis) both;
+}
+@keyframes profileTagPop {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 .previewTags > .languageTag {
   background: var(--teal-pale);
@@ -381,17 +444,23 @@
   padding-top: var(--space-4);
   border-top: 1px dashed var(--line);
 }
-.bookingSample > span {
+.workspace .bookingSample > .bookingButton {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   padding: var(--space-3);
   border-radius: var(--radius-control);
-  background: var(--surface-soft);
-  color: var(--teal-deep);
+  width: 100%;
+  background: linear-gradient(135deg, var(--teal), var(--teal-deep));
+  color: var(--primary-foreground);
+  border-color: var(--teal-deep);
+  box-shadow: var(--elevation-1);
   font-size: 11px;
   font-weight: 600;
+}
+.workspace .bookingSample > .bookingButton:active {
+  transform: scale(0.95);
 }
 .bookingSample > small {
   display: block;
@@ -428,6 +497,10 @@
   place-items: center;
   border-radius: 50%;
   background: conic-gradient(var(--teal) var(--completion), var(--teal-pale) 0);
+  box-shadow: var(--elevation-1);
+  transition:
+    transform var(--motion-base) var(--ease-emphasis),
+    box-shadow var(--motion-base) var(--ease-standard);
 }
 .completionRing strong {
   display: grid;
@@ -565,7 +638,48 @@
   place-items: center;
   color: var(--ink-soft);
 }
+.profileSkeleton {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.profileSkeleton > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
 @media (hover: hover) and (pointer: fine) {
+  .identity:hover,
+  .preview:hover {
+    border-color: var(--teal);
+    box-shadow: var(--elevation-2);
+  }
+  .identity:hover .identitySheen {
+    transform: translateX(150%) rotate(20deg);
+  }
+  .identity:hover .identityAvatar {
+    transform: scale(1.02);
+  }
+  .previewAvatar:hover {
+    transform: scale(1.05);
+  }
+  .completionRing:hover {
+    transform: translateY(-2px) rotate(4deg);
+    box-shadow: var(--elevation-2);
+  }
+  .workspace .bookingSample > .bookingButton:hover {
+    background: linear-gradient(
+      110deg,
+      var(--teal-deep),
+      var(--ink)
+    ) !important;
+    border-color: var(--teal-deep);
+  }
   .workspace button:hover:not(:disabled) {
     border-color: var(--teal);
     background: var(--surface-soft);
@@ -624,10 +738,23 @@
     padding: var(--space-5) var(--space-4);
   }
   .headerActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
   }
   .headerActions button {
-    flex: 1;
+    min-width: 0;
+    width: 100%;
+    padding-inline: var(--space-2);
+    white-space: normal;
+    text-wrap: balance;
+    line-height: 1.5;
+  }
+  .headerActions button > svg {
+    flex-shrink: 0;
+  }
+  .headerActions button:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
   .workspace .header h1 {
     font-size: 21px;
@@ -672,5 +799,28 @@
   }
   .workspace button {
     transition: none;
+  }
+  .identity,
+  .identitySheen,
+  .preview,
+  .identityAvatar,
+  .previewAvatar,
+  .completionRing {
+    transition: none;
+  }
+  .identitySheen {
+    display: none;
+  }
+  .previewTags > span,
+  .spinner {
+    animation: none;
+  }
+  .identity:hover .identityAvatar,
+  .previewAvatar:hover,
+  .completionRing:hover,
+  .workspace button:hover:not(:disabled),
+  .workspace button:active:not(:disabled),
+  .workspace .bookingSample > .bookingButton:active {
+    transform: none;
   }
 }

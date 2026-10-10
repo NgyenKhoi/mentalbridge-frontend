@@ -1,7 +1,7 @@
 'use client'
 
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
-import { Info, ShieldCheck } from 'lucide-react'
+import { Info, ShieldCheck, Undo2 } from 'lucide-react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import {
   ConsultationInputError,
@@ -18,6 +18,7 @@ import ProfileFields from './ProfileFields'
 import {
   ProfileChecklist,
   ProfileIdentityCard,
+  ProfileLoading,
   ProfilePageHeader,
   ProfilePreviewCard,
 } from './ProfilePresentation'
@@ -199,6 +200,27 @@ export default function SpecialistProfileWorkspace() {
       showActionToast({ title: 'Đã gửi hồ sơ để xét duyệt', tone: 'success' })
     })
   }
+  async function cancelChanges() {
+    if (busy || !dirty) return
+    if (
+      !(await confirm({
+        title: 'Hủy thay đổi chưa lưu?',
+        description: profile
+          ? 'Nội dung vừa nhập sẽ được bỏ. Hồ sơ đã lưu vẫn được giữ nguyên.'
+          : 'Nội dung vừa nhập sẽ được bỏ. Bạn có thể điền lại khi sẵn sàng.',
+        confirmLabel: 'Hủy thay đổi',
+        cancelLabel: 'Tiếp tục viết',
+        tone: 'warning',
+      }))
+    )
+      return
+    if (lock.current) return
+    setForm(profileFormValue(profile ?? empty))
+    setErrors({})
+    setNotice('Đã bỏ thay đổi chưa lưu.')
+    panel.current?.querySelector<HTMLInputElement>('input')?.focus()
+  }
+
   async function reload() {
     if (lock.current) return
     if (
@@ -237,6 +259,17 @@ export default function SpecialistProfileWorkspace() {
       >
         {!locked && !loading && (
           <>
+            {dirty && (
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={busy}
+                onClick={() => void cancelChanges()}
+              >
+                <Undo2 size={16} aria-hidden="true" />
+                Hủy thay đổi chưa lưu
+              </button>
+            )}
             <button
               type="submit"
               form="initial-profile-form"
@@ -292,9 +325,7 @@ export default function SpecialistProfileWorkspace() {
           </p>
         )}
         {loading ? (
-          <div className={styles.loading} role="status" aria-busy="true">
-            Đang tải hồ sơ…
-          </div>
+          <ProfileLoading label="Đang tải hồ sơ…" />
         ) : (
           <>
             <div className={styles.noticeBanner} role="status">

@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { FileCheck2, FilePenLine, Plus, Trash2 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type {
   AgreedNextStepState,
@@ -19,6 +21,7 @@ import { PlanChangeRequestCard } from './PlanChangeRequestCard'
 import styles from './SessionSummaryPanel.module.css'
 
 type DraftStep = {
+  id: string
   type: AgreedNextStepType
   title: string
   details: string
@@ -49,6 +52,7 @@ const STATE_LABELS: Record<AgreedNextStepState, string> = {
 }
 
 const emptyStep = (): DraftStep => ({
+  id: crypto.randomUUID(),
   type: 'CHECKLIST',
   title: '',
   details: '',
@@ -60,6 +64,7 @@ const emptyStep = (): DraftStep => ({
 const draftStep = (
   step: SessionSummary['agreedNextSteps'][number],
 ): DraftStep => ({
+  id: crypto.randomUUID(),
   type: step.type,
   title: step.title,
   details: step.details ?? '',
@@ -133,11 +138,13 @@ function SpecialistForm({
   current,
   resources,
   onPublished,
+  onCancel,
 }: {
   appointmentId: string
   current: SessionSummary | null
   resources: PublicResourceSummary[]
   onPublished: (summary: SessionSummary) => void
+  onCancel: () => void
 }) {
   const [topics, setTopics] = useState(
     current?.topicsDiscussed.join('\n') ?? '',
@@ -153,17 +160,21 @@ function SpecialistForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const idempotencyKey = useRef(crypto.randomUUID())
+  const firstInput = useRef<HTMLTextAreaElement>(null)
+  const submitBusy = useRef(false)
 
-  const updateStep = (index: number, patch: Partial<DraftStep>) =>
+  useEffect(() => {
+    firstInput.current?.focus({ preventScroll: true })
+  }, [])
+
+  const updateStep = (id: string, patch: Partial<DraftStep>) =>
     setSteps((items) =>
-      items.map((item, position) =>
-        position === index ? { ...item, ...patch } : item,
-      ),
+      items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     )
 
-  const chooseResource = async (index: number, resourceId: string) => {
+  const chooseResource = async (id: string, resourceId: string) => {
     const resource = resources.find((item) => item.id === resourceId)
-    updateStep(index, {
+    updateStep(id, {
       resourceId,
       title: resource?.title ?? '',
       resourceVersion: '',
@@ -172,24 +183,40 @@ function SpecialistForm({
     if (!resourceId) return
     try {
       const detail = await getResourceDetail(resourceId)
-      updateStep(index, {
-        resourceId,
-        title: detail.title,
-        resourceVersion: detail.contentVersion,
-      })
+      setSteps((items) =>
+        items.map((item) =>
+          item.id === id &&
+          item.type === 'PLATFORM_RESOURCE' &&
+          item.resourceId === resourceId
+            ? {
+                ...item,
+                title: detail.title,
+                resourceVersion: detail.contentVersion,
+              }
+            : item,
+        ),
+      )
     } catch (caught) {
       setError(errorText(caught))
     }
   }
 
   const publish = async () => {
+    if (submitBusy.current) return
     setError('')
     const topicList = topics
       .split('\n')
       .map((item) => item.trim())
       .filter(Boolean)
-    if (topicList.length === 0) {
-      setError('Hãy thêm ít nhất một nội dung đã trao đổi.')
+    if (
+      topicList.length === 0 ||
+      topicList.length > 8 ||
+      topicList.some((topic) => topic.length > 160)
+    ) {
+      setError(
+        'Hãy ghi từ 1 đến 8 nội dung đã trao đổi, mỗi mục tối đa 160 ký tự.',
+      )
+      firstInput.current?.focus()
       return
     }
     const usedSteps = steps.filter((step) => step.title.trim())
@@ -221,6 +248,7 @@ function SpecialistForm({
             : null,
       })),
     }
+    submitBusy.current = true
     setSaving(true)
     try {
       const saved = await sessionSummaryBrowserClient.publish(
@@ -234,173 +262,199 @@ function SpecialistForm({
     } catch (caught) {
       setError(errorText(caught))
     } finally {
+      submitBusy.current = false
       setSaving(false)
     }
   }
 
   return (
-    <div className={styles.form}>
+    <form
+      className={styles.form}
+      onSubmit={(event) => {
+        event.preventDefault()
+        void publish()
+      }}
+      aria-label={current ? 'Đính chính bản tóm tắt' : 'Tạo bản tóm tắt'}
+    >
+      <header className={styles.formHeading}>
+        <FilePenLine size={22} aria-hidden="true" />
+        <h4>
+          {current
+            ? 'Đính chính bản tổng hợp sau tư vấn'
+            : 'Biên soạn bản tổng hợp sau tư vấn'}
+        </h4>
+      </header>
       <p className={styles.formIntro}>
         {current
           ? 'Đính chính tạo một phiên bản mới; bản cũ vẫn được giữ lại.'
           : 'Chỉ ghi lại nội dung đã trao đổi và các bước hai bên đã thống nhất.'}
       </p>
-      <label>
-        Nội dung đã trao đổi <small>Mỗi dòng là một mục, tối đa 8 mục</small>
-        <textarea
-          value={topics}
-          onChange={(event) => setTopics(event.target.value)}
-          rows={3}
-        />
-      </label>
-      <label>
-        Điều đã ghi nhận trong phiên
-        <textarea
-          value={progress}
-          onChange={(event) => setProgress(event.target.value)}
-          maxLength={1000}
-          rows={3}
-        />
-      </label>
-      <label>
-        Lời nhắn cho người dùng
-        <textarea
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          maxLength={1000}
-          rows={3}
-        />
-      </label>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={followUp}
-          onChange={(event) => setFollowUp(event.target.checked)}
-        />{' '}
-        Đề xuất một buổi trao đổi tiếp theo
-      </label>
-      <div className={styles.stepsEditor}>
-        <div className={styles.sectionHeading}>
-          <h4>Các bước đã thống nhất</h4>
-          {steps.length < 8 && (
+      <fieldset disabled={saving} className={styles.fields}>
+        <label>
+          Nội dung đã trao đổi <small>Mỗi dòng là một mục, tối đa 8 mục</small>
+          <textarea
+            ref={firstInput}
+            value={topics}
+            onChange={(event) => setTopics(event.target.value)}
+            rows={3}
+          />
+        </label>
+        <label>
+          Điều đã ghi nhận trong phiên
+          <textarea
+            value={progress}
+            onChange={(event) => setProgress(event.target.value)}
+            maxLength={1000}
+            rows={3}
+          />
+        </label>
+        <label>
+          Lời nhắn cho người dùng
+          <textarea
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            maxLength={1000}
+            rows={3}
+          />
+        </label>
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            checked={followUp}
+            onChange={(event) => setFollowUp(event.target.checked)}
+          />{' '}
+          Đề xuất một buổi trao đổi tiếp theo
+        </label>
+        <div className={styles.stepsEditor}>
+          <div className={styles.sectionHeading}>
+            <h4>Các bước đã thống nhất</h4>
+            <span className={styles.stepCount}>{steps.length} / 8</span>
             <button
               type="button"
+              disabled={steps.length >= 8}
               onClick={() => setSteps((items) => [...items, emptyStep()])}
             >
-              Thêm bước
+              <Plus size={16} aria-hidden="true" /> Thêm bước
             </button>
-          )}
-        </div>
-        {steps.map((step, index) => (
-          <div className={styles.stepEditor} key={index}>
-            <select
-              aria-label={`Loại bước ${index + 1}`}
-              value={step.type}
-              onChange={(event) =>
-                updateStep(index, {
-                  type: event.target.value as AgreedNextStepType,
-                  resourceId: '',
-                  resourceVersion: '',
-                  resourceProposalReasonCode:
-                    event.target.value === 'PLATFORM_RESOURCE'
-                      ? 'POST_CONSULTATION_CONTINUITY'
-                      : '',
-                  title: '',
-                })
-              }
-            >
-              {Object.entries(STEP_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            {step.type === 'PLATFORM_RESOURCE' ? (
-              <div className={styles.resourceFields}>
-                <select
-                  aria-label={`Tài nguyên ${index + 1}`}
-                  value={step.resourceId}
-                  onChange={(event) =>
-                    void chooseResource(index, event.target.value)
-                  }
-                >
-                  <option value="">Chọn tài nguyên</option>
-                  {resources.map((resource) => (
-                    <option key={resource.id} value={resource.id}>
-                      {resource.title}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  aria-label={`Lý do đề xuất ${index + 1}`}
-                  value={step.resourceProposalReasonCode}
-                  onChange={(event) =>
-                    updateStep(index, {
-                      resourceProposalReasonCode: event.target
-                        .value as ResourceProposalReasonCode,
-                    })
-                  }
-                >
-                  {Object.entries(REASON_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <input
-                aria-label={`Tên bước ${index + 1}`}
-                placeholder="Tên bước"
-                value={step.title}
+          </div>
+          {steps.map((step, index) => (
+            <div className={styles.stepEditor} key={step.id}>
+              <select
+                aria-label={`Loại bước ${index + 1}`}
+                value={step.type}
                 onChange={(event) =>
-                  updateStep(index, { title: event.target.value })
-                }
-              />
-            )}
-            <input
-              aria-label={`Chi tiết bước ${index + 1}`}
-              placeholder="Chi tiết (không bắt buộc)"
-              value={step.details}
-              maxLength={500}
-              onChange={(event) =>
-                updateStep(index, { details: event.target.value })
-              }
-            />
-            {steps.length > 1 && (
-              <button
-                type="button"
-                className={styles.remove}
-                onClick={() =>
-                  setSteps((items) =>
-                    items.filter((_, position) => position !== index),
-                  )
+                  updateStep(step.id, {
+                    type: event.target.value as AgreedNextStepType,
+                    resourceId: '',
+                    resourceVersion: '',
+                    resourceProposalReasonCode:
+                      event.target.value === 'PLATFORM_RESOURCE'
+                        ? 'POST_CONSULTATION_CONTINUITY'
+                        : '',
+                    title: '',
+                  })
                 }
               >
-                Xóa
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
+                {Object.entries(STEP_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              {step.type === 'PLATFORM_RESOURCE' ? (
+                <div className={styles.resourceFields}>
+                  <select
+                    aria-label={`Tài nguyên ${index + 1}`}
+                    value={step.resourceId}
+                    onChange={(event) =>
+                      void chooseResource(step.id, event.target.value)
+                    }
+                  >
+                    <option value="">Chọn tài nguyên</option>
+                    {resources.map((resource) => (
+                      <option key={resource.id} value={resource.id}>
+                        {resource.title}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label={`Lý do đề xuất ${index + 1}`}
+                    value={step.resourceProposalReasonCode}
+                    onChange={(event) =>
+                      updateStep(step.id, {
+                        resourceProposalReasonCode: event.target
+                          .value as ResourceProposalReasonCode,
+                      })
+                    }
+                  >
+                    {Object.entries(REASON_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <input
+                  aria-label={`Tên bước ${index + 1}`}
+                  placeholder="Tên bước"
+                  value={step.title}
+                  maxLength={160}
+                  onChange={(event) =>
+                    updateStep(step.id, { title: event.target.value })
+                  }
+                />
+              )}
+              <input
+                aria-label={`Chi tiết bước ${index + 1}`}
+                placeholder="Chi tiết (không bắt buộc)"
+                value={step.details}
+                maxLength={500}
+                onChange={(event) =>
+                  updateStep(step.id, { details: event.target.value })
+                }
+              />
+              {steps.length > 1 && (
+                <button
+                  type="button"
+                  className={styles.remove}
+                  aria-label={`Xóa bước ${index + 1}`}
+                  onClick={() =>
+                    setSteps((items) =>
+                      items.filter((item) => item.id !== step.id),
+                    )
+                  }
+                >
+                  <Trash2 size={18} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </fieldset>
       {error && (
         <p className={styles.error} role="alert">
           {error}
         </p>
       )}
-      <button
-        className={styles.primary}
-        type="button"
-        disabled={saving}
-        onClick={() => void publish()}
-      >
-        {saving
-          ? 'Đang xuất bản…'
-          : current
-            ? 'Xuất bản bản đính chính'
-            : 'Xuất bản cho người dùng'}
-      </button>
-    </div>
+      <div className={styles.formActions}>
+        <button
+          type="button"
+          className={styles.cancel}
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Hủy bỏ
+        </button>
+        <button className={styles.primary} type="submit" disabled={saving}>
+          {saving
+            ? 'Đang xuất bản…'
+            : current
+              ? 'Xuất bản bản đính chính'
+              : 'Xuất bản cho người dùng'}
+        </button>
+      </div>
+    </form>
   )
 }
 
@@ -418,6 +472,14 @@ export function SessionSummaryPanel({
   const [editing, setEditing] = useState(false)
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const editButton = useRef<HTMLButtonElement>(null)
+
+  const finishEditing = () => {
+    setEditing(false)
+    requestAnimationFrame(() =>
+      editButton.current?.focus({ preventScroll: true }),
+    )
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -481,6 +543,8 @@ export function SessionSummaryPanel({
   return (
     <details
       className={styles.panel}
+      data-viewer={viewer}
+      data-specialist-journey={viewer === 'SPECIALIST' ? 'summary' : undefined}
       onToggle={(event) => {
         if (event.currentTarget.open && !loaded && !loading) void load()
       }}
@@ -497,7 +561,16 @@ export function SessionSummaryPanel({
         <span aria-hidden="true">⌄</span>
       </summary>
       <div className={styles.body}>
-        {loading && <p className={styles.state}>Đang tải bản tóm tắt…</p>}
+        {loading && (
+          <div
+            className={styles.loading}
+            role="status"
+            aria-label="Đang tải bản tóm tắt"
+          >
+            <Skeleton width="65%" height={24} />
+            <Skeleton width="90%" height={48} />
+          </div>
+        )}
         {error && (
           <div className={styles.error} role="alert">
             {error}{' '}
@@ -511,8 +584,16 @@ export function SessionSummaryPanel({
             Chuyên gia chưa xuất bản bản tóm tắt cho phiên này.
           </p>
         )}
-        {latest && <SummaryContent summary={latest} />}
-        {latest && latest.agreedNextSteps.length > 0 && (
+        {latest && !editing && (
+          <>
+            <header className={styles.publishedHeading}>
+              <FileCheck2 size={22} aria-hidden="true" />
+              <strong>Bản tổng hợp đã xuất bản</strong>
+            </header>
+            <SummaryContent summary={latest} />
+          </>
+        )}
+        {latest && !editing && latest.agreedNextSteps.length > 0 && (
           <div className={styles.nextSteps}>
             <h4>Các bước đã thống nhất</h4>
             {latest.agreedNextSteps.map((step) => (
@@ -603,22 +684,35 @@ export function SessionSummaryPanel({
           </div>
         )}
         {viewer === 'SPECIALIST' && loaded && !editing && (
-          <button
-            className={styles.primary}
-            type="button"
-            onClick={() => setEditing(true)}
-          >
-            {latest ? 'Đính chính bản tóm tắt' : 'Tạo bản tóm tắt'}
-          </button>
+          <div className={styles.editPrompt}>
+            {!latest && (
+              <div>
+                <h4>Chưa có bản tổng hợp sau tư vấn</h4>
+                <p>
+                  Ghi lại nội dung đã trao đổi và các bước hai bên đã thống
+                  nhất.
+                </p>
+              </div>
+            )}
+            <button
+              ref={editButton}
+              className={styles.primary}
+              type="button"
+              onClick={() => setEditing(true)}
+            >
+              {latest ? 'Đính chính bản tóm tắt' : 'Tạo bản tóm tắt'}
+            </button>
+          </div>
         )}
         {viewer === 'SPECIALIST' && editing && (
           <SpecialistForm
             appointmentId={appointmentId}
             current={latest}
             resources={resources}
+            onCancel={finishEditing}
             onPublished={(saved) => {
               setSummaries((items) => [saved, ...items])
-              setEditing(false)
+              finishEditing()
             }}
           />
         )}
