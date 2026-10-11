@@ -10,6 +10,7 @@ import type { ReactElement } from 'react'
 import { Linking } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
+import { appointment } from '@/appointments/appointment-fixtures'
 
 import type { SupportPlanApi } from './support-plan-api'
 import { SupportPlanScreen } from './SupportPlanScreen'
@@ -56,6 +57,17 @@ function makeApi(
       nextCursor: null,
       hasMore: false,
     }),
+    getActions: jest.fn().mockResolvedValue({
+      supportPlanId: '10000000-0000-4000-8000-000000000001',
+      modelVersion: 3,
+      representationMode: 'V2_RESOURCE_ADAPTER',
+      focuses: [],
+    }),
+    getAppointments: jest.fn().mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2026-10-10T09:00:00Z',
+    }),
     replaceChoices: jest.fn(),
     activate: jest.fn(),
     changeStatus: jest.fn(),
@@ -94,6 +106,67 @@ describe('mobile SupportPlan journey', () => {
     expect(await screen.findByText('Chưa có kế hoạch hỗ trợ')).toBeTruthy()
     expect(api.activate).not.toHaveBeenCalled()
     expect(api.changeStatus).not.toHaveBeenCalled()
+  })
+
+  it('presents professional support as the primary path and reflects only its appointment', async () => {
+    const plan = makePlan('ACTIVE')
+    const actionId = '11111111-1111-4111-8111-111111111111'
+    const api = makeApi({
+      getCurrent: jest.fn().mockResolvedValue(plan),
+      getActions: jest.fn().mockResolvedValue({
+        supportPlanId: plan.supportPlanId,
+        modelVersion: 3,
+        representationMode: 'V2_RESOURCE_ADAPTER',
+        focuses: [
+          {
+            focusId: 'professional-support',
+            actions: [
+              {
+                actionId,
+                actionType: 'PROFESSIONAL_SUPPORT',
+                status: 'ACTIVE',
+                pathRole: 'PRIMARY',
+                purposeCode: 'CONNECT_WITH_PROFESSIONAL_SUPPORT',
+                presentation: {
+                  title: 'Kết nối với chuyên gia',
+                  summary: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      getAppointments: jest.fn().mockResolvedValue({
+        items: [
+          {
+            ...appointment,
+            status: 'CONFIRMED',
+            originatingPlanActionId: actionId,
+          },
+        ],
+        count: 1,
+        generatedAt: '2026-10-10T09:00:00Z',
+      }),
+    })
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    expect(await screen.findByText('HƯỚNG HỖ TRỢ CHÍNH')).toBeTruthy()
+    expect(
+      await screen.findByText(
+        'Trạng thái lịch hẹn: Chuyên gia đã xác nhận lịch hẹn',
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(/không tự đặt lịch hoặc chia sẻ dữ liệu/),
+    ).toBeTruthy()
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: './specialists',
+      params: { planActionId: actionId },
+    })
   })
 
   it('keeps one activation command across an ambiguous retry', async () => {
@@ -366,9 +439,10 @@ describe('mobile SupportPlan journey', () => {
     })
     const api = makeApi({
       getCurrent: jest.fn().mockResolvedValue(paused),
-      getOccurrences: jest
-        .fn()
-        .mockResolvedValue(makeOccurrenceList([scheduled, completed])),
+      getOccurrences: jest.fn().mockResolvedValue({
+        ...makeOccurrenceList([scheduled, completed]),
+        supportPlanStatus: 'PAUSED',
+      }),
     })
     await renderScreen(<SupportPlanScreen api={api} />)
 
@@ -453,7 +527,11 @@ describe('mobile SupportPlan journey', () => {
         .mockReturnValueOnce(pendingRefresh),
       getOccurrences: jest
         .fn()
-        .mockResolvedValue(makeOccurrenceList([scheduled])),
+        .mockResolvedValueOnce(makeOccurrenceList([scheduled]))
+        .mockResolvedValue({
+          ...makeOccurrenceList([scheduled]),
+          supportPlanStatus: 'PAUSED',
+        }),
       changeStatus: jest.fn().mockResolvedValue(paused),
     })
     await renderScreen(<SupportPlanScreen api={api} />)
@@ -480,9 +558,11 @@ describe('mobile SupportPlan journey', () => {
 
     await act(async () => resolveRefresh(paused))
 
-    expect(
-      await screen.findByRole('button', { name: 'Tiếp tục kế hoạch' }),
-    ).not.toBeDisabled()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Tiếp tục kế hoạch' }),
+      ).not.toBeDisabled(),
+    )
     expect(
       screen.queryByRole('button', { name: 'Tạm dừng kế hoạch' }),
     ).toBeNull()
@@ -507,7 +587,13 @@ describe('mobile SupportPlan journey', () => {
           }),
         )
         .mockResolvedValueOnce(paused),
-      getOccurrences: jest.fn().mockResolvedValue(makeOccurrenceList([])),
+      getOccurrences: jest
+        .fn()
+        .mockResolvedValueOnce(makeOccurrenceList([]))
+        .mockResolvedValue({
+          ...makeOccurrenceList([]),
+          supportPlanStatus: 'PAUSED',
+        }),
       changeStatus: jest.fn().mockResolvedValue(paused),
     })
     await renderScreen(<SupportPlanScreen api={api} />)
@@ -545,7 +631,13 @@ describe('mobile SupportPlan journey', () => {
         .fn()
         .mockResolvedValueOnce(active)
         .mockReturnValueOnce(pendingRefresh),
-      getOccurrences: jest.fn().mockResolvedValue(makeOccurrenceList([])),
+      getOccurrences: jest
+        .fn()
+        .mockResolvedValueOnce(makeOccurrenceList([]))
+        .mockResolvedValue({
+          ...makeOccurrenceList([]),
+          supportPlanStatus: 'PAUSED',
+        }),
       changeStatus: jest.fn().mockRejectedValue(
         new ApiError({
           message: 'stale',
@@ -594,7 +686,13 @@ describe('mobile SupportPlan journey', () => {
           }),
         )
         .mockResolvedValueOnce(paused),
-      getOccurrences: jest.fn().mockResolvedValue(makeOccurrenceList([])),
+      getOccurrences: jest
+        .fn()
+        .mockResolvedValueOnce(makeOccurrenceList([]))
+        .mockResolvedValue({
+          ...makeOccurrenceList([]),
+          supportPlanStatus: 'PAUSED',
+        }),
       changeStatus: jest.fn().mockRejectedValueOnce(
         new ApiError({
           message: 'stale',

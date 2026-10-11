@@ -41,6 +41,7 @@ type Props = Readonly<{
   discovery: DiscoveryApi
   onBack: () => void
   initialSelection?: SlotSelection | undefined
+  originatingPlanActionId?: string | undefined
 }>
 type Review =
   | { kind: 'cancel'; appointment: Appointment }
@@ -124,6 +125,7 @@ function AccountAppointmentsScreen({
   discovery,
   onBack,
   initialSelection,
+  originatingPlanActionId,
   subject,
 }: Props & { subject: string }) {
   const list = useQuery({
@@ -290,6 +292,9 @@ function AccountAppointmentsScreen({
             review.selection,
             review.replacement,
           )
+          const planActionId = current.replacement
+            ? current.replacement.originatingPlanActionId
+            : originatingPlanActionId
           command = {
             kind: 'request',
             key,
@@ -298,6 +303,9 @@ function AccountAppointmentsScreen({
               modality: current.selection.slot.modality,
               ...(current.replacement
                 ? { replacesAppointmentId: current.replacement.id }
+                : {}),
+              ...(planActionId
+                ? { originatingPlanActionId: planActionId }
                 : {}),
             },
             ...(current.replacement

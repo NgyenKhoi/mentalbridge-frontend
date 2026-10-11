@@ -69,7 +69,11 @@ function services(initial: Appointment[] = []) {
     },
   }
 }
-async function mount(service = services(), handoff = true) {
+async function mount(
+  service = services(),
+  handoff = true,
+  originatingPlanActionId?: string,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
@@ -79,6 +83,7 @@ async function mount(service = services(), handoff = true) {
         api={service.api}
         discovery={service.discovery}
         initialSelection={handoff ? selection : undefined}
+        {...(originatingPlanActionId ? { originatingPlanActionId } : {})}
         onBack={jest.fn()}
       />
     </QueryClientProvider>
@@ -154,6 +159,27 @@ describe('MB-630 authoritative USER appointments', () => {
       screen.getAllByText('Lượt tư vấn đang được giữ cho lịch hẹn').length,
     ).toBeGreaterThan(0)
     expect(appointmentCommands.read(subject)).toBeNull()
+  })
+  it('carries the plan action only after explicit booking confirmation', async () => {
+    const originatingPlanActionId = '11111111-1111-4111-8111-111111111111'
+    const service = services()
+    await mount(service, true, originatingPlanActionId)
+
+    await reviewRequest()
+    expect(service.api.request).not.toHaveBeenCalled()
+    await fireEvent.press(screen.getByTestId('appointment-confirm'))
+
+    await waitFor(() =>
+      expect(service.api.request).toHaveBeenCalledWith(
+        {
+          slotId: slot.id,
+          modality: slot.modality,
+          originatingPlanActionId,
+        },
+        expect.stringMatching(/^appointment-/),
+        undefined,
+      ),
+    )
   })
   it.each([
     [

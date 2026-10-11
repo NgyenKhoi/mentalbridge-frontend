@@ -63,6 +63,15 @@ describe('MB-630 owner-scoped API boundary', () => {
     expect(post).toHaveBeenLastCalledWith('/api/v1/appointments', replacement, {
       headers: { 'Idempotency-Key': key, 'If-Match': '"7"' },
     })
+    const originatingPlanActionId = '11111111-1111-4111-8111-111111111111'
+    const originated = { ...body, originatingPlanActionId }
+    post.mockResolvedValue({
+      data: { ...appointment, originatingPlanActionId },
+    })
+    await api.request(originated, key)
+    expect(post).toHaveBeenLastCalledWith('/api/v1/appointments', originated, {
+      headers: { 'Idempotency-Key': key },
+    })
     await expect(api.request(replacement, key)).rejects.toThrow()
   })
   it('cancels without a state/credit/actor payload and verifies returned identity', async () => {
