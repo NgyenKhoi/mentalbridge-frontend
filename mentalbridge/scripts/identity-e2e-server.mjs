@@ -858,17 +858,83 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/v1/service-plans') {
+      if (!journalActor(request, response)) return
+      json(response, 200, {
+        plans: [
+          {
+            planVersionId: '51500000-0000-4000-8000-000000000001',
+            planCode: 'FREE',
+            version: 'v2-vnd-2026-01',
+            displayName: 'Free',
+            currency: 'VND',
+            priceVnd: 0,
+            billingPeriodMonths: 1,
+            consultationCredits: 0,
+            maxActiveReservations: 0,
+            creditAllocationVnd: 0,
+            aiQuotaCode: 'FREE_DAILY_5',
+            supportPlanEnabled: false,
+            entitlements: ['AI_JOURNAL_BASIC'],
+            allowedUpgrades: ['PLUS', 'PREMIUM'],
+            effectiveFrom: '2026-01-01T00:00:00Z',
+          },
+          {
+            planVersionId: '51500000-0000-4000-8000-000000000002',
+            planCode: 'PLUS',
+            version: 'v2-vnd-2026-01',
+            displayName: 'Plus',
+            currency: 'VND',
+            priceVnd: 1390000,
+            billingPeriodMonths: 1,
+            consultationCredits: 4,
+            maxActiveReservations: 2,
+            creditAllocationVnd: 300000,
+            aiQuotaCode: 'PLUS_STANDARD',
+            supportPlanEnabled: true,
+            entitlements: ['AI_JOURNAL_PLUS', 'SUPPORT_PLAN'],
+            allowedUpgrades: ['PREMIUM'],
+            effectiveFrom: '2026-01-01T00:00:00Z',
+          },
+          {
+            planVersionId: '51500000-0000-4000-8000-000000000003',
+            planCode: 'PREMIUM',
+            version: 'v2-vnd-2026-01',
+            displayName: 'Premium',
+            currency: 'VND',
+            priceVnd: 3490000,
+            billingPeriodMonths: 1,
+            consultationCredits: 10,
+            maxActiveReservations: 4,
+            creditAllocationVnd: 300000,
+            aiQuotaCode: 'PREMIUM_ADVANCED',
+            supportPlanEnabled: true,
+            entitlements: ['AI_JOURNAL_PREMIUM', 'SUPPORT_PLAN'],
+            allowedUpgrades: [],
+            effectiveFrom: '2026-01-01T00:00:00Z',
+          },
+        ],
+        checkoutEnabled: true,
+        paymentProvider: 'MOMO',
+        generatedAt: new Date().toISOString(),
+      })
+      return
+    }
+
     if (
       request.method === 'GET' &&
       url.pathname === '/api/v1/service-credits'
     ) {
       const actor = journalActor(request, response)
       if (!actor) return
+      const paidSubscription = bearerToken(request) === otherCareAccessToken
       json(response, 200, {
         accountId: actor.accountId,
         packageCode: 'PLUS',
-        source: 'DEMO',
-        sourceReference: 'controlled-e2e-mb-558',
+        source: paidSubscription ? 'PAID' : 'DEMO',
+        sourceReference: paidSubscription
+          ? '51500000-0000-4000-8000-000000000051'
+          : 'controlled-e2e-mb-558',
         periodStart: '2098-01-01T00:00:00Z',
         periodEnd: '2098-02-01T00:00:00Z',
         policyVersion: 'consultation-credit-v2',
@@ -890,7 +956,7 @@ const server = createServer(async (request, response) => {
             eventId: '0f31cf85-4538-4e7d-8ba8-d2646ce44e3f',
             creditId: 'fbd686b0-29c1-4a0b-8255-b61da0aff407',
             eventType: 'PROVISIONED',
-            source: 'DEMO',
+            source: paidSubscription ? 'PAID' : 'DEMO',
             packageCode: 'PLUS',
             policyVersion: 'consultation-credit-v2',
             appointmentId: null,

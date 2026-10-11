@@ -66,6 +66,12 @@ import {
   type SessionSummaryReuseConsentInput,
   type UpdateAgreedNextStepInput,
 } from './session-summary-validation'
+import {
+  parsePlanPayment,
+  parseServicePlanCatalogue,
+  type PlanPayment,
+  type ServicePlanCatalogue,
+} from './billing-validation'
 
 const MAX_RESPONSE_BYTES = 128 * 1024
 
@@ -682,6 +688,31 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseServiceCreditAccount,
+    })
+  },
+  servicePlans(token: string, correlationId: string) {
+    return request<ServicePlanCatalogue>({
+      method: 'GET',
+      path: '/api/v1/service-plans',
+      token,
+      correlationId,
+      parse: parseServicePlanCatalogue,
+    })
+  },
+  planCheckout(
+    token: string,
+    correlationId: string,
+    planVersionId: string,
+    idempotencyKey: string,
+  ) {
+    return request<PlanPayment>({
+      method: 'POST',
+      path: '/api/v1/subscriptions/checkout',
+      token,
+      correlationId,
+      body: { planVersionId },
+      idempotencyKey,
+      parse: parsePlanPayment,
     })
   },
   own(token: string, correlationId: string) {
