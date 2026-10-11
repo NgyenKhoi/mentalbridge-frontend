@@ -208,6 +208,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/service-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the authoritative active VND catalogue. Price, credits, concurrent-reservation capacity, credit allocation, AI quota, SupportPlan entitlement, effective date, and allowed upgrades are immutable version facts; clients must not derive them from plan names. MoMo checkout remains gated independently. */
+        get: operations["listActiveServicePlanVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subscriptions/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Creates one idempotent MoMo purchase for FREE to PLUS/PREMIUM or upgrade for PLUS to PREMIUM. The server resolves the exact active version and amount. There is no downgrade or user-refund operation. */
+        post: operations["createPlanCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns up to 50 authenticated-owner payment attempts in stable newest-first order. */
+        get: operations["listOwnPlanPayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{paymentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns one authenticated-owner payment attempt and its stable current state. */
+        get: operations["getOwnPlanPayment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/payments/momo/ipn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Signature-verifies the complete MoMo One-Time Payment v2 callback, deduplicates the verified tuple, and acknowledges quickly. Only a matching, unexpired resultCode 0 activates the exact plan version. Raw payload, signature, orderInfo, and extraData are never persisted. */
+        post: operations["receiveMomoPlanPaymentIpn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/entitlements/current": {
         parameters: {
             query?: never;
@@ -977,6 +1062,107 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ServicePlanCatalogue: {
+            plans: components["schemas"]["ServicePlanVersion"][];
+            checkoutEnabled: boolean;
+            /** @constant */
+            paymentProvider: "MOMO";
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        ServicePlanVersion: {
+            /** Format: uuid */
+            planVersionId: string;
+            planCode: components["schemas"]["ServicePackage"];
+            version: string;
+            displayName: string;
+            /** @constant */
+            currency: "VND";
+            /** Format: int64 */
+            priceVnd: number;
+            /** @constant */
+            billingPeriodMonths: 1;
+            /** @enum {integer} */
+            consultationCredits: 0 | 4 | 10;
+            /** @enum {integer} */
+            maxActiveReservations: 0 | 2 | 4;
+            /** Format: int64 */
+            creditAllocationVnd: number;
+            aiQuotaCode: string;
+            supportPlanEnabled: boolean;
+            entitlements: string[];
+            allowedUpgrades: ("PLUS" | "PREMIUM")[];
+            /** Format: date-time */
+            effectiveFrom: string;
+        };
+        CreatePlanCheckout: {
+            /** Format: uuid */
+            planVersionId: string;
+        };
+        PlanPayment: {
+            /** Format: uuid */
+            paymentId: string;
+            /** Format: uuid */
+            subscriptionId: string;
+            /** Format: uuid */
+            planVersionId: string;
+            /** @enum {string} */
+            planCode: "PLUS" | "PREMIUM";
+            planVersion: string;
+            /** @enum {string} */
+            purpose: "PURCHASE" | "UPGRADE";
+            /** @enum {string} */
+            provider: "FAKE" | "MOMO";
+            /** @enum {string} */
+            status: "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
+            /** Format: int64 */
+            amountVnd: number;
+            /** @constant */
+            currency: "VND";
+            /** Format: uri */
+            checkoutUrl: string;
+            /** Format: uri */
+            qrCodeUrl: string | null;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            paidAt: string | null;
+            /** Format: date-time */
+            failedAt: string | null;
+        };
+        PlanPaymentHistory: {
+            items: components["schemas"]["PlanPayment"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        MomoPaymentIpn: {
+            partnerCode: string;
+            orderId: string;
+            requestId: string;
+            /** Format: int64 */
+            amount: number;
+            orderInfo: string;
+            orderType: string;
+            /** Format: int64 */
+            transId: number;
+            /** Format: int32 */
+            resultCode: number;
+            message: string;
+            payType: string;
+            /** Format: int64 */
+            responseTime: number;
+            extraData: string;
+            signature: string;
+            partnerUserId?: string;
+            storeId?: string;
+            paymentOption?: string;
+            /** Format: int64 */
+            userFee?: number;
+            promotionInfo?: unknown;
+        };
         AppointmentNotificationEligibility: {
             /** Format: uuid */
             appointmentId: string;
@@ -2717,6 +2903,134 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
             409: components["responses"]["CreditConflictProblem"];
+        };
+    };
+    listActiveServicePlanVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active versioned VND catalogue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePlanCatalogue"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    createPlanCheckout: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlanCheckout"];
+            };
+        };
+        responses: {
+            /** @description Pending payment and provider-controlled HTTPS checkout destinations */
+            201: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanPayment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    listOwnPlanPayments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded payment history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanPaymentHistory"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getOwnPlanPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current payment state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanPayment"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    receiveMomoPlanPaymentIpn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MomoPaymentIpn"];
+            };
+        };
+        responses: {
+            /** @description Verified callback acknowledged, including duplicate or unmatched verified events */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            503: components["responses"]["UnavailableProblem"];
         };
     };
     getCurrentServiceEntitlement: {
