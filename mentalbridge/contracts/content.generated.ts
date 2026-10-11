@@ -99,11 +99,14 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Get an active reviewed resource for one locale */
+        /**
+         * Get an active reviewed resource for one locale
+         * @description Without contentVersion, resolves only the current active PUBLISHED resource. With contentVersion, may resolve the immutable publication snapshot for an exact historical reference after archive or correction without restoring catalogue visibility.
+         */
         get: operations["getResource"];
         put?: never;
         post?: never;
-        /** Delete a DRAFT resource (Admin) */
+        /** Delete an initial DRAFT resource with no publication history (Admin) */
         delete: operations["deleteResource"];
         options?: never;
         head?: never;
@@ -897,6 +900,10 @@ export interface components {
             /** Format: uuid */
             reviewedBy: string | null;
             version: number;
+            /** @description Immutable configured-authority decision for this exact version. */
+            reviewDecision: components["schemas"]["ResourceReviewDecision"] | null;
+            /** @description True when this draft follows preserved publication history and cannot be deleted. */
+            isCorrectionDraft: boolean;
         };
         ResourceListResponse: {
             data: components["schemas"]["ResourceSummary"][];
@@ -951,11 +958,6 @@ export interface components {
             catalogueVisibility: "LISTED" | "DIRECT_ONLY";
             /** @default draft-v1 */
             contentVersionLabel: string;
-            /**
-             * @default NEEDS_SOURCE_REVIEW
-             * @enum {string}
-             */
-            sourceReviewStatus: "REVIEWED" | "REVIEW_REQUIRED" | "NEEDS_SOURCE_REVIEW";
             sourceOrganization?: string | null;
             sourceTitle?: string | null;
             /** Format: uri */
@@ -998,8 +1000,6 @@ export interface components {
             /** @enum {string} */
             catalogueVisibility?: "LISTED" | "DIRECT_ONLY";
             contentVersionLabel?: string;
-            /** @enum {string} */
-            sourceReviewStatus?: "REVIEWED" | "REVIEW_REQUIRED" | "NEEDS_SOURCE_REVIEW";
             sourceOrganization?: string | null;
             sourceTitle?: string | null;
             /** Format: uri */
@@ -1539,7 +1539,7 @@ export interface operations {
         parameters: {
             query?: {
                 locale?: components["parameters"]["Locale"];
-                /** @description Exact non-negative content version requested by a persisted consumer reference. When present, a different current version returns 404 rather than substituting content. */
+                /** @description Exact non-negative content version requested by a persisted consumer reference. When present, the exact immutable publication is returned and no newer version is substituted. */
                 contentVersion?: string;
             };
             header?: never;
@@ -1734,7 +1734,8 @@ export interface operations {
             400: components["responses"]["RequestRejected"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            409: components["responses"]["ReviewApprovalRequired"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     reviewResource: {

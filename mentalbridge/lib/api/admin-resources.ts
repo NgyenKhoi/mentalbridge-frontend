@@ -25,7 +25,6 @@ type ResourceExperienceInput = Partial<
     | 'safetyNotes'
     | 'catalogueVisibility'
     | 'contentVersionLabel'
-    | 'sourceReviewStatus'
     | 'sourceOrganization'
     | 'sourceTitle'
     | 'sourceUrl'

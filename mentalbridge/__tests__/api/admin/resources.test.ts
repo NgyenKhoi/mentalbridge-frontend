@@ -65,6 +65,8 @@ const fullDetail = {
   effectiveAt: null,
   expiresAt: null,
   version: 0,
+  reviewDecision: null,
+  isCorrectionDraft: false,
 }
 
 function json(body: unknown, status = 200, contentType = 'application/json') {
@@ -162,7 +164,6 @@ describe('Content admin BFF boundary', () => {
       interactionConfig: {
         steps: [{ id: 'define', label: 'Define the problem' }],
       },
-      sourceReviewStatus: 'REVIEWED',
     }
 
     expect(
@@ -219,6 +220,38 @@ describe('Content admin BFF boundary', () => {
     expect(response.headers.get('content-type')).toContain(
       'application/problem+json',
     )
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects attempts to forge the server-owned review state', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch')
+    const createResponse = await create(
+      req('/api/admin/resources', {
+        method: 'POST',
+        body: JSON.stringify({
+          category: 'ARTICLE',
+          title: 'Draft',
+          summary: 'Summary',
+          contentBody: 'Body',
+          sourceReviewStatus: 'REVIEWED',
+        }),
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': 'forged-review-state',
+        },
+      }),
+    )
+    const updateResponse = await update(
+      req(`/api/admin/resources/${RESOURCE_ID}?version=0`, {
+        method: 'PATCH',
+        body: JSON.stringify({ sourceReviewStatus: 'REVIEWED' }),
+        headers: { 'content-type': 'application/json' },
+      }),
+      context,
+    )
+
+    expect(createResponse.status).toBe(422)
+    expect(updateResponse!.status).toBe(422)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -313,6 +346,14 @@ describe('Content admin BFF boundary', () => {
       .mockResolvedValueOnce(json(decision))
       .mockResolvedValueOnce(
         json({
+          ...decision,
+          contentVersion: '1',
+          decision: 'REJECTED',
+          reasonCode: 'SOURCE_REQUIRES_REVISION',
+        }),
+      )
+      .mockResolvedValueOnce(
+        json({
           ...summary,
           status: 'PUBLISHED',
           reviewedAt: decision.reviewedAt,
@@ -340,6 +381,19 @@ describe('Content admin BFF boundary', () => {
     expect(reviewResponse.status).toBe(200)
     expect(await reviewResponse.json()).toEqual(decision)
 
+    const rejectionResponse = await review(
+      req(`/api/admin/resources/${RESOURCE_ID}/review?version=1`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          decision: 'REJECTED',
+          reasonCode: 'SOURCE_REQUIRES_REVISION',
+        }),
+      }),
+      context,
+    )
+    expect(rejectionResponse.status).toBe(200)
+
     const publishResponse = await publish(
       req(`/api/admin/resources/${RESOURCE_ID}/publish?version=0`, {
         method: 'POST',
@@ -360,6 +414,7 @@ describe('Content admin BFF boundary', () => {
     expect(
       fetchMock.mock.calls.map(([input]) => new URL(String(input)).pathname),
     ).toEqual([
+      `/api/v1/resources/${RESOURCE_ID}/review`,
       `/api/v1/resources/${RESOURCE_ID}/review`,
       `/api/v1/resources/${RESOURCE_ID}/publish`,
       `/api/v1/resources/${RESOURCE_ID}/versions`,

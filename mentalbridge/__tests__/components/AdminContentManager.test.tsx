@@ -50,6 +50,8 @@ const mockResourceDetail = {
   effectiveAt: null,
   expiresAt: null,
   version: 0,
+  reviewDecision: null,
+  isCorrectionDraft: false,
 }
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
@@ -571,6 +573,49 @@ describe('AdminContentManager', () => {
     })
   })
 
+  it('submits an explicit exact-version rejection and renders its decision', async () => {
+    let reviewBody: unknown
+    let rejected = false
+    const rejectedDecision = {
+      resourceId: mockResourceDetail.id,
+      contentVersion: '0',
+      decision: 'REJECTED' as const,
+      reasonCode: 'SOURCE_REQUIRES_REVISION',
+      authorityVersion: 'RESOURCE_REVIEW_AUTHORITY_V1',
+      reviewedBy: '223e4567-e89b-42d3-a456-426614174000',
+      reviewedAt: '2026-10-11T00:00:00Z',
+    }
+    mockServer.use(
+      http.get('/api/admin/resources/:id', () =>
+        HttpResponse.json({
+          ...mockResourceDetail,
+          reviewDecision: rejected ? rejectedDecision : null,
+        }),
+      ),
+      http.post('/api/admin/resources/:id/review', async ({ request }) => {
+        reviewBody = await request.json()
+        rejected = true
+        return HttpResponse.json(rejectedDecision)
+      }),
+    )
+
+    render(
+      <TestWrapper>
+        <AdminContentManager onNotice={mockOnNotice} />
+      </TestWrapper>,
+    )
+
+    await userEvent.click(await screen.findByText('Draft Article'))
+    await userEvent.click(screen.getByText('Từ chối phiên bản'))
+    await waitFor(() =>
+      expect(reviewBody).toEqual({
+        decision: 'REJECTED',
+        reasonCode: 'SOURCE_REQUIRES_REVISION',
+      }),
+    )
+    expect(await screen.findByText('Đã từ chối')).toBeInTheDocument()
+  })
+
   it('publishes only the exact approved detail version', async () => {
     let publishVersion: string | null = null
     const publishRequest = vi.fn(({ request }: { request: Request }) => {
@@ -588,6 +633,15 @@ describe('AdminContentManager', () => {
           reviewedAt: '2026-10-11T00:00:00Z',
           reviewedBy: '223e4567-e89b-42d3-a456-426614174000',
           sourceReviewStatus: 'REVIEWED',
+          reviewDecision: {
+            resourceId: mockResourceDetail.id,
+            contentVersion: '0',
+            decision: 'APPROVED',
+            reasonCode: 'SOURCE_AND_CONTENT_APPROVED',
+            authorityVersion: 'RESOURCE_REVIEW_AUTHORITY_V1',
+            reviewedBy: '223e4567-e89b-42d3-a456-426614174000',
+            reviewedAt: '2026-10-11T00:00:00Z',
+          },
         }),
       ),
       http.post('/api/admin/resources/:id/publish', publishRequest),
@@ -642,6 +696,33 @@ describe('AdminContentManager', () => {
 
     // Restore confirm
     window.confirm = originalConfirm
+  })
+
+  it('does not offer physical deletion for a correction draft', async () => {
+    mockServer.use(
+      http.get('/api/admin/resources/:id', () =>
+        HttpResponse.json({
+          ...mockResourceDetail,
+          contentVersion: '1',
+          version: 1,
+          isCorrectionDraft: true,
+        }),
+      ),
+    )
+
+    render(
+      <TestWrapper>
+        <AdminContentManager onNotice={mockOnNotice} />
+      </TestWrapper>,
+    )
+
+    await userEvent.click(await screen.findByText('Draft Article'))
+    expect(
+      await screen.findByText(
+        'Bản chỉnh sửa này được giữ lại để bảo toàn lịch sử đã xuất bản.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Xóa bản nháp')).not.toBeInTheDocument()
   })
 
   it('handles backend errors gracefully', async () => {

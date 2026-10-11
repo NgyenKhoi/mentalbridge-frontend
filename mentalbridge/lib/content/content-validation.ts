@@ -245,7 +245,13 @@ export function parseAdminResourceDetail(
     !nullableDateTime(item.effectiveAt) ||
     !nullableDateTime(item.expiresAt) ||
     !Number.isSafeInteger(item.version) ||
-    (item.version as number) < 0
+    (item.version as number) < 0 ||
+    typeof item.isCorrectionDraft !== 'boolean' ||
+    !(
+      item.reviewDecision === null ||
+      (parseResourceReviewDecision(item.reviewDecision) !== null &&
+        record(item.reviewDecision)?.contentVersion === item.contentVersion)
+    )
   ) {
     return null
   }

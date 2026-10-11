@@ -112,7 +112,7 @@ function ResourceEditor({
   onCreateVersion: () => void
   onDelete: () => void
   onPublish: () => void
-  onReview: () => void
+  onReview: (decision: 'APPROVED' | 'REJECTED') => void
   onUpdate: (data: UpdateResourceRequest) => void
   archivePending: boolean
   createVersionPending: boolean
@@ -170,6 +170,26 @@ function ResourceEditor({
     Boolean(editSourceReviewNote.trim()) &&
     Boolean(editSourceRetrievedAt) &&
     /^[a-f0-9]{64}$/.test(editSourceContentHash)
+  const reviewDecision = detail.reviewDecision?.decision ?? null
+  const reviewStatus =
+    reviewDecision === 'APPROVED'
+      ? {
+          icon: '✓',
+          title: 'Đã phê duyệt',
+          description: `Rà soát lúc ${formatDate(detail.reviewDecision?.reviewedAt ?? null)}`,
+        }
+      : reviewDecision === 'REJECTED'
+        ? {
+            icon: '!',
+            title: 'Đã từ chối',
+            description:
+              'Cần chỉnh sửa và lưu thành phiên bản mới trước khi rà soát lại.',
+          }
+        : {
+            icon: '○',
+            title: 'Chưa có quyết định rà soát',
+            description: 'Cần người có thẩm quyền rà soát phiên bản này.',
+          }
 
   return (
     <article className="acm-editor">
@@ -286,7 +306,7 @@ function ResourceEditor({
             />
           </label>
         </div>
-        {!detail.reviewedAt && !hasCompleteSource && (
+        {reviewDecision !== 'APPROVED' && !hasCompleteSource && (
           <p>
             Điền đầy đủ thông tin nguồn và lưu thay đổi trước khi phê duyệt.
           </p>
@@ -369,18 +389,10 @@ function ResourceEditor({
         </header>
         <div>
           <p>
-            <i>{detail.reviewedAt ? '✓' : '○'}</i>
+            <i>{reviewStatus.icon}</i>
             <span>
-              <strong>
-                {detail.reviewedAt
-                  ? 'Đã được rà soát'
-                  : 'Chưa có quyết định rà soát'}
-              </strong>
-              <small>
-                {detail.reviewedAt
-                  ? `Rà soát lúc ${formatDate(detail.reviewedAt)}`
-                  : 'Cần người có thẩm quyền rà soát phiên bản này'}
-              </small>
+              <strong>{reviewStatus.title}</strong>
+              <small>{reviewStatus.description}</small>
             </span>
           </p>
         </div>
@@ -400,9 +412,15 @@ function ResourceEditor({
       <footer>
         {detail.status === 'DRAFT' && (
           <>
-            <button onClick={onDelete} disabled={deletePending}>
-              Xóa bản nháp
-            </button>
+            {detail.isCorrectionDraft ? (
+              <p role="status">
+                Bản chỉnh sửa này được giữ lại để bảo toàn lịch sử đã xuất bản.
+              </p>
+            ) : (
+              <button onClick={onDelete} disabled={deletePending}>
+                Xóa bản nháp
+              </button>
+            )}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               {hasEdits && (
                 <button
@@ -434,24 +452,34 @@ function ResourceEditor({
                   {updatePending ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
               )}
-              <button
-                className="acm-save"
-                onClick={detail.reviewedAt ? onPublish : onReview}
-                disabled={
-                  hasEdits ||
-                  reviewPending ||
-                  publishPending ||
-                  (!detail.reviewedAt && !hasCompleteSource)
-                }
-              >
-                {detail.reviewedAt
-                  ? publishPending
+              {reviewDecision === null && (
+                <>
+                  <button
+                    onClick={() => onReview('REJECTED')}
+                    disabled={hasEdits || reviewPending}
+                  >
+                    {reviewPending ? 'Đang ghi nhận...' : 'Từ chối phiên bản'}
+                  </button>
+                  <button
+                    className="acm-save"
+                    onClick={() => onReview('APPROVED')}
+                    disabled={hasEdits || reviewPending || !hasCompleteSource}
+                  >
+                    {reviewPending ? 'Đang ghi nhận...' : 'Phê duyệt phiên bản'}
+                  </button>
+                </>
+              )}
+              {reviewDecision === 'APPROVED' && (
+                <button
+                  className="acm-save"
+                  onClick={onPublish}
+                  disabled={hasEdits || publishPending}
+                >
+                  {publishPending
                     ? 'Đang xuất bản...'
-                    : 'Xuất bản phiên bản này'
-                  : reviewPending
-                    ? 'Đang ghi nhận rà soát...'
-                    : 'Phê duyệt phiên bản'}
-              </button>
+                    : 'Xuất bản phiên bản này'}
+                </button>
+              )}
             </div>
           </>
         )}
@@ -555,29 +583,45 @@ export default function AdminContentManager({
   })
 
   const reviewMutation = useMutation({
-    mutationFn: ({ id, version }: { id: string; version: number }) =>
+    mutationFn: ({
+      id,
+      version,
+      decision,
+    }: {
+      id: string
+      version: number
+      decision: 'APPROVED' | 'REJECTED'
+    }) =>
       adminResourcesApi.review(
         id,
         version,
-        'APPROVED',
-        'SOURCE_AND_CONTENT_APPROVED',
+        decision,
+        decision === 'APPROVED'
+          ? 'SOURCE_AND_CONTENT_APPROVED'
+          : 'SOURCE_REQUIRES_REVISION',
       ),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
       queryClient.invalidateQueries({
         queryKey: ['admin', 'resources', activeId],
       })
-      onNotice('Đã phê duyệt phiên bản tài nguyên')
+      onNotice(
+        variables.decision === 'APPROVED'
+          ? 'Đã phê duyệt phiên bản tài nguyên'
+          : 'Đã từ chối phiên bản tài nguyên',
+      )
       showActionToast({
         title: 'Đã ghi nhận quyết định rà soát',
         tone: 'success',
       })
     },
-    onError: (mutationError) => {
+    onError: (mutationError, variables) => {
       onNotice(
         mutationMessage(
           mutationError,
-          'Không thể phê duyệt. Hãy kiểm tra đầy đủ thông tin nguồn và quyền rà soát.',
+          variables.decision === 'APPROVED'
+            ? 'Không thể phê duyệt. Hãy kiểm tra đầy đủ thông tin nguồn và quyền rà soát.'
+            : 'Không thể ghi nhận từ chối. Hãy tải lại và kiểm tra quyền rà soát.',
         ),
       )
     },
@@ -769,7 +813,12 @@ export default function AdminContentManager({
   }
 
   const deleteSelected = async () => {
-    if (!selectedResource || typeof detailData?.version !== 'number') return
+    if (
+      !selectedResource ||
+      typeof detailData?.version !== 'number' ||
+      detailData.isCorrectionDraft
+    )
+      return
     const confirmed = await confirmAction({
       title: 'Xóa bản nháp tài nguyên?',
       description:
@@ -1094,10 +1143,11 @@ export default function AdminContentManager({
                     version: detailData.version as number,
                   })
                 }
-                onReview={() =>
+                onReview={(decision) =>
                   reviewMutation.mutate({
                     id: selectedResource.id,
                     version: detailData.version as number,
+                    decision,
                   })
                 }
                 onUpdate={(data) =>
