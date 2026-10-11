@@ -127,6 +127,16 @@ describe('Mobile Delivery Contract v1', () => {
     expect(androidEvidence).toContain('services=(identity community)')
     expect(androidEvidence).toContain('npm run e2e:android:discovery:evidence')
     expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-chat-e2e')",
+    )
+    expect(androidEvidence).toContain('npm run e2e:android:chat:evidence')
+    expect(androidEvidence).toContain(
+      'services=(identity consultation realtime)',
+    )
+    expect(androidEvidence).toContain(
+      '-f ../mobile/ci/docker-compose.mobile-chat-e2e.yml',
+    )
+    expect(androidEvidence).toContain(
       'npm run e2e:android:appointments:evidence',
     )
     expect(androidEvidence).toContain(
@@ -144,6 +154,9 @@ describe('Mobile Delivery Contract v1', () => {
       /e2e:android|native:android|native:ios|test:ci|build:bundle/,
     )
     const gate = workflowJob(developmentWorkflow, 'quality-gate')
+    expect(gate).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-chat-e2e')",
+    )
     expect(gate).toContain(
       "contains(github.event.pull_request.labels.*.name, 'run-mobile-appointments-e2e')",
     )

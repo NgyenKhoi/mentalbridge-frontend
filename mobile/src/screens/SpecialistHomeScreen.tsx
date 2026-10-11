@@ -21,6 +21,10 @@ export function SpecialistHomeScreen() {
       </Text>
       <View style={styles.actions}>
         <PrimaryButton
+          label="Phiên trò chuyện"
+          onPress={() => router.push('./messages')}
+        />
+        <PrimaryButton
           label="Quản lý hồ sơ nghề nghiệp"
           onPress={() => router.push('./profile')}
         />

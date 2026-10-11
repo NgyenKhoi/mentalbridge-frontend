@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { randomUUID } from 'expo-crypto'
+import { router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 
@@ -569,6 +570,18 @@ function AccountAppointmentsScreen({
                     Chi tiết lịch hẹn
                   </Text>
                   <AppointmentFacts item={item} />
+                  {item.modality === 'IN_APP_CHAT' && (
+                    <Secondary
+                      label="Mở phiên trò chuyện"
+                      disabled={busy}
+                      onPress={() =>
+                        router.push({
+                          pathname: './messages',
+                          params: { appointmentId: item.id },
+                        })
+                      }
+                    />
+                  )}
                   {changeAllowed && !review && (
                     <>
                       <Secondary

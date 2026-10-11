@@ -183,10 +183,10 @@ provision(
   insert into current_service_entitlement
     (account_id,package_code,source,source_reference,established_by,effective_from,effective_until,policy_version)
   values ('${user.id}','PLUS','DEMO','mb-629-protected-synthetic-demo','${admin.id}',
-    now()-interval '1 minute',now()+interval '${process.env.MOBILE_EVIDENCE_FEATURE === 'appointments' ? '7 days' : '1 day'}','service-entitlement-v1');
+    now()-interval '1 minute',now()+interval '${['appointments', 'chat'].includes(process.env.MOBILE_EVIDENCE_FEATURE) ? '7 days' : '1 day'}','service-entitlement-v1');
 `,
 )
-if (process.env.MOBILE_EVIDENCE_FEATURE === 'appointments') {
+if (['appointments', 'chat'].includes(process.env.MOBILE_EVIDENCE_FEATURE)) {
   const response = await fetch(`${base}/service-credits`, {
     headers: user.headers,
   })
