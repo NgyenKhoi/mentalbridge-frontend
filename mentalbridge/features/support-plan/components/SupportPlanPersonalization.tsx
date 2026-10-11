@@ -16,6 +16,8 @@ import type {
 import SupportPlanIcon from './SupportPlanIcon'
 
 type FormValue = ReplaceSupportPlanPersonalizationRequest
+export type SupportPlanReviewReasonCode =
+  SupportPlanPersonalization['planReview']['reasonCode']
 type ScalarKey =
   | 'preferredFocus'
   | 'desiredPace'
@@ -174,7 +176,9 @@ function MultiChoiceGroup({
 
 export default function SupportPlanPersonalization({
   onReviewPlan,
-}: Readonly<{ onReviewPlan: () => void }>) {
+}: Readonly<{
+  onReviewPlan: (reasonCode: SupportPlanReviewReasonCode) => void
+}>) {
   const [authority, setAuthority] =
     useState<SupportPlanPersonalizationAuthority>()
   const [form, setForm] = useState<FormValue>(EMPTY_FORM)
@@ -339,7 +343,7 @@ export default function SupportPlanPersonalization({
           <button
             type="button"
             className="btn btn-outline"
-            onClick={onReviewPlan}
+            onClick={() => onReviewPlan(authority.value.planReview.reasonCode)}
           >
             {authority.value.planReview.reasonCode ===
             'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION'

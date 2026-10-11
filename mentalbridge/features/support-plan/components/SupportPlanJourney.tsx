@@ -36,7 +36,9 @@ import SupportPlanCard from './SupportPlanCard'
 import SupportPlanFooter from './SupportPlanFooter'
 import SupportPlanHistory from './SupportPlanHistory'
 import SupportPlanIcon from './SupportPlanIcon'
-import SupportPlanPersonalization from './SupportPlanPersonalization'
+import SupportPlanPersonalization, {
+  type SupportPlanReviewReasonCode,
+} from './SupportPlanPersonalization'
 import SupportPlanReplacementReviewView from './SupportPlanReplacementReview'
 
 import './support-plan.css'
@@ -261,6 +263,7 @@ export default function SupportPlanJourney() {
   const creationKey = useRef<string | undefined>(undefined)
   const activationKey = useRef<string | undefined>(undefined)
   const replacementKey = useRef<string | undefined>(undefined)
+  const replacementDraftReviewRef = useRef<HTMLDivElement>(null)
 
   const loadReplacementReview = useCallback(
     async (current: SupportPlan, draft: SupportPlan) => {
@@ -485,6 +488,24 @@ export default function SupportPlanJourney() {
     setRecoveryVersion((current) => current + 1)
     await loadHistory()
     return recovered
+  }
+
+  const reviewPersonalizedPlan = (reasonCode: SupportPlanReviewReasonCode) => {
+    if (
+      reasonCode === 'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION' &&
+      currentPlan &&
+      replacementDraft
+    ) {
+      setActiveTab('adjust')
+      window.requestAnimationFrame(() =>
+        replacementDraftReviewRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        }),
+      )
+      return
+    }
+    setActiveTab('plan')
   }
 
   const saveChoices = async (request: ReplaceSupportPlanChoicesRequest) => {
@@ -767,9 +788,7 @@ export default function SupportPlanJourney() {
       {!loading && (plan || activeTab === 'progress') && (
         <>
           {plan && activeTab === 'adjust' && (
-            <SupportPlanPersonalization
-              onReviewPlan={() => setActiveTab('plan')}
-            />
+            <SupportPlanPersonalization onReviewPlan={reviewPersonalizedPlan} />
           )}
           {plan && activeTab !== 'progress' && (
             <SupportPlanCard
@@ -871,34 +890,36 @@ export default function SupportPlanJourney() {
           )}
           {activeTab === 'adjust' && currentPlan && replacementDraft && (
             <>
-              <SupportPlanCard
-                key={`${replacementDraft.supportPlanId}:${replacementDraft.version}:${recoveryVersion}`}
-                plan={replacementDraft}
-                busy={busy}
-                message={commandMessage}
-                onSaveChoices={saveChoices}
-                onActivate={activate}
-                onStatusChange={changeReplacementDraftStatus}
-                draftAction="REPLACEMENT"
-                activeTab="plan"
-                embedded
-                focusProjection={
-                  focusProjections[replacementDraft.supportPlanId]?.version ===
-                  replacementDraft.version
-                    ? focusProjections[replacementDraft.supportPlanId]?.value
-                    : undefined
-                }
-                focusProjectionLoading={
-                  focusProjections[replacementDraft.supportPlanId]?.version !==
-                  replacementDraft.version
-                }
-                focusProjectionUnavailable={
-                  focusProjections[replacementDraft.supportPlanId]?.version ===
-                    replacementDraft.version &&
-                  focusProjections[replacementDraft.supportPlanId]?.status ===
-                    'unavailable'
-                }
-              />
+              <div ref={replacementDraftReviewRef}>
+                <SupportPlanCard
+                  key={`${replacementDraft.supportPlanId}:${replacementDraft.version}:${recoveryVersion}`}
+                  plan={replacementDraft}
+                  busy={busy}
+                  message={commandMessage}
+                  onSaveChoices={saveChoices}
+                  onActivate={activate}
+                  onStatusChange={changeReplacementDraftStatus}
+                  draftAction="REPLACEMENT"
+                  activeTab="plan"
+                  embedded
+                  focusProjection={
+                    focusProjections[replacementDraft.supportPlanId]
+                      ?.version === replacementDraft.version
+                      ? focusProjections[replacementDraft.supportPlanId]?.value
+                      : undefined
+                  }
+                  focusProjectionLoading={
+                    focusProjections[replacementDraft.supportPlanId]
+                      ?.version !== replacementDraft.version
+                  }
+                  focusProjectionUnavailable={
+                    focusProjections[replacementDraft.supportPlanId]
+                      ?.version === replacementDraft.version &&
+                    focusProjections[replacementDraft.supportPlanId]?.status ===
+                      'unavailable'
+                  }
+                />
+              </div>
               {replacementLoading && !replacementReview && (
                 <div className="support-plan-state" role="status">
                   Đang kiểm tra lại hai kế hoạch…
@@ -937,9 +958,7 @@ export default function SupportPlanJourney() {
           aria-labelledby="tab-plan"
           className="support-plan-tab-pane is-active"
         >
-          <SupportPlanPersonalization
-            onReviewPlan={() => setActiveTab('plan')}
-          />
+          <SupportPlanPersonalization onReviewPlan={reviewPersonalizedPlan} />
           <section
             className={`support-plan-state ${message ? 'notice' : ''}`}
             aria-live="polite"

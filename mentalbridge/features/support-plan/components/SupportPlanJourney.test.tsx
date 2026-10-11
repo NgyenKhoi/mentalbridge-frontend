@@ -504,6 +504,64 @@ describe('SupportPlanJourney', () => {
     )
   })
 
+  it('keeps stale replacement review in Adjust and scrolls to the draft', async () => {
+    const current = activePlan()
+    const draft = {
+      ...supportPlanFixture(),
+      supportPlanId: '10000000-0000-4000-8000-000000000399',
+    }
+    const scrollIntoView = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    })
+    api.getCurrentSupportPlan.mockResolvedValue(current)
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.reviewSupportPlanReplacement.mockRejectedValue(
+      problem('SUPPORT_PLAN_REVIEW_UNAVAILABLE', 503),
+    )
+    api.getSupportPlanPersonalization.mockResolvedValue({
+      value: {
+        personalizationId: '10000000-0000-4000-8000-000000000638',
+        schemaVersion: 'support-plan-personalization-v1',
+        revision: 2,
+        status: 'PROVIDED',
+        preferredFocus: 'MOTIVATION',
+        desiredPace: null,
+        dailyTimeBudgetMinutes: null,
+        preferredDaypart: null,
+        preferredActivityModes: [],
+        commonBarriers: [],
+        submittedAt: '2026-10-12T08:00:00Z',
+        planReview: {
+          required: true,
+          supportPlanId: draft.supportPlanId,
+          supportPlanVersion: draft.version,
+          reasonCode: 'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION',
+        },
+      },
+      etag: '"2"',
+    })
+
+    render(<SupportPlanJourney />)
+
+    const reviewDraft = await screen.findByRole('button', {
+      name: 'Xem bản đề xuất',
+    })
+    const adjustTab = screen.getByRole('tab', { name: 'Điều chỉnh' })
+    expect(adjustTab).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.click(reviewDraft)
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledOnce())
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'start',
+    })
+    expect(adjustTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Phương án thay thế')).toBeVisible()
+  })
+
   it('keeps a replacement conflict visible after reloading the authoritative review', async () => {
     const current = activePlan()
     const draft = {

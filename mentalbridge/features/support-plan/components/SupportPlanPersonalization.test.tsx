@@ -119,7 +119,9 @@ describe('SupportPlanPersonalization', () => {
     ).toBeVisible()
     expect(screen.getByText(/hủy bản cũ rồi tạo lại/i)).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản đề xuất' }))
-    expect(onReviewPlan).toHaveBeenCalledOnce()
+    expect(onReviewPlan).toHaveBeenCalledWith(
+      'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION',
+    )
   })
 
   it('saves a partial preference replacement with the loaded ETag', async () => {
