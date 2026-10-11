@@ -33,6 +33,8 @@ import {
 } from '@/app/api/admin/resources/[id]/route'
 import { POST as publish } from '@/app/api/admin/resources/[id]/publish/route'
 import { POST as archive } from '@/app/api/admin/resources/[id]/archive/route'
+import { POST as review } from '@/app/api/admin/resources/[id]/review/route'
+import { POST as createVersion } from '@/app/api/admin/resources/[id]/versions/route'
 
 const RESOURCE_ID = '123e4567-e89b-42d3-a456-426614174000'
 const CORRELATION_ID = '223e4567-e89b-42d3-a456-426614174000'
@@ -294,6 +296,74 @@ describe('Content admin BFF boundary', () => {
       ).status,
     ).toBe(200)
     expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('forwards exact-version review, publish, and correction-version transitions', async () => {
+    const decision = {
+      resourceId: RESOURCE_ID,
+      contentVersion: '0',
+      decision: 'APPROVED',
+      reasonCode: 'SOURCE_AND_CONTENT_APPROVED',
+      authorityVersion: 'RESOURCE_REVIEW_AUTHORITY_V1',
+      reviewedBy: '323e4567-e89b-42d3-a456-426614174000',
+      reviewedAt: '2026-10-11T00:00:00Z',
+    }
+    const fetchMock = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(json(decision))
+      .mockResolvedValueOnce(
+        json({
+          ...summary,
+          status: 'PUBLISHED',
+          reviewedAt: decision.reviewedAt,
+        }),
+      )
+      .mockResolvedValueOnce(
+        json({
+          ...fullDetail,
+          contentVersion: '1',
+          version: 1,
+        }),
+      )
+
+    const reviewResponse = await review(
+      req(`/api/admin/resources/${RESOURCE_ID}/review?version=0`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          decision: 'APPROVED',
+          reasonCode: 'SOURCE_AND_CONTENT_APPROVED',
+        }),
+      }),
+      context,
+    )
+    expect(reviewResponse.status).toBe(200)
+    expect(await reviewResponse.json()).toEqual(decision)
+
+    const publishResponse = await publish(
+      req(`/api/admin/resources/${RESOURCE_ID}/publish?version=0`, {
+        method: 'POST',
+      }),
+      context,
+    )
+    expect(publishResponse.status).toBe(200)
+
+    const versionResponse = await createVersion(
+      req(`/api/admin/resources/${RESOURCE_ID}/versions?version=0`, {
+        method: 'POST',
+      }),
+      context,
+    )
+    expect(versionResponse.status).toBe(200)
+    expect((await versionResponse.json()).contentVersion).toBe('1')
+
+    expect(
+      fetchMock.mock.calls.map(([input]) => new URL(String(input)).pathname),
+    ).toEqual([
+      `/api/v1/resources/${RESOURCE_ID}/review`,
+      `/api/v1/resources/${RESOURCE_ID}/publish`,
+      `/api/v1/resources/${RESOURCE_ID}/versions`,
+    ])
   })
 
   it('sanitizes malformed upstream errors and unknown mutation outcomes', async () => {

@@ -94,19 +94,31 @@ function ResourceEditor({
   resource,
   detail,
   onArchive,
+  onCreateVersion,
   onDelete,
+  onPublish,
+  onReview,
   onUpdate,
   archivePending,
+  createVersionPending,
   deletePending,
+  publishPending,
+  reviewPending,
   updatePending,
 }: {
   resource: ContentItem
   detail: ResourceDetail
   onArchive: () => void
+  onCreateVersion: () => void
   onDelete: () => void
+  onPublish: () => void
+  onReview: () => void
   onUpdate: (data: UpdateResourceRequest) => void
   archivePending: boolean
+  createVersionPending: boolean
   deletePending: boolean
+  publishPending: boolean
+  reviewPending: boolean
   updatePending: boolean
 }) {
   const [editTitle, setEditTitle] = useState(detail.title)
@@ -114,6 +126,22 @@ function ResourceEditor({
   const [editLocale, setEditLocale] = useState(detail.locale)
   const [editBody, setEditBody] = useState(detail.contentBody ?? '')
   const [editUrl, setEditUrl] = useState(detail.externalUrl ?? '')
+  const [editSourceOrganization, setEditSourceOrganization] = useState(
+    detail.sourceOrganization ?? '',
+  )
+  const [editSourceTitle, setEditSourceTitle] = useState(
+    detail.sourceTitle ?? '',
+  )
+  const [editSourceUrl, setEditSourceUrl] = useState(detail.sourceUrl ?? '')
+  const [editSourceReviewNote, setEditSourceReviewNote] = useState(
+    detail.sourceReviewNote ?? '',
+  )
+  const [editSourceRetrievedAt, setEditSourceRetrievedAt] = useState(
+    toDateTimeInput(detail.sourceRetrievedAt),
+  )
+  const [editSourceContentHash, setEditSourceContentHash] = useState(
+    detail.sourceContentHash ?? '',
+  )
   const [editEffectiveAt, setEditEffectiveAt] = useState(
     toDateTimeInput(detail.effectiveAt),
   )
@@ -127,8 +155,21 @@ function ResourceEditor({
     editLocale !== detail.locale ||
     editBody !== (detail.contentBody ?? '') ||
     editUrl !== (detail.externalUrl ?? '') ||
+    editSourceOrganization !== (detail.sourceOrganization ?? '') ||
+    editSourceTitle !== (detail.sourceTitle ?? '') ||
+    editSourceUrl !== (detail.sourceUrl ?? '') ||
+    editSourceReviewNote !== (detail.sourceReviewNote ?? '') ||
+    editSourceRetrievedAt !== toDateTimeInput(detail.sourceRetrievedAt) ||
+    editSourceContentHash !== (detail.sourceContentHash ?? '') ||
     editEffectiveAt !== toDateTimeInput(detail.effectiveAt) ||
     editExpiresAt !== toDateTimeInput(detail.expiresAt)
+  const hasCompleteSource =
+    Boolean(editSourceOrganization.trim()) &&
+    Boolean(editSourceTitle.trim()) &&
+    Boolean(editSourceUrl.trim()) &&
+    Boolean(editSourceReviewNote.trim()) &&
+    Boolean(editSourceRetrievedAt) &&
+    /^[a-f0-9]{64}$/.test(editSourceContentHash)
 
   return (
     <article className="acm-editor">
@@ -144,12 +185,12 @@ function ResourceEditor({
         <label className="acm-visibility">
           <span>
             <strong>
-              {resource.status === 'PUBLISHED'
+              {detail.status === 'PUBLISHED'
                 ? 'Đang hiển thị'
-                : statusLabels[resource.status]}
+                : statusLabels[detail.status]}
             </strong>
             <small>
-              {resource.status === 'PUBLISHED'
+              {detail.status === 'PUBLISHED'
                 ? 'Người dùng có thể truy cập'
                 : 'Không hiển thị với người dùng'}
             </small>
@@ -160,7 +201,7 @@ function ResourceEditor({
       <div className="acm-editor-summary">
         <span>
           <small>Trạng thái</small>
-          <strong>{statusLabels[resource.status]}</strong>
+          <strong>{statusLabels[detail.status]}</strong>
         </span>
         <span>
           <small>Danh mục &amp; Ngôn ngữ</small>
@@ -186,7 +227,7 @@ function ResourceEditor({
             <input
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              disabled={resource.status !== 'DRAFT'}
+              disabled={detail.status !== 'DRAFT'}
             />
           </label>
           <label>
@@ -194,7 +235,7 @@ function ResourceEditor({
             <input
               value={editLocale}
               onChange={(event) => setEditLocale(event.target.value)}
-              disabled={resource.status !== 'DRAFT'}
+              disabled={detail.status !== 'DRAFT'}
             />
           </label>
           <label className="wide">
@@ -203,7 +244,7 @@ function ResourceEditor({
               value={editSummary}
               onChange={(e) => setEditSummary(e.target.value)}
               rows={3}
-              disabled={resource.status !== 'DRAFT'}
+              disabled={detail.status !== 'DRAFT'}
             />
           </label>
         </div>
@@ -214,7 +255,7 @@ function ResourceEditor({
               value={editBody}
               onChange={(event) => setEditBody(event.target.value)}
               rows={6}
-              disabled={resource.status !== 'DRAFT'}
+              disabled={detail.status !== 'DRAFT'}
             />
           </label>
           <label className="wide">
@@ -223,7 +264,7 @@ function ResourceEditor({
               type="url"
               value={editUrl}
               onChange={(event) => setEditUrl(event.target.value)}
-              disabled={resource.status !== 'DRAFT'}
+              disabled={detail.status !== 'DRAFT'}
             />
           </label>
           <label>
@@ -232,7 +273,7 @@ function ResourceEditor({
               type="datetime-local"
               value={editEffectiveAt}
               onChange={(event) => setEditEffectiveAt(event.target.value)}
-              disabled={resource.status !== 'DRAFT'}
+              disabled={detail.status !== 'DRAFT'}
             />
           </label>
           <label>
@@ -241,7 +282,78 @@ function ResourceEditor({
               type="datetime-local"
               value={editExpiresAt}
               onChange={(event) => setEditExpiresAt(event.target.value)}
-              disabled={resource.status !== 'DRAFT'}
+              disabled={detail.status !== 'DRAFT'}
+            />
+          </label>
+        </div>
+        {!detail.reviewedAt && !hasCompleteSource && (
+          <p>
+            Điền đầy đủ thông tin nguồn và lưu thay đổi trước khi phê duyệt.
+          </p>
+        )}
+      </section>
+
+      <section className="acm-form">
+        <header>
+          <span>02</span>
+          <div>
+            <h3>Thông tin nguồn</h3>
+            <p>Ghi lại nguồn dùng để kiểm tra nội dung trước khi xuất bản.</p>
+          </div>
+        </header>
+        <div className="acm-form-grid">
+          <label>
+            <span>Tổ chức nguồn</span>
+            <input
+              value={editSourceOrganization}
+              onChange={(event) =>
+                setEditSourceOrganization(event.target.value)
+              }
+              disabled={detail.status !== 'DRAFT'}
+            />
+          </label>
+          <label>
+            <span>Tên tài liệu nguồn</span>
+            <input
+              value={editSourceTitle}
+              onChange={(event) => setEditSourceTitle(event.target.value)}
+              disabled={detail.status !== 'DRAFT'}
+            />
+          </label>
+          <label className="wide">
+            <span>Liên kết nguồn</span>
+            <input
+              type="url"
+              value={editSourceUrl}
+              onChange={(event) => setEditSourceUrl(event.target.value)}
+              disabled={detail.status !== 'DRAFT'}
+            />
+          </label>
+          <label className="wide">
+            <span>Ghi chú rà soát</span>
+            <textarea
+              value={editSourceReviewNote}
+              onChange={(event) => setEditSourceReviewNote(event.target.value)}
+              rows={3}
+              disabled={detail.status !== 'DRAFT'}
+            />
+          </label>
+          <label>
+            <span>Ngày lấy nguồn</span>
+            <input
+              type="datetime-local"
+              value={editSourceRetrievedAt}
+              onChange={(event) => setEditSourceRetrievedAt(event.target.value)}
+              disabled={detail.status !== 'DRAFT'}
+            />
+          </label>
+          <label>
+            <span>Mã kiểm tra SHA-256</span>
+            <input
+              value={editSourceContentHash}
+              onChange={(event) => setEditSourceContentHash(event.target.value)}
+              disabled={detail.status !== 'DRAFT'}
+              pattern="[a-f0-9]{64}"
             />
           </label>
         </div>
@@ -249,7 +361,7 @@ function ResourceEditor({
 
       <section className="acm-safety">
         <header>
-          <span>02</span>
+          <span>03</span>
           <div>
             <h3>Kiểm tra an toàn</h3>
             <p>Đảm bảo thông tin phù hợp trước khi công khai.</p>
@@ -257,17 +369,17 @@ function ResourceEditor({
         </header>
         <div>
           <p>
-            <i>{resource.reviewedAt ? '✓' : '○'}</i>
+            <i>{detail.reviewedAt ? '✓' : '○'}</i>
             <span>
               <strong>
-                {resource.reviewedAt
-                  ? 'Có provenance rà soát'
+                {detail.reviewedAt
+                  ? 'Đã được rà soát'
                   : 'Chưa có quyết định rà soát'}
               </strong>
               <small>
-                {resource.reviewedAt
-                  ? `Rà soát lúc ${formatDate(resource.reviewedAt)}`
-                  : 'Quyền và quy trình rà soát MB-251 chưa được phê duyệt'}
+                {detail.reviewedAt
+                  ? `Rà soát lúc ${formatDate(detail.reviewedAt)}`
+                  : 'Cần người có thẩm quyền rà soát phiên bản này'}
               </small>
             </span>
           </p>
@@ -286,7 +398,7 @@ function ResourceEditor({
       </aside>
 
       <footer>
-        {resource.status === 'DRAFT' && (
+        {detail.status === 'DRAFT' && (
           <>
             <button onClick={onDelete} disabled={deletePending}>
               Xóa bản nháp
@@ -301,6 +413,15 @@ function ResourceEditor({
                       locale: editLocale,
                       contentBody: editBody || null,
                       externalUrl: editUrl || null,
+                      sourceOrganization: editSourceOrganization || null,
+                      sourceTitle: editSourceTitle || null,
+                      sourceUrl: editSourceUrl || null,
+                      sourceReviewNote: editSourceReviewNote || null,
+                      sourceRetrievedAt: toIsoOrNull(
+                        editSourceRetrievedAt,
+                        detail.sourceRetrievedAt,
+                      ),
+                      sourceContentHash: editSourceContentHash || null,
                       effectiveAt: toIsoOrNull(
                         editEffectiveAt,
                         detail.effectiveAt,
@@ -315,23 +436,34 @@ function ResourceEditor({
               )}
               <button
                 className="acm-save"
-                disabled
-                title="Đang chờ phê duyệt quy trình rà soát MB-251"
+                onClick={detail.reviewedAt ? onPublish : onReview}
+                disabled={
+                  hasEdits ||
+                  reviewPending ||
+                  publishPending ||
+                  (!detail.reviewedAt && !hasCompleteSource)
+                }
               >
-                Xuất bản — đang khóa
+                {detail.reviewedAt
+                  ? publishPending
+                    ? 'Đang xuất bản...'
+                    : 'Xuất bản phiên bản này'
+                  : reviewPending
+                    ? 'Đang ghi nhận rà soát...'
+                    : 'Phê duyệt phiên bản'}
               </button>
             </div>
           </>
         )}
-        {resource.status === 'PUBLISHED' && (
+        {detail.status === 'PUBLISHED' && (
           <button onClick={onArchive} disabled={archivePending}>
             Lưu trữ
           </button>
         )}
-        {resource.status === 'ARCHIVED' && (
-          <p>
-            <em>Tài nguyên đã được lưu trữ và không thể chỉnh sửa</em>
-          </p>
+        {detail.status === 'ARCHIVED' && (
+          <button onClick={onCreateVersion} disabled={createVersionPending}>
+            {createVersionPending ? 'Đang tạo...' : 'Tạo bản chỉnh sửa mới'}
+          </button>
         )}
       </footer>
     </article>
@@ -419,6 +551,74 @@ export default function AdminContentManager({
       queryClient.invalidateQueries({
         queryKey: ['admin', 'resources', activeId],
       })
+    },
+  })
+
+  const reviewMutation = useMutation({
+    mutationFn: ({ id, version }: { id: string; version: number }) =>
+      adminResourcesApi.review(
+        id,
+        version,
+        'APPROVED',
+        'SOURCE_AND_CONTENT_APPROVED',
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+      queryClient.invalidateQueries({
+        queryKey: ['admin', 'resources', activeId],
+      })
+      onNotice('Đã phê duyệt phiên bản tài nguyên')
+      showActionToast({
+        title: 'Đã ghi nhận quyết định rà soát',
+        tone: 'success',
+      })
+    },
+    onError: (mutationError) => {
+      onNotice(
+        mutationMessage(
+          mutationError,
+          'Không thể phê duyệt. Hãy kiểm tra đầy đủ thông tin nguồn và quyền rà soát.',
+        ),
+      )
+    },
+  })
+
+  const publishMutation = useMutation({
+    mutationFn: ({ id, version }: { id: string; version: number }) =>
+      adminResourcesApi.publish(id, version),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+      queryClient.invalidateQueries({
+        queryKey: ['admin', 'resources', activeId],
+      })
+      onNotice('Đã xuất bản phiên bản tài nguyên')
+      showActionToast({ title: 'Đã xuất bản tài nguyên', tone: 'success' })
+    },
+    onError: (mutationError) => {
+      onNotice(
+        mutationMessage(
+          mutationError,
+          'Không thể xuất bản. Hãy tải lại và kiểm tra quyết định rà soát.',
+        ),
+      )
+    },
+  })
+
+  const createVersionMutation = useMutation({
+    mutationFn: ({ id, version }: { id: string; version: number }) =>
+      adminResourcesApi.createVersion(id, version),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'resources'] })
+      queryClient.invalidateQueries({
+        queryKey: ['admin', 'resources', activeId],
+      })
+      onNotice('Đã tạo bản nháp chỉnh sửa mới')
+      showActionToast({ title: 'Đã tạo phiên bản mới', tone: 'success' })
+    },
+    onError: (mutationError) => {
+      onNotice(
+        mutationMessage(mutationError, 'Không thể tạo bản chỉnh sửa mới'),
+      )
     },
   })
 
@@ -557,7 +757,7 @@ export default function AdminContentManager({
     const confirmed = await confirmAction({
       title: 'Lưu trữ tài nguyên này?',
       description:
-        'Tài nguyên sẽ không còn hiển thị với người dùng và không thể chỉnh sửa sau khi lưu trữ.',
+        'Tài nguyên sẽ không còn hiển thị với người dùng. Bạn có thể tạo phiên bản chỉnh sửa mới sau khi lưu trữ.',
       confirmLabel: 'Lưu trữ',
       tone: 'warning',
     })
@@ -881,7 +1081,25 @@ export default function AdminContentManager({
                 resource={selectedResource}
                 detail={detailData}
                 onArchive={() => void archiveSelected()}
+                onCreateVersion={() =>
+                  createVersionMutation.mutate({
+                    id: selectedResource.id,
+                    version: detailData.version as number,
+                  })
+                }
                 onDelete={() => void deleteSelected()}
+                onPublish={() =>
+                  publishMutation.mutate({
+                    id: selectedResource.id,
+                    version: detailData.version as number,
+                  })
+                }
+                onReview={() =>
+                  reviewMutation.mutate({
+                    id: selectedResource.id,
+                    version: detailData.version as number,
+                  })
+                }
                 onUpdate={(data) =>
                   updateMutation.mutate({
                     id: selectedResource.id,
@@ -890,7 +1108,10 @@ export default function AdminContentManager({
                   })
                 }
                 archivePending={archiveMutation.isPending}
+                createVersionPending={createVersionMutation.isPending}
                 deletePending={deleteMutation.isPending}
+                publishPending={publishMutation.isPending}
+                reviewPending={reviewMutation.isPending}
                 updatePending={updateMutation.isPending}
               />
             )}

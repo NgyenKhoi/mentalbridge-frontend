@@ -3,6 +3,7 @@ import 'server-only'
 import { readContentServerConfig } from '@/lib/config/server'
 import {
   parseAdminResourceDetail,
+  parseResourceReviewDecision,
   parseContentProblem,
   parseResourceList,
   parsePublicResourceDetail,
@@ -16,6 +17,7 @@ import {
   parseResourceProgressList,
   parseResourceJourney,
   type AdminResourceDetail,
+  type ResourceReviewDecision,
   type ContentProblem,
   type PublicResourceDetail,
   type ResourceListResponse,
@@ -497,12 +499,49 @@ export const contentAdminClient = {
     version: number,
     correlationId: string,
   ) {
-    return contentRequest<never>({
+    return contentRequest<ResourceSummary>({
       method: 'POST',
       path: `/api/v1/resources/${encodeURIComponent(id)}/publish?version=${String(version)}`,
-      expectedStatus: 409,
+      expectedStatus: 200,
       accessToken,
       correlationId,
+      body: {},
+      parseSuccess: parseResourceSummary,
+      mutation: true,
+    })
+  },
+  review(
+    accessToken: string,
+    id: string,
+    version: number,
+    body: unknown,
+    correlationId: string,
+  ) {
+    return contentRequest<ResourceReviewDecision>({
+      method: 'POST',
+      path: `/api/v1/resources/${encodeURIComponent(id)}/review?version=${String(version)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body,
+      parseSuccess: parseResourceReviewDecision,
+      mutation: true,
+    })
+  },
+  createVersion(
+    accessToken: string,
+    id: string,
+    version: number,
+    correlationId: string,
+  ) {
+    return contentRequest<AdminResourceDetail>({
+      method: 'POST',
+      path: `/api/v1/resources/${encodeURIComponent(id)}/versions?version=${String(version)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: {},
+      parseSuccess: parseAdminResourceDetail,
       mutation: true,
     })
   },

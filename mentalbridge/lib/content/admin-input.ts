@@ -121,6 +121,13 @@ export const updateResourceSchema = z
   )
   .refine(validDates, { path: ['effectiveAt'] })
 
+export const reviewResourceSchema = z
+  .object({
+    decision: z.enum(['APPROVED', 'REJECTED']),
+    reasonCode: z.string().regex(/^[A-Z][A-Z0-9_]{1,63}$/),
+  })
+  .strict()
+
 export const listResourceQuerySchema = z
   .object({
     locale: locale.optional(),

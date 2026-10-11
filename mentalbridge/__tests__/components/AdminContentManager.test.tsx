@@ -41,6 +41,12 @@ const mockResourceDetail = {
   contentVersion: '0',
   contentBody: 'Detailed content for draft article',
   reviewedBy: null,
+  sourceOrganization: 'MentalBridge test',
+  sourceTitle: 'Reviewed source',
+  sourceUrl: 'https://example.com/source',
+  sourceReviewNote: 'Reviewed for controlled publication.',
+  sourceRetrievedAt: '2026-10-01T00:00:00Z',
+  sourceContentHash: 'a'.repeat(64),
   effectiveAt: null,
   expiresAt: null,
   version: 0,
@@ -281,8 +287,39 @@ describe('AdminContentManager', () => {
 
     await waitFor(() => {
       expect(screen.getByText('v0')).toBeInTheDocument() // Version should show 0
-      expect(screen.getByText('Xuất bản — đang khóa')).toBeDisabled()
+      expect(screen.getByText('Phê duyệt phiên bản')).toBeEnabled()
     })
+  })
+
+  it('keeps approval disabled until all source review fields are saved', async () => {
+    mockServer.use(
+      http.get('/api/admin/resources/:id', () =>
+        HttpResponse.json({
+          ...mockResourceDetail,
+          sourceOrganization: null,
+          sourceTitle: null,
+          sourceUrl: null,
+          sourceReviewNote: null,
+          sourceRetrievedAt: null,
+          sourceContentHash: null,
+        }),
+      ),
+    )
+
+    render(
+      <TestWrapper>
+        <AdminContentManager onNotice={mockOnNotice} />
+      </TestWrapper>,
+    )
+
+    await userEvent.click(await screen.findByText('Draft Article'))
+
+    expect(
+      await screen.findByText(
+        'Điền đầy đủ thông tin nguồn và lưu thay đổi trước khi phê duyệt.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Phê duyệt phiên bản')).toBeDisabled()
   })
 
   it('shows edit controls for draft resources', async () => {
@@ -496,11 +533,23 @@ describe('AdminContentManager', () => {
     })
   })
 
-  it('keeps publish disabled until the review authority is approved', async () => {
-    const publishRequest = vi.fn()
-    mockServer.use(
-      http.post('/api/admin/resources/:id/publish', publishRequest),
-    )
+  it('submits an exact-version approval before publishing a draft', async () => {
+    let reviewVersion: string | null = null
+    let reviewBody: unknown
+    const reviewRequest = vi.fn(async ({ request }: { request: Request }) => {
+      reviewVersion = new URL(request.url).searchParams.get('version')
+      reviewBody = await request.json()
+      return HttpResponse.json({
+        resourceId: mockResourceDetail.id,
+        contentVersion: '0',
+        decision: 'APPROVED',
+        reasonCode: 'SOURCE_AND_CONTENT_APPROVED',
+        authorityVersion: 'RESOURCE_REVIEW_AUTHORITY_V1',
+        reviewedBy: '223e4567-e89b-42d3-a456-426614174000',
+        reviewedAt: '2026-10-11T00:00:00Z',
+      })
+    })
+    mockServer.use(http.post('/api/admin/resources/:id/review', reviewRequest))
     render(
       <TestWrapper>
         <AdminContentManager onNotice={mockOnNotice} />
@@ -512,10 +561,49 @@ describe('AdminContentManager', () => {
     })
 
     await userEvent.click(screen.getByText('Draft Article'))
-    const publishButton = await screen.findByText('Xuất bản — đang khóa')
-    expect(publishButton).toBeDisabled()
-    await userEvent.click(publishButton)
-    expect(publishRequest).not.toHaveBeenCalled()
+    await userEvent.click(await screen.findByText('Phê duyệt phiên bản'))
+
+    await waitFor(() => expect(reviewRequest).toHaveBeenCalledOnce())
+    expect(reviewVersion).toBe('0')
+    expect(reviewBody).toEqual({
+      decision: 'APPROVED',
+      reasonCode: 'SOURCE_AND_CONTENT_APPROVED',
+    })
+  })
+
+  it('publishes only the exact approved detail version', async () => {
+    let publishVersion: string | null = null
+    const publishRequest = vi.fn(({ request }: { request: Request }) => {
+      publishVersion = new URL(request.url).searchParams.get('version')
+      return HttpResponse.json({
+        ...mockResourceDetail,
+        status: 'PUBLISHED',
+        reviewedAt: '2026-10-11T00:00:00Z',
+      })
+    })
+    mockServer.use(
+      http.get('/api/admin/resources/:id', () =>
+        HttpResponse.json({
+          ...mockResourceDetail,
+          reviewedAt: '2026-10-11T00:00:00Z',
+          reviewedBy: '223e4567-e89b-42d3-a456-426614174000',
+          sourceReviewStatus: 'REVIEWED',
+        }),
+      ),
+      http.post('/api/admin/resources/:id/publish', publishRequest),
+    )
+
+    render(
+      <TestWrapper>
+        <AdminContentManager onNotice={mockOnNotice} />
+      </TestWrapper>,
+    )
+
+    await userEvent.click(await screen.findByText('Draft Article'))
+    await userEvent.click(await screen.findByText('Xuất bản phiên bản này'))
+
+    await waitFor(() => expect(publishRequest).toHaveBeenCalledOnce())
+    expect(publishVersion).toBe('0')
   })
 
   it('deletes draft resources with version', async () => {
