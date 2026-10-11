@@ -18,6 +18,14 @@ describe('USER home screen', () => {
     jest.clearAllMocks()
   })
 
+  it('opens the persisted notification inbox', async () => {
+    await render(<UserHomeScreen />)
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Thông báo của tôi' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith('./notifications')
+  })
+
   it('opens owner-scoped appointments', async () => {
     await render(<UserHomeScreen />)
     await fireEvent.press(
