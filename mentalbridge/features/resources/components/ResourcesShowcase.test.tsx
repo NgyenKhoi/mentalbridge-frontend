@@ -221,6 +221,56 @@ describe('ResourcesShowcase truthful progress', () => {
     expect(saveButton).toBeDisabled()
   })
 
+  it('keeps the saved completion but hides stale journey facts when reconciliation fails', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    let todayRequests = 0
+    api.getResourceJourney.mockImplementation(async (date: string) => {
+      if (date !== '2026-09-29') return journey(date)
+      todayRequests += 1
+      if (todayRequests === 1) return journey(date, 0, 4)
+      if (todayRequests === 2) throw new Error('reconciliation failed')
+      return journey(date, 1, 5)
+    })
+
+    render(<ResourcesShowcase />)
+
+    const panel = await screen.findByRole('complementary', {
+      name: 'Nhịp thực hành',
+    })
+    expect(within(panel).getByText('4 ngày đã lưu')).toBeVisible()
+    await user.click(
+      within(panel).getByRole('button', {
+        name: `Ghi nhận hoàn thành và lưu: ${resource.title}`,
+      }),
+    )
+
+    expect(
+      await screen.findAllByText(
+        'Hoàn thành đã được lưu, nhưng chưa thể đối soát hành trình hôm nay. Tổng ngày, chuỗi thực hành và bingo đang được ẩn cho đến khi xác minh lại.',
+      ),
+    ).toHaveLength(2)
+    expect(
+      screen.getAllByText(`✓ Đã lưu hoàn thành “${resource.title}”.`),
+    ).toHaveLength(1)
+    expect(within(panel).queryByText('4 ngày đã lưu')).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(screen.queryByText('Đã lưu: 0/1 ô')).not.toBeInTheDocument()
+
+    await user.click(
+      within(panel).getByRole('button', { name: 'Đối soát lại' }),
+    )
+
+    expect(await within(panel).findByText('5 ngày đã lưu')).toBeVisible()
+    expect(within(panel).getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '1',
+    )
+    expect(screen.getByText('Đã lưu: 1/1 ô')).toBeVisible()
+    expect(
+      screen.getAllByText(`✓ Đã lưu hoàn thành “${resource.title}”.`),
+    ).toHaveLength(1)
+  })
+
   it('rebuilds returning and deleted progress from the server in a new session', async () => {
     api.getResourceProgress.mockResolvedValue([completedProgress()])
     api.getResourceJourney.mockImplementation(async (date: string) =>

@@ -29,8 +29,16 @@ import styles from './resources-showcase.module.css'
 
 type Filter = 'all' | 'short' | 'medium' | 'challenge'
 type JourneyState =
-  'loading' | 'ready' | 'partial' | 'missing' | 'plan-required' | 'error'
-type JourneyDateState = 'ready' | 'missing' | 'plan-required' | 'error'
+  | 'loading'
+  | 'ready'
+  | 'partial'
+  | 'missing'
+  | 'plan-required'
+  | 'error'
+  | 'reconciling'
+  | 'stale-current'
+type JourneyDateState =
+  'ready' | 'missing' | 'plan-required' | 'error' | 'stale'
 
 const resourceArtworks = [
   {
@@ -111,6 +119,7 @@ function currentJourneyState(
   const todayState = states[today]
   if (todayState === 'missing') return 'missing'
   if (todayState === 'plan-required') return 'plan-required'
+  if (todayState === 'stale') return 'stale-current'
   if (todayState === 'error' || !todayState) return 'error'
   return Object.values(states).some((state) => state !== 'ready')
     ? 'partial'
@@ -119,6 +128,10 @@ function currentJourneyState(
 
 function journeyStateCopy(state: JourneyState) {
   if (state === 'loading') return 'Đang tải tiến độ đã lưu…'
+  if (state === 'reconciling')
+    return 'Đã lưu hoàn thành. Đang đối soát lại tổng ngày, chuỗi thực hành và bingo…'
+  if (state === 'stale-current')
+    return 'Hoàn thành đã được lưu, nhưng chưa thể đối soát hành trình hôm nay. Tổng ngày, chuỗi thực hành và bingo đang được ẩn cho đến khi xác minh lại.'
   if (state === 'missing') return 'Chưa có dữ liệu hành trình cho ngày hôm nay.'
   if (state === 'plan-required')
     return 'Bạn cần một kế hoạch hỗ trợ đang hoạt động để xem nhịp thực hành.'
@@ -146,6 +159,7 @@ export default function ResourcesShowcase() {
   const [pendingId, setPendingId] = useState('')
   const [saveError, setSaveError] = useState('')
   const [completionMessage, setCompletionMessage] = useState('')
+  const [journeyRetrying, setJourneyRetrying] = useState(false)
   const acknowledgedCompletions = useRef(new Set<string>())
 
   useEffect(() => {
@@ -257,7 +271,8 @@ export default function ResourcesShowcase() {
       all.findIndex((candidate) => candidate.id === resource.id) === index,
   )
   const visible = expanded ? curated : curated.slice(0, 5)
-  const journey = journeys[today]
+  const journey =
+    journeyDateStates[today] === 'ready' ? journeys[today] : undefined
   const completedRecent = progress
     .filter((entry) => entry.status === 'COMPLETED')
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
@@ -273,6 +288,36 @@ export default function ResourcesShowcase() {
     day: 'numeric',
     month: 'long',
   }).format(new Date(`${today}T12:00:00`))
+
+  async function reconcileTodayJourney() {
+    if (journeyRetrying) return
+    setJourneyRetrying(true)
+    setJourneyState('reconciling')
+
+    try {
+      const refreshed = await getResourceJourney(
+        today,
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+      )
+      const nextStates = { ...journeyDateStates, [today]: 'ready' as const }
+      setJourneys((current) => ({ ...current, [today]: refreshed }))
+      setJourneyDateStates(nextStates)
+      setJourneyState(currentJourneyState(today, nextStates))
+    } catch {
+      setJourneys((current) => {
+        const next = { ...current }
+        delete next[today]
+        return next
+      })
+      setJourneyDateStates((current) => ({
+        ...current,
+        [today]: 'stale',
+      }))
+      setJourneyState('stale-current')
+    } finally {
+      setJourneyRetrying(false)
+    }
+  }
 
   async function toggleDaily(resource: PublicResourceSummary) {
     if (pendingId) return
@@ -316,19 +361,15 @@ export default function ResourcesShowcase() {
       setCompletionMessage(`Đã lưu hoàn thành “${resource.title}”.`)
     }
     window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
+    setJourneys((current) => {
+      const next = { ...current }
+      delete next[today]
+      return next
+    })
+    setJourneyDateStates((current) => ({ ...current, [today]: 'stale' }))
 
-    try {
-      const refreshed = await getResourceJourney(
-        today,
-        Intl.DateTimeFormat().resolvedOptions().timeZone,
-      )
-      setJourneys((current) => ({ ...current, [today]: refreshed }))
-      setJourneyDateStates((current) => ({ ...current, [today]: 'ready' }))
-    } catch {
-      setJourneyState('partial')
-    } finally {
-      setPendingId('')
-    }
+    await reconcileTodayJourney()
+    setPendingId('')
   }
 
   if (catalogueState !== 'ready') {
@@ -457,18 +498,32 @@ export default function ResourcesShowcase() {
           ) : (
             <div className={styles.journeyState} role="status">
               <p>{journeyStateCopy(journeyState)}</p>
-              {journeyState !== 'loading' && (
-                <button type="button" onClick={() => window.location.reload()}>
-                  Tải lại tiến độ
+              {journeyState === 'stale-current' ? (
+                <button
+                  type="button"
+                  disabled={journeyRetrying}
+                  onClick={() => void reconcileTodayJourney()}
+                >
+                  Đối soát lại
                 </button>
+              ) : (
+                journeyState !== 'loading' &&
+                journeyState !== 'reconciling' && (
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                  >
+                    Tải lại tiến độ
+                  </button>
+                )
               )}
             </div>
           )}
 
           <div className={styles.weekDots} aria-label="Bảy ngày gần đây">
             {dates.map((date) => {
-              const dayJourney = journeys[date]
               const state = journeyDateStates[date]
+              const dayJourney = state === 'ready' ? journeys[date] : undefined
               const done = Boolean(dayJourney?.progress.dailyCompleted)
               const label =
                 date === today
@@ -517,13 +572,13 @@ export default function ResourcesShowcase() {
                   )
                 })}
               </ul>
-              {saveError && <p role="alert">{saveError}</p>}
-              {completionMessage && (
-                <p className={styles.completionNotice} role="status">
-                  ✓ {completionMessage}
-                </p>
-              )}
             </details>
+          )}
+          {saveError && <p role="alert">{saveError}</p>}
+          {completionMessage && (
+            <p className={styles.completionNotice} role="status">
+              ✓ {completionMessage}
+            </p>
           )}
           {progressState === 'error' && (
             <p className={styles.stateNote} role="status">
