@@ -60,6 +60,14 @@ const history: EmotionCheckIn[] = [
   },
 ]
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  const promise = new Promise<T>((complete) => {
+    resolve = complete
+  })
+  return { promise, resolve }
+}
+
 describe('EmotionProgress', () => {
   beforeEach(() => {
     getProgress.mockReset()
@@ -140,8 +148,8 @@ describe('EmotionProgress', () => {
   })
 
   it('invalidates old metrics while a save or deletion refresh is pending', async () => {
-    const pendingProgress = Promise.withResolvers<EmotionCheckInProgress>()
-    const pendingHistory = Promise.withResolvers<{
+    const pendingProgress = deferred<EmotionCheckInProgress>()
+    const pendingHistory = deferred<{
       items: EmotionCheckIn[]
       page: { limit: number; hasMore: boolean }
       label: 'SELF_REPORTED_EMOTION'
