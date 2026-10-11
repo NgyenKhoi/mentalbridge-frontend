@@ -12,6 +12,10 @@ import type {
   EmotionCheckInProgress,
   EmotionProgressWindow,
 } from '@/lib/emotion-check-in/contract'
+import {
+  emotionOrder,
+  emotionPresentation,
+} from '@/lib/emotion-check-in/presentation'
 
 import {
   getEmotionCheckInProgress,
@@ -33,43 +37,8 @@ type ReadyState = Readonly<{
 type State = Readonly<{ phase: 'loading' | 'error' }> | ReadyState
 
 const periods = [7, 14, 30] as const
-const emotions = ['GREAT', 'GOOD', 'OKAY', 'LOW', 'VERY_LOW'] as const
-
-const emotionCopy: Record<
-  Emotion,
-  Readonly<{ emoji: string; label: string; color: string; background: string }>
-> = {
-  GREAT: {
-    emoji: '🤩',
-    label: 'Rất tốt',
-    color: '#F5B942',
-    background: '#FDF3DC',
-  },
-  GOOD: {
-    emoji: '🙂',
-    label: 'Tốt',
-    color: '#3FB6A8',
-    background: '#DDF3F0',
-  },
-  OKAY: {
-    emoji: '😐',
-    label: 'Bình thường',
-    color: '#6C9BD2',
-    background: '#E3EDF8',
-  },
-  LOW: {
-    emoji: '😕',
-    label: 'Không tốt',
-    color: '#9D8CD6',
-    background: '#EAE6F7',
-  },
-  VERY_LOW: {
-    emoji: '😞',
-    label: 'Rất không tốt',
-    color: '#5B5FA8',
-    background: '#DCDDF0',
-  },
-}
+const emotions = emotionOrder
+const emotionCopy = emotionPresentation
 
 const localDateToOrdinal = (localDate: string) => {
   const [year, month, day] = localDate.split('-').map(Number)

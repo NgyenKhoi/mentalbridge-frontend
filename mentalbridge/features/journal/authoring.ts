@@ -1,16 +1,15 @@
 import type { JournalMood } from '@/lib/journal/journal-contract'
+import { emotionOptions } from '@/lib/emotion-check-in/presentation'
 
 export const JOURNAL_MOODS: ReadonlyArray<{
   value: JournalMood
   emoji: string
   label: string
-}> = [
-  { value: 'GREAT', emoji: '😊', label: 'Tuyệt vời' },
-  { value: 'GOOD', emoji: '🙂', label: 'Tốt' },
-  { value: 'OKAY', emoji: '😐', label: 'Bình thường' },
-  { value: 'LOW', emoji: '😔', label: 'Không tốt' },
-  { value: 'VERY_LOW', emoji: '😢', label: 'Rất tệ' },
-]
+}> = emotionOptions.map(({ value, emoji, label }) => ({
+  value,
+  emoji,
+  label,
+}))
 
 export const JOURNAL_PROMPTS = [
   'Điều gì đang ở lại trong tâm trí bạn lúc này?',

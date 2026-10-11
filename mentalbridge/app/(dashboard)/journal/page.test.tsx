@@ -188,7 +188,7 @@ describe('Journal page', () => {
       modal.getByText('Hãy viết một vài dòng trước khi lưu.'),
     ).toBeVisible()
     await waitFor(() =>
-      expect(modal.getByRole('radio', { name: 'Tuyệt vời' })).toHaveFocus(),
+      expect(modal.getByRole('radio', { name: 'Rất tốt' })).toHaveFocus(),
     )
     expect(fetchMock).toHaveBeenCalledTimes(1)
 

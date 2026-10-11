@@ -146,6 +146,19 @@
   gap: 8px;
 }
 
+.intensityNote,
+.unsaved {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.unsaved {
+  color: #8a5a20;
+  font-weight: 650;
+}
+
 .intensityTitle {
   color: var(--ink);
   font-size: 13.5px;
@@ -226,6 +239,26 @@
   cursor: not-allowed;
 }
 
+.deleteBtn {
+  padding: 8px 12px;
+  border: 1px solid rgba(174, 54, 54, 0.35);
+  border-radius: 9px;
+  background: transparent;
+  color: #9a2f2f;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: rgba(174, 54, 54, 0.08);
+}
+
+.deleteBtn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .journalLink {
   display: inline-flex;
   align-items: center;
@@ -292,56 +325,6 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-}
-
-/* ── Influence section ── */
-.influenceSection {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.influenceTitle {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0;
-}
-
-.optionalTag {
-  color: var(--ink-soft);
-  font-weight: 400;
-  font-size: 12px;
-}
-
-.chipList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.chip {
-  padding: 6px 13px;
-  border: 1px solid rgba(30, 74, 67, 0.12);
-  border-radius: 9px;
-  background: #f4f2ec;
-  color: var(--ink);
-  font-size: 12.5px;
-  font-weight: 550;
-  cursor: pointer;
-  transition: all 0.16s ease;
-  line-height: 1.2;
-}
-
-.chip:hover {
-  border-color: rgba(30, 74, 67, 0.28);
-  background: #e8ecdf;
-}
-
-.chipSelected {
-  background: var(--teal-deep) !important;
-  border-color: var(--teal-deep) !important;
-  color: #ffffff !important;
 }
 
 /* ── Comparison section ── */

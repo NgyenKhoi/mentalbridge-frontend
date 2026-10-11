@@ -154,6 +154,50 @@ describe('Emotion check-in server-only client', () => {
     ).resolves.toMatchObject({ emotion: 'LOW', revision: 2 })
   })
 
+  it('forwards an idempotent delete and validates the exact local day', async () => {
+    configure()
+    mockServer.use(
+      http.delete(
+        `${baseUrl}/api/v1/emotion-check-ins/${localDate}`,
+        ({ request }) => {
+          expect(request.headers.get('idempotency-key')).toBe(
+            'emotion-command-00000001',
+          )
+          return HttpResponse.json({
+            localDate,
+            deleted: true,
+            deletedAt: timestamp,
+          })
+        },
+      ),
+    )
+
+    await expect(
+      emotionCheckInClient.delete(
+        'access-token',
+        localDate,
+        'emotion-command-00000001',
+        'correlation-id',
+      ),
+    ).resolves.toMatchObject({ localDate, deleted: true })
+  })
+
+  it('fails closed when an exact-day response belongs to another day', async () => {
+    configure()
+    mockServer.use(
+      http.get(`${baseUrl}/api/v1/emotion-check-ins/${localDate}`, () =>
+        HttpResponse.json({ ...checkIn, localDate: '2026-09-25' }),
+      ),
+    )
+
+    await expect(
+      emotionCheckInClient.get('token', localDate, 'correlation'),
+    ).rejects.toMatchObject({
+      code: 'EMOTION_CHECK_IN_MALFORMED_RESPONSE',
+      status: 502,
+    })
+  })
+
   it('distinguishes documented rejection from an ambiguous mutation response', async () => {
     configure()
     const create = {

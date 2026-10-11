@@ -124,3 +124,47 @@ export async function PATCH(request: NextRequest, { params }: Context) {
     )
   }
 }
+
+export async function DELETE(request: NextRequest, { params }: Context) {
+  const correlationId = correlationIdFrom(request)
+  const { localDate } = await params
+  if (!isLocalDate(localDate))
+    return localProblem(
+      400,
+      'VALIDATION_FAILED',
+      'Ngày ghi nhận cảm xúc không hợp lệ.',
+      correlationId,
+    )
+  const resolved = await user(request, correlationId)
+  if (!resolved.value) return resolved.response
+  const key = request.headers.get('Idempotency-Key')
+  if (!isIdempotencyKey(key))
+    return carryJournalSession(
+      localProblem(
+        400,
+        'VALIDATION_FAILED',
+        'Yêu cầu xóa ghi nhận cảm xúc không hợp lệ.',
+        correlationId,
+      ),
+      resolved.value,
+    )
+  try {
+    return carryJournalSession(
+      emotionSuccessResponse(
+        await emotionCheckInClient.delete(
+          resolved.value.accessToken,
+          localDate,
+          key,
+          correlationId,
+        ),
+        correlationId,
+      ),
+      resolved.value,
+    )
+  } catch (error) {
+    return carryJournalSession(
+      emotionErrorResponse(error, correlationId),
+      resolved.value,
+    )
+  }
+}

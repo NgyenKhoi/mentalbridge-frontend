@@ -4,6 +4,7 @@ import type {
   EmotionCheckInCreate,
   EmotionCheckInList,
   EmotionCheckInProgress,
+  EmotionCheckInTombstone,
   EmotionCheckInValue,
 } from './contract'
 
@@ -109,6 +110,18 @@ export function parseEmotionCheckIn(value: unknown): EmotionCheckIn | null {
   )
     return null
   return value as EmotionCheckIn
+}
+
+export function parseEmotionCheckInTombstone(
+  value: unknown,
+): EmotionCheckInTombstone | null {
+  return object(value) &&
+    exact(value, ['localDate', 'deleted', 'deletedAt']) &&
+    isLocalDate(value.localDate) &&
+    value.deleted === true &&
+    timestamp(value.deletedAt)
+    ? (value as EmotionCheckInTombstone)
+    : null
 }
 
 const nonNegativeInteger = (value: unknown) =>
