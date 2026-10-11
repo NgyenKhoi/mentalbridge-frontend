@@ -1042,6 +1042,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/support-plans/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the current SupportPlan through the v3 action model
+         * @description Returns the authenticated user's active or paused plan as Care-owned
+         *     focuses, typed actions, and schedules. Native v3 rows are marked
+         *     NATIVE_V3. Existing v2 resource-slot history is translated at read time
+         *     and marked V2_RESOURCE_ADAPTER; the adapter does not rewrite v2 rows or
+         *     manufacture native action history. Source-domain payloads are never
+         *     copied into this representation.
+         */
+        get: operations["getOwnCurrentSupportPlanV3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one owned SupportPlan through the v3 action model
+         * @description Returns one immutable owner-scoped plan snapshot in any lifecycle state.
+         *     V2_RESOURCE_ADAPTER identifies a non-destructive projection of the
+         *     existing resource-slot model. NATIVE_V3 identifies canonical PlanAction
+         *     storage. Neither representation transfers ownership of referenced facts
+         *     from Content, Journal AI, Consultation, or Care screening.
+         */
+        get: operations["getOwnSupportPlanV3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List v3 action occurrences for a bounded local-date window
+         * @description Returns at most 31 local days from the authenticated user's current plan.
+         *     An occurrence links to its action and schedule without embedding source
+         *     payloads. Care orchestration state is separate from optional bounded
+         *     completion evidence owned by Care, Journal AI, or Consultation. An open
+         *     past occurrence may be displayed as OVERDUE but is never rewritten as a
+         *     failed or skipped outcome.
+         */
+        get: operations["listOwnPlanActionOccurrences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/anonymous-assessment-sessions": {
         parameters: {
             query?: never;
@@ -2279,6 +2353,200 @@ export interface components {
             /** Format: uri */
             externalUrl?: string | null;
         };
+        SupportPlanV3: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @constant */
+            modelVersion: 3;
+            /** @description Native v3 policy version or the exact v2 selection policy exposed by the adapter. */
+            planPolicyVersion: string;
+            /**
+             * @description Identifies a non-destructive v2 read projection or canonical v3 storage.
+             * @enum {string}
+             */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED" | "SUPERSEDED" | "DISCARDED";
+            version: number;
+            safety: components["schemas"]["SupportPlanSafety"];
+            focuses: components["schemas"]["PlanFocus"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            activatedAt: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            /**
+             * @description Optional user-selected plan reason; never evidence of recovery.
+             * @enum {string|null}
+             */
+            completionReason: "USER_DECISION" | "PLAN_NO_LONGER_FITS" | "OTHER" | null;
+            /** Format: date-time */
+            supersededAt: string | null;
+            /** Format: date-time */
+            discardedAt: string | null;
+            /** @constant */
+            disclaimerCode: "WELLBEING_SUPPORT_NOT_TREATMENT";
+            disclaimer: string;
+        };
+        PlanFocus: {
+            /** @description Native identity or stable virtual identity when adapted from v2. */
+            focusId: string;
+            title: string;
+            rationale: string | null;
+            ordinal: number;
+            actions: components["schemas"]["PlanAction"][];
+        };
+        PlanAction: {
+            /** @description Native identity, existing v2 slot identity, or a stable deterministic virtual identity produced by the read adapter. */
+            actionId: string;
+            /** @enum {string} */
+            actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+            actionVersion: number;
+            /** @enum {string} */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "ENDED";
+            /**
+             * @description PRIMARY is the recommended path; ADJUNCT complements it and never replaces professional support. In a native focus, a non-ended PROFESSIONAL_SUPPORT action is primary and its sibling actions are adjunct; without that context actions are primary. purposeCode is never used to classify this role.
+             * @enum {string}
+             */
+            pathRole: "PRIMARY" | "ADJUNCT";
+            purposeCode: string;
+            rationale: string | null;
+            ordinal: number;
+            /** @description Null only when the Care-owned action has no source-domain object. */
+            source: components["schemas"]["ActionSourceReference"] | null;
+            provenance: components["schemas"]["ActionProvenance"];
+            presentation: components["schemas"]["ActionPresentationMetadata"];
+            /** @description Versioned current and ended rules; occurrence history is read separately. */
+            schedules: components["schemas"]["ActionSchedule"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            activatedAt: string | null;
+            /** Format: date-time */
+            endedAt: string | null;
+        } & (unknown & unknown & unknown & unknown & unknown & unknown);
+        ActionSourceReference: {
+            /** @enum {string} */
+            ownerDomain: "CONTENT" | "JOURNAL_AI" | "CONSULTATION" | "CARE";
+            /** @enum {string} */
+            sourceKind: "RESOURCE_VERSION" | "JOURNAL_TEMPLATE" | "EMOTION_CHECK_IN_CAPABILITY" | "PROFESSIONAL_SUPPORT_PATHWAY" | "APPOINTMENT" | "QUESTIONNAIRE_DEFINITION";
+            /** @description Opaque owner-domain identifier; it does not contain source payload data. */
+            sourceId: string;
+            sourceRevision: string | null;
+            sourcePolicyVersion: string | null;
+            /** Format: uuid */
+            publicationId: string | null;
+            eligibilityPolicyVersion: string | null;
+            /** Format: date-time */
+            verifiedAt: string | null;
+        } & (unknown & unknown & unknown & unknown & unknown);
+        ActionProvenance: {
+            /** @enum {string} */
+            category: "USER_SELECTED" | "SUPPORT_GUIDE" | "SPECIALIST" | "SYSTEM_POLICY";
+            referenceId: string | null;
+            referenceVersion: string | null;
+            /** Format: date-time */
+            acceptedAt: string;
+        } & ({
+            referenceId?: null;
+            referenceVersion?: null;
+        } | {
+            referenceId?: string;
+            referenceVersion?: string;
+        });
+        ActionPresentationMetadata: {
+            title: string;
+            summary: string | null;
+            instructions: string | null;
+            /**
+             * Format: uri
+             * @description Optional reviewed navigation target; visiting it never proves completion.
+             */
+            externalUrl: string | null;
+        };
+        ActionSchedule: {
+            /** Format: uuid */
+            scheduleId: string;
+            version: number;
+            schedulePolicyVersion: string;
+            /** @enum {string} */
+            recurrenceType: "ONCE" | "DAILY" | "WEEKLY";
+            recurrenceDayOfWeek: number | null;
+            /** Format: time */
+            localTime: string;
+            timezone: string;
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveUntil: string | null;
+            reminderEnabled: boolean;
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED" | "ENDED";
+        };
+        ActionOccurrenceList: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @enum {string} */
+            supportPlanStatus: "ACTIVE" | "PAUSED";
+            /** @enum {string} */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            through: string;
+            occurrences: components["schemas"]["ActionOccurrence"][];
+            /** @constant */
+            interpretationCode: "SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE";
+        };
+        ActionOccurrence: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** @description Native action identity or existing v2 slot identity from the adapter. */
+            actionId: string;
+            /** @enum {string} */
+            actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+            actionVersion: number;
+            /** Format: uuid */
+            scheduleId: string;
+            scheduleVersion: number;
+            /** @enum {string} */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            version: number;
+            /** Format: date */
+            localDate: string;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            state: "SCHEDULED" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+            /** @enum {string} */
+            displayState: "SCHEDULED" | "OVERDUE" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+            /** @enum {string|null} */
+            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | "ACTION_ENDED" | null;
+            /** @description Null unless completion is backed by a bounded Care or owner-domain fact. */
+            completionEvidence: components["schemas"]["CompletionEvidence"] | null;
+            /** Format: date-time */
+            outcomeRecordedAt: string | null;
+        } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
+        CompletionEvidence: {
+            /** @enum {string} */
+            kind: "USER_ACKNOWLEDGEMENT" | "JOURNAL_ENTRY" | "EMOTION_CHECK_IN" | "APPOINTMENT_FULFILMENT" | "ASSESSMENT_HISTORY" | "SELF_REPORT_REVIEW";
+            /** @enum {string} */
+            ownerDomain: "CARE" | "JOURNAL_AI" | "CONSULTATION";
+            /** @description Opaque authoritative fact identifier; never a copied source payload. */
+            factId: string;
+            factRevision: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        } & (unknown & unknown & unknown);
         ChangeSupportPlanOccurrenceStateRequest: {
             /** @enum {string} */
             state: "COMPLETED" | "SKIPPED";
@@ -4442,6 +4710,91 @@ export interface operations {
             404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
             409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
             412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    getOwnCurrentSupportPlanV3: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current SupportPlan v3 read model */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    getOwnSupportPlanV3: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned SupportPlan v3 read model */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+        };
+    };
+    listOwnPlanActionOccurrences: {
+        parameters: {
+            query: {
+                from: string;
+                through: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded occurrence window for the current SupportPlan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOccurrenceList"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
         };
     };
     createAnonymousAssessmentSession: {

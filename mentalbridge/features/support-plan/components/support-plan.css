@@ -4472,3 +4472,62 @@
     transition: none;
   }
 }
+.support-plan-professional-path {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.15rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface) 93%, var(--primary) 7%);
+}
+
+.support-plan-professional-path-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.support-plan-professional-path-heading span,
+.support-plan-professional-path-heading strong {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.support-plan-professional-path-heading span {
+  color: var(--primary);
+}
+
+.support-plan-professional-path h3,
+.support-plan-professional-path p {
+  margin: 0;
+}
+
+.support-plan-appointment-state {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 90%, var(--primary) 10%);
+}
+
+.support-plan-path-update-state {
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 92%, var(--amber) 8%);
+  color: var(--text-secondary);
+}
+
+.support-plan-professional-path-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.support-plan-professional-path-actions small {
+  max-width: 36rem;
+  color: var(--text-secondary);
+}

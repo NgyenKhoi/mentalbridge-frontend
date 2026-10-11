@@ -78,6 +78,23 @@ describe('MB-630 public appointment/credit contracts', () => {
       }).success,
     ).toBe(false)
   })
+  it('accepts only an explicit opaque Care plan-action reference on booking', () => {
+    const originatingPlanActionId = '11111111-1111-4111-8111-111111111111'
+    expect(
+      requestAppointmentSchema.parse({
+        slotId: slot.id,
+        modality: slot.modality,
+        originatingPlanActionId,
+      }).originatingPlanActionId,
+    ).toBe(originatingPlanActionId)
+    expect(
+      requestAppointmentSchema.safeParse({
+        slotId: slot.id,
+        modality: slot.modality,
+        originatingPlanActionId: 'not-a-plan-action-id',
+      }).success,
+    ).toBe(false)
+  })
   it.each(Object.keys(sessionLabels))(
     'renders authoritative session outcome %s',
     (value) => {

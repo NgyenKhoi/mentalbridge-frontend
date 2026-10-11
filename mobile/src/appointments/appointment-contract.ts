@@ -54,6 +54,7 @@ export const appointmentSchema = z
     heldCreditId: id,
     replacesAppointmentId: id.nullable(),
     replacedByAppointmentId: id.nullable(),
+    originatingPlanActionId: id.nullable().optional(),
     decidedAt: instant.nullable(),
     decisionReason: z
       .enum([
@@ -197,6 +198,7 @@ export const requestAppointmentSchema = z.strictObject({
   slotId: id,
   modality: availabilityModalitySchema,
   replacesAppointmentId: id.optional(),
+  originatingPlanActionId: id.optional(),
 })
 export const commandKeySchema = z
   .string()

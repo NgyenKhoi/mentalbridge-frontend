@@ -610,10 +610,17 @@ export const consultationClient = {
       parse: parseBookableSlotList,
     })
   },
-  appointments(token: string, correlationId: string) {
+  appointments(
+    token: string,
+    correlationId: string,
+    originatingPlanActionId?: string,
+  ) {
+    const query = originatingPlanActionId
+      ? `?originatingPlanActionId=${encodeURIComponent(originatingPlanActionId)}`
+      : ''
     return request<AppointmentList>({
       method: 'GET',
-      path: '/api/v1/appointments',
+      path: `/api/v1/appointments${query}`,
       token,
       correlationId,
       parse: parseAppointmentList,

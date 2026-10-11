@@ -44,6 +44,7 @@ export const appointment: Appointment = {
   heldCreditId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
   replacesAppointmentId: null,
   replacedByAppointmentId: null,
+  originatingPlanActionId: null,
   decidedAt: null,
   decisionReason: null,
   cancelledAt: null,

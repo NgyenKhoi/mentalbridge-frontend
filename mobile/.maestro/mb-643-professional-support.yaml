@@ -1,0 +1,102 @@
+appId: com.mentalbridge.mobile
+name: MB-643 professional support plan booking continuity journey
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- assertVisible: 'Kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element:
+      text: 'HƯỚNG HỖ TRỢ CHÍNH'
+    direction: DOWN
+- assertVisible: 'HƯỚNG HỖ TRỢ CHÍNH'
+- assertVisible: 'MentalBridge không tự đặt lịch hoặc chia sẻ dữ liệu.*'
+- scrollUntilVisible:
+    element:
+      text: 'Tìm chuyên gia phù hợp'
+    direction: DOWN
+- tapOn: 'Tìm chuyên gia phù hợp'
+- assertVisible: 'Tìm chuyên gia'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'
+    direction: DOWN
+- tapOn:
+    id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'
+- assertVisible: 'Hồ sơ chuyên gia'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-select-${MAESTRO_MB_DISCOVERY_SLOT_ID}'
+    direction: DOWN
+- tapOn:
+    id: 'discovery-select-${MAESTRO_MB_DISCOVERY_SLOT_ID}'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-selection-summary'
+    direction: UP
+- assertVisible: 'Khung giờ đã chọn'
+- assertVisible: 'Khung giờ đã sẵn sàng cho bước đặt lịch.*'
+- scrollUntilVisible:
+    element:
+      id: 'discovery-book-handoff'
+    direction: DOWN
+- tapOn:
+    id: 'discovery-book-handoff'
+- scrollUntilVisible:
+    element:
+      text: 'Kiểm tra giờ đã chọn'
+    direction: DOWN
+- tapOn: 'Kiểm tra giờ đã chọn'
+- scrollUntilVisible:
+    element:
+      id: 'appointment-confirm'
+    direction: DOWN
+- assertVisible: 'Gửi yêu cầu đặt lịch'
+- tapOn:
+    id: 'appointment-confirm'
+- scrollUntilVisible:
+    element:
+      text: 'Chi tiết lịch hẹn'
+    direction: DOWN
+- assertVisible: 'Chi tiết lịch hẹn'
+- scrollUntilVisible:
+    element:
+      text: 'Về trang trước'
+    direction: UP
+- tapOn: 'Về trang trước'
+- assertVisible: 'Tìm chuyên gia'
+- tapOn: 'Về trang chính'
+- scrollUntilVisible:
+    element:
+      text: 'Kế hoạch hỗ trợ'
+    direction: UP
+- assertVisible: 'Kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element:
+      text: 'Trạng thái lịch hẹn: Đã gửi yêu cầu, đang chờ chuyên gia xác nhận'
+    direction: DOWN
+- assertVisible: 'Trạng thái lịch hẹn: Đã gửi yêu cầu, đang chờ chuyên gia xác nhận'
+- stopApp
+- launchApp:
+    clearState: false
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- assertVisible: 'Kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element:
+      text: 'Trạng thái lịch hẹn: Đã gửi yêu cầu, đang chờ chuyên gia xác nhận'
+    direction: DOWN
+- assertVisible: 'Trạng thái lịch hẹn: Đã gửi yêu cầu, đang chờ chuyên gia xác nhận'
