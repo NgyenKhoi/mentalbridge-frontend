@@ -4512,6 +4512,14 @@
   background: color-mix(in srgb, var(--surface) 90%, var(--primary) 10%);
 }
 
+.support-plan-path-update-state {
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 92%, var(--amber) 8%);
+  color: var(--text-secondary);
+}
+
 .support-plan-professional-path-actions {
   display: flex;
   flex-wrap: wrap;

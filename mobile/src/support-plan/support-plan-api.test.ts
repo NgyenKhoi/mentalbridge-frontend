@@ -65,12 +65,13 @@ describe('Care mobile SupportPlan API contract', () => {
       (await api.getActions(plan.supportPlanId)).focuses[0]?.actions[0],
     ).toMatchObject({ actionId, pathRole: 'PRIMARY' })
     expect(
-      (await api.getAppointments()).items[0]?.originatingPlanActionId,
+      (await api.getAppointments(actionId)).items[0]?.originatingPlanActionId,
     ).toBe(actionId)
     expect(requests.map((request) => request.url)).toEqual([
       `/api/v2/support-plans/${plan.supportPlanId}`,
       '/api/v1/appointments',
     ])
+    expect(requests[1]?.params).toEqual({ originatingPlanActionId: actionId })
   })
 
   it('activates the exact draft with optimistic concurrency and idempotency', async () => {

@@ -130,6 +130,11 @@ export default function SupportPlanCard({
           'aria-labelledby': `tab-${tab}`,
         }
   const safetyPositive = plan.safety.status === 'POSITIVE_SAFETY_SCREEN'
+  const professionalSupportRequired = plan.templateFamilies.some(
+    ({ family }) =>
+      family === 'DEPRESSIVE_PROFESSIONAL_ADJUNCT' ||
+      family === 'ANXIETY_PROFESSIONAL_ADJUNCT',
+  )
   const statusLabel = {
     DRAFT: 'Chưa bắt đầu',
     ACTIVE: 'Đang hoạt động',
@@ -259,7 +264,11 @@ export default function SupportPlanCard({
           </small>
         </section>
 
-        <ProfessionalSupportPath supportPlanId={plan.supportPlanId} />
+        <ProfessionalSupportPath
+          key={plan.supportPlanId}
+          professionalSupportRequired={professionalSupportRequired}
+          supportPlanId={plan.supportPlanId}
+        />
 
         {/* Vì sao có đề xuất này dạng expand/collapse */}
         <Disclosure

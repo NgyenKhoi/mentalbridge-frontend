@@ -159,6 +159,7 @@ describe('mobile SupportPlan journey', () => {
     expect(
       screen.getByText(/không tự đặt lịch hoặc chia sẻ dữ liệu/),
     ).toBeTruthy()
+    expect(api.getAppointments).toHaveBeenCalledWith(actionId)
 
     await fireEvent.press(
       screen.getByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
@@ -167,6 +168,102 @@ describe('mobile SupportPlan journey', () => {
       pathname: './specialists',
       params: { planActionId: actionId },
     })
+  })
+
+  it('keeps a professional-routing fallback visible and retries an unavailable action projection', async () => {
+    const plan = makePlan('ACTIVE', {
+      templateFamilies: [
+        {
+          family: 'DEPRESSIVE_PROFESSIONAL_ADJUNCT',
+          templateVersion: 1,
+          targetDomain: 'DEPRESSIVE_SYMPTOMS',
+        },
+      ],
+    })
+    const actionId = '11111111-1111-4111-8111-111111111111'
+    const api = makeApi({
+      getCurrent: jest.fn().mockResolvedValue(plan),
+      getActions: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValueOnce({
+          supportPlanId: plan.supportPlanId,
+          modelVersion: 3,
+          representationMode: 'V2_RESOURCE_ADAPTER',
+          focuses: [
+            {
+              focusId: 'professional-support',
+              actions: [
+                {
+                  actionId,
+                  actionType: 'PROFESSIONAL_SUPPORT',
+                  status: 'ACTIVE',
+                  pathRole: 'PRIMARY',
+                  purposeCode: 'CONNECT_WITH_PROFESSIONAL_SUPPORT',
+                  presentation: {
+                    title: 'Kết nối với chuyên gia',
+                    summary: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+    })
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    expect(
+      await screen.findByText(/Chưa thể tải chi tiết hướng hỗ trợ chính/),
+    ).toBeTruthy()
+    expect(screen.queryByText('Tìm chuyên gia phù hợp')).toBeNull()
+    expect(api.getAppointments).not.toHaveBeenCalled()
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Thử tải lại hướng hỗ trợ' }),
+    )
+
+    expect(
+      await screen.findByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
+    ).toBeTruthy()
+    expect(api.getAppointments).toHaveBeenCalledWith(actionId)
+  })
+
+  it('does not infer an appointment state when the filtered lookup is unavailable', async () => {
+    const plan = makePlan('ACTIVE')
+    const actionId = '11111111-1111-4111-8111-111111111111'
+    const api = makeApi({
+      getCurrent: jest.fn().mockResolvedValue(plan),
+      getActions: jest.fn().mockResolvedValue({
+        supportPlanId: plan.supportPlanId,
+        modelVersion: 3,
+        representationMode: 'V2_RESOURCE_ADAPTER',
+        focuses: [
+          {
+            focusId: 'professional-support',
+            actions: [
+              {
+                actionId,
+                actionType: 'PROFESSIONAL_SUPPORT',
+                status: 'ACTIVE',
+                pathRole: 'PRIMARY',
+                purposeCode: 'CONNECT_WITH_PROFESSIONAL_SUPPORT',
+                presentation: {
+                  title: 'Kết nối với chuyên gia',
+                  summary: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      getAppointments: jest.fn().mockRejectedValue(new Error('offline')),
+    })
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    expect(
+      await screen.findByText(/MentalBridge không tự suy đoán trạng thái/),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Trạng thái lịch hẹn:/)).toBeNull()
   })
 
   it('keeps one activation command across an ambiguous retry', async () => {

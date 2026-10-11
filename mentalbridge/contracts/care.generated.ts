@@ -2410,7 +2410,7 @@ export interface components {
             /** @enum {string} */
             status: "DRAFT" | "ACTIVE" | "ENDED";
             /**
-             * @description PRIMARY is the recommended path; ADJUNCT complements it and never replaces professional support.
+             * @description PRIMARY is the recommended path; ADJUNCT complements it and never replaces professional support. In a native focus, a non-ended PROFESSIONAL_SUPPORT action is primary and its sibling actions are adjunct; without that context actions are primary. purposeCode is never used to classify this role.
              * @enum {string}
              */
             pathRole: "PRIMARY" | "ADJUNCT";

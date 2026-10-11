@@ -201,30 +201,72 @@ test('MB-643 keeps professional support primary and reflects an explicitly reque
         json: {
           supportPlanId: current.supportPlanId,
           modelVersion: 3,
+          planPolicyVersion: current.source.selectionPolicyVersion,
           representationMode: 'V2_RESOURCE_ADAPTER',
           status: 'ACTIVE',
           version: 2,
+          safety: current.safety,
           focuses: [
             {
               focusId: 'professional-support',
+              title: 'Hỗ trợ chuyên môn',
+              rationale: 'Kết nối với chuyên gia là hướng hỗ trợ chính.',
+              ordinal: 1,
               actions: [
                 {
                   actionId,
                   actionType: 'PROFESSIONAL_SUPPORT',
+                  actionVersion: 0,
+                  representationMode: 'V2_RESOURCE_ADAPTER',
                   status: 'ACTIVE',
                   pathRole: 'PRIMARY',
+                  purposeCode: 'CONNECT_WITH_PROFESSIONAL_SUPPORT',
+                  rationale: 'Kết nối với chuyên gia là hướng hỗ trợ chính.',
+                  ordinal: 1,
+                  source: {
+                    ownerDomain: 'CONSULTATION',
+                    sourceKind: 'PROFESSIONAL_SUPPORT_PATHWAY',
+                    sourceId: 'professional-support-pathway',
+                    sourceRevision: null,
+                    sourcePolicyVersion: current.source.evaluationPolicyVersion,
+                    publicationId: null,
+                    eligibilityPolicyVersion: null,
+                    verifiedAt: current.source.evaluatedAt,
+                  },
+                  provenance: {
+                    category: 'SYSTEM_POLICY',
+                    referenceId: current.source.supportEvaluationId,
+                    referenceVersion: String(current.source.evaluationVersion),
+                    acceptedAt: current.createdAt,
+                  },
                   presentation: {
                     title: 'Kết nối với chuyên gia',
                     summary: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+                    instructions: null,
+                    externalUrl: null,
                   },
+                  schedules: [],
+                  createdAt: current.createdAt,
+                  updatedAt: current.updatedAt,
+                  activatedAt: current.activatedAt,
+                  endedAt: null,
                 },
               ],
             },
           ],
+          createdAt: current.createdAt,
+          updatedAt: current.updatedAt,
+          activatedAt: current.activatedAt,
+          completedAt: current.completedAt,
+          completionReason: current.completionReason,
+          supersededAt: current.supersededAt,
+          discardedAt: current.discardedAt,
+          disclaimerCode: current.disclaimerCode,
+          disclaimer: current.disclaimer,
         },
       }),
   )
-  await page.route('**/api/consultation/appointments', async (route) => {
+  await page.route('**/api/consultation/appointments**', async (route) => {
     if (route.request().method() === 'POST') {
       bookingCommands += 1
       expect(route.request().postDataJSON()).toMatchObject({
@@ -241,6 +283,11 @@ test('MB-643 keeps professional support primary and reflects an explicitly reque
       await route.fulfill({ status: 201, json: appointment })
       return
     }
+    expect(
+      new URL(route.request().url()).searchParams.get(
+        'originatingPlanActionId',
+      ),
+    ).toBe(actionId)
     await route.fulfill({
       status: 200,
       json: {

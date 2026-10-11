@@ -580,10 +580,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Lists the authenticated user's authoritative appointment snapshots, including request deadline and held credit identity. */
+        /** @description Lists at most 100 newest authoritative appointment snapshots owned by the authenticated user. When originatingPlanActionId is supplied, the exact owner-and-action filter is applied before the bound so a caller can recover correlated SupportPlan progress without scanning general history. */
         get: operations["listOwnAppointments"];
         put?: never;
-        /** @description Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. Exact command replays return the original appointment. */
+        /** @description Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. A replacement inherits an omitted originatingPlanActionId from the owned appointment and rejects a conflicting explicit value. Exact command replays return the original appointment. */
         post: operations["requestAppointment"];
         delete?: never;
         options?: never;
@@ -1872,7 +1872,7 @@ export interface components {
             replacesAppointmentId?: string | null;
             /**
              * Format: uuid
-             * @description Optional opaque Care PlanAction reference from an explicit user navigation and booking flow. It never authorizes Consultation to mutate the SupportPlan.
+             * @description Optional opaque Care PlanAction reference from an explicit user navigation and booking flow. A replacement inherits the owned prior appointment's value when omitted and must not supply a conflicting value. It never authorizes Consultation to mutate the SupportPlan.
              */
             originatingPlanActionId?: string | null;
         };
@@ -3577,7 +3577,10 @@ export interface operations {
     };
     listOwnAppointments: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Optional opaque Care PlanAction reference. Filtering remains owner-scoped and grants no SupportPlan authority. */
+                originatingPlanActionId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3593,6 +3596,7 @@ export interface operations {
                     "application/json": components["schemas"]["AppointmentList"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
         };

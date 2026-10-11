@@ -1,4 +1,5 @@
 import type { AxiosInstance } from 'axios'
+import { z } from 'zod'
 
 import {
   appointmentListSchema,
@@ -29,7 +30,7 @@ export interface SupportPlanApi {
   getCurrentDraft(): Promise<SupportPlan>
   getHistory(): Promise<SupportPlanHistory>
   getActions(supportPlanId: string): Promise<SupportPlanActions>
-  getAppointments(): Promise<AppointmentList>
+  getAppointments(originatingPlanActionId: string): Promise<AppointmentList>
   replaceChoices(
     plan: SupportPlan,
     slotSelections: readonly {
@@ -99,8 +100,12 @@ export function createSupportPlanApi(client: AxiosInstance): SupportPlanApi {
       }
       return value
     },
-    async getAppointments() {
-      const response = await client.get('/api/v1/appointments')
+    async getAppointments(originatingPlanActionId) {
+      const response = await client.get('/api/v1/appointments', {
+        params: {
+          originatingPlanActionId: z.uuid().parse(originatingPlanActionId),
+        },
+      })
       return appointmentListSchema.parse(response.data)
     },
     async replaceChoices(plan, slotSelections) {

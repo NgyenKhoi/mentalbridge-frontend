@@ -143,6 +143,14 @@ function professionalSupportAction(
     : undefined
 }
 
+function requiresProfessionalSupport(plan: SupportPlan) {
+  return plan.templateFamilies.some(
+    ({ family }) =>
+      family === 'DEPRESSIVE_PROFESSIONAL_ADJUNCT' ||
+      family === 'ANXIETY_PROFESSIONAL_ADJUNCT',
+  )
+}
+
 function latestAppointmentFor(
   action: PlanActionProjection | undefined,
   appointments:
@@ -218,25 +226,38 @@ function SecondaryButton({
 
 function PlanCard({
   appointment,
+  appointmentUnavailable,
   busy,
   canActivate,
   onActivate,
   onChangeChoice,
+  onRetryProfessionalSupport,
   onStatus,
   plan,
   professionalAction,
+  professionalSupportError,
+  professionalSupportRefreshing,
   title,
 }: Readonly<{
   appointment?: Appointment | undefined
+  appointmentUnavailable: boolean
   busy: boolean
   canActivate: boolean
   onActivate: () => void
   onChangeChoice: (slotId: string, resourceId: string) => void
+  onRetryProfessionalSupport: () => void
   onStatus: (status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED') => void
   plan: SupportPlan
   professionalAction?: PlanActionProjection | undefined
+  professionalSupportError: boolean
+  professionalSupportRefreshing: boolean
   title: string
 }>) {
+  const showProfessionalSupport = Boolean(
+    professionalAction ||
+    (professionalSupportError && requiresProfessionalSupport(plan)),
+  )
+
   return (
     <View style={styles.planPanel}>
       <View style={styles.rowBetween}>
@@ -249,15 +270,28 @@ function PlanCard({
         </Text>
       )}
 
-      {professionalAction && (
+      {showProfessionalSupport && (
         <View style={styles.professionalPanel}>
           <Text style={styles.professionalEyebrow}>HƯỚNG HỖ TRỢ CHÍNH</Text>
           <Text style={styles.sectionTitle}>
-            {professionalAction.presentation.title}
+            {professionalAction?.presentation.title ??
+              'Ưu tiên kết nối chuyên gia'}
           </Text>
-          {professionalAction.presentation.summary && (
+          {professionalAction?.presentation.summary && (
             <Text style={styles.body}>
               {professionalAction.presentation.summary}
+            </Text>
+          )}
+          {!professionalAction && professionalSupportError && (
+            <Text accessibilityLiveRegion="assertive" style={styles.errorText}>
+              Chưa thể tải chi tiết hướng hỗ trợ chính. Các nội dung bổ trợ vẫn
+              có thể xem, nhưng không thay thế việc kết nối chuyên gia.
+            </Text>
+          )}
+          {professionalAction && professionalSupportError && (
+            <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+              Chưa thể cập nhật hướng hỗ trợ. Thông tin bên dưới là lần tải đã
+              xác nhận gần nhất.
             </Text>
           )}
           {appointment && (
@@ -266,20 +300,39 @@ function PlanCard({
               {appointmentProgressLabels[appointment.status]}
             </Text>
           )}
+          {appointmentUnavailable && (
+            <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+              Chưa thể cập nhật trạng thái lịch hẹn. MentalBridge không tự suy
+              đoán trạng thái khi dữ liệu này chưa khả dụng.
+            </Text>
+          )}
           <Text style={styles.supportingText}>
             MentalBridge không tự đặt lịch hoặc chia sẻ dữ liệu. Bạn sẽ xem và
             xác nhận từng bước trước khi gửi yêu cầu.
           </Text>
-          <PrimaryButton
-            disabled={busy}
-            label="Tìm chuyên gia phù hợp"
-            onPress={() =>
-              router.push({
-                pathname: './specialists',
-                params: { planActionId: professionalAction.actionId },
-              })
-            }
-          />
+          {professionalAction && (
+            <PrimaryButton
+              disabled={busy}
+              label="Tìm chuyên gia phù hợp"
+              onPress={() =>
+                router.push({
+                  pathname: './specialists',
+                  params: { planActionId: professionalAction.actionId },
+                })
+              }
+            />
+          )}
+          {(professionalSupportError || appointmentUnavailable) && (
+            <SecondaryButton
+              disabled={professionalSupportRefreshing}
+              label={
+                professionalSupportRefreshing
+                  ? 'Đang tải lại hướng hỗ trợ…'
+                  : 'Thử tải lại hướng hỗ trợ'
+              }
+              onPress={onRetryProfessionalSupport}
+            />
+          )}
         </View>
       )}
 
@@ -716,14 +769,29 @@ export function SupportPlanScreen({
   const draftProfessionalAction = professionalSupportAction(
     draftActionsQuery.data,
   )
-  const appointmentQuery = useQuery({
-    queryKey: ['support-plan', subject, 'professional-appointments'],
-    enabled: Boolean(
-      subject && (currentProfessionalAction || draftProfessionalAction),
-    ),
+  const currentAppointmentQuery = useQuery({
+    queryKey: [
+      'support-plan',
+      subject,
+      'professional-appointments',
+      currentProfessionalAction?.actionId,
+    ],
+    enabled: Boolean(subject && currentProfessionalAction),
     retry: false,
     staleTime: 0,
-    queryFn: () => api.getAppointments(),
+    queryFn: () => api.getAppointments(currentProfessionalAction!.actionId),
+  })
+  const draftAppointmentQuery = useQuery({
+    queryKey: [
+      'support-plan',
+      subject,
+      'professional-appointments',
+      draftProfessionalAction?.actionId,
+    ],
+    enabled: Boolean(subject && draftProfessionalAction),
+    retry: false,
+    staleTime: 0,
+    queryFn: () => api.getAppointments(draftProfessionalAction!.actionId),
   })
 
   const currentSupportsOccurrences =
@@ -1185,16 +1253,28 @@ export function SupportPlanScreen({
                 professionalAction: currentProfessionalAction,
                 appointment: latestAppointmentFor(
                   currentProfessionalAction,
-                  appointmentQuery.data,
+                  currentAppointmentQuery.data,
                 ),
               }
             : {})}
           busy={busy}
           canActivate={false}
+          appointmentUnavailable={Boolean(
+            currentProfessionalAction && currentAppointmentQuery.isError,
+          )}
+          professionalSupportError={currentActionsQuery.isError}
+          professionalSupportRefreshing={
+            currentActionsQuery.isFetching || currentAppointmentQuery.isFetching
+          }
           plan={current}
           title="Kế hoạch hiện tại"
           onActivate={() => undefined}
           onChangeChoice={() => undefined}
+          onRetryProfessionalSupport={() => {
+            void currentActionsQuery.refetch()
+            if (currentProfessionalAction)
+              void currentAppointmentQuery.refetch()
+          }}
           onStatus={(status) =>
             runGovernedMutation(() =>
               statusMutation.mutate({ plan: current, status }),
@@ -1209,12 +1289,19 @@ export function SupportPlanScreen({
                 professionalAction: draftProfessionalAction,
                 appointment: latestAppointmentFor(
                   draftProfessionalAction,
-                  appointmentQuery.data,
+                  draftAppointmentQuery.data,
                 ),
               }
             : {})}
           busy={busy}
           canActivate={!current}
+          appointmentUnavailable={Boolean(
+            draftProfessionalAction && draftAppointmentQuery.isError,
+          )}
+          professionalSupportError={draftActionsQuery.isError}
+          professionalSupportRefreshing={
+            draftActionsQuery.isFetching || draftAppointmentQuery.isFetching
+          }
           plan={draft}
           title={current ? 'Phương án thay thế' : 'Kế hoạch đề xuất'}
           onActivate={() =>
@@ -1225,6 +1312,10 @@ export function SupportPlanScreen({
               choiceMutation.mutate({ plan: draft, slotId, resourceId }),
             )
           }
+          onRetryProfessionalSupport={() => {
+            void draftActionsQuery.refetch()
+            if (draftProfessionalAction) void draftAppointmentQuery.refetch()
+          }}
           onStatus={(status) =>
             runGovernedMutation(() =>
               statusMutation.mutate({ plan: draft, status }),

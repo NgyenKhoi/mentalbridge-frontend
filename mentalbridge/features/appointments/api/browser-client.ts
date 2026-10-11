@@ -86,9 +86,14 @@ export const appointmentBrowserClient = {
       )
     ).data
   },
-  async list() {
+  async list(originatingPlanActionId?: string) {
     return (
-      await browserApiClient.get<AppointmentList>('/consultation/appointments')
+      await browserApiClient.get<AppointmentList>(
+        '/consultation/appointments',
+        originatingPlanActionId
+          ? { params: { originatingPlanActionId } }
+          : undefined,
+      )
     ).data
   },
   async request(

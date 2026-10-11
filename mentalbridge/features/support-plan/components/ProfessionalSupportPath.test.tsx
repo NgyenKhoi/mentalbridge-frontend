@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ProfessionalSupportPath from './ProfessionalSupportPath'
@@ -19,6 +19,15 @@ function actionModel(actions: unknown[]) {
     supportPlanId: planId,
     focuses: [{ focusId: 'focus', actions }],
   }
+}
+
+function renderPath(professionalSupportRequired = false) {
+  return render(
+    <ProfessionalSupportPath
+      professionalSupportRequired={professionalSupportRequired}
+      supportPlanId={planId}
+    />,
+  )
 }
 
 describe('ProfessionalSupportPath', () => {
@@ -53,7 +62,7 @@ describe('ProfessionalSupportPath', () => {
       count: 1,
     })
 
-    render(<ProfessionalSupportPath supportPlanId={planId} />)
+    renderPath(true)
 
     expect(await screen.findByText('Hướng hỗ trợ chính')).toBeInTheDocument()
     expect(
@@ -65,6 +74,7 @@ describe('ProfessionalSupportPath', () => {
     expect(
       screen.getByText(/không tự đặt lịch hoặc chia sẻ dữ liệu/),
     ).toBeInTheDocument()
+    expect(consultation.list).toHaveBeenCalledWith(actionId)
   })
 
   it('keeps minimal and mild plans unchanged when no professional action exists', async () => {
@@ -80,14 +90,117 @@ describe('ProfessionalSupportPath', () => {
       ]),
     )
 
-    const { container } = render(
-      <ProfessionalSupportPath supportPlanId={planId} />,
+    const { container } = renderPath()
+
+    await waitFor(() => {
+      expect(care.getSupportPlanActions).toHaveBeenCalled()
+      expect(container).toBeEmptyDOMElement()
+    })
+    expect(consultation.list).not.toHaveBeenCalled()
+  })
+
+  it('shows a truthful retry state when the primary path projection is unavailable', async () => {
+    care.getSupportPlanActions.mockRejectedValueOnce(new Error('offline'))
+
+    renderPath(true)
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Chưa thể tải chi tiết hướng hỗ trợ',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Các nội dung bổ trợ vẫn có thể xem, nhưng không thay thế/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Xem chuyên gia và lịch trống' }),
+    ).not.toBeInTheDocument()
+    expect(consultation.list).not.toHaveBeenCalled()
+
+    care.getSupportPlanActions.mockResolvedValueOnce(
+      actionModel([
+        {
+          actionId,
+          actionType: 'PROFESSIONAL_SUPPORT',
+          status: 'ACTIVE',
+          pathRole: 'PRIMARY',
+          presentation: { title: 'Kết nối với chuyên gia', summary: null },
+        },
+      ]),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Thử tải lại hướng hỗ trợ' }),
     )
 
-    await vi.waitFor(() =>
-      expect(care.getSupportPlanActions).toHaveBeenCalled(),
+    expect(
+      await screen.findByRole('link', { name: 'Xem chuyên gia và lịch trống' }),
+    ).toHaveAttribute('href', `/specialists?planActionId=${actionId}`)
+  })
+
+  it('keeps the last verified path and appointment when a refresh fails', async () => {
+    care.getSupportPlanActions.mockResolvedValueOnce(
+      actionModel([
+        {
+          actionId,
+          actionType: 'PROFESSIONAL_SUPPORT',
+          status: 'ACTIVE',
+          pathRole: 'PRIMARY',
+          presentation: { title: 'Kết nối với chuyên gia', summary: null },
+        },
+      ]),
     )
-    expect(container).toBeEmptyDOMElement()
-    expect(consultation.list).not.toHaveBeenCalled()
+    consultation.list.mockResolvedValueOnce({
+      items: [
+        {
+          originatingPlanActionId: actionId,
+          requestedAt: '2026-10-11T08:00:00Z',
+          status: 'CONFIRMED',
+        },
+      ],
+      count: 1,
+    })
+    renderPath(true)
+    expect(
+      await screen.findByText(/Lịch hẹn đã được chuyên gia xác nhận/),
+    ).toBeInTheDocument()
+
+    care.getSupportPlanActions.mockRejectedValueOnce(new Error('offline'))
+    fireEvent.focus(window)
+
+    expect(
+      await screen.findByText(
+        /Thông tin bên dưới là lần tải đã xác nhận gần nhất/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Lịch hẹn đã được chuyên gia xác nhận/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Xem chuyên gia và lịch trống' }),
+    ).toHaveAttribute('href', `/specialists?planActionId=${actionId}`)
+  })
+
+  it('does not infer an appointment state when consultation data is unavailable', async () => {
+    care.getSupportPlanActions.mockResolvedValueOnce(
+      actionModel([
+        {
+          actionId,
+          actionType: 'PROFESSIONAL_SUPPORT',
+          status: 'ACTIVE',
+          pathRole: 'PRIMARY',
+          presentation: { title: 'Kết nối với chuyên gia', summary: null },
+        },
+      ]),
+    )
+    consultation.list.mockRejectedValueOnce(new Error('offline'))
+
+    renderPath(true)
+
+    expect(
+      await screen.findByText(/MentalBridge không tự suy đoán trạng thái/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Trạng thái lịch hẹn:/)).not.toBeInTheDocument()
   })
 })

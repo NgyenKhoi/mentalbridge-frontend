@@ -57,35 +57,91 @@ const evaluation = {
 }
 
 describe('SupportPlan validation', () => {
-  it('accepts only a bounded primary professional-support action projection', () => {
+  it('accepts the complete backend primary professional-support projection', () => {
     const projection = {
       supportPlanId: '10000000-0000-4000-8000-000000000643',
       modelVersion: 3,
+      planPolicyVersion: 'mb-support-plan-selection-v1',
       representationMode: 'V2_RESOURCE_ADAPTER',
       status: 'ACTIVE',
       version: 1,
       safety: {
         status: 'NEGATIVE_SAFETY_SCREEN',
+        reasonCode: 'PHQ9_ITEM9_NEGATIVE',
+        policyVersion: 'MB-SAFETY-PHQ9-001-v1',
+        guidanceCode: 'STANDARD_SAFETY_REMINDER',
         guidance: 'Hướng dẫn an toàn luôn được ưu tiên.',
       },
       focuses: [
         {
           focusId: 'professional-support',
           title: 'Hỗ trợ tâm trạng',
+          rationale: 'Kết nối với chuyên gia là hướng hỗ trợ chính.',
+          ordinal: 1,
           actions: [
             {
               actionId: '20000000-0000-4000-8000-000000000643',
               actionType: 'PROFESSIONAL_SUPPORT',
+              actionVersion: 0,
+              representationMode: 'V2_RESOURCE_ADAPTER',
+              status: 'ACTIVE',
               pathRole: 'PRIMARY',
-              presentation: { title: 'Kết nối với chuyên gia' },
+              purposeCode: 'CONNECT_WITH_PROFESSIONAL_SUPPORT',
+              rationale: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+              ordinal: 1,
+              source: {
+                ownerDomain: 'CONSULTATION',
+                sourceKind: 'PROFESSIONAL_SUPPORT_PATHWAY',
+                sourceId: 'professional-support-pathway',
+                sourceRevision: null,
+                sourcePolicyVersion: 'mb-support-routing-capstone-v2',
+                publicationId: null,
+                eligibilityPolicyVersion: null,
+                verifiedAt: '2026-10-11T08:00:00Z',
+              },
+              provenance: {
+                category: 'SYSTEM_POLICY',
+                referenceId: '70000000-0000-4000-8000-000000000643',
+                referenceVersion: '2',
+                acceptedAt: '2026-10-11T08:00:00Z',
+              },
+              presentation: {
+                title: 'Kết nối với chuyên gia',
+                summary: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+                instructions: null,
+                externalUrl: null,
+              },
               schedules: [],
+              createdAt: '2026-10-11T08:00:00Z',
+              updatedAt: '2026-10-11T08:00:00Z',
+              activatedAt: '2026-10-11T08:00:00Z',
+              endedAt: null,
             },
           ],
         },
       ],
+      createdAt: '2026-10-11T08:00:00Z',
+      updatedAt: '2026-10-11T08:00:00Z',
+      activatedAt: '2026-10-11T08:00:00Z',
+      completedAt: null,
+      completionReason: null,
+      supersededAt: null,
+      discardedAt: null,
+      disclaimerCode: 'WELLBEING_SUPPORT_NOT_TREATMENT',
+      disclaimer:
+        'Kế hoạch hỗ trợ sức khỏe tổng quát và không phải kế hoạch điều trị.',
     }
 
-    expect(parseSupportPlanV3(projection)).not.toBeNull()
+    expect(
+      parseSupportPlanV3(projection)?.focuses[0]?.actions[0],
+    ).toMatchObject({
+      actionType: 'PROFESSIONAL_SUPPORT',
+      pathRole: 'PRIMARY',
+      source: {
+        ownerDomain: 'CONSULTATION',
+        sourceKind: 'PROFESSIONAL_SUPPORT_PATHWAY',
+      },
+    })
     expect(
       parseSupportPlanV3({
         ...projection,

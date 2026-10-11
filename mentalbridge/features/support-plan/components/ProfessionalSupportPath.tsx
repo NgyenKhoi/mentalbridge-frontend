@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
@@ -29,12 +29,21 @@ function newestAppointment(items: Appointment[], actionId: string) {
 }
 
 export default function ProfessionalSupportPath({
+  professionalSupportRequired,
   supportPlanId,
-}: Readonly<{ supportPlanId: string }>) {
+}: Readonly<{
+  professionalSupportRequired: boolean
+  supportPlanId: string
+}>) {
   const [action, setAction] = useState<PlanAction | null>(null)
   const [appointment, setAppointment] = useState<Appointment | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [projectionUnavailable, setProjectionUnavailable] = useState(false)
+  const [appointmentUnavailable, setAppointmentUnavailable] = useState(false)
+  const actionRef = useRef<PlanAction | null>(null)
 
   const load = useCallback(async () => {
+    setLoading(true)
     try {
       const model = await getSupportPlanActions(supportPlanId)
       const professional = model.focuses
@@ -46,22 +55,34 @@ export default function ProfessionalSupportPath({
             candidate.status !== 'ENDED',
         )
       if (!professional) {
+        actionRef.current = null
         setAction(null)
         setAppointment(null)
+        setProjectionUnavailable(false)
+        setAppointmentUnavailable(false)
         return
       }
+      const actionChanged =
+        actionRef.current?.actionId !== professional.actionId
+      actionRef.current = professional
       setAction(professional)
+      setProjectionUnavailable(false)
+      if (actionChanged) setAppointment(null)
       try {
-        const appointments = await appointmentBrowserClient.list()
+        const appointments = await appointmentBrowserClient.list(
+          professional.actionId,
+        )
         setAppointment(
           newestAppointment(appointments.items, professional.actionId) ?? null,
         )
+        setAppointmentUnavailable(false)
       } catch {
-        setAppointment(null)
+        setAppointmentUnavailable(true)
       }
     } catch {
-      setAction(null)
-      setAppointment(null)
+      setProjectionUnavailable(true)
+    } finally {
+      setLoading(false)
     }
   }, [supportPlanId])
 
@@ -75,7 +96,40 @@ export default function ProfessionalSupportPath({
     }
   }, [load])
 
-  if (!action) return null
+  if (!action && !(professionalSupportRequired && projectionUnavailable)) {
+    return null
+  }
+
+  if (!action) {
+    const headingId = `professional-path-${supportPlanId}`
+    return (
+      <section
+        className="support-plan-professional-path"
+        aria-labelledby={headingId}
+      >
+        <div className="support-plan-professional-path-heading">
+          <span>Hướng hỗ trợ chính</span>
+          <strong>Ưu tiên kết nối chuyên gia</strong>
+        </div>
+        <h3 id={headingId}>Chưa thể tải chi tiết hướng hỗ trợ</h3>
+        <p role="status">
+          Các nội dung bổ trợ vẫn có thể xem, nhưng không thay thế việc kết nối
+          chuyên gia. Hãy thử tải lại để tiếp tục từ hướng hỗ trợ đã được xác
+          nhận cho kế hoạch này.
+        </p>
+        <div className="support-plan-professional-path-actions">
+          <button
+            className="btn btn-outline"
+            disabled={loading}
+            type="button"
+            onClick={() => void load()}
+          >
+            {loading ? 'Đang tải lại…' : 'Thử tải lại hướng hỗ trợ'}
+          </button>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section
@@ -90,10 +144,22 @@ export default function ProfessionalSupportPath({
         {action.presentation.title}
       </h3>
       {action.presentation.summary && <p>{action.presentation.summary}</p>}
+      {projectionUnavailable && (
+        <p className="support-plan-path-update-state" role="status">
+          Chưa thể cập nhật hướng hỗ trợ. Thông tin bên dưới là lần tải đã xác
+          nhận gần nhất.
+        </p>
+      )}
       {appointment && (
         <p className="support-plan-appointment-state" role="status">
           <strong>Trạng thái lịch hẹn:</strong>{' '}
           {appointmentStatus[appointment.status]}
+        </p>
+      )}
+      {appointmentUnavailable && (
+        <p className="support-plan-path-update-state" role="status">
+          Chưa thể cập nhật trạng thái lịch hẹn. MentalBridge không tự suy đoán
+          trạng thái khi dữ liệu này chưa khả dụng.
         </p>
       )}
       <div className="support-plan-professional-path-actions">
@@ -107,6 +173,16 @@ export default function ProfessionalSupportPath({
           Bạn tự chọn chuyên gia và xác nhận từng yêu cầu. Kế hoạch không tự đặt
           lịch hoặc chia sẻ dữ liệu.
         </small>
+        {(projectionUnavailable || appointmentUnavailable) && (
+          <button
+            className="btn btn-outline"
+            disabled={loading}
+            type="button"
+            onClick={() => void load()}
+          >
+            {loading ? 'Đang cập nhật…' : 'Thử cập nhật lại'}
+          </button>
+        )}
       </div>
     </section>
   )
