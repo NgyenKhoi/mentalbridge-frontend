@@ -229,7 +229,7 @@ export default function ResourcesExperience() {
       (format === 'ALL' || meta.format === format)
     )
   })
-  const streak = journeys[today]?.progress.practiceStreakDays ?? 0
+  const streak = journeys[today]?.progress.practiceStreakDays
   const completedRecent = progress
     .filter((entry) => entry.status === 'COMPLETED')
     .sort((left, right) =>
@@ -441,7 +441,15 @@ export default function ResourcesExperience() {
                   <p>Chọn ngày để xem những bước nhỏ của bạn.</p>
                 </div>
                 <div className="resource-streak-pill">
-                  <strong>{streak} ngày</strong> duy trì nhịp chăm sóc
+                  {streak === undefined ? (
+                    <strong>Chưa tải được chuỗi thực hành</strong>
+                  ) : streak > 0 ? (
+                    <>
+                      <strong>{streak} ngày</strong> đã được lưu
+                    </>
+                  ) : (
+                    <strong>Chưa có chuỗi thực hành</strong>
+                  )}
                 </div>
                 <div className="resource-date-strip">
                   {dates.map((date) => {
@@ -822,8 +830,8 @@ export default function ResourcesExperience() {
             </strong>
             <small>
               {reward === 'day'
-                ? 'Streak của bạn vừa có thêm một nhịp.'
-                : 'Cảm ơn bạn đã dành thời gian cho chính mình.'}
+                ? 'Các hoạt động hôm nay đã được lưu.'
+                : 'Tiến độ của hoạt động đã được lưu.'}
             </small>
           </div>
           <button

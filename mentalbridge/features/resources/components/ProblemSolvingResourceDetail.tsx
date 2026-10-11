@@ -1047,7 +1047,9 @@ export function ProblemSolvingResourceDetail({
                   </p>
                 </div>
               </div>
-              <span className={styles.xpBadge}>+15 XP Tinh Thần</span>
+              <span className={styles.xpBadge}>
+                Bản nháp chỉ lưu trên thiết bị này
+              </span>
             </div>
 
             <div className={styles.practicePrompt}>

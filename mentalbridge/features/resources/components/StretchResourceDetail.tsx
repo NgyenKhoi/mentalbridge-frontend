@@ -495,8 +495,8 @@ export function StretchResourceDetail({
               <Zap size={23} fill="currentColor" aria-hidden="true" />
             </span>
             <div>
-              <span>PHẦN THƯỞNG HOÀN THÀNH</span>
-              <strong>+15 XP Sức khỏe · Cột mốc ngày</strong>
+              <span>TIẾN ĐỘ HOÀN THÀNH</span>
+              <strong>Chỉ ghi nhận sau khi lưu thành công</strong>
             </div>
           </div>
         </header>
@@ -1019,7 +1019,7 @@ export function StretchResourceDetail({
                   ? 'Đã ghi nhận hoàn thành'
                   : saving || recordState === 'sending'
                     ? 'Đang ghi nhận…'
-                    : 'Ghi nhận hoàn thành bài tập (+15 XP)'}
+                    : 'Ghi nhận hoàn thành bài tập'}
               </button>
               <p>
                 {status === 'COMPLETED'

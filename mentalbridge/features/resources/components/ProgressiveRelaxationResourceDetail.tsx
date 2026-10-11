@@ -638,7 +638,7 @@ export function ProgressiveRelaxationResourceDetail({
                 ? 'Đã hoàn thành'
                 : saving
                   ? 'Đang ghi nhận...'
-                  : 'Hoàn thành (+15 XP)'}
+                  : 'Ghi nhận hoàn thành'}
             </button>
             {progressLoadState === 'error' && (
               <button

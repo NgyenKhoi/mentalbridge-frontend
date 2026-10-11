@@ -1,23 +1,23 @@
 'use client'
 
-import Link from 'next/link'
 import Image from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
-  getResourceCatalogue,
-  type PublicResourceSummary,
-} from '../api/browser-resources'
+  getResourceJourney,
+  ResourceJourneyBrowserError,
+  type ResourceJourney,
+} from '../api/browser-resource-journey'
 import {
   getResourceProgress,
   saveResourceProgress,
   type ResourceProgressItem,
 } from '../api/browser-resource-progress'
 import {
-  getResourceJourney,
-  ResourceJourneyBrowserError,
-  type ResourceJourney,
-} from '../api/browser-resource-journey'
+  getResourceCatalogue,
+  type PublicResourceSummary,
+} from '../api/browser-resources'
 import {
   localDate,
   recentDates,
@@ -28,9 +28,10 @@ import { AnimatedResourceSticker } from './AnimatedResourceSticker'
 import styles from './resources-showcase.module.css'
 
 type Filter = 'all' | 'short' | 'medium' | 'challenge'
-type Mood = 'Bình an' | 'Hứng khởi' | 'Hơi mệt' | 'Quá tải'
+type JourneyState =
+  'loading' | 'ready' | 'partial' | 'missing' | 'plan-required' | 'error'
+type JourneyDateState = 'ready' | 'missing' | 'plan-required' | 'error'
 
-const VIEW_STATE_KEY = 'mentalbridge:resources:view'
 const resourceArtworks = [
   {
     title: 'thở chậm',
@@ -57,33 +58,6 @@ const resourceArtworks = [
     src: '/images/resource-pmr.webp',
     alt: 'Nằm thư giãn và nhẹ nhàng siết rồi thả lỏng từng nhóm cơ',
   },
-] as const
-const moods: { label: Mood; symbol: string }[] = [
-  { label: 'Bình an', symbol: '🌿' },
-  { label: 'Hứng khởi', symbol: '☀️' },
-  { label: 'Hơi mệt', symbol: '☁️' },
-  { label: 'Quá tải', symbol: '☔' },
-]
-const bingoLines = [
-  [0, 1, 2],
-  [3, 4, 5],
-  [6, 7, 8],
-  [0, 3, 6],
-  [1, 4, 7],
-  [2, 5, 8],
-  [0, 4, 8],
-  [2, 4, 6],
-]
-const bingoTiles = [
-  { id: 'water', label: 'Uống đủ 2L nước', symbol: '💧', xp: 15 },
-  { id: 'breathing', label: 'Hít thở sâu 3 phút', symbol: '🌿', xp: 15 },
-  { id: 'gratitude', label: 'Viết lời cảm ơn', symbol: '✍', xp: 15 },
-  { id: 'walk', label: 'Đi bộ ngắm cây', symbol: '🚶', xp: 20 },
-  { id: 'smile', label: 'Mỉm cười với bản thân', symbol: '✦', xp: 0 },
-  { id: 'tea', label: 'Uống trà thảo mộc', symbol: '🍵', xp: 15 },
-  { id: 'screen', label: 'Tắt màn hình 30p', symbol: '◫', xp: 25 },
-  { id: 'music', label: 'Nghe nhạc êm dịu', symbol: '♫', xp: 15 },
-  { id: 'sleep', label: 'Đi ngủ trước 23h', symbol: '☾', xp: 30 },
 ] as const
 
 function resourceHref(resource: PublicResourceSummary, date: string) {
@@ -130,101 +104,55 @@ function ResourceArt({ resource }: { resource: PublicResourceSummary }) {
   )
 }
 
+function currentJourneyState(
+  today: string,
+  states: Record<string, JourneyDateState>,
+): JourneyState {
+  const todayState = states[today]
+  if (todayState === 'missing') return 'missing'
+  if (todayState === 'plan-required') return 'plan-required'
+  if (todayState === 'error' || !todayState) return 'error'
+  return Object.values(states).some((state) => state !== 'ready')
+    ? 'partial'
+    : 'ready'
+}
+
+function journeyStateCopy(state: JourneyState) {
+  if (state === 'loading') return 'Đang tải tiến độ đã lưu…'
+  if (state === 'missing') return 'Chưa có dữ liệu hành trình cho ngày hôm nay.'
+  if (state === 'plan-required')
+    return 'Bạn cần một kế hoạch hỗ trợ đang hoạt động để xem nhịp thực hành.'
+  return 'Chưa tải được tiến độ từ dịch vụ nội dung.'
+}
+
 export default function ResourcesShowcase() {
   const today = useMemo(() => localDate(), [])
   const dates = useMemo(() => recentDates(today), [today])
   const [resources, setResources] = useState<PublicResourceSummary[]>([])
   const [progress, setProgress] = useState<ResourceProgressItem[]>([])
   const [journeys, setJourneys] = useState<Record<string, ResourceJourney>>({})
+  const [journeyDateStates, setJourneyDateStates] = useState<
+    Record<string, JourneyDateState>
+  >({})
   const [catalogueState, setCatalogueState] = useState<
     'loading' | 'ready' | 'empty' | 'error'
   >('loading')
   const [progressState, setProgressState] = useState<
     'loading' | 'ready' | 'error'
   >('loading')
-  const [journeyState, setJourneyState] = useState<
-    'loading' | 'ready' | 'plan-required' | 'error'
-  >('loading')
+  const [journeyState, setJourneyState] = useState<JourneyState>('loading')
   const [filter, setFilter] = useState<Filter>('all')
-  const [mood, setMood] = useState<Mood>('Bình an')
-  const [bingoMarks, setBingoMarks] = useState<Record<string, boolean>>({})
   const [expanded, setExpanded] = useState(false)
-  const [bookmarked, setBookmarked] = useState(false)
   const [pendingId, setPendingId] = useState('')
-  const [progressMessage, setProgressMessage] = useState('')
-  const [hydrated, setHydrated] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    queueMicrotask(() => {
-      if (!active) return
-      try {
-        const saved = JSON.parse(
-          sessionStorage.getItem(VIEW_STATE_KEY) ?? '{}',
-        ) as {
-          showcase?: {
-            mood?: Mood
-            filter?: Filter
-            bingoMarks?: Record<string, boolean>
-            bookmarked?: boolean
-          }
-        }
-        const showcase = saved.showcase
-        if (showcase) {
-          if (moods.some((item) => item.label === showcase.mood))
-            setMood(showcase.mood ?? 'Bình an')
-          if (
-            ['all', 'short', 'medium', 'challenge'].includes(
-              showcase.filter ?? '',
-            )
-          )
-            setFilter(showcase.filter ?? 'all')
-          if (showcase.bingoMarks && typeof showcase.bingoMarks === 'object')
-            setBingoMarks(showcase.bingoMarks)
-          setBookmarked(Boolean(showcase.bookmarked))
-        }
-      } catch {
-        setMood('Bình an')
-        setFilter('all')
-        setBingoMarks({})
-        setBookmarked(false)
-      }
-      setHydrated(true)
-    })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!hydrated) return
-    try {
-      const current = JSON.parse(
-        sessionStorage.getItem(VIEW_STATE_KEY) ?? '{}',
-      ) as Record<string, unknown>
-      sessionStorage.setItem(
-        VIEW_STATE_KEY,
-        JSON.stringify({
-          ...current,
-          showcase: { mood, filter, bingoMarks, bookmarked },
-        }),
-      )
-    } catch {
-      try {
-        sessionStorage.setItem(
-          VIEW_STATE_KEY,
-          JSON.stringify({
-            showcase: { mood, filter, bingoMarks, bookmarked },
-          }),
-        )
-      } catch {}
-    }
-  }, [mood, filter, bingoMarks, bookmarked, hydrated])
+  const [saveError, setSaveError] = useState('')
+  const [completionMessage, setCompletionMessage] = useState('')
+  const acknowledgedCompletions = useRef(new Set<string>())
 
   useEffect(() => {
     const controller = new AbortController()
     let active = true
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
     void getResourceCatalogue(controller.signal, 'vi-VN')
       .then((catalogue) => {
         if (!active) return
@@ -236,50 +164,55 @@ export default function ResourcesShowcase() {
         if (active && !(error instanceof Error && error.name === 'AbortError'))
           setCatalogueState('error')
       })
+
     void getResourceProgress(shiftDate(today, -14), today)
       .then((items) => {
-        if (active) {
-          setProgress([...items])
-          setProgressState('ready')
-        }
+        if (!active) return
+        setProgress([...items])
+        setProgressState('ready')
       })
       .catch(() => {
         if (active) setProgressState('error')
       })
-    void Promise.all(
-      dates.map(async (date) => {
-        try {
-          return await getResourceJourney(date, timeZone, controller.signal)
-        } catch (error) {
-          if (
-            error instanceof ResourceJourneyBrowserError &&
-            error.status === 404
-          )
-            return null
-          throw error
-        }
-      }),
-    )
-      .then((items) => {
-        if (!active) return
-        setJourneys(
-          Object.fromEntries(
-            items
-              .filter((item): item is ResourceJourney => item !== null)
-              .map((item) => [item.localDate, item]),
-          ),
-        )
-        setJourneyState('ready')
-      })
-      .catch((error: unknown) => {
-        if (!active || (error instanceof Error && error.name === 'AbortError'))
+
+    void Promise.allSettled(
+      dates.map((date) =>
+        getResourceJourney(date, timeZone, controller.signal),
+      ),
+    ).then((results) => {
+      if (!active) return
+      const nextJourneys: Record<string, ResourceJourney> = {}
+      const nextStates: Record<string, JourneyDateState> = {}
+
+      results.forEach((result, index) => {
+        const date = dates[index]
+        if (result.status === 'fulfilled') {
+          nextJourneys[date] = result.value
+          nextStates[date] = 'ready'
           return
-        setJourneyState(
-          error instanceof ResourceJourneyBrowserError && error.status === 409
-            ? 'plan-required'
-            : 'error',
-        )
+        }
+        const error = result.reason as unknown
+        if (error instanceof Error && error.name === 'AbortError') return
+        if (
+          error instanceof ResourceJourneyBrowserError &&
+          error.status === 404
+        ) {
+          nextStates[date] = 'missing'
+        } else if (
+          error instanceof ResourceJourneyBrowserError &&
+          error.status === 409
+        ) {
+          nextStates[date] = 'plan-required'
+        } else {
+          nextStates[date] = 'error'
+        }
       })
+
+      setJourneys(nextJourneys)
+      setJourneyDateStates(nextStates)
+      setJourneyState(currentJourneyState(today, nextStates))
+    })
+
     return () => {
       active = false
       controller.abort()
@@ -325,12 +258,6 @@ export default function ResourcesShowcase() {
   )
   const visible = expanded ? curated : curated.slice(0, 5)
   const journey = journeys[today]
-  const streak = journey?.progress.practiceStreakDays
-  const stamped = bingoTiles.map((item) => bingoMarks[item.id] ?? false)
-  const stampedCount = stamped.filter(Boolean).length
-  const lineComplete = bingoLines.some((line) =>
-    line.every((index) => stamped[index]),
-  )
   const completedRecent = progress
     .filter((entry) => entry.status === 'COMPLETED')
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
@@ -349,28 +276,56 @@ export default function ResourcesShowcase() {
 
   async function toggleDaily(resource: PublicResourceSummary) {
     if (pendingId) return
+    const key = `${resource.id}:${today}`
+    const wasCompleted = progress.some(
+      (entry) =>
+        entry.resourceId === resource.id &&
+        entry.localDate === today &&
+        entry.status === 'COMPLETED',
+    )
     setPendingId(resource.id)
-    setProgressMessage('')
+    setSaveError('')
+    setCompletionMessage('')
+
+    let saved: ResourceProgressItem
     try {
-      const saved = await saveResourceProgress(resource.id, today, {
+      saved = await saveResourceProgress(resource.id, today, {
         status: 'COMPLETED',
         completedActionIds: ['overview-complete'],
       })
-      setProgress((current) => [
-        ...current.filter(
-          (entry) =>
-            !(entry.resourceId === resource.id && entry.localDate === today),
-        ),
-        saved,
-      ])
+    } catch {
+      setSaveError('Chưa thể lưu tiến độ. Hãy thử lại sau một chút.')
+      setPendingId('')
+      return
+    }
+
+    setProgress((current) => [
+      ...current.filter(
+        (entry) =>
+          !(entry.resourceId === resource.id && entry.localDate === today),
+      ),
+      saved,
+    ])
+    setProgressState('ready')
+    if (
+      saved.status === 'COMPLETED' &&
+      !wasCompleted &&
+      !acknowledgedCompletions.current.has(key)
+    ) {
+      acknowledgedCompletions.current.add(key)
+      setCompletionMessage(`Đã lưu hoàn thành “${resource.title}”.`)
+    }
+    window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
+
+    try {
       const refreshed = await getResourceJourney(
         today,
         Intl.DateTimeFormat().resolvedOptions().timeZone,
       )
       setJourneys((current) => ({ ...current, [today]: refreshed }))
-      window.dispatchEvent(new CustomEvent('mb:resource-progress-updated'))
+      setJourneyDateStates((current) => ({ ...current, [today]: 'ready' }))
     } catch {
-      setProgressMessage('Chưa thể lưu tiến độ. Hãy thử lại sau một chút.')
+      setJourneyState('partial')
     } finally {
       setPendingId('')
     }
@@ -395,7 +350,7 @@ export default function ResourcesShowcase() {
         </h1>
         <p>
           {catalogueState === 'error'
-            ? 'Tiến độ đã lưu của bạn vẫn an toàn. Hãy thử tải lại sau ít phút.'
+            ? 'Không thể xác nhận danh mục và tiến độ lúc này. Hãy thử tải lại sau ít phút.'
             : catalogueState === 'empty'
               ? 'Khi tài nguyên mới sẵn sàng, chúng sẽ xuất hiện ở đây.'
               : 'Một chút nữa, bạn có thể chọn hoạt động phù hợp với mình.'}
@@ -419,30 +374,19 @@ export default function ResourcesShowcase() {
         >
           <div className={styles.heroTop}>
             <span className={styles.heroBadge} data-resource-ink="dark">
-              ● Thử thách nổi bật hôm nay
+              ● Hoạt động nổi bật trong kho
             </span>
-            <span className={styles.demoBadge}>+50 Điểm Nuôi Dưỡng</span>
-            <button
-              type="button"
-              className={styles.bookmark}
-              aria-label={
-                bookmarked
-                  ? 'Bỏ lưu hoạt động nổi bật'
-                  : 'Lưu hoạt động nổi bật'
-              }
-              aria-pressed={bookmarked}
-              onClick={() => setBookmarked((value) => !value)}
-            >
-              {bookmarked ? '◆' : '◇'}
-            </button>
+            {feature?.sourceOrganization && (
+              <span className={styles.demoBadge}>
+                Nguồn: {feature.sourceOrganization}
+              </span>
+            )}
           </div>
           <div className={styles.heroContent}>
-            <p className={styles.heroDate}>{todayLabel} · Nuôi dưỡng tâm trí</p>
-            <h1 id="resource-hero-title">
-              {feature?.title === 'Ba phút nhận biết hiện tại'
-                ? 'Ba phút nhận biết hiện tại: Đón năng lượng an yên'
-                : feature?.title}
-            </h1>
+            <p className={styles.heroDate}>
+              {todayLabel} · Tài nguyên đã xuất bản
+            </p>
+            <h1 id="resource-hero-title">{feature?.title}</h1>
             <p>{feature?.summary}</p>
             <div className={styles.heroActions}>
               {feature && (
@@ -450,11 +394,10 @@ export default function ResourcesShowcase() {
                   className={styles.mintButton}
                   href={resourceHref(feature, today)}
                 >
-                  ▶ Bắt đầu bài tập hôm nay ·{' '}
-                  {resourcePresentation(feature).minutes} phút
+                  ▶ Mở hoạt động · {resourcePresentation(feature).minutes} phút
                 </Link>
               )}
-              {mediaResource && (
+              {mediaResource && mediaResource.id !== feature?.id && (
                 <Link
                   className={styles.glassButton}
                   href={resourceHref(mediaResource, today)}
@@ -468,56 +411,86 @@ export default function ResourcesShowcase() {
 
         <aside className={styles.energy} aria-labelledby="energy-title">
           <div className={styles.energyHead}>
-            <h2 id="energy-title">Thước đo năng lượng</h2>
-            <span>{streak ?? 3} ngày duy trì</span>
+            <h2 id="energy-title">Nhịp thực hành</h2>
+            {journey &&
+              (journey.progress.practiceStreakDays > 0 ? (
+                <span>{journey.progress.practiceStreakDays} ngày đã lưu</span>
+              ) : (
+                <span>Chưa có chuỗi thực hành</span>
+              ))}
           </div>
-          <p>Bạn đang cảm thấy thế nào ngay lúc này?</p>
-          <div
-            className={styles.moods}
-            role="group"
-            aria-label="Cảm nhận hiện tại"
-          >
-            {moods.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                aria-pressed={mood === item.label}
-                className={mood === item.label ? styles.activeMood : ''}
-                onClick={() => setMood(item.label)}
-              >
-                <span aria-hidden="true">{item.symbol}</span>
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <div className={styles.energyProgress}>
-            <small>Cấp độ 2</small>
-            <strong>Người thực hành kiên nhẫn</strong>
-            <div className={styles.xpLabel}>420 / 600 XP</div>
-            <div className={styles.track}>
-              <i style={{ width: '70%' }} />
+
+          {journey ? (
+            <>
+              <div className={styles.energyProgress}>
+                <small>TIẾN ĐỘ NGÀY {today}</small>
+                <strong>
+                  {journey.progress.dailyCompleted}/
+                  {journey.progress.dailyTotal} hoạt động đã hoàn thành
+                </strong>
+                <div className={styles.actualProgress}>
+                  Dữ liệu từ kế hoạch phiên bản {journey.planVersion}
+                </div>
+                <div
+                  className={styles.track}
+                  role="progressbar"
+                  aria-label="Tiến độ hoạt động hôm nay"
+                  aria-valuemin={0}
+                  aria-valuemax={journey.progress.dailyTotal}
+                  aria-valuenow={journey.progress.dailyCompleted}
+                >
+                  <i
+                    style={{
+                      width: `${journey.progress.dailyTotal > 0 ? (journey.progress.dailyCompleted / journey.progress.dailyTotal) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+                <p>Chỉ những lần hoàn thành đã lưu mới được tính ở đây.</p>
+              </div>
+              {journeyState === 'partial' && (
+                <p className={styles.stateNote} role="status">
+                  Một số ngày trước chưa tải được. Tiến độ hôm nay vẫn là dữ
+                  liệu đã lưu.
+                </p>
+              )}
+            </>
+          ) : (
+            <div className={styles.journeyState} role="status">
+              <p>{journeyStateCopy(journeyState)}</p>
+              {journeyState !== 'loading' && (
+                <button type="button" onClick={() => window.location.reload()}>
+                  Tải lại tiến độ
+                </button>
+              )}
             </div>
-            <p>✨ Hoàn thành một bài tập hôm nay để nhận thêm +50 XP.</p>
-          </div>
+          )}
+
           <div className={styles.weekDots} aria-label="Bảy ngày gần đây">
-            {dates.map((date) => (
-              <span
-                key={date}
-                className={`${date === today ? styles.todayDot : ''} ${journeys[date]?.progress.dailyCompleted ? styles.dayDone : ''}`}
-              >
-                <small>
-                  {date === today
-                    ? 'Hôm nay'
-                    : new Intl.DateTimeFormat('vi-VN', {
-                        weekday: 'short',
-                      }).format(new Date(`${date}T12:00:00`))}
-                </small>
-                <i />
-              </span>
-            ))}
+            {dates.map((date) => {
+              const dayJourney = journeys[date]
+              const state = journeyDateStates[date]
+              const done = Boolean(dayJourney?.progress.dailyCompleted)
+              const label =
+                date === today
+                  ? 'Hôm nay'
+                  : new Intl.DateTimeFormat('vi-VN', {
+                      weekday: 'short',
+                    }).format(new Date(`${date}T12:00:00`))
+              return (
+                <span
+                  key={date}
+                  aria-label={`${label}: ${state === 'ready' ? (done ? 'có hoạt động đã lưu' : 'chưa có hoạt động hoàn thành') : 'chưa tải được dữ liệu'}`}
+                  className={`${date === today ? styles.todayDot : ''} ${done ? styles.dayDone : ''} ${state !== 'ready' ? styles.dayUnknown : ''}`}
+                >
+                  <small aria-hidden="true">{label}</small>
+                  <i aria-hidden="true" />
+                </span>
+              )
+            })}
           </div>
-          {journeyState === 'ready' && journey && progressState === 'ready' && (
-            <details className={styles.dailyDetails}>
+
+          {journey && progressState === 'ready' && (
+            <details className={styles.dailyDetails} open>
               <summary>Hoạt động trong kế hoạch hôm nay</summary>
               <ul>
                 {journey.items.map(({ resource }) => {
@@ -532,7 +505,7 @@ export default function ResourcesShowcase() {
                       <button
                         type="button"
                         disabled={complete || pendingId !== ''}
-                        aria-label={`${complete ? 'Đã hoàn thành' : 'Ghi nhận đã làm'}: ${resource.title}`}
+                        aria-label={`${complete ? 'Đã lưu hoàn thành' : 'Ghi nhận hoàn thành và lưu'}: ${resource.title}`}
                         onClick={() => void toggleDaily(resource)}
                       >
                         {complete ? '✓' : '○'}
@@ -544,8 +517,19 @@ export default function ResourcesShowcase() {
                   )
                 })}
               </ul>
-              {progressMessage && <p role="alert">{progressMessage}</p>}
+              {saveError && <p role="alert">{saveError}</p>}
+              {completionMessage && (
+                <p className={styles.completionNotice} role="status">
+                  ✓ {completionMessage}
+                </p>
+              )}
             </details>
+          )}
+          {progressState === 'error' && (
+            <p className={styles.stateNote} role="status">
+              Chưa tải được danh sách tiến độ. Trang sẽ không suy đoán trạng
+              thái hoàn thành.
+            </p>
           )}
         </aside>
       </div>
@@ -557,11 +541,11 @@ export default function ResourcesShowcase() {
               <span className={styles.eyebrow} data-resource-ink="light">
                 Kho tài nguyên
               </span>
-              <h2 id="catalogue-title">Hộp Quà Nuôi Dưỡng Tâm Trí</h2>
+              <h2 id="catalogue-title">Hoạt động chăm sóc tinh thần</h2>
             </div>
             <p>
-              Chọn một hoạt động để nạp lại nguồn năng lượng tích cực cho cơ thể
-              và tinh thần.
+              Mở một hoạt động để xem nội dung. Trạng thái hoàn thành chỉ xuất
+              hiện sau khi được lưu.
             </p>
           </div>
           <div
@@ -571,9 +555,9 @@ export default function ResourcesShowcase() {
           >
             {(
               [
-                ['all', 'Tất cả kho báu'],
-                ['short', 'Dễ chịu (<5p)'],
-                ['medium', 'Vừa sức (5–10p)'],
+                ['all', 'Tất cả'],
+                ['short', 'Dưới 5 phút'],
+                ['medium', '5–10 phút'],
                 ['challenge', 'Thử thách nhẹ'],
               ] as const
             ).map(([value, label]) => (
@@ -600,21 +584,26 @@ export default function ResourcesShowcase() {
           <div className={styles.bento} role="list">
             {visible.map((resource, index) => {
               const meta = resourcePresentation(resource)
-              const status =
+              const savedProgress =
                 progressState === 'ready'
                   ? progress.find(
                       (entry) =>
                         entry.resourceId === resource.id &&
                         entry.localDate === today,
-                    )?.status
+                    )
                   : undefined
-              const sampleXp =
-                [35, 25, 40, 30, 20][index] ??
-                (meta.difficulty === 'CHALLENGE'
-                  ? 40
-                  : meta.difficulty === 'BALANCED'
-                    ? 30
-                    : 25)
+              const progressLabel =
+                progressState === 'error'
+                  ? 'Chưa tải được tiến độ'
+                  : savedProgress?.status === 'COMPLETED'
+                    ? `Đã lưu hoàn thành · bản ${savedProgress.contentVersion}`
+                    : savedProgress?.status === 'IN_PROGRESS'
+                      ? `Đang thực hiện · bản ${savedProgress.contentVersion}`
+                      : meta.difficulty === 'GENTLE'
+                        ? 'Dễ chịu'
+                        : meta.difficulty === 'BALANCED'
+                          ? 'Vừa sức'
+                          : 'Thử thách nhẹ'
               return (
                 <article
                   role="listitem"
@@ -628,29 +617,24 @@ export default function ResourcesShowcase() {
                   <div className={styles.cardBody}>
                     <div className={styles.cardMeta}>
                       <span>
-                        {index === 0 && filter === 'all' ? '◷ ' : ''}
                         {meta.minutes} phút ·{' '}
-                        {index === 0 && filter === 'all'
-                          ? 'Khám phá'
-                          : resource.resourceKind === 'PRACTICE'
-                            ? 'Thực hành'
-                            : 'Khám phá'}
+                        {resource.resourceKind === 'PRACTICE'
+                          ? 'Thực hành'
+                          : 'Khám phá'}
                       </span>
-                      <strong>+{sampleXp} XP</strong>
+                      <strong>
+                        {resource.sourceOrganization
+                          ? `Nguồn: ${resource.sourceOrganization}`
+                          : 'Nguồn chưa công bố'}
+                      </strong>
                     </div>
                     <h3>{resource.title}</h3>
                     <p>{resource.summary}</p>
                     {index === 4 && filter === 'all' && (
                       <div className={styles.wave} aria-hidden="true">
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                        <i />
+                        {Array.from({ length: 9 }, (_, waveIndex) => (
+                          <i key={waveIndex} />
+                        ))}
                       </div>
                     )}
                     <div className={styles.cardFooter}>
@@ -666,26 +650,13 @@ export default function ResourcesShowcase() {
                               : styles.challenge
                         }
                       >
-                        {status === 'COMPLETED'
-                          ? 'Đã hoàn thành'
-                          : status === 'IN_PROGRESS'
-                            ? 'Đang làm'
-                            : meta.difficulty === 'GENTLE'
-                              ? 'Dễ chịu'
-                              : meta.difficulty === 'BALANCED'
-                                ? 'Vừa sức'
-                                : 'Thử thách nhẹ'}
+                        {progressLabel}
                       </span>
                       <Link
                         href={resourceHref(resource, today)}
-                        aria-label={`Khám phá ${resource.title}`}
+                        aria-label={`Mở hoạt động: ${resource.title}`}
                       >
-                        {index === 0 && filter === 'all'
-                          ? 'Thực hành ngay'
-                          : index === 4 && filter === 'all'
-                            ? 'Bật xem'
-                            : 'Khám phá'}{' '}
-                        →
+                        Mở hoạt động →
                       </Link>
                     </div>
                   </div>
@@ -713,86 +684,74 @@ export default function ResourcesShowcase() {
         <section className={styles.bingo} aria-labelledby="bingo-title">
           <div className={styles.panelHead}>
             <div>
-              <h2 id="bingo-title">Bảng Bingo Thói Quen Lành Tuần Này</h2>
-              <p>
-                Hoàn thành 3 ô thẳng hàng để nhận Huy hiệu Hoa Sen Tươi Mới.
-              </p>
+              <h2 id="bingo-title">Bingo hoạt động trong kế hoạch</h2>
+              <p>Dấu hoàn thành được lấy từ tiến độ đã lưu của bạn.</p>
             </div>
-            <span>Đã mở: {stampedCount}/9 ô</span>
+            {journey && (
+              <span>
+                Đã lưu: {journey.bingo.filter((item) => item.stamped).length}/
+                {journey.bingo.length} ô
+              </span>
+            )}
           </div>
-          <div className={styles.bingoGrid}>
-            {bingoTiles.map((item, index) => (
-              <button
-                type="button"
-                key={item.id}
-                className={`${stamped[index] ? styles.bingoStamped : ''} ${index === 4 ? styles.bingoLucky : ''}`}
-                aria-pressed={Boolean(stamped[index])}
-                aria-label={`${item.label}, ${stamped[index] ? 'đã đánh dấu' : 'chưa đánh dấu'}`}
-                onClick={() =>
-                  setBingoMarks((current) => ({
-                    ...current,
-                    [item.id]: !(current[item.id] ?? false),
-                  }))
-                }
-              >
-                <span aria-hidden="true">
-                  {stamped[index] ? '✓' : item.symbol}
-                </span>
-                <strong>{item.label}</strong>
-                <small>
-                  {stamped[index]
-                    ? 'Đã đóng dấu'
-                    : index === 4
-                      ? 'Ô may mắn'
-                      : `+${item.xp} XP`}
-                </small>
-              </button>
-            ))}
-          </div>
-          <p className={styles.bingoNote} role="status">
-            {lineComplete
-              ? 'Bạn đã hoàn thành 3 ô thẳng hàng và mở Huy hiệu Hoa Sen Tươi Mới.'
-              : 'Chọn một ô sau khi hoàn thành thói quen để đóng dấu.'}
+          {journey ? (
+            journey.bingo.length ? (
+              <div className={styles.bingoGrid} role="list">
+                {journey.bingo.map((item) => (
+                  <div
+                    role="listitem"
+                    key={`${item.position}:${item.resourceId}`}
+                    className={item.stamped ? styles.bingoStamped : ''}
+                    aria-label={`${item.label}, ${item.stamped ? 'đã lưu hoàn thành' : 'chưa hoàn thành'}`}
+                  >
+                    <span aria-hidden="true">{item.stamped ? '✓' : '○'}</span>
+                    <strong>{item.label}</strong>
+                    <small>
+                      {item.stamped ? 'Đã lưu hoàn thành' : 'Chưa hoàn thành'}
+                    </small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className={styles.panelEmpty} role="status">
+                Kế hoạch hôm nay chưa có ô bingo.
+              </p>
+            )
+          ) : (
+            <p className={styles.panelEmpty} role="status">
+              {journeyStateCopy(journeyState)}
+            </p>
+          )}
+          <p className={styles.bingoNote}>
+            Mở một hoạt động không tự đánh dấu hoàn thành. Bạn cần xác nhận lưu
+            tiến độ trong hoạt động đó.
           </p>
         </section>
+
         <div className={styles.sideStack}>
-          <section className={styles.badges} aria-labelledby="badges-title">
+          <section className={styles.badges} aria-labelledby="truth-title">
             <div className={styles.panelHead}>
-              <h2 id="badges-title">Huy Hiệu Tinh Thần Của Bạn</h2>
-              <span>Xem tất cả (6)</span>
+              <h2 id="truth-title">Tiến độ của bạn</h2>
             </div>
-            <div className={styles.badgeGrid}>
-              <div>
-                <span aria-hidden="true">🔥</span>
-                <strong>Giữ Lửa 3N</strong>
-                <small>Đang kích hoạt</small>
-              </div>
-              <div>
-                <span aria-hidden="true">🌱</span>
-                <strong>Mầm Chữa Lành</strong>
-                <small>Đã mở</small>
-              </div>
-              <div className={styles.lockedBadge}>
-                <span aria-hidden="true">☾</span>
-                <strong>Ngủ An Lành</strong>
-                <small>Cần 2 bài nữa</small>
-              </div>
-            </div>
+            <p className={styles.truthCopy}>
+              Trang này chỉ hiển thị hoạt động và chuỗi thực hành đã được lưu.
+              Việc mở nội dung không được tính là hoàn thành.
+            </p>
           </section>
           <section className={styles.recent} aria-labelledby="recent-title">
             <div className={styles.panelHead}>
-              <h2 id="recent-title">Dấu Ấn Vừa Đạt Được</h2>
-              <span>Hôm nay</span>
+              <h2 id="recent-title">Hoạt động đã lưu gần đây</h2>
+              <span>14 ngày</span>
             </div>
             {progressState !== 'ready' ? (
               <p className={styles.panelEmpty} role="status">
                 {progressState === 'loading'
                   ? 'Đang tải hoạt động đã hoàn thành…'
-                  : 'Chưa tải được lịch sử hoạt động.'}
+                  : 'Chưa tải được lịch sử hoạt động. Không có dữ liệu nào được suy đoán.'}
               </p>
             ) : completedRecent.length ? (
               <div className={styles.recentList}>
-                {completedRecent.map(({ entry, resource }, index) => (
+                {completedRecent.map(({ entry, resource }) => (
                   <Link
                     key={`${entry.localDate}:${resource.id}`}
                     href={resourceHref(resource, entry.localDate)}
@@ -812,20 +771,16 @@ export default function ResourcesShowcase() {
                       </small>
                     </strong>
                     <em className={styles.recentReward}>
-                      +{index === 0 ? 25 : 10} XP · +1{' '}
-                      {index === 0 ? '🌸' : '🌿'}
+                      Đã lưu · bản {entry.contentVersion}
                     </em>
                   </Link>
                 ))}
               </div>
             ) : (
               <p className={styles.panelEmpty}>
-                Hoàn thành một bài tập để nhận dấu ấn đầu tiên.
+                Chưa có hoạt động hoàn thành nào được lưu trong 14 ngày gần đây.
               </p>
             )}
-            <div className={styles.recentBanner}>
-              🎉 Bạn đã chăm sóc bản thân tốt hơn hôm qua!
-            </div>
           </section>
         </div>
       </div>
