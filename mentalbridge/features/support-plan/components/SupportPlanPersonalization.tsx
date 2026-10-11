@@ -316,18 +316,35 @@ export default function SupportPlanPersonalization({
         <div className="mb-personalization-review" role="status">
           <SupportPlanIcon name="info" size={20} />
           <div>
-            <strong>Kế hoạch hiện tại vẫn được giữ nguyên</strong>
-            <p>
-              Lựa chọn mới chỉ áp dụng khi bạn chủ động xem lại hoặc đổi kế
-              hoạch.
-            </p>
+            {authority.value.planReview.reasonCode ===
+            'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION' ? (
+              <>
+                <strong>Bản đề xuất hiện tại cần được tạo lại</strong>
+                <p>
+                  Bản đề xuất được tạo từ lựa chọn trước đó. Hãy xem, hủy bản cũ
+                  rồi tạo lại trước khi bắt đầu; MentalBridge không tự đổi kế
+                  hoạch thay bạn.
+                </p>
+              </>
+            ) : (
+              <>
+                <strong>Kế hoạch hiện tại vẫn được giữ nguyên</strong>
+                <p>
+                  Lựa chọn mới chỉ áp dụng khi bạn chủ động xem lại hoặc đổi kế
+                  hoạch.
+                </p>
+              </>
+            )}
           </div>
           <button
             type="button"
             className="btn btn-outline"
             onClick={onReviewPlan}
           >
-            Xem kế hoạch hiện tại
+            {authority.value.planReview.reasonCode ===
+            'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION'
+              ? 'Xem bản đề xuất'
+              : 'Xem kế hoạch hiện tại'}
           </button>
         </div>
       )}

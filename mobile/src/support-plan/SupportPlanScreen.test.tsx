@@ -131,6 +131,70 @@ describe('mobile SupportPlan journey', () => {
     expect(api.changeStatus).not.toHaveBeenCalled()
   })
 
+  it.each([
+    {
+      name: 'personalized',
+      title: 'Bắt đầu bằng bước nhỏ',
+      rationale:
+        'Bạn đã chọn trọng tâm này. Care chỉ dùng lựa chọn đó trong hoạt động đã được chính sách cho phép.',
+      provenance: {
+        personalizationId: '10000000-0000-4000-8000-000000000638',
+        revision: 2,
+        schemaVersion: 'support-plan-personalization-v1' as const,
+        reasonCode: 'USER_PREFERENCE_AND_CARE_POLICY' as const,
+      },
+      badge: true,
+    },
+    {
+      name: 'fallback',
+      title: 'Hỗ trợ tâm trạng',
+      rationale: 'Trọng tâm này dựa trên nội dung đã được chính sách cho phép.',
+      provenance: null,
+      badge: false,
+    },
+  ])('shows the admitted $name focus explanation', async (example) => {
+    const plan = makePlan('ACTIVE')
+    const api = makeApi({
+      getCurrent: jest.fn().mockResolvedValue(plan),
+      getActions: jest.fn().mockResolvedValue({
+        supportPlanId: plan.supportPlanId,
+        modelVersion: 3,
+        representationMode: 'V2_RESOURCE_ADAPTER',
+        focuses: [
+          {
+            focusId: 'focus-1',
+            title: example.title,
+            rationale: example.rationale,
+            personalizationProvenance: example.provenance,
+            actions: [
+              {
+                actionId: 'action-1',
+                actionType: 'RESOURCE',
+                status: 'ACTIVE',
+                pathRole: 'PRIMARY',
+                purposeCode: 'DEPRESSION_MAINTENANCE',
+                presentation: {
+                  title: 'Hoạt động đã kiểm tra',
+                  summary: 'Một bước hỗ trợ sức khỏe tổng quát.',
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    })
+
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    expect(await screen.findByText(example.title)).toBeTruthy()
+    expect(screen.getByText(example.rationale)).toBeTruthy()
+    if (example.badge) {
+      expect(screen.getByText('Theo lựa chọn của bạn')).toBeTruthy()
+    } else {
+      expect(screen.queryByText('Theo lựa chọn của bạn')).toBeNull()
+    }
+  })
+
   it('presents professional support as the primary path and reflects only its appointment', async () => {
     const plan = makePlan('ACTIVE')
     const actionId = '11111111-1111-4111-8111-111111111111'
@@ -143,6 +207,9 @@ describe('mobile SupportPlan journey', () => {
         focuses: [
           {
             focusId: 'professional-support',
+            title: 'Kết nối với hỗ trợ phù hợp',
+            rationale: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+            personalizationProvenance: null,
             actions: [
               {
                 actionId,
@@ -216,6 +283,9 @@ describe('mobile SupportPlan journey', () => {
           focuses: [
             {
               focusId: 'professional-support',
+              title: 'Kết nối với hỗ trợ phù hợp',
+              rationale: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+              personalizationProvenance: null,
               actions: [
                 {
                   actionId,
@@ -263,6 +333,9 @@ describe('mobile SupportPlan journey', () => {
         focuses: [
           {
             focusId: 'professional-support',
+            title: 'Kết nối với hỗ trợ phù hợp',
+            rationale: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+            personalizationProvenance: null,
             actions: [
               {
                 actionId,

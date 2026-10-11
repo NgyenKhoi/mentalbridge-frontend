@@ -130,6 +130,45 @@ describe('mobile SupportPlan personalization', () => {
     ).toBeTruthy()
   })
 
+  it('explains that a stale draft must be reviewed and regenerated explicitly', async () => {
+    const onReviewPlan = jest.fn()
+    const api = makeApi({
+      getPersonalization: jest.fn().mockResolvedValue({
+        value: {
+          ...notProvided.value,
+          personalizationId: '10000000-0000-4000-8000-000000000638',
+          revision: 2,
+          status: 'PROVIDED',
+          preferredFocus: 'MOTIVATION',
+          submittedAt: '2026-10-12T08:00:00Z',
+          planReview: {
+            required: true,
+            supportPlanId: '20000000-0000-4000-8000-000000000638',
+            supportPlanVersion: 1,
+            reasonCode: 'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION',
+          },
+        },
+        etag: '"2"',
+      }),
+    })
+    await renderCard(
+      <SupportPlanPersonalizationCard
+        api={api}
+        subject="user-1"
+        onReviewPlan={onReviewPlan}
+      />,
+    )
+
+    expect(
+      await screen.findByText('Bản đề xuất hiện tại cần được tạo lại'),
+    ).toBeTruthy()
+    expect(screen.getByText(/bỏ bản cũ rồi tạo lại/i)).toBeTruthy()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Xem bản đề xuất bên dưới' }),
+    )
+    expect(onReviewPlan).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps local selections after a stale write and offers recovery', async () => {
     const api = makeApi({
       replacePersonalization: jest.fn().mockRejectedValue(

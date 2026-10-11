@@ -150,6 +150,17 @@ export const supportPlanActionsSchema = z.object({
     .array(
       z.object({
         focusId: z.string().min(1).max(128),
+        title: z.string().min(1).max(255),
+        rationale: z.string().min(1).max(2048).nullable(),
+        personalizationProvenance: z
+          .object({
+            personalizationId: z.uuid(),
+            revision: z.number().int().min(1),
+            schemaVersion: z.literal('support-plan-personalization-v1'),
+            reasonCode: z.literal('USER_PREFERENCE_AND_CARE_POLICY'),
+          })
+          .strict()
+          .nullable(),
         actions: z.array(planActionProjectionSchema).min(1).max(20),
       }),
     )
@@ -294,7 +305,10 @@ export const supportPlanPersonalizationSchema =
         supportPlanId: z.uuid().nullable(),
         supportPlanVersion: z.number().int().nonnegative().nullable(),
         reasonCode: z
-          .literal('PREFERENCES_CHANGED_AFTER_PLAN_ACTIVATION')
+          .enum([
+            'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION',
+            'PREFERENCES_CHANGED_AFTER_PLAN_ACTIVATION',
+          ])
           .nullable(),
       })
       .strict(),

@@ -7,6 +7,7 @@ import { Disclosure } from '@/components/ui/Disclosure'
 import type {
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
+  SupportPlanV3,
 } from '../api/support-plan-contract'
 import SupportPlanSchedule from './SupportPlanSchedule'
 import ProfessionalSupportPath from './ProfessionalSupportPath'
@@ -67,6 +68,9 @@ type Props = Readonly<{
   draftAction?: 'ACTIVATE' | 'REPLACEMENT'
   activeTab?: 'plan' | 'schedule' | 'manage'
   embedded?: boolean
+  focusProjection?: SupportPlanV3 | undefined
+  focusProjectionLoading?: boolean
+  focusProjectionUnavailable?: boolean
 }>
 
 type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
@@ -108,6 +112,9 @@ export default function SupportPlanCard({
   draftAction = 'ACTIVATE',
   activeTab,
   embedded = false,
+  focusProjection,
+  focusProjectionLoading = false,
+  focusProjectionUnavailable = false,
 }: Props) {
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     initialChoices(plan),
@@ -270,15 +277,48 @@ export default function SupportPlanCard({
           supportPlanId={plan.supportPlanId}
         />
 
-        {/* Vì sao có đề xuất này dạng expand/collapse */}
-        <Disclosure
-          className="support-plan-evaluation-disclosure"
-          summary="Vì sao có đề xuất này?"
-          open={isRationaleOpen}
-          onToggle={(e) => setIsRationaleOpen(e.currentTarget.open)}
+        <section
+          className="support-plan-focus-summary"
+          aria-label="Trọng tâm và lý do đề xuất"
         >
-          <p>{rationaleText}</p>
-        </Disclosure>
+          <div className="support-plan-section-heading">
+            <div>
+              <span>Vì sao có đề xuất này?</span>
+              <h3>Trọng tâm kế hoạch</h3>
+            </div>
+          </div>
+          {focusProjectionLoading && (
+            <p role="status">Đang tải lý do cho từng trọng tâm…</p>
+          )}
+          {focusProjection?.focuses.map((focus) => (
+            <article key={focus.focusId} className="support-plan-focus-item">
+              <div>
+                <h4>{focus.title}</h4>
+                {focus.personalizationProvenance && (
+                  <span>Được sắp xếp từ lựa chọn của bạn</span>
+                )}
+              </div>
+              {focus.rationale && <p>{focus.rationale}</p>}
+            </article>
+          ))}
+          {focusProjectionUnavailable && (
+            <p role="status">
+              Chưa thể tải giải thích theo từng trọng tâm. Lý do tổng quát bên
+              dưới vẫn có thể xem và kế hoạch không bị thay đổi.
+            </p>
+          )}
+        </section>
+
+        {!focusProjection && (
+          <Disclosure
+            className="support-plan-evaluation-disclosure"
+            summary="Lý do tổng quát"
+            open={isRationaleOpen}
+            onToggle={(e) => setIsRationaleOpen(e.currentTarget.open)}
+          >
+            <p>{rationaleText}</p>
+          </Disclosure>
+        )}
 
         {/* Khối 3 nội dung đã xác nhận */}
         <section

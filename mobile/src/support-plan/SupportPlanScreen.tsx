@@ -28,6 +28,7 @@ import type {
   PlanChangeRequest,
   ReplacementReview,
   SupportPlan,
+  SupportPlanActions,
   SupportPlanOccurrence,
 } from './support-plan-contract'
 
@@ -235,6 +236,9 @@ function PlanCard({
   onRetryProfessionalSupport,
   onStatus,
   plan,
+  focuses,
+  focusesLoading,
+  focusesUnavailable,
   professionalAction,
   professionalSupportError,
   professionalSupportRefreshing,
@@ -249,6 +253,9 @@ function PlanCard({
   onRetryProfessionalSupport: () => void
   onStatus: (status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED') => void
   plan: SupportPlan
+  focuses: SupportPlanActions['focuses'] | undefined
+  focusesLoading: boolean
+  focusesUnavailable: boolean
   professionalAction?: PlanActionProjection | undefined
   professionalSupportError: boolean
   professionalSupportRefreshing: boolean
@@ -337,7 +344,39 @@ function PlanCard({
         </View>
       )}
 
-      <Text style={styles.body}>{plan.rationale.text}</Text>
+      <View style={styles.focusPanel}>
+        <Text style={styles.professionalEyebrow}>TRỌNG TÂM KẾ HOẠCH</Text>
+        {focusesLoading && (
+          <View style={styles.focusLoading} accessibilityLiveRegion="polite">
+            <ActivityIndicator color={colors.tealDeep} />
+            <Text style={styles.supportingText}>
+              Đang tải lý do cho từng trọng tâm…
+            </Text>
+          </View>
+        )}
+        {focuses?.map((focus) => (
+          <View key={focus.focusId} style={styles.focusItem}>
+            <View style={styles.focusHeader}>
+              <Text style={styles.itemTitle}>{focus.title}</Text>
+              {focus.personalizationProvenance && (
+                <Text style={styles.personalizedBadge}>
+                  Theo lựa chọn của bạn
+                </Text>
+              )}
+            </View>
+            {focus.rationale && (
+              <Text style={styles.supportingText}>{focus.rationale}</Text>
+            )}
+          </View>
+        ))}
+        {focusesUnavailable && (
+          <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+            Chưa thể tải giải thích theo từng trọng tâm. Lý do tổng quát bên
+            dưới vẫn có thể xem và kế hoạch không bị thay đổi.
+          </Text>
+        )}
+        {!focuses && <Text style={styles.body}>{plan.rationale.text}</Text>}
+      </View>
 
       {plan.slots.map((slot) => (
         <View key={slot.slotId} style={styles.resourceGroup}>
@@ -1279,6 +1318,11 @@ export function SupportPlanScreen({
             currentActionsQuery.isFetching || currentAppointmentQuery.isFetching
           }
           plan={current}
+          focuses={currentActionsQuery.data?.focuses}
+          focusesLoading={
+            currentActionsQuery.isFetching && !currentActionsQuery.data
+          }
+          focusesUnavailable={currentActionsQuery.isError}
           title="Kế hoạch hiện tại"
           onActivate={() => undefined}
           onChangeChoice={() => undefined}
@@ -1315,6 +1359,11 @@ export function SupportPlanScreen({
             draftActionsQuery.isFetching || draftAppointmentQuery.isFetching
           }
           plan={draft}
+          focuses={draftActionsQuery.data?.focuses}
+          focusesLoading={
+            draftActionsQuery.isFetching && !draftActionsQuery.data
+          }
+          focusesUnavailable={draftActionsQuery.isError}
           title={current ? 'Phương án thay thế' : 'Kế hoạch đề xuất'}
           onActivate={() =>
             runGovernedMutation(() => activationMutation.mutate(draft))
@@ -1553,6 +1602,42 @@ const styles = StyleSheet.create({
     fontSize: typography.eyebrow,
     fontWeight: '800',
     letterSpacing: 1,
+  },
+  focusPanel: {
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.line,
+    borderRadius: radii.panel,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  focusItem: {
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  focusHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  focusLoading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  personalizedBadge: {
+    backgroundColor: colors.tealPale,
+    borderRadius: radii.pill,
+    color: colors.tealDeep,
+    fontSize: 12,
+    fontWeight: '700',
+    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
   },
   replacePanel: {
     backgroundColor: colors.tealPale,

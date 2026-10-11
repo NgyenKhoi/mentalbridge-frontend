@@ -1615,6 +1615,60 @@
   line-height: 1.6;
 }
 
+.support-plan-focus-summary {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.support-plan-focus-summary > p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.support-plan-focus-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--line));
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--teal-pale) 35%, var(--surface));
+}
+
+.support-plan-focus-item > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.support-plan-focus-item h4,
+.support-plan-focus-item p {
+  margin: 0;
+}
+
+.support-plan-focus-item h4 {
+  color: var(--ink);
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+}
+
+.support-plan-focus-item p {
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.support-plan-focus-item span {
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 0.8125rem;
+  font-weight: 750;
+}
+
 .support-plan-evaluation-disclosure {
   margin: var(--space-4) 0;
   padding: var(--space-4) var(--space-5);

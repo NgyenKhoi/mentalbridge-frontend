@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
   getCurrentSupportPlanDraft: vi.fn(),
   getSupportPlan: vi.fn(),
   getSupportPlanHistory: vi.fn(),
+  getSupportPlanActions: vi.fn(),
   getSupportPlanOccurrences: vi.fn(),
   getSupportPlanPersonalization: vi.fn(),
   proposeSupportPlanDraft: vi.fn(),
@@ -91,6 +92,18 @@ describe('SupportPlanJourney', () => {
       items: [],
       nextCursor: null,
       hasMore: false,
+    })
+    api.getSupportPlanActions.mockResolvedValue({
+      supportPlanId: '10000000-0000-4000-8000-000000000373',
+      focuses: [
+        {
+          focusId: 'focus-1',
+          title: 'Hỗ trợ tâm trạng',
+          rationale: 'Nội dung được chọn theo chính sách hỗ trợ hiện hành.',
+          personalizationProvenance: null,
+          actions: [],
+        },
+      ],
     })
     api.getSupportPlanPersonalization.mockResolvedValue({
       value: {
@@ -226,6 +239,107 @@ describe('SupportPlanJourney', () => {
       expect.stringMatching(/^[0-9a-f-]{36}$/),
       'INITIAL_CHECK',
     )
+  })
+
+  it.each([
+    { persona: 'A', action: 'save' as const, preferredFocus: 'SLEEP' },
+    { persona: 'B', action: 'skip' as const, preferredFocus: null },
+  ])(
+    'lets first-plan Persona $persona save or skip preferences before generation',
+    async ({ action, preferredFocus }) => {
+      api.getCurrentSupportPlanDraft.mockRejectedValue(
+        problem('SUPPORT_PLAN_DRAFT_NOT_FOUND', 404),
+      )
+      api.replaceSupportPlanPersonalization.mockImplementation(
+        async (request) => {
+          const authority = await api.getSupportPlanPersonalization()
+          return {
+            value: {
+              ...authority.value,
+              personalizationId: '10000000-0000-4000-8000-000000000638',
+              revision: 1,
+              status: request.preferredFocus === null ? 'SKIPPED' : 'PROVIDED',
+              ...request,
+              submittedAt: '2026-10-12T08:00:00Z',
+            },
+            etag: '"1"',
+          }
+        },
+      )
+      api.proposeSupportPlanDraft.mockResolvedValue(supportPlanFixture())
+
+      render(<SupportPlanJourney />)
+      expect(
+        await screen.findByText('Điều gì giúp kế hoạch dễ thực hiện hơn?'),
+      ).toBeVisible()
+
+      if (action === 'save') {
+        fireEvent.click(screen.getByRole('radio', { name: 'Ngủ và nghỉ ngơi' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Lưu lựa chọn' }))
+      } else {
+        fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua tất cả' }))
+      }
+      await waitFor(() =>
+        expect(api.replaceSupportPlanPersonalization).toHaveBeenCalledWith(
+          expect.objectContaining({ preferredFocus }),
+          '"0"',
+        ),
+      )
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Tạo kế hoạch hỗ trợ' }),
+      )
+      await waitFor(() =>
+        expect(api.proposeSupportPlanDraft).toHaveBeenCalled(),
+      )
+      expect(
+        api.replaceSupportPlanPersonalization.mock.invocationCallOrder[0],
+      ).toBeLessThan(api.proposeSupportPlanDraft.mock.invocationCallOrder[0])
+    },
+  )
+
+  it.each([
+    {
+      name: 'personalized',
+      title: 'Bắt đầu bằng bước nhỏ',
+      rationale: 'Lý do đã được Care xác nhận từ lựa chọn của bạn.',
+      provenance: { reasonCode: 'USER_PREFERENCE_AND_CARE_POLICY' },
+      badge: true,
+    },
+    {
+      name: 'fallback',
+      title: 'Hỗ trợ tâm trạng',
+      rationale: 'Lý do theo chính sách hỗ trợ hiện hành.',
+      provenance: null,
+      badge: false,
+    },
+  ])('shows the admitted $name focus rationale', async (example) => {
+    const plan = activePlan()
+    api.getCurrentSupportPlan.mockResolvedValue(plan)
+    api.getSupportPlanActions.mockResolvedValue({
+      supportPlanId: plan.supportPlanId,
+      focuses: [
+        {
+          focusId: 'focus-1',
+          title: example.title,
+          rationale: example.rationale,
+          personalizationProvenance: example.provenance,
+          actions: [],
+        },
+      ],
+    })
+
+    render(<SupportPlanJourney />)
+
+    expect(await screen.findByText(example.title)).toBeVisible()
+    expect(screen.getByText(example.rationale)).toBeVisible()
+    if (example.badge) {
+      expect(screen.getByText('Được sắp xếp từ lựa chọn của bạn')).toBeVisible()
+    } else {
+      expect(
+        screen.queryByText('Được sắp xếp từ lựa chọn của bạn'),
+      ).not.toBeInTheDocument()
+    }
   })
 
   it('directs the user to screening history when either required result is unavailable', async () => {

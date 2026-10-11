@@ -92,6 +92,36 @@ describe('SupportPlanPersonalization', () => {
     expect(onReviewPlan).toHaveBeenCalledOnce()
   })
 
+  it('explains that a stale draft must be reviewed and regenerated explicitly', async () => {
+    const onReviewPlan = vi.fn()
+    apiMocks.getSupportPlanPersonalization.mockResolvedValue({
+      value: {
+        ...notProvided.value,
+        personalizationId: '10000000-0000-4000-8000-000000000638',
+        revision: 2,
+        status: 'PROVIDED',
+        preferredFocus: 'MOTIVATION',
+        submittedAt: '2026-10-12T08:00:00Z',
+        planReview: {
+          required: true,
+          supportPlanId: '20000000-0000-4000-8000-000000000638',
+          supportPlanVersion: 1,
+          reasonCode: 'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION',
+        },
+      },
+      etag: '"2"',
+    })
+
+    render(<SupportPlanPersonalization onReviewPlan={onReviewPlan} />)
+
+    expect(
+      await screen.findByText('Bản đề xuất hiện tại cần được tạo lại'),
+    ).toBeVisible()
+    expect(screen.getByText(/hủy bản cũ rồi tạo lại/i)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản đề xuất' }))
+    expect(onReviewPlan).toHaveBeenCalledOnce()
+  })
+
   it('saves a partial preference replacement with the loaded ETag', async () => {
     apiMocks.replaceSupportPlanPersonalization.mockImplementation(
       async (request: Record<string, unknown>) => ({

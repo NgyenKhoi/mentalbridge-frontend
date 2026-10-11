@@ -318,10 +318,16 @@ export function SupportPlanPersonalizationCard({
       {query.data.value.planReview.required && (
         <View accessibilityLiveRegion="polite" style={styles.reviewNotice}>
           <Text style={styles.reviewTitle}>
-            Kế hoạch hiện tại vẫn được giữ nguyên
+            {query.data.value.planReview.reasonCode ===
+            'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION'
+              ? 'Bản đề xuất hiện tại cần được tạo lại'
+              : 'Kế hoạch hiện tại vẫn được giữ nguyên'}
           </Text>
           <Text style={styles.hint}>
-            Lựa chọn mới chỉ áp dụng khi bạn chủ động xem lại hoặc đổi kế hoạch.
+            {query.data.value.planReview.reasonCode ===
+            'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION'
+              ? 'Bản đề xuất dùng lựa chọn trước đó. Hãy bỏ bản cũ rồi tạo lại trước khi bắt đầu; MentalBridge không tự đổi kế hoạch thay bạn.'
+              : 'Lựa chọn mới chỉ áp dụng khi bạn chủ động xem lại hoặc đổi kế hoạch.'}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -329,7 +335,10 @@ export function SupportPlanPersonalizationCard({
             style={styles.secondaryButton}
           >
             <Text style={styles.secondaryButtonText}>
-              Xem kế hoạch bên dưới
+              {query.data.value.planReview.reasonCode ===
+              'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION'
+                ? 'Xem bản đề xuất bên dưới'
+                : 'Xem kế hoạch bên dưới'}
             </Text>
           </Pressable>
         </View>

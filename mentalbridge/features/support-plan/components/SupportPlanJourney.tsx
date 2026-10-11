@@ -19,6 +19,7 @@ import {
   getCurrentSupportPlan,
   getCurrentSupportPlanDraft,
   getSupportPlanHistory,
+  getSupportPlanActions,
   getSupportPlanOccurrences,
   proposeSupportPlanDraft,
   replaceSupportPlan,
@@ -29,6 +30,7 @@ import type {
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
   SupportPlanReplacementReview,
+  SupportPlanV3,
 } from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
 import SupportPlanFooter from './SupportPlanFooter'
@@ -48,6 +50,12 @@ type WeeklyProgressStats = {
   total: number
   percent: number
   remaining: number
+}
+
+type FocusProjectionState = {
+  version: number
+  status: 'ready' | 'unavailable'
+  value?: SupportPlanV3
 }
 
 const journeyTabs: ReadonlyArray<{ id: JourneyTab; label: string }> = [
@@ -226,6 +234,9 @@ export default function SupportPlanJourney() {
   const [plan, setPlan] = useState<SupportPlan>()
   const [currentPlan, setCurrentPlan] = useState<SupportPlan>()
   const [replacementDraft, setReplacementDraft] = useState<SupportPlan>()
+  const [focusProjections, setFocusProjections] = useState<
+    Record<string, FocusProjectionState>
+  >({})
   const [replacementReview, setReplacementReview] =
     useState<SupportPlanReplacementReview>()
   const [replacementLoading, setReplacementLoading] = useState(false)
@@ -395,6 +406,46 @@ export default function SupportPlanJourney() {
     }, 0)
     return () => window.clearTimeout(timer)
   }, [load, loadHistory])
+
+  useEffect(() => {
+    const targets = [plan, replacementDraft].filter(
+      (candidate, index, values): candidate is SupportPlan =>
+        Boolean(candidate) &&
+        values.findIndex(
+          (value) => value?.supportPlanId === candidate?.supportPlanId,
+        ) === index,
+    )
+    if (targets.length === 0) return
+
+    let active = true
+    for (const target of targets) {
+      void getSupportPlanActions(target.supportPlanId)
+        .then((value) => {
+          if (!active || value.supportPlanId !== target.supportPlanId) return
+          setFocusProjections((current) => ({
+            ...current,
+            [target.supportPlanId]: {
+              version: target.version,
+              status: 'ready',
+              value,
+            },
+          }))
+        })
+        .catch(() => {
+          if (!active) return
+          setFocusProjections((current) => ({
+            ...current,
+            [target.supportPlanId]: {
+              version: target.version,
+              status: 'unavailable',
+            },
+          }))
+        })
+    }
+    return () => {
+      active = false
+    }
+  }, [plan, replacementDraft])
 
   const create = async () => {
     setCreating(true)
@@ -730,6 +781,19 @@ export default function SupportPlanJourney() {
               onActivate={activate}
               onStatusChange={changeStatus}
               activeTab={cardTab}
+              focusProjection={
+                focusProjections[plan.supportPlanId]?.version === plan.version
+                  ? focusProjections[plan.supportPlanId]?.value
+                  : undefined
+              }
+              focusProjectionLoading={
+                focusProjections[plan.supportPlanId]?.version !== plan.version
+              }
+              focusProjectionUnavailable={
+                focusProjections[plan.supportPlanId]?.version ===
+                  plan.version &&
+                focusProjections[plan.supportPlanId]?.status === 'unavailable'
+              }
             />
           )}
 
@@ -818,6 +882,22 @@ export default function SupportPlanJourney() {
                 draftAction="REPLACEMENT"
                 activeTab="plan"
                 embedded
+                focusProjection={
+                  focusProjections[replacementDraft.supportPlanId]?.version ===
+                  replacementDraft.version
+                    ? focusProjections[replacementDraft.supportPlanId]?.value
+                    : undefined
+                }
+                focusProjectionLoading={
+                  focusProjections[replacementDraft.supportPlanId]?.version !==
+                  replacementDraft.version
+                }
+                focusProjectionUnavailable={
+                  focusProjections[replacementDraft.supportPlanId]?.version ===
+                    replacementDraft.version &&
+                  focusProjections[replacementDraft.supportPlanId]?.status ===
+                    'unavailable'
+                }
               />
               {replacementLoading && !replacementReview && (
                 <div className="support-plan-state" role="status">
@@ -857,6 +937,9 @@ export default function SupportPlanJourney() {
           aria-labelledby="tab-plan"
           className="support-plan-tab-pane is-active"
         >
+          <SupportPlanPersonalization
+            onReviewPlan={() => setActiveTab('plan')}
+          />
           <section
             className={`support-plan-state ${message ? 'notice' : ''}`}
             aria-live="polite"

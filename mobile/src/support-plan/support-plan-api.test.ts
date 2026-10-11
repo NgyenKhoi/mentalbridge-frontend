@@ -91,6 +91,9 @@ describe('Care mobile SupportPlan API contract', () => {
       focuses: [
         {
           focusId: 'professional-support',
+          title: 'Kết nối với hỗ trợ phù hợp',
+          rationale: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+          personalizationProvenance: null,
           actions: [
             {
               actionId,
