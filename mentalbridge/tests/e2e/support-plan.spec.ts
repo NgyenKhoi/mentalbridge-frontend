@@ -100,6 +100,205 @@ test.beforeEach(async ({ context }) => {
   ])
 })
 
+test('MB-643 keeps professional support primary and reflects an explicitly requested appointment', async ({
+  page,
+}) => {
+  const current = {
+    ...plan(),
+    status: 'ACTIVE',
+    version: 2,
+    activatedAt: '2026-10-11T08:00:00Z',
+    templateFamilies: [
+      {
+        family: 'DEPRESSIVE_PROFESSIONAL_ADJUNCT',
+        templateVersion: 1,
+        targetDomain: 'DEPRESSIVE_SYMPTOMS',
+      },
+    ],
+    slots: plan().slots.map((slot) => ({
+      ...slot,
+      selectedResource: { ...slot.selectedResource, role: 'ADJUNCT' },
+    })),
+  }
+  const actionId = '20000000-0000-4000-8000-000000000643'
+  const specialistId = '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8'
+  const slotId = '43b7dbb4-021e-4c75-ae48-bfa7126c7256'
+  const specialist = {
+    specialistAccountId: specialistId,
+    displayName: 'Chuyên gia An',
+    bio: 'Đồng hành trực tuyến bằng phương pháp hỗ trợ phi lâm sàng.',
+    supportAreas: ['DEPRESSIVE_SYMPTOMS'],
+    languages: ['vi'],
+    yearsOfExperience: 6,
+    timezone: 'Asia/Ho_Chi_Minh',
+    ratingAggregate: null,
+    explanation: {
+      compatibility: 'MATCHED',
+      languageMatched: true,
+      hasSelectableSlot: true,
+      earliestSelectableStartAt: '2099-01-02T02:00:00Z',
+      timezoneMatch: 'EXACT',
+      timezoneOffsetDistanceMinutes: 0,
+      ratingTieBreakerApplied: false,
+      codes: ['SCREENED_SUPPORT_AREA_MATCH', 'SELECTABLE_SLOT_AVAILABLE'],
+    },
+    selectableSlots: [
+      {
+        id: slotId,
+        specialistAccountId: specialistId,
+        startAt: '2099-01-02T02:00:00Z',
+        endAt: '2099-01-02T03:00:00Z',
+        timezone: 'Asia/Ho_Chi_Minh',
+        modality: 'IN_APP_CHAT',
+        version: 2,
+      },
+    ],
+  }
+  let bookingCommands = 0
+  let appointment: Record<string, unknown> | null = null
+
+  await page.route('**/api/care/support-plans/current', (route) =>
+    route.fulfill({ status: 200, json: current }),
+  )
+  await page.route('**/api/care/support-plans', (route) =>
+    route.fulfill({
+      status: 404,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        type: '/problems/support-plan-draft-not-found',
+        title: 'Draft not found.',
+        status: 404,
+        code: 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+      }),
+    }),
+  )
+  await page.route('**/api/care/support-plans/history?*', (route) =>
+    route.fulfill({
+      status: 200,
+      json: { items: [], nextCursor: null, hasMore: false },
+    }),
+  )
+  await page.route('**/api/care/support-plan-occurrences?*', (route) =>
+    route.fulfill({
+      status: 200,
+      json: {
+        supportPlanId: current.supportPlanId,
+        supportPlanStatus: current.status,
+        schedulePolicyVersion: 'support-plan-activity-schedule-v1',
+        from: '2026-10-04',
+        through: '2026-10-25',
+        occurrences: [],
+        interpretationCode:
+          'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
+      },
+    }),
+  )
+  await page.route(
+    `**/api/care/support-plans/${current.supportPlanId}/actions`,
+    (route) =>
+      route.fulfill({
+        status: 200,
+        json: {
+          supportPlanId: current.supportPlanId,
+          modelVersion: 3,
+          representationMode: 'V2_RESOURCE_ADAPTER',
+          status: 'ACTIVE',
+          version: 2,
+          focuses: [
+            {
+              focusId: 'professional-support',
+              actions: [
+                {
+                  actionId,
+                  actionType: 'PROFESSIONAL_SUPPORT',
+                  status: 'ACTIVE',
+                  pathRole: 'PRIMARY',
+                  presentation: {
+                    title: 'Kết nối với chuyên gia',
+                    summary: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      }),
+  )
+  await page.route('**/api/consultation/appointments', async (route) => {
+    if (route.request().method() === 'POST') {
+      bookingCommands += 1
+      expect(route.request().postDataJSON()).toMatchObject({
+        slotId,
+        modality: 'IN_APP_CHAT',
+        originatingPlanActionId: actionId,
+      })
+      appointment = {
+        id: '30000000-0000-4000-8000-000000000643',
+        originatingPlanActionId: actionId,
+        requestedAt: '2026-10-11T08:30:00Z',
+        status: 'REQUESTED',
+      }
+      await route.fulfill({ status: 201, json: appointment })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      json: {
+        items: appointment ? [appointment] : [],
+        count: appointment ? 1 : 0,
+      },
+    })
+  })
+  await page.route('**/api/consultation/specialists**', (route) => {
+    const detail = new URL(route.request().url()).pathname.endsWith(
+      `/${specialistId}`,
+    )
+    return route.fulfill({
+      status: 200,
+      json: detail
+        ? specialist
+        : {
+            items: [specialist],
+            count: 1,
+            nextCursor: null,
+            rankingPolicyVersion: 'specialist-discovery-v2',
+            generatedAt: '2099-01-01T00:00:00Z',
+            contextState: 'APPLIED',
+            packageCode: 'PLUS',
+            bookingHandoff: 'BOOKING_POLICY_CHECK_REQUIRED',
+            videoEnabled: false,
+          },
+    })
+  })
+
+  await page.goto('/support-plan')
+  await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+  await expect(
+    page.getByText('Hướng hỗ trợ chính', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByText(/không tự đặt lịch hoặc chia sẻ dữ liệu/),
+  ).toBeVisible()
+  expect(bookingCommands).toBe(0)
+
+  await page.getByRole('link', { name: 'Xem chuyên gia và lịch trống' }).click()
+  await expect(page).toHaveURL(new RegExp(`planActionId=${actionId}`))
+  await page.getByRole('button', { name: 'Xem hồ sơ và khung giờ' }).click()
+  await page
+    .getByRole('group', { name: 'Chọn khung giờ 60 phút' })
+    .locator('label')
+    .click()
+  await page.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }).click()
+  await expect(page.getByText('Đã gửi yêu cầu đặt lịch')).toBeVisible()
+  expect(bookingCommands).toBe(1)
+
+  await page.goBack()
+  await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+  await expect(
+    page.getByText(/Yêu cầu đặt lịch đang chờ chuyên gia xác nhận/),
+  ).toBeVisible()
+})
+
 test('MB-373 saves an admitted alternative and reloads the activated current plan', async ({
   page,
 }) => {

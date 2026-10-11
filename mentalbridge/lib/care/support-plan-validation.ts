@@ -6,6 +6,7 @@ import type {
   SupportPlanOccurrence,
   SupportPlanOccurrenceList,
   SupportPlanReplacementReview,
+  SupportPlanV3,
 } from '@/features/support-plan/api/support-plan-contract'
 import { isUuid } from './care-validation'
 import { parseReassessmentSummary } from './care-validation'
@@ -57,6 +58,68 @@ function resource(value: unknown) {
       (typeof value.externalUrl === 'string' &&
         /^https?:\/\//.test(value.externalUrl)))
   )
+}
+
+export function parseSupportPlanV3(value: unknown): SupportPlanV3 | null {
+  if (
+    !object(value) ||
+    !isUuid(String(value.supportPlanId)) ||
+    value.modelVersion !== 3 ||
+    !['V2_RESOURCE_ADAPTER', 'NATIVE_V3'].includes(
+      String(value.representationMode),
+    ) ||
+    ![
+      'DRAFT',
+      'ACTIVE',
+      'PAUSED',
+      'COMPLETED',
+      'SUPERSEDED',
+      'DISCARDED',
+    ].includes(String(value.status)) ||
+    !Number.isInteger(value.version) ||
+    !object(value.safety) ||
+    ![
+      'NEGATIVE_SAFETY_SCREEN',
+      'POSITIVE_SAFETY_SCREEN',
+      'NOT_APPLICABLE',
+    ].includes(String(value.safety.status)) ||
+    !text(value.safety.guidance, 2048) ||
+    !Array.isArray(value.focuses) ||
+    value.focuses.length < 1 ||
+    value.focuses.length > 20
+  )
+    return null
+
+  const validAction = (candidate: unknown) => {
+    if (!object(candidate)) return false
+    return (
+      isUuid(String(candidate.actionId)) &&
+      [
+        'RESOURCE',
+        'JOURNAL',
+        'EMOTION_CHECK_IN',
+        'ROUTINE_SELF_MANAGEMENT',
+        'PROFESSIONAL_SUPPORT',
+        'REASSESSMENT_SCREENING',
+        'SELF_REPORT_REVIEW',
+      ].includes(String(candidate.actionType)) &&
+      ['PRIMARY', 'ADJUNCT'].includes(String(candidate.pathRole)) &&
+      object(candidate.presentation) &&
+      text(candidate.presentation.title, 255) &&
+      Array.isArray(candidate.schedules)
+    )
+  }
+  const validFocus = (candidate: unknown) => {
+    if (!object(candidate) || !Array.isArray(candidate.actions)) return false
+    return (
+      text(candidate.focusId, 128) &&
+      text(candidate.title, 255) &&
+      candidate.actions.length >= 1 &&
+      candidate.actions.length <= 20 &&
+      candidate.actions.every(validAction)
+    )
+  }
+  return value.focuses.every(validFocus) ? (value as SupportPlanV3) : null
 }
 
 export function parseSupportPlan(value: unknown): SupportPlan | null {

@@ -1870,6 +1870,11 @@ export interface components {
              * @description Active user-owned appointment atomically replaced by this new request; omit for a normal request.
              */
             replacesAppointmentId?: string | null;
+            /**
+             * Format: uuid
+             * @description Optional opaque Care PlanAction reference from an explicit user navigation and booking flow. It never authorizes Consultation to mutate the SupportPlan.
+             */
+            originatingPlanActionId?: string | null;
         };
         /** @enum {string} */
         AppointmentStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED";
@@ -2131,6 +2136,11 @@ export interface components {
             replacesAppointmentId: string | null;
             /** Format: uuid */
             replacedByAppointmentId: string | null;
+            /**
+             * Format: uuid
+             * @description Opaque Care-owned PlanAction reference used only to present appointment progress in the originating SupportPlan.
+             */
+            originatingPlanActionId: string | null;
             /** Format: date-time */
             decidedAt: string | null;
             /** @enum {string|null} */

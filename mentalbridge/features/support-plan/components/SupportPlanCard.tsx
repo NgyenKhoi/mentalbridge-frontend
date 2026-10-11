@@ -9,6 +9,7 @@ import type {
   SupportPlan,
 } from '../api/support-plan-contract'
 import SupportPlanSchedule from './SupportPlanSchedule'
+import ProfessionalSupportPath from './ProfessionalSupportPath'
 
 const domainLabel = {
   DEPRESSIVE_SYMPTOMS: 'Hỗ trợ dấu hiệu trầm cảm',
@@ -257,6 +258,8 @@ export default function SupportPlanCard({
             Thông tin an toàn không phụ thuộc vào AI hoặc gói dịch vụ.
           </small>
         </section>
+
+        <ProfessionalSupportPath supportPlanId={plan.supportPlanId} />
 
         {/* Vì sao có đề xuất này dạng expand/collapse */}
         <Disclosure

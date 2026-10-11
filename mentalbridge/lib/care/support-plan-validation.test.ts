@@ -12,6 +12,7 @@ import {
   parseSupportPlanHistoryPage,
   parseSupportPlanOccurrence,
   parseSupportPlanOccurrenceList,
+  parseSupportPlanV3,
 } from './support-plan-validation'
 
 const evaluation = {
@@ -56,6 +57,50 @@ const evaluation = {
 }
 
 describe('SupportPlan validation', () => {
+  it('accepts only a bounded primary professional-support action projection', () => {
+    const projection = {
+      supportPlanId: '10000000-0000-4000-8000-000000000643',
+      modelVersion: 3,
+      representationMode: 'V2_RESOURCE_ADAPTER',
+      status: 'ACTIVE',
+      version: 1,
+      safety: {
+        status: 'NEGATIVE_SAFETY_SCREEN',
+        guidance: 'Hướng dẫn an toàn luôn được ưu tiên.',
+      },
+      focuses: [
+        {
+          focusId: 'professional-support',
+          title: 'Hỗ trợ tâm trạng',
+          actions: [
+            {
+              actionId: '20000000-0000-4000-8000-000000000643',
+              actionType: 'PROFESSIONAL_SUPPORT',
+              pathRole: 'PRIMARY',
+              presentation: { title: 'Kết nối với chuyên gia' },
+              schedules: [],
+            },
+          ],
+        },
+      ],
+    }
+
+    expect(parseSupportPlanV3(projection)).not.toBeNull()
+    expect(
+      parseSupportPlanV3({
+        ...projection,
+        focuses: [
+          {
+            ...projection.focuses[0],
+            actions: [
+              { ...projection.focuses[0].actions[0], pathRole: 'EQUIVALENT' },
+            ],
+          },
+        ],
+      }),
+    ).toBeNull()
+  })
+
   it('accepts the governed persisted draft shape', () => {
     expect(parseSupportPlanDraft(supportPlanFixture())).not.toBeNull()
   })

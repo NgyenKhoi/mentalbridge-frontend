@@ -53,6 +53,7 @@ import type {
   ChangeSupportPlanStatusRequest,
   ReplaceCurrentSupportPlanRequest,
   SupportPlanReplacementReview,
+  SupportPlanV3,
   PlanChangeRequest,
   CreatePlanChangeRequest,
   PlanChangeDecision,
@@ -90,6 +91,7 @@ import {
   parseSupportPlanOccurrence,
   parseSupportPlanOccurrenceList,
   parseSupportPlanReplacementReview,
+  parseSupportPlanV3,
 } from './support-plan-validation'
 import { parsePlanChangeRequest } from './plan-change-request-validation'
 import type { ActivityDashboard } from '@/features/analytics/api/activity-dashboard-contract'
@@ -1024,6 +1026,20 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parseSupportPlan,
+    })
+  },
+
+  supportPlanActions(
+    accessToken: string,
+    supportPlanId: string,
+    correlationId: string,
+  ): Promise<SupportPlanV3> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v2/support-plans/${encodeURIComponent(supportPlanId)}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanV3,
     })
   },
 

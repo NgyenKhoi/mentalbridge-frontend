@@ -9,6 +9,7 @@ import type {
   ReplaceSupportPlanOccurrenceEngagementRequest,
   ReplaceCurrentSupportPlanRequest,
   SupportPlanReplacementReview,
+  SupportPlanV3,
 } from './support-plan-contract'
 
 export async function proposeSupportPlanDraft(
@@ -103,6 +104,14 @@ export async function getSupportPlan(supportPlanId: string) {
   return (
     await browserApiClient.get<SupportPlan>(
       `/care/support-plans/${encodeURIComponent(supportPlanId)}`,
+    )
+  ).data
+}
+
+export async function getSupportPlanActions(supportPlanId: string) {
+  return (
+    await browserApiClient.get<SupportPlanV3>(
+      `/care/support-plans/${encodeURIComponent(supportPlanId)}/actions`,
     )
   ).data
 }
