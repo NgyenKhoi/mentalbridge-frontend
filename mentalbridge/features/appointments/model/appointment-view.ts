@@ -75,3 +75,20 @@ export function appointmentTimingCopy(appointment: Appointment) {
   }
   return 'Mở tin nhắn để xem trạng thái phiên'
 }
+
+/** Decision deadlines first; no client-side inference of decision eligibility. */
+export function orderSpecialistAppointments(
+  appointments: readonly Appointment[],
+) {
+  return orderAppointmentsForDisplay(appointments).sort((left, right) => {
+    if (left.status === 'REQUESTED' && right.status === 'REQUESTED') {
+      return (
+        Date.parse(left.decisionDeadlineAt) -
+        Date.parse(right.decisionDeadlineAt)
+      )
+    }
+    if (left.status === 'REQUESTED') return -1
+    if (right.status === 'REQUESTED') return 1
+    return 0
+  })
+}

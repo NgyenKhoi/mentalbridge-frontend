@@ -3,6 +3,9 @@
   animation: roleFade 0.35s ease;
 }
 .arm-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
   align-items: flex-end;
 }
 .arm-heading > div {
@@ -40,7 +43,7 @@
 .arm-create header > span,
 .arm-reports header > div > span {
   color: #2d6c5c;
-  font-size: 9px;
+  font-size: 14px;
   font-weight: 850;
   letter-spacing: 0.1em;
 }
@@ -53,42 +56,46 @@
 .arm-create header p,
 .arm-reports header p {
   color: #52695e;
-  font-size: 10px;
+  font-size: 14px;
 }
 .arm-create form {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
   gap: 10px;
 }
 .arm-create label {
+  min-width: 0;
   display: flex;
   gap: 6px;
   flex-direction: column;
 }
 .arm-create label > span {
   color: #496357;
-  font-size: 9px;
+  font-size: 14px;
   font-weight: 800;
 }
 .arm-create select,
 .arm-create input {
-  height: 42px;
+  min-width: 0;
+  width: 100%;
+  height: 44px;
   padding: 0 11px;
   border: 1px solid #d4ded6;
   border-radius: 10px;
   background: #fbfcfa;
   color: #1b392e;
-  font: 700 11px inherit;
+  font: inherit;
   outline: 0;
 }
 .arm-create button {
-  height: 42px;
+  height: 44px;
   padding: 0 16px !important;
   border-radius: 10px !important;
-  background: #245e50 !important;
-  color: #fff !important;
-  font-size: 10px !important;
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line);
+  font-size: 14px !important;
   font-weight: 850 !important;
 }
 .arm-create button:disabled {
@@ -101,7 +108,7 @@
   align-items: center;
   gap: 9px;
   color: #4c6559;
-  font-size: 9px;
+  font-size: 14px;
 }
 .arm-create aside strong {
   color: #24493b;
@@ -155,10 +162,9 @@
 }
 .arm-report-list article {
   display: grid;
-  grid-template-columns: 44px minmax(250px, 1.4fr) minmax(
-      210px,
-      1fr
-    ) 105px 110px;
+  grid-template-columns:
+    44px minmax(250px, 1.4fr) minmax(210px, 1fr)
+    105px 110px;
   align-items: center;
   gap: 14px;
   padding: 16px 20px;

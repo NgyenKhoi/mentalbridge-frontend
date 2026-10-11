@@ -1,6 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { FileText, RefreshCw } from 'lucide-react'
+import { Disclosure } from '@/components/ui/Disclosure'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type { SpecialistConsultationBrief as Brief } from '../api/consultation-brief-contract'
 import { consultationBriefBrowserClient } from '../api/consultation-brief-browser-client'
@@ -26,28 +29,63 @@ function denied(error: unknown) {
 
 export function SpecialistConsultationBrief({
   appointmentId,
-}: Readonly<{ appointmentId: string }>) {
+  compact = false,
+}: Readonly<{ appointmentId: string; compact?: boolean }>) {
   const [brief, setBrief] = useState<Brief | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [open, setOpen] = useState(false)
+  const request = useRef(0)
 
   async function load() {
+    const sequence = ++request.current
     setLoading(true)
     setError('')
     setBrief(null)
     try {
-      setBrief(await consultationBriefBrowserClient.specialist(appointmentId))
+      const result =
+        await consultationBriefBrowserClient.specialist(appointmentId)
+      if (sequence === request.current) setBrief(result)
     } catch (caught) {
-      setError(denied(caught))
+      if (sequence === request.current) setError(denied(caught))
     } finally {
-      setLoading(false)
+      if (sequence === request.current) setLoading(false)
     }
   }
 
   return (
-    <section
+    <Disclosure
       className={styles.specialist}
       aria-label="Tóm tắt được người dùng phê duyệt"
+      expanded={open}
+      summaryLabel={
+        open
+          ? 'Thu gọn tóm tắt'
+          : compact
+            ? 'Xem tóm tắt chuẩn bị'
+            : 'Xem tóm tắt'
+      }
+      summary={
+        <span className={styles.briefLabel}>
+          <FileText size={18} aria-hidden="true" />
+          <span>
+            {compact
+              ? 'Chuẩn bị cho cuộc hẹn tiếp theo'
+              : 'Tóm tắt trước buổi tư vấn'}
+          </span>
+        </span>
+      }
+      onToggle={(event) => {
+        const expanded = event.currentTarget.open
+        setOpen(expanded)
+        if (expanded) void load()
+        else {
+          request.current++
+          setBrief(null)
+          setError('')
+          setLoading(false)
+        }
+      }}
     >
       <div className={styles.heading}>
         <div>
@@ -55,9 +93,20 @@ export function SpecialistConsultationBrief({
           <p>Chỉ đọc bản chụp người dùng đã phê duyệt cho lịch hẹn này.</p>
         </div>
         <button type="button" onClick={() => void load()} disabled={loading}>
-          {loading ? 'Đang tải…' : brief ? 'Tải lại' : 'Xem tóm tắt'}
+          <RefreshCw size={16} aria-hidden="true" />{' '}
+          {loading ? 'Đang tải…' : 'Tải lại'}
         </button>
       </div>
+      {loading && (
+        <div
+          className={styles.snapshot}
+          role="status"
+          aria-label="Đang tải tóm tắt"
+        >
+          <Skeleton width="90%" height={24} />
+          <Skeleton width="70%" height={24} />
+        </div>
+      )}
       {error && (
         <p className={styles.notice} role="status">
           {error}
@@ -90,6 +139,6 @@ export function SpecialistConsultationBrief({
           </div>
         </div>
       )}
-    </section>
+    </Disclosure>
   )
 }

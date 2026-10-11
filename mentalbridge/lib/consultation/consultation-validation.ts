@@ -80,7 +80,7 @@ export function parseProfileAmendment(value: unknown): ProfileAmendment | null {
     !uuid(item.specialistAccountId) ||
     !Number.isInteger(item.basePublishedVersion) ||
     Number(item.basePublishedVersion) < 1 ||
-    !['DRAFT', 'PENDING_REVIEW', 'REJECTED', 'APPROVED'].includes(
+    !['DRAFT', 'PENDING_REVIEW', 'REJECTED', 'APPROVED', 'CANCELLED'].includes(
       String(item.status),
     ) ||
     !Number.isInteger(item.version) ||
@@ -102,7 +102,7 @@ export function parseProfileAmendment(value: unknown): ProfileAmendment | null {
     (reviewed
       ? item.reviewedAt === null || item.reviewedBy === null
       : item.reviewedAt !== null || item.reviewedBy !== null) ||
-    (item.status === 'DRAFT'
+    (item.status === 'DRAFT' || item.status === 'CANCELLED'
       ? item.submittedAt !== null
       : item.submittedAt === null) ||
     (item.status === 'REJECTED'

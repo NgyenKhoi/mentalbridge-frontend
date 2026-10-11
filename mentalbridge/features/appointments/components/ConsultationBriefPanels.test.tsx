@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
@@ -12,6 +12,8 @@ const api = vi.hoisted(() => ({
   get: vi.fn(),
   save: vi.fn(),
   action: vi.fn(),
+  requestAiDraft: vi.fn(),
+  aiDraftJob: vi.fn(),
   specialist: vi.fn(),
 }))
 
@@ -56,6 +58,50 @@ const brief = {
   updatedAt: '2026-09-28T10:00:00Z',
 }
 
+const aiJob = {
+  jobId: '10000000-0000-4000-8000-000000000005',
+  appointmentId,
+  consultationBriefId: brief.id,
+  consultationBriefVersion: 0,
+  supportEvaluationId: evaluationId,
+  sourceSetVersion: 'consultation-brief-ai-source-v1' as const,
+  status: 'SUCCEEDED' as const,
+  attemptCount: 1,
+  terminalReason: null,
+  currentSituation: 'Gợi ý tình hình hiện tại từ AI',
+  userGoals: ['Trao đổi một bước tiếp theo phù hợp'],
+  consentPolicyVersion: 'ai-processing-capstone-v2',
+  servicePlan: 'PLUS',
+  entitlementSource: 'DEMO',
+  entitlementPolicyVersion: 'service-entitlement-v1',
+  entitlementVersion: 1,
+  routingPolicyVersion: 'exact-revision-routing-v1',
+  providerApprovalVersion: 'benchmark-approval-v1',
+  provider: 'GEMINI',
+  model: 'gemini-approved',
+  promptVersion: 'consultation-brief-draft-v1',
+  schemaVersion: 1,
+  createdAt: '2026-09-28T10:00:00Z',
+  updatedAt: '2026-09-28T10:00:01Z',
+  completedAt: '2026-09-28T10:00:01Z',
+}
+
+const disclosure = {
+  consentType: 'AI_PROCESSING',
+  version: 'ai-processing-capstone-v2',
+  locale: 'vi-VN',
+  title: 'Đồng ý xử lý dữ liệu bằng AI',
+  content: 'AI chỉ tạo gợi ý từ bản tóm tắt đã lưu.',
+  capstoneOnly: true,
+}
+
+function json(value: unknown, status = 200) {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 describe('ConsultationBrief panels', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -70,6 +116,123 @@ describe('ConsultationBrief panels', () => {
       count: 1,
     })
     api.get.mockResolvedValue(brief)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>((input) => {
+        const url = String(input)
+        if (url === '/api/care/consents')
+          return Promise.resolve(
+            json({
+              decisions: [
+                {
+                  decisionId: '30000000-0000-4000-8000-000000000001',
+                  consentType: 'AI_PROCESSING',
+                  policyVersion: 'ai-processing-capstone-v2',
+                  granted: true,
+                  decidedAt: '2026-09-28T10:00:00Z',
+                },
+              ],
+            }),
+          )
+        if (url === '/api/care/ai-processing-disclosure')
+          return Promise.resolve(json(disclosure))
+        return Promise.resolve(json({ code: 'RESOURCE_NOT_FOUND' }, 404))
+      }),
+    )
+  })
+
+  afterEach(() => {
+    window.localStorage.clear()
+    vi.unstubAllGlobals()
+  })
+
+  it('applies an exact AI suggestion as editable unsaved fields', async () => {
+    api.requestAiDraft.mockResolvedValue(aiJob)
+    const user = userEvent.setup()
+    render(
+      <FeedbackProvider>
+        <ConsultationBriefEditor appointmentId={appointmentId} />
+      </FeedbackProvider>,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Gợi ý bản nháp với AI' }),
+    )
+
+    expect(screen.getByLabelText('Tình hình hiện tại')).toHaveValue(
+      'Gợi ý tình hình hiện tại từ AI',
+    )
+    expect(
+      screen.getByText(
+        'Gợi ý của AI — hãy xem lại và chỉnh sửa trước khi lưu.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Phê duyệt chia sẻ' }),
+    ).toBeDisabled()
+    expect(api.save).not.toHaveBeenCalled()
+    expect(api.action).not.toHaveBeenCalled()
+  })
+
+  it('preserves edits made while the AI suggestion is running', async () => {
+    let resolveJob!: (value: typeof aiJob) => void
+    api.requestAiDraft.mockImplementation(
+      () =>
+        new Promise<typeof aiJob>((resolve) => {
+          resolveJob = resolve
+        }),
+    )
+    const user = userEvent.setup()
+    render(
+      <FeedbackProvider>
+        <ConsultationBriefEditor appointmentId={appointmentId} />
+      </FeedbackProvider>,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Gợi ý bản nháp với AI' }),
+    )
+    const situation = screen.getByLabelText('Tình hình hiện tại')
+    await user.clear(situation)
+    await user.type(situation, 'Nội dung người dùng vừa chỉnh sửa')
+    await act(async () => resolveJob(aiJob))
+
+    expect(situation).toHaveValue('Nội dung người dùng vừa chỉnh sửa')
+    expect(
+      await screen.findByText(
+        'Nguồn của gợi ý không còn khớp với bản nháp hiện tại.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the manual draft usable when AI generation fails', async () => {
+    api.requestAiDraft.mockResolvedValue({
+      ...aiJob,
+      status: 'FAILED',
+      terminalReason: 'PROVIDER_UNAVAILABLE',
+      currentSituation: null,
+      userGoals: null,
+    })
+    const user = userEvent.setup()
+    render(
+      <FeedbackProvider>
+        <ConsultationBriefEditor appointmentId={appointmentId} />
+      </FeedbackProvider>,
+    )
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Gợi ý bản nháp với AI' }),
+    )
+
+    expect(
+      await screen.findByText(
+        'AI chưa thể tạo gợi ý. Bạn vẫn có thể tiếp tục chỉnh sửa thủ công.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Tình hình hiện tại')).toHaveValue(
+      brief.currentSituation,
+    )
+    expect(screen.getByRole('button', { name: 'Lưu bản nháp' })).toBeEnabled()
   })
 
   it('requires explicit confirmation before approving the exact draft', async () => {

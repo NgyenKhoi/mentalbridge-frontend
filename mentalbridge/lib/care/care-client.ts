@@ -97,6 +97,7 @@ import type { AnalyticsRange } from '@/features/analytics/api/activity-dashboard
 import { parseActivityDashboard } from '@/features/analytics/api/activity-dashboard-contract'
 import type {
   ConsultationBrief,
+  ConsultationBriefAiDraftJob,
   ConsultationBriefDraftRequest,
   SpecialistConsultationBrief,
   SpecialistClientContinuityList,
@@ -104,6 +105,7 @@ import type {
 } from '@/features/appointments/api/consultation-brief-contract'
 import {
   parseConsultationBrief,
+  parseConsultationBriefAiDraftJob,
   parseSpecialistConsultationBrief,
   parseConsultationBriefScreeningContexts,
   parseSpecialistClientContinuityList,
@@ -280,6 +282,39 @@ export const careClient = {
       authorization,
       correlationId,
       parseSuccess: parseConsultationBrief,
+    })
+  },
+
+  createConsultationBriefAiDraftJob(
+    authorization: string,
+    appointmentId: string,
+    version: number,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<ConsultationBriefAiDraftJob> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/consultation-briefs/${encodeURIComponent(appointmentId)}/ai-draft-jobs`,
+      authorization,
+      correlationId,
+      ifMatch: version,
+      idempotencyKey,
+      parseSuccess: parseConsultationBriefAiDraftJob,
+    })
+  },
+
+  consultationBriefAiDraftJob(
+    authorization: string,
+    appointmentId: string,
+    jobId: string,
+    correlationId: string,
+  ): Promise<ConsultationBriefAiDraftJob> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/consultation-briefs/${encodeURIComponent(appointmentId)}/ai-draft-jobs/${encodeURIComponent(jobId)}`,
+      authorization,
+      correlationId,
+      parseSuccess: parseConsultationBriefAiDraftJob,
     })
   },
 

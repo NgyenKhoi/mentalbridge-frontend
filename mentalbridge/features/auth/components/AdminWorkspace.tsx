@@ -8,6 +8,7 @@ import AdminAccountManager from './AdminAccountManager'
 import AdminCommunityModerationSection from '@/features/community/components/AdminCommunityModerationSection'
 import AdminAppointmentMonitor from '@/features/appointments/components/AdminAppointmentMonitor'
 import AdminAppointmentDisputes from '@/features/appointments/components/AdminAppointmentDisputes'
+import AdminReportsSection from '@/features/reports/components/AdminReportsSection'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -49,6 +50,10 @@ const SECTIONS = {
     label: 'Nhật ký kiểm toán',
     description:
       'Khu vực theo dõi hoạt động quản trị sau khi nguồn dữ liệu audit được tích hợp.',
+  },
+  reports: {
+    label: 'Báo cáo',
+    description: 'Tạo, lên lịch và tải báo cáo tổng hợp hoạt động tài khoản.',
   },
 } as const
 
@@ -94,7 +99,7 @@ export default function AdminWorkspace({
       </aside>
 
       <main
-        className={`${styles.main} ${section === 'specialists' ? styles.reviewMain : ''}`}
+        className={`${styles.main} ${section === 'specialists' || section === 'reports' ? styles.reviewMain : ''}`}
       >
         {section === 'content' ? (
           <AdminContentSection />
@@ -108,6 +113,8 @@ export default function AdminWorkspace({
           <AdminAppointmentMonitor />
         ) : section === 'disputes' ? (
           <AdminAppointmentDisputes />
+        ) : section === 'reports' ? (
+          <AdminReportsSection />
         ) : (
           <>
             <span className={styles.eyebrow}>

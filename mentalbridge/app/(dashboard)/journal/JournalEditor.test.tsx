@@ -41,7 +41,7 @@ describe('Journal editor redesign', () => {
     render(<JournalPage />)
 
     const open = await screen.findByRole('button', {
-      name: 'Viết nhật ký đầu tiên',
+      name: 'Viết nhật ký mới',
     })
     await user.click(open)
 
@@ -88,7 +88,7 @@ describe('Journal editor redesign', () => {
     render(<JournalPage />)
 
     await user.click(
-      await screen.findByRole('button', { name: 'Viết nhật ký đầu tiên' }),
+      await screen.findByRole('button', { name: 'Viết nhật ký mới' }),
     )
     const modal = within(screen.getByRole('dialog'))
 
@@ -124,7 +124,7 @@ describe('Journal editor redesign', () => {
     render(<JournalPage />)
 
     await user.click(
-      await screen.findByRole('button', { name: 'Viết nhật ký đầu tiên' }),
+      await screen.findByRole('button', { name: 'Viết nhật ký mới' }),
     )
     const modal = within(screen.getByRole('dialog'))
 
@@ -152,7 +152,7 @@ describe('Journal editor redesign', () => {
     render(<JournalPage />)
 
     await user.click(
-      await screen.findByRole('button', { name: 'Viết nhật ký đầu tiên' }),
+      await screen.findByRole('button', { name: 'Viết nhật ký mới' }),
     )
     const modal = within(screen.getByRole('dialog'))
 

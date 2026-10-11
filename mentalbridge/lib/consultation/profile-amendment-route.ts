@@ -28,6 +28,7 @@ type Action =
   | 'save'
   | 'submit'
   | 'resubmit'
+  | 'cancel'
   | 'queue'
   | 'detail'
   | 'approve'
@@ -82,6 +83,15 @@ export async function profileAmendmentRoute(
         [...request.nextUrl.searchParams.keys()].some((key) => key !== 'page'))
     )
       throw new ConsultationInputError('page')
+    if (action === 'cancel') {
+      const result = await consultationClient.cancelAmendment(
+        token,
+        correlationId,
+        id!,
+        etag!,
+      )
+      return carry(consultationSuccess(result.data, correlationId, result.etag))
+    }
     const result =
       action === 'current'
         ? await consultationClient.ownAmendment(token, correlationId)

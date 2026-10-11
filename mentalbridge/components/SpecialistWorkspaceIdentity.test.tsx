@@ -1,10 +1,19 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BrowserConsultationError } from '@/features/specialist-profile/api/browser-client'
 import SpecialistWorkspaceIdentity from './SpecialistWorkspaceIdentity'
 
 const api = vi.hoisted(() => ({ own: vi.fn() }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
+}))
 
 vi.mock('@/features/specialist-profile/api/browser-client', () => ({
   browserConsultation: api,
@@ -48,10 +57,21 @@ describe('SpecialistWorkspaceIdentity', () => {
     expect(screen.getByText('Đang tải hồ sơ…')).toBeInTheDocument()
     expect(await screen.findByText('Nguyễn An')).toBeInTheDocument()
     expect(screen.getByText('Chuyên gia đã được duyệt')).toBeInTheDocument()
-    expect(screen.getByRole('link')).toHaveAttribute(
-      'href',
-      '/specialist/profile',
+    expect(screen.queryByText('Người dùng')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tài khoản cá nhân')).not.toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Mở menu tài khoản chuyên gia' }),
     )
+    const menu = screen.getByRole('menu', { name: 'Tài khoản chuyên gia' })
+    expect(
+      within(menu).getByRole('menuitem', { name: 'Hồ sơ chuyên gia' }),
+    ).toHaveAttribute('href', '/specialist/profile')
+    expect(
+      within(menu).getByRole('menuitem', { name: 'Đăng xuất' }),
+    ).toBeInTheDocument()
+    expect(
+      within(menu).getByRole('menuitem', { name: 'Đăng xuất mọi thiết bị' }),
+    ).toBeInTheDocument()
   })
 
   it('uses a truthful missing state when no specialist profile exists', async () => {

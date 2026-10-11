@@ -526,6 +526,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/consultation-briefs/{appointmentId}/ai-draft-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request an optional AI suggestion for the exact current private draft
+         * @description Care resolves the exact saved draft and minimized screening context. Journal/AI rechecks current AI_PROCESSING consent and the approved provider route. The job cannot save, approve, share, or change the ConsultationBrief.
+         */
+        post: operations["createConsultationBriefAiDraftJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}/ai-draft-jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one owned AI draft job and its editable suggestion */
+        get: operations["getOwnConsultationBriefAiDraftJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/consultation-briefs/{appointmentId}": {
         parameters: {
             query?: never;
@@ -1259,6 +1296,50 @@ export interface components {
             items: components["schemas"]["ConsultationBriefScreeningContextChoice"][];
             count: number;
         };
+        ConsultationBriefAiDraftJob: {
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            consultationBriefId: string;
+            /** Format: int64 */
+            consultationBriefVersion: number;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** @constant */
+            sourceSetVersion: "consultation-brief-ai-source-v1";
+            /** @enum {string} */
+            status: "RUNNING" | "SUCCEEDED" | "FAILED";
+            attemptCount: number;
+            /** @enum {string|null} */
+            terminalReason: "CONSENT_REQUIRED" | "AUTHORIZATION_REJECTED" | "SOURCE_CHANGED" | "SOURCE_DELETED" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | null;
+            currentSituation: string | null;
+            userGoals: null | string[];
+            consentPolicyVersion: string | null;
+            /** @enum {string|null} */
+            servicePlan: "FREE" | "PLUS" | "PREMIUM" | null;
+            /** @enum {string|null} */
+            entitlementSource: "DEFAULT_FREE" | "DEMO" | "PAID" | null;
+            entitlementPolicyVersion: string | null;
+            /** Format: int64 */
+            entitlementVersion: number | null;
+            routingPolicyVersion: string | null;
+            providerApprovalVersion: string | null;
+            /** @enum {string|null} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK" | null;
+            model: string | null;
+            /** @enum {string|null} */
+            promptVersion: "consultation-brief-draft-v1" | null;
+            /** @enum {integer|null} */
+            schemaVersion: 1 | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+        };
         SpecialistConsultationBrief: {
             /** Format: uuid */
             snapshotId: string;
@@ -1681,7 +1762,7 @@ export interface components {
              */
             consentType: "AI_PROCESSING";
             /** @constant */
-            policyVersion: "ai-processing-capstone-v1";
+            policyVersion: "ai-processing-capstone-v2";
             granted: boolean;
         };
         ConsentDecision: {
@@ -1722,7 +1803,7 @@ export interface components {
             /** @constant */
             consentType: "AI_PROCESSING";
             /** @constant */
-            version: "ai-processing-capstone-v1";
+            version: "ai-processing-capstone-v2";
             /** @constant */
             locale: "vi-VN";
             title: string;
@@ -3581,6 +3662,71 @@ export interface operations {
             };
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    createConsultationBriefAiDraftJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versioned asynchronous draft job accepted or replayed */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefAiDraftJob"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    getOwnConsultationBriefAiDraftJob: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current private job state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefAiDraftJob"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     getOwnConsultationBrief: {

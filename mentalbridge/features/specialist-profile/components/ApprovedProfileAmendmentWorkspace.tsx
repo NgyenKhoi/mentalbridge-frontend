@@ -1,7 +1,16 @@
 'use client'
 
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
-import { Eye, Info, ShieldCheck } from 'lucide-react'
+import {
+  Eye,
+  Info,
+  LoaderCircle,
+  Save,
+  Send,
+  ShieldCheck,
+  Trash2,
+  Undo2,
+} from 'lucide-react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import {
   ConsultationInputError,
@@ -19,6 +28,7 @@ import ProfileSnapshot from './ProfileSnapshot'
 import {
   ProfileChecklist,
   ProfileIdentityCard,
+  ProfileLoading,
   ProfilePageHeader,
   ProfilePreviewCard,
   ProfilePreviewDialog,
@@ -37,6 +47,15 @@ const amendmentLabels = {
   PENDING_REVIEW: 'Đang chờ duyệt',
   REJECTED: 'Cần chỉnh sửa',
   APPROVED: 'Đã cập nhật công khai',
+  CANCELLED: 'Đã hủy bản chỉnh sửa',
+}
+
+function isOpenAmendment(value: ProfileAmendment | null) {
+  return (
+    value !== null &&
+    value.status !== 'APPROVED' &&
+    value.status !== 'CANCELLED'
+  )
 }
 export default function ApprovedProfileAmendmentWorkspace({
   initialProfile,
@@ -54,6 +73,7 @@ export default function ApprovedProfileAmendmentWorkspace({
   const [previewPublished, setPreviewPublished] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [pendingAction, setPendingAction] = useState('')
   const [blocked, setBlocked] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -62,6 +82,8 @@ export default function ApprovedProfileAmendmentWorkspace({
   >({})
   const lock = useRef(false)
   const panel = useRef<HTMLDivElement>(null)
+  const beginButton = useRef<HTMLButtonElement>(null)
+  const returnToBegin = useRef(false)
   const dirty =
     editing &&
     amendment !== null &&
@@ -73,7 +95,11 @@ export default function ApprovedProfileAmendmentWorkspace({
     setPublished(data.approvedProfile)
     setAmendment(data.amendment)
     setForm(
-      profileFormValue(data.amendment?.proposedProfile ?? data.approvedProfile),
+      profileFormValue(
+        isOpenAmendment(data.amendment)
+          ? data.amendment!.proposedProfile
+          : data.approvedProfile,
+      ),
     )
     setEditing(false)
     setBlocked(false)
@@ -107,10 +133,11 @@ export default function ApprovedProfileAmendmentWorkspace({
       panel.current?.querySelector<HTMLInputElement>('input')?.focus()
   }, [editing])
 
-  async function mutation(action: () => Promise<void>) {
+  async function mutation(action: () => Promise<void>, operation: string) {
     if (lock.current || blocked) return
     lock.current = true
     setBusy(true)
+    setPendingAction(operation)
     setError('')
     setNotice('')
     try {
@@ -134,6 +161,7 @@ export default function ApprovedProfileAmendmentWorkspace({
     } finally {
       lock.current = false
       setBusy(false)
+      setPendingAction('')
     }
   }
 
@@ -149,7 +177,7 @@ export default function ApprovedProfileAmendmentWorkspace({
 
   async function begin() {
     setPreviewPublished(false)
-    if (amendment && amendment.status !== 'APPROVED') {
+    if (isOpenAmendment(amendment)) {
       setEditing(true)
       return
     }
@@ -159,7 +187,7 @@ export default function ApprovedProfileAmendmentWorkspace({
       )
       receive(result.data)
       setEditing(true)
-    })
+    }, 'start')
   }
 
   async function save(event: FormEvent) {
@@ -196,7 +224,7 @@ export default function ApprovedProfileAmendmentWorkspace({
       )
       receive(result.data)
       success('Đã lưu bản chỉnh sửa riêng tư. Hồ sơ công khai chưa thay đổi.')
-    })
+    }, 'save')
   }
 
   async function submit() {
@@ -208,12 +236,82 @@ export default function ApprovedProfileAmendmentWorkspace({
         `"${amendment.version}"`,
       )
       receive(result.data)
+      returnToBegin.current = true
       setEditing(false)
       success(
         'Đã gửi bản chỉnh sửa để xét duyệt. Hồ sơ hiện tại vẫn công khai.',
       )
-    })
+    }, 'submit')
   }
+
+  async function cancelEditing() {
+    if (busy || !amendment) return
+    if (
+      dirty &&
+      !(await confirm({
+        title: 'Hủy thay đổi chưa lưu?',
+        restoreFocusTo: () => beginButton.current,
+        description:
+          'Nội dung vừa nhập sẽ được bỏ. Bản nháp đã lưu và hồ sơ đang công khai vẫn được giữ nguyên.',
+        confirmLabel: 'Hủy thay đổi',
+        cancelLabel: 'Tiếp tục viết',
+        tone: 'warning',
+      }))
+    )
+      return
+    if (lock.current) return
+    setForm(profileFormValue(amendment.proposedProfile))
+    setErrors({})
+    returnToBegin.current = true
+    setEditing(false)
+    setPreviewPublished(false)
+    setNotice(
+      dirty
+        ? 'Đã bỏ thay đổi chưa lưu. Bản nháp đã lưu vẫn còn.'
+        : 'Đã đóng chỉnh sửa. Bạn có thể tiếp tục bản nháp sau.',
+    )
+  }
+
+  async function cancelAmendment() {
+    if (busy || blocked || !editable || !isOpenAmendment(amendment)) return
+    const target = amendment!
+    if (
+      !(await confirm({
+        title:
+          target.status === 'PENDING_REVIEW'
+            ? 'Hủy bản đang chờ duyệt?'
+            : 'Hủy bản chỉnh sửa?',
+        description:
+          target.status === 'PENDING_REVIEW'
+            ? 'Bản này sẽ rời hàng đợi và không được công khai. Nội dung đang viết cũng sẽ được bỏ. Hồ sơ hiện tại và lịch hẹn giữ nguyên.'
+            : 'Bản nháp đã lưu và nội dung đang viết sẽ được bỏ. Hồ sơ đang công khai và lịch hẹn giữ nguyên. Bạn có thể tạo bản chỉnh sửa mới sau.',
+        confirmLabel: 'Hủy bản chỉnh sửa',
+        restoreFocusTo: () => beginButton.current,
+        cancelLabel: 'Giữ bản chỉnh sửa',
+        tone: 'warning',
+      }))
+    )
+      return
+    await mutation(async () => {
+      const result = await browserConsultation.cancelAmendment(
+        target.id,
+        `"${target.version}"`,
+      )
+      receive(result.data)
+      setForm(profileFormValue(published))
+      returnToBegin.current = true
+      setEditing(false)
+      setPreviewPublished(false)
+      success('Đã hủy bản chỉnh sửa. Hồ sơ đang công khai được giữ nguyên.')
+    }, 'cancel')
+  }
+
+  useEffect(() => {
+    if (!editing && !loading && !busy && returnToBegin.current) {
+      beginButton.current?.focus()
+      returnToBegin.current = false
+    }
+  }, [editing, loading, busy])
 
   async function reload() {
     if (lock.current) return
@@ -243,13 +341,13 @@ export default function ApprovedProfileAmendmentWorkspace({
     }
   }
 
-  const open = amendment && amendment.status !== 'APPROVED'
+  const open = isOpenAmendment(amendment) ? amendment : null
   const previewValue =
     previewPublished || !open
       ? published
       : editing
         ? form
-        : amendment.proposedProfile
+        : open.proposedProfile
   const submitDisabled =
     busy ||
     blocked ||
@@ -272,11 +370,19 @@ export default function ApprovedProfileAmendmentWorkspace({
         </button>
         {!editing && editable ? (
           <button
+            ref={beginButton}
             type="button"
             className={`${styles.primary} btn-primary`}
             disabled={loading || busy || blocked || !!error}
             onClick={() => void begin()}
           >
+            {pendingAction === 'start' && (
+              <LoaderCircle
+                size={16}
+                className={styles.spinner}
+                aria-hidden="true"
+              />
+            )}
             {busy
               ? 'Đang mở…'
               : open
@@ -287,6 +393,15 @@ export default function ApprovedProfileAmendmentWorkspace({
           editing && (
             <>
               <button
+                type="button"
+                className="btn-ghost"
+                disabled={busy}
+                onClick={() => void cancelEditing()}
+              >
+                <Undo2 size={16} aria-hidden="true" />
+                {dirty ? 'Hủy thay đổi chưa lưu' : 'Đóng chỉnh sửa'}
+              </button>
+              <button
                 type="submit"
                 form="profile-amendment-form"
                 className={
@@ -295,7 +410,16 @@ export default function ApprovedProfileAmendmentWorkspace({
                 disabled={busy || blocked || !editable || !dirty}
                 aria-busy={busy}
               >
-                Lưu bản nháp
+                {pendingAction === 'save' ? (
+                  <LoaderCircle
+                    size={16}
+                    className={styles.spinner}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Save size={16} aria-hidden="true" />
+                )}
+                {pendingAction === 'save' ? 'Đang lưu…' : 'Lưu bản nháp'}
               </button>
               <button
                 type="button"
@@ -306,9 +430,20 @@ export default function ApprovedProfileAmendmentWorkspace({
                 onClick={() => void submit()}
                 aria-busy={busy}
               >
-                {amendment?.status === 'REJECTED'
-                  ? 'Gửi lại để xét duyệt'
-                  : 'Gửi xét duyệt'}
+                {pendingAction === 'submit' ? (
+                  <LoaderCircle
+                    size={16}
+                    className={styles.spinner}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Send size={16} aria-hidden="true" />
+                )}
+                {pendingAction === 'submit'
+                  ? 'Đang gửi…'
+                  : amendment?.status === 'REJECTED'
+                    ? 'Gửi lại để xét duyệt'
+                    : 'Gửi xét duyệt'}
               </button>
             </>
           )
@@ -342,7 +477,7 @@ export default function ApprovedProfileAmendmentWorkspace({
               {!editable
                 ? 'Hồ sơ đang tạm ngưng'
                 : open
-                  ? amendmentLabels[amendment.status]
+                  ? amendmentLabels[open.status]
                   : 'Hồ sơ đã được duyệt'}
             </strong>
             <p>
@@ -353,6 +488,26 @@ export default function ApprovedProfileAmendmentWorkspace({
                   : 'Bạn có thể cập nhật thông tin. Nội dung mới chỉ công khai sau khi được xét duyệt.'}
             </p>
           </div>
+          {open && editable && (
+            <button
+              type="button"
+              className={styles.cancelAmendment}
+              disabled={busy || blocked}
+              onClick={() => void cancelAmendment()}
+              aria-busy={pendingAction === 'cancel'}
+            >
+              {pendingAction === 'cancel' ? (
+                <LoaderCircle
+                  size={16}
+                  className={styles.spinner}
+                  aria-hidden="true"
+                />
+              ) : (
+                <Trash2 size={16} aria-hidden="true" />
+              )}
+              {pendingAction === 'cancel' ? 'Đang hủy…' : 'Hủy bản chỉnh sửa'}
+            </button>
+          )}
         </div>
         {amendment?.reasonCode && (
           <div className={styles.reason}>
@@ -368,16 +523,19 @@ export default function ApprovedProfileAmendmentWorkspace({
             onSubmit={save}
             aria-busy={busy}
           >
-            <ProfileIdentityCard value={published} approved={editable} />
+            <ProfileIdentityCard
+              value={
+                editing ? form : open ? amendment!.proposedProfile : published
+              }
+              approved={editable && !open}
+            />
             {loading ? (
-              <div className={styles.loading} role="status" aria-busy="true">
-                Đang tải bản chỉnh sửa…
-              </div>
+              <ProfileLoading label="Đang tải bản chỉnh sửa…" />
             ) : !editing && open ? (
               <ProfileSnapshot
-                value={amendment.proposedProfile}
+                value={open.proposedProfile}
                 title={
-                  amendment.status === 'PENDING_REVIEW'
+                  open.status === 'PENDING_REVIEW'
                     ? 'Bản đã gửi · Chưa công khai'
                     : 'Bản chỉnh sửa · Chưa công khai'
                 }
@@ -457,9 +615,7 @@ export default function ApprovedProfileAmendmentWorkspace({
               }
             />
             <ProfileChecklist
-              value={
-                editing ? form : open ? amendment.proposedProfile : published
-              }
+              value={editing ? form : open ? open.proposedProfile : published}
             />
           </aside>
         </div>

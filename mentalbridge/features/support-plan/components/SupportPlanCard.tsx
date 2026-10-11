@@ -65,6 +65,7 @@ type Props = Readonly<{
   ) => Promise<void>
   draftAction?: 'ACTIVATE' | 'REPLACEMENT'
   activeTab?: 'plan' | 'schedule' | 'manage'
+  embedded?: boolean
 }>
 
 type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
@@ -105,6 +106,7 @@ export default function SupportPlanCard({
   onStatusChange,
   draftAction = 'ACTIVATE',
   activeTab,
+  embedded = false,
 }: Props) {
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     initialChoices(plan),
@@ -118,6 +120,14 @@ export default function SupportPlanCard({
   >({})
   const [isRationaleOpen, setIsRationaleOpen] = useState(true)
   const isDraft = plan.status === 'DRAFT'
+  const panelProps = (tab: 'plan' | 'today' | 'adjust') =>
+    embedded
+      ? {}
+      : {
+          id: `panel-${tab}`,
+          role: 'tabpanel' as const,
+          'aria-labelledby': `tab-${tab}`,
+        }
   const safetyPositive = plan.safety.status === 'POSITIVE_SAFETY_SCREEN'
   const statusLabel = {
     DRAFT: 'Chưa bắt đầu',
@@ -213,9 +223,7 @@ export default function SupportPlanCard({
         className={`support-plan-tab-pane ${
           !activeTab || activeTab === 'plan' ? 'is-active' : 'is-hidden'
         }`}
-        id="panel-plan"
-        role="tabpanel"
-        aria-labelledby="tab-plan"
+        {...panelProps('plan')}
       >
         <header className="support-plan-card-header">
           <div>
@@ -550,18 +558,18 @@ export default function SupportPlanCard({
         className={`support-plan-tab-pane ${
           !activeTab || activeTab === 'schedule' ? 'is-active' : 'is-hidden'
         }`}
-        id="panel-schedule"
-        role="tabpanel"
-        aria-labelledby="tab-schedule"
+        {...panelProps('today')}
       >
         {plan.status === 'ACTIVE' || plan.status === 'PAUSED' ? (
           <SupportPlanSchedule
             planStatus={plan.status}
+            compactToday
             onToggleStatus={() =>
               setPendingStatus(plan.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED')
             }
+            onEndPlan={() => setPendingStatus('COMPLETED')}
             onSwitchToManageTab={() => {
-              const el = document.getElementById('tab-manage')
+              const el = document.getElementById('tab-adjust')
               el?.click()
             }}
           />
@@ -580,9 +588,7 @@ export default function SupportPlanCard({
         className={`support-plan-tab-pane ${
           !activeTab || activeTab === 'manage' ? 'is-active' : 'is-hidden'
         }`}
-        id="panel-manage"
-        role="tabpanel"
-        aria-labelledby="tab-manage"
+        {...panelProps('adjust')}
       >
         <aside className="support-plan-confirmation-note">
           <strong>Quản lý trạng thái kế hoạch</strong>

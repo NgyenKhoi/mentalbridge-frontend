@@ -7,6 +7,7 @@ import type {
   PlatformReportType,
 } from '@/features/auth/api/identity-contract'
 import './admin-reports-manager.css'
+import { ReportSchedules } from '@/features/reports/components/ReportSchedules'
 
 type ReportPage = Readonly<{
   items: PlatformReport[]
@@ -245,16 +246,18 @@ export default function AdminReportsManager({
         <div>
           <span className="eyebrow">Quản trị nền tảng</span>
           <h1>Báo cáo tổng hợp</h1>
-          <p>
-            Tạo và tải báo cáo vận hành từ nguồn dữ liệu có thẩm quyền, với
-            provenance bất biến.
-          </p>
+          <p>Lên lịch, tạo và tải báo cáo tổng hợp hoạt động tài khoản.</p>
         </div>
         <span className="arm-live">
           <i />
-          Dữ liệu thật · không dùng số liệu mẫu
+          Chỉ dành cho quản trị viên
         </span>
       </div>
+
+      <ReportSchedules
+        onNotice={onNotice}
+        onRefreshReports={() => void load()}
+      />
 
       <section className="arm-create" aria-labelledby="create-report-title">
         <header>
@@ -306,7 +309,7 @@ export default function AdminReportsManager({
             />
           </label>
           <button
-            className="btn-primary"
+            className="btn-secondary"
             disabled={submitting || !catalogue.length}
           >
             {submitting ? 'Đang gửi…' : '+ Tạo báo cáo'}
@@ -316,7 +319,10 @@ export default function AdminReportsManager({
           <aside>
             <strong>{selectedType.label}</strong>
             <span>{selectedType.description}</span>
-            <code>{selectedType.scopeVersion}</code>
+            <details>
+              <summary>Thông tin kỹ thuật</summary>
+              <code>{selectedType.scopeVersion}</code>
+            </details>
           </aside>
         )}
       </section>

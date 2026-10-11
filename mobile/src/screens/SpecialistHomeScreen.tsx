@@ -24,6 +24,10 @@ export function SpecialistHomeScreen() {
           label="Mở lịch hẹn tư vấn"
           onPress={() => router.push('./appointments')}
         />
+        <PrimaryButton
+          label="Phiên trò chuyện"
+          onPress={() => router.push('./messages')}
+        />
         <Pressable
           accessibilityRole="button"
           onPress={() => router.push('./profile')}

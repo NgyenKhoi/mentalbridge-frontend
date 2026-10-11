@@ -122,8 +122,8 @@ or production mock content when Content cannot confirm the catalogue.
 
 ## Project guidance
 
-- [`.agents/skills/mentalbridge-ui/SKILL.md`](.agents/skills/mentalbridge-ui/SKILL.md):
-  mandatory repository skill for every user-visible frontend change
+- [`docs/UI_IMPLEMENTATION_PLAYBOOK.md`](docs/UI_IMPLEMENTATION_PLAYBOOK.md):
+  Stitch-first reference workflow and repository-owned UI delivery checks
 - [`docs/README.md`](docs/README.md): engineering documentation index
 - [`docs/frontend-architecture.md`](docs/frontend-architecture.md): server,
   browser, BFF, and Identity ownership

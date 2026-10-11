@@ -104,6 +104,17 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ items: [], count: 0, generatedAt }),
     }),
   )
+  await page.route('**/api/consultation/specialist/earnings', (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        status: 503,
+        code: 'DEPENDENCY_UNAVAILABLE',
+        title: 'Temporarily unavailable',
+      }),
+    }),
+  )
 })
 
 test('MB-620 keeps the specialist portal on authoritative or explicitly deferred paths', async ({
@@ -116,16 +127,24 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
   await expect(
     page.getByRole('heading', { name: 'Chào bạn, Chuyên gia An' }),
   ).toBeVisible()
-  await expect(page.locator('.specialist-command')).toHaveCSS('opacity', '1')
   await expect(
-    page.getByRole('link', {
-      name: 'Chuyên gia An · Chuyên gia đã được duyệt',
+    page.getByRole('heading', { name: 'Chào bạn, Chuyên gia An' }),
+  ).toHaveCSS('opacity', '1')
+  await expect(
+    page.getByRole('button', {
+      name: 'Mở menu tài khoản chuyên gia',
     }),
   ).toBeVisible()
   const navigation = page.getByRole('navigation', {
     name: 'Điều hướng specialist',
   })
-  await expect(navigation.getByRole('link')).toHaveCount(7)
+  await expect(navigation.getByRole('link')).toHaveCount(9)
+  await expect(
+    navigation.getByRole('link', { name: 'Thu nhập & thanh toán' }),
+  ).toHaveAttribute('href', '/specialist/earnings')
+  await expect(
+    navigation.getByRole('link', { name: 'Phân tích vận hành' }),
+  ).toHaveAttribute('href', '/specialist/analytics')
   await expect(navigation.getByText(/Earnings|Notifications/)).toHaveCount(0)
   await expect(
     page.getByRole('link', { name: 'Thông báo', exact: true }),
@@ -154,9 +173,7 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
   ).toBeVisible()
 
   await navigation.getByRole('link', { name: 'Tin nhắn' }).click()
-  await expect(
-    page.getByRole('heading', { name: 'Lịch hẹn chat' }),
-  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Hộp thư' })).toBeVisible()
   await expect(page.getByText('Chưa có cuộc trò chuyện')).toBeVisible()
 
   await navigation.getByRole('link', { name: 'Sau tư vấn' }).click()
@@ -169,8 +186,9 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
 
   await page.goto('/specialist/earnings')
   await expect(
-    page.getByRole('heading', { name: 'Khu vực thu nhập chưa khả dụng' }),
+    page.getByRole('heading', { name: 'Chưa thể tải thu nhập' }),
   ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Thử lại' })).toBeVisible()
   await expect(page.getByText(/8\.400\.000|6\.800\.000|PayOS/)).toHaveCount(0)
 
   await page.goto('/specialist/notifications')
@@ -187,7 +205,9 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
   await expect(
     page.getByRole('heading', { name: 'Chào bạn, Chuyên gia An' }),
   ).toBeVisible()
-  await expect(page.locator('.specialist-command')).toHaveCSS('opacity', '1')
+  await expect(
+    page.getByRole('heading', { name: 'Chào bạn, Chuyên gia An' }),
+  ).toHaveCSS('opacity', '1')
   await page.screenshot({
     path: 'docs/evidence/mb-620-specialist-portal-laptop.png',
     fullPage: true,
@@ -205,15 +225,21 @@ test('MB-620 keeps the specialist portal on authoritative or explicitly deferred
       ),
     ).toBe(true)
     await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
-    await expect(page.locator('.role-sidebar')).toBeInViewport()
+    const drawer = page.getByRole('dialog', { name: 'Điều hướng chuyên gia' })
+    await expect(drawer).toBeVisible()
+    await expect(drawer.getByRole('navigation').getByRole('link')).toHaveCount(
+      9,
+    )
     await expect(
-      page.getByRole('link', {
-        name: 'Chuyên gia An · Chuyên gia đã được duyệt',
+      drawer.getByRole('button', {
+        name: 'Mở menu tài khoản chuyên gia',
       }),
     ).toBeVisible()
-    await page.getByRole('button', { name: 'Đóng menu' }).click({
-      position: { x: viewport.width - 8, y: 8 },
-    })
+    await drawer.getByRole('button', { name: 'Đóng menu' }).click()
+    await expect(drawer).not.toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Mở menu', exact: true }),
+    ).toBeFocused()
     await expect(page.locator('.role-sidebar')).not.toBeInViewport()
   }
 
