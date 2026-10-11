@@ -78,7 +78,9 @@ describe('ProblemSolvingResourceDetail', () => {
         name: /Bảng thực hành nhanh: Hành động nhỏ hôm nay/i,
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText('+15 XP Tinh Thần')).toBeInTheDocument()
+    expect(
+      screen.getByText('Bản nháp chỉ lưu trên thiết bị này'),
+    ).toBeInTheDocument()
     const textarea = screen.getByRole('textbox', {
       name: /Nội dung thực hành giải quyết vấn đề/i,
     })

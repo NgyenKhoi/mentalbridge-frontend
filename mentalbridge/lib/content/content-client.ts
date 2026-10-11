@@ -268,7 +268,13 @@ export const contentResourceProgressClient = {
       accessToken,
       correlationId,
       body: update,
-      parseSuccess: parseResourceProgressItem,
+      parseSuccess: (value) => {
+        const progress = parseResourceProgressItem(value)
+        return progress?.resourceId === resourceId &&
+          progress.localDate === localDate
+          ? progress
+          : null
+      },
       mutation: true,
     })
   },
@@ -288,7 +294,10 @@ export const contentResourceJourneyClient = {
       accessToken,
       correlationId,
       body: input,
-      parseSuccess: parseResourceJourney,
+      parseSuccess: (value) => {
+        const journey = parseResourceJourney(value)
+        return journey?.localDate === localDate ? journey : null
+      },
       mutation: true,
     })
   },
