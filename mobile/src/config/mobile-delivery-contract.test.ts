@@ -126,6 +126,12 @@ describe('Mobile Delivery Contract v1', () => {
     )
     expect(androidEvidence).toContain('services=(identity community)')
     expect(androidEvidence).toContain('npm run e2e:android:discovery:evidence')
+    expect(androidEvidence).toContain(
+      'npm run e2e:android:appointments:evidence',
+    )
+    expect(androidEvidence).toContain(
+      "env.MOBILE_EVIDENCE_FEATURE == 'appointments'",
+    )
     expect(androidEvidence).toContain('services=(identity consultation)')
     expect(androidEvidence).toContain(
       '-f ../mobile/ci/docker-compose.mobile-discovery-e2e.yml',
@@ -138,6 +144,9 @@ describe('Mobile Delivery Contract v1', () => {
       /e2e:android|native:android|native:ios|test:ci|build:bundle/,
     )
     const gate = workflowJob(developmentWorkflow, 'quality-gate')
+    expect(gate).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-appointments-e2e')",
+    )
     expect(gate).toContain(
       "contains(github.event.pull_request.labels.*.name, 'run-mobile-discovery-e2e')",
     )
@@ -219,5 +228,18 @@ describe('Mobile Delivery Contract v1', () => {
     expect(publicKeys.join(' ')).not.toMatch(
       /SECRET|TOKEN|PASSWORD|CREDENTIAL|PRIVATE_KEY/,
     )
+  })
+  it('forwards concurrency/idempotency headers only through the protected real appointment edge', () => {
+    const edge = readFileSync(
+      resolve(mobileRoot, 'scripts/controlled-discovery-edge.mjs'),
+      'utf8',
+    )
+    expect(edge).toContain(
+      "process.env.MOBILE_EVIDENCE_FEATURE === 'appointments'",
+    )
+    expect(edge).toContain("process.env.CI === 'true'")
+    expect(edge).toContain("'idempotency-key'")
+    expect(edge).toContain("'if-match'")
+    expect(edge).not.toMatch(/\/payments|\/credit-ledger|\/settlement/)
   })
 })
