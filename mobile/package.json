@@ -63,6 +63,7 @@
     "e2e:android:appointments:evidence": "bash scripts/verify-android-appointments-evidence.sh",
     "e2e:android:chat:evidence": "bash scripts/verify-android-chat-evidence.sh",
     "e2e:android:specialist": "bash scripts/verify-android-specialist-e2e.sh",
+    "e2e:android:specialist-continuity:evidence": "bash scripts/verify-android-specialist-continuity-evidence.sh",
     "native:ios:smoke": "bash scripts/verify-native-ios.sh",
     "build:bundle": "expo export --platform android --output-dir dist/android && expo export --platform ios --output-dir dist/ios",
     "format": "prettier --write .",
