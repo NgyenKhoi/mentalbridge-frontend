@@ -13,17 +13,16 @@ export default function SupportPlanFooter({
   return (
     <footer
       className="support-plan-footer"
-      aria-label="Bảo mật và thông tin pháp lý"
+      aria-label="Thông tin kế hoạch hỗ trợ"
     >
       <div className="support-plan-footer-inner">
         <div className="support-plan-footer-privacy">
           <div className="support-plan-footer-lock-icon" aria-hidden="true">
-            <SupportPlanIcon name="lock" size={18} />
+            <SupportPlanIcon name="info" size={18} />
           </div>
           <p>
-            Dữ liệu được bảo mật y tế HIPAA &amp; riêng tư hoàn toàn. Chuyên gia
-            điều trị chỉ theo dõi các trạng thái hoạt động bạn chủ động chọn
-            chia sẻ.
+            Bạn quyết định trạng thái hoạt động nào được phép dùng trong bản tóm
+            tắt. Ghi chú riêng không được chia sẻ từ màn hình này.
           </p>
         </div>
 
