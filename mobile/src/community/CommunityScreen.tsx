@@ -27,6 +27,7 @@ import {
 } from './community-ui'
 
 type Props = Readonly<{
+  initialPostId?: string
   api: CommunityApi
   resources: ResourceApi
   safety: AssessmentApi
@@ -37,6 +38,7 @@ type Props = Readonly<{
 type Panel = 'feed' | 'profile' | 'composer' | 'detail' | 'help'
 
 function AccountCommunityScreen({
+  initialPostId,
   api,
   resources,
   safety,
@@ -46,10 +48,10 @@ function AccountCommunityScreen({
   subject,
 }: Props & { subject: string }) {
   const client = useQueryClient()
-  const [panel, setPanel] = useState<Panel>('feed')
+  const [panel, setPanel] = useState<Panel>(initialPostId ? 'detail' : 'feed')
   const [saved, setSaved] = useState(false)
   const [topics, setTopics] = useState<CommunityTopicCode[]>([])
-  const [postId, setPostId] = useState<string | null>(null)
+  const [postId, setPostId] = useState<string | null>(initialPostId ?? null)
   const [editing, setEditing] = useState<VersionedPost | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const topicQuery = useQuery({
@@ -303,7 +305,7 @@ export function CommunityScreen(props: Props) {
     )
   return (
     <AccountCommunityScreen
-      key={session.subject}
+      key={`${session.subject}:${props.initialPostId ?? 'feed'}`}
       {...props}
       subject={session.subject}
     />

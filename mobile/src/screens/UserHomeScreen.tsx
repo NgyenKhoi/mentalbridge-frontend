@@ -20,6 +20,16 @@ export function UserHomeScreen() {
         xác nhận.
       </Text>
       <View style={styles.actions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('./notifications')}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.secondaryLabel}>Thông báo của tôi</Text>
+        </Pressable>
         <PrimaryButton
           label="Phiên trò chuyện"
           onPress={() => router.push('./messages')}
