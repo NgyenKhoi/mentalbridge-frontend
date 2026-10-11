@@ -90,7 +90,7 @@ function dependencies(community: CommunityApi) {
     onResource: jest.fn(),
   }
 }
-async function mount(community: CommunityApi) {
+async function mount(community: CommunityApi, initialPostId?: string) {
   const props = dependencies(community)
   const client = new QueryClient({
     defaultOptions: {
@@ -100,7 +100,10 @@ async function mount(community: CommunityApi) {
   })
   const tree = () => (
     <QueryClientProvider client={client}>
-      <CommunityScreen {...props} />
+      <CommunityScreen
+        {...props}
+        {...(initialPostId ? { initialPostId } : {})}
+      />
     </QueryClientProvider>
   )
   const rendered = await render(tree())
@@ -124,6 +127,34 @@ async function draft() {
 }
 
 describe('mobile Community peer-support journey', () => {
+  it('opens the exact notification target directly and loads authoritative post detail', async () => {
+    const community = api()
+    await mount(community, fixturePostId)
+    expect(
+      await screen.findByRole('header', { name: 'Chia sẻ trong cộng đồng' }),
+    ).toBeOnTheScreen()
+    await screen.findByText(fixturePost.content)
+    expect(community.detail).toHaveBeenCalledWith(fixturePostId)
+    expect(community.feed).not.toHaveBeenCalled()
+  })
+
+  it('does not substitute cached post content when a notification target is gone', async () => {
+    const community = api({
+      detail: jest.fn().mockRejectedValue(
+        new ApiError({
+          code: 'COMMUNITY_POST_NOT_FOUND',
+          status: 404,
+          message: 'gone',
+        }),
+      ),
+    })
+    await mount(community, fixturePostId)
+    expect(
+      await screen.findByRole('button', { name: 'Tải lại bài viết' }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByText(fixturePost.content)).toBeNull()
+    expect(community.comments).not.toHaveBeenCalled()
+  })
   beforeEach(() => {
     jest.clearAllMocks()
     mockSession = {
@@ -428,15 +459,13 @@ describe('mobile Community peer-support journey', () => {
   it('closes stale content when report intake confirms the target is no longer visible', async () => {
     const community = api({
       feed: jest.fn().mockResolvedValueOnce(page()).mockResolvedValue(page([])),
-      report: jest
-        .fn()
-        .mockRejectedValue(
-          new ApiError({
-            code: 'NOT_FOUND',
-            message: 'not visible',
-            status: 404,
-          }),
-        ),
+      report: jest.fn().mockRejectedValue(
+        new ApiError({
+          code: 'NOT_FOUND',
+          message: 'not visible',
+          status: 404,
+        }),
+      ),
     })
     await mount(community)
     await openPost()

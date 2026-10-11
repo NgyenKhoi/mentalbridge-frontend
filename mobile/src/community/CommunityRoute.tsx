@@ -1,5 +1,10 @@
-import { router, Stack } from 'expo-router'
+import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
+import { Text } from 'react-native'
+import { z } from 'zod'
+
+import { Screen } from '@/components/Screen'
+import { PrimaryButton } from '@/components/PrimaryButton'
 
 import { createApiClient } from '@/api/api-client'
 import { createAssessmentApi } from '@/assessment/assessment-api'
@@ -17,7 +22,8 @@ import { CommunityScreen } from './CommunityScreen'
 
 function AccountCommunityRoute({
   config,
-}: Readonly<{ config: RuntimeConfig }>) {
+  postId,
+}: Readonly<{ config: RuntimeConfig; postId?: string }>) {
   const [binding] = useState(() => {
     const client = createApiClient({
       config,
@@ -46,6 +52,7 @@ function AccountCommunityRoute({
       <Stack.Screen options={{ gestureEnabled: false }} />
       <CommunityScreen
         {...binding}
+        {...(postId ? { initialPostId: postId } : {})}
         media={communityMediaTransport}
         onBack={() => router.back()}
         onResource={(resourceId) =>
@@ -67,5 +74,21 @@ function AccountCommunityRoute({
 export function CommunityRoute() {
   const config = useRuntimeConfig()
   const { session } = useSession()
-  return <AccountCommunityRoute key={session?.subject ?? ''} config={config} />
+  const params = useLocalSearchParams<{ postId?: string }>()
+  const postId =
+    params.postId === undefined ? null : z.uuid().safeParse(params.postId)
+  if (postId && !postId.success)
+    return (
+      <Screen>
+        <Text>Liên kết bài chia sẻ không hợp lệ.</Text>
+        <PrimaryButton label="Quay lại" onPress={() => router.back()} />
+      </Screen>
+    )
+  return (
+    <AccountCommunityRoute
+      key={`${session?.subject ?? ''}:${postId?.success ? postId.data : 'feed'}`}
+      config={config}
+      {...(postId?.success ? { postId: postId.data } : {})}
+    />
+  )
 }
