@@ -2,22 +2,19 @@ import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 
 import { createApiClient } from '@/api/api-client'
-import { createAppointmentApi } from '@/appointments/appointment-api'
-import { AppointmentsScreen } from '@/appointments/AppointmentsScreen'
 import { useSession } from '@/auth/session-context'
 import type { RuntimeConfig } from '@/config/runtime-config'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
+import { createDiscoveryApi } from '@/discovery/discovery-api'
 import { secureCredentialStore } from '@/security/credential-store'
 
-import { createDiscoveryApi } from './discovery-api'
-import { DiscoveryScreen } from './DiscoveryScreen'
-import type { SlotSelection } from './discovery-model'
+import { createAppointmentApi } from './appointment-api'
+import { AppointmentsScreen } from './AppointmentsScreen'
 
-function AccountDiscoveryRoute({
+function AccountAppointmentsRoute({
   config,
   subject,
 }: Readonly<{ config: RuntimeConfig; subject: string }>) {
-  const [selection, setSelection] = useState<SlotSelection | undefined>()
   const [binding] = useState(() => {
     const client = createApiClient({
       config,
@@ -25,8 +22,8 @@ function AccountDiscoveryRoute({
     })
     return {
       client,
-      api: createDiscoveryApi(client),
-      appointments: createAppointmentApi(client, subject),
+      api: createAppointmentApi(client, subject),
+      discovery: createDiscoveryApi(client),
     }
   })
   useEffect(() => {
@@ -40,27 +37,19 @@ function AccountDiscoveryRoute({
       binding.client.interceptors.request.eject(interceptor)
     }
   }, [binding])
-  return selection ? (
+  return (
     <AppointmentsScreen
-      api={binding.appointments}
-      discovery={binding.api}
-      initialSelection={selection}
-      onBack={() => setSelection(undefined)}
-    />
-  ) : (
-    <DiscoveryScreen
       api={binding.api}
+      discovery={binding.discovery}
       onBack={() => router.back()}
-      onBook={setSelection}
     />
   )
 }
-
-export function DiscoveryRoute() {
+export function AppointmentsRoute() {
   const config = useRuntimeConfig()
   const { session } = useSession()
   const subject = session?.subject ?? ''
   return (
-    <AccountDiscoveryRoute key={subject} config={config} subject={subject} />
+    <AccountAppointmentsRoute key={subject} config={config} subject={subject} />
   )
 }

@@ -15,7 +15,24 @@ createServer(async (request, response) => {
   const discovery =
     url.pathname === '/api/v1/specialists' ||
     /^\/api\/v1\/specialists\/[0-9a-f-]{36}$/i.test(url.pathname)
-  if ((!identity && !discovery) || (discovery && request.method !== 'GET')) {
+  const appointments =
+    process.env.MOBILE_EVIDENCE_FEATURE === 'appointments' &&
+    process.env.CI === 'true' &&
+    ((request.method === 'GET' &&
+      [
+        '/api/v1/appointments',
+        '/api/v1/service-credits',
+        '/api/v1/bookable-slots',
+      ].includes(url.pathname)) ||
+      (request.method === 'POST' &&
+        (url.pathname === '/api/v1/appointments' ||
+          /^\/api\/v1\/appointments\/[0-9a-f-]{36}\/cancel$/i.test(
+            url.pathname,
+          ))))
+  if (
+    (!identity && !discovery && !appointments) ||
+    (discovery && request.method !== 'GET')
+  ) {
     response.writeHead(404).end()
     return
   }
@@ -29,6 +46,8 @@ createServer(async (request, response) => {
       'authorization',
       'content-type',
       'x-correlation-id',
+      'idempotency-key',
+      'if-match',
     ]) {
       if (typeof request.headers[name] === 'string')
         headers.set(name, request.headers[name])

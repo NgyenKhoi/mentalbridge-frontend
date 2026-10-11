@@ -183,9 +183,26 @@ provision(
   insert into current_service_entitlement
     (account_id,package_code,source,source_reference,established_by,effective_from,effective_until,policy_version)
   values ('${user.id}','PLUS','DEMO','mb-629-protected-synthetic-demo','${admin.id}',
-    now()-interval '1 minute',now()+interval '1 day','service-entitlement-v1');
+    now()-interval '1 minute',now()+interval '${process.env.MOBILE_EVIDENCE_FEATURE === 'appointments' ? '7 days' : '1 day'}','service-entitlement-v1');
 `,
 )
+if (process.env.MOBILE_EVIDENCE_FEATURE === 'appointments') {
+  const response = await fetch(`${base}/service-credits`, {
+    headers: user.headers,
+  })
+  if (!response.ok) throw new Error('Real credit provisioning failed.')
+  const credits = await response.json()
+  if (
+    credits.accountId !== user.id ||
+    credits.balance.available < 1 ||
+    credits.reservationCapacity.remaining < 1 ||
+    credits.source !== 'DEMO'
+  )
+    throw new Error('Dedicated DEMO credit/capacity preflight failed.')
+  console.log(
+    'Real owner service-credit read provisioned DEMO credits covering the exact slot. No ledger or paid facts seeded.',
+  )
+}
 const demo = await browse()
 if (
   demo.packageCode !== 'PLUS' ||
