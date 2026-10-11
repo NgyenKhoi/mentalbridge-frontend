@@ -1,0 +1,10 @@
+appId: com.mentalbridge.mobile
+name: MB-631 foreground reconnect retains accepted messages
+---
+- assertVisible: 'Trò chuyện tư vấn'
+- extendedWaitUntil:
+    visible:
+      id: chat-composer
+    timeout: 30000
+- assertVisible: 'MB631 synthetic peer message'
+- assertVisible: 'MB631 synthetic user message'
