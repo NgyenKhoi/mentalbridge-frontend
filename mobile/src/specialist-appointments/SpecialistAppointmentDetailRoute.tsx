@@ -10,7 +10,7 @@ import { createSpecialistSummaryApi } from '@/specialist-summary/specialist-summ
 
 import { createSpecialistAppointmentApi } from './specialist-appointment-api'
 import { SpecialistAppointmentDetailScreen } from './SpecialistAppointmentDetailScreen'
-import { pendingSharedChatHandoff } from './specialist-chat-handoff'
+import { sharedAppointmentChatHandoff } from './specialist-chat-handoff'
 
 export function SpecialistAppointmentDetailRoute() {
   const runtimeConfig = useRuntimeConfig()
@@ -34,7 +34,7 @@ export function SpecialistAppointmentDetailRoute() {
     <SpecialistAppointmentDetailScreen
       appointmentApi={apis.appointment}
       appointmentId={appointmentId}
-      chatHandoff={pendingSharedChatHandoff}
+      chatHandoff={sharedAppointmentChatHandoff}
       continuityApi={apis.continuity}
       summaryApi={apis.summary}
     />

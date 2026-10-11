@@ -55,24 +55,27 @@ change fails closed instead of silently granting mobile authority.
 
 ## MB-631 chat dependency
 
-Appointment detail owns only a typed `SpecialistChatHandoff` seam. The current
-`dev` branch does not yet contain the MB-631 shared appointment-chat route, so
-the production adapter is intentionally unavailable and the button is disabled
-with truthful copy. No temporary transport, fake message, or alternate chat
-screen exists in MB-634. When MB-631 merges, its route adapter can implement the
-seam without changing appointment authority.
+Appointment detail uses the merged MB-631 shared appointment-chat route through
+the typed `SpecialistChatHandoff` adapter. It opens `/(specialist)/messages` with
+the exact appointment ID, not a relative destination under appointment detail.
+The action stays locked while assigned-appointment authority is refreshing or
+unavailable. Route availability does not grant chat access: MB-631 rechecks
+participant identity, operation eligibility, and the server-owned chat window.
+No temporary transport, fake message, or alternate chat screen exists in MB-634.
 
 ## Automated evidence
 
 From `mobile/`, run:
 
 ```powershell
-npm run format:check
 npm run lint
 npm run typecheck
-npm run test:ci
-npm run build:bundle
+npm run test:ci -- src/specialist-appointments src/specialist-continuity src/specialist-summary src/screens/SpecialistHomeScreen.test.tsx src/chat/ChatRoute.test.tsx src/config/mobile-delivery-contract.test.ts
 ```
+
+Check formatting only for the story's changed files. Normal PRs into `dev`
+retain the mobile TypeScript compile gate; no native build or Android/iOS E2E
+is required by that automatic gate.
 
 Focused Jest coverage exercises strict API parsing and headers, collection
 grouping, confirm/reject success, replay keys, stale recovery, cached-state
@@ -82,7 +85,15 @@ handoff seam.
 
 ## Android real-contract evidence
 
-`.maestro/mb-634-specialist-appointment-continuity.yaml` runs only through the
+**Deferred by the project owner on 2026-10-11.** This project currently has no
+mobile staging environment. Android E2E is not a prerequisite for this PR;
+the `run-mobile-specialist-e2e` label has been removed. The Jira Android E2E DoD
+item remains unverified, not passed. The owner plans one consolidated test
+later. No staging URL, SPECIALIST secret, controlled stack, or fabricated
+completion evidence is needed for the compile-only dev handoff.
+
+The retained `.maestro/mb-634-specialist-appointment-continuity.yaml` is a
+prepared future journey, not execution evidence. Its opt-in gate runs through the
 protected `staging-mobile-e2e` Environment when the pull request carries the
 `run-mobile-specialist-e2e` label. It requires a resettable staging SPECIALIST
 account whose data is isolated from shared reviewers and reset before every run

@@ -67,6 +67,7 @@ export function SpecialistAppointmentDetailScreen({
   )
   const authorityConfirmed =
     appointmentsQuery.isSuccess && !appointmentsQuery.isFetching
+  const canOpenChat = authorityConfirmed && chatHandoff.available
 
   const refreshAuthority = async () => {
     const result = await appointmentsQuery.refetch()
@@ -137,17 +138,15 @@ export function SpecialistAppointmentDetailScreen({
             <View style={styles.chatPanel}>
               <Text style={styles.sectionTitle}>Trò chuyện của lịch hẹn</Text>
               <Text style={styles.copy}>
-                Cuộc trò chuyện dùng chung sẽ giữ đúng phạm vi của lịch hẹn này.
+                Trò chuyện với người dùng trong phiên tư vấn này. Quyền vào
+                phiên được kiểm tra khi mở.
               </Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityState={{ disabled: !chatHandoff.available }}
-                disabled={!chatHandoff.available}
+                accessibilityState={{ disabled: !canOpenChat }}
+                disabled={!canOpenChat}
                 onPress={() => chatHandoff.openAppointmentChat(appointment.id)}
-                style={[
-                  styles.primaryButton,
-                  !chatHandoff.available && styles.disabled,
-                ]}
+                style={[styles.primaryButton, !canOpenChat && styles.disabled]}
               >
                 <Text style={styles.primaryLabel}>Mở trò chuyện tư vấn</Text>
               </Pressable>

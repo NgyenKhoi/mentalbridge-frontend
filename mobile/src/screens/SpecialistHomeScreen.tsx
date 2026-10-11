@@ -24,10 +24,16 @@ export function SpecialistHomeScreen() {
           label="Mở lịch hẹn tư vấn"
           onPress={() => router.push('./appointments')}
         />
-        <PrimaryButton
-          label="Phiên trò chuyện"
+        <Pressable
+          accessibilityRole="button"
           onPress={() => router.push('./messages')}
-        />
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.secondaryLabel}>Phiên trò chuyện</Text>
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => router.push('./profile')}

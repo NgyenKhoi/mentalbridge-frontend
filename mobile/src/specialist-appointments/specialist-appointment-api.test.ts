@@ -208,7 +208,7 @@ describe('MB-634 public mobile contract clients', () => {
       )
     const api = createSpecialistSummaryApi(create({ adapter }), SPECIALIST_ID)
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
     })
     const queryKey = ['specialist-session-summaries', appointmentId]
 

@@ -38,6 +38,14 @@ describe('SPECIALIST home screen', () => {
     expect(mockPush).toHaveBeenCalledWith('./profile')
   })
 
+  it('preserves the shared Messages destination after the dev sync', async () => {
+    await render(<SpecialistHomeScreen />)
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Phiên trò chuyện' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith('./messages')
+  })
+
   it('opens the availability journey', async () => {
     await render(<SpecialistHomeScreen />)
 

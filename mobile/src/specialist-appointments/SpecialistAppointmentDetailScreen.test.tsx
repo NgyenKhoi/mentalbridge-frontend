@@ -340,6 +340,50 @@ describe('SPECIALIST appointment detail and continuity', () => {
     expect(handoff.openAppointmentChat).toHaveBeenCalledWith(APPOINTMENT_ID)
   })
 
+  it('locks the shared chat handoff during an authority refresh and after that refresh fails', async () => {
+    let failRefresh!: (error: Error) => void
+    const refresh = new Promise<ReturnType<typeof makeAppointmentList>>(
+      (_resolve, reject) => {
+        failRefresh = reject
+      },
+    )
+    const handoff = chatHandoff({ available: true })
+    const listAssigned = jest
+      .fn()
+      .mockResolvedValueOnce(
+        makeAppointmentList([
+          makeAppointment({ status: 'CONFIRMED', version: 2 }),
+        ]),
+      )
+      .mockReturnValueOnce(refresh)
+    const { client } = await renderDetail({
+      appointmentApi: appointmentApi({ listAssigned }),
+      chatHandoff: handoff,
+    })
+    const chatButton = await screen.findByRole('button', {
+      name: 'Mở trò chuyện tư vấn',
+    })
+    await waitFor(() => expect(chatButton).toBeEnabled())
+
+    await act(async () => {
+      void client.invalidateQueries({
+        queryKey: [
+          'specialist-appointments',
+          '22222222-2222-4222-8222-222222222222',
+        ],
+      })
+    })
+    await waitFor(() => expect(chatButton).toBeDisabled())
+    await fireEvent.press(chatButton)
+    expect(handoff.openAppointmentChat).not.toHaveBeenCalled()
+
+    await act(async () => failRefresh(new Error('dependency unavailable')))
+    await screen.findByRole('button', { name: 'Tải lại an toàn' })
+    expect(chatButton).toBeDisabled()
+    await fireEvent.press(chatButton)
+    expect(handoff.openAppointmentChat).not.toHaveBeenCalled()
+  })
+
   it('reloads authoritative appointment state after an app remount', async () => {
     const listAssigned = jest
       .fn()
