@@ -4,9 +4,12 @@ This directory is the source of truth for MentalBridge frontend engineering
 decisions. Product/design documents describe intent; these documents describe
 how the executable Next.js application is organized and delivered.
 
-Material user-visible redesigns start with a written UX brief and a Stitch
-reference/prototype. The tables below identify the smallest relevant contract
-set for translating that direction into product code.
+UI design and material journey changes follow the repository-local
+`../../.codex/skills/mentalbridge-stitch-ui/SKILL.md`: written UX brief,
+generation in the established Stitch project, font/component render QA, a
+local interaction prototype, then repository-native implementation. The tables
+below identify the smallest relevant contract set for translating that
+direction into product code.
 
 ## Reading order
 

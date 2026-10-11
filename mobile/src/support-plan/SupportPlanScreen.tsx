@@ -21,6 +21,7 @@ import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type { SupportPlanApi } from './support-plan-api'
+import { SupportPlanPersonalizationCard } from './SupportPlanPersonalizationCard'
 import type {
   OccurrenceEngagement,
   PlanActionProjection,
@@ -1189,6 +1190,17 @@ export function SupportPlanScreen({
       </Text>
 
       {notice && <StateMessage notice={notice} />}
+      <SupportPlanPersonalizationCard
+        api={api}
+        subject={subject}
+        onReviewPlan={() =>
+          setNotice({
+            message:
+              'Kế hoạch hiện tại ở ngay bên dưới và chưa bị thay đổi bởi lựa chọn mới.',
+            tone: 'success',
+          })
+        }
+      />
       {authorityRecovery === 'refreshing' && (
         <Text accessibilityLiveRegion="polite" style={styles.supportingText}>
           Đang tải lại trạng thái có thẩm quyền…

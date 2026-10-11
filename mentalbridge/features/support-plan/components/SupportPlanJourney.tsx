@@ -34,6 +34,7 @@ import SupportPlanCard from './SupportPlanCard'
 import SupportPlanFooter from './SupportPlanFooter'
 import SupportPlanHistory from './SupportPlanHistory'
 import SupportPlanIcon from './SupportPlanIcon'
+import SupportPlanPersonalization from './SupportPlanPersonalization'
 import SupportPlanReplacementReviewView from './SupportPlanReplacementReview'
 
 import './support-plan.css'
@@ -714,6 +715,11 @@ export default function SupportPlanJourney() {
 
       {!loading && (plan || activeTab === 'progress') && (
         <>
+          {plan && activeTab === 'adjust' && (
+            <SupportPlanPersonalization
+              onReviewPlan={() => setActiveTab('plan')}
+            />
+          )}
           {plan && activeTab !== 'progress' && (
             <SupportPlanCard
               key={`${plan.supportPlanId}:${plan.version}:${recoveryVersion}`}

@@ -15,6 +15,71 @@ import {
 } from './support-plan-test-fixtures'
 
 describe('Care mobile SupportPlan API contract', () => {
+  it('reads and replaces personalization with the same strong ETag authority', async () => {
+    const requests: InternalAxiosRequestConfig[] = []
+    const value = {
+      personalizationId: null,
+      schemaVersion: 'support-plan-personalization-v1',
+      revision: 0,
+      status: 'NOT_PROVIDED',
+      preferredFocus: null,
+      desiredPace: null,
+      dailyTimeBudgetMinutes: null,
+      preferredDaypart: null,
+      preferredActivityModes: [],
+      commonBarriers: [],
+      submittedAt: null,
+      planReview: {
+        required: false,
+        supportPlanId: null,
+        supportPlanVersion: null,
+        reasonCode: null,
+      },
+    }
+    const adapter: AxiosAdapter = async (request) => {
+      requests.push(request)
+      return {
+        config: request,
+        data:
+          requests.length === 1
+            ? value
+            : {
+                ...value,
+                personalizationId: '10000000-0000-4000-8000-000000000638',
+                revision: 1,
+                status: 'PROVIDED',
+                preferredFocus: 'SLEEP',
+                submittedAt: '2026-10-12T08:00:00Z',
+              },
+        headers: { etag: requests.length === 1 ? '"0"' : '"1"' },
+        status: 200,
+        statusText: 'OK',
+      }
+    }
+    const api = createSupportPlanApi(create({ adapter }))
+
+    const authority = await api.getPersonalization()
+    const updated = await api.replacePersonalization(
+      {
+        preferredFocus: 'SLEEP',
+        desiredPace: null,
+        dailyTimeBudgetMinutes: null,
+        preferredDaypart: null,
+        preferredActivityModes: [],
+        commonBarriers: [],
+      },
+      authority.etag,
+    )
+
+    expect(authority.etag).toBe('"0"')
+    expect(updated.value.preferredFocus).toBe('SLEEP')
+    expect(requests.map((request) => request.url)).toEqual([
+      '/api/v2/support-plan-personalization',
+      '/api/v2/support-plan-personalization',
+    ])
+    expect(requests[1]?.headers.get('If-Match')).toBe('"0"')
+  })
+
   it('reads the Care action projection and Consultation progress without joining ownership', async () => {
     const requests: InternalAxiosRequestConfig[] = []
     const plan = makePlan('ACTIVE')

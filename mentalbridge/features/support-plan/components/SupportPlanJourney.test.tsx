@@ -14,9 +14,11 @@ const api = vi.hoisted(() => ({
   getSupportPlan: vi.fn(),
   getSupportPlanHistory: vi.fn(),
   getSupportPlanOccurrences: vi.fn(),
+  getSupportPlanPersonalization: vi.fn(),
   proposeSupportPlanDraft: vi.fn(),
   replaceSupportPlan: vi.fn(),
   replaceSupportPlanChoices: vi.fn(),
+  replaceSupportPlanPersonalization: vi.fn(),
   reviewSupportPlanReplacement: vi.fn(),
 }))
 
@@ -89,6 +91,28 @@ describe('SupportPlanJourney', () => {
       items: [],
       nextCursor: null,
       hasMore: false,
+    })
+    api.getSupportPlanPersonalization.mockResolvedValue({
+      value: {
+        personalizationId: null,
+        schemaVersion: 'support-plan-personalization-v1',
+        revision: 0,
+        status: 'NOT_PROVIDED',
+        preferredFocus: null,
+        desiredPace: null,
+        dailyTimeBudgetMinutes: null,
+        preferredDaypart: null,
+        preferredActivityModes: [],
+        commonBarriers: [],
+        submittedAt: null,
+        planReview: {
+          required: false,
+          supportPlanId: null,
+          supportPlanVersion: null,
+          reasonCode: null,
+        },
+      },
+      etag: '"0"',
     })
     assessmentApi.getCurrentReassessmentSummary.mockResolvedValue(
       reassessmentSummary,

@@ -1116,6 +1116,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/support-plan-personalization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the authenticated user's current SupportPlan preferences
+         * @description Returns the latest immutable Care-owned preference revision. Existing
+         *     users without a saved revision receive NOT_PROVIDED at revision zero.
+         *     The fields describe practical preferences only; they are not symptoms,
+         *     diagnoses, screening evidence, or permission to bypass Care policy.
+         */
+        get: operations["getOwnSupportPlanPersonalization"];
+        /**
+         * Replace the authenticated user's bounded SupportPlan preferences
+         * @description Writes a new immutable revision only when the replacement differs from
+         *     the current value. Revision zero creates the first saved value. Empty
+         *     optional fields explicitly record SKIPPED. Saving preferences never
+         *     mutates an active or paused plan; planReview identifies the explicit
+         *     review path when the current plan used another preference revision.
+         */
+        put: operations["replaceOwnSupportPlanPersonalization"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/anonymous-assessment-sessions": {
         parameters: {
             query?: never;
@@ -2353,6 +2384,64 @@ export interface components {
             /** Format: uri */
             externalUrl?: string | null;
         };
+        ReplaceSupportPlanPersonalizationRequest: {
+            /**
+             * @description Optional non-diagnostic area the user wants to work on.
+             * @enum {string|null}
+             */
+            preferredFocus?: "ANXIETY" | "MOOD" | "SLEEP" | "MOTIVATION" | "UNDERSTANDING_EMOTIONS" | null;
+            /** @enum {string|null} */
+            desiredPace?: "GENTLE" | "BALANCED" | "ACTIVE" | null;
+            /** @enum {integer|null} */
+            dailyTimeBudgetMinutes?: 5 | 10 | 15 | 20 | 30 | null;
+            /** @enum {string|null} */
+            preferredDaypart?: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            preferredActivityModes: ("READING" | "GUIDED_PRACTICE" | "JOURNALING" | "EMOTION_CHECK_IN" | "ROUTINE")[];
+            commonBarriers: ("LOW_ENERGY" | "LIMITED_TIME" | "DIFFICULT_TO_START")[];
+        };
+        SupportPlanPersonalization: {
+            /** Format: uuid */
+            personalizationId: string | null;
+            /** @constant */
+            schemaVersion: "support-plan-personalization-v1";
+            revision: number;
+            /** @enum {string} */
+            status: "NOT_PROVIDED" | "PROVIDED" | "SKIPPED";
+            /**
+             * @description Optional non-diagnostic area the user wants to work on.
+             * @enum {string|null}
+             */
+            preferredFocus?: "ANXIETY" | "MOOD" | "SLEEP" | "MOTIVATION" | "UNDERSTANDING_EMOTIONS" | null;
+            /** @enum {string|null} */
+            desiredPace?: "GENTLE" | "BALANCED" | "ACTIVE" | null;
+            /** @enum {integer|null} */
+            dailyTimeBudgetMinutes?: 5 | 10 | 15 | 20 | 30 | null;
+            /** @enum {string|null} */
+            preferredDaypart?: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            preferredActivityModes: ("READING" | "GUIDED_PRACTICE" | "JOURNALING" | "EMOTION_CHECK_IN" | "ROUTINE")[];
+            commonBarriers: ("LOW_ENERGY" | "LIMITED_TIME" | "DIFFICULT_TO_START")[];
+            /** Format: date-time */
+            submittedAt: string | null;
+            planReview: components["schemas"]["SupportPlanPersonalizationReview"];
+        };
+        /** @description A true value asks the user to explicitly review/change the current plan; it never mutates it. */
+        SupportPlanPersonalizationReview: {
+            required: boolean;
+            /** Format: uuid */
+            supportPlanId: string | null;
+            supportPlanVersion: number | null;
+            /** @enum {string|null} */
+            reasonCode: "PREFERENCES_CHANGED_AFTER_PLAN_ACTIVATION" | null;
+        };
+        FocusPersonalizationProvenance: {
+            /** Format: uuid */
+            personalizationId: string;
+            revision: number;
+            /** @constant */
+            schemaVersion: "support-plan-personalization-v1";
+            /** @constant */
+            reasonCode: "USER_PREFERENCE_AND_CARE_POLICY";
+        };
         SupportPlanV3: {
             /** Format: uuid */
             supportPlanId: string;
@@ -2396,6 +2485,8 @@ export interface components {
             focusId: string;
             title: string;
             rationale: string | null;
+            /** @description Exact preference revision that shaped this focus; null for deterministic fallback focuses. */
+            personalizationProvenance: components["schemas"]["FocusPersonalizationProvenance"] | null;
             ordinal: number;
             actions: components["schemas"]["PlanAction"][];
         };
@@ -2929,6 +3020,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description If-Match does not equal the current preference revision (SUPPORT_PLAN_PERSONALIZATION_VERSION_MISMATCH) */
+        SupportPlanPersonalizationVersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description The requested lifecycle transition is invalid, reassessment is stale or uses different screening evidence, or replacement is unchanged (SUPPORT_PLAN_TRANSITION_INVALID, REASSESSMENT_SUMMARY_STALE, REASSESSMENT_SCREENING_CONTEXT_MISMATCH, or SUPPORT_PLAN_REPLACEMENT_UNCHANGED) */
         SupportPlanLifecycleConflictProblem: {
             headers: {
@@ -3071,6 +3171,8 @@ export interface components {
     headers: {
         /** @description Strong ETag containing the Care-owned draft version */
         SupportPlanETag: string;
+        /** @description Strong ETag containing the current preference revision; zero means no saved revision */
+        SupportPlanPersonalizationETag: string;
     };
     pathItems: never;
 }
@@ -4795,6 +4897,68 @@ export interface operations {
             400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    getOwnSupportPlanPersonalization: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current preference revision or deterministic not-provided fallback */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanPersonalizationETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanPersonalization"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    replaceOwnSupportPlanPersonalization: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceSupportPlanPersonalizationRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted current preference revision */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanPersonalizationETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanPersonalization"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            412: components["responses"]["SupportPlanPersonalizationVersionProblem"];
         };
     };
     createAnonymousAssessmentSession: {
