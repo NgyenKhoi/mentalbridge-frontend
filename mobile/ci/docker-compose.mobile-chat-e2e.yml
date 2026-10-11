@@ -1,0 +1,30 @@
+services:
+  realtime-migrate:
+    build: ./realtime-service
+    environment: &realtime-environment
+      NODE_ENV: production
+      REALTIME_MONGODB_URI: mongodb://mongodb:27017
+      REALTIME_MONGODB_DATABASE: mentalbridge_mobile_chat_e2e
+      REALTIME_REDIS_URL: redis://redis:6379
+      REALTIME_CORS_ORIGINS: http://127.0.0.1:8088
+      REALTIME_MESSAGE_ENCRYPTION_KEY: ${E2E_JOURNAL_ENCRYPTION_KEY}
+      REALTIME_MESSAGE_ENCRYPTION_KEY_VERSION: e2e-v1
+      CONSULTATION_BASE_URL: http://consultation:8082
+      CONSULTATION_EVIDENCE_SERVICE_TOKEN: ${E2E_CONTENT_TEST_SECRET}
+      IDENTITY_JWT_ISSUER: https://identity.e2e.mentalbridge
+      IDENTITY_JWT_AUDIENCE: mentalbridge-e2e-api
+      IDENTITY_JWT_KEY_ID: controlled-e2e-key
+      IDENTITY_JWT_PUBLIC_KEY: ${E2E_IDENTITY_JWT_PUBLIC_KEY}
+    command: ['npm', 'run', 'migrate:up']
+    depends_on:
+      mongodb: { condition: service_healthy }
+  realtime:
+    build: ./realtime-service
+    environment:
+      <<: *realtime-environment
+      REALTIME_PORT: '3004'
+      REALTIME_LOG_LEVEL: warn
+    ports: ['3004:3004']
+    depends_on:
+      realtime-migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }

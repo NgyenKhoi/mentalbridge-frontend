@@ -26,6 +26,7 @@
     "react-native-screens": "~4.26.0",
     "react-native-web": "0.21.2",
     "react-native-worklets": "0.10.1",
+    "socket.io-client": "4.8.3",
     "zod": "4.6.5"
   },
   "devDependencies": {
@@ -60,6 +61,7 @@
     "e2e:android:discovery:evidence": "bash scripts/verify-android-discovery-evidence.sh",
     "e2e:android:appointments": "bash scripts/verify-android-appointments-e2e.sh",
     "e2e:android:appointments:evidence": "bash scripts/verify-android-appointments-evidence.sh",
+    "e2e:android:chat:evidence": "bash scripts/verify-android-chat-evidence.sh",
     "e2e:android:specialist": "bash scripts/verify-android-specialist-e2e.sh",
     "native:ios:smoke": "bash scripts/verify-native-ios.sh",
     "build:bundle": "expo export --platform android --output-dir dist/android && expo export --platform ios --output-dir dist/ios",
