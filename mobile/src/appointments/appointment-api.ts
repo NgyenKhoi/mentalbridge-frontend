@@ -71,7 +71,9 @@ export function createAppointmentApi(
       if (
         value.slotId !== body.slotId ||
         value.modality !== body.modality ||
-        value.replacesAppointmentId !== (body.replacesAppointmentId ?? null)
+        value.replacesAppointmentId !== (body.replacesAppointmentId ?? null) ||
+        (value.originatingPlanActionId ?? null) !==
+          (body.originatingPlanActionId ?? null)
       )
         mismatch()
       return value

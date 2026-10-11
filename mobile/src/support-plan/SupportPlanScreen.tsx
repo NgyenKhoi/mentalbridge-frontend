@@ -11,8 +11,10 @@ import {
   TextInput,
   View,
 } from 'react-native'
+import { z } from 'zod'
 
 import { ApiError } from '@/api/api-error'
+import type { Appointment } from '@/appointments/appointment-contract'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
@@ -21,6 +23,7 @@ import { colors, radii, spacing, typography } from '@/theme/tokens'
 import type { SupportPlanApi } from './support-plan-api'
 import type {
   OccurrenceEngagement,
+  PlanActionProjection,
   PlanChangeRequest,
   ReplacementReview,
   SupportPlan,
@@ -52,6 +55,17 @@ const occurrenceLabels: Record<SupportPlanOccurrence['displayState'], string> =
     SKIPPED: 'Đã bỏ qua',
     CANCELLED: 'Đã hủy theo trạng thái kế hoạch',
   }
+
+const appointmentProgressLabels: Record<Appointment['status'], string> = {
+  REQUESTED: 'Đã gửi yêu cầu, đang chờ chuyên gia xác nhận',
+  CONFIRMED: 'Chuyên gia đã xác nhận lịch hẹn',
+  IN_PROGRESS: 'Buổi tư vấn đang diễn ra',
+  SESSION_ENDED: 'Buổi tư vấn đã kết thúc, đang hoàn tất ghi nhận',
+  COMPLETED: 'Buổi tư vấn đã hoàn thành',
+  REJECTED: 'Chuyên gia chưa thể nhận lịch này',
+  EXPIRED: 'Yêu cầu đặt lịch đã hết hạn',
+  CANCELLED: 'Lịch hẹn đã được hủy',
+}
 
 const helpfulnessOptions = [
   ['NOT_HELPFUL', 'Không hữu ích'],
@@ -111,6 +125,41 @@ function formatDate(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+function professionalSupportAction(
+  projection: Awaited<ReturnType<SupportPlanApi['getActions']>> | undefined,
+) {
+  const action = projection?.focuses
+    .flatMap((focus) => focus.actions)
+    .find(
+      (candidate) =>
+        candidate.actionType === 'PROFESSIONAL_SUPPORT' &&
+        candidate.pathRole === 'PRIMARY' &&
+        candidate.status !== 'ENDED',
+    )
+  return action && z.uuid().safeParse(action.actionId).success
+    ? action
+    : undefined
+}
+
+function requiresProfessionalSupport(plan: SupportPlan) {
+  return plan.templateFamilies.some(
+    ({ family }) =>
+      family === 'DEPRESSIVE_PROFESSIONAL_ADJUNCT' ||
+      family === 'ANXIETY_PROFESSIONAL_ADJUNCT',
+  )
+}
+
+function latestAppointmentFor(
+  action: PlanActionProjection | undefined,
+  appointments:
+    Awaited<ReturnType<SupportPlanApi['getAppointments']>> | undefined,
+) {
+  if (!action) return undefined
+  return appointments?.items
+    .filter((item) => item.originatingPlanActionId === action.actionId)
+    .sort((left, right) => right.requestedAt.localeCompare(left.requestedAt))[0]
 }
 
 function loadErrorMessage(error: unknown) {
@@ -176,34 +225,118 @@ function SecondaryButton({
 }
 
 function PlanCard({
+  appointment,
+  appointmentUnavailable,
   busy,
   canActivate,
   onActivate,
   onChangeChoice,
+  onRetryProfessionalSupport,
   onStatus,
   plan,
+  professionalAction,
+  professionalSupportError,
+  professionalSupportRefreshing,
   title,
 }: Readonly<{
+  appointment?: Appointment | undefined
+  appointmentUnavailable: boolean
   busy: boolean
   canActivate: boolean
   onActivate: () => void
   onChangeChoice: (slotId: string, resourceId: string) => void
+  onRetryProfessionalSupport: () => void
   onStatus: (status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED') => void
   plan: SupportPlan
+  professionalAction?: PlanActionProjection | undefined
+  professionalSupportError: boolean
+  professionalSupportRefreshing: boolean
   title: string
 }>) {
+  const showProfessionalSupport = Boolean(
+    professionalAction ||
+    (professionalSupportError && requiresProfessionalSupport(plan)),
+  )
+
   return (
     <View style={styles.planPanel}>
       <View style={styles.rowBetween}>
         <Text style={styles.sectionTitle}>{title}</Text>
         <Text style={styles.badge}>{statusLabels[plan.status]}</Text>
       </View>
-      <Text style={styles.body}>{plan.rationale.text}</Text>
       {plan.safety.status === 'POSITIVE_SAFETY_SCREEN' && (
         <Text accessibilityLiveRegion="assertive" style={styles.safetyText}>
           {plan.safety.guidance}
         </Text>
       )}
+
+      {showProfessionalSupport && (
+        <View style={styles.professionalPanel}>
+          <Text style={styles.professionalEyebrow}>HƯỚNG HỖ TRỢ CHÍNH</Text>
+          <Text style={styles.sectionTitle}>
+            {professionalAction?.presentation.title ??
+              'Ưu tiên kết nối chuyên gia'}
+          </Text>
+          {professionalAction?.presentation.summary && (
+            <Text style={styles.body}>
+              {professionalAction.presentation.summary}
+            </Text>
+          )}
+          {!professionalAction && professionalSupportError && (
+            <Text accessibilityLiveRegion="assertive" style={styles.errorText}>
+              Chưa thể tải chi tiết hướng hỗ trợ chính. Các nội dung bổ trợ vẫn
+              có thể xem, nhưng không thay thế việc kết nối chuyên gia.
+            </Text>
+          )}
+          {professionalAction && professionalSupportError && (
+            <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+              Chưa thể cập nhật hướng hỗ trợ. Thông tin bên dưới là lần tải đã
+              xác nhận gần nhất.
+            </Text>
+          )}
+          {appointment && (
+            <Text accessibilityLiveRegion="polite" style={styles.itemTitle}>
+              Trạng thái lịch hẹn:{' '}
+              {appointmentProgressLabels[appointment.status]}
+            </Text>
+          )}
+          {appointmentUnavailable && (
+            <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+              Chưa thể cập nhật trạng thái lịch hẹn. MentalBridge không tự suy
+              đoán trạng thái khi dữ liệu này chưa khả dụng.
+            </Text>
+          )}
+          <Text style={styles.supportingText}>
+            MentalBridge không tự đặt lịch hoặc chia sẻ dữ liệu. Bạn sẽ xem và
+            xác nhận từng bước trước khi gửi yêu cầu.
+          </Text>
+          {professionalAction && (
+            <PrimaryButton
+              disabled={busy}
+              label="Tìm chuyên gia phù hợp"
+              onPress={() =>
+                router.push({
+                  pathname: './specialists',
+                  params: { planActionId: professionalAction.actionId },
+                })
+              }
+            />
+          )}
+          {(professionalSupportError || appointmentUnavailable) && (
+            <SecondaryButton
+              disabled={professionalSupportRefreshing}
+              label={
+                professionalSupportRefreshing
+                  ? 'Đang tải lại hướng hỗ trợ…'
+                  : 'Thử tải lại hướng hỗ trợ'
+              }
+              onPress={onRetryProfessionalSupport}
+            />
+          )}
+        </View>
+      )}
+
+      <Text style={styles.body}>{plan.rationale.text}</Text>
 
       {plan.slots.map((slot) => (
         <View key={slot.slotId} style={styles.resourceGroup}>
@@ -607,6 +740,58 @@ export function SupportPlanScreen({
         throw error
       }
     },
+  })
+  const currentActionsQuery = useQuery({
+    queryKey: [
+      'support-plan',
+      subject,
+      'actions',
+      currentQuery.data?.supportPlanId,
+    ],
+    enabled: Boolean(subject && currentQuery.data?.supportPlanId),
+    retry: false,
+    queryFn: () => api.getActions(currentQuery.data!.supportPlanId),
+  })
+  const draftActionsQuery = useQuery({
+    queryKey: [
+      'support-plan',
+      subject,
+      'actions',
+      draftQuery.data?.supportPlanId,
+    ],
+    enabled: Boolean(subject && draftQuery.data?.supportPlanId),
+    retry: false,
+    queryFn: () => api.getActions(draftQuery.data!.supportPlanId),
+  })
+  const currentProfessionalAction = professionalSupportAction(
+    currentActionsQuery.data,
+  )
+  const draftProfessionalAction = professionalSupportAction(
+    draftActionsQuery.data,
+  )
+  const currentAppointmentQuery = useQuery({
+    queryKey: [
+      'support-plan',
+      subject,
+      'professional-appointments',
+      currentProfessionalAction?.actionId,
+    ],
+    enabled: Boolean(subject && currentProfessionalAction),
+    retry: false,
+    staleTime: 0,
+    queryFn: () => api.getAppointments(currentProfessionalAction!.actionId),
+  })
+  const draftAppointmentQuery = useQuery({
+    queryKey: [
+      'support-plan',
+      subject,
+      'professional-appointments',
+      draftProfessionalAction?.actionId,
+    ],
+    enabled: Boolean(subject && draftProfessionalAction),
+    retry: false,
+    staleTime: 0,
+    queryFn: () => api.getAppointments(draftProfessionalAction!.actionId),
   })
 
   const currentSupportsOccurrences =
@@ -1063,12 +1248,33 @@ export function SupportPlanScreen({
 
       {current && (
         <PlanCard
+          {...(currentProfessionalAction
+            ? {
+                professionalAction: currentProfessionalAction,
+                appointment: latestAppointmentFor(
+                  currentProfessionalAction,
+                  currentAppointmentQuery.data,
+                ),
+              }
+            : {})}
           busy={busy}
           canActivate={false}
+          appointmentUnavailable={Boolean(
+            currentProfessionalAction && currentAppointmentQuery.isError,
+          )}
+          professionalSupportError={currentActionsQuery.isError}
+          professionalSupportRefreshing={
+            currentActionsQuery.isFetching || currentAppointmentQuery.isFetching
+          }
           plan={current}
           title="Kế hoạch hiện tại"
           onActivate={() => undefined}
           onChangeChoice={() => undefined}
+          onRetryProfessionalSupport={() => {
+            void currentActionsQuery.refetch()
+            if (currentProfessionalAction)
+              void currentAppointmentQuery.refetch()
+          }}
           onStatus={(status) =>
             runGovernedMutation(() =>
               statusMutation.mutate({ plan: current, status }),
@@ -1078,8 +1284,24 @@ export function SupportPlanScreen({
       )}
       {draft && (
         <PlanCard
+          {...(draftProfessionalAction
+            ? {
+                professionalAction: draftProfessionalAction,
+                appointment: latestAppointmentFor(
+                  draftProfessionalAction,
+                  draftAppointmentQuery.data,
+                ),
+              }
+            : {})}
           busy={busy}
           canActivate={!current}
+          appointmentUnavailable={Boolean(
+            draftProfessionalAction && draftAppointmentQuery.isError,
+          )}
+          professionalSupportError={draftActionsQuery.isError}
+          professionalSupportRefreshing={
+            draftActionsQuery.isFetching || draftAppointmentQuery.isFetching
+          }
           plan={draft}
           title={current ? 'Phương án thay thế' : 'Kế hoạch đề xuất'}
           onActivate={() =>
@@ -1090,6 +1312,10 @@ export function SupportPlanScreen({
               choiceMutation.mutate({ plan: draft, slotId, resourceId }),
             )
           }
+          onRetryProfessionalSupport={() => {
+            void draftActionsQuery.refetch()
+            if (draftProfessionalAction) void draftAppointmentQuery.refetch()
+          }}
           onStatus={(status) =>
             runGovernedMutation(() =>
               statusMutation.mutate({ plan: draft, status }),
@@ -1301,6 +1527,20 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     marginBottom: spacing.xl,
     padding: spacing.xl,
+  },
+  professionalPanel: {
+    backgroundColor: colors.tealPale,
+    borderColor: colors.tealDeep,
+    borderRadius: radii.panel,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  professionalEyebrow: {
+    color: colors.tealDeep,
+    fontSize: typography.eyebrow,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   replacePanel: {
     backgroundColor: colors.tealPale,

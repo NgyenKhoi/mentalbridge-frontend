@@ -336,6 +336,7 @@ export type AppointmentRequestInput = Readonly<{
   slotId: string
   modality: AppointmentModality
   replacesAppointmentId?: string | null
+  originatingPlanActionId?: string | null
 }>
 export type BookableSlot = Readonly<{
   id: string
@@ -391,6 +392,7 @@ export type Appointment = Readonly<{
   heldCreditId: string
   replacesAppointmentId: string | null
   replacedByAppointmentId: string | null
+  originatingPlanActionId?: string | null
   decidedAt: string | null
   decisionReason:
     | 'SPECIALIST_ACCEPTED'
@@ -2003,6 +2005,11 @@ export function parseAppointment(value: unknown): Appointment | null {
       item.replacedByAppointmentId === null ||
       uuid(item.replacedByAppointmentId)
     ) ||
+    !(
+      item.originatingPlanActionId === undefined ||
+      item.originatingPlanActionId === null ||
+      uuid(item.originatingPlanActionId)
+    ) ||
     !(item.decidedAt === null || utcInstant(item.decidedAt)) ||
     ![
       'SPECIALIST_ACCEPTED',
@@ -2053,7 +2060,10 @@ export function parseAppointment(value: unknown): Appointment | null {
     !validAppointmentOutcome(item)
   )
     return null
-  return item as Appointment
+  return {
+    ...item,
+    originatingPlanActionId: item.originatingPlanActionId ?? null,
+  } as Appointment
 }
 
 function validAppointmentOutcome(item: Record<string, unknown>) {
@@ -2511,9 +2521,14 @@ export function parseAppointmentRequestInput(
   const keys = Object.keys(input)
   if (
     keys.length < 2 ||
-    keys.length > 3 ||
+    keys.length > 4 ||
     !keys.every((key) =>
-      ['slotId', 'modality', 'replacesAppointmentId'].includes(key),
+      [
+        'slotId',
+        'modality',
+        'replacesAppointmentId',
+        'originatingPlanActionId',
+      ].includes(key),
     ) ||
     !uuid(input.slotId)
   )
@@ -2526,12 +2541,21 @@ export function parseAppointmentRequestInput(
     !uuid(input.replacesAppointmentId)
   )
     throw new ConsultationInputError('replacesAppointmentId')
+  if (
+    input.originatingPlanActionId !== undefined &&
+    input.originatingPlanActionId !== null &&
+    !uuid(input.originatingPlanActionId)
+  )
+    throw new ConsultationInputError('originatingPlanActionId')
   return {
     slotId: input.slotId,
     modality: input.modality as AppointmentModality,
     ...(input.replacesAppointmentId === undefined
       ? {}
       : { replacesAppointmentId: input.replacesAppointmentId }),
+    ...(input.originatingPlanActionId === undefined
+      ? {}
+      : { originatingPlanActionId: input.originatingPlanActionId }),
   }
 }
 

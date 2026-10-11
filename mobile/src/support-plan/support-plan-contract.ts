@@ -122,6 +122,41 @@ export const supportPlanSchema = z
   })
   .strict()
 
+const planActionProjectionSchema = z.object({
+  actionId: z.string().min(1).max(128),
+  actionType: z.enum([
+    'RESOURCE',
+    'JOURNAL',
+    'EMOTION_CHECK_IN',
+    'ROUTINE_SELF_MANAGEMENT',
+    'PROFESSIONAL_SUPPORT',
+    'REASSESSMENT_SCREENING',
+    'SELF_REPORT_REVIEW',
+  ]),
+  status: z.enum(['DRAFT', 'ACTIVE', 'ENDED']),
+  pathRole: z.enum(['PRIMARY', 'ADJUNCT']),
+  purposeCode: z.string().min(1).max(64),
+  presentation: z.object({
+    title: z.string().min(1).max(255),
+    summary: z.string().min(1).max(4096).nullable(),
+  }),
+})
+
+export const supportPlanActionsSchema = z.object({
+  supportPlanId: z.uuid(),
+  modelVersion: z.literal(3),
+  representationMode: z.enum(['V2_RESOURCE_ADAPTER', 'NATIVE_V3']),
+  focuses: z
+    .array(
+      z.object({
+        focusId: z.string().min(1).max(128),
+        actions: z.array(planActionProjectionSchema).min(1).max(20),
+      }),
+    )
+    .min(1)
+    .max(20),
+})
+
 export const supportPlanHistorySchema = z
   .object({
     items: z.array(supportPlanSchema).max(50),
@@ -359,6 +394,8 @@ export const replacementReviewSchema = z
 export const reassessmentSummaryReferenceSchema = reassessmentSummarySchema
 
 export type SupportPlan = z.infer<typeof supportPlanSchema>
+export type SupportPlanActions = z.infer<typeof supportPlanActionsSchema>
+export type PlanActionProjection = z.infer<typeof planActionProjectionSchema>
 export type SupportPlanHistory = z.infer<typeof supportPlanHistorySchema>
 export type SupportPlanOccurrence = z.infer<typeof occurrenceSchema>
 export type SupportPlanOccurrenceList = z.infer<typeof occurrenceListSchema>

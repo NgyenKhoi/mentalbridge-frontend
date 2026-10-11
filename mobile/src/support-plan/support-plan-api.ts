@@ -1,4 +1,10 @@
 import type { AxiosInstance } from 'axios'
+import { z } from 'zod'
+
+import {
+  appointmentListSchema,
+  type AppointmentList,
+} from '@/appointments/appointment-contract'
 
 import {
   occurrenceListSchema,
@@ -7,12 +13,14 @@ import {
   reassessmentSummaryReferenceSchema,
   replacementReviewSchema,
   supportPlanHistorySchema,
+  supportPlanActionsSchema,
   supportPlanSchema,
   type OccurrenceEngagement,
   type PlanChangeRequest,
   type ReplacementReview,
   type SupportPlan,
   type SupportPlanHistory,
+  type SupportPlanActions,
   type SupportPlanOccurrence,
   type SupportPlanOccurrenceList,
 } from './support-plan-contract'
@@ -21,6 +29,8 @@ export interface SupportPlanApi {
   getCurrent(): Promise<SupportPlan>
   getCurrentDraft(): Promise<SupportPlan>
   getHistory(): Promise<SupportPlanHistory>
+  getActions(supportPlanId: string): Promise<SupportPlanActions>
+  getAppointments(originatingPlanActionId: string): Promise<AppointmentList>
   replaceChoices(
     plan: SupportPlan,
     slotSelections: readonly {
@@ -79,6 +89,24 @@ export function createSupportPlanApi(client: AxiosInstance): SupportPlanApi {
         params: { limit: 10 },
       })
       return supportPlanHistorySchema.parse(response.data)
+    },
+    async getActions(supportPlanId) {
+      const response = await client.get(
+        `/api/v2/support-plans/${encodeURIComponent(supportPlanId)}`,
+      )
+      const value = supportPlanActionsSchema.parse(response.data)
+      if (value.supportPlanId !== supportPlanId) {
+        throw new Error('SupportPlan action projection identity mismatch.')
+      }
+      return value
+    },
+    async getAppointments(originatingPlanActionId) {
+      const response = await client.get('/api/v1/appointments', {
+        params: {
+          originatingPlanActionId: z.uuid().parse(originatingPlanActionId),
+        },
+      })
+      return appointmentListSchema.parse(response.data)
     },
     async replaceChoices(plan, slotSelections) {
       const response = await client.put(

@@ -153,6 +153,7 @@ type DetailDialogProps = Readonly<{
   onClose: () => void
   onRetry: () => void
   onBooked: () => void
+  originatingPlanActionId: string | null
 }>
 
 function DetailDialog({
@@ -164,6 +165,7 @@ function DetailDialog({
   onClose,
   onRetry,
   onBooked,
+  originatingPlanActionId,
 }: DetailDialogProps) {
   const { showActionToast } = useFeedback()
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
@@ -178,11 +180,23 @@ function DetailDialog({
     setSubmitting(true)
     setBookingMessage('')
     try {
-      await appointmentBrowserClient.request(
-        slot.id,
-        slot.modality,
-        `appointment-${crypto.randomUUID()}`,
-      )
+      const commandKey = `appointment-${crypto.randomUUID()}`
+      if (originatingPlanActionId) {
+        await appointmentBrowserClient.request(
+          slot.id,
+          slot.modality,
+          commandKey,
+          undefined,
+          undefined,
+          originatingPlanActionId,
+        )
+      } else {
+        await appointmentBrowserClient.request(
+          slot.id,
+          slot.modality,
+          commandKey,
+        )
+      }
       showActionToast({
         title: 'Đã gửi yêu cầu đặt lịch',
         description: 'Chuyên gia sẽ xác nhận yêu cầu của bạn.',
@@ -421,6 +435,26 @@ function DetailDialog({
 }
 
 export default function SpecialistDiscovery() {
+  const [originatingPlanActionId, setOriginatingPlanActionId] = useState<
+    string | null
+  >(null)
+  useEffect(() => {
+    const hydrationTimer = window.setTimeout(() => {
+      const candidate = new URLSearchParams(window.location.search).get(
+        'planActionId',
+      )
+      setOriginatingPlanActionId(
+        candidate &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            candidate,
+          )
+          ? candidate
+          : null,
+      )
+    }, 0)
+
+    return () => window.clearTimeout(hydrationTimer)
+  }, [])
   const [supportArea, setSupportArea] = useState<
     DiscoveryFilters['supportArea'] | ''
   >('')
@@ -762,6 +796,7 @@ export default function SpecialistDiscovery() {
         }}
         onRetry={() => detailId && void loadDetail(detailId)}
         onBooked={() => void booked()}
+        originatingPlanActionId={originatingPlanActionId}
       />
     </main>
   )

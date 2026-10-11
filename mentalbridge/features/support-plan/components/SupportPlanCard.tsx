@@ -9,6 +9,7 @@ import type {
   SupportPlan,
 } from '../api/support-plan-contract'
 import SupportPlanSchedule from './SupportPlanSchedule'
+import ProfessionalSupportPath from './ProfessionalSupportPath'
 
 const domainLabel = {
   DEPRESSIVE_SYMPTOMS: 'Hỗ trợ dấu hiệu trầm cảm',
@@ -129,6 +130,11 @@ export default function SupportPlanCard({
           'aria-labelledby': `tab-${tab}`,
         }
   const safetyPositive = plan.safety.status === 'POSITIVE_SAFETY_SCREEN'
+  const professionalSupportRequired = plan.templateFamilies.some(
+    ({ family }) =>
+      family === 'DEPRESSIVE_PROFESSIONAL_ADJUNCT' ||
+      family === 'ANXIETY_PROFESSIONAL_ADJUNCT',
+  )
   const statusLabel = {
     DRAFT: 'Chưa bắt đầu',
     ACTIVE: 'Đang hoạt động',
@@ -257,6 +263,12 @@ export default function SupportPlanCard({
             Thông tin an toàn không phụ thuộc vào AI hoặc gói dịch vụ.
           </small>
         </section>
+
+        <ProfessionalSupportPath
+          key={plan.supportPlanId}
+          professionalSupportRequired={professionalSupportRequired}
+          supportPlanId={plan.supportPlanId}
+        />
 
         {/* Vì sao có đề xuất này dạng expand/collapse */}
         <Disclosure

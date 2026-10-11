@@ -4,6 +4,8 @@ import {
   type InternalAxiosRequestConfig,
 } from 'axios'
 
+import { appointment, credits } from '@/appointments/appointment-fixtures'
+
 import { createSupportPlanApi } from './support-plan-api'
 import {
   makeOccurrence,
@@ -13,6 +15,65 @@ import {
 } from './support-plan-test-fixtures'
 
 describe('Care mobile SupportPlan API contract', () => {
+  it('reads the Care action projection and Consultation progress without joining ownership', async () => {
+    const requests: InternalAxiosRequestConfig[] = []
+    const plan = makePlan('ACTIVE')
+    const actionId = '11111111-1111-4111-8111-111111111111'
+    const projection = {
+      supportPlanId: plan.supportPlanId,
+      modelVersion: 3,
+      representationMode: 'V2_RESOURCE_ADAPTER',
+      focuses: [
+        {
+          focusId: 'professional-support',
+          actions: [
+            {
+              actionId,
+              actionType: 'PROFESSIONAL_SUPPORT',
+              status: 'ACTIVE',
+              pathRole: 'PRIMARY',
+              purposeCode: 'CONNECT_WITH_PROFESSIONAL_SUPPORT',
+              presentation: {
+                title: 'Kết nối với chuyên gia',
+                summary: 'Hướng hỗ trợ chính.',
+              },
+            },
+          ],
+        },
+      ],
+    }
+    const adapter: AxiosAdapter = async (request) => {
+      requests.push(request)
+      return {
+        config: request,
+        data:
+          requests.length === 1
+            ? projection
+            : {
+                items: [{ ...appointment, originatingPlanActionId: actionId }],
+                count: 1,
+                generatedAt: credits.generatedAt,
+              },
+        headers: {},
+        status: 200,
+        statusText: 'OK',
+      }
+    }
+    const api = createSupportPlanApi(create({ adapter }))
+
+    expect(
+      (await api.getActions(plan.supportPlanId)).focuses[0]?.actions[0],
+    ).toMatchObject({ actionId, pathRole: 'PRIMARY' })
+    expect(
+      (await api.getAppointments(actionId)).items[0]?.originatingPlanActionId,
+    ).toBe(actionId)
+    expect(requests.map((request) => request.url)).toEqual([
+      `/api/v2/support-plans/${plan.supportPlanId}`,
+      '/api/v1/appointments',
+    ])
+    expect(requests[1]?.params).toEqual({ originatingPlanActionId: actionId })
+  })
+
   it('activates the exact draft with optimistic concurrency and idempotency', async () => {
     const requests: InternalAxiosRequestConfig[] = []
     const active = makePlan('ACTIVE')
