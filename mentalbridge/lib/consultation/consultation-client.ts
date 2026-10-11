@@ -69,6 +69,8 @@ import {
 import {
   parsePlanPayment,
   parseServicePlanCatalogue,
+  parseAdminPaymentList,
+  parsePlanPaymentHistory,
   type PlanPayment,
   type ServicePlanCatalogue,
 } from './billing-validation'
@@ -429,6 +431,33 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseAdminPayoutList,
+    })
+  },
+  adminPayments(token: string, correlationId: string) {
+    return request({
+      method: 'GET',
+      path: '/api/v1/admin/payments',
+      token,
+      correlationId,
+      parse: parseAdminPaymentList,
+    })
+  },
+  planPayment(token: string, correlationId: string, paymentId: string) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/payments/${encodeURIComponent(paymentId)}`,
+      token,
+      correlationId,
+      parse: parsePlanPayment,
+    })
+  },
+  planPayments(token: string, correlationId: string) {
+    return request({
+      method: 'GET',
+      path: '/api/v1/payments',
+      token,
+      correlationId,
+      parse: parsePlanPaymentHistory,
     })
   },
   appointmentRating(

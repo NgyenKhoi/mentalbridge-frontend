@@ -786,6 +786,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ADMIN-only bounded read of canonical purchase/upgrade facts. No customer profile, checkout destination, raw provider payload, or computed revenue is returned. */
+        get: operations["listAdminPayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/payouts": {
         parameters: {
             query?: never;
@@ -1076,6 +1093,7 @@ export interface components {
             planCode: components["schemas"]["ServicePackage"];
             version: string;
             displayName: string;
+            pricingPolicyVersion?: components["schemas"]["CommercialPricingPolicy"];
             /** @constant */
             currency: "VND";
             /** Format: int64 */
@@ -1095,6 +1113,11 @@ export interface components {
             /** Format: date-time */
             effectiveFrom: string;
         };
+        /**
+         * @description Additive owner policy provenance. sandbox-full-price-v1 is synthetic/test pricing only, charging the full target price without an offset; it does not enable production payment or payout. Historical responses may omit this field and retain upgrade-offset-v1 behavior.
+         * @enum {string}
+         */
+        CommercialPricingPolicy: "upgrade-offset-v1" | "sandbox-full-price-v1";
         CreatePlanCheckout: {
             /** Format: uuid */
             planVersionId: string;
@@ -1109,6 +1132,7 @@ export interface components {
             /** @enum {string} */
             planCode: "PLUS" | "PREMIUM";
             planVersion: string;
+            pricingPolicyVersion?: components["schemas"]["CommercialPricingPolicy"];
             /** @enum {string} */
             purpose: "PURCHASE" | "UPGRADE";
             /** @enum {string} */
@@ -1119,8 +1143,11 @@ export interface components {
             amountVnd: number;
             /** @constant */
             currency: "VND";
-            /** Format: uri */
-            checkoutUrl: string;
+            /**
+             * Format: uri
+             * @description Null while provider checkout creation is unconfirmed. The canonical pending payment remains auditable; do not redirect or automatically resend a charge. Verified IPN remains authoritative even when checkout creation times out.
+             */
+            checkoutUrl: string | null;
             /** Format: uri */
             qrCodeUrl: string | null;
             /** Format: date-time */
@@ -1684,6 +1711,11 @@ export interface components {
             currency: "VND";
             /** @constant */
             earningPolicyVersion: "specialist-earning-v1";
+            /**
+             * @description Optional additive field identifying the configured withdrawal adapter even before a destination exists. FAKE is synthetic and does not move money.
+             * @enum {string}
+             */
+            payoutProvider?: "FAKE" | "MOMO";
             /** @constant */
             settlementHoldDays: 7;
             /**
@@ -1697,6 +1729,39 @@ export interface components {
             destination?: components["schemas"]["PayoutDestination"] | null;
             earnings: components["schemas"]["SpecialistEarning"][];
             payouts: components["schemas"]["SpecialistPayout"][];
+        };
+        AdminPaymentList: {
+            /** Format: date-time */
+            generatedAt: string;
+            count: number;
+            items: components["schemas"]["AdminPayment"][];
+        };
+        AdminPayment: {
+            /** Format: uuid */
+            paymentId: string;
+            /** Format: uuid */
+            subscriptionId: string;
+            /** Format: uuid */
+            planVersionId: string;
+            /** @enum {string} */
+            planCode: "PLUS" | "PREMIUM";
+            pricingPolicyVersion: components["schemas"]["CommercialPricingPolicy"];
+            /** @enum {string} */
+            purpose: "PURCHASE" | "UPGRADE";
+            /** @enum {string} */
+            provider: "FAKE" | "MOMO";
+            /** @enum {string} */
+            status: "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
+            /** Format: int64 */
+            amountVnd: number;
+            /** @constant */
+            currency: "VND";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            paidAt: string | null;
+            /** Format: date-time */
+            failedAt: string | null;
         };
         AdminPayout: {
             /** Format: uuid */
@@ -4013,6 +4078,28 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["ConflictProblem"];
+        };
+    };
+    listAdminPayments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent canonical payment facts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPaymentList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     listAdminPayouts: {
