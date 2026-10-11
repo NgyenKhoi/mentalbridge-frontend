@@ -14,6 +14,8 @@ import {
   replacementReviewSchema,
   supportPlanHistorySchema,
   supportPlanActionsSchema,
+  supportPlanPersonalizationSchema,
+  supportPlanPersonalizationRequestSchema,
   supportPlanSchema,
   type OccurrenceEngagement,
   type PlanChangeRequest,
@@ -23,6 +25,8 @@ import {
   type SupportPlanActions,
   type SupportPlanOccurrence,
   type SupportPlanOccurrenceList,
+  type SupportPlanPersonalizationAuthority,
+  type SupportPlanPersonalizationRequest,
 } from './support-plan-contract'
 
 export interface SupportPlanApi {
@@ -31,6 +35,11 @@ export interface SupportPlanApi {
   getHistory(): Promise<SupportPlanHistory>
   getActions(supportPlanId: string): Promise<SupportPlanActions>
   getAppointments(originatingPlanActionId: string): Promise<AppointmentList>
+  getPersonalization(): Promise<SupportPlanPersonalizationAuthority>
+  replacePersonalization(
+    request: SupportPlanPersonalizationRequest,
+    etag: string,
+  ): Promise<SupportPlanPersonalizationAuthority>
   replaceChoices(
     plan: SupportPlan,
     slotSelections: readonly {
@@ -75,6 +84,20 @@ export interface SupportPlanApi {
 }
 
 export function createSupportPlanApi(client: AxiosInstance): SupportPlanApi {
+  const personalizationAuthority = (
+    value: unknown,
+    etag: unknown,
+  ): SupportPlanPersonalizationAuthority => {
+    const parsed = supportPlanPersonalizationSchema.parse(value)
+    return {
+      value: parsed,
+      etag:
+        typeof etag === 'string' && /^"[0-9]+"$/.test(etag)
+          ? etag
+          : `"${parsed.revision}"`,
+    }
+  }
+
   return {
     async getCurrent() {
       const response = await client.get('/api/v1/support-plans/current')
@@ -107,6 +130,19 @@ export function createSupportPlanApi(client: AxiosInstance): SupportPlanApi {
         },
       })
       return appointmentListSchema.parse(response.data)
+    },
+    async getPersonalization() {
+      const response = await client.get('/api/v2/support-plan-personalization')
+      return personalizationAuthority(response.data, response.headers.etag)
+    },
+    async replacePersonalization(request, etag) {
+      const body = supportPlanPersonalizationRequestSchema.parse(request)
+      const response = await client.put(
+        '/api/v2/support-plan-personalization',
+        body,
+        { headers: { 'If-Match': etag } },
+      )
+      return personalizationAuthority(response.data, response.headers.etag)
     },
     async replaceChoices(plan, slotSelections) {
       const response = await client.put(

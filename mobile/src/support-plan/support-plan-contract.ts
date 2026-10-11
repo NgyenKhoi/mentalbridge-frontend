@@ -150,6 +150,17 @@ export const supportPlanActionsSchema = z.object({
     .array(
       z.object({
         focusId: z.string().min(1).max(128),
+        title: z.string().min(1).max(255),
+        rationale: z.string().min(1).max(2048).nullable(),
+        personalizationProvenance: z
+          .object({
+            personalizationId: z.uuid(),
+            revision: z.number().int().min(1),
+            schemaVersion: z.literal('support-plan-personalization-v1'),
+            reasonCode: z.literal('USER_PREFERENCE_AND_CARE_POLICY'),
+          })
+          .strict()
+          .nullable(),
         actions: z.array(planActionProjectionSchema).min(1).max(20),
       }),
     )
@@ -239,6 +250,69 @@ export const occurrenceListSchema = z
     ),
   })
   .strict()
+
+export const supportPlanPersonalizationRequestSchema = z
+  .object({
+    preferredFocus: z
+      .enum([
+        'ANXIETY',
+        'MOOD',
+        'SLEEP',
+        'MOTIVATION',
+        'UNDERSTANDING_EMOTIONS',
+      ])
+      .nullable(),
+    desiredPace: z.enum(['GENTLE', 'BALANCED', 'ACTIVE']).nullable(),
+    dailyTimeBudgetMinutes: z
+      .union([
+        z.literal(5),
+        z.literal(10),
+        z.literal(15),
+        z.literal(20),
+        z.literal(30),
+      ])
+      .nullable(),
+    preferredDaypart: z
+      .enum(['MORNING', 'AFTERNOON', 'EVENING', 'FLEXIBLE'])
+      .nullable(),
+    preferredActivityModes: z
+      .array(
+        z.enum([
+          'READING',
+          'GUIDED_PRACTICE',
+          'JOURNALING',
+          'EMOTION_CHECK_IN',
+          'ROUTINE',
+        ]),
+      )
+      .max(5),
+    commonBarriers: z
+      .array(z.enum(['LOW_ENERGY', 'LIMITED_TIME', 'DIFFICULT_TO_START']))
+      .max(3),
+  })
+  .strict()
+
+export const supportPlanPersonalizationSchema =
+  supportPlanPersonalizationRequestSchema.extend({
+    personalizationId: z.uuid().nullable(),
+    schemaVersion: z.literal('support-plan-personalization-v1'),
+    revision: z.number().int().nonnegative(),
+    status: z.enum(['NOT_PROVIDED', 'PROVIDED', 'SKIPPED']),
+    submittedAt: z.iso.datetime().nullable(),
+    planReview: z
+      .object({
+        required: z.boolean(),
+        supportPlanId: z.uuid().nullable(),
+        supportPlanVersion: z.number().int().nonnegative().nullable(),
+        reasonCode: z
+          .enum([
+            'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION',
+            'PREFERENCES_CHANGED_AFTER_PLAN_ACTIVATION',
+          ])
+          .nullable(),
+      })
+      .strict(),
+  })
 
 const planChangeResourceSchema = z
   .object({
@@ -399,6 +473,16 @@ export type PlanActionProjection = z.infer<typeof planActionProjectionSchema>
 export type SupportPlanHistory = z.infer<typeof supportPlanHistorySchema>
 export type SupportPlanOccurrence = z.infer<typeof occurrenceSchema>
 export type SupportPlanOccurrenceList = z.infer<typeof occurrenceListSchema>
+export type SupportPlanPersonalizationRequest = z.infer<
+  typeof supportPlanPersonalizationRequestSchema
+>
+export type SupportPlanPersonalization = z.infer<
+  typeof supportPlanPersonalizationSchema
+>
+export type SupportPlanPersonalizationAuthority = Readonly<{
+  value: SupportPlanPersonalization
+  etag: string
+}>
 export type PlanChangeRequest = z.infer<typeof planChangeRequestSchema>
 export type ReplacementReview = z.infer<typeof replacementReviewSchema>
 export type OccurrenceEngagement = Readonly<{

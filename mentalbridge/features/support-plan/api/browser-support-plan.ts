@@ -10,7 +10,44 @@ import type {
   ReplaceCurrentSupportPlanRequest,
   SupportPlanReplacementReview,
   SupportPlanV3,
+  SupportPlanPersonalization,
+  ReplaceSupportPlanPersonalizationRequest,
 } from './support-plan-contract'
+
+export type SupportPlanPersonalizationAuthority = Readonly<{
+  value: SupportPlanPersonalization
+  etag: string
+}>
+
+function personalizationAuthority(
+  value: SupportPlanPersonalization,
+  etag: unknown,
+): SupportPlanPersonalizationAuthority {
+  const fallback = `"${value.revision}"`
+  return {
+    value,
+    etag: typeof etag === 'string' && /^"[0-9]+"$/.test(etag) ? etag : fallback,
+  }
+}
+
+export async function getSupportPlanPersonalization() {
+  const response = await browserApiClient.get<SupportPlanPersonalization>(
+    '/care/support-plan-personalization',
+  )
+  return personalizationAuthority(response.data, response.headers.etag)
+}
+
+export async function replaceSupportPlanPersonalization(
+  request: ReplaceSupportPlanPersonalizationRequest,
+  etag: string,
+) {
+  const response = await browserApiClient.put<SupportPlanPersonalization>(
+    '/care/support-plan-personalization',
+    request,
+    { headers: { 'If-Match': etag } },
+  )
+  return personalizationAuthority(response.data, response.headers.etag)
+}
 
 export async function proposeSupportPlanDraft(
   idempotencyKey: string,

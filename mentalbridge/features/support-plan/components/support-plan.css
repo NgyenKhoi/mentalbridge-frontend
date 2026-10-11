@@ -10,6 +10,267 @@
   animation: mb-page-enter var(--motion-medium) var(--ease-standard) both;
 }
 
+.mb-personalization {
+  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+  padding: clamp(1.25rem, 4vw, 2.25rem);
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--line));
+  border-radius: var(--radius-panel);
+  background:
+    radial-gradient(
+      circle at 94% 5%,
+      color-mix(in srgb, var(--teal-pale) 74%, transparent),
+      transparent 28%
+    ),
+    var(--surface);
+  box-shadow: var(--elevation-1);
+  animation: mb-personalization-enter var(--motion-medium) var(--ease-standard)
+    both;
+}
+
+.mb-personalization-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.mb-personalization-heading > svg {
+  flex: 0 0 auto;
+  box-sizing: content-box;
+  padding: 0.75rem;
+  border-radius: 50%;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.mb-personalization-heading h2,
+.mb-personalization-error h2 {
+  max-width: 21ch;
+  margin: 0.25rem 0 0.6rem;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(1.55rem, 3vw, 2.15rem);
+  line-height: 1.2;
+}
+
+.mb-personalization-heading p:not(.mb-personalization-kicker) {
+  max-width: 66ch;
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.mb-personalization-kicker {
+  margin: 0;
+  color: var(--teal-deep);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mb-personalization-review {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-left: 3px solid var(--teal-deep);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--teal-pale) 68%, var(--surface));
+}
+
+.mb-personalization-review > svg {
+  color: var(--teal-deep);
+}
+
+.mb-personalization-review p {
+  margin: 0.2rem 0 0;
+  color: var(--text-secondary);
+}
+
+.mb-personalization form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: clamp(1.25rem, 4vw, 3rem);
+}
+
+.mb-personalization-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 1.5rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.mb-personalization-fieldset legend {
+  padding: 0;
+  color: var(--ink);
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.mb-personalization-hint {
+  margin: 0.35rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.mb-personalization-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
+.mb-personalization-choices label,
+.mb-personalization-choices button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.58rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+.mb-personalization-choices input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mb-personalization-choices .is-selected {
+  border-color: var(--teal-deep);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  box-shadow: inset 0 0 0 1px var(--teal-deep);
+}
+
+.mb-personalization-choices label:has(input:focus-visible),
+.mb-personalization-choices button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.mb-personalization-message,
+.mb-personalization-error {
+  grid-column: 1 / -1;
+  margin: 1.25rem 0 0;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-control);
+}
+
+.mb-personalization-message p {
+  margin: 0 0 0.75rem;
+}
+
+.mb-personalization-message.is-success {
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.mb-personalization-message.is-error,
+.mb-personalization-error {
+  border: 1px solid color-mix(in srgb, var(--terracotta) 36%, var(--line));
+  background: color-mix(in srgb, var(--terracotta) 8%, var(--surface));
+  color: #8a352c;
+}
+
+.mb-personalization-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 1.5rem;
+}
+
+.mb-personalization-actions > span {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+@keyframes mb-personalization-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mb-personalization-choices label:hover,
+  .mb-personalization-choices button:hover {
+    border-color: var(--teal-deep);
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 760px) {
+  .mb-personalization form {
+    grid-template-columns: 1fr;
+  }
+
+  .mb-personalization-review {
+    grid-template-columns: auto 1fr;
+  }
+
+  .mb-personalization-review .btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .mb-personalization {
+    padding: 1.15rem;
+    border-radius: 1rem;
+  }
+
+  .mb-personalization-heading > svg {
+    display: none;
+  }
+
+  .mb-personalization-choices > * {
+    flex: 1 1 calc(50% - 0.6rem);
+    justify-content: center;
+    text-align: center;
+  }
+
+  .mb-personalization-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-personalization {
+    animation: none;
+  }
+
+  .mb-personalization-choices label,
+  .mb-personalization-choices button {
+    transition: none;
+  }
+}
+
 .support-plan-reassessment-callout,
 .support-plan-replacement,
 .support-plan-replacement-error {
@@ -1352,6 +1613,60 @@
   margin: 0 0 0.5rem;
   color: var(--ink-soft);
   line-height: 1.6;
+}
+
+.support-plan-focus-summary {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.support-plan-focus-summary > p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.support-plan-focus-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--line));
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--teal-pale) 35%, var(--surface));
+}
+
+.support-plan-focus-item > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.support-plan-focus-item h4,
+.support-plan-focus-item p {
+  margin: 0;
+}
+
+.support-plan-focus-item h4 {
+  color: var(--ink);
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+}
+
+.support-plan-focus-item p {
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.support-plan-focus-item span {
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 0.8125rem;
+  font-weight: 750;
 }
 
 .support-plan-evaluation-disclosure {

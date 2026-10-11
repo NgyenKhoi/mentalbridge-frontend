@@ -2,10 +2,15 @@
 
 ## Stitch-first UI workflow
 
-For a new page direction or a material user-visible redesign, start from a
-written UX brief, generate the reference UI and interaction prototype in
-Stitch, review the result against the product contracts below, then translate
-the accepted direction into repository-owned components and tokens. Keep the
+For any task that starts UI design or materially changes a user journey,
+screen composition, controls, responsive behavior, or motion, follow
+`../.codex/skills/mentalbridge-stitch-ui/SKILL.md`. Start from a written UX
+brief and a verified full-frame artifact (reuse an existing one when current),
+lock the shell/sidebar/header/tabs, edit only the declared content slot in the
+established Stitch project, inspect font and component rendering, validate a
+shell-integrated local interaction prototype, then translate the accepted
+direction into repository-owned components and tokens.
+Implementation must not begin before those prototype gates pass. Keep the
 Stitch output as design evidence; do not paste its standalone runtime or CDN
 dependencies into the production application.
 
