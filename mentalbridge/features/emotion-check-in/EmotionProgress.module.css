@@ -53,6 +53,13 @@
   border: 1px solid var(--line);
 }
 
+.sourceMeta {
+  margin: -4px 0 0;
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .progressRingWrapper {
   position: relative;
   width: 68px;

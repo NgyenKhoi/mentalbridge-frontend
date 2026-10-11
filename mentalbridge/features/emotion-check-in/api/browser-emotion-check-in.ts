@@ -3,6 +3,7 @@ import type {
   EmotionCheckInCreate,
   EmotionCheckInList,
   EmotionCheckInProgress,
+  EmotionCheckInTombstone,
   EmotionCheckInValue,
 } from '@/lib/emotion-check-in/contract'
 import { browserApiClient } from '@/lib/api/browser-client'
@@ -57,6 +58,17 @@ export async function updateEmotionCheckIn(
         'If-Match-Revision': String(revision),
       },
     },
+  )
+  return response.data
+}
+
+export async function deleteEmotionCheckIn(
+  localDate: string,
+  idempotencyKey: string,
+) {
+  const response = await browserApiClient.delete<EmotionCheckInTombstone>(
+    `/emotion-check-ins/${encodeURIComponent(localDate)}`,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
   )
   return response.data
 }

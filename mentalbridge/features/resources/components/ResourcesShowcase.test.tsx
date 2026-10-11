@@ -7,6 +7,10 @@ import type { ResourceProgressItem } from '../api/browser-resource-progress'
 import type { PublicResourceSummary } from '../api/browser-resources'
 import ResourcesShowcase from './ResourcesShowcase'
 
+vi.mock('@/features/emotion-check-in/TodayEmotionSummary', () => ({
+  TodayEmotionSummary: () => <div data-testid="today-emotion-summary" />,
+}))
+
 const api = vi.hoisted(() => ({
   getResourceCatalogue: vi.fn(),
   getResourceProgress: vi.fn(),

@@ -80,7 +80,8 @@ describe('EmotionProgress', () => {
     expect(screen.getByText('4 ngày')).toBeVisible()
     expect(screen.getByText('9 ngày')).toBeVisible()
     expect(screen.getByText('4/7')).toBeVisible()
-    expect(screen.getByText(/27\/09\/2026/)).toBeVisible()
+    expect(screen.getAllByText(/27\/09\/2026/)).toHaveLength(2)
+    expect(screen.getByText(/Múi giờ Asia\/Ho_Chi_Minh/)).toBeVisible()
     expect(screen.getByText('Cường độ 4/5')).toBeVisible()
     expect(screen.getByText('Xem nhật ký →')).toBeVisible()
     expect(
@@ -136,5 +137,57 @@ describe('EmotionProgress', () => {
     expect(
       screen.queryByText('private dependency detail'),
     ).not.toBeInTheDocument()
+  })
+
+  it('invalidates old metrics while a save or deletion refresh is pending', async () => {
+    const pendingProgress = Promise.withResolvers<EmotionCheckInProgress>()
+    const pendingHistory = Promise.withResolvers<{
+      items: EmotionCheckIn[]
+      page: { limit: number; hasMore: boolean }
+      label: 'SELF_REPORTED_EMOTION'
+      interpretation: 'NOT_DIAGNOSIS_OR_RECOVERY'
+    }>()
+    getProgress
+      .mockResolvedValueOnce(progress)
+      .mockImplementationOnce(() => pendingProgress.promise)
+    list
+      .mockResolvedValueOnce({
+        items: history,
+        page: { limit: 30, hasMore: false },
+        label: 'SELF_REPORTED_EMOTION',
+        interpretation: 'NOT_DIAGNOSIS_OR_RECOVERY',
+      })
+      .mockImplementationOnce(() => pendingHistory.promise)
+    const view = render(<EmotionProgress refreshKey={0} />)
+    expect(await screen.findByText('4/7')).toBeVisible()
+
+    view.rerender(<EmotionProgress refreshKey={1} />)
+
+    expect(await screen.findByText('Đang tải lịch sử cảm xúc…')).toBeVisible()
+    expect(screen.queryByText('4/7')).not.toBeInTheDocument()
+    pendingProgress.resolve({
+      ...progress,
+      currentEmotion: null,
+      currentStreak: 0,
+      longestStreak: 0,
+      windows: progress.windows.map((window) => ({
+        ...window,
+        checkedInDays: 0,
+        distribution: {
+          GREAT: 0,
+          GOOD: 0,
+          OKAY: 0,
+          LOW: 0,
+          VERY_LOW: 0,
+        },
+      })),
+    })
+    pendingHistory.resolve({
+      items: [],
+      page: { limit: 30, hasMore: false },
+      label: 'SELF_REPORTED_EMOTION',
+      interpretation: 'NOT_DIAGNOSIS_OR_RECOVERY',
+    })
+    expect(await screen.findByText('0/7')).toBeVisible()
   })
 })

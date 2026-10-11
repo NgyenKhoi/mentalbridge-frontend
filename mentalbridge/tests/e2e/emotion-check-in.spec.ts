@@ -39,7 +39,7 @@ function problem(status: number, code: string, title: string) {
   }
 }
 
-test('dashboard creates, retries, reloads, and updates the persisted daily emotion', async ({
+test('dashboard and Resources share, update, reload, and delete the persisted daily emotion', async ({
   context,
   page,
 }) => {
@@ -168,10 +168,71 @@ test('dashboard creates, retries, reloads, and updates the persisted daily emoti
       return
     }
 
+    if (method === 'DELETE' && stored) {
+      expect(localDate).toBe(stored.localDate)
+      expect(request.headers()['idempotency-key']).toMatch(/^emotion-check-in-/)
+      const deletedDate = stored.localDate
+      stored = null
+      await route.fulfill({
+        status: 200,
+        json: {
+          localDate: deletedDate,
+          deleted: true,
+          deletedAt: '2026-09-26T04:00:00.000Z',
+        },
+      })
+      return
+    }
+
     await route.abort()
   }
 
   await page.route('**/api/emotion-check-ins**', handle)
+  await page.route('**/api/resources**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/resources/progress') {
+      await route.fulfill({ status: 200, json: { items: [] } })
+      return
+    }
+    if (url.pathname === '/api/resources/journey') {
+      await route.fulfill({
+        status: 409,
+        contentType: 'application/problem+json',
+        body: JSON.stringify(
+          problem(409, 'ACTIVE_SUPPORT_PLAN_REQUIRED', 'Plan required'),
+        ),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      json: {
+        items: [
+          {
+            id: '00000000-0000-4000-8000-000000000215',
+            category: 'BREATHING',
+            resourceKind: 'PRACTICE',
+            interactionType: 'BREATHING_PACER',
+            repeatability: 'REPEATABLE',
+            completionMode: 'EXPLICIT',
+            streakEligible: true,
+            expectedDurationMinutes: 4,
+            cooldownDays: 0,
+            recommendedFrequencyPerWeek: 5,
+            planTags: ['ANXIETY_SYMPTOMS'],
+            locale: 'vi-VN',
+            title: 'Nhịp thở chậm',
+            summary: 'Một bài thực hành dịu dàng để trở về với hiện tại.',
+            sourceOrganization: 'MentalBridge Content Review',
+            status: 'PUBLISHED',
+            reviewedAt: '2026-09-20T00:00:00.000Z',
+            createdAt: '2026-09-01T00:00:00.000Z',
+          },
+        ],
+        hasMore: false,
+      },
+    })
+  })
   await page.goto('/dashboard')
   await expect(
     page.getByText('Hôm nay bạn chưa ghi nhận cảm xúc.'),
@@ -180,22 +241,25 @@ test('dashboard creates, retries, reloads, and updates the persisted daily emoti
     page.getByRole('radio', { name: 'Tốt', exact: true }),
   ).not.toBeChecked()
 
-  await page.getByText('Tốt', { exact: true }).click()
-  await page.getByText('4', { exact: true }).click()
+  await page
+    .locator('.ref-panel-mood')
+    .getByText('Tốt', { exact: true })
+    .click()
+  await page.locator('.ref-panel-mood').getByText('4', { exact: true }).click()
   await page.getByRole('button', { name: 'Lưu ghi nhận' }).click()
-  await expect(page.locator('.ref-mood').getByRole('alert')).toContainText(
-    'Chưa thể lưu',
-  )
+  await expect(
+    page.locator('.ref-panel-mood').getByRole('alert'),
+  ).toContainText('Chưa thể lưu')
   await expect(
     page.getByRole('radio', { name: 'Tốt', exact: true }),
   ).toBeChecked()
   await page.getByRole('button', { name: 'Thử lại' }).click()
   await expect(page.getByText('Đã lưu ghi nhận hôm nay.')).toBeVisible()
   await expect(
-    page.locator('.ref-trend').getByText('Chuỗi hiện tại'),
+    page.locator('.ref-panel-progress').getByText('Chuỗi hiện tại'),
   ).toBeVisible()
   await expect(
-    page.locator('.ref-trend').getByText('Đã ghi nhận 1/7 ngày'),
+    page.locator('.ref-panel-progress').getByText('1/7'),
   ).toBeVisible()
   expect(createKeys).toHaveLength(2)
   expect(createKeys[0]).toBe(createKeys[1])
@@ -204,20 +268,69 @@ test('dashboard creates, retries, reloads, and updates the persisted daily emoti
   await expect(
     page.getByRole('radio', { name: 'Tốt', exact: true }),
   ).toBeChecked()
-  await page.locator('.ref-mood').getByText('Rất tốt', { exact: true }).click()
+  await page
+    .locator('.ref-panel-mood')
+    .getByText('Rất tốt', { exact: true })
+    .click()
   await page.getByRole('button', { name: 'Cập nhật ghi nhận' }).click()
   await expect(page.getByText('Đã cập nhật ghi nhận hôm nay.')).toBeVisible()
   await expect(
-    page.locator('.ref-trend').getByRole('meter', { name: 'Rất tốt: 1 ngày' }),
+    page
+      .locator('.ref-panel-progress')
+      .getByRole('region', { name: 'Chi tiết ngày được chọn' })
+      .getByText('Rất tốt', { exact: true }),
   ).toBeVisible()
-  await page.setViewportSize({ width: 1440, height: 1400 })
-  await page.locator('.ref-trend').screenshot({
-    path: 'docs/evidence/mb-567-emotion-progress.png',
+
+  await context.clearCookies()
+  await authenticated(context)
+  await page.reload()
+  await expect(
+    page.getByRole('radio', { name: 'Rất tốt', exact: true }),
+  ).toBeChecked()
+
+  await page.goto('/resources')
+  const emotionCard = page.getByRole('region', {
+    name: 'Cảm xúc đã ghi hôm nay',
   })
+  await expect(emotionCard.getByText('Rất tốt', { exact: true })).toBeVisible()
+  await expect(emotionCard.getByText(/Múi giờ/)).toBeVisible()
+  await page.setViewportSize({ width: 1440, height: 1400 })
+  await emotionCard.screenshot({
+    path: 'docs/evidence/mb-657-resources-emotion.png',
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(emotionCard).toBeVisible()
+  const resourcesWidth = await page.locator('main').evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }))
+  expect(resourcesWidth.scrollWidth).toBeLessThanOrEqual(
+    resourcesWidth.clientWidth + 1,
+  )
+  await emotionCard.screenshot({
+    path: 'docs/evidence/mb-657-resources-emotion-mobile.png',
+  })
+
+  await page.goto('/dashboard')
+  await page
+    .locator('.ref-panel-mood')
+    .getByRole('button', { name: 'Xóa ghi nhận' })
+    .click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Xóa ghi nhận' })
+    .click()
+  await expect(page.getByText('Đã xóa ghi nhận cảm xúc hôm nay.')).toBeVisible()
+  await expect(
+    page.locator('.ref-panel-progress').getByText('0/7'),
+  ).toBeVisible()
+  await page.goto('/resources')
+  await expect(
+    page.getByText('Hôm nay chưa có ghi nhận cảm xúc.'),
+  ).toBeVisible()
+  await expect(emotionCard.getByText('Rất tốt', { exact: true })).toHaveCount(0)
   const finalStored = readStored()
-  expect(finalStored).not.toBeNull()
-  expect(finalStored?.emotion).toBe('GREAT')
-  expect(finalStored?.revision).toBe(2)
+  expect(finalStored).toBeNull()
 })
 
 test('analytics shows one responsive dashboard without private notes or duplicate fetches', async ({

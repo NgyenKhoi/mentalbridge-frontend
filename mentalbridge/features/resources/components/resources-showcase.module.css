@@ -200,35 +200,6 @@
   color: var(--rs-muted);
   font-size: 15px;
 }
-.moods {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
-}
-.moods button {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  min-height: 69px;
-  padding: 6px 2px;
-  border: 1px solid var(--rs-line);
-  border-radius: 13px;
-  background: #fff;
-  color: var(--rs-ink);
-  font-size: 12px;
-  font-weight: 700;
-  text-align: center;
-}
-.moods button span {
-  font-size: 18px;
-}
-.moods .activeMood {
-  border: 2px solid #20bd91;
-  background: #e3f6ee;
-  color: #0b5846;
-}
 .energyProgress {
   margin-top: 17px;
   padding: 14px;

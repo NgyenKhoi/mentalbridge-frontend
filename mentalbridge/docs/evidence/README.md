@@ -47,6 +47,12 @@ daily check-in aggregate. Its contract, BFF, component, local-day and
 fixture-browser coverage is recorded in
 [`mb-566-persisted-dashboard-emotion-picker.md`](mb-566-persisted-dashboard-emotion-picker.md).
 
+MB-657 makes that daily emotion record the source shown by Dashboard,
+Resources, Journal and emotion history, and removes the unused fixed-sample
+modal. Its controlled multi-route, deletion, responsive and legacy-audit
+evidence is recorded in
+[`mb-657-authoritative-daily-emotion.md`](mb-657-authoritative-daily-emotion.md).
+
 MB-563 delivers the server-backed notification inbox and lifecycle. Its
 contract/BFF/component/fixture coverage is recorded in
 [`mb-563-notification-inbox.md`](mb-563-notification-inbox.md).

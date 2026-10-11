@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { TodayEmotionSummary } from '@/features/emotion-check-in/TodayEmotionSummary'
 
 import {
   getResourceJourney,
@@ -784,6 +785,7 @@ export default function ResourcesShowcase() {
         </section>
 
         <div className={styles.sideStack}>
+          <TodayEmotionSummary />
           <section className={styles.badges} aria-labelledby="truth-title">
             <div className={styles.panelHead}>
               <h2 id="truth-title">Tiến độ của bạn</h2>

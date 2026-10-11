@@ -8,5 +8,7 @@ export type EmotionCheckIn = components['schemas']['EmotionCheckIn']
 export type EmotionCheckInList = components['schemas']['EmotionCheckInList']
 export type EmotionCheckInProgress =
   components['schemas']['EmotionCheckInProgress']
+export type EmotionCheckInTombstone =
+  components['schemas']['EmotionCheckInTombstone']
 export type EmotionProgressWindow =
   components['schemas']['EmotionProgressWindow']
