@@ -50,9 +50,6 @@ const experienceFields = {
   safetyNotes: z.array(z.string().min(1).max(500)).max(12).optional(),
   catalogueVisibility: z.enum(['LISTED', 'DIRECT_ONLY']).optional(),
   contentVersionLabel: z.string().min(1).max(64).optional(),
-  sourceReviewStatus: z
-    .enum(['REVIEWED', 'REVIEW_REQUIRED', 'NEEDS_SOURCE_REVIEW'])
-    .optional(),
   sourceOrganization: z.string().min(1).max(200).nullable().optional(),
   sourceTitle: z.string().min(1).max(500).nullable().optional(),
   sourceUrl: httpUrl.nullable().optional(),
@@ -120,6 +117,13 @@ export const updateResourceSchema = z
     },
   )
   .refine(validDates, { path: ['effectiveAt'] })
+
+export const reviewResourceSchema = z
+  .object({
+    decision: z.enum(['APPROVED', 'REJECTED']),
+    reasonCode: z.string().regex(/^[A-Z][A-Z0-9_]{1,63}$/),
+  })
+  .strict()
 
 export const listResourceQuerySchema = z
   .object({

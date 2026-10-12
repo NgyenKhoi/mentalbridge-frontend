@@ -3,6 +3,8 @@ import type { components } from '@/contracts/content.generated'
 export type ResourceSummary = components['schemas']['ResourceSummary']
 export type PublicResourceDetail = components['schemas']['PublicResourceDetail']
 export type AdminResourceDetail = components['schemas']['AdminResourceDetail']
+export type ResourceReviewDecision =
+  components['schemas']['ResourceReviewDecision']
 export type ResourceListResponse = components['schemas']['ResourceListResponse']
 export type NotificationPreferences =
   components['schemas']['NotificationPreferences']
@@ -243,11 +245,39 @@ export function parseAdminResourceDetail(
     !nullableDateTime(item.effectiveAt) ||
     !nullableDateTime(item.expiresAt) ||
     !Number.isSafeInteger(item.version) ||
-    (item.version as number) < 0
+    (item.version as number) < 0 ||
+    typeof item.isCorrectionDraft !== 'boolean' ||
+    !(
+      item.reviewDecision === null ||
+      (parseResourceReviewDecision(item.reviewDecision) !== null &&
+        record(item.reviewDecision)?.contentVersion === item.contentVersion)
+    )
   ) {
     return null
   }
   return item as AdminResourceDetail
+}
+
+export function parseResourceReviewDecision(
+  value: unknown,
+): ResourceReviewDecision | null {
+  const item = record(value)
+  if (
+    !item ||
+    typeof item.resourceId !== 'string' ||
+    !UUID.test(item.resourceId) ||
+    typeof item.contentVersion !== 'string' ||
+    !CONTENT_VERSION.test(item.contentVersion) ||
+    !['APPROVED', 'REJECTED'].includes(item.decision as string) ||
+    typeof item.reasonCode !== 'string' ||
+    typeof item.authorityVersion !== 'string' ||
+    typeof item.reviewedBy !== 'string' ||
+    !UUID.test(item.reviewedBy) ||
+    !dateTime(item.reviewedAt)
+  ) {
+    return null
+  }
+  return item as ResourceReviewDecision
 }
 
 export function parseResourceList(value: unknown): ResourceListResponse | null {

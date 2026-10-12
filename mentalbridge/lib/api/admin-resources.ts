@@ -5,6 +5,8 @@ export type ResourceSummary = components['schemas']['ResourceSummary']
 export type ResourceDetail = components['schemas']['AdminResourceDetail']
 export type ResourceCategory = components['schemas']['ResourceCategory']
 export type ResourceStatus = components['schemas']['ResourceStatus']
+export type ResourceReviewDecision =
+  components['schemas']['ResourceReviewDecision']
 
 type ResourceExperienceInput = Partial<
   Pick<
@@ -23,7 +25,6 @@ type ResourceExperienceInput = Partial<
     | 'safetyNotes'
     | 'catalogueVisibility'
     | 'contentVersionLabel'
-    | 'sourceReviewStatus'
     | 'sourceOrganization'
     | 'sourceTitle'
     | 'sourceUrl'
@@ -147,6 +148,29 @@ export const adminResourcesApi = {
       {
         params: { version },
       },
+    )
+    return response.data
+  },
+
+  async review(
+    id: string,
+    version: number,
+    decision: 'APPROVED' | 'REJECTED',
+    reasonCode: string,
+  ): Promise<ResourceReviewDecision> {
+    const response = await browserApiClient.post<ResourceReviewDecision>(
+      `/admin/resources/${id}/review`,
+      { decision, reasonCode },
+      { params: { version } },
+    )
+    return response.data
+  },
+
+  async createVersion(id: string, version: number): Promise<ResourceDetail> {
+    const response = await browserApiClient.post<ResourceDetail>(
+      `/admin/resources/${id}/versions`,
+      {},
+      { params: { version } },
     )
     return response.data
   },

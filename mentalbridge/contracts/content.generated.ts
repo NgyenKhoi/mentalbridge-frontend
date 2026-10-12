@@ -99,11 +99,14 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Get an active reviewed resource for one locale */
+        /**
+         * Get an active reviewed resource for one locale
+         * @description Without contentVersion, resolves only the current active PUBLISHED resource. With contentVersion, may resolve the immutable publication snapshot for an exact historical reference after archive or correction without restoring catalogue visibility.
+         */
         get: operations["getResource"];
         put?: never;
         post?: never;
-        /** Delete a DRAFT resource (Admin) */
+        /** Delete an initial DRAFT resource with no publication history (Admin) */
         delete: operations["deleteResource"];
         options?: never;
         head?: never;
@@ -174,8 +177,42 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Publish a reviewed DRAFT resource (blocked pending MB-251 policy approval) */
+        /** Publish an exact approved DRAFT resource version */
         post: operations["publishResource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resources/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a configured-authority decision for one exact draft */
+        post: operations["reviewResource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resources/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a correction draft after archiving an exact publication */
+        post: operations["createResourceVersion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -863,6 +900,10 @@ export interface components {
             /** Format: uuid */
             reviewedBy: string | null;
             version: number;
+            /** @description Immutable configured-authority decision for this exact version. */
+            reviewDecision: components["schemas"]["ResourceReviewDecision"] | null;
+            /** @description True when this draft follows preserved publication history and cannot be deleted. */
+            isCorrectionDraft: boolean;
         };
         ResourceListResponse: {
             data: components["schemas"]["ResourceSummary"][];
@@ -917,11 +958,6 @@ export interface components {
             catalogueVisibility: "LISTED" | "DIRECT_ONLY";
             /** @default draft-v1 */
             contentVersionLabel: string;
-            /**
-             * @default NEEDS_SOURCE_REVIEW
-             * @enum {string}
-             */
-            sourceReviewStatus: "REVIEWED" | "REVIEW_REQUIRED" | "NEEDS_SOURCE_REVIEW";
             sourceOrganization?: string | null;
             sourceTitle?: string | null;
             /** Format: uri */
@@ -964,8 +1000,6 @@ export interface components {
             /** @enum {string} */
             catalogueVisibility?: "LISTED" | "DIRECT_ONLY";
             contentVersionLabel?: string;
-            /** @enum {string} */
-            sourceReviewStatus?: "REVIEWED" | "REVIEW_REQUIRED" | "NEEDS_SOURCE_REVIEW";
             sourceOrganization?: string | null;
             sourceTitle?: string | null;
             /** Format: uri */
@@ -978,6 +1012,24 @@ export interface components {
             effectiveAt?: string | null;
             /** Format: date-time */
             expiresAt?: string | null;
+        };
+        ResourceReviewRequest: {
+            /** @enum {string} */
+            decision: "APPROVED" | "REJECTED";
+            reasonCode: string;
+        };
+        ResourceReviewDecision: {
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** @enum {string} */
+            decision: "APPROVED" | "REJECTED";
+            reasonCode: string;
+            authorityVersion: string;
+            /** Format: uuid */
+            reviewedBy: string;
+            /** Format: date-time */
+            reviewedAt: string;
         };
         /** @enum {string} */
         EligibilityPolicyVersion: "content-eligibility-v1";
@@ -1134,7 +1186,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
-        /** @description Publish is unavailable until an approved MB-251 review decision is recorded */
+        /** @description The exact draft lacks an approved configured-authority review decision */
         ReviewApprovalRequired: {
             headers: {
                 [name: string]: unknown;
@@ -1487,7 +1539,7 @@ export interface operations {
         parameters: {
             query?: {
                 locale?: components["parameters"]["Locale"];
-                /** @description Exact non-negative content version requested by a persisted consumer reference. When present, a different current version returns 404 rather than substituting content. */
+                /** @description Exact non-negative content version requested by a persisted consumer reference. When present, the exact immutable publication is returned and no newer version is substituted. */
                 contentVersion?: string;
             };
             header?: never;
@@ -1670,10 +1722,81 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Immutable exact-version publication created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceSummary"];
+                };
+            };
             400: components["responses"]["RequestRejected"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            409: components["responses"]["ReviewApprovalRequired"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    reviewResource: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable review decision for the exact draft version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceReviewDecision"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    createResourceVersion: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description New editable content version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminResourceDetail"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
         };
     };
     archiveResource: {
