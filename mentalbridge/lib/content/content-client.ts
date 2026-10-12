@@ -16,6 +16,9 @@ import {
   parseResourceProgressItem,
   parseResourceProgressList,
   parseResourceJourney,
+  parseResourceBookmark,
+  parseResourceBookmarkList,
+  parseResourceBingoBoard,
   type AdminResourceDetail,
   type ResourceReviewDecision,
   type ContentProblem,
@@ -33,6 +36,10 @@ import {
   type ResourceProgressUpdate,
   type ResourceJourney,
   type ResourceJourneyRequest,
+  type ResourceBookmark,
+  type ResourceBookmarkList,
+  type ResourceBingoBoard,
+  type ResourceBingoSelfConfirmationUpdate,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
@@ -302,6 +309,112 @@ export const contentResourceJourneyClient = {
       },
       mutation: true,
     })
+  },
+}
+
+function bingoResult(board: ResourceBingoBoard, etag: string | undefined) {
+  if (!etag || !/^\"(0|[1-9]\d*)\"$/.test(etag)) {
+    throw localError(
+      502,
+      'CONTENT_MALFORMED_RESPONSE',
+      'Content returned an invalid Bingo board version.',
+    )
+  }
+  return { board, etag }
+}
+
+export const contentResourceEngagementClient = {
+  listBookmarks(accessToken: string, correlationId: string) {
+    return contentRequest<ResourceBookmarkList>({
+      method: 'GET',
+      path: '/api/v1/resource-bookmarks',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseResourceBookmarkList,
+    })
+  },
+  saveBookmark(accessToken: string, resourceId: string, correlationId: string) {
+    return contentRequest<ResourceBookmark>({
+      method: 'PUT',
+      path: `/api/v1/resource-bookmarks/${encodeURIComponent(resourceId)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: {},
+      parseSuccess: (value) => {
+        const bookmark = parseResourceBookmark(value)
+        return bookmark?.resourceId === resourceId ? bookmark : null
+      },
+      mutation: true,
+    })
+  },
+  deleteBookmark(
+    accessToken: string,
+    resourceId: string,
+    correlationId: string,
+  ) {
+    return contentRequest<void>({
+      method: 'DELETE',
+      path: `/api/v1/resource-bookmarks/${encodeURIComponent(resourceId)}`,
+      expectedStatus: 204,
+      accessToken,
+      correlationId,
+      mutation: true,
+    })
+  },
+  async getBingo(
+    accessToken: string,
+    weekStart: string,
+    correlationId: string,
+  ) {
+    let etag: string | undefined
+    const board = await contentRequest<ResourceBingoBoard>({
+      method: 'GET',
+      path: `/api/v1/resource-bingo/${encodeURIComponent(weekStart)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: (value) => {
+        const parsed = parseResourceBingoBoard(value)
+        return parsed?.weekStart === weekStart ? parsed : null
+      },
+      onSuccessResponse: (response) => {
+        etag = response.headers.get('etag') ?? undefined
+      },
+    })
+    return bingoResult(board, etag)
+  },
+  async setBingoSelfConfirmation(
+    accessToken: string,
+    weekStart: string,
+    position: number,
+    update: ResourceBingoSelfConfirmationUpdate,
+    etagValue: string,
+    correlationId: string,
+  ) {
+    let etag: string | undefined
+    const board = await contentRequest<ResourceBingoBoard>({
+      method: 'PUT',
+      path: `/api/v1/resource-bingo/${encodeURIComponent(weekStart)}/items/${String(position)}/self-confirmation`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: update,
+      ifMatch: etagValue,
+      parseSuccess: (value) => {
+        const parsed = parseResourceBingoBoard(value)
+        return parsed?.weekStart === weekStart &&
+          parsed.items.some((item) => item.position === position)
+          ? parsed
+          : null
+      },
+      mutation: true,
+      onSuccessResponse: (response) => {
+        etag = response.headers.get('etag') ?? undefined
+      },
+    })
+    return bingoResult(board, etag)
   },
 }
 

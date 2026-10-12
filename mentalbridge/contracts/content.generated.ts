@@ -148,6 +148,101 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/resource-bookmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the authenticated owner's private resource bookmarks */
+        get: operations["listResourceBookmarks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-bookmarks/{resourceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resourceId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Save the current exact reviewed version of one resource for the authenticated owner */
+        put: operations["saveResourceBookmark"];
+        post?: never;
+        /** Remove one private resource bookmark for the authenticated owner */
+        delete: operations["deleteResourceBookmark"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-bingo/{weekStart}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one persisted weekly resource Bingo board and its exact evidence
+         * @description Self-confirmed marks are owner statements and remain distinct from Content-verified resource completion or eligible plan-bound practice evidence. Historical boards are retained by their local Monday and original IANA time zone.
+         */
+        get: operations["getResourceBingo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-bingo/{weekStart}/items/{position}/self-confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace one owner self-confirmation on a persisted Bingo item */
+        put: operations["setResourceBingoSelfConfirmation"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-rewards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read authoritative participation rewards for the authenticated owner
+         * @description Calculates bounded XP from persisted reviewed resource completion and verified practice evidence. XP records participation only and is not a treatment, adherence, recovery or mental-health score.
+         */
+        get: operations["getResourceRewards"];
+        /** Replace the authenticated owner's optional reward visibility preference */
+        put: operations["setResourceRewardVisibility"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/resource-journeys/{localDate}": {
         parameters: {
             query?: never;
@@ -782,6 +877,79 @@ export interface components {
             status: components["schemas"]["ResourceProgressStatus"];
             /** @description Current user-managed checklist selections. These selections remain editable after COMPLETED without reversing the recorded completion. */
             completedActionIds: string[];
+        };
+        ResourceBookmark: {
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** Format: date-time */
+            savedAt: string;
+            version: string;
+        };
+        ResourceBookmarkList: {
+            items: components["schemas"]["ResourceBookmark"][];
+        };
+        /** @enum {string} */
+        ResourceBingoEvidence: "NONE" | "SELF_CONFIRMED" | "CONTENT_VERIFIED";
+        /** @enum {string} */
+        ResourceBingoVerificationSource: "RESOURCE_COMPLETION" | "PRACTICE_SESSION";
+        ResourceBingoItemState: {
+            position: number;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            label: string;
+            evidence: components["schemas"]["ResourceBingoEvidence"];
+            /** Format: date-time */
+            selfConfirmedAt: string | null;
+            /** Format: date-time */
+            verifiedAt: string | null;
+            verificationSource: components["schemas"]["ResourceBingoVerificationSource"] | null;
+        };
+        ResourceBingoBoard: {
+            /** Format: date */
+            weekStart: string;
+            timeZone: string;
+            version: string;
+            /** Format: date-time */
+            updatedAt: string;
+            items: components["schemas"]["ResourceBingoItemState"][];
+        };
+        ResourceBingoSelfConfirmationUpdate: {
+            selfConfirmed: boolean;
+        };
+        /** @enum {string} */
+        ResourceRewardVisibility: "VISIBLE" | "HIDDEN";
+        ResourceRewardVisibilityUpdate: {
+            visibilityState: components["schemas"]["ResourceRewardVisibility"];
+        };
+        ResourceRewardGrant: {
+            grantId: string;
+            /** @enum {string} */
+            kind: "RESOURCE_COMPLETION" | "VERIFIED_PRACTICE";
+            xp: number;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** Format: date */
+            localDate: string;
+            /** Format: date-time */
+            grantedAt: string;
+            sourceReference: string;
+            ruleVersion: string;
+        };
+        ResourceRewardReadModel: {
+            totalXp: number;
+            level: number;
+            nextLevelXp: number | null;
+            visibilityState: components["schemas"]["ResourceRewardVisibility"];
+            preferenceVersion: string;
+            policyVersion: string;
+            /** @enum {string} */
+            sourceAvailability: "AVAILABLE";
+            /** Format: date-time */
+            calculatedAt: string;
+            recentGrants: components["schemas"]["ResourceRewardGrant"][];
         };
         /** @enum {string} */
         ResourceKind: "LEARNING" | "PRACTICE" | "HABIT" | "ACTION" | "REFLECTION";
@@ -1675,6 +1843,190 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listResourceBookmarks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped bookmarks ordered by the original saved instant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceBookmarkList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    saveResourceBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved bookmark; an identical retry returns the existing fact */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceBookmark"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    deleteResourceBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bookmark absent after this idempotent command */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getResourceBingo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                weekStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted owner-scoped board */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceBingoBoard"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    setResourceBingoSelfConfirmation: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                weekStart: string;
+                position: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceBingoSelfConfirmationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Current board after an idempotent, version-checked update */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceBingoBoard"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            412: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+            428: components["responses"]["RequestRejected"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getResourceRewards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped reward read model with source and rule provenance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceRewardReadModel"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    setResourceRewardVisibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceRewardVisibilityUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated preference and freshly calculated reward read model */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceRewardReadModel"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
             422: components["responses"]["ValidationError"];
             503: components["responses"]["ServiceUnavailable"];
         };

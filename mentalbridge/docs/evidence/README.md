@@ -1,5 +1,11 @@
 # Synthetic browser evidence
 
+MB-660 persists owner-scoped resource bookmarks and optional weekly Bingo with
+separate self-confirmed and Content-verified evidence. Its contract, conflict,
+reload/delete, typography, responsive, and fixture-browser verification is
+recorded in [`mb-660-persistent-resource-engagement.md`](mb-660-persistent-resource-engagement.md),
+with controlled desktop and mobile captures in this directory.
+
 MB-620 closes the Specialist Portal production surface around owner-backed
 capabilities and truthful deferred states. Unit, route-composition, responsive,
 and fixture-browser coverage is recorded in
