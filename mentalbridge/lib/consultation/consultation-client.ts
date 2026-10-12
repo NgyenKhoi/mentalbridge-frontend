@@ -14,8 +14,12 @@ import {
   parsePendingProfiles,
   parseProblem,
   parseProfile,
+  parseProfileAmendment,
+  parseProfileAmendmentDetail,
+  parseProfileAmendments,
   parseServiceCreditAccount,
   parseSpecialistDashboard,
+  parseSpecialistOperationalAnalytics,
   parseSpecialistEarnings,
   parsePayoutDestination,
   parseAdminPayoutList,
@@ -36,6 +40,7 @@ import {
   type SpecialistDecisionReason,
   type SpecialistSuspensionResult,
   type SpecialistDashboard,
+  type SpecialistOperationalAnalytics,
   type SpecialistEarnings,
   type PayoutDestination,
   type SavePayoutDestinationInput,
@@ -63,6 +68,14 @@ import {
   type SessionSummaryReuseConsentInput,
   type UpdateAgreedNextStepInput,
 } from './session-summary-validation'
+import {
+  parsePlanPayment,
+  parseServicePlanCatalogue,
+  parseAdminPaymentList,
+  parsePlanPaymentHistory,
+  type PlanPayment,
+  type ServicePlanCatalogue,
+} from './billing-validation'
 
 const MAX_RESPONSE_BYTES = 128 * 1024
 
@@ -196,6 +209,109 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  ownAmendment(token: string, correlationId: string) {
+    return request({
+      method: 'GET',
+      path: '/api/v1/specialist-profile/amendments/current',
+      token,
+      correlationId,
+      parse: parseProfileAmendmentDetail,
+    })
+  },
+  startAmendment(token: string, correlationId: string, etag: string) {
+    return request({
+      method: 'POST',
+      path: '/api/v1/specialist-profile/amendments',
+      token,
+      correlationId,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  saveAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    body: SpecialistProfileInput,
+    etag: string,
+  ) {
+    return request({
+      method: 'PUT',
+      path: `/api/v1/specialist-profile/amendments/${encodeURIComponent(id)}`,
+      token,
+      correlationId,
+      body,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  submitAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    action: 'submit' | 'resubmit',
+    etag: string,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/specialist-profile/amendments/${encodeURIComponent(id)}/${action}`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  cancelAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    etag: string,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/specialist-profile/amendments/${encodeURIComponent(id)}/cancel`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  profileAmendments(token: string, correlationId: string, page: number) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/admin/specialist-profiles/amendments?limit=20&page=${page}`,
+      token,
+      correlationId,
+      parse: parseProfileAmendments,
+    })
+  },
+  amendmentDetail(token: string, correlationId: string, id: string) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/admin/specialist-profiles/amendments/${encodeURIComponent(id)}`,
+      token,
+      correlationId,
+      parse: parseProfileAmendmentDetail,
+    })
+  },
+  decideAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    action: 'approve' | 'reject',
+    etag: string,
+    reasonCode?: SpecialistDecisionReason,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/admin/specialist-profiles/amendments/${encodeURIComponent(id)}/${action}`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      ...(action === 'reject' ? { body: { reasonCode } } : {}),
+      parse: parseProfileAmendment,
+    })
+  },
   adminAppointments(token: string, correlationId: string, query: string) {
     return request<AdminAppointmentPage>({
       method: 'GET',
@@ -319,6 +435,33 @@ export const consultationClient = {
       parse: parseAdminPayoutList,
     })
   },
+  adminPayments(token: string, correlationId: string) {
+    return request({
+      method: 'GET',
+      path: '/api/v1/admin/payments',
+      token,
+      correlationId,
+      parse: parseAdminPaymentList,
+    })
+  },
+  planPayment(token: string, correlationId: string, paymentId: string) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/payments/${encodeURIComponent(paymentId)}`,
+      token,
+      correlationId,
+      parse: parsePlanPayment,
+    })
+  },
+  planPayments(token: string, correlationId: string) {
+    return request({
+      method: 'GET',
+      path: '/api/v1/payments',
+      token,
+      correlationId,
+      parse: parsePlanPaymentHistory,
+    })
+  },
   appointmentRating(
     token: string,
     correlationId: string,
@@ -356,6 +499,21 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseSpecialistDashboard,
+    })
+  },
+  specialistOperationalAnalytics(
+    token: string,
+    correlationId: string,
+    from: string,
+    to: string,
+  ) {
+    const query = new URLSearchParams({ from, to })
+    return request<SpecialistOperationalAnalytics>({
+      method: 'GET',
+      path: `/api/v1/specialist/analytics?${query.toString()}`,
+      token,
+      correlationId,
+      parse: parseSpecialistOperationalAnalytics,
     })
   },
   userSessionSummaries(
@@ -483,10 +641,17 @@ export const consultationClient = {
       parse: parseBookableSlotList,
     })
   },
-  appointments(token: string, correlationId: string) {
+  appointments(
+    token: string,
+    correlationId: string,
+    originatingPlanActionId?: string,
+  ) {
+    const query = originatingPlanActionId
+      ? `?originatingPlanActionId=${encodeURIComponent(originatingPlanActionId)}`
+      : ''
     return request<AppointmentList>({
       method: 'GET',
-      path: '/api/v1/appointments',
+      path: `/api/v1/appointments${query}`,
       token,
       correlationId,
       parse: parseAppointmentList,
@@ -561,6 +726,31 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseServiceCreditAccount,
+    })
+  },
+  servicePlans(token: string, correlationId: string) {
+    return request<ServicePlanCatalogue>({
+      method: 'GET',
+      path: '/api/v1/service-plans',
+      token,
+      correlationId,
+      parse: parseServicePlanCatalogue,
+    })
+  },
+  planCheckout(
+    token: string,
+    correlationId: string,
+    planVersionId: string,
+    idempotencyKey: string,
+  ) {
+    return request<PlanPayment>({
+      method: 'POST',
+      path: '/api/v1/subscriptions/checkout',
+      token,
+      correlationId,
+      body: { planVersionId },
+      idempotencyKey,
+      parse: parsePlanPayment,
     })
   },
   own(token: string, correlationId: string) {

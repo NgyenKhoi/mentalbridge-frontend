@@ -1,4 +1,10 @@
 import type { AxiosInstance } from 'axios'
+import { z } from 'zod'
+
+import {
+  appointmentListSchema,
+  type AppointmentList,
+} from '@/appointments/appointment-contract'
 
 import {
   occurrenceListSchema,
@@ -7,20 +13,42 @@ import {
   reassessmentSummaryReferenceSchema,
   replacementReviewSchema,
   supportPlanHistorySchema,
+  supportPlanActionsSchema,
+  supportPlanPersonalizationSchema,
+  supportPlanPersonalizationRequestSchema,
+  updateActionScheduleRequestSchema,
   supportPlanSchema,
   type OccurrenceEngagement,
   type PlanChangeRequest,
   type ReplacementReview,
   type SupportPlan,
   type SupportPlanHistory,
+  type SupportPlanActions,
   type SupportPlanOccurrence,
   type SupportPlanOccurrenceList,
+  type SupportPlanPersonalizationAuthority,
+  type SupportPlanPersonalizationRequest,
+  type UpdateActionScheduleRequest,
 } from './support-plan-contract'
 
 export interface SupportPlanApi {
   getCurrent(): Promise<SupportPlan>
   getCurrentDraft(): Promise<SupportPlan>
   getHistory(): Promise<SupportPlanHistory>
+  getActions(supportPlanId: string): Promise<SupportPlanActions>
+  getCurrentDraftActions(): Promise<SupportPlanActions>
+  replaceSchedule(
+    plan: SupportPlan,
+    actionId: string,
+    request: UpdateActionScheduleRequest,
+    idempotencyKey: string,
+  ): Promise<SupportPlanActions>
+  getAppointments(originatingPlanActionId: string): Promise<AppointmentList>
+  getPersonalization(): Promise<SupportPlanPersonalizationAuthority>
+  replacePersonalization(
+    request: SupportPlanPersonalizationRequest,
+    etag: string,
+  ): Promise<SupportPlanPersonalizationAuthority>
   replaceChoices(
     plan: SupportPlan,
     slotSelections: readonly {
@@ -65,6 +93,20 @@ export interface SupportPlanApi {
 }
 
 export function createSupportPlanApi(client: AxiosInstance): SupportPlanApi {
+  const personalizationAuthority = (
+    value: unknown,
+    etag: unknown,
+  ): SupportPlanPersonalizationAuthority => {
+    const parsed = supportPlanPersonalizationSchema.parse(value)
+    return {
+      value: parsed,
+      etag:
+        typeof etag === 'string' && /^"[0-9]+"$/.test(etag)
+          ? etag
+          : `"${parsed.revision}"`,
+    }
+  }
+
   return {
     async getCurrent() {
       const response = await client.get('/api/v1/support-plans/current')
@@ -79,6 +121,59 @@ export function createSupportPlanApi(client: AxiosInstance): SupportPlanApi {
         params: { limit: 10 },
       })
       return supportPlanHistorySchema.parse(response.data)
+    },
+    async getActions(supportPlanId) {
+      const response = await client.get(
+        `/api/v2/support-plans/${encodeURIComponent(supportPlanId)}`,
+      )
+      const value = supportPlanActionsSchema.parse(response.data)
+      if (value.supportPlanId !== supportPlanId) {
+        throw new Error('SupportPlan action projection identity mismatch.')
+      }
+      return value
+    },
+    async getCurrentDraftActions() {
+      const response = await client.get('/api/v2/support-plans/current-draft')
+      return supportPlanActionsSchema.parse(response.data)
+    },
+    async replaceSchedule(plan, actionId, request, idempotencyKey) {
+      const body = updateActionScheduleRequestSchema.parse(request)
+      const response = await client.put(
+        `/api/v2/support-plans/${encodeURIComponent(plan.supportPlanId)}/actions/${encodeURIComponent(actionId)}/schedule`,
+        body,
+        {
+          headers: {
+            'If-Match': `"${plan.version}"`,
+            'Idempotency-Key': idempotencyKey,
+          },
+        },
+      )
+      const value = supportPlanActionsSchema.parse(response.data)
+      if (value.supportPlanId !== plan.supportPlanId) {
+        throw new Error('SupportPlan schedule response identity mismatch.')
+      }
+      return value
+    },
+    async getAppointments(originatingPlanActionId) {
+      const response = await client.get('/api/v1/appointments', {
+        params: {
+          originatingPlanActionId: z.uuid().parse(originatingPlanActionId),
+        },
+      })
+      return appointmentListSchema.parse(response.data)
+    },
+    async getPersonalization() {
+      const response = await client.get('/api/v2/support-plan-personalization')
+      return personalizationAuthority(response.data, response.headers.etag)
+    },
+    async replacePersonalization(request, etag) {
+      const body = supportPlanPersonalizationRequestSchema.parse(request)
+      const response = await client.put(
+        '/api/v2/support-plan-personalization',
+        body,
+        { headers: { 'If-Match': etag } },
+      )
+      return personalizationAuthority(response.data, response.headers.etag)
     },
     async replaceChoices(plan, slotSelections) {
       const response = await client.put(

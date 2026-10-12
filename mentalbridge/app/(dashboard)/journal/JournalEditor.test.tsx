@@ -41,20 +41,22 @@ describe('Journal editor redesign', () => {
     render(<JournalPage />)
 
     const open = await screen.findByRole('button', {
-      name: 'Viết nhật ký đầu tiên',
+      name: 'Viết nhật ký mới',
     })
     await user.click(open)
 
     const modal = within(screen.getByRole('dialog'))
 
     // All 5 mood radios exist
-    expect(modal.getByRole('radio', { name: 'Tuyệt vời' })).toBeInTheDocument()
+    expect(modal.getByRole('radio', { name: 'Rất tốt' })).toBeInTheDocument()
     expect(modal.getByRole('radio', { name: 'Tốt' })).toBeInTheDocument()
     expect(
       modal.getByRole('radio', { name: 'Bình thường' }),
     ).toBeInTheDocument()
     expect(modal.getByRole('radio', { name: 'Không tốt' })).toBeInTheDocument()
-    expect(modal.getByRole('radio', { name: 'Rất tệ' })).toBeInTheDocument()
+    expect(
+      modal.getByRole('radio', { name: 'Rất không tốt' }),
+    ).toBeInTheDocument()
 
     // Initially support banner is not visible
     expect(
@@ -71,13 +73,13 @@ describe('Journal editor redesign', () => {
     ).toHaveAttribute('href', '/specialists')
 
     // Switch to GREAT mood -> banner disappears
-    await user.click(modal.getByRole('radio', { name: 'Tuyệt vời' }))
+    await user.click(modal.getByRole('radio', { name: 'Rất tốt' }))
     expect(
       modal.queryByText(/Có những ngày cảm xúc trở nên nặng nề hơn/),
     ).not.toBeInTheDocument()
 
     // Switch to VERY_LOW mood -> banner appears
-    await user.click(modal.getByRole('radio', { name: 'Rất tệ' }))
+    await user.click(modal.getByRole('radio', { name: 'Rất không tốt' }))
     expect(
       modal.getByText(/Có những ngày cảm xúc trở nên nặng nề hơn/),
     ).toBeInTheDocument()
@@ -88,12 +90,12 @@ describe('Journal editor redesign', () => {
     render(<JournalPage />)
 
     await user.click(
-      await screen.findByRole('button', { name: 'Viết nhật ký đầu tiên' }),
+      await screen.findByRole('button', { name: 'Viết nhật ký mới' }),
     )
     const modal = within(screen.getByRole('dialog'))
 
     // Select positive mood
-    await user.click(modal.getByRole('radio', { name: 'Tuyệt vời' }))
+    await user.click(modal.getByRole('radio', { name: 'Rất tốt' }))
     expect(
       modal.getByText('Ghi lại những điều tích cực hôm nay'),
     ).toBeInTheDocument()
@@ -124,7 +126,7 @@ describe('Journal editor redesign', () => {
     render(<JournalPage />)
 
     await user.click(
-      await screen.findByRole('button', { name: 'Viết nhật ký đầu tiên' }),
+      await screen.findByRole('button', { name: 'Viết nhật ký mới' }),
     )
     const modal = within(screen.getByRole('dialog'))
 
@@ -152,7 +154,7 @@ describe('Journal editor redesign', () => {
     render(<JournalPage />)
 
     await user.click(
-      await screen.findByRole('button', { name: 'Viết nhật ký đầu tiên' }),
+      await screen.findByRole('button', { name: 'Viết nhật ký mới' }),
     )
     const modal = within(screen.getByRole('dialog'))
 

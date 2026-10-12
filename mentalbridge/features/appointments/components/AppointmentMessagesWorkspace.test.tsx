@@ -145,5 +145,86 @@ describe('AppointmentMessagesWorkspace', () => {
     expect(
       screen.getByText(/sau khi một lịch hẹn chat được xác nhận/i),
     ).toBeVisible()
+    expect(
+      screen.getByRole('heading', { name: 'Chưa có tin nhắn để hiển thị' }),
+    ).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Xem lịch hẹn' })).toHaveAttribute(
+      'href',
+      '/appointments',
+    )
+    expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Gửi tin nhắn' })).toBeDisabled()
+  })
+
+  it('preserves user inbox recovery after integrating specialist enhancements', async () => {
+    navigation.pathname = '/messages'
+    api.list.mockRejectedValueOnce(new Error('offline'))
+    render(<AppointmentMessagesWorkspace viewerRole="USER" />)
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Không thể tải cuộc trò chuyện',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.queryByText('Chưa có cuộc trò chuyện'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gửi tin nhắn' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại' }))
+    expect(await screen.findByText('ThS. Thảo Nguyễn')).toBeVisible()
+    expect(api.list).toHaveBeenCalledTimes(2)
+    expect(api.assigned).not.toHaveBeenCalled()
+  })
+
+  it('recovers empty search/filter without losing the selected session', async () => {
+    render(<AppointmentMessagesWorkspace viewerRole="SPECIALIST" />)
+    await screen.findByText('Khách hàng')
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: 'Tìm cuộc trò chuyện' }),
+      { target: { value: 'không tồn tại' } },
+    )
+    expect(
+      screen.getByText('Không tìm thấy cuộc trò chuyện phù hợp'),
+    ).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }))
+    expect(
+      screen.getByRole('searchbox', { name: 'Tìm cuộc trò chuyện' }),
+    ).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: 'Đang diễn ra' }))
+    expect(
+      screen.getByText('Không tìm thấy cuộc trò chuyện phù hợp'),
+    ).toBeVisible()
+    expect(screen.getByTestId('appointment-chat')).toHaveTextContent(
+      baseAppointment.id,
+    )
+  })
+
+  it('does not silently open a different appointment for a missing deep link', async () => {
+    render(
+      <AppointmentMessagesWorkspace
+        viewerRole="SPECIALIST"
+        initialAppointmentId="missing"
+      />,
+    )
+    expect(
+      await screen.findByText('Lịch hẹn này không có trong hộp thư'),
+    ).toBeVisible()
+    expect(screen.queryByTestId('appointment-chat')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Khách hàng/ }))
+    expect(screen.getByTestId('appointment-chat')).toHaveTextContent(
+      baseAppointment.id,
+    )
+  })
+
+  it('does not label an initial fetch failure as an empty inbox', async () => {
+    api.assigned.mockRejectedValueOnce(new Error('offline'))
+    render(<AppointmentMessagesWorkspace viewerRole="SPECIALIST" />)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Chưa thể tải tin nhắn lịch hẹn',
+    )
+    expect(
+      screen.queryByText('Chưa có cuộc trò chuyện'),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(await screen.findByText('Khách hàng')).toBeVisible()
   })
 })

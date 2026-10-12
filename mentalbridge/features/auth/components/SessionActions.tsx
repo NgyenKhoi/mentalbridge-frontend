@@ -27,10 +27,14 @@ export default function SessionActions({
   compact = false,
   displayName = 'Người dùng',
   avatar = 'N',
+  accountKind = 'personal',
+  description = 'Tài khoản cá nhân',
 }: {
   compact?: boolean
   displayName?: string
   avatar?: string
+  accountKind?: 'personal' | 'specialist'
+  description?: string
 }) {
   const router = useRouter()
   const menuId = useId()
@@ -39,6 +43,8 @@ export default function SessionActions({
   const actionPending = useRef(false)
   const [open, setOpen] = useState(false)
   const [pendingMode, setPendingMode] = useState<LogoutMode | null>(null)
+  const specialist = accountKind === 'specialist'
+  const profileLabel = specialist ? 'Hồ sơ chuyên gia' : 'Hồ sơ cá nhân'
 
   useEffect(() => {
     if (!open) return
@@ -52,6 +58,7 @@ export default function SessionActions({
     }
     const closeFromKeyboard = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      event.preventDefault()
       setOpen(false)
       triggerRef.current?.focus()
     }
@@ -85,27 +92,30 @@ export default function SessionActions({
       ref={rootRef}
       className={styles.root}
       data-compact={compact || undefined}
+      data-account-kind={accountKind}
     >
       {open ? (
         <div
           id={menuId}
           className={styles.menu}
           role="menu"
-          aria-label="Tài khoản người dùng"
+          aria-label={
+            specialist ? 'Tài khoản chuyên gia' : 'Tài khoản người dùng'
+          }
         >
           <div className={styles.menuHeader}>
             <span className={styles.headerAvatar}>{avatar}</span>
             <span>
               <strong>{displayName}</strong>
-              <small>Tài khoản cá nhân</small>
+              <small>{description}</small>
             </span>
           </div>
           <Link
-            href="/profile"
+            href={specialist ? '/specialist/profile' : '/profile'}
             className={styles.menuItem}
             role="menuitem"
             onClick={() => setOpen(false)}
-            title={compact ? 'Hồ sơ cá nhân' : undefined}
+            title={compact ? profileLabel : undefined}
           >
             <span className={styles.itemIcon}>
               <Icon>
@@ -113,7 +123,7 @@ export default function SessionActions({
                 <path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6" />
               </Icon>
             </span>
-            <span className={styles.itemLabel}>Hồ sơ cá nhân</span>
+            <span className={styles.itemLabel}>{profileLabel}</span>
           </Link>
           <Link
             href="/subscription"
@@ -174,16 +184,19 @@ export default function SessionActions({
         ref={triggerRef}
         type="button"
         className={styles.trigger}
-        aria-label={open ? 'Đóng menu tài khoản' : 'Mở menu tài khoản'}
+        aria-label={`${open ? 'Đóng' : 'Mở'} menu tài khoản${specialist ? ' chuyên gia' : ''}`}
+        title={compact ? `${displayName} · ${description}` : undefined}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className={styles.avatar}>{avatar}</span>
+        <span className={styles.avatar} aria-hidden="true">
+          {avatar}
+        </span>
         <span className={styles.triggerCopy}>
           <strong>{displayName}</strong>
-          <small>Tài khoản cá nhân</small>
+          <small>{description}</small>
         </span>
         <svg
           className={styles.chevron}

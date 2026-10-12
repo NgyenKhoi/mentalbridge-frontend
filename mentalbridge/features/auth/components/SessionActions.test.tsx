@@ -71,4 +71,43 @@ describe('SessionActions', () => {
     fireEvent.pointerDown(document.body)
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
+
+  it('preserves personal account destinations by default', () => {
+    render(<SessionActions />)
+    expect(screen.getByText('Tài khoản cá nhân')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mở menu tài khoản' }))
+    expect(
+      screen.getByRole('menuitem', { name: 'Hồ sơ cá nhân' }),
+    ).toHaveAttribute('href', '/profile')
+    expect(
+      screen.getByRole('menuitem', { name: 'Gói dịch vụ' }),
+    ).toHaveAttribute('href', '/subscription')
+  })
+
+  it('keeps specialist account actions accessible when the sidebar is collapsed', async () => {
+    mocks.terminate.mockResolvedValue(undefined)
+    render(
+      <SessionActions
+        compact
+        accountKind="specialist"
+        displayName="Nguyễn An"
+        avatar="NA"
+        description="Đang chờ xét duyệt"
+      />,
+    )
+    const trigger = screen.getByRole('button', {
+      name: 'Mở menu tài khoản chuyên gia',
+    })
+    expect(trigger).toHaveAttribute('title', 'Nguyễn An · Đang chờ xét duyệt')
+    fireEvent.click(trigger)
+    expect(
+      screen.getByRole('menuitem', { name: 'Hồ sơ chuyên gia' }),
+    ).toHaveAttribute('href', '/specialist/profile')
+    await act(async () =>
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Đăng xuất' })),
+    )
+    expect(mocks.terminate).toHaveBeenCalledWith('current')
+    expect(mocks.replace).toHaveBeenCalledWith('/login')
+    expect(mocks.refresh).toHaveBeenCalledOnce()
+  })
 })

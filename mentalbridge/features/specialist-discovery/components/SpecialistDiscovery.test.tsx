@@ -74,6 +74,7 @@ function renderDiscovery() {
 
 describe('SpecialistDiscovery', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/specialists')
     discoveryClient.list.mockReset()
     discoveryClient.detail.mockReset()
     appointmentClient.request.mockReset()
@@ -135,6 +136,35 @@ describe('SpecialistDiscovery', () => {
         item.selectableSlots[0].id,
         'IN_APP_CHAT',
         expect.stringMatching(/^appointment-/),
+      ),
+    )
+  })
+
+  it('retains the originating PlanAction only after the user explicitly books', async () => {
+    const user = userEvent.setup()
+    const actionId = '20000000-0000-4000-8000-000000000643'
+    window.history.replaceState({}, '', `/specialists?planActionId=${actionId}`)
+    discoveryClient.list.mockResolvedValue(page('PLUS'))
+    appointmentClient.request.mockResolvedValue({ id: 'appointment-id' })
+
+    renderDiscovery()
+    expect(appointmentClient.request).not.toHaveBeenCalled()
+    await user.click(
+      await screen.findByRole('button', { name: 'Xem hồ sơ và khung giờ' }),
+    )
+    await user.click(await screen.findByRole('radio'))
+    await user.click(
+      screen.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
+    )
+
+    await waitFor(() =>
+      expect(appointmentClient.request).toHaveBeenCalledWith(
+        item.selectableSlots[0].id,
+        'IN_APP_CHAT',
+        expect.stringMatching(/^appointment-/),
+        undefined,
+        undefined,
+        actionId,
       ),
     )
   })

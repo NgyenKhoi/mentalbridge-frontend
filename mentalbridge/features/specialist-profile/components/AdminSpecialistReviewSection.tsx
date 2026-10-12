@@ -10,6 +10,7 @@ import type {
 } from '@/lib/consultation/consultation-validation'
 import { browserConsultation } from '../api/browser-client'
 import styles from './AdminSpecialistReviewSection.module.css'
+import AdminProfileAmendmentReview from './AdminProfileAmendmentReview'
 
 const supportLabels = {
   DEPRESSIVE_SYMPTOMS: 'Cảm xúc trầm buồn',
@@ -33,6 +34,35 @@ const reasonLabels = {
 } as const
 
 export default function AdminSpecialistReviewSection() {
+  const [mode, setMode] = useState<'initial' | 'amendments'>('initial')
+  return (
+    <>
+      <nav className={styles.filters} aria-label="Loại hồ sơ xét duyệt">
+        <button
+          type="button"
+          aria-pressed={mode === 'initial'}
+          onClick={() => setMode('initial')}
+        >
+          Hồ sơ & trạng thái
+        </button>
+        <button
+          type="button"
+          aria-pressed={mode === 'amendments'}
+          onClick={() => setMode('amendments')}
+        >
+          Cập nhật hồ sơ
+        </button>
+      </nav>
+      {mode === 'initial' ? (
+        <InitialProfileReview />
+      ) : (
+        <AdminProfileAmendmentReview />
+      )}
+    </>
+  )
+}
+
+function InitialProfileReview() {
   const { confirm, showActionToast } = useFeedback()
   const [filter, setFilter] = useState<SpecialistApprovalStatus>('PENDING')
   const [items, setItems] = useState<SpecialistProfile[]>([])

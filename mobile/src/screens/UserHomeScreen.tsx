@@ -20,6 +20,40 @@ export function UserHomeScreen() {
         xác nhận.
       </Text>
       <View style={styles.actions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('./notifications')}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.secondaryLabel}>Thông báo của tôi</Text>
+        </Pressable>
+        <PrimaryButton
+          label="Phiên trò chuyện"
+          onPress={() => router.push('./messages')}
+        />
+        <PrimaryButton
+          label="Lịch hẹn của tôi"
+          onPress={() => router.push('./appointments')}
+        />
+        <PrimaryButton
+          label="Tìm chuyên gia"
+          onPress={() => router.push('./specialists')}
+        />
+        <PrimaryButton
+          label="Mở cộng đồng"
+          onPress={() => router.push('./community')}
+        />
+        <PrimaryButton
+          label="Viết nhật ký"
+          onPress={() => router.push('./journal')}
+        />
+        <PrimaryButton
+          label="Khám phá tài nguyên"
+          onPress={() => router.push('./resources')}
+        />
         <PrimaryButton
           label="Ghi nhận cảm xúc"
           onPress={() => router.push('./emotion')}

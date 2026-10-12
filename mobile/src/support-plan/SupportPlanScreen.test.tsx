@@ -10,8 +10,10 @@ import type { ReactElement } from 'react'
 import { Linking } from 'react-native'
 
 import { ApiError } from '@/api/api-error'
+import { appointment } from '@/appointments/appointment-fixtures'
 
 import type { SupportPlanApi } from './support-plan-api'
+import type { SupportPlanActions } from './support-plan-contract'
 import { SupportPlanScreen } from './SupportPlanScreen'
 import {
   makeOccurrence,
@@ -56,6 +58,47 @@ function makeApi(
       nextCursor: null,
       hasMore: false,
     }),
+    getActions: jest.fn().mockResolvedValue({
+      supportPlanId: '10000000-0000-4000-8000-000000000001',
+      modelVersion: 3,
+      representationMode: 'V2_RESOURCE_ADAPTER',
+      focuses: [],
+    }),
+    getCurrentDraftActions: jest.fn().mockResolvedValue({
+      supportPlanId: '10000000-0000-4000-8000-000000000001',
+      modelVersion: 3,
+      representationMode: 'V2_RESOURCE_ADAPTER',
+      focuses: [],
+    }),
+    replaceSchedule: jest.fn(),
+    getAppointments: jest.fn().mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2026-10-10T09:00:00Z',
+    }),
+    getPersonalization: jest.fn().mockResolvedValue({
+      value: {
+        personalizationId: null,
+        schemaVersion: 'support-plan-personalization-v1',
+        revision: 0,
+        status: 'NOT_PROVIDED',
+        preferredFocus: null,
+        desiredPace: null,
+        dailyTimeBudgetMinutes: null,
+        preferredDaypart: null,
+        preferredActivityModes: [],
+        commonBarriers: [],
+        submittedAt: null,
+        planReview: {
+          required: false,
+          supportPlanId: null,
+          supportPlanVersion: null,
+          reasonCode: null,
+        },
+      },
+      etag: '"0"',
+    }),
+    replacePersonalization: jest.fn(),
     replaceChoices: jest.fn(),
     activate: jest.fn(),
     changeStatus: jest.fn(),
@@ -67,6 +110,61 @@ function makeApi(
     reviewReplacement: jest.fn(),
     replaceCurrent: jest.fn(),
     ...overrides,
+  }
+}
+
+function makeScheduleProjection(
+  plan: ReturnType<typeof makePlan>,
+  firstDuration = 15,
+  secondDuration = 20,
+): SupportPlanActions {
+  const action = (ordinal: number, duration: number) => ({
+    actionId: `action-${ordinal}`,
+    actionType: 'ROUTINE_SELF_MANAGEMENT' as const,
+    actionVersion: 1,
+    representationMode: 'NATIVE_V3' as const,
+    status: 'DRAFT' as const,
+    pathRole: 'PRIMARY' as const,
+    purposeCode: 'WELLBEING_ROUTINE',
+    rationale: null,
+    ordinal,
+    presentation: { title: `Hoạt động ${ordinal}`, summary: null },
+    schedules: [
+      {
+        scheduleId: `30000000-0000-4000-8000-00000000064${ordinal}`,
+        version: 1,
+        schedulePolicyVersion: 'support-plan-activity-schedule-v2',
+        recurrenceType: 'WEEKLY' as const,
+        recurrenceDayOfWeek: null,
+        daysOfWeek: [ordinal],
+        preferredDaypart: 'MORNING' as const,
+        estimatedDurationMinutes: duration,
+        localTime: `0${7 + ordinal}:00:00`,
+        timezone: 'Asia/Ho_Chi_Minh',
+        effectiveFrom: '2099-01-01',
+        effectiveUntil: null,
+        reminderEnabled: true,
+        status: 'DRAFT' as const,
+      },
+    ],
+  })
+  return {
+    supportPlanId: plan.supportPlanId,
+    modelVersion: 3,
+    planPolicyVersion: 'support-plan-selection-v2',
+    representationMode: 'NATIVE_V3',
+    status: plan.status,
+    version: plan.version,
+    updatedAt: plan.updatedAt,
+    focuses: [
+      {
+        focusId: 'focus-1',
+        title: 'Hỗ trợ nhịp hoạt động',
+        rationale: null,
+        personalizationProvenance: null,
+        actions: [action(1, firstDuration), action(2, secondDuration)],
+      },
+    ],
   }
 }
 
@@ -94,6 +192,237 @@ describe('mobile SupportPlan journey', () => {
     expect(await screen.findByText('Chưa có kế hoạch hỗ trợ')).toBeTruthy()
     expect(api.activate).not.toHaveBeenCalled()
     expect(api.changeStatus).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    {
+      name: 'personalized',
+      title: 'Bắt đầu bằng bước nhỏ',
+      rationale:
+        'Bạn đã chọn trọng tâm này. Care chỉ dùng lựa chọn đó trong hoạt động đã được chính sách cho phép.',
+      provenance: {
+        personalizationId: '10000000-0000-4000-8000-000000000638',
+        revision: 2,
+        schemaVersion: 'support-plan-personalization-v1' as const,
+        reasonCode: 'USER_PREFERENCE_AND_CARE_POLICY' as const,
+      },
+      badge: true,
+    },
+    {
+      name: 'fallback',
+      title: 'Hỗ trợ tâm trạng',
+      rationale: 'Trọng tâm này dựa trên nội dung đã được chính sách cho phép.',
+      provenance: null,
+      badge: false,
+    },
+  ])('shows the admitted $name focus explanation', async (example) => {
+    const plan = makePlan('ACTIVE')
+    const api = makeApi({
+      getCurrent: jest.fn().mockResolvedValue(plan),
+      getActions: jest.fn().mockResolvedValue({
+        supportPlanId: plan.supportPlanId,
+        modelVersion: 3,
+        representationMode: 'V2_RESOURCE_ADAPTER',
+        focuses: [
+          {
+            focusId: 'focus-1',
+            title: example.title,
+            rationale: example.rationale,
+            personalizationProvenance: example.provenance,
+            actions: [
+              {
+                actionId: 'action-1',
+                actionType: 'RESOURCE',
+                status: 'ACTIVE',
+                pathRole: 'PRIMARY',
+                purposeCode: 'DEPRESSION_MAINTENANCE',
+                presentation: {
+                  title: 'Hoạt động đã kiểm tra',
+                  summary: 'Một bước hỗ trợ sức khỏe tổng quát.',
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    })
+
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    expect(await screen.findByText(example.title)).toBeTruthy()
+    expect(screen.getByText(example.rationale)).toBeTruthy()
+    if (example.badge) {
+      expect(screen.getByText('Theo lựa chọn của bạn')).toBeTruthy()
+    } else {
+      expect(screen.queryByText('Theo lựa chọn của bạn')).toBeNull()
+    }
+  })
+
+  it('presents professional support as the primary path and reflects only its appointment', async () => {
+    const plan = makePlan('ACTIVE')
+    const actionId = '11111111-1111-4111-8111-111111111111'
+    const api = makeApi({
+      getCurrent: jest.fn().mockResolvedValue(plan),
+      getActions: jest.fn().mockResolvedValue({
+        supportPlanId: plan.supportPlanId,
+        modelVersion: 3,
+        representationMode: 'V2_RESOURCE_ADAPTER',
+        focuses: [
+          {
+            focusId: 'professional-support',
+            title: 'Kết nối với hỗ trợ phù hợp',
+            rationale: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+            personalizationProvenance: null,
+            actions: [
+              {
+                actionId,
+                actionType: 'PROFESSIONAL_SUPPORT',
+                status: 'ACTIVE',
+                pathRole: 'PRIMARY',
+                purposeCode: 'CONNECT_WITH_PROFESSIONAL_SUPPORT',
+                presentation: {
+                  title: 'Kết nối với chuyên gia',
+                  summary: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      getAppointments: jest.fn().mockResolvedValue({
+        items: [
+          {
+            ...appointment,
+            status: 'CONFIRMED',
+            originatingPlanActionId: actionId,
+          },
+        ],
+        count: 1,
+        generatedAt: '2026-10-10T09:00:00Z',
+      }),
+    })
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    expect(await screen.findByText('HƯỚNG HỖ TRỢ CHÍNH')).toBeTruthy()
+    expect(
+      await screen.findByText(
+        'Trạng thái lịch hẹn: Chuyên gia đã xác nhận lịch hẹn',
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(/không tự đặt lịch hoặc chia sẻ dữ liệu/),
+    ).toBeTruthy()
+    expect(api.getAppointments).toHaveBeenCalledWith(actionId)
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: './specialists',
+      params: { planActionId: actionId },
+    })
+  })
+
+  it('keeps a professional-routing fallback visible and retries an unavailable action projection', async () => {
+    const plan = makePlan('ACTIVE', {
+      templateFamilies: [
+        {
+          family: 'DEPRESSIVE_PROFESSIONAL_ADJUNCT',
+          templateVersion: 1,
+          targetDomain: 'DEPRESSIVE_SYMPTOMS',
+        },
+      ],
+    })
+    const actionId = '11111111-1111-4111-8111-111111111111'
+    const api = makeApi({
+      getCurrent: jest.fn().mockResolvedValue(plan),
+      getActions: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValueOnce({
+          supportPlanId: plan.supportPlanId,
+          modelVersion: 3,
+          representationMode: 'V2_RESOURCE_ADAPTER',
+          focuses: [
+            {
+              focusId: 'professional-support',
+              title: 'Kết nối với hỗ trợ phù hợp',
+              rationale: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+              personalizationProvenance: null,
+              actions: [
+                {
+                  actionId,
+                  actionType: 'PROFESSIONAL_SUPPORT',
+                  status: 'ACTIVE',
+                  pathRole: 'PRIMARY',
+                  purposeCode: 'CONNECT_WITH_PROFESSIONAL_SUPPORT',
+                  presentation: {
+                    title: 'Kết nối với chuyên gia',
+                    summary: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+    })
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    expect(
+      await screen.findByText(/Chưa thể tải chi tiết hướng hỗ trợ chính/),
+    ).toBeTruthy()
+    expect(screen.queryByText('Tìm chuyên gia phù hợp')).toBeNull()
+    expect(api.getAppointments).not.toHaveBeenCalled()
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Thử tải lại hướng hỗ trợ' }),
+    )
+
+    expect(
+      await screen.findByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
+    ).toBeTruthy()
+    expect(api.getAppointments).toHaveBeenCalledWith(actionId)
+  })
+
+  it('does not infer an appointment state when the filtered lookup is unavailable', async () => {
+    const plan = makePlan('ACTIVE')
+    const actionId = '11111111-1111-4111-8111-111111111111'
+    const api = makeApi({
+      getCurrent: jest.fn().mockResolvedValue(plan),
+      getActions: jest.fn().mockResolvedValue({
+        supportPlanId: plan.supportPlanId,
+        modelVersion: 3,
+        representationMode: 'V2_RESOURCE_ADAPTER',
+        focuses: [
+          {
+            focusId: 'professional-support',
+            title: 'Kết nối với hỗ trợ phù hợp',
+            rationale: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+            personalizationProvenance: null,
+            actions: [
+              {
+                actionId,
+                actionType: 'PROFESSIONAL_SUPPORT',
+                status: 'ACTIVE',
+                pathRole: 'PRIMARY',
+                purposeCode: 'CONNECT_WITH_PROFESSIONAL_SUPPORT',
+                presentation: {
+                  title: 'Kết nối với chuyên gia',
+                  summary: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      getAppointments: jest.fn().mockRejectedValue(new Error('offline')),
+    })
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    expect(
+      await screen.findByText(/MentalBridge không tự suy đoán trạng thái/),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Trạng thái lịch hẹn:/)).toBeNull()
   })
 
   it('keeps one activation command across an ambiguous retry', async () => {
@@ -366,9 +695,10 @@ describe('mobile SupportPlan journey', () => {
     })
     const api = makeApi({
       getCurrent: jest.fn().mockResolvedValue(paused),
-      getOccurrences: jest
-        .fn()
-        .mockResolvedValue(makeOccurrenceList([scheduled, completed])),
+      getOccurrences: jest.fn().mockResolvedValue({
+        ...makeOccurrenceList([scheduled, completed]),
+        supportPlanStatus: 'PAUSED',
+      }),
     })
     await renderScreen(<SupportPlanScreen api={api} />)
 
@@ -453,7 +783,11 @@ describe('mobile SupportPlan journey', () => {
         .mockReturnValueOnce(pendingRefresh),
       getOccurrences: jest
         .fn()
-        .mockResolvedValue(makeOccurrenceList([scheduled])),
+        .mockResolvedValueOnce(makeOccurrenceList([scheduled]))
+        .mockResolvedValue({
+          ...makeOccurrenceList([scheduled]),
+          supportPlanStatus: 'PAUSED',
+        }),
       changeStatus: jest.fn().mockResolvedValue(paused),
     })
     await renderScreen(<SupportPlanScreen api={api} />)
@@ -480,9 +814,11 @@ describe('mobile SupportPlan journey', () => {
 
     await act(async () => resolveRefresh(paused))
 
-    expect(
-      await screen.findByRole('button', { name: 'Tiếp tục kế hoạch' }),
-    ).not.toBeDisabled()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Tiếp tục kế hoạch' }),
+      ).not.toBeDisabled(),
+    )
     expect(
       screen.queryByRole('button', { name: 'Tạm dừng kế hoạch' }),
     ).toBeNull()
@@ -507,7 +843,13 @@ describe('mobile SupportPlan journey', () => {
           }),
         )
         .mockResolvedValueOnce(paused),
-      getOccurrences: jest.fn().mockResolvedValue(makeOccurrenceList([])),
+      getOccurrences: jest
+        .fn()
+        .mockResolvedValueOnce(makeOccurrenceList([]))
+        .mockResolvedValue({
+          ...makeOccurrenceList([]),
+          supportPlanStatus: 'PAUSED',
+        }),
       changeStatus: jest.fn().mockResolvedValue(paused),
     })
     await renderScreen(<SupportPlanScreen api={api} />)
@@ -545,7 +887,13 @@ describe('mobile SupportPlan journey', () => {
         .fn()
         .mockResolvedValueOnce(active)
         .mockReturnValueOnce(pendingRefresh),
-      getOccurrences: jest.fn().mockResolvedValue(makeOccurrenceList([])),
+      getOccurrences: jest
+        .fn()
+        .mockResolvedValueOnce(makeOccurrenceList([]))
+        .mockResolvedValue({
+          ...makeOccurrenceList([]),
+          supportPlanStatus: 'PAUSED',
+        }),
       changeStatus: jest.fn().mockRejectedValue(
         new ApiError({
           message: 'stale',
@@ -594,7 +942,13 @@ describe('mobile SupportPlan journey', () => {
           }),
         )
         .mockResolvedValueOnce(paused),
-      getOccurrences: jest.fn().mockResolvedValue(makeOccurrenceList([])),
+      getOccurrences: jest
+        .fn()
+        .mockResolvedValueOnce(makeOccurrenceList([]))
+        .mockResolvedValue({
+          ...makeOccurrenceList([]),
+          supportPlanStatus: 'PAUSED',
+        }),
       changeStatus: jest.fn().mockRejectedValueOnce(
         new ApiError({
           message: 'stale',
@@ -681,4 +1035,61 @@ describe('mobile SupportPlan journey', () => {
       expect(api.changeStatus).not.toHaveBeenCalled()
     },
   )
+
+  it('reloads one stale schedule without losing another unsaved action draft', async () => {
+    const draft = makePlan('DRAFT', { version: 3 })
+    const refreshedDraft = makePlan('DRAFT', {
+      version: 4,
+      updatedAt: '2026-10-12T02:00:00.000Z',
+    })
+    const api = makeApi({
+      getCurrentDraft: jest
+        .fn()
+        .mockResolvedValueOnce(draft)
+        .mockResolvedValue(refreshedDraft),
+      getCurrentDraftActions: jest
+        .fn()
+        .mockResolvedValueOnce(makeScheduleProjection(draft))
+        .mockResolvedValue(makeScheduleProjection(refreshedDraft, 30, 20)),
+      replaceSchedule: jest.fn().mockRejectedValue(
+        new ApiError({
+          message: 'stale',
+          code: 'SUPPORT_PLAN_VERSION_MISMATCH',
+          status: 412,
+        }),
+      ),
+    })
+
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    const durations = await screen.findAllByLabelText(
+      'Thời lượng dự kiến (phút)',
+    )
+    fireEvent.changeText(durations[0]!, '25')
+    fireEvent.changeText(durations[1]!, '35')
+    const save = screen.getAllByRole('button', { name: 'Lưu lịch' })[0]!
+    await waitFor(() =>
+      expect(save.props.accessibilityState.disabled).toBe(false),
+    )
+    fireEvent.press(save)
+    await waitFor(() => expect(api.replaceSchedule).toHaveBeenCalledTimes(1))
+
+    const reload = await screen.findByRole('button', {
+      name: 'Tải lịch mới',
+    })
+    await act(async () => {
+      await fireEvent.press(reload)
+    })
+
+    await screen.findByText(
+      'Đã tải trạng thái mới nhất. Hãy kiểm tra lại trước khi tiếp tục.',
+    )
+    await waitFor(() => {
+      const reloadedDurations = screen.getAllByLabelText(
+        'Thời lượng dự kiến (phút)',
+      )
+      expect(reloadedDurations[0]!.props.value).toBe('30')
+      expect(reloadedDurations[1]!.props.value).toBe('35')
+    })
+  })
 })

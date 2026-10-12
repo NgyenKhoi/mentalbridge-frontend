@@ -1,0 +1,30 @@
+services:
+  community-migrate:
+    build:
+      context: ./community-service
+      target: migration
+    environment: &community-environment
+      COMMUNITY_DB_URL: jdbc:postgresql://community-postgres:5432/mentalbridge_community
+      COMMUNITY_DB_USERNAME: mentalbridge_community
+      COMMUNITY_DB_PASSWORD: local-only-community-password
+      IDENTITY_JWT_ISSUER: https://identity.e2e.mentalbridge
+      IDENTITY_JWT_AUDIENCE: mentalbridge-e2e-api
+      IDENTITY_JWT_PUBLIC_KEY: ${E2E_IDENTITY_JWT_PUBLIC_KEY}
+      CLOUDINARY_CLOUD_NAME: controlled-e2e-no-media-upload
+      CLOUDINARY_API_KEY: controlled-e2e-unused
+      CLOUDINARY_API_SECRET: controlled-e2e-unused-no-delivery
+      COMMUNITY_INTERACTION_RELAY_ENABLED: 'false'
+      EUREKA_CLIENT_ENABLED: 'false'
+    depends_on:
+      community-postgres:
+        condition: service_healthy
+
+  community:
+    build: ./community-service
+    environment:
+      <<: *community-environment
+      COMMUNITY_LIQUIBASE_ENABLED: 'false'
+    ports: ['8084:8084']
+    depends_on:
+      community-migrate:
+        condition: service_completed_successfully

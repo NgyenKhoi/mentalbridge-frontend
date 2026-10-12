@@ -1,0 +1,43 @@
+appId: com.mentalbridge.mobile
+name: MB-633 specialist profile and availability journey
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_SPECIALIST_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_SPECIALIST_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Không gian chuyên môn của bạn'
+- tapOn: 'Quản lý hồ sơ nghề nghiệp'
+- assertVisible: 'Hồ sơ nghề nghiệp'
+- assertVisible: 'Đã được phê duyệt'
+- tapOn: '← Quay lại'
+- tapOn: 'Quản lý lịch khả dụng'
+- assertVisible: 'Lịch khả dụng trực tuyến'
+- assertVisible: 'Đã được phê duyệt'
+- tapOn: 'Ngày khả dụng'
+- inputText: '${MAESTRO_MB_SPECIALIST_SLOT_DATE}'
+- tapOn: 'Giờ bắt đầu'
+- inputText: '${MAESTRO_MB_SPECIALIST_SLOT_TIME}'
+- hideKeyboard
+- tapOn:
+    id: 'availability-publish'
+    retryTapIfNoChange: true
+- assertVisible: 'Đã xuất bản khung tư vấn trực tuyến 60 phút.'
+- scrollUntilVisible:
+    element:
+      text: 'Rút khung giờ'
+    direction: DOWN
+- tapOn:
+    text: 'Rút khung giờ'
+    index: 0
+- tapOn: 'Xác nhận rút khung giờ'
+- assertVisible: 'Đã rút khung giờ khỏi lịch khả dụng.'
+- tapOn: 'Tải lại'
+- assertVisible: 'Đã tải hồ sơ và lịch mới nhất.'
+- assertVisible: 'Đã rút'

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -129,13 +129,13 @@ describe('ResourcesExperience', () => {
       await screen.findByRole('heading', { name: /một chút bình yên/i }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: /chọn điều bạn cần/i }),
+      screen.getByRole('heading', { name: /kho tài nguyên/i }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: /bingo tuần này/i }),
+      screen.getByRole('heading', { name: /bingo chăm sóc tuần này/i }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: /vừa hoàn thành/i }),
+      screen.getByRole('heading', { name: /dấu ấn gần đây/i }),
     ).toBeVisible()
     expect(screen.getAllByRole('checkbox')).toHaveLength(4)
     expect(screen.getByRole('button', { name: 'Nhẹ nhàng' })).toBeVisible()
@@ -163,5 +163,55 @@ describe('ResourcesExperience', () => {
       },
     )
     expect(await screen.findByText(/một bước nhỏ đã hoàn thành/i)).toBeVisible()
+  })
+
+  it('explains active filters and offers a direct way back to all activities', async () => {
+    render(<ResourcesExperience />)
+
+    await screen.findByRole('heading', { name: /kho tài nguyên/i })
+    fireEvent.click(screen.getByRole('button', { name: 'Thử thách' }))
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '1 hoạt động để khám phá',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Video' }))
+    expect(
+      screen.getByRole('heading', { name: /chưa có hoạt động khớp bộ lọc/i }),
+    ).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mọi loại' }))
+    expect(
+      within(
+        screen.getByRole('region', { name: 'Kho tài nguyên' }),
+      ).getAllByRole('link', { name: /khám phá hoạt động:/i }),
+    ).toHaveLength(4)
+  })
+
+  it('does not celebrate completion when the selected day has no activities', async () => {
+    api.getResourceJourney.mockResolvedValueOnce({
+      localDate: '2026-09-23',
+      items: [],
+      progress: { practiceStreakDays: 0 },
+      bingo: [],
+    })
+    render(<ResourcesExperience />)
+
+    await screen.findByRole('heading', { name: /một chút bình yên/i })
+    fireEvent.click(
+      within(
+        screen.getByRole('region', { name: 'Nhịp chăm sóc' }),
+      ).getAllByRole('button')[0],
+    )
+
+    expect(
+      screen.getByText('Ngày này chưa có hoạt động được xếp lịch.'),
+    ).toBeVisible()
+    expect(
+      screen.queryByText('Bạn đã dành trọn một khoảng nhỏ cho mình.'),
+    ).toBeNull()
+    expect(
+      screen.getByRole('heading', { name: /kho tài nguyên/i }),
+    ).toBeVisible()
   })
 })

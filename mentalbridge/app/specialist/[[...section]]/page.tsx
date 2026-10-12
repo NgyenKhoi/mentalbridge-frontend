@@ -22,6 +22,7 @@ export default async function SpecialistWorkspace({
   }
   const allowedSections = new Set([
     'dashboard',
+    'analytics',
     'appointments',
     'availability',
     'clients',

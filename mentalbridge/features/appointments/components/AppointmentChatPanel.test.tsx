@@ -27,6 +27,7 @@ const transport = vi.hoisted(() => ({
           recovery: string
           issue?: { code: string; message: string; retryable: boolean }
         }) => void
+        onAcknowledgement?: (ack: { commandId: string }) => void
       }
     | undefined,
 }))
@@ -35,7 +36,14 @@ vi.mock('../api/chat-browser-client', () => api)
 vi.mock('@/lib/realtime', () => ({
   createCheckInCommand: vi.fn(() => ({ commandType: 'conversation.check-in' })),
   createHeartbeatCommand: vi.fn(() => ({ commandType: 'presence.heartbeat' })),
-  createMessageCommand: vi.fn(() => ({ commandType: 'message.send' })),
+  createMessageCommand: vi.fn((_id: string, content: string) => ({
+    commandType: 'message.send',
+    commandId: '20000000-0000-4000-8000-000000000050',
+    payload: {
+      clientMessageId: '20000000-0000-4000-8000-000000000051',
+      content,
+    },
+  })),
   createSocketIoFactory: vi.fn(() => vi.fn()),
   createSubscribeCommand: vi.fn(() => ({
     commandType: 'conversation.subscribe',
@@ -69,6 +77,8 @@ const baseDecision = {
 describe('AppointmentChatPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    realtime.sendMessage.mockReset().mockResolvedValue('sent')
+    realtime.checkIn.mockReset().mockResolvedValue('sent')
     transport.options = undefined
     api.chatHistory.mockResolvedValue({
       items: [],
@@ -273,5 +283,138 @@ describe('AppointmentChatPanel', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       /Không thể duy trì kết nối chat/i,
     )
+  })
+
+  it('specialist readonly uses a clear state instead of a disabled fake composer', async () => {
+    api.chatEligibility.mockResolvedValue({
+      ...baseDecision,
+      phase: 'COMPLETED',
+      subscribeAllowed: false,
+      checkInAllowed: false,
+      creditState: 'CONSUMED',
+    })
+    render(
+      <AppointmentChatPanel
+        appointmentId={appointmentId}
+        viewerRole="SPECIALIST"
+      />,
+    )
+    expect(
+      await screen.findByText('Cuộc trò chuyện hiện ở chế độ chỉ đọc.'),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('textbox', { name: 'Tin nhắn' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Mở Sau tư vấn' })).toHaveAttribute(
+      'href',
+      `/specialist/follow-up?appointmentId=${appointmentId}`,
+    )
+    expect(realtime.connect).not.toHaveBeenCalled()
+  })
+
+  it('protects Vietnamese composition and retains the draft on send failure', async () => {
+    api.chatEligibility.mockResolvedValue({
+      ...baseDecision,
+      phase: 'ACTIVE',
+      sendAllowed: true,
+    })
+    realtime.sendMessage.mockResolvedValue('blocked')
+    render(
+      <AppointmentChatPanel
+        appointmentId={appointmentId}
+        viewerRole="SPECIALIST"
+      />,
+    )
+    const input = await screen.findByRole('textbox', { name: 'Tin nhắn' })
+    await waitFor(() => expect(realtime.connect).toHaveBeenCalled())
+    fireEvent.change(input, { target: { value: 'Tôi đang gõ tiếng Việt' } })
+    fireEvent.compositionStart(input)
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
+    expect(realtime.sendMessage).not.toHaveBeenCalled()
+    fireEvent.compositionEnd(input)
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
+    expect(realtime.sendMessage).not.toHaveBeenCalled()
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Bản nháp vẫn được giữ',
+    )
+    expect(input).toHaveValue('Tôi đang gõ tiếng Việt')
+  })
+
+  it('serializes pending sends and clears only after acknowledgment', async () => {
+    api.chatEligibility.mockResolvedValue({
+      ...baseDecision,
+      phase: 'ACTIVE',
+      sendAllowed: true,
+    })
+    let resolveSend!: (result: string) => void
+    realtime.sendMessage.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSend = resolve
+      }),
+    )
+    render(
+      <AppointmentChatPanel
+        appointmentId={appointmentId}
+        viewerRole="SPECIALIST"
+      />,
+    )
+    const input = await screen.findByRole('textbox', { name: 'Tin nhắn' })
+    await waitFor(() => expect(realtime.connect).toHaveBeenCalled())
+    fireEvent.change(input, { target: { value: 'Bản nháp chưa gửi' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(realtime.sendMessage).toHaveBeenCalledTimes(1)
+    expect(input).toHaveValue('Bản nháp chưa gửi')
+    expect(input).toBeDisabled()
+    await act(async () => resolveSend('sent'))
+    expect(input).toHaveValue('Bản nháp chưa gửi')
+    act(() =>
+      transport.options?.onAcknowledgement?.({
+        commandId: '20000000-0000-4000-8000-000000000050',
+      }),
+    )
+    expect(input).toHaveValue('')
+  })
+
+  it('clears protected history when the latest eligibility no longer permits it', async () => {
+    api.chatEligibility.mockResolvedValue({
+      ...baseDecision,
+      phase: 'ENDED_PROCESSING',
+      subscribeAllowed: false,
+      checkInAllowed: false,
+    })
+    api.chatHistory.mockResolvedValue({
+      items: [
+        {
+          messageId: 'm1',
+          conversationId: appointmentId,
+          senderId: baseDecision.userAccountId,
+          content: 'Lịch sử riêng tư',
+          sentAt: baseDecision.scheduledStartAt,
+        },
+      ],
+      hasMore: false,
+      nextCursor: null,
+    })
+    render(
+      <AppointmentChatPanel
+        appointmentId={appointmentId}
+        viewerRole="SPECIALIST"
+      />,
+    )
+    expect(await screen.findByText('Lịch sử riêng tư')).toBeVisible()
+    api.chatEligibility.mockResolvedValue({
+      ...baseDecision,
+      historyAllowed: false,
+      subscribeAllowed: false,
+      sendAllowed: false,
+      checkInAllowed: false,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại phòng chat' }))
+    await waitFor(() =>
+      expect(screen.queryByText('Lịch sử riêng tư')).not.toBeInTheDocument(),
+    )
+    expect(realtime.connect).not.toHaveBeenCalled()
   })
 })

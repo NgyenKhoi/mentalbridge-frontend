@@ -1,0 +1,12 @@
+appId: com.mentalbridge.mobile
+name: MB-631 Consultation-authoritative closed read-only chat
+---
+- extendedWaitUntil:
+    notVisible:
+      id: chat-composer
+    timeout: 30000
+- assertVisible: 'Phiên đã kết thúc. Cuộc trò chuyện chỉ để xem.'
+- assertVisible: 'MB631 synthetic peer message'
+- assertVisible: 'MB631 synthetic user message'
+- assertNotVisible:
+    id: chat-send

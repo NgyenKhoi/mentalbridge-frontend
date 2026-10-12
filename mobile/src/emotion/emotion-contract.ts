@@ -8,10 +8,26 @@ export const emotionSchema = z.enum([
   'VERY_LOW',
 ])
 
+export const emotionInfluenceFactorSchema = z.enum([
+  'sleep',
+  'work',
+  'study',
+  'family',
+  'friends',
+  'health',
+  'other',
+])
+
+const emotionInfluenceFactorsSchema = z
+  .array(emotionInfluenceFactorSchema)
+  .max(3)
+  .refine((factors) => new Set(factors).size === factors.length)
+
 export const emotionCheckInValueSchema = z
   .object({
     emotion: emotionSchema,
     intensity: z.number().int().min(1).max(5),
+    factors: emotionInfluenceFactorsSchema,
     note: z.string().trim().min(1).max(500).nullable(),
   })
   .strict()
@@ -120,6 +136,9 @@ export const emotionCheckInTombstoneSchema = z
   .strict()
 
 export type Emotion = z.infer<typeof emotionSchema>
+export type EmotionInfluenceFactor = z.infer<
+  typeof emotionInfluenceFactorSchema
+>
 export type EmotionCheckInValue = z.infer<typeof emotionCheckInValueSchema>
 export type CreateEmotionCheckIn = z.infer<typeof createEmotionCheckInSchema>
 export type EmotionCheckIn = z.infer<typeof emotionCheckInSchema>

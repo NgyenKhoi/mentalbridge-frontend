@@ -132,6 +132,99 @@ describe('SessionSummaryPanel', () => {
     ).toBeInTheDocument()
   })
 
+  it('cancels a new draft without publishing and restores focus', async () => {
+    api.list.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    const create = await screen.findByRole('button', {
+      name: 'Tạo bản tóm tắt',
+    })
+    await user.click(create)
+    const input = screen.getByLabelText(/Nội dung đã trao đổi/)
+    expect(input).toHaveFocus()
+    await user.type(input, 'Bản nháp chưa xuất bản')
+    await user.click(screen.getByRole('button', { name: 'Hủy bỏ' }))
+    expect(api.publish).not.toHaveBeenCalled()
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Tạo bản tóm tắt' }),
+      ).toHaveFocus(),
+    )
+    await user.click(screen.getByRole('button', { name: 'Tạo bản tóm tắt' }))
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue('')
+  })
+
+  it('returns to the immutable published version when cancelling an amendment', async () => {
+    api.list.mockResolvedValue({
+      items: [summary],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(
+      await screen.findByRole('button', { name: 'Đính chính bản tóm tắt' }),
+    )
+    await user.clear(screen.getByLabelText(/Nội dung đã trao đổi/))
+    await user.type(
+      screen.getByLabelText(/Nội dung đã trao đổi/),
+      'Nội dung chưa xuất bản',
+    )
+    await user.click(screen.getByRole('button', { name: 'Hủy bỏ' }))
+    expect(api.publish).not.toHaveBeenCalled()
+    expect(screen.getByText('Giấc ngủ')).toBeInTheDocument()
+    expect(screen.queryByText('Nội dung chưa xuất bản')).not.toBeInTheDocument()
+    expect(screen.getByText('Phiên bản 1')).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Đính chính bản tóm tắt' }),
+    )
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ',
+    )
+  })
+
+  it('bounds the step builder and topic list before sending a mutation', async () => {
+    api.list.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(
+      await screen.findByRole('button', { name: 'Tạo bản tóm tắt' }),
+    )
+    for (let index = 0; index < 7; index++)
+      await user.click(screen.getByRole('button', { name: 'Thêm bước' }))
+    expect(screen.getByRole('button', { name: 'Thêm bước' })).toBeDisabled()
+    expect(screen.getByText('8 / 8')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Xóa bước 2' }))
+    expect(screen.getByText('7 / 8')).toBeInTheDocument()
+    await user.type(
+      screen.getByLabelText(/Nội dung đã trao đổi/),
+      Array.from({ length: 9 }, (_, i) => `Mục ${i}`).join('\n'),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất bản cho người dùng' }),
+    )
+    expect(api.publish).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('từ 1 đến 8')
+  })
+
   it('prefills an amendment with the current agreed next steps', async () => {
     api.list.mockResolvedValue({
       items: [summary],

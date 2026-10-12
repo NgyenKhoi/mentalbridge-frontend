@@ -12,7 +12,7 @@ vi.mock('framer-motion', () => ({
   ),
 }))
 vi.mock('@/features/auth/components/SessionActions', () => ({
-  default: () => <button type="button">Đăng xuất</button>,
+  default: () => <button type="button">Người dùng</button>,
 }))
 vi.mock('@/features/auth/components/WorkspaceSwitcher', () => ({
   default: () => null,
@@ -23,6 +23,10 @@ vi.mock('./SpecialistWorkspaceIdentity', () => ({
 vi.mock('./SpecialistDashboardManager', () => ({
   default: () => <h1>Tổng quan thật</h1>,
 }))
+vi.mock(
+  '@/features/specialist-analytics/components/SpecialistOperationalAnalytics',
+  () => ({ default: () => <h1>Phân tích vận hành thật</h1> }),
+)
 vi.mock(
   '@/features/appointments/components/SpecialistAppointmentDecisionPanel',
   () => ({ default: () => <h1>Lịch hẹn thật</h1> }),
@@ -62,7 +66,10 @@ describe('RoleWorkspace specialist production closure', () => {
     const navigation = screen.getByRole('navigation', {
       name: 'Điều hướng specialist',
     })
-    expect(within(navigation).getAllByRole('link')).toHaveLength(8)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(9)
+    expect(
+      within(navigation).getByRole('link', { name: /Phân tích vận hành/i }),
+    ).toBeInTheDocument()
     expect(
       within(navigation).getByRole('link', { name: /Thu nhập/i }),
     ).toBeInTheDocument()
@@ -71,6 +78,8 @@ describe('RoleWorkspace specialist production closure', () => {
     ).not.toBeInTheDocument()
     expect(screen.queryByText('3')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Thông báo')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('complementary')).getByText('Chuyên gia từ hồ sơ')).toBeInTheDocument()
+    expect(screen.queryByText('Người dùng')).not.toBeInTheDocument()
   })
 
   it('does not expose unsupported appointment creation actions or modalities', () => {

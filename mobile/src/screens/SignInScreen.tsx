@@ -71,6 +71,7 @@ export function SignInScreen() {
         </Text>
         <TextInput
           accessibilityLabel="Email"
+          testID="sign-in-email-input"
           accessibilityLabelledBy="sign-in-email-label"
           autoCapitalize="none"
           autoComplete="email"
@@ -87,6 +88,7 @@ export function SignInScreen() {
         </Text>
         <TextInput
           accessibilityLabel="Mật khẩu"
+          testID="sign-in-password-input"
           accessibilityLabelledBy="sign-in-password-label"
           autoComplete="current-password"
           maxLength={128}
@@ -106,6 +108,7 @@ export function SignInScreen() {
           disabled={loading}
           label={loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           onPress={() => void submit()}
+          testID="sign-in-submit"
         />
         <Text
           accessibilityRole="link"

@@ -7,6 +7,7 @@ import SupportPlanCard from './SupportPlanCard'
 vi.mock('./SupportPlanSchedule', () => ({
   default: () => <div data-testid="support-plan-schedule" />,
 }))
+vi.mock('./ProfessionalSupportPath', () => ({ default: () => null }))
 
 function renderCard(
   plan = supportPlanFixture(),

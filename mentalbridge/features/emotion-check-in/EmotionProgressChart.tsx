@@ -6,11 +6,14 @@ import { useEffect, useId, useMemo, useState } from 'react'
 
 import { Skeleton } from '@/components/ui/Skeleton'
 import type {
-  Emotion,
   EmotionCheckIn,
   EmotionCheckInProgress,
   EmotionProgressWindow,
 } from '@/lib/emotion-check-in/contract'
+import {
+  emotionOrder,
+  emotionPresentation,
+} from '@/lib/emotion-check-in/presentation'
 
 import {
   getEmotionCheckInProgress,
@@ -37,17 +40,8 @@ type ChartPoint = Readonly<{
   y: number
 }>
 
-const emotions = ['GREAT', 'GOOD', 'OKAY', 'LOW', 'VERY_LOW'] as const
-const emotionCopy: Record<
-  Emotion,
-  Readonly<{ label: string; color: string; background: string }>
-> = {
-  GREAT: { label: 'Rất tốt', color: '#D99B2B', background: '#FDF3DC' },
-  GOOD: { label: 'Tốt', color: '#3D7A6E', background: '#DDF3F0' },
-  OKAY: { label: 'Bình thường', color: '#6C9BD2', background: '#E3EDF8' },
-  LOW: { label: 'Không tốt', color: '#B96747', background: '#F5DED2' },
-  VERY_LOW: { label: 'Rất không tốt', color: '#68639A', background: '#E5E3F1' },
-}
+const emotions = emotionOrder
+const emotionCopy = emotionPresentation
 
 const chartLeft = 86
 const chartRight = 750

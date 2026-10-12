@@ -97,7 +97,7 @@ App
 ├── Expo Router public route group
 └── protected authenticated role groups
     ├── USER home and Care-backed personal profile
-    └── SPECIALIST placeholder shell
+    └── SPECIALIST professional profile and online availability
 
 Shared foundations
 ├── Axios API client: timeout, correlation ID, bearer injection seam
@@ -148,6 +148,25 @@ causal analysis, recovery claims, or actor selection. See
 [`docs/MB-613_EMOTION_CHECK_IN.md`](docs/MB-613_EMOTION_CHECK_IN.md) for the API,
 state, cache, test, and staging Android persistence evidence.
 
+MB-626 adds the Content-backed published Resources catalogue, reviewed detail,
+supported article/practice/video interactions, and owner-scoped daily progress.
+It preserves server completion semantics and keeps editorial authority out of
+the app. See [`docs/MB-626_RESOURCES.md`](docs/MB-626_RESOURCES.md) for the API,
+state, safety, test, and staging Android persistence evidence.
+
+MB-627 adds private USER Journal CRUD and explicit bounded AI reflection/time
+comparison with Care consent, server-side entitlement enforcement and exact
+revision/source provenance. See
+[`docs/MB-627_PRIVATE_JOURNAL.md`](docs/MB-627_PRIVATE_JOURNAL.md) for the contract,
+concurrency/privacy behavior, tests and protected exact-head Android proof.
+
+MB-633 adds Consultation-backed SPECIALIST professional profile lifecycle and
+owner-scoped 60-minute online availability. It keeps USER/Care and Community
+identities separate, enforces server-owned approval and concurrency state, and
+fails closed during stale recovery. See
+[`docs/MB-633_SPECIALIST_PROFILE_AVAILABILITY.md`](docs/MB-633_SPECIALIST_PROFILE_AVAILABILITY.md)
+for the contract, state, test and Android real-contract evidence.
+
 ## Quality commands
 
 ```powershell
@@ -168,11 +187,13 @@ npm run quality
 compile or boot evidence. Native compile/install/launch is verified separately
 by `npm run native:android:smoke` and `npm run native:ios:smoke` in the staging
 release gate; Android also runs the MB-612 assessment and MB-613 emotion
-real-contract journeys plus the MB-625 SupportPlan journey against the protected
-staging edge. Assessment and emotion share one dedicated USER fixture; the
-SupportPlan journey uses a separate resettable fixture. Pull requests into
-`dev` run only `npm run typecheck` for mobile; formatting, lint, Jest, bundle
-export, native boot, and real-contract checks wait for staging.
+real-contract journeys plus the MB-625 SupportPlan, MB-626 Resources, MB-627
+Journal safe-outcome and MB-633 SPECIALIST profile/availability journeys against
+the protected staging edge. Assessment, emotion, Resources and Journal share
+one dedicated USER fixture; SupportPlan and SPECIALIST use separate resettable
+fixtures. Pull requests into `dev` run only `npm run typecheck` for mobile;
+formatting, lint, Jest, bundle export, native boot, and real-contract checks
+wait for staging unless an explicit evidence label enables an exact-head run.
 
 The synthetic welcome-screen review capture is documented in
 [`docs/evidence/README.md`](docs/evidence/README.md).

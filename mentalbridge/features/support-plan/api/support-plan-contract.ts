@@ -3,6 +3,16 @@ import type { components as evaluation } from '@/contracts/care-support-evaluati
 
 export type SupportPlanDraft = care['schemas']['SupportPlanDraft']
 export type SupportPlan = care['schemas']['SupportPlan']
+export type SupportPlanV3 = care['schemas']['SupportPlanV3']
+export type SupportPlanPersonalization =
+  care['schemas']['SupportPlanPersonalization']
+export type ReplaceSupportPlanPersonalizationRequest =
+  care['schemas']['ReplaceSupportPlanPersonalizationRequest']
+export type PlanAction = care['schemas']['PlanAction']
+export type ActionSchedule = care['schemas']['ActionSchedule']
+export type ActionScheduleInput = care['schemas']['ActionScheduleInput']
+export type UpdateActionScheduleRequest =
+  care['schemas']['UpdateActionScheduleRequest']
 export type SupportPlanHistoryPage = care['schemas']['SupportPlanHistoryPage']
 export type ProposeSupportPlanDraftRequest =
   care['schemas']['ProposeSupportPlanDraftRequest']

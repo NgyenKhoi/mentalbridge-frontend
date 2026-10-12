@@ -1,15 +1,25 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronRight,
+  MessageSquare,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  X,
+} from 'lucide-react'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 import type { SpecialistClientContinuityItem } from '@/features/appointments/api/consultation-brief-contract'
 import { consultationBriefBrowserClient } from '@/features/appointments/api/consultation-brief-browser-client'
 import { SessionSummaryPanel } from '@/features/appointments/components/SessionSummaryPanel'
 import { SpecialistConsultationBrief } from '@/features/appointments/components/SpecialistConsultationBrief'
 import { ApiError } from '@/lib/api/api-error'
-import styles from '@/features/appointments/components/SpecialistContinuityManager.module.css'
-import './specialist-clients-manager.css'
+import styles from './SpecialistClientsManager.module.css'
 
 type Props = { rows?: unknown[]; initialAppointmentId?: string }
 type Client = {
@@ -19,6 +29,11 @@ type Client = {
 }
 
 const VN_ZONE = 'Asia/Ho_Chi_Minh'
+const TABS = [
+  ['prepare', 'Chuẩn bị phiên'],
+  ['summary', 'Tổng kết phiên'],
+  ['history', 'Phạm vi truy cập'],
+] as const
 
 function initials(name: string) {
   return name
@@ -129,6 +144,13 @@ export default function SpecialistClientsManager({
   const [tab, setTab] = useState<'prepare' | 'summary' | 'history'>('prepare')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [loaded, setLoaded] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(Boolean(initialAppointmentId))
+  const detailHeading = useRef<HTMLHeadingElement>(null)
+  const selectedClientButton = useRef<HTMLButtonElement>(null)
+  const searchInput = useRef<HTMLInputElement>(null)
+  const selectedId = useRef(initialAppointmentId ?? '')
+  const tabId = useId()
 
   const clients = useMemo<Client[]>(() => {
     const groups = new Map<string, Client>()
@@ -178,18 +200,22 @@ export default function SpecialistClientsManager({
       setItems(response.items)
       const first =
         response.items.find(
-          (item) => item.appointmentId === initialAppointmentId,
+          (item) => item.appointmentId === selectedId.current,
         ) ?? response.items[0]
       setSelectedClientId(first?.userAccountId ?? '')
       setSelectedAppointmentId(first?.appointmentId ?? '')
-      setTab(first?.status === 'COMPLETED' ? 'summary' : 'prepare')
+      if (first?.appointmentId !== selectedId.current)
+        setTab(first?.status === 'COMPLETED' ? 'summary' : 'prepare')
+      selectedId.current = first?.appointmentId ?? ''
+      setLoaded(true)
     } catch (caught) {
-      setItems([])
+      if (caught instanceof ApiError && [401, 403].includes(caught.status ?? 0))
+        setItems([])
       setError(loadError(caught))
     } finally {
       setLoading(false)
     }
-  }, [initialAppointmentId])
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -204,6 +230,8 @@ export default function SpecialistClientsManager({
           ) ?? response.items[0]
         setSelectedClientId(first?.userAccountId ?? '')
         setSelectedAppointmentId(first?.appointmentId ?? '')
+        selectedId.current = first?.appointmentId ?? ''
+        setLoaded(true)
         setTab(first?.status === 'COMPLETED' ? 'summary' : 'prepare')
       })
       .catch((caught: unknown) => {
@@ -223,28 +251,26 @@ export default function SpecialistClientsManager({
     const next = client.appointments[0]
     setSelectedClientId(client.id)
     setSelectedAppointmentId(next?.appointmentId ?? '')
+    selectedId.current = next?.appointmentId ?? ''
+    setDetailOpen(true)
     setTab(next?.status === 'COMPLETED' ? 'summary' : 'prepare')
+    requestAnimationFrame(() =>
+      detailHeading.current?.focus({ preventScroll: true }),
+    )
   }
 
   const chooseAppointment = (appointment: SpecialistClientContinuityItem) => {
     setSelectedAppointmentId(appointment.appointmentId)
+    selectedId.current = appointment.appointmentId
     setTab(appointment.status === 'COMPLETED' ? 'summary' : 'prepare')
   }
 
-  if (loading)
-    return (
-      <section className={styles.page} aria-label="Khách hàng của tôi">
-        <div className={styles.loadingState} role="status">
-          <span />
-          <span />
-          <span />
-          <p>Đang tải các quan hệ tư vấn được phép xem…</p>
-        </div>
-      </section>
-    )
-
   return (
-    <section className={styles.page} aria-labelledby="specialist-clients-title">
+    <section
+      className={styles.page}
+      data-specialist-journey="clients"
+      aria-labelledby="specialist-clients-title"
+    >
       <header className={styles.heading}>
         <div>
           <span className={styles.eyebrow}>Không gian chuyên gia</span>
@@ -254,13 +280,25 @@ export default function SpecialistClientsManager({
             cửa sổ truy cập hiện hành.
           </p>
         </div>
-        <Link className={styles.primaryLink} href="/specialist/appointments">
-          Quản lý lịch hẹn
-        </Link>
+        <div className={styles.headingActions}>
+          <button
+            type="button"
+            className={styles.reload}
+            onClick={() => void load()}
+            disabled={loading}
+            aria-label="Tải lại khách hàng"
+          >
+            <RefreshCw size={18} aria-hidden="true" />
+            <span>{loading ? 'Đang tải…' : 'Tải lại'}</span>
+          </button>
+          <Link className={styles.primaryLink} href="/specialist/appointments">
+            <CalendarDays size={18} aria-hidden="true" /> Quản lý lịch hẹn
+          </Link>
+        </div>
       </header>
 
       <aside className={styles.boundaryNote}>
-        <span aria-hidden="true">✓</span>
+        <ShieldCheck size={20} aria-hidden="true" />
         <p>
           <strong>Danh sách được giới hạn theo lịch hẹn</strong>
           Chỉ khách hàng có phiên đã xác nhận, đang diễn ra hoặc mới hoàn thành
@@ -268,14 +306,24 @@ export default function SpecialistClientsManager({
         </p>
       </aside>
 
-      {error ? (
+      {error && (
         <div className={styles.pageError} role="alert">
           <p>{error}</p>
-          <button type="button" onClick={() => void load()}>
+          <button type="button" onClick={() => void load()} disabled={loading}>
             Thử lại
           </button>
         </div>
-      ) : clients.length === 0 ? (
+      )}
+      {loading && !loaded ? (
+        <div
+          className={styles.loadingState}
+          role="status"
+          aria-label="Đang tải khách hàng"
+        >
+          <Skeleton width="100%" height={280} />
+          <Skeleton width="100%" height={480} />
+        </div>
+      ) : error && clients.length === 0 ? null : clients.length === 0 ? (
         <div className={styles.emptyState}>
           <span aria-hidden="true">◇</span>
           <h2>Chưa có khách hàng trong phạm vi tiếp nối</h2>
@@ -287,7 +335,11 @@ export default function SpecialistClientsManager({
           <Link href="/specialist/appointments">Xem lịch hẹn</Link>
         </div>
       ) : (
-        <div className={styles.workspace}>
+        <div
+          className={styles.workspace}
+          data-detail-open={detailOpen}
+          aria-busy={loading}
+        >
           <aside
             className={styles.directory}
             aria-label="Khách hàng được phép xem"
@@ -299,14 +351,27 @@ export default function SpecialistClientsManager({
               </div>
               <strong>{clients.length}</strong>
             </header>
-            <label className="scm-search" style={{ margin: 'var(--space-3)' }}>
-              <span aria-hidden="true">⌕</span>
+            <label className={styles.search}>
+              <Search size={18} aria-hidden="true" />
               <input
+                ref={searchInput}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Tìm tên khách hàng…"
                 aria-label="Tìm khách hàng"
               />
+              {query && (
+                <button
+                  type="button"
+                  aria-label="Xóa tìm kiếm"
+                  onClick={() => {
+                    setQuery('')
+                    searchInput.current?.focus()
+                  }}
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
+              )}
             </label>
             <div className={styles.appointmentList}>
               {visibleClients.map((client) => {
@@ -315,6 +380,11 @@ export default function SpecialistClientsManager({
                   <button
                     type="button"
                     key={client.id}
+                    ref={
+                      selectedClient?.id === client.id
+                        ? selectedClientButton
+                        : undefined
+                    }
                     className={
                       selectedClient?.id === client.id
                         ? styles.selectedAppointment
@@ -333,21 +403,51 @@ export default function SpecialistClientsManager({
                         {statusLabel(latest.status)}
                       </small>
                     </span>
-                    <span aria-hidden="true">›</span>
+                    <ChevronRight size={18} aria-hidden="true" />
                   </button>
                 )
               })}
+              {visibleClients.length === 0 && (
+                <div className={styles.searchEmpty}>
+                  <p>Không tìm thấy khách hàng phù hợp.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery('')
+                      searchInput.current?.focus()
+                    }}
+                  >
+                    Xóa tìm kiếm
+                  </button>
+                </div>
+              )}
             </div>
           </aside>
 
           {selectedClient && selectedAppointment && (
-            <section className={styles.detail} aria-live="polite">
+            <section className={styles.detail} aria-label="Chi tiết khách hàng">
+              <button
+                type="button"
+                className={styles.back}
+                onClick={() => {
+                  setDetailOpen(false)
+                  requestAnimationFrame(() =>
+                    selectedClientButton.current?.focus({
+                      preventScroll: true,
+                    }),
+                  )
+                }}
+              >
+                <ArrowLeft size={18} aria-hidden="true" /> Danh sách khách hàng
+              </button>
               <header className={styles.detailHeader}>
                 <div>
                   <span className={styles.sectionLabel}>
                     Không gian phiên tư vấn
                   </span>
-                  <h2>{selectedClient.name}</h2>
+                  <h2 ref={detailHeading} tabIndex={-1}>
+                    {selectedClient.name}
+                  </h2>
                   <p>
                     {selectedClient.appointments.length} lịch hẹn với bạn ·{' '}
                     {selectedAppointment.modality === 'IN_APP_CHAT'
@@ -360,7 +460,7 @@ export default function SpecialistClientsManager({
                     <Link
                       href={`/specialist/messages?appointmentId=${encodeURIComponent(selectedAppointment.appointmentId)}`}
                     >
-                      Mở tin nhắn
+                      <MessageSquare size={18} aria-hidden="true" /> Mở tin nhắn
                     </Link>
                   )}
                 </div>
@@ -376,6 +476,7 @@ export default function SpecialistClientsManager({
                     {formatAppointment(selectedAppointment).time} ·{' '}
                     {statusLabel(selectedAppointment.status)}
                   </p>
+                  <small>Múi giờ hiển thị: {VN_ZONE}</small>
                 </div>
                 <div
                   className={styles.versionChoices}
@@ -391,31 +492,50 @@ export default function SpecialistClientsManager({
                       }
                       onClick={() => chooseAppointment(appointment)}
                     >
-                      <span>{formatAppointment(appointment).date}</span>
+                      <span>
+                        {formatAppointment(appointment).date} ·{' '}
+                        {formatAppointment(appointment).time}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
 
               <div
-                className="scm-tabs"
+                className={styles.tabs}
                 role="tablist"
                 aria-label="Nội dung phiên tư vấn"
               >
-                {(
-                  [
-                    ['prepare', 'Chuẩn bị phiên'],
-                    ['summary', 'Tổng kết phiên'],
-                    ['history', 'Phạm vi truy cập'],
-                  ] as const
-                ).map(([key, label]) => (
+                {TABS.map(([key, label]) => (
                   <button
                     type="button"
                     role="tab"
                     key={key}
                     aria-selected={tab === key}
-                    className={tab === key ? 'is-active' : ''}
+                    id={`${tabId}-${key}`}
+                    aria-controls={`${tabId}-panel`}
+                    tabIndex={tab === key ? 0 : -1}
                     onClick={() => setTab(key)}
+                    onKeyDown={(event) => {
+                      const index = TABS.findIndex(([value]) => value === key)
+                      const next =
+                        event.key === 'Home'
+                          ? 0
+                          : event.key === 'End'
+                            ? TABS.length - 1
+                            : event.key === 'ArrowRight'
+                              ? (index + 1) % TABS.length
+                              : event.key === 'ArrowLeft'
+                                ? (index + TABS.length - 1) % TABS.length
+                                : null
+                      if (next !== null) {
+                        event.preventDefault()
+                        setTab(TABS[next][0])
+                        document
+                          .getElementById(`${tabId}-${TABS[next][0]}`)
+                          ?.focus()
+                      }
+                    }}
                   >
                     {label}
                   </button>
@@ -424,6 +544,10 @@ export default function SpecialistClientsManager({
 
               <div
                 className={styles.snapshot}
+                role="tabpanel"
+                id={`${tabId}-panel`}
+                aria-labelledby={`${tabId}-${tab}`}
+                tabIndex={0}
                 key={`${selectedAppointment.appointmentId}-${tab}`}
               >
                 {tab === 'prepare' && (
@@ -432,15 +556,10 @@ export default function SpecialistClientsManager({
                       <span>
                         {accessLabel(selectedAppointment.briefAccessState)}
                       </span>
-                      {selectedAppointment.briefSnapshotVersion && (
-                        <small>
-                          ConsultationBrief · bản{' '}
-                          {selectedAppointment.briefSnapshotVersion}
-                        </small>
-                      )}
                     </div>
                     {selectedAppointment.briefAccessState === 'AVAILABLE' ? (
                       <SpecialistConsultationBrief
+                        key={selectedAppointment.appointmentId}
                         appointmentId={selectedAppointment.appointmentId}
                       />
                     ) : (
@@ -453,6 +572,14 @@ export default function SpecialistClientsManager({
                             selectedAppointment.briefAccessState,
                           )}
                         </p>
+                        <button
+                          type="button"
+                          className={styles.reload}
+                          onClick={() => void load()}
+                          disabled={loading}
+                        >
+                          Kiểm tra lại quyền xem
+                        </button>
                       </div>
                     )}
                   </>
@@ -461,6 +588,7 @@ export default function SpecialistClientsManager({
                 {tab === 'summary' &&
                   (selectedAppointment.status === 'COMPLETED' ? (
                     <SessionSummaryPanel
+                      key={selectedAppointment.appointmentId}
                       appointmentId={selectedAppointment.appointmentId}
                       viewer="SPECIALIST"
                     />
@@ -469,7 +597,7 @@ export default function SpecialistClientsManager({
                       <h3>Tổng kết mở sau khi phiên hoàn thành</h3>
                       <p>
                         Bản tóm tắt sau phiên chỉ được xuất bản từ một lịch hẹn
-                        đã hoàn thành dựa trên bằng chứng phiên.
+                        đã hoàn thành.
                       </p>
                     </div>
                   ))}
@@ -478,20 +606,21 @@ export default function SpecialistClientsManager({
                   <section className={styles.summarySection}>
                     <h3>Nguồn và thời hạn của quyền xem</h3>
                     <p>
-                      Quan hệ nguồn: lịch hẹn{' '}
-                      {selectedAppointment.appointmentId} · phiên bản{' '}
-                      {selectedAppointment.appointmentVersion}.
+                      Nội dung được chia sẻ riêng cho lịch hẹn{' '}
+                      {formatAppointment(selectedAppointment).date},{' '}
+                      {formatAppointment(selectedAppointment).time}.
                     </p>
                     <p>
                       {selectedAppointment.briefAccessStartAt &&
                       selectedAppointment.briefAccessEndAt
-                        ? `Cửa sổ ConsultationBrief: ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: VN_ZONE }).format(new Date(selectedAppointment.briefAccessStartAt))} – ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: VN_ZONE }).format(new Date(selectedAppointment.briefAccessEndAt))}.`
-                        : 'Người dùng chưa cấp một cửa sổ ConsultationBrief cho lịch hẹn này.'}
+                        ? `Thời gian được xem: ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: VN_ZONE }).format(new Date(selectedAppointment.briefAccessStartAt))} – ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: VN_ZONE }).format(new Date(selectedAppointment.briefAccessEndAt))} (${VN_ZONE}).`
+                        : 'Người dùng chưa chia sẻ bản chuẩn bị cho lịch hẹn này.'}
                     </p>
                     <p>
-                      Nhật ký gốc, câu trả lời sàng lọc, phân tích AI,
-                      SupportPlan tổng thể và ghi chú của chuyên gia khác không
-                      nằm trong phạm vi này.
+                      Chỉ bản tóm tắt được người dùng phê duyệt cho lịch hẹn này
+                      được chia sẻ. Nhật ký gốc, câu trả lời sàng lọc, kế hoạch
+                      hỗ trợ đầy đủ và ghi chú của chuyên gia khác không được
+                      chia sẻ tại đây.
                     </p>
                   </section>
                 )}

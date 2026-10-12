@@ -11,20 +11,27 @@ import {
   TextInput,
   View,
 } from 'react-native'
+import { z } from 'zod'
 
 import { ApiError } from '@/api/api-error'
+import type { Appointment } from '@/appointments/appointment-contract'
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type { SupportPlanApi } from './support-plan-api'
+import { SupportPlanPersonalizationCard } from './SupportPlanPersonalizationCard'
+import { SupportPlanScheduleEditor } from './SupportPlanScheduleEditor'
 import type {
   OccurrenceEngagement,
+  PlanActionProjection,
   PlanChangeRequest,
   ReplacementReview,
   SupportPlan,
+  SupportPlanActions,
   SupportPlanOccurrence,
+  UpdateActionScheduleRequest,
 } from './support-plan-contract'
 
 type Notice = Readonly<{ message: string; tone: 'error' | 'success' }>
@@ -52,6 +59,17 @@ const occurrenceLabels: Record<SupportPlanOccurrence['displayState'], string> =
     SKIPPED: 'Đã bỏ qua',
     CANCELLED: 'Đã hủy theo trạng thái kế hoạch',
   }
+
+const appointmentProgressLabels: Record<Appointment['status'], string> = {
+  REQUESTED: 'Đã gửi yêu cầu, đang chờ chuyên gia xác nhận',
+  CONFIRMED: 'Chuyên gia đã xác nhận lịch hẹn',
+  IN_PROGRESS: 'Buổi tư vấn đang diễn ra',
+  SESSION_ENDED: 'Buổi tư vấn đã kết thúc, đang hoàn tất ghi nhận',
+  COMPLETED: 'Buổi tư vấn đã hoàn thành',
+  REJECTED: 'Chuyên gia chưa thể nhận lịch này',
+  EXPIRED: 'Yêu cầu đặt lịch đã hết hạn',
+  CANCELLED: 'Lịch hẹn đã được hủy',
+}
 
 const helpfulnessOptions = [
   ['NOT_HELPFUL', 'Không hữu ích'],
@@ -111,6 +129,41 @@ function formatDate(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+function professionalSupportAction(
+  projection: Awaited<ReturnType<SupportPlanApi['getActions']>> | undefined,
+) {
+  const action = projection?.focuses
+    .flatMap((focus) => focus.actions)
+    .find(
+      (candidate) =>
+        candidate.actionType === 'PROFESSIONAL_SUPPORT' &&
+        candidate.pathRole === 'PRIMARY' &&
+        candidate.status !== 'ENDED',
+    )
+  return action && z.uuid().safeParse(action.actionId).success
+    ? action
+    : undefined
+}
+
+function requiresProfessionalSupport(plan: SupportPlan) {
+  return plan.templateFamilies.some(
+    ({ family }) =>
+      family === 'DEPRESSIVE_PROFESSIONAL_ADJUNCT' ||
+      family === 'ANXIETY_PROFESSIONAL_ADJUNCT',
+  )
+}
+
+function latestAppointmentFor(
+  action: PlanActionProjection | undefined,
+  appointments:
+    Awaited<ReturnType<SupportPlanApi['getAppointments']>> | undefined,
+) {
+  if (!action) return undefined
+  return appointments?.items
+    .filter((item) => item.originatingPlanActionId === action.actionId)
+    .sort((left, right) => right.requestedAt.localeCompare(left.requestedAt))[0]
 }
 
 function loadErrorMessage(error: unknown) {
@@ -176,33 +229,191 @@ function SecondaryButton({
 }
 
 function PlanCard({
+  appointment,
+  appointmentUnavailable,
   busy,
   canActivate,
   onActivate,
   onChangeChoice,
+  onRetryProfessionalSupport,
   onStatus,
   plan,
+  focuses,
+  focusesLoading,
+  focusesUnavailable,
+  professionalAction,
+  professionalSupportError,
+  professionalSupportRefreshing,
+  schedulePlan,
+  onSaveSchedule,
+  onReloadSchedule,
   title,
 }: Readonly<{
+  appointment?: Appointment | undefined
+  appointmentUnavailable: boolean
   busy: boolean
   canActivate: boolean
   onActivate: () => void
   onChangeChoice: (slotId: string, resourceId: string) => void
+  onRetryProfessionalSupport: () => void
   onStatus: (status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED') => void
   plan: SupportPlan
+  focuses: SupportPlanActions['focuses'] | undefined
+  focusesLoading: boolean
+  focusesUnavailable: boolean
+  professionalAction?: PlanActionProjection | undefined
+  professionalSupportError: boolean
+  professionalSupportRefreshing: boolean
+  schedulePlan: SupportPlanActions | undefined
+  onSaveSchedule: (
+    actionId: string,
+    request: UpdateActionScheduleRequest,
+    idempotencyKey: string,
+  ) => Promise<void>
+  onReloadSchedule: () => Promise<SupportPlanActions | undefined>
   title: string
 }>) {
+  const [scheduleDirty, setScheduleDirty] = useState(false)
+  const showProfessionalSupport = Boolean(
+    professionalAction ||
+    (professionalSupportError && requiresProfessionalSupport(plan)),
+  )
+  const scheduleAuthorityMatches = Boolean(
+    schedulePlan &&
+    schedulePlan.supportPlanId === plan.supportPlanId &&
+    schedulePlan.status === plan.status &&
+    schedulePlan.version === plan.version,
+  )
+  const scheduleIdentityMatches = Boolean(
+    schedulePlan &&
+    schedulePlan.supportPlanId === plan.supportPlanId &&
+    schedulePlan.status === plan.status,
+  )
+
   return (
     <View style={styles.planPanel}>
       <View style={styles.rowBetween}>
         <Text style={styles.sectionTitle}>{title}</Text>
         <Text style={styles.badge}>{statusLabels[plan.status]}</Text>
       </View>
-      <Text style={styles.body}>{plan.rationale.text}</Text>
       {plan.safety.status === 'POSITIVE_SAFETY_SCREEN' && (
         <Text accessibilityLiveRegion="assertive" style={styles.safetyText}>
           {plan.safety.guidance}
         </Text>
+      )}
+
+      {showProfessionalSupport && (
+        <View style={styles.professionalPanel}>
+          <Text style={styles.professionalEyebrow}>HƯỚNG HỖ TRỢ CHÍNH</Text>
+          <Text style={styles.sectionTitle}>
+            {professionalAction?.presentation.title ??
+              'Ưu tiên kết nối chuyên gia'}
+          </Text>
+          {professionalAction?.presentation.summary && (
+            <Text style={styles.body}>
+              {professionalAction.presentation.summary}
+            </Text>
+          )}
+          {!professionalAction && professionalSupportError && (
+            <Text accessibilityLiveRegion="assertive" style={styles.errorText}>
+              Chưa thể tải chi tiết hướng hỗ trợ chính. Các nội dung bổ trợ vẫn
+              có thể xem, nhưng không thay thế việc kết nối chuyên gia.
+            </Text>
+          )}
+          {professionalAction && professionalSupportError && (
+            <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+              Chưa thể cập nhật hướng hỗ trợ. Thông tin bên dưới là lần tải đã
+              xác nhận gần nhất.
+            </Text>
+          )}
+          {appointment && (
+            <Text accessibilityLiveRegion="polite" style={styles.itemTitle}>
+              Trạng thái lịch hẹn:{' '}
+              {appointmentProgressLabels[appointment.status]}
+            </Text>
+          )}
+          {appointmentUnavailable && (
+            <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+              Chưa thể cập nhật trạng thái lịch hẹn. MentalBridge không tự suy
+              đoán trạng thái khi dữ liệu này chưa khả dụng.
+            </Text>
+          )}
+          <Text style={styles.supportingText}>
+            MentalBridge không tự đặt lịch hoặc chia sẻ dữ liệu. Bạn sẽ xem và
+            xác nhận từng bước trước khi gửi yêu cầu.
+          </Text>
+          {professionalAction && (
+            <PrimaryButton
+              disabled={busy}
+              label="Tìm chuyên gia phù hợp"
+              onPress={() =>
+                router.push({
+                  pathname: './specialists',
+                  params: { planActionId: professionalAction.actionId },
+                })
+              }
+            />
+          )}
+          {(professionalSupportError || appointmentUnavailable) && (
+            <SecondaryButton
+              disabled={professionalSupportRefreshing}
+              label={
+                professionalSupportRefreshing
+                  ? 'Đang tải lại hướng hỗ trợ…'
+                  : 'Thử tải lại hướng hỗ trợ'
+              }
+              onPress={onRetryProfessionalSupport}
+            />
+          )}
+        </View>
+      )}
+
+      <View style={styles.focusPanel}>
+        <Text style={styles.professionalEyebrow}>TRỌNG TÂM KẾ HOẠCH</Text>
+        {focusesLoading && (
+          <View style={styles.focusLoading} accessibilityLiveRegion="polite">
+            <ActivityIndicator color={colors.tealDeep} />
+            <Text style={styles.supportingText}>
+              Đang tải lý do cho từng trọng tâm…
+            </Text>
+          </View>
+        )}
+        {focuses?.map((focus) => (
+          <View key={focus.focusId} style={styles.focusItem}>
+            <View style={styles.focusHeader}>
+              <Text style={styles.itemTitle}>{focus.title}</Text>
+              {focus.personalizationProvenance && (
+                <Text style={styles.personalizedBadge}>
+                  Theo lựa chọn của bạn
+                </Text>
+              )}
+            </View>
+            {focus.rationale && (
+              <Text style={styles.supportingText}>{focus.rationale}</Text>
+            )}
+          </View>
+        ))}
+        {focusesUnavailable && (
+          <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+            Chưa thể tải giải thích theo từng trọng tâm. Lý do tổng quát bên
+            dưới vẫn có thể xem và kế hoạch không bị thay đổi.
+          </Text>
+        )}
+        {!focuses && <Text style={styles.body}>{plan.rationale.text}</Text>}
+      </View>
+
+      {schedulePlan && scheduleIdentityMatches && (
+        <SupportPlanScheduleEditor
+          plan={schedulePlan}
+          disabled={
+            busy || plan.status === 'PAUSED' || !scheduleAuthorityMatches
+          }
+          {...(plan.status === 'DRAFT'
+            ? { onDirtyChange: setScheduleDirty }
+            : {})}
+          onSave={onSaveSchedule}
+          onReload={onReloadSchedule}
+        />
       )}
 
       {plan.slots.map((slot) => (
@@ -269,10 +480,15 @@ function PlanCard({
           <>
             {canActivate && (
               <PrimaryButton
-                disabled={busy}
+                disabled={busy || scheduleDirty}
                 label={busy ? 'Đang xử lý…' : 'Bắt đầu kế hoạch'}
                 onPress={onActivate}
               />
+            )}
+            {scheduleDirty && (
+              <Text style={styles.supportingText}>
+                Hãy lưu lịch mới trước khi bắt đầu kế hoạch.
+              </Text>
             )}
             <SecondaryButton
               disabled={busy}
@@ -536,6 +752,8 @@ export function SupportPlanScreen({
   const currentKey = ['support-plan', subject, 'current'] as const
   const draftKey = ['support-plan', subject, 'draft'] as const
   const historyKey = ['support-plan', subject, 'history'] as const
+  const actionsKeyFor = (supportPlanId: string | null | undefined) =>
+    ['support-plan', subject, 'actions', supportPlanId ?? null] as const
   const occurrenceKeyFor = (supportPlanId: string | null | undefined) =>
     [
       'support-plan',
@@ -608,16 +826,65 @@ export function SupportPlanScreen({
       }
     },
   })
+  const currentActionsQuery = useQuery({
+    queryKey: actionsKeyFor(currentQuery.data?.supportPlanId),
+    enabled: Boolean(subject && currentQuery.data?.supportPlanId),
+    retry: false,
+    queryFn: () => api.getActions(currentQuery.data!.supportPlanId),
+  })
+  const draftActionsQuery = useQuery({
+    queryKey: actionsKeyFor(draftQuery.data?.supportPlanId),
+    enabled: Boolean(subject && draftQuery.data?.supportPlanId),
+    retry: false,
+    queryFn: async () => {
+      const value = await api.getCurrentDraftActions()
+      if (value.supportPlanId !== draftQuery.data!.supportPlanId) {
+        throw new Error(
+          'SupportPlan draft action projection identity mismatch.',
+        )
+      }
+      return value
+    },
+  })
+  const currentProfessionalAction = professionalSupportAction(
+    currentActionsQuery.data,
+  )
+  const draftProfessionalAction = professionalSupportAction(
+    draftActionsQuery.data,
+  )
+  const currentAppointmentQuery = useQuery({
+    queryKey: [
+      'support-plan',
+      subject,
+      'professional-appointments',
+      currentProfessionalAction?.actionId,
+    ],
+    enabled: Boolean(subject && currentProfessionalAction),
+    retry: false,
+    staleTime: 0,
+    queryFn: () => api.getAppointments(currentProfessionalAction!.actionId),
+  })
+  const draftAppointmentQuery = useQuery({
+    queryKey: [
+      'support-plan',
+      subject,
+      'professional-appointments',
+      draftProfessionalAction?.actionId,
+    ],
+    enabled: Boolean(subject && draftProfessionalAction),
+    retry: false,
+    staleTime: 0,
+    queryFn: () => api.getAppointments(draftProfessionalAction!.actionId),
+  })
 
   const currentSupportsOccurrences =
     currentQuery.data?.status === 'ACTIVE' ||
     currentQuery.data?.status === 'PAUSED'
   const occurrenceAuthorityMismatch = Boolean(
     currentSupportsOccurrences &&
-      occurrenceQuery.data &&
-      (occurrenceQuery.data.supportPlanId !==
-        currentQuery.data?.supportPlanId ||
-        occurrenceQuery.data.supportPlanStatus !== currentQuery.data?.status),
+    occurrenceQuery.data &&
+    (occurrenceQuery.data.supportPlanId !== currentQuery.data?.supportPlanId ||
+      occurrenceQuery.data.supportPlanStatus !== currentQuery.data?.status),
   )
 
   const refreshAuthority = async () => {
@@ -634,6 +901,12 @@ export function SupportPlanScreen({
       ) {
         return false
       }
+
+      const actionResults = await Promise.all([
+        ...(currentResult.data ? [currentActionsQuery.refetch()] : []),
+        ...(draftResult.data ? [draftActionsQuery.refetch()] : []),
+      ])
+      if (actionResults.some((result) => result.isError)) return false
 
       const refreshedCurrent = currentResult.data
       if (
@@ -761,6 +1034,45 @@ export function SupportPlanScreen({
       setNotice({ message: 'Đã lưu lựa chọn của bạn.', tone: 'success' })
     },
     onError: handleMutationError,
+  })
+  const scheduleMutation = useMutation({
+    mutationFn: async ({
+      plan,
+      actionId,
+      request,
+      idempotencyKey,
+    }: {
+      plan: SupportPlan
+      actionId: string
+      request: UpdateActionScheduleRequest
+      idempotencyKey: string
+    }) => ({
+      plan,
+      projection: await api.replaceSchedule(
+        plan,
+        actionId,
+        request,
+        idempotencyKey,
+      ),
+    }),
+    onSuccess: ({ plan, projection }) => {
+      queryClient.setQueryData(actionsKeyFor(plan.supportPlanId), projection)
+      const planKey =
+        currentQuery.data?.supportPlanId === plan.supportPlanId
+          ? currentKey
+          : draftKey
+      queryClient.setQueryData(
+        planKey,
+        (current: SupportPlan | null | undefined) =>
+          current
+            ? {
+                ...current,
+                version: projection.version,
+                updatedAt: projection.updatedAt,
+              }
+            : current,
+      )
+    },
   })
   const activationMutation = useMutation({
     mutationFn: (plan: SupportPlan) =>
@@ -908,6 +1220,7 @@ export function SupportPlanScreen({
     authorityRecovery !== 'idle' ||
     occurrenceAuthorityMismatch ||
     choiceMutation.isPending ||
+    scheduleMutation.isPending ||
     activationMutation.isPending ||
     statusMutation.isPending ||
     occurrenceMutation.isPending ||
@@ -979,14 +1292,12 @@ export function SupportPlanScreen({
   const activePlan = current ?? draft
   const replacementAuthorityMatchesPlans = Boolean(
     current &&
-      draft &&
-      replacementQuery.data &&
-      replacementQuery.data.currentPlan.supportPlanId ===
-        current.supportPlanId &&
-      replacementQuery.data.currentPlan.version === current.version &&
-      replacementQuery.data.proposedPlan.supportPlanId ===
-        draft.supportPlanId &&
-      replacementQuery.data.proposedPlan.version === draft.version,
+    draft &&
+    replacementQuery.data &&
+    replacementQuery.data.currentPlan.supportPlanId === current.supportPlanId &&
+    replacementQuery.data.currentPlan.version === current.version &&
+    replacementQuery.data.proposedPlan.supportPlanId === draft.supportPlanId &&
+    replacementQuery.data.proposedPlan.version === draft.version,
   )
   const replaceEligible =
     replacementAuthorityMatchesPlans &&
@@ -1007,6 +1318,17 @@ export function SupportPlanScreen({
       </Text>
 
       {notice && <StateMessage notice={notice} />}
+      <SupportPlanPersonalizationCard
+        api={api}
+        subject={subject}
+        onReviewPlan={() =>
+          setNotice({
+            message:
+              'Kế hoạch hiện tại ở ngay bên dưới và chưa bị thay đổi bởi lựa chọn mới.',
+            tone: 'success',
+          })
+        }
+      />
       {authorityRecovery === 'refreshing' && (
         <Text accessibilityLiveRegion="polite" style={styles.supportingText}>
           Đang tải lại trạng thái có thẩm quyền…
@@ -1066,12 +1388,64 @@ export function SupportPlanScreen({
 
       {current && (
         <PlanCard
+          {...(currentProfessionalAction
+            ? {
+                professionalAction: currentProfessionalAction,
+                appointment: latestAppointmentFor(
+                  currentProfessionalAction,
+                  currentAppointmentQuery.data,
+                ),
+              }
+            : {})}
           busy={busy}
           canActivate={false}
+          appointmentUnavailable={Boolean(
+            currentProfessionalAction && currentAppointmentQuery.isError,
+          )}
+          professionalSupportError={currentActionsQuery.isError}
+          professionalSupportRefreshing={
+            currentActionsQuery.isFetching || currentAppointmentQuery.isFetching
+          }
           plan={current}
+          focuses={currentActionsQuery.data?.focuses}
+          focusesLoading={
+            currentActionsQuery.isFetching && !currentActionsQuery.data
+          }
+          focusesUnavailable={currentActionsQuery.isError}
+          schedulePlan={currentActionsQuery.data}
+          onSaveSchedule={(actionId, request, idempotencyKey) =>
+            scheduleMutation
+              .mutateAsync({
+                plan: current,
+                actionId,
+                request,
+                idempotencyKey,
+              })
+              .then(() => undefined)
+          }
+          onReloadSchedule={async () => {
+            await recoverAuthority()
+            const refreshedPlan = queryClient.getQueryData<SupportPlan | null>(
+              currentKey,
+            )
+            const projection = queryClient.getQueryData<SupportPlanActions>(
+              actionsKeyFor(current.supportPlanId),
+            )
+            return refreshedPlan &&
+              projection?.supportPlanId === refreshedPlan.supportPlanId &&
+              projection.version === refreshedPlan.version &&
+              projection.status === refreshedPlan.status
+              ? projection
+              : undefined
+          }}
           title="Kế hoạch hiện tại"
           onActivate={() => undefined}
           onChangeChoice={() => undefined}
+          onRetryProfessionalSupport={() => {
+            void currentActionsQuery.refetch()
+            if (currentProfessionalAction)
+              void currentAppointmentQuery.refetch()
+          }}
           onStatus={(status) =>
             runGovernedMutation(() =>
               statusMutation.mutate({ plan: current, status }),
@@ -1081,9 +1455,56 @@ export function SupportPlanScreen({
       )}
       {draft && (
         <PlanCard
+          {...(draftProfessionalAction
+            ? {
+                professionalAction: draftProfessionalAction,
+                appointment: latestAppointmentFor(
+                  draftProfessionalAction,
+                  draftAppointmentQuery.data,
+                ),
+              }
+            : {})}
           busy={busy}
           canActivate={!current}
+          appointmentUnavailable={Boolean(
+            draftProfessionalAction && draftAppointmentQuery.isError,
+          )}
+          professionalSupportError={draftActionsQuery.isError}
+          professionalSupportRefreshing={
+            draftActionsQuery.isFetching || draftAppointmentQuery.isFetching
+          }
           plan={draft}
+          focuses={draftActionsQuery.data?.focuses}
+          focusesLoading={
+            draftActionsQuery.isFetching && !draftActionsQuery.data
+          }
+          focusesUnavailable={draftActionsQuery.isError}
+          schedulePlan={draftActionsQuery.data}
+          onSaveSchedule={(actionId, request, idempotencyKey) =>
+            scheduleMutation
+              .mutateAsync({
+                plan: draft,
+                actionId,
+                request,
+                idempotencyKey,
+              })
+              .then(() => undefined)
+          }
+          onReloadSchedule={async () => {
+            await recoverAuthority()
+            const refreshedPlan = queryClient.getQueryData<SupportPlan | null>(
+              draftKey,
+            )
+            const projection = queryClient.getQueryData<SupportPlanActions>(
+              actionsKeyFor(draft.supportPlanId),
+            )
+            return refreshedPlan &&
+              projection?.supportPlanId === refreshedPlan.supportPlanId &&
+              projection.version === refreshedPlan.version &&
+              projection.status === refreshedPlan.status
+              ? projection
+              : undefined
+          }}
           title={current ? 'Phương án thay thế' : 'Kế hoạch đề xuất'}
           onActivate={() =>
             runGovernedMutation(() => activationMutation.mutate(draft))
@@ -1093,6 +1514,10 @@ export function SupportPlanScreen({
               choiceMutation.mutate({ plan: draft, slotId, resourceId }),
             )
           }
+          onRetryProfessionalSupport={() => {
+            void draftActionsQuery.refetch()
+            if (draftProfessionalAction) void draftAppointmentQuery.refetch()
+          }}
           onStatus={(status) =>
             runGovernedMutation(() =>
               statusMutation.mutate({ plan: draft, status }),
@@ -1141,7 +1566,9 @@ export function SupportPlanScreen({
       {current &&
         (current.status === 'ACTIVE' || current.status === 'PAUSED') && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Hoạt động gần đây và sắp tới</Text>
+            <Text style={styles.sectionTitle}>
+              Hoạt động gần đây và sắp tới
+            </Text>
             {occurrenceAuthorityMismatch && (
               <View style={styles.partialError}>
                 <StateMessage
@@ -1302,6 +1729,56 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     marginBottom: spacing.xl,
     padding: spacing.xl,
+  },
+  professionalPanel: {
+    backgroundColor: colors.tealPale,
+    borderColor: colors.tealDeep,
+    borderRadius: radii.panel,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  professionalEyebrow: {
+    color: colors.tealDeep,
+    fontSize: typography.eyebrow,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  focusPanel: {
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.line,
+    borderRadius: radii.panel,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  focusItem: {
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  focusHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  focusLoading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  personalizedBadge: {
+    backgroundColor: colors.tealPale,
+    borderRadius: radii.pill,
+    color: colors.tealDeep,
+    fontSize: 12,
+    fontWeight: '700',
+    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
   },
   replacePanel: {
     backgroundColor: colors.tealPale,

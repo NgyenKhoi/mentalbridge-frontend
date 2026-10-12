@@ -29,6 +29,24 @@ The daily challenge is a presentation over the reviewed resource catalogue. It d
 
 Loading, empty, filtered-empty, and dependency-error states use the same calm visual language. Completion feedback is dismissible and respects `prefers-reduced-motion`.
 
+### Garden presentation follow-up
+
+The overview presents a seven-day path, a focused daily activity surface, an
+asymmetric resource shelf, and a quieter keepsakes area for bingo/recent items.
+The selected day and progress remain tied to persisted journey data. A day with
+no activities is explicitly empty, not celebrated as complete. Completion copy
+does not claim that a practice streak increased merely because a day was finished.
+
+Difficulty and format controls expose their selected state and announce the
+result count; no-results offers a direct reset. Dates, filters, and scroll
+position still restore through the established session-local view state when
+returning from detail. No resource API or progress payload changes are introduced.
+
+Synthetic browser captures: [desktop](evidence/resources-garden-desktop.png)
+(1440 × 900) and [mobile](evidence/resources-garden-mobile.png) (375 × 812).
+The browser journey retains completion/return-state checks and adds overflow
+assertions at 1440, 1280, 768, 375, and 640 CSS px.
+
 ## Detail wireframes
 
 ```text

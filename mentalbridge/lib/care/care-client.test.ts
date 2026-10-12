@@ -54,7 +54,7 @@ describe('Care client progress validation', () => {
     vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
     const disclosure = {
       consentType: 'AI_PROCESSING' as const,
-      version: 'ai-processing-capstone-v1' as const,
+      version: 'ai-processing-capstone-v2' as const,
       locale: 'vi-VN' as const,
       title: 'Đồng ý xử lý nhật ký bằng AI',
       content: 'Nội dung do Care sở hữu.',
@@ -77,14 +77,14 @@ describe('Care client progress validation', () => {
           )
           expect(await request.json()).toEqual({
             consentType: 'AI_PROCESSING',
-            policyVersion: 'ai-processing-capstone-v1',
+            policyVersion: 'ai-processing-capstone-v2',
             granted: true,
           })
           return HttpResponse.json(
             {
               decisionId: '30000000-0000-4000-8000-000000000001',
               consentType: 'AI_PROCESSING',
-              policyVersion: 'ai-processing-capstone-v1',
+              policyVersion: 'ai-processing-capstone-v2',
               granted: true,
               decidedAt: '2026-09-23T00:00:00Z',
             },
@@ -102,7 +102,7 @@ describe('Care client progress validation', () => {
         'token',
         {
           consentType: 'AI_PROCESSING',
-          policyVersion: 'ai-processing-capstone-v1',
+          policyVersion: 'ai-processing-capstone-v2',
           granted: true,
         },
         'consent-command-0001',

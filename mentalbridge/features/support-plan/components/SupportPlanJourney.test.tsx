@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api/api-error'
+import type { SupportPlanV3 } from '../api/support-plan-contract'
 import { supportPlanFixture } from '../testing/support-plan-fixture'
 import SupportPlanJourney from './SupportPlanJourney'
 
@@ -11,12 +12,17 @@ const api = vi.hoisted(() => ({
   changeSupportPlanStatus: vi.fn(),
   getCurrentSupportPlan: vi.fn(),
   getCurrentSupportPlanDraft: vi.fn(),
+  getCurrentSupportPlanDraftActions: vi.fn(),
   getSupportPlan: vi.fn(),
   getSupportPlanHistory: vi.fn(),
+  getSupportPlanActions: vi.fn(),
   getSupportPlanOccurrences: vi.fn(),
+  getSupportPlanPersonalization: vi.fn(),
   proposeSupportPlanDraft: vi.fn(),
   replaceSupportPlan: vi.fn(),
   replaceSupportPlanChoices: vi.fn(),
+  replaceSupportPlanActionSchedule: vi.fn(),
+  replaceSupportPlanPersonalization: vi.fn(),
   reviewSupportPlanReplacement: vi.fn(),
 }))
 
@@ -69,6 +75,97 @@ function activePlan() {
   }
 }
 
+function scheduleProjection(
+  version: number,
+  firstDuration = 15,
+  secondDuration = 20,
+): SupportPlanV3 {
+  const action = (
+    ordinal: number,
+    duration: number,
+  ): SupportPlanV3['focuses'][number]['actions'][number] => ({
+    actionId: `20000000-0000-4000-8000-00000000064${ordinal}`,
+    actionType: 'ROUTINE_SELF_MANAGEMENT' as const,
+    actionVersion: 1,
+    representationMode: 'NATIVE_V3' as const,
+    status: 'DRAFT' as const,
+    pathRole: 'PRIMARY' as const,
+    purposeCode: 'WELLBEING_ROUTINE',
+    rationale: null,
+    ordinal,
+    source: null,
+    provenance: {
+      category: 'USER_SELECTED',
+      referenceId: null,
+      referenceVersion: null,
+      acceptedAt: '2026-10-12T01:00:00Z',
+    },
+    presentation: {
+      title: `Hoạt động ${ordinal}`,
+      summary: null,
+      instructions: null,
+      externalUrl: null,
+    },
+    schedules: [
+      {
+        scheduleId: `30000000-0000-4000-8000-00000000064${ordinal}`,
+        version: 1,
+        schedulePolicyVersion: 'support-plan-activity-schedule-v2',
+        recurrenceType: 'WEEKLY' as const,
+        recurrenceDayOfWeek: null,
+        daysOfWeek: [1],
+        preferredDaypart: 'MORNING' as const,
+        estimatedDurationMinutes: duration,
+        localTime: `0${7 + ordinal}:00:00`,
+        timezone: 'Asia/Ho_Chi_Minh',
+        effectiveFrom: '2099-01-01',
+        effectiveUntil: null,
+        reminderEnabled: true,
+        status: 'DRAFT' as const,
+      },
+    ],
+    createdAt: '2026-10-12T01:00:00Z',
+    updatedAt: '2026-10-12T01:00:00Z',
+    activatedAt: null,
+    endedAt: null,
+  })
+
+  return {
+    supportPlanId: supportPlanFixture().supportPlanId,
+    modelVersion: 3,
+    planPolicyVersion: 'support-plan-selection-v2',
+    representationMode: 'NATIVE_V3',
+    status: 'DRAFT',
+    version,
+    safety: {
+      status: 'NEGATIVE_SAFETY_SCREEN',
+      reasonCode: 'STANDARD',
+      policyVersion: 'safety-v1',
+      guidanceCode: 'STANDARD_SAFETY_REMINDER',
+      guidance: 'Safety guidance.',
+    },
+    focuses: [
+      {
+        focusId: 'focus-1',
+        title: 'Hỗ trợ nhịp hoạt động',
+        rationale: null,
+        personalizationProvenance: null,
+        ordinal: 1,
+        actions: [action(1, firstDuration), action(2, secondDuration)],
+      },
+    ],
+    createdAt: '2026-10-12T01:00:00Z',
+    updatedAt: '2026-10-12T01:00:00Z',
+    activatedAt: null,
+    completedAt: null,
+    completionReason: null,
+    supersededAt: null,
+    discardedAt: null,
+    disclaimerCode: 'WELLBEING_SUPPORT_NOT_TREATMENT',
+    disclaimer: 'Wellbeing support.',
+  }
+}
+
 describe('SupportPlanJourney', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -90,6 +187,43 @@ describe('SupportPlanJourney', () => {
       nextCursor: null,
       hasMore: false,
     })
+    api.getSupportPlanActions.mockResolvedValue({
+      supportPlanId: '10000000-0000-4000-8000-000000000373',
+      focuses: [
+        {
+          focusId: 'focus-1',
+          title: 'Hỗ trợ tâm trạng',
+          rationale: 'Nội dung được chọn theo chính sách hỗ trợ hiện hành.',
+          personalizationProvenance: null,
+          actions: [],
+        },
+      ],
+    })
+    api.getCurrentSupportPlanDraftActions.mockImplementation(() =>
+      api.getSupportPlanActions(),
+    )
+    api.getSupportPlanPersonalization.mockResolvedValue({
+      value: {
+        personalizationId: null,
+        schemaVersion: 'support-plan-personalization-v1',
+        revision: 0,
+        status: 'NOT_PROVIDED',
+        preferredFocus: null,
+        desiredPace: null,
+        dailyTimeBudgetMinutes: null,
+        preferredDaypart: null,
+        preferredActivityModes: [],
+        commonBarriers: [],
+        submittedAt: null,
+        planReview: {
+          required: false,
+          supportPlanId: null,
+          supportPlanVersion: null,
+          reasonCode: null,
+        },
+      },
+      etag: '"0"',
+    })
     assessmentApi.getCurrentReassessmentSummary.mockResolvedValue(
       reassessmentSummary,
     )
@@ -105,6 +239,33 @@ describe('SupportPlanJourney', () => {
     expect(api.getCurrentSupportPlanDraft).toHaveBeenCalledTimes(1)
   })
 
+  it('exposes the four journey tabs and supports roving keyboard navigation', async () => {
+    api.getCurrentSupportPlan.mockResolvedValue(activePlan())
+
+    render(<SupportPlanJourney />)
+
+    const todayTab = await screen.findByRole('tab', { name: 'Hôm nay' })
+    const planTab = screen.getByRole('tab', { name: 'Kế hoạch' })
+    const progressTab = screen.getByRole('tab', { name: 'Tiến triển' })
+    const adjustTab = screen.getByRole('tab', { name: 'Điều chỉnh' })
+
+    expect(todayTab).toHaveAttribute('aria-selected', 'true')
+    expect(planTab).toHaveAttribute('tabindex', '-1')
+
+    fireEvent.keyDown(todayTab, { key: 'ArrowRight' })
+    await waitFor(() => expect(planTab).toHaveFocus())
+    expect(planTab).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(planTab, { key: 'End' })
+    await waitFor(() => expect(adjustTab).toHaveFocus())
+    expect(adjustTab).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(adjustTab, { key: 'Home' })
+    await waitFor(() => expect(todayTab).toHaveFocus())
+    expect(todayTab).toHaveAttribute('aria-selected', 'true')
+    expect(progressTab).toHaveAttribute('aria-selected', 'false')
+  })
+
   it('falls back to the persisted draft without proposing again', async () => {
     api.getCurrentSupportPlanDraft.mockResolvedValue(supportPlanFixture())
 
@@ -113,6 +274,97 @@ describe('SupportPlanJourney', () => {
     expect(await screen.findByText('Reviewed primary resource')).toBeVisible()
     expect(api.getCurrentSupportPlanDraft).toHaveBeenCalledTimes(1)
     expect(api.proposeSupportPlanDraft).not.toHaveBeenCalled()
+  })
+
+  it('preserves another action draft when saving one schedule advances the plan version', async () => {
+    const draft = { ...supportPlanFixture(), version: 2 }
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.getCurrentSupportPlanDraftActions.mockResolvedValue(
+      scheduleProjection(2),
+    )
+    api.replaceSupportPlanActionSchedule.mockResolvedValue(
+      scheduleProjection(3, 25, 20),
+    )
+
+    render(<SupportPlanJourney />)
+
+    const durations = await screen.findAllByLabelText(
+      'Thời lượng dự kiến (phút)',
+    )
+    fireEvent.change(durations[0], { target: { value: '25' } })
+    fireEvent.change(durations[1], { target: { value: '35' } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu lịch' })[0])
+
+    await waitFor(() =>
+      expect(api.replaceSupportPlanActionSchedule).toHaveBeenCalledOnce(),
+    )
+    expect(
+      screen.getAllByLabelText('Thời lượng dự kiến (phút)')[1],
+    ).toHaveValue(35)
+  })
+
+  it('reloads the stale action while preserving another unsaved schedule draft', async () => {
+    const draft = { ...supportPlanFixture(), version: 2 }
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.getCurrentSupportPlanDraftActions.mockResolvedValue(
+      scheduleProjection(2),
+    )
+    api.replaceSupportPlanActionSchedule.mockRejectedValue(
+      problem('SUPPORT_PLAN_VERSION_MISMATCH', 412),
+    )
+
+    render(<SupportPlanJourney />)
+
+    const durations = await screen.findAllByLabelText(
+      'Thời lượng dự kiến (phút)',
+    )
+    fireEvent.change(durations[0], { target: { value: '25' } })
+    fireEvent.change(durations[1], { target: { value: '35' } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu lịch' })[0])
+
+    const reload = await screen.findByRole('button', {
+      name: 'Tải lịch mới',
+    })
+    api.getCurrentSupportPlanDraft.mockResolvedValue({ ...draft, version: 3 })
+    api.getCurrentSupportPlanDraftActions.mockResolvedValue(
+      scheduleProjection(3, 30, 20),
+    )
+    fireEvent.click(reload)
+
+    await waitFor(() => {
+      const reloadedDurations = screen.getAllByLabelText(
+        'Thời lượng dự kiến (phút)',
+      )
+      expect(reloadedDurations[0]).toHaveValue(30)
+      expect(reloadedDurations[1]).toHaveValue(35)
+    })
+  })
+
+  it('opens progress when only immutable plan history remains', async () => {
+    const completed = {
+      ...activePlan(),
+      status: 'COMPLETED' as const,
+      version: 2,
+      updatedAt: '2026-09-21T05:00:00Z',
+      completedAt: '2026-09-21T05:00:00Z',
+      completionReason: null,
+    }
+    api.getCurrentSupportPlanDraft.mockRejectedValue(
+      problem('SUPPORT_PLAN_DRAFT_NOT_FOUND', 404),
+    )
+    api.getSupportPlanHistory.mockResolvedValue({
+      items: [completed],
+      nextCursor: null,
+      hasMore: false,
+    })
+
+    render(<SupportPlanJourney />)
+
+    expect(await screen.findByText('Đã kết thúc')).toBeVisible()
+    expect(screen.getByRole('tab', { name: 'Tiến triển' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
   })
 
   it('routes a Free user to the one-time Support Guide without creating a draft', async () => {
@@ -148,6 +400,107 @@ describe('SupportPlanJourney', () => {
       expect.stringMatching(/^[0-9a-f-]{36}$/),
       'INITIAL_CHECK',
     )
+  })
+
+  it.each([
+    { persona: 'A', action: 'save' as const, preferredFocus: 'SLEEP' },
+    { persona: 'B', action: 'skip' as const, preferredFocus: null },
+  ])(
+    'lets first-plan Persona $persona save or skip preferences before generation',
+    async ({ action, preferredFocus }) => {
+      api.getCurrentSupportPlanDraft.mockRejectedValue(
+        problem('SUPPORT_PLAN_DRAFT_NOT_FOUND', 404),
+      )
+      api.replaceSupportPlanPersonalization.mockImplementation(
+        async (request) => {
+          const authority = await api.getSupportPlanPersonalization()
+          return {
+            value: {
+              ...authority.value,
+              personalizationId: '10000000-0000-4000-8000-000000000638',
+              revision: 1,
+              status: request.preferredFocus === null ? 'SKIPPED' : 'PROVIDED',
+              ...request,
+              submittedAt: '2026-10-12T08:00:00Z',
+            },
+            etag: '"1"',
+          }
+        },
+      )
+      api.proposeSupportPlanDraft.mockResolvedValue(supportPlanFixture())
+
+      render(<SupportPlanJourney />)
+      expect(
+        await screen.findByText('Điều gì giúp kế hoạch dễ thực hiện hơn?'),
+      ).toBeVisible()
+
+      if (action === 'save') {
+        fireEvent.click(screen.getByRole('radio', { name: 'Ngủ và nghỉ ngơi' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Lưu lựa chọn' }))
+      } else {
+        fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua tất cả' }))
+      }
+      await waitFor(() =>
+        expect(api.replaceSupportPlanPersonalization).toHaveBeenCalledWith(
+          expect.objectContaining({ preferredFocus }),
+          '"0"',
+        ),
+      )
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Tạo kế hoạch hỗ trợ' }),
+      )
+      await waitFor(() =>
+        expect(api.proposeSupportPlanDraft).toHaveBeenCalled(),
+      )
+      expect(
+        api.replaceSupportPlanPersonalization.mock.invocationCallOrder[0],
+      ).toBeLessThan(api.proposeSupportPlanDraft.mock.invocationCallOrder[0])
+    },
+  )
+
+  it.each([
+    {
+      name: 'personalized',
+      title: 'Bắt đầu bằng bước nhỏ',
+      rationale: 'Lý do đã được Care xác nhận từ lựa chọn của bạn.',
+      provenance: { reasonCode: 'USER_PREFERENCE_AND_CARE_POLICY' },
+      badge: true,
+    },
+    {
+      name: 'fallback',
+      title: 'Hỗ trợ tâm trạng',
+      rationale: 'Lý do theo chính sách hỗ trợ hiện hành.',
+      provenance: null,
+      badge: false,
+    },
+  ])('shows the admitted $name focus rationale', async (example) => {
+    const plan = activePlan()
+    api.getCurrentSupportPlan.mockResolvedValue(plan)
+    api.getSupportPlanActions.mockResolvedValue({
+      supportPlanId: plan.supportPlanId,
+      focuses: [
+        {
+          focusId: 'focus-1',
+          title: example.title,
+          rationale: example.rationale,
+          personalizationProvenance: example.provenance,
+          actions: [],
+        },
+      ],
+    })
+
+    render(<SupportPlanJourney />)
+
+    expect(await screen.findByText(example.title)).toBeVisible()
+    expect(screen.getByText(example.rationale)).toBeVisible()
+    if (example.badge) {
+      expect(screen.getByText('Được sắp xếp từ lựa chọn của bạn')).toBeVisible()
+    } else {
+      expect(
+        screen.queryByText('Được sắp xếp từ lựa chọn của bạn'),
+      ).not.toBeInTheDocument()
+    }
   })
 
   it('directs the user to screening history when either required result is unavailable', async () => {
@@ -310,6 +663,64 @@ describe('SupportPlanJourney', () => {
       },
       expect.stringMatching(/^[0-9a-f-]{36}$/),
     )
+  })
+
+  it('keeps stale replacement review in Adjust and scrolls to the draft', async () => {
+    const current = activePlan()
+    const draft = {
+      ...supportPlanFixture(),
+      supportPlanId: '10000000-0000-4000-8000-000000000399',
+    }
+    const scrollIntoView = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    })
+    api.getCurrentSupportPlan.mockResolvedValue(current)
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.reviewSupportPlanReplacement.mockRejectedValue(
+      problem('SUPPORT_PLAN_REVIEW_UNAVAILABLE', 503),
+    )
+    api.getSupportPlanPersonalization.mockResolvedValue({
+      value: {
+        personalizationId: '10000000-0000-4000-8000-000000000638',
+        schemaVersion: 'support-plan-personalization-v1',
+        revision: 2,
+        status: 'PROVIDED',
+        preferredFocus: 'MOTIVATION',
+        desiredPace: null,
+        dailyTimeBudgetMinutes: null,
+        preferredDaypart: null,
+        preferredActivityModes: [],
+        commonBarriers: [],
+        submittedAt: '2026-10-12T08:00:00Z',
+        planReview: {
+          required: true,
+          supportPlanId: draft.supportPlanId,
+          supportPlanVersion: draft.version,
+          reasonCode: 'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION',
+        },
+      },
+      etag: '"2"',
+    })
+
+    render(<SupportPlanJourney />)
+
+    const reviewDraft = await screen.findByRole('button', {
+      name: 'Xem bản đề xuất',
+    })
+    const adjustTab = screen.getByRole('tab', { name: 'Điều chỉnh' })
+    expect(adjustTab).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.click(reviewDraft)
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledOnce())
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'start',
+    })
+    expect(adjustTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Phương án thay thế')).toBeVisible()
   })
 
   it('keeps a replacement conflict visible after reloading the authoritative review', async () => {

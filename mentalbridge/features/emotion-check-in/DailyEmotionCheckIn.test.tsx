@@ -5,20 +5,26 @@ import { ApiError } from '@/lib/api/api-error'
 import type { EmotionCheckIn } from '@/lib/emotion-check-in/contract'
 import {
   createEmotionCheckIn,
+  deleteEmotionCheckIn,
   getEmotionCheckIn,
+  listEmotionCheckIns,
   updateEmotionCheckIn,
 } from './api/browser-emotion-check-in'
 import { DailyEmotionCheckIn, localDateInTimeZone } from './DailyEmotionCheckIn'
 
 vi.mock('./api/browser-emotion-check-in', () => ({
   createEmotionCheckIn: vi.fn(),
+  deleteEmotionCheckIn: vi.fn(),
   getEmotionCheckIn: vi.fn(),
+  listEmotionCheckIns: vi.fn(),
   updateEmotionCheckIn: vi.fn(),
 }))
 
 const get = vi.mocked(getEmotionCheckIn)
 const create = vi.mocked(createEmotionCheckIn)
+const remove = vi.mocked(deleteEmotionCheckIn)
 const update = vi.mocked(updateEmotionCheckIn)
+const list = vi.mocked(listEmotionCheckIns)
 const notFound = () =>
   new ApiError({
     message: 'not found',
@@ -36,6 +42,8 @@ function record(
   localDate: string,
   revision = 1,
   emotion: EmotionCheckIn['emotion'] = 'GOOD',
+  factors: EmotionCheckIn['factors'] = [],
+  note: string | null = null,
 ): EmotionCheckIn {
   return {
     id: '40000000-0000-4000-8000-000000000001',
@@ -43,7 +51,8 @@ function record(
     timezone: 'Asia/Ho_Chi_Minh',
     emotion,
     intensity: 4,
-    note: null,
+    factors,
+    note,
     sourceLabel: 'SELF_REPORTED_EMOTION',
     clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',
     revision,
@@ -57,7 +66,15 @@ describe('DailyEmotionCheckIn', () => {
   beforeEach(() => {
     get.mockReset()
     create.mockReset()
+    remove.mockReset()
     update.mockReset()
+    list.mockReset()
+    list.mockResolvedValue({
+      items: [],
+      page: { limit: 10, hasMore: false },
+      label: 'SELF_REPORTED_EMOTION',
+      interpretation: 'NOT_DIAGNOSIS_OR_RECOVERY',
+    })
   })
 
   afterEach(() => {
@@ -90,7 +107,12 @@ describe('DailyEmotionCheckIn', () => {
 
     expect(await screen.findByText('Đã lưu ghi nhận hôm nay.')).toBeVisible()
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ emotion: 'GOOD', intensity: 4, note: null }),
+      expect.objectContaining({
+        emotion: 'GOOD',
+        intensity: 4,
+        factors: [],
+        note: null,
+      }),
       expect.stringMatching(/^emotion-check-in-/),
     )
     expect(onPersisted).toHaveBeenCalledOnce()
@@ -120,8 +142,78 @@ describe('DailyEmotionCheckIn', () => {
     expect(update).toHaveBeenCalledWith(
       day,
       1,
-      { emotion: 'GREAT', intensity: 4, note: null },
+      { emotion: 'GREAT', intensity: 4, factors: [], note: null },
       expect.stringMatching(/^emotion-check-in-/),
+    )
+  })
+
+  it('persists, restores, and clears optional private context', async () => {
+    const user = userEvent.setup()
+    const day = localDateInTimeZone(
+      new Date(),
+      Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    )
+    const saved = record(day, 1, 'GOOD', ['sleep', 'work'], 'Một ngày dài')
+    const cleared = record(day, 2, 'GOOD')
+    get.mockResolvedValue(saved)
+    update.mockResolvedValue(cleared)
+    render(<DailyEmotionCheckIn />)
+
+    await screen.findByRole('radio', { name: 'Tốt' })
+    await user.click(
+      screen.getByText('Thêm bối cảnh riêng tư (không bắt buộc)'),
+    )
+    expect(screen.getByRole('checkbox', { name: 'Giấc ngủ' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Công việc' })).toBeChecked()
+    expect(screen.getByLabelText('Ghi chú riêng (không bắt buộc)')).toHaveValue(
+      'Một ngày dài',
+    )
+
+    await user.click(screen.getByRole('checkbox', { name: 'Giấc ngủ' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Công việc' }))
+    await user.clear(screen.getByLabelText('Ghi chú riêng (không bắt buộc)'))
+    await user.click(screen.getByRole('button', { name: 'Cập nhật ghi nhận' }))
+
+    expect(update).toHaveBeenCalledWith(
+      day,
+      1,
+      { emotion: 'GOOD', intensity: 4, factors: [], note: null },
+      expect.stringMatching(/^emotion-check-in-/),
+    )
+    expect(
+      await screen.findByText('Đã cập nhật ghi nhận hôm nay.'),
+    ).toBeVisible()
+  })
+
+  it('limits optional factors to three without blocking the primary flow', async () => {
+    const user = userEvent.setup()
+    get.mockRejectedValue(notFound())
+    create.mockImplementation(async (body) =>
+      record(
+        body.localDate,
+        1,
+        body.emotion,
+        body.factors ?? [],
+        body.note ?? null,
+      ),
+    )
+    render(<DailyEmotionCheckIn />)
+    await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.')
+    await user.click(
+      screen.getByText('Thêm bối cảnh riêng tư (không bắt buộc)'),
+    )
+    await user.click(screen.getByRole('checkbox', { name: 'Giấc ngủ' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Công việc' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Học tập' }))
+    expect(screen.getByRole('checkbox', { name: 'Gia đình' })).toBeDisabled()
+
+    await user.click(screen.getByRole('radio', { name: 'Tốt' }))
+    await user.click(screen.getByRole('radio', { name: '4' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu ghi nhận' }))
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ factors: ['sleep', 'work', 'study'] }),
+      expect.any(String),
     )
   })
 
@@ -138,7 +230,7 @@ describe('DailyEmotionCheckIn', () => {
     await user.click(screen.getByRole('button', { name: 'Lưu ghi nhận' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Chưa thể lưu ghi nhận',
+      'Chưa thể lưu thay đổi',
     )
     expect(
       screen.queryByText('Đã lưu ghi nhận hôm nay.'),
@@ -147,6 +239,56 @@ describe('DailyEmotionCheckIn', () => {
     expect(await screen.findByText('Đã lưu ghi nhận hôm nay.')).toBeVisible()
     expect(create).toHaveBeenCalledTimes(2)
     expect(create.mock.calls[0]?.[1]).toBe(create.mock.calls[1]?.[1])
+  })
+
+  it('keeps a changed selection explicitly unsaved and the comparison on persisted truth', async () => {
+    const day = localDateInTimeZone(
+      new Date(),
+      Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    )
+    get.mockResolvedValue(record(day, 1, 'GOOD'))
+    render(<DailyEmotionCheckIn />)
+    await screen.findByRole('radio', { name: 'Tốt' })
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Rất tốt' }))
+
+    expect(screen.getByText('Lựa chọn này chưa được lưu.')).toBeVisible()
+    const savedToday = screen
+      .getByText('Hôm nay · đã lưu')
+      .closest('div') as HTMLElement
+    expect(savedToday).toHaveTextContent('Tốt')
+    expect(savedToday).not.toHaveTextContent('Rất tốt')
+  })
+
+  it('deletes the persisted day and invalidates dependent progress', async () => {
+    const onPersisted = vi.fn()
+    const event = vi.fn()
+    window.addEventListener('mb:emotion-check-in-updated', event)
+    const day = localDateInTimeZone(
+      new Date(),
+      Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    )
+    get.mockResolvedValue(record(day))
+    remove.mockResolvedValue({
+      localDate: day,
+      deleted: true,
+      deletedAt: '2026-09-26T03:00:00.000Z',
+    })
+    render(<DailyEmotionCheckIn onPersisted={onPersisted} />)
+    await screen.findByRole('radio', { name: 'Tốt' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Xóa ghi nhận' }))
+
+    expect(
+      await screen.findByText('Đã xóa ghi nhận cảm xúc hôm nay.'),
+    ).toBeVisible()
+    expect(remove).toHaveBeenCalledWith(
+      day,
+      expect.stringMatching(/^emotion-check-in-/),
+    )
+    expect(onPersisted).toHaveBeenCalledOnce()
+    expect(event).toHaveBeenCalledOnce()
+    window.removeEventListener('mb:emotion-check-in-updated', event)
   })
 
   it('shows an explicit session-expiry error without a mock selection', async () => {

@@ -9,6 +9,9 @@ import AdminCommunityModerationSection from '@/features/community/components/Adm
 import AdminOperationsDashboard from '@/features/dashboard/components/AdminOperationsDashboard'
 import AdminAppointmentMonitor from '@/features/appointments/components/AdminAppointmentMonitor'
 import AdminAppointmentDisputes from '@/features/appointments/components/AdminAppointmentDisputes'
+import AdminReportsSection from '@/features/reports/components/AdminReportsSection'
+import AdminPaymentsManager from '@/components/AdminPaymentsManager'
+import AdminPayoutsManager from '@/components/AdminPayoutsManager'
 import styles from './AdminWorkspace.module.css'
 import type { Workspace } from '../model/workspace'
 
@@ -50,6 +53,18 @@ const SECTIONS = {
     label: 'Nhật ký kiểm toán',
     description:
       'Khu vực theo dõi hoạt động quản trị sau khi nguồn dữ liệu audit được tích hợp.',
+  },
+  reports: {
+    label: 'Báo cáo',
+    description: 'Tạo, lên lịch và tải báo cáo tổng hợp hoạt động tài khoản.',
+  },
+  payments: {
+    label: 'Thanh toán gói',
+    description: 'Tra cứu giao dịch gói dịch vụ đã được ghi nhận.',
+  },
+  payouts: {
+    label: 'Chi trả chuyên gia',
+    description: 'Tra cứu yêu cầu chi trả và kết quả xử lý.',
   },
 } as const
 
@@ -94,7 +109,9 @@ export default function AdminWorkspace({
         </div>
       </aside>
 
-      <main className={styles.main}>
+      <main
+        className={`${styles.main} ${section === 'specialists' || section === 'reports' || section === 'payments' || section === 'payouts' ? styles.reviewMain : ''}`}
+      >
         {section === 'dashboard' ? (
           <AdminOperationsDashboard />
         ) : section === 'content' ? (
@@ -109,6 +126,12 @@ export default function AdminWorkspace({
           <AdminAppointmentMonitor />
         ) : section === 'disputes' ? (
           <AdminAppointmentDisputes />
+        ) : section === 'reports' ? (
+          <AdminReportsSection />
+        ) : section === 'payments' ? (
+          <AdminPaymentsManager />
+        ) : section === 'payouts' ? (
+          <AdminPayoutsManager />
         ) : (
           <>
             <span className={styles.eyebrow}>
