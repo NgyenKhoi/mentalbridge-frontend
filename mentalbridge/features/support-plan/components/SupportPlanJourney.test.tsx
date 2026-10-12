@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api/api-error'
+import type { SupportPlanV3 } from '../api/support-plan-contract'
 import { supportPlanFixture } from '../testing/support-plan-fixture'
 import SupportPlanJourney from './SupportPlanJourney'
 
@@ -71,6 +72,97 @@ function activePlan() {
     status: 'ACTIVE' as const,
     version: 1,
     activatedAt: '2026-09-20T05:00:00Z',
+  }
+}
+
+function scheduleProjection(
+  version: number,
+  firstDuration = 15,
+  secondDuration = 20,
+): SupportPlanV3 {
+  const action = (
+    ordinal: number,
+    duration: number,
+  ): SupportPlanV3['focuses'][number]['actions'][number] => ({
+    actionId: `20000000-0000-4000-8000-00000000064${ordinal}`,
+    actionType: 'ROUTINE_SELF_MANAGEMENT' as const,
+    actionVersion: 1,
+    representationMode: 'NATIVE_V3' as const,
+    status: 'DRAFT' as const,
+    pathRole: 'PRIMARY' as const,
+    purposeCode: 'WELLBEING_ROUTINE',
+    rationale: null,
+    ordinal,
+    source: null,
+    provenance: {
+      category: 'USER_SELECTED',
+      referenceId: null,
+      referenceVersion: null,
+      acceptedAt: '2026-10-12T01:00:00Z',
+    },
+    presentation: {
+      title: `Hoạt động ${ordinal}`,
+      summary: null,
+      instructions: null,
+      externalUrl: null,
+    },
+    schedules: [
+      {
+        scheduleId: `30000000-0000-4000-8000-00000000064${ordinal}`,
+        version: 1,
+        schedulePolicyVersion: 'support-plan-activity-schedule-v2',
+        recurrenceType: 'WEEKLY' as const,
+        recurrenceDayOfWeek: null,
+        daysOfWeek: [1],
+        preferredDaypart: 'MORNING' as const,
+        estimatedDurationMinutes: duration,
+        localTime: `0${7 + ordinal}:00:00`,
+        timezone: 'Asia/Ho_Chi_Minh',
+        effectiveFrom: '2099-01-01',
+        effectiveUntil: null,
+        reminderEnabled: true,
+        status: 'DRAFT' as const,
+      },
+    ],
+    createdAt: '2026-10-12T01:00:00Z',
+    updatedAt: '2026-10-12T01:00:00Z',
+    activatedAt: null,
+    endedAt: null,
+  })
+
+  return {
+    supportPlanId: supportPlanFixture().supportPlanId,
+    modelVersion: 3,
+    planPolicyVersion: 'support-plan-selection-v2',
+    representationMode: 'NATIVE_V3',
+    status: 'DRAFT',
+    version,
+    safety: {
+      status: 'NEGATIVE_SAFETY_SCREEN',
+      reasonCode: 'STANDARD',
+      policyVersion: 'safety-v1',
+      guidanceCode: 'STANDARD_SAFETY_REMINDER',
+      guidance: 'Safety guidance.',
+    },
+    focuses: [
+      {
+        focusId: 'focus-1',
+        title: 'Hỗ trợ nhịp hoạt động',
+        rationale: null,
+        personalizationProvenance: null,
+        ordinal: 1,
+        actions: [action(1, firstDuration), action(2, secondDuration)],
+      },
+    ],
+    createdAt: '2026-10-12T01:00:00Z',
+    updatedAt: '2026-10-12T01:00:00Z',
+    activatedAt: null,
+    completedAt: null,
+    completionReason: null,
+    supersededAt: null,
+    discardedAt: null,
+    disclaimerCode: 'WELLBEING_SUPPORT_NOT_TREATMENT',
+    disclaimer: 'Wellbeing support.',
   }
 }
 
@@ -182,6 +274,70 @@ describe('SupportPlanJourney', () => {
     expect(await screen.findByText('Reviewed primary resource')).toBeVisible()
     expect(api.getCurrentSupportPlanDraft).toHaveBeenCalledTimes(1)
     expect(api.proposeSupportPlanDraft).not.toHaveBeenCalled()
+  })
+
+  it('preserves another action draft when saving one schedule advances the plan version', async () => {
+    const draft = { ...supportPlanFixture(), version: 2 }
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.getCurrentSupportPlanDraftActions.mockResolvedValue(
+      scheduleProjection(2),
+    )
+    api.replaceSupportPlanActionSchedule.mockResolvedValue(
+      scheduleProjection(3, 25, 20),
+    )
+
+    render(<SupportPlanJourney />)
+
+    const durations = await screen.findAllByLabelText(
+      'Thời lượng dự kiến (phút)',
+    )
+    fireEvent.change(durations[0], { target: { value: '25' } })
+    fireEvent.change(durations[1], { target: { value: '35' } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu lịch' })[0])
+
+    await waitFor(() =>
+      expect(api.replaceSupportPlanActionSchedule).toHaveBeenCalledOnce(),
+    )
+    expect(
+      screen.getAllByLabelText('Thời lượng dự kiến (phút)')[1],
+    ).toHaveValue(35)
+  })
+
+  it('reloads the stale action while preserving another unsaved schedule draft', async () => {
+    const draft = { ...supportPlanFixture(), version: 2 }
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.getCurrentSupportPlanDraftActions.mockResolvedValue(
+      scheduleProjection(2),
+    )
+    api.replaceSupportPlanActionSchedule.mockRejectedValue(
+      problem('SUPPORT_PLAN_VERSION_MISMATCH', 412),
+    )
+
+    render(<SupportPlanJourney />)
+
+    const durations = await screen.findAllByLabelText(
+      'Thời lượng dự kiến (phút)',
+    )
+    fireEvent.change(durations[0], { target: { value: '25' } })
+    fireEvent.change(durations[1], { target: { value: '35' } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu lịch' })[0])
+
+    const reload = await screen.findByRole('button', {
+      name: 'Tải lịch mới',
+    })
+    api.getCurrentSupportPlanDraft.mockResolvedValue({ ...draft, version: 3 })
+    api.getCurrentSupportPlanDraftActions.mockResolvedValue(
+      scheduleProjection(3, 30, 20),
+    )
+    fireEvent.click(reload)
+
+    await waitFor(() => {
+      const reloadedDurations = screen.getAllByLabelText(
+        'Thời lượng dự kiến (phút)',
+      )
+      expect(reloadedDurations[0]).toHaveValue(30)
+      expect(reloadedDurations[1]).toHaveValue(35)
+    })
   })
 
   it('opens progress when only immutable plan history remains', async () => {

@@ -23,6 +23,11 @@ type ScheduleForm = Readonly<{
   reminderEnabled: boolean
 }>
 
+type EditorFormsState = Readonly<{
+  forms: Record<string, ScheduleForm>
+  initial: Record<string, string>
+}>
+
 type Props = Readonly<{
   plan: SupportPlanV3
   onDirtyChange?: (dirty: boolean) => void
@@ -31,7 +36,7 @@ type Props = Readonly<{
     request: UpdateActionScheduleRequest,
     idempotencyKey: string,
   ) => Promise<void>
-  onReload: () => Promise<void>
+  onReload: () => Promise<boolean | void>
 }>
 
 const weekdayOptions = [
@@ -152,13 +157,32 @@ function formSignature(form: ScheduleForm) {
   return JSON.stringify({ ...form, daysOfWeek: [...form.daysOfWeek].sort() })
 }
 
+function reconcileForms(
+  current: EditorFormsState,
+  actions: PlanAction[],
+  status: SupportPlanV3['status'],
+  forcedActionId?: string,
+): EditorFormsState {
+  const nextForms: Record<string, ScheduleForm> = {}
+  const nextInitial: Record<string, string> = {}
+  for (const action of actions) {
+    const authoritative = initialForm(action, status)
+    const authoritativeSignature = formSignature(authoritative)
+    const previous = current.forms[action.actionId]
+    const previousInitial = current.initial[action.actionId]
+    const dirty =
+      previous && previousInitial && formSignature(previous) !== previousInitial
+    const preserveDraft = dirty && forcedActionId !== action.actionId
+    nextForms[action.actionId] = preserveDraft ? previous : authoritative
+    nextInitial[action.actionId] = preserveDraft
+      ? previousInitial
+      : authoritativeSignature
+  }
+  return { forms: nextForms, initial: nextInitial }
+}
+
 export default function SupportPlanScheduleEditor(props: Props) {
-  return (
-    <SupportPlanScheduleEditorState
-      key={`${props.plan.supportPlanId}:${props.plan.version}`}
-      {...props}
-    />
-  )
+  return <SupportPlanScheduleEditorState {...props} />
 }
 
 function SupportPlanScheduleEditorState({
@@ -168,28 +192,54 @@ function SupportPlanScheduleEditorState({
   onReload,
 }: Props) {
   const actions = useMemo(() => editableActions(plan), [plan])
-  const [forms, setForms] = useState<Record<string, ScheduleForm>>(() =>
-    Object.fromEntries(
+  const [editor, setEditor] = useState<EditorFormsState>(() => {
+    const forms = Object.fromEntries(
       actions.map((action) => [
         action.actionId,
         initialForm(action, plan.status),
       ]),
-    ),
-  )
-  const [initial] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      actions.map((action) => {
-        const form = initialForm(action, plan.status)
-        return [action.actionId, formSignature(form)]
-      }),
-    ),
-  )
+    )
+    return {
+      forms,
+      initial: Object.fromEntries(
+        Object.entries(forms).map(([actionId, form]) => [
+          actionId,
+          formSignature(form),
+        ]),
+      ),
+    }
+  })
   const [savingActionId, setSavingActionId] = useState<string>()
   const [messages, setMessages] = useState<Record<string, string>>({})
   const [staleActionId, setStaleActionId] = useState<string>()
   const commandKeys = useRef<
     Record<string, { signature: string; key: string }>
   >({})
+  const [reloadRequest, setReloadRequest] = useState<{
+    actionId: string
+    planVersion: number
+  }>()
+  const [previousPlan, setPreviousPlan] = useState(plan)
+
+  const { forms, initial } = editor
+
+  if (previousPlan !== plan) {
+    const forcedActionId =
+      reloadRequest && reloadRequest.planVersion !== plan.version
+        ? reloadRequest.actionId
+        : undefined
+    setPreviousPlan(plan)
+    setEditor((current) =>
+      reconcileForms(current, actions, plan.status, forcedActionId),
+    )
+    if (forcedActionId) {
+      setReloadRequest(undefined)
+      setStaleActionId((current) =>
+        current === forcedActionId ? undefined : current,
+      )
+      setMessages((current) => ({ ...current, [forcedActionId]: '' }))
+    }
+  }
 
   const dirty = actions.some(
     (action) =>
@@ -201,9 +251,12 @@ function SupportPlanScheduleEditorState({
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange])
 
   const update = (actionId: string, patch: Partial<ScheduleForm>) => {
-    setForms((current) => ({
+    setEditor((current) => ({
       ...current,
-      [actionId]: { ...current[actionId], ...patch },
+      forms: {
+        ...current.forms,
+        [actionId]: { ...current.forms[actionId], ...patch },
+      },
     }))
     setMessages((current) => ({ ...current, [actionId]: '' }))
     setStaleActionId(undefined)
@@ -246,6 +299,18 @@ function SupportPlanScheduleEditorState({
     try {
       await onSave(action.actionId, request, key)
       delete commandKeys.current[action.actionId]
+      setEditor((current) => {
+        const savedForm = current.forms[action.actionId]
+        return savedForm
+          ? {
+              ...current,
+              initial: {
+                ...current.initial,
+                [action.actionId]: formSignature(savedForm),
+              },
+            }
+          : current
+      })
       setMessages((current) => ({
         ...current,
         [action.actionId]: form.enabled
@@ -548,7 +613,15 @@ function SupportPlanScheduleEditorState({
                   <button
                     className="btn btn-ghost"
                     type="button"
-                    onClick={() => void onReload()}
+                    onClick={() => {
+                      setReloadRequest({
+                        actionId: action.actionId,
+                        planVersion: plan.version,
+                      })
+                      void onReload().then((reloaded) => {
+                        if (reloaded === false) setReloadRequest(undefined)
+                      })
+                    }}
                   >
                     Tải lịch mới
                   </button>

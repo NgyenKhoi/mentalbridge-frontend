@@ -580,6 +580,50 @@ export default function SupportPlanJourney() {
     }
   }
 
+  const reloadSchedule = async (target: SupportPlan) => {
+    try {
+      const [authoritative, projection] = await Promise.all([
+        target.status === 'DRAFT'
+          ? getCurrentSupportPlanDraft()
+          : getCurrentSupportPlan(),
+        target.status === 'DRAFT'
+          ? getCurrentSupportPlanDraftActions()
+          : getSupportPlanActions(target.supportPlanId),
+      ])
+      if (
+        authoritative.supportPlanId !== target.supportPlanId ||
+        projection.supportPlanId !== target.supportPlanId ||
+        projection.version !== authoritative.version ||
+        projection.status !== authoritative.status
+      ) {
+        throw new Error('Support plan authority changed')
+      }
+      setFocusProjections((current) => ({
+        ...current,
+        [target.supportPlanId]: {
+          version: authoritative.version,
+          status: 'ready',
+          value: projection,
+        },
+      }))
+      if (currentPlan?.supportPlanId === target.supportPlanId) {
+        setCurrentPlan(authoritative)
+        setPlan(authoritative)
+      } else if (replacementDraft?.supportPlanId === target.supportPlanId) {
+        setReplacementDraft(authoritative)
+        if (currentPlan) {
+          await loadReplacementReview(currentPlan, authoritative)
+        }
+      } else {
+        setPlan(authoritative)
+      }
+      return true
+    } catch (error) {
+      setCommandMessage(mutationMessage(error))
+      return false
+    }
+  }
+
   const activate = async () => {
     if (!plan || plan.status !== 'DRAFT') return
     setBusy('ACTIVATING')
@@ -836,7 +880,7 @@ export default function SupportPlanJourney() {
           )}
           {plan && activeTab !== 'progress' && (
             <SupportPlanCard
-              key={`${plan.supportPlanId}:${plan.version}:${recoveryVersion}`}
+              key={`${plan.supportPlanId}:${recoveryVersion}`}
               plan={plan}
               busy={busy}
               message={commandMessage}
@@ -846,9 +890,7 @@ export default function SupportPlanJourney() {
               onSaveSchedule={(actionId, request, idempotencyKey) =>
                 saveSchedule(plan, actionId, request, idempotencyKey)
               }
-              onReloadSchedule={async () => {
-                await recover()
-              }}
+              onReloadSchedule={() => reloadSchedule(plan)}
               activeTab={cardTab}
               focusProjection={
                 focusProjections[plan.supportPlanId]?.version === plan.version
@@ -942,7 +984,7 @@ export default function SupportPlanJourney() {
             <>
               <div ref={replacementDraftReviewRef}>
                 <SupportPlanCard
-                  key={`${replacementDraft.supportPlanId}:${replacementDraft.version}:${recoveryVersion}`}
+                  key={`${replacementDraft.supportPlanId}:${recoveryVersion}`}
                   plan={replacementDraft}
                   busy={busy}
                   message={commandMessage}
@@ -957,9 +999,7 @@ export default function SupportPlanJourney() {
                       idempotencyKey,
                     )
                   }
-                  onReloadSchedule={async () => {
-                    await recover()
-                  }}
+                  onReloadSchedule={() => reloadSchedule(replacementDraft)}
                   draftAction="REPLACEMENT"
                   activeTab="plan"
                   embedded

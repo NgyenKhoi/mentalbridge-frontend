@@ -78,7 +78,7 @@ type Props = Readonly<{
     request: UpdateActionScheduleRequest,
     idempotencyKey: string,
   ) => Promise<void>
-  onReloadSchedule?: () => Promise<void>
+  onReloadSchedule?: () => Promise<boolean | void>
 }>
 
 type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
