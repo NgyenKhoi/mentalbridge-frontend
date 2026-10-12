@@ -98,29 +98,36 @@ export default function AdminAuditLog() {
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
 
-  const load = useCallback(async (filters: AuditSearch, cursor?: string) => {
-    setLoading(true)
-    setError('')
-    try {
-      const page = await browserAdminAudit.browse({
-        ...filters,
-        ...(cursor ? { cursor } : {}),
-        limit: 50,
-      })
-      setItems(page.items)
-      setNextCursor(page.nextCursor ?? null)
-      setCurrentCursor(cursor)
-      setEffectiveRange({
-        from: page.effectiveFrom,
-        to: page.effectiveTo,
-        retention: page.retentionCutoff,
-      })
-    } catch (cause) {
-      setError(errorMessage(cause))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const load = useCallback(
+    async (filters: AuditSearch, cursor?: string, nextHistory?: string[]) => {
+      setLoading(true)
+      setError('')
+      try {
+        const page = await browserAdminAudit.browse({
+          ...filters,
+          ...(cursor ? { cursor } : {}),
+          limit: 50,
+        })
+        setItems(page.items)
+        setNextCursor(page.nextCursor ?? null)
+        setCurrentCursor(cursor)
+        setAppliedFilters(filters)
+        if (nextHistory !== undefined) {
+          setCursorHistory(nextHistory)
+        }
+        setEffectiveRange({
+          from: page.effectiveFrom,
+          to: page.effectiveTo,
+          retention: page.retentionCutoff,
+        })
+      } catch (cause) {
+        setError(errorMessage(cause))
+      } finally {
+        setLoading(false)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     let active = true
@@ -130,6 +137,9 @@ export default function AdminAuditLog() {
         if (!active) return
         setItems(page.items)
         setNextCursor(page.nextCursor ?? null)
+        setCurrentCursor(undefined)
+        setAppliedFilters({})
+        setCursorHistory([])
         setEffectiveRange({
           from: page.effectiveFrom,
           to: page.effectiveTo,
@@ -165,9 +175,7 @@ export default function AdminAuditLog() {
         ? { targetIdentifier: targetIdentifier.trim() }
         : {}),
     }
-    setAppliedFilters(filters)
-    setCursorHistory([])
-    void load(filters)
+    void load(filters, undefined, [])
   }
 
   function reset() {
@@ -179,22 +187,20 @@ export default function AdminAuditLog() {
     setAction('')
     setResult('')
     setTargetIdentifier('')
-    setAppliedFilters({})
-    setCursorHistory([])
-    void load({})
+    void load({}, undefined, [])
   }
 
   function nextPage() {
     if (!nextCursor) return
-    setCursorHistory((history) => [...history, currentCursor ?? ''])
-    void load(appliedFilters, nextCursor)
+    const updatedHistory = [...cursorHistory, currentCursor ?? '']
+    void load(appliedFilters, nextCursor, updatedHistory)
   }
 
   function previousPage() {
     const previous = cursorHistory.at(-1)
     if (previous === undefined) return
-    setCursorHistory((history) => history.slice(0, -1))
-    void load(appliedFilters, previous || undefined)
+    const updatedHistory = cursorHistory.slice(0, -1)
+    void load(appliedFilters, previous || undefined, updatedHistory)
   }
 
   async function exportCsv() {

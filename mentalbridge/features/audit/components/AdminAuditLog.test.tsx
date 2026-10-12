@@ -171,4 +171,100 @@ describe('AdminAuditLog', () => {
       ).toBeInTheDocument()
     },
   )
+
+  it('preserves query A and export filters when query B submission fails, and commits B on subsequent success', async () => {
+    const user = userEvent.setup()
+
+    const pageA = {
+      items: [
+        {
+          ...event,
+          eventId: 'a1111111-1111-1111-1111-111111111111',
+          action: 'ACCOUNT_DISABLED',
+          correlationId: 'corr-a',
+        },
+      ],
+      nextCursor: 'cursor-a-next',
+      effectiveFrom: '2026-09-01T00:00:00Z',
+      effectiveTo: '2026-10-01T00:00:00Z',
+      retentionCutoff: '2025-10-01T00:00:00Z',
+    }
+
+    const pageB = {
+      items: [
+        {
+          ...event,
+          eventId: 'b2222222-2222-2222-2222-222222222222',
+          action: 'SPECIALIST_APPROVED',
+          correlationId: 'corr-b',
+        },
+      ],
+      nextCursor: 'cursor-b-next',
+      effectiveFrom: '2026-08-01T00:00:00Z',
+      effectiveTo: '2026-09-01T00:00:00Z',
+      retentionCutoff: '2025-08-01T00:00:00Z',
+    }
+
+    api.browse.mockResolvedValueOnce(pageA)
+    render(<AdminAuditLog />)
+
+    // 1 & 2. Browse A succeeds and is displayed
+    expect(await screen.findByText('corr-a')).toBeInTheDocument()
+    expect(
+      screen.getByRole('cell', { name: /Tạm ngưng tài khoản/ }),
+    ).toBeInTheDocument()
+
+    // 3 & 4. Submit filter B, but browse B fails
+    api.browse.mockRejectedValueOnce(
+      new ApiError({
+        message: 'Bad request',
+        code: 'BAD_REQUEST',
+        status: 400,
+      }),
+    )
+    await user.selectOptions(
+      screen.getByLabelText('Hành động'),
+      'SPECIALIST_APPROVED',
+    )
+    await user.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+
+    // 5. B failure is visible
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Bộ lọc không hợp lệ. Khoảng thời gian tối đa là 90 ngày và phải nằm trong 365 ngày gần nhất.',
+    )
+
+    // A is still displayed, not represented as B
+    expect(screen.getByText('corr-a')).toBeInTheDocument()
+    expect(screen.queryByText('corr-b')).not.toBeInTheDocument()
+
+    // 6. Export cannot use B while A is displayed; export sends committed A (empty filters), not B
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất CSV theo bộ lọc' }),
+    )
+    await waitFor(() => {
+      expect(api.exportCsv).toHaveBeenCalledWith({})
+    })
+    expect(api.exportCsv).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'SPECIALIST_APPROVED' }),
+    )
+
+    // Later successful B request commits B
+    api.browse.mockResolvedValueOnce(pageB)
+    await user.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+
+    expect(await screen.findByText('corr-b')).toBeInTheDocument()
+    expect(screen.queryByText('corr-a')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    // Export then uses B
+    api.exportCsv.mockClear()
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất CSV theo bộ lọc' }),
+    )
+    await waitFor(() => {
+      expect(api.exportCsv).toHaveBeenCalledWith({
+        action: 'SPECIALIST_APPROVED',
+      })
+    })
+  })
 })
