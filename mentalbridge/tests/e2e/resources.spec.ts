@@ -53,7 +53,10 @@ test.describe('Resources journey', () => {
     const consoleErrors: string[] = []
     page.on('console', (message) => {
       const sourceUrl = message.location().url
-      const expectedFixtureMiss = sourceUrl.endsWith('/api/care/profile')
+      const expectedFixtureMiss =
+        sourceUrl.endsWith('/api/care/profile') ||
+        sourceUrl.includes('/api/emotion-check-ins/') ||
+        sourceUrl.endsWith('/api/resources/rewards')
       if (message.type() === 'error' && !expectedFixtureMiss)
         consoleErrors.push(`${sourceUrl}: ${message.text()}`)
     })
@@ -77,6 +80,9 @@ test.describe('Resources journey', () => {
     const resourceId = '00000000-0000-4000-8000-000000000213'
     const overviewResourceId = '00000000-0000-4000-8000-000000000215'
     let overviewSaved = false
+    let rewardRefreshFailures = 0
+    let sourceCorrected = false
+    let rewardPolicyUpgraded = false
     const catalogue = [
       {
         id: resourceId,
@@ -119,6 +125,55 @@ test.describe('Resources journey', () => {
     ]
     await context.route('**/api/resources**', async (route) => {
       const requestUrl = new URL(route.request().url())
+      if (requestUrl.pathname === '/api/resources/rewards') {
+        if (rewardRefreshFailures > 0) {
+          rewardRefreshFailures -= 1
+          await route.fulfill({
+            status: 503,
+            contentType: 'application/problem+json',
+            body: JSON.stringify({
+              type: 'about:blank',
+              title: 'Content unavailable',
+              status: 503,
+              code: 'CONTENT_UNAVAILABLE',
+            }),
+          })
+          return
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            totalXp: overviewSaved && !sourceCorrected ? 10 : 0,
+            level: overviewSaved && !sourceCorrected ? 1 : 0,
+            nextLevelXp: overviewSaved && !sourceCorrected ? 40 : 10,
+            visibilityState: 'VISIBLE',
+            preferenceVersion: '0',
+            policyVersion: rewardPolicyUpgraded
+              ? 'resource-reward-v2'
+              : 'resource-reward-v1',
+            sourceAvailability: 'AVAILABLE',
+            calculatedAt: '2026-10-12T02:05:00.000Z',
+            recentGrants:
+              overviewSaved && !sourceCorrected
+                ? [
+                    {
+                      grantId: 'a'.repeat(64),
+                      kind: 'RESOURCE_COMPLETION',
+                      xp: 10,
+                      resourceId: overviewResourceId,
+                      contentVersion: '4',
+                      localDate: '2026-10-12',
+                      grantedAt: '2026-10-12T02:00:00.000Z',
+                      sourceReference: `resource-progress:${overviewResourceId}:2026-10-12`,
+                      ruleVersion: 'resource-reward-v1',
+                    },
+                  ]
+                : [],
+          }),
+        })
+        return
+      }
       if (requestUrl.pathname === '/api/resources/journey') {
         const date = requestUrl.searchParams.get('date') ?? '2026-09-29'
         await route.fulfill({
@@ -135,18 +190,21 @@ test.describe('Resources journey', () => {
               reason: 'PLAN_SELECTED',
             })),
             progress: {
-              dailyCompleted: overviewSaved ? 1 : 0,
+              dailyCompleted: overviewSaved && !sourceCorrected ? 1 : 0,
               dailyTotal: catalogue.length,
               learningCompleted: 0,
               learningTotal: catalogue.length,
-              practiceStreakDays: overviewSaved ? 1 : 0,
+              practiceStreakDays: overviewSaved && !sourceCorrected ? 1 : 0,
             },
             weekStart: '2026-09-28',
             bingo: catalogue.map((resource, index) => ({
               position: index + 1,
               resourceId: resource.id,
               label: resource.title,
-              stamped: overviewSaved && resource.id === overviewResourceId,
+              stamped:
+                overviewSaved &&
+                !sourceCorrected &&
+                resource.id === overviewResourceId,
             })),
           }),
         })
@@ -157,20 +215,21 @@ test.describe('Resources journey', () => {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            items: overviewSaved
-              ? [
-                  {
-                    resourceId: overviewResourceId,
-                    localDate: '2026-10-11',
-                    contentVersion: '4',
-                    status: 'COMPLETED',
-                    completedActionIds: ['overview-complete'],
-                    completedAt: '2026-10-11T02:00:00.000Z',
-                    updatedAt: '2026-10-11T02:00:00.000Z',
-                    version: '1',
-                  },
-                ]
-              : [],
+            items:
+              overviewSaved && !sourceCorrected
+                ? [
+                    {
+                      resourceId: overviewResourceId,
+                      localDate: '2026-10-11',
+                      contentVersion: '4',
+                      status: 'COMPLETED',
+                      completedActionIds: ['overview-complete'],
+                      completedAt: '2026-10-11T02:00:00.000Z',
+                      updatedAt: '2026-10-11T02:00:00.000Z',
+                      version: '1',
+                    },
+                  ]
+                : [],
           }),
         })
         return
@@ -187,6 +246,7 @@ test.describe('Resources journey', () => {
           body.status === 'COMPLETED'
         ) {
           overviewSaved = true
+          rewardRefreshFailures = 1
         }
         await route.fulfill({
           status: 200,
@@ -239,8 +299,10 @@ test.describe('Resources journey', () => {
       }),
     ).toBeVisible()
     await expect(page.getByText('Chưa có chuỗi thực hành')).toBeVisible()
-    await expect(page.getByText(/\bXP\b/i)).toHaveCount(0)
-    await expect(page.getByText(/huy hiệu|cấp độ/i)).toHaveCount(0)
+    await expect(page.getByLabel('0 điểm tham gia, cấp 0')).toBeVisible()
+    await expect(
+      page.getByText('Chưa có hoạt động đủ điều kiện đã được lưu.'),
+    ).toBeVisible()
     await expect(
       page.getByText('Nguồn: NHS Every Mind Matters').first(),
     ).toBeVisible()
@@ -254,6 +316,30 @@ test.describe('Resources journey', () => {
       page.getByText(`✓ Đã lưu hoàn thành “${catalogue[2].title}”.`),
     ).toBeVisible()
     await expect(page.getByText('1 ngày đã lưu')).toBeVisible()
+    await expect(
+      page.getByText(
+        /Số điểm cũ được ẩn để tránh hiển thị như dữ liệu hiện tại/i,
+      ),
+    ).toBeVisible()
+    await expect(page.getByLabel(/điểm tham gia, cấp/)).toHaveCount(0)
+    await page.getByRole('button', { name: 'Thử xác minh lại' }).click()
+    await expect(page.getByLabel('10 điểm tham gia, cấp 1')).toBeVisible()
+    await expect(page.getByText('+10 XP')).toBeVisible()
+    await page.reload()
+    await expect(page.getByLabel('10 điểm tham gia, cấp 1')).toBeVisible()
+    await expect(page.getByText('+10 XP')).toHaveCount(1)
+
+    sourceCorrected = true
+    await page.reload()
+    await expect(page.getByLabel('0 điểm tham gia, cấp 0')).toBeVisible()
+    await expect(page.getByText('+10 XP')).toHaveCount(0)
+
+    sourceCorrected = false
+    rewardPolicyUpgraded = true
+    await page.reload()
+    await expect(page.getByLabel('10 điểm tham gia, cấp 1')).toBeVisible()
+    await expect(page.getByText('Quy tắc resource-reward-v2')).toBeVisible()
+    await expect(page.getByText(/resource-reward-v1/)).toBeVisible()
     for (const viewport of [
       { width: 1280, height: 800 },
       { width: 768, height: 1024 },
@@ -296,7 +382,7 @@ test.describe('Resources journey', () => {
     )
     if (process.env.CAPTURE_RESOURCE_EVIDENCE === 'true') {
       await page.screenshot({
-        path: 'docs/evidence/mb-656-resources-desktop.png',
+        path: 'docs/evidence/mb-659-resource-rewards-desktop.png',
         fullPage: true,
       })
       await page.setViewportSize({ width: 375, height: 812 })
@@ -311,7 +397,7 @@ test.describe('Resources journey', () => {
         page.getByRole('heading', { name: 'Nhịp thực hành' }),
       ).toBeVisible()
       await page.screenshot({
-        path: 'docs/evidence/mb-656-resources-mobile.png',
+        path: 'docs/evidence/mb-659-resource-rewards-mobile.png',
         fullPage: true,
       })
       await page.setViewportSize({ width: 1440, height: 900 })

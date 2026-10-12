@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   contentResourceJourneyClient,
   contentResourceProgressClient,
+  contentResourceRewardClient,
   type ContentServiceError,
 } from './content-client'
 
@@ -38,6 +39,30 @@ const journey = {
   },
   weekStart: '2026-09-28',
   bingo: [],
+}
+
+const reward = {
+  totalXp: 15,
+  level: 1,
+  nextLevelXp: 40,
+  visibilityState: 'VISIBLE',
+  preferenceVersion: '0',
+  policyVersion: 'resource-reward-v1',
+  sourceAvailability: 'AVAILABLE',
+  calculatedAt: '2026-09-29T02:16:00.000Z',
+  recentGrants: [
+    {
+      grantId: 'a'.repeat(64),
+      kind: 'RESOURCE_COMPLETION',
+      xp: 10,
+      resourceId,
+      contentVersion: '7',
+      localDate,
+      grantedAt: '2026-09-29T02:15:00.000Z',
+      sourceReference: `resource-progress:${resourceId}:${localDate}`,
+      ruleVersion: 'resource-reward-v1',
+    },
+  ],
 }
 
 function upstream(body: unknown) {
@@ -107,5 +132,48 @@ describe('content resource progress identity binding', () => {
       code: 'CONTENT_MALFORMED_RESPONSE',
       status: 502,
     } satisfies Partial<ContentServiceError>)
+  })
+
+  it('accepts exact reward provenance and fails closed on malformed grants', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(upstream(reward))
+      .mockResolvedValueOnce(
+        upstream({
+          ...reward,
+          recentGrants: [{ ...reward.recentGrants[0], resourceId: 'other' }],
+        }),
+      )
+    vi.stubGlobal('fetch', fetch)
+
+    await expect(
+      contentResourceRewardClient.read('owner-token', 'correlation'),
+    ).resolves.toEqual(reward)
+    await expect(
+      contentResourceRewardClient.read('owner-token', 'correlation'),
+    ).rejects.toMatchObject({
+      code: 'CONTENT_MALFORMED_RESPONSE',
+      status: 502,
+    } satisfies Partial<ContentServiceError>)
+  })
+
+  it('sends an exact visibility replacement', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(upstream({ ...reward, visibilityState: 'HIDDEN' }))
+    vi.stubGlobal('fetch', fetch)
+
+    await contentResourceRewardClient.setVisibility(
+      'owner-token',
+      { visibilityState: 'HIDDEN' },
+      'correlation',
+    )
+    expect(fetch).toHaveBeenCalledWith(
+      new URL('http://content.local:3003/api/v1/resource-rewards'),
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ visibilityState: 'HIDDEN' }),
+      }),
+    )
   })
 })
