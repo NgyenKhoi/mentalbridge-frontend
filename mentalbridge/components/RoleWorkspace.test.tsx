@@ -53,6 +53,10 @@ vi.mock(
 vi.mock('./SpecialistEarningsManager', () => ({
   default: () => <h1>Thu nhập thật</h1>,
 }))
+vi.mock(
+  '@/features/notifications/components/SpecialistNotificationCenter',
+  () => ({ default: () => <h1>Trung tâm thông báo thật</h1> }),
+)
 
 const props = {
   role: 'specialist' as const,
@@ -103,8 +107,8 @@ describe('RoleWorkspace specialist production closure', () => {
     expect(screen.getByRole('heading', { name: 'Thu nhập thật' })).toBeVisible()
   })
 
-  it.each([['notifications', 'Trung tâm thông báo chưa khả dụng']])(
-    'shows truthful deferred state for %s',
+  it.each([['notifications', 'Trung tâm thông báo thật']])(
+    'shows the owner-backed state for %s',
     (sectionKey, heading) => {
     render(<RoleWorkspace {...props} sectionKey={sectionKey} />)
 

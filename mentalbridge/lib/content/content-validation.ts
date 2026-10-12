@@ -879,6 +879,7 @@ const TARGETLESS_NOTIFICATION_ACTIONS: Readonly<Record<string, string>> = {
   OPEN_APPOINTMENTS: '/appointments',
   OPEN_RESOURCES: '/resources',
   OPEN_ASSESSMENTS: '/assessments',
+  OPEN_SPECIALIST_APPOINTMENTS: '/specialist/appointments',
 }
 
 export function parseNotification(value: unknown): Notification | null {

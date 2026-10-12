@@ -14,12 +14,10 @@ import appointmentStyles from '@/features/appointments/components/SpecialistAppo
 import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
 import SpecialistContinuityManager from '@/features/appointments/components/SpecialistContinuityManager'
 import SpecialistOperationalAnalytics from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics'
+import SpecialistNotificationCenter from '@/features/notifications/components/SpecialistNotificationCenter'
 import SpecialistDashboardManager from './SpecialistDashboardManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
-import SpecialistDeferredSection, {
-  type SpecialistDeferredSectionKey,
-} from './SpecialistDeferredSection'
 import SpecialistWorkspaceIdentity from './SpecialistWorkspaceIdentity'
 import AdminUsersManager from './AdminUsersManager'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
@@ -196,7 +194,7 @@ export default function RoleWorkspace({
         {role === 'specialist' && sectionKey === 'messages' && <AppointmentMessagesWorkspace viewerRole="SPECIALIST" initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'follow-up' && <SpecialistContinuityManager initialAppointmentId={selectedAppointmentId} />}
 		{role === 'specialist' && sectionKey === 'earnings' && <SpecialistEarningsManager />}
-		{role === 'specialist' && sectionKey === 'notifications' && <SpecialistDeferredSection section={sectionKey as SpecialistDeferredSectionKey} />}
+		{role === 'specialist' && sectionKey === 'notifications' && <SpecialistNotificationCenter />}
         {role === 'admin' && sectionKey === 'users' && <AdminUsersManager onSelect={setSelected} onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
         {role === 'admin' && sectionKey === 'specialists' && <AdminSpecialistReviewSection />}
         {role === 'admin' && sectionKey === 'assessments' && <AdminAssessmentsManager onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
