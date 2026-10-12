@@ -22,6 +22,7 @@ import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import type { SupportPlanApi } from './support-plan-api'
 import { SupportPlanPersonalizationCard } from './SupportPlanPersonalizationCard'
+import { SupportPlanScheduleEditor } from './SupportPlanScheduleEditor'
 import type {
   OccurrenceEngagement,
   PlanActionProjection,
@@ -30,6 +31,7 @@ import type {
   SupportPlan,
   SupportPlanActions,
   SupportPlanOccurrence,
+  UpdateActionScheduleRequest,
 } from './support-plan-contract'
 
 type Notice = Readonly<{ message: string; tone: 'error' | 'success' }>
@@ -242,6 +244,9 @@ function PlanCard({
   professionalAction,
   professionalSupportError,
   professionalSupportRefreshing,
+  schedulePlan,
+  onSaveSchedule,
+  onReloadSchedule,
   title,
 }: Readonly<{
   appointment?: Appointment | undefined
@@ -259,11 +264,30 @@ function PlanCard({
   professionalAction?: PlanActionProjection | undefined
   professionalSupportError: boolean
   professionalSupportRefreshing: boolean
+  schedulePlan: SupportPlanActions | undefined
+  onSaveSchedule: (
+    actionId: string,
+    request: UpdateActionScheduleRequest,
+    idempotencyKey: string,
+  ) => Promise<void>
+  onReloadSchedule: () => Promise<SupportPlanActions | undefined>
   title: string
 }>) {
+  const [scheduleDirty, setScheduleDirty] = useState(false)
   const showProfessionalSupport = Boolean(
     professionalAction ||
     (professionalSupportError && requiresProfessionalSupport(plan)),
+  )
+  const scheduleAuthorityMatches = Boolean(
+    schedulePlan &&
+    schedulePlan.supportPlanId === plan.supportPlanId &&
+    schedulePlan.status === plan.status &&
+    schedulePlan.version === plan.version,
+  )
+  const scheduleIdentityMatches = Boolean(
+    schedulePlan &&
+    schedulePlan.supportPlanId === plan.supportPlanId &&
+    schedulePlan.status === plan.status,
   )
 
   return (
@@ -378,6 +402,20 @@ function PlanCard({
         {!focuses && <Text style={styles.body}>{plan.rationale.text}</Text>}
       </View>
 
+      {schedulePlan && scheduleIdentityMatches && (
+        <SupportPlanScheduleEditor
+          plan={schedulePlan}
+          disabled={
+            busy || plan.status === 'PAUSED' || !scheduleAuthorityMatches
+          }
+          {...(plan.status === 'DRAFT'
+            ? { onDirtyChange: setScheduleDirty }
+            : {})}
+          onSave={onSaveSchedule}
+          onReload={onReloadSchedule}
+        />
+      )}
+
       {plan.slots.map((slot) => (
         <View key={slot.slotId} style={styles.resourceGroup}>
           <Text style={styles.itemTitle}>
@@ -442,10 +480,15 @@ function PlanCard({
           <>
             {canActivate && (
               <PrimaryButton
-                disabled={busy}
+                disabled={busy || scheduleDirty}
                 label={busy ? 'Đang xử lý…' : 'Bắt đầu kế hoạch'}
                 onPress={onActivate}
               />
+            )}
+            {scheduleDirty && (
+              <Text style={styles.supportingText}>
+                Hãy lưu lịch mới trước khi bắt đầu kế hoạch.
+              </Text>
             )}
             <SecondaryButton
               disabled={busy}
@@ -709,6 +752,8 @@ export function SupportPlanScreen({
   const currentKey = ['support-plan', subject, 'current'] as const
   const draftKey = ['support-plan', subject, 'draft'] as const
   const historyKey = ['support-plan', subject, 'history'] as const
+  const actionsKeyFor = (supportPlanId: string | null | undefined) =>
+    ['support-plan', subject, 'actions', supportPlanId ?? null] as const
   const occurrenceKeyFor = (supportPlanId: string | null | undefined) =>
     [
       'support-plan',
@@ -782,26 +827,24 @@ export function SupportPlanScreen({
     },
   })
   const currentActionsQuery = useQuery({
-    queryKey: [
-      'support-plan',
-      subject,
-      'actions',
-      currentQuery.data?.supportPlanId,
-    ],
+    queryKey: actionsKeyFor(currentQuery.data?.supportPlanId),
     enabled: Boolean(subject && currentQuery.data?.supportPlanId),
     retry: false,
     queryFn: () => api.getActions(currentQuery.data!.supportPlanId),
   })
   const draftActionsQuery = useQuery({
-    queryKey: [
-      'support-plan',
-      subject,
-      'actions',
-      draftQuery.data?.supportPlanId,
-    ],
+    queryKey: actionsKeyFor(draftQuery.data?.supportPlanId),
     enabled: Boolean(subject && draftQuery.data?.supportPlanId),
     retry: false,
-    queryFn: () => api.getActions(draftQuery.data!.supportPlanId),
+    queryFn: async () => {
+      const value = await api.getCurrentDraftActions()
+      if (value.supportPlanId !== draftQuery.data!.supportPlanId) {
+        throw new Error(
+          'SupportPlan draft action projection identity mismatch.',
+        )
+      }
+      return value
+    },
   })
   const currentProfessionalAction = professionalSupportAction(
     currentActionsQuery.data,
@@ -858,6 +901,12 @@ export function SupportPlanScreen({
       ) {
         return false
       }
+
+      const actionResults = await Promise.all([
+        ...(currentResult.data ? [currentActionsQuery.refetch()] : []),
+        ...(draftResult.data ? [draftActionsQuery.refetch()] : []),
+      ])
+      if (actionResults.some((result) => result.isError)) return false
 
       const refreshedCurrent = currentResult.data
       if (
@@ -985,6 +1034,45 @@ export function SupportPlanScreen({
       setNotice({ message: 'Đã lưu lựa chọn của bạn.', tone: 'success' })
     },
     onError: handleMutationError,
+  })
+  const scheduleMutation = useMutation({
+    mutationFn: async ({
+      plan,
+      actionId,
+      request,
+      idempotencyKey,
+    }: {
+      plan: SupportPlan
+      actionId: string
+      request: UpdateActionScheduleRequest
+      idempotencyKey: string
+    }) => ({
+      plan,
+      projection: await api.replaceSchedule(
+        plan,
+        actionId,
+        request,
+        idempotencyKey,
+      ),
+    }),
+    onSuccess: ({ plan, projection }) => {
+      queryClient.setQueryData(actionsKeyFor(plan.supportPlanId), projection)
+      const planKey =
+        currentQuery.data?.supportPlanId === plan.supportPlanId
+          ? currentKey
+          : draftKey
+      queryClient.setQueryData(
+        planKey,
+        (current: SupportPlan | null | undefined) =>
+          current
+            ? {
+                ...current,
+                version: projection.version,
+                updatedAt: projection.updatedAt,
+              }
+            : current,
+      )
+    },
   })
   const activationMutation = useMutation({
     mutationFn: (plan: SupportPlan) =>
@@ -1132,6 +1220,7 @@ export function SupportPlanScreen({
     authorityRecovery !== 'idle' ||
     occurrenceAuthorityMismatch ||
     choiceMutation.isPending ||
+    scheduleMutation.isPending ||
     activationMutation.isPending ||
     statusMutation.isPending ||
     occurrenceMutation.isPending ||
@@ -1323,6 +1412,32 @@ export function SupportPlanScreen({
             currentActionsQuery.isFetching && !currentActionsQuery.data
           }
           focusesUnavailable={currentActionsQuery.isError}
+          schedulePlan={currentActionsQuery.data}
+          onSaveSchedule={(actionId, request, idempotencyKey) =>
+            scheduleMutation
+              .mutateAsync({
+                plan: current,
+                actionId,
+                request,
+                idempotencyKey,
+              })
+              .then(() => undefined)
+          }
+          onReloadSchedule={async () => {
+            await recoverAuthority()
+            const refreshedPlan = queryClient.getQueryData<SupportPlan | null>(
+              currentKey,
+            )
+            const projection = queryClient.getQueryData<SupportPlanActions>(
+              actionsKeyFor(current.supportPlanId),
+            )
+            return refreshedPlan &&
+              projection?.supportPlanId === refreshedPlan.supportPlanId &&
+              projection.version === refreshedPlan.version &&
+              projection.status === refreshedPlan.status
+              ? projection
+              : undefined
+          }}
           title="Kế hoạch hiện tại"
           onActivate={() => undefined}
           onChangeChoice={() => undefined}
@@ -1364,6 +1479,32 @@ export function SupportPlanScreen({
             draftActionsQuery.isFetching && !draftActionsQuery.data
           }
           focusesUnavailable={draftActionsQuery.isError}
+          schedulePlan={draftActionsQuery.data}
+          onSaveSchedule={(actionId, request, idempotencyKey) =>
+            scheduleMutation
+              .mutateAsync({
+                plan: draft,
+                actionId,
+                request,
+                idempotencyKey,
+              })
+              .then(() => undefined)
+          }
+          onReloadSchedule={async () => {
+            await recoverAuthority()
+            const refreshedPlan = queryClient.getQueryData<SupportPlan | null>(
+              draftKey,
+            )
+            const projection = queryClient.getQueryData<SupportPlanActions>(
+              actionsKeyFor(draft.supportPlanId),
+            )
+            return refreshedPlan &&
+              projection?.supportPlanId === refreshedPlan.supportPlanId &&
+              projection.version === refreshedPlan.version &&
+              projection.status === refreshedPlan.status
+              ? projection
+              : undefined
+          }}
           title={current ? 'Phương án thay thế' : 'Kế hoạch đề xuất'}
           onActivate={() =>
             runGovernedMutation(() => activationMutation.mutate(draft))

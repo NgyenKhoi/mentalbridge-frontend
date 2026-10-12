@@ -16,6 +16,7 @@ import {
   supportPlanActionsSchema,
   supportPlanPersonalizationSchema,
   supportPlanPersonalizationRequestSchema,
+  updateActionScheduleRequestSchema,
   supportPlanSchema,
   type OccurrenceEngagement,
   type PlanChangeRequest,
@@ -27,6 +28,7 @@ import {
   type SupportPlanOccurrenceList,
   type SupportPlanPersonalizationAuthority,
   type SupportPlanPersonalizationRequest,
+  type UpdateActionScheduleRequest,
 } from './support-plan-contract'
 
 export interface SupportPlanApi {
@@ -34,6 +36,13 @@ export interface SupportPlanApi {
   getCurrentDraft(): Promise<SupportPlan>
   getHistory(): Promise<SupportPlanHistory>
   getActions(supportPlanId: string): Promise<SupportPlanActions>
+  getCurrentDraftActions(): Promise<SupportPlanActions>
+  replaceSchedule(
+    plan: SupportPlan,
+    actionId: string,
+    request: UpdateActionScheduleRequest,
+    idempotencyKey: string,
+  ): Promise<SupportPlanActions>
   getAppointments(originatingPlanActionId: string): Promise<AppointmentList>
   getPersonalization(): Promise<SupportPlanPersonalizationAuthority>
   replacePersonalization(
@@ -120,6 +129,28 @@ export function createSupportPlanApi(client: AxiosInstance): SupportPlanApi {
       const value = supportPlanActionsSchema.parse(response.data)
       if (value.supportPlanId !== supportPlanId) {
         throw new Error('SupportPlan action projection identity mismatch.')
+      }
+      return value
+    },
+    async getCurrentDraftActions() {
+      const response = await client.get('/api/v2/support-plans/current-draft')
+      return supportPlanActionsSchema.parse(response.data)
+    },
+    async replaceSchedule(plan, actionId, request, idempotencyKey) {
+      const body = updateActionScheduleRequestSchema.parse(request)
+      const response = await client.put(
+        `/api/v2/support-plans/${encodeURIComponent(plan.supportPlanId)}/actions/${encodeURIComponent(actionId)}/schedule`,
+        body,
+        {
+          headers: {
+            'If-Match': `"${plan.version}"`,
+            'Idempotency-Key': idempotencyKey,
+          },
+        },
+      )
+      const value = supportPlanActionsSchema.parse(response.data)
+      if (value.supportPlanId !== plan.supportPlanId) {
+        throw new Error('SupportPlan schedule response identity mismatch.')
       }
       return value
     },
