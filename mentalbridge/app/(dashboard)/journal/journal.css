@@ -923,7 +923,7 @@
   line-height: 1.2;
 }
 
-/* Mood 1: Tuyệt vời (Green) */
+/* Mood 1: Rất tốt (Green) */
 .journal-mood-card.mood-great {
   background: #f1f8f3;
   border-color: #c9e8d1;
@@ -995,7 +995,7 @@
   box-shadow: 0 4px 12px rgba(53, 78, 125, 0.28);
 }
 
-/* Mood 5: Rất tệ (Muted Indigo-Purple - KHÔNG DÙNG ĐỎ) */
+/* Mood 5: Rất không tốt (Muted Indigo-Purple - KHÔNG DÙNG ĐỎ) */
 .journal-mood-card.mood-very_low {
   background: #f4f2f8;
   border-color: #d6cee8;
@@ -1149,7 +1149,7 @@
   color: var(--ink-soft);
 }
 
-/* Banner hỗ trợ dịu dàng (khi chọn Không tốt / Rất tệ) */
+/* Banner hỗ trợ dịu dàng (khi chọn Không tốt / Rất không tốt) */
 .journal-support-banner {
   display: flex;
   align-items: flex-start;

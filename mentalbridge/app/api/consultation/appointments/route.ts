@@ -17,6 +17,7 @@ import {
   parseAppointmentRequestInput,
   validEtag,
   validIdempotencyKey,
+  validUuid,
 } from '@/lib/consultation/consultation-validation'
 
 async function actor(request: NextRequest, correlationId: string) {
@@ -31,10 +32,29 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return consultationAuthenticationFailure(error, correlationId)
   }
+  const query = request.nextUrl.searchParams
+  const originatingPlanActionIds = query.getAll('originatingPlanActionId')
+  if (
+    [...query.keys()].some((key) => key !== 'originatingPlanActionId') ||
+    originatingPlanActionIds.length > 1 ||
+    (originatingPlanActionIds[0] !== undefined &&
+      !validUuid(originatingPlanActionIds[0]))
+  ) {
+    return carryConsultationSession(
+      localProblem(
+        400,
+        'VALIDATION_FAILED',
+        'Bộ lọc lịch hẹn không hợp lệ.',
+        correlationId,
+      ),
+      current,
+    )
+  }
   try {
     const result = await consultationClient.appointments(
       current.accessToken,
       correlationId,
+      originatingPlanActionIds[0],
     )
     return carryConsultationSession(
       consultationSuccess(result.data, correlationId),

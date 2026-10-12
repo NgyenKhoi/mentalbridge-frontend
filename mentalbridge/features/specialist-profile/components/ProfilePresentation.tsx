@@ -1,7 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useId, type CSSProperties, type ReactNode } from 'react'
+import {
+  useEffect,
+  useId,
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import {
   CalendarDays,
   Check,
@@ -12,6 +18,8 @@ import {
   X,
 } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
+import { Skeleton } from '@/components/ui/Skeleton'
 import type { SpecialistProfileInput } from '@/lib/consultation/consultation-validation'
 import { profileAreaLabels, profileLanguageLabels } from './ProfileFields'
 import ProfileSnapshot from './ProfileSnapshot'
@@ -66,8 +74,38 @@ export function ProfileIdentityCard({
   value: SpecialistProfileInput
   approved: boolean
 }) {
+  const sheen = useRef<HTMLSpanElement>(null)
+  const sweep = useRef<Animation | null>(null)
+  useEffect(() => () => sweep.current?.cancel(), [])
+  function replaySheen() {
+    const element = sheen.current
+    if (
+      !element ||
+      typeof element.animate !== 'function' ||
+      typeof window.matchMedia !== 'function' ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    )
+      return
+    sweep.current?.cancel()
+    const tokens = getComputedStyle(element)
+    sweep.current = element.animate(
+      [
+        { transform: 'translateX(-150%) rotate(20deg)' },
+        { transform: 'translateX(150%) rotate(20deg)' },
+      ],
+      {
+        duration: parseFloat(tokens.getPropertyValue('--motion-slow')) || 480,
+        easing: tokens.getPropertyValue('--ease-standard').trim() || 'ease-out',
+      },
+    )
+  }
   return (
-    <section className={styles.identity} aria-label="Danh tính chuyên gia">
+    <section
+      className={styles.identity}
+      aria-label="Danh tính chuyên gia"
+      onPointerDown={replaySheen}
+    >
+      <span ref={sheen} className={styles.identitySheen} aria-hidden="true" />
       <div className={styles.identityBanner} aria-hidden="true">
         <span className={styles.lanyard} />
         <span className={styles.identityMark}>MENTALBRIDGE · CHUYÊN GIA</span>
@@ -111,6 +149,8 @@ export function ProfilePreviewCard({
   draft?: boolean
   status?: string
 }) {
+  const { showActionToast } = useFeedback()
+  const sampleNote = useId()
   return (
     <section className={styles.preview} aria-label={title}>
       <div className={styles.previewHeading}>
@@ -145,11 +185,25 @@ export function ProfilePreviewCard({
             : 'Chưa nhập số năm kinh nghiệm'}
         </p>
         <div className={styles.bookingSample}>
-          <span>
+          <button
+            type="button"
+            className={`${styles.bookingButton} btn-primary`}
+            aria-describedby={sampleNote}
+            onClick={() =>
+              showActionToast({
+                title: 'Đây là bản xem trước',
+                description:
+                  'Không tạo lịch hẹn từ trang hồ sơ chuyên gia. Người dùng đặt lịch ở trang tìm chuyên gia.',
+                tone: 'info',
+              })
+            }
+          >
             <CalendarDays size={16} aria-hidden="true" />
             Đặt lịch tư vấn · 60 phút
-          </span>
-          <small>Minh họa thẻ hồ sơ · Không đặt lịch từ trang này</small>
+          </button>
+          <small id={sampleNote}>
+            Minh họa thẻ hồ sơ · Không đặt lịch từ trang này
+          </small>
         </div>
       </div>
     </section>
@@ -200,6 +254,7 @@ export function ProfileChecklist({ value }: { value: SpecialistProfileInput }) {
           className={styles.completionRing}
           style={{ '--completion': `${percentage}%` } as CSSProperties}
           aria-hidden="true"
+          title={`Độ hoàn thiện ${percentage}% · ${done}/${checks.length} mục đã điền`}
         >
           <strong>{percentage}%</strong>
         </div>
@@ -273,5 +328,20 @@ export function ProfilePreviewDialog({
         />
       </div>
     </Dialog>
+  )
+}
+
+export function ProfileLoading({ label }: { label: string }) {
+  return (
+    <div className={styles.profileSkeleton} role="status" aria-busy="true">
+      <span>{label}</span>
+      <Skeleton width="42%" height={18} />
+      <Skeleton height={44} />
+      <Skeleton height={160} />
+      <div>
+        <Skeleton height={76} />
+        <Skeleton height={76} />
+      </div>
+    </div>
   )
 }

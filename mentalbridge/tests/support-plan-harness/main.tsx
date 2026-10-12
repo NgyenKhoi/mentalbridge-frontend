@@ -249,13 +249,6 @@ function SupportPlanPreviewApp() {
     remaining: 4,
   }
 
-  const screeningData = {
-    gad7Score: 7,
-    gad7Max: 21,
-    phq9Score: 5,
-    phq9Max: 27,
-  }
-
   const selectedDateItems = mockOccurrences.filter(
     (o) => o.localDate === selectedDate,
   )
@@ -409,7 +402,6 @@ function SupportPlanPreviewApp() {
                 planStatus="ACTIVE"
                 onToggleStatus={() => {}}
                 onSwitchToManageTab={() => setActiveTab('manage')}
-                screeningData={screeningData}
               />
             </div>
           </section>

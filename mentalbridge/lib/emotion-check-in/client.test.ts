@@ -13,6 +13,7 @@ const checkIn = {
   timezone: 'Asia/Ho_Chi_Minh',
   emotion: 'GOOD' as const,
   intensity: 4,
+  factors: [],
   note: null,
   sourceLabel: 'SELF_REPORTED_EMOTION' as const,
   clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER' as const,
@@ -124,7 +125,12 @@ describe('Emotion check-in server-only client', () => {
 
   it('forwards idempotency and exact revision only at the provider boundary', async () => {
     configure()
-    const value = { emotion: 'LOW' as const, intensity: 3, note: null }
+    const value = {
+      emotion: 'LOW' as const,
+      intensity: 3,
+      factors: ['health' as const],
+      note: null,
+    }
     mockServer.use(
       http.patch(
         `${baseUrl}/api/v1/emotion-check-ins/${localDate}`,
@@ -154,6 +160,50 @@ describe('Emotion check-in server-only client', () => {
     ).resolves.toMatchObject({ emotion: 'LOW', revision: 2 })
   })
 
+  it('forwards an idempotent delete and validates the exact local day', async () => {
+    configure()
+    mockServer.use(
+      http.delete(
+        `${baseUrl}/api/v1/emotion-check-ins/${localDate}`,
+        ({ request }) => {
+          expect(request.headers.get('idempotency-key')).toBe(
+            'emotion-command-00000001',
+          )
+          return HttpResponse.json({
+            localDate,
+            deleted: true,
+            deletedAt: timestamp,
+          })
+        },
+      ),
+    )
+
+    await expect(
+      emotionCheckInClient.delete(
+        'access-token',
+        localDate,
+        'emotion-command-00000001',
+        'correlation-id',
+      ),
+    ).resolves.toMatchObject({ localDate, deleted: true })
+  })
+
+  it('fails closed when an exact-day response belongs to another day', async () => {
+    configure()
+    mockServer.use(
+      http.get(`${baseUrl}/api/v1/emotion-check-ins/${localDate}`, () =>
+        HttpResponse.json({ ...checkIn, localDate: '2026-09-25' }),
+      ),
+    )
+
+    await expect(
+      emotionCheckInClient.get('token', localDate, 'correlation'),
+    ).rejects.toMatchObject({
+      code: 'EMOTION_CHECK_IN_MALFORMED_RESPONSE',
+      status: 502,
+    })
+  })
+
   it('distinguishes documented rejection from an ambiguous mutation response', async () => {
     configure()
     const create = {
@@ -161,6 +211,7 @@ describe('Emotion check-in server-only client', () => {
       timezone: 'Asia/Ho_Chi_Minh',
       emotion: 'GOOD' as const,
       intensity: 4,
+      factors: [],
       note: null,
     }
     mockServer.use(

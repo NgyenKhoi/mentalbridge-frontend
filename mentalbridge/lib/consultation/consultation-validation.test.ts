@@ -356,6 +356,7 @@ describe('Consultation contract validation', () => {
       heldCreditId: '96de7b84-14ae-46cd-bfa1-8314d1366b02',
       replacesAppointmentId: null,
       replacedByAppointmentId: null,
+      originatingPlanActionId: null,
       decidedAt: '2026-09-23T03:00:00Z',
       decisionReason: 'SPECIALIST_ACCEPTED',
       cancelledAt: null,

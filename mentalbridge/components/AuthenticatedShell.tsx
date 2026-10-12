@@ -96,7 +96,6 @@ const groups = [
         <Svg key="m">
           <path d="M4 5h16v11H8l-4 4V5Z" />
         </Svg>,
-        '3',
       ],
     ],
   },
@@ -198,6 +197,8 @@ export default function AuthenticatedShell({
   }, [])
 
   const displayName = profile?.displayName || 'Người dùng'
+  const isProgressiveRelaxation =
+    pathname === '/resources/00000000-0000-4000-8000-000000000215'
   const initials = useMemo(
     () =>
       (
@@ -263,7 +264,7 @@ export default function AuthenticatedShell({
         </div>
       </aside>
       <div className="ref-main">
-        <header className="ref-topbar">
+        <header className={`ref-topbar ${isProgressiveRelaxation ? 'pmr-topbar' : ''}`}>
           <button
             className="ref-mobile"
             onClick={() => setMobile(true)}
@@ -273,10 +274,18 @@ export default function AuthenticatedShell({
               <path d="M4 7h16M4 12h16M4 17h16" />
             </Svg>
           </button>
-          <div className="ref-context">
-            <span>Không gian của bạn</span>
-            <strong>{labels[pathname] ?? 'MentalBridge'}</strong>
-          </div>
+          {isProgressiveRelaxation ? (
+            <nav className="pmr-top-crumb" aria-label="Đường dẫn trên cùng">
+              <Link href="/resources">Tài nguyên</Link>
+              <span aria-hidden="true">›</span>
+              <span aria-current="page">Thư giãn cơ tiến triển</span>
+            </nav>
+          ) : (
+            <div className="ref-context">
+              <span>Không gian của bạn</span>
+              <strong>{labels[pathname] ?? 'MentalBridge'}</strong>
+            </div>
+          )}
           <label>
             <Svg>
               <circle cx="11" cy="11" r="7" />
@@ -284,11 +293,16 @@ export default function AuthenticatedShell({
             </Svg>
             <input
               type="search"
-              placeholder="Tìm kiếm chuyên gia, nhật ký..."
+              placeholder={isProgressiveRelaxation ? 'Tìm kiếm chuyên gia, bài tập, nhật ký...' : 'Tìm kiếm chuyên gia, nhật ký...'}
             />
-            <kbd>⌘ K</kbd>
+            <kbd>{isProgressiveRelaxation ? '⌘K' : '⌘ K'}</kbd>
           </label>
           <div className="ref-top-actions">
+            {isProgressiveRelaxation && (
+              <Link href="/support-guides" className="pmr-help" aria-label="Trợ giúp">
+                <Svg><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4" /><path d="M12 17h.01" /></Svg>
+              </Link>
+            )}
             <Link
               href="/notifications"
               className="ref-notify"
@@ -297,13 +311,16 @@ export default function AuthenticatedShell({
               <Svg>
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               </Svg>
+              {isProgressiveRelaxation && <span className="pmr-notify-dot" aria-hidden="true" />}
             </Link>
             <Link
               href="/profile"
               className="ref-avatar"
               aria-label={`Hồ sơ ${displayName}`}
             >
-              {initials}
+              {isProgressiveRelaxation ? (
+                <Svg><circle cx="12" cy="8" r="3" /><path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" /></Svg>
+              ) : initials}
             </Link>
           </div>
         </header>

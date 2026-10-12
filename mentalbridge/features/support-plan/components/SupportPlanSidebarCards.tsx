@@ -1,229 +1,158 @@
 'use client'
 
-import React from 'react'
 import Link from 'next/link'
-import SupportPlanIcon from './SupportPlanIcon'
 
-interface SupportPlanSidebarCardsProps {
+import type { SupportPlanOccurrence } from '../api/support-plan-contract'
+import SupportPlanIcon, { type SupportPlanIconName } from './SupportPlanIcon'
+
+type Props = Readonly<{
+  occurrences?: SupportPlanOccurrence[]
   planStatus?: 'ACTIVE' | 'PAUSED' | 'COMPLETED'
   onToggleStatus?: () => void
+  onEndPlan?: () => void
   onSwitchToManageTab?: () => void
-  screeningData?: {
-    gad7Score?: number
-    gad7Max?: number
-    phq9Score?: number
-    phq9Max?: number
-  } | null
+}>
+
+const sourceIcons: Record<
+  SupportPlanOccurrence['source']['type'],
+  SupportPlanIconName
+> = {
+  RESOURCE: 'menu_book',
+  JOURNAL_PROMPT: 'edit_note',
+  EMOTION_CHECK_IN_PROMPT: 'sentiment_satisfied',
+}
+
+function stateLabel(state: SupportPlanOccurrence['displayState']) {
+  return {
+    SCHEDULED: 'Sắp tới',
+    MISSED: 'Có thể làm lại',
+    COMPLETED: 'Đã ghi nhận',
+    SKIPPED: 'Đã bỏ qua',
+    CANCELLED: 'Đã huỷ',
+  }[state]
+}
+
+function timeLabel(value: string) {
+  return value.slice(0, 5)
 }
 
 export default function SupportPlanSidebarCards({
+  occurrences = [],
   planStatus = 'ACTIVE',
   onToggleStatus,
+  onEndPlan,
   onSwitchToManageTab,
-  screeningData,
-}: SupportPlanSidebarCardsProps) {
-  const gad7 = screeningData?.gad7Score ?? 7
-  const gad7Max = screeningData?.gad7Max ?? 21
-  const phq9 = screeningData?.phq9Score ?? 5
-  const phq9Max = screeningData?.phq9Max ?? 27
-
-  const handleToggle = () => {
-    if (onToggleStatus) {
-      onToggleStatus()
-    } else {
-      const el = document.getElementById('tab-manage')
-      el?.click()
-    }
-  }
-
-  const handleSwitchManage = () => {
-    if (onSwitchToManageTab) {
-      onSwitchToManageTab()
-    } else {
-      const el = document.getElementById('tab-manage')
-      el?.click()
-    }
-  }
-
-  const handleExportPdf = () => {
-    if (typeof window !== 'undefined') {
-      window.print()
-    }
-  }
+}: Props) {
+  const visibleToday = occurrences
+    .filter((occurrence) => !occurrence.hidden)
+    .sort((left, right) => left.localTime.localeCompare(right.localTime))
 
   return (
-    <aside className="support-plan-sidebar-col" aria-label="Thông tin bổ trợ">
-      {/* 1. Safety Alert & Care */}
+    <aside className="support-plan-sidebar-col" aria-label="Nhịp và hỗ trợ">
       <section
-        className="support-plan-side-card support-plan-safety-card"
-        aria-labelledby="support-plan-safety-title"
-      >
-        <div className="support-plan-side-card-header">
-          <div className="support-plan-safety-icon" aria-hidden="true">
-            <SupportPlanIcon name="health_and_safety" size={22} />
-          </div>
-          <div>
-            <h4
-              id="support-plan-safety-title"
-              className="support-plan-side-card-title"
-            >
-              Nhắc nhở an toàn &amp; Chăm sóc
-            </h4>
-            <span className="support-plan-side-card-subtitle">
-              Luôn có sự lắng nghe 24/7
-            </span>
-          </div>
-        </div>
-
-        <p className="support-plan-side-card-desc">
-          Nếu bạn cảm thấy áp lực vượt quá tầm kiểm soát hoặc có suy nghĩ tiêu
-          cực, hãy chủ động liên hệ hotline hỗ trợ tâm lý bảo mật ngay tức khắc.
-        </p>
-
-        <div className="support-plan-safety-actions">
-          <a
-            className="support-plan-hotline-btn"
-            href="tel:19005999"
-            aria-label="Gọi hotline 1900-5999"
-          >
-            <SupportPlanIcon name="call" size={16} />
-            <span>Hotline: 1900-5999</span>
-          </a>
-          <Link
-            className="support-plan-crisis-btn"
-            href="/crisis"
-            aria-label="Nhắn tin khẩn cấp"
-          >
-            <SupportPlanIcon name="chat" size={16} />
-            <span>Nhắn tin khẩn cấp</span>
-          </Link>
-        </div>
-      </section>
-
-      {/* 2. Psychological Screening Progress */}
-      <section
-        className="support-plan-side-card"
-        aria-labelledby="support-plan-screening-title"
+        className="support-plan-side-card support-plan-rhythm-card"
+        aria-labelledby="support-plan-rhythm-title"
       >
         <div className="support-plan-side-card-header">
           <div className="support-plan-side-card-icon-tile" aria-hidden="true">
-            <SupportPlanIcon name="show_chart" size={20} />
+            <SupportPlanIcon name="calendar_today" size={20} />
           </div>
-          <div className="support-plan-side-card-heading">
-            <div className="support-plan-side-title-row">
-              <h4
-                id="support-plan-screening-title"
-                className="support-plan-side-card-title"
-              >
-                Chỉ số tiến triển tâm lý
-              </h4>
-              <span className="support-plan-side-badge">Cải thiện nhẹ</span>
-            </div>
-            <span className="support-plan-side-card-subtitle">
-              Thang đo lâm sàng
-            </span>
+          <div>
+            <h3
+              id="support-plan-rhythm-title"
+              className="support-plan-side-card-title"
+            >
+              Nhịp hôm nay
+            </h3>
+            <p className="support-plan-side-card-subtitle">
+              {visibleToday.length > 0
+                ? `${visibleToday.length} hoạt động trong lịch`
+                : 'Một ngày nhẹ cũng là một ngày hợp lệ'}
+            </p>
           </div>
         </div>
 
-        <div className="support-plan-metrics-list">
-          <div className="support-plan-metric-item">
-            <div className="support-plan-metric-label-row">
-              <span>Chỉ số Lo âu (GAD-7)</span>
-              <span className="support-plan-metric-value">
-                {gad7} / {gad7Max} (
-                {gad7 <= 4
-                  ? 'Tối thiểu'
-                  : gad7 <= 9
-                    ? 'Nhẹ'
-                    : gad7 <= 14
-                      ? 'Vừa'
-                      : 'Nặng'}
-                )
-              </span>
-            </div>
-            <div
-              className="support-plan-metric-track"
-              role="progressbar"
-              aria-valuenow={gad7}
-              aria-valuemin={0}
-              aria-valuemax={gad7Max}
-            >
-              <div
-                className="support-plan-metric-fill"
-                style={{
-                  width: `${Math.min(100, Math.round((gad7 / gad7Max) * 100))}%`,
-                }}
-              />
-            </div>
-            <div className="support-plan-metric-subtext-row">
-              <span>Tuần trước: 11/21</span>
-              <span className="support-plan-metric-delta">Giảm 36%</span>
-            </div>
-          </div>
+        {visibleToday.length > 0 ? (
+          <ol className="support-plan-rhythm-list">
+            {visibleToday.slice(0, 4).map((occurrence) => (
+              <li key={occurrence.occurrenceId}>
+                <span className="support-plan-rhythm-icon" aria-hidden="true">
+                  <SupportPlanIcon
+                    name={sourceIcons[occurrence.source.type]}
+                    size={16}
+                  />
+                </span>
+                <span className="support-plan-rhythm-copy">
+                  <strong>{occurrence.source.title}</strong>
+                  <span>
+                    {timeLabel(occurrence.localTime)} ·{' '}
+                    {stateLabel(occurrence.displayState)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="support-plan-side-card-desc">
+            Chưa có hoạt động nào được xếp lịch. Bạn không cần lấp đầy khoảng
+            trống để kế hoạch có ý nghĩa.
+          </p>
+        )}
+      </section>
 
-          <div className="support-plan-metric-item">
-            <div className="support-plan-metric-label-row">
-              <span>Tâm trạng &amp; Trầm cảm (PHQ-9)</span>
-              <span className="support-plan-metric-value">
-                {phq9} / {phq9Max} (
-                {phq9 <= 4
-                  ? 'Tối thiểu'
-                  : phq9 <= 9
-                    ? 'Nhẹ'
-                    : phq9 <= 14
-                      ? 'Vừa'
-                      : 'Nặng'}
-                )
-              </span>
-            </div>
-            <div
-              className="support-plan-metric-track"
-              role="progressbar"
-              aria-valuenow={phq9}
-              aria-valuemin={0}
-              aria-valuemax={phq9Max}
+      <section
+        className="support-plan-side-card support-plan-care-card"
+        aria-labelledby="support-plan-care-title"
+      >
+        <div className="support-plan-side-card-header">
+          <div className="support-plan-safety-icon" aria-hidden="true">
+            <SupportPlanIcon name="health_and_safety" size={21} />
+          </div>
+          <div>
+            <h3
+              id="support-plan-care-title"
+              className="support-plan-side-card-title"
             >
-              <div
-                className="support-plan-metric-fill"
-                style={{
-                  width: `${Math.min(100, Math.round((phq9 / phq9Max) * 100))}%`,
-                }}
-              />
-            </div>
-            <div className="support-plan-metric-subtext-row">
-              <span>Tuần trước: 8/27</span>
-              <span className="support-plan-metric-delta">Giảm 37,5%</span>
-            </div>
+              Khi cần thêm hỗ trợ
+            </h3>
+            <p className="support-plan-side-card-subtitle">
+              Bạn không cần tự xoay xở một mình
+            </p>
           </div>
         </div>
-
-        <div className="support-plan-side-card-footer">
-          <Link href="/assessments" className="support-plan-side-link-btn">
-            <span>Xem chi tiết báo cáo sàng lọc</span>
-            <SupportPlanIcon name="arrow_right_alt" size={16} />
+        <p className="support-plan-side-card-desc">
+          Nếu các hoạt động tự hỗ trợ chưa đủ, bạn có thể tìm chuyên gia phù hợp
+          hoặc xem các nguồn trợ giúp an toàn đã được MentalBridge tổng hợp.
+        </p>
+        <div className="support-plan-care-actions">
+          <Link className="btn btn-primary" href="/specialists">
+            Tìm chuyên gia
+            <SupportPlanIcon name="arrow_forward" size={16} />
+          </Link>
+          <Link className="support-plan-care-link" href="/safety-directory">
+            Xem thư mục hỗ trợ an toàn
           </Link>
         </div>
       </section>
 
-      {/* 3. Quick Actions */}
       <section
         className="support-plan-side-card"
-        aria-labelledby="support-plan-quick-actions-title"
+        aria-labelledby="support-plan-adjust-rhythm-title"
       >
         <div className="support-plan-side-card-header">
           <div className="support-plan-side-card-icon-tile" aria-hidden="true">
             <SupportPlanIcon name="settings_suggest" size={20} />
           </div>
           <div>
-            <h4
-              id="support-plan-quick-actions-title"
+            <h3
+              id="support-plan-adjust-rhythm-title"
               className="support-plan-side-card-title"
             >
-              Tác vụ nhanh
-            </h4>
-            <span className="support-plan-side-card-subtitle">
-              Tùy chỉnh &amp; báo cáo
-            </span>
+              Điều chỉnh nhịp
+            </h3>
+            <p className="support-plan-side-card-subtitle">
+              Thay đổi khi kế hoạch không còn vừa sức
+            </p>
           </div>
         </div>
 
@@ -231,7 +160,8 @@ export default function SupportPlanSidebarCards({
           <button
             type="button"
             className="support-plan-quick-action-btn"
-            onClick={handleToggle}
+            onClick={onToggleStatus}
+            disabled={!onToggleStatus}
           >
             <SupportPlanIcon
               name={planStatus === 'ACTIVE' ? 'pause_circle' : 'play_circle'}
@@ -240,7 +170,7 @@ export default function SupportPlanSidebarCards({
             />
             <span className="support-plan-quick-action-label">
               {planStatus === 'ACTIVE'
-                ? 'Tạm dừng kế hoạch (Nghỉ ngơi)'
+                ? 'Tạm dừng kế hoạch'
                 : 'Tiếp tục kế hoạch'}
             </span>
             <SupportPlanIcon
@@ -253,15 +183,16 @@ export default function SupportPlanSidebarCards({
           <button
             type="button"
             className="support-plan-quick-action-btn"
-            onClick={handleSwitchManage}
+            onClick={onEndPlan}
+            disabled={!onEndPlan}
           >
             <SupportPlanIcon
-              name="auto_mode"
+              name="check_circle"
               size={18}
               className="support-plan-quick-action-icon"
             />
             <span className="support-plan-quick-action-label">
-              Tạo lại phương án cá nhân mới
+              Kết thúc kế hoạch
             </span>
             <SupportPlanIcon
               name="chevron_right"
@@ -273,15 +204,16 @@ export default function SupportPlanSidebarCards({
           <button
             type="button"
             className="support-plan-quick-action-btn"
-            onClick={handleExportPdf}
+            onClick={onSwitchToManageTab}
+            disabled={!onSwitchToManageTab}
           >
             <SupportPlanIcon
-              name="share"
+              name="settings_suggest"
               size={18}
               className="support-plan-quick-action-icon"
             />
             <span className="support-plan-quick-action-label">
-              Xuất báo cáo PDF cho chuyên gia
+              Xem các cách điều chỉnh
             </span>
             <SupportPlanIcon
               name="chevron_right"

@@ -2,8 +2,18 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  CalendarDays,
+  CalendarCheck,
+  Check,
+  Clock3,
+  MessageSquare,
+  RefreshCw,
+  X,
+} from 'lucide-react'
 
 import { useFeedback } from '@/components/ui/FeedbackProvider'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
@@ -11,6 +21,7 @@ import {
   appointmentTimingCopy,
   matchesAppointmentFilter,
   nextAppointment,
+  orderSpecialistAppointments,
   type AppointmentFilter,
 } from '../model/appointment-view'
 import styles from './SpecialistAppointmentDecisionPanel.module.css'
@@ -65,6 +76,15 @@ function displayRange(appointment: Appointment) {
   return `${date.format(new Date(appointment.scheduledStartAt))}–${end.format(new Date(appointment.scheduledEndAt))}`
 }
 
+function durationCopy(appointment: Appointment) {
+  const minutes = Math.round(
+    (Date.parse(appointment.scheduledEndAt) -
+      Date.parse(appointment.scheduledStartAt)) /
+      60000,
+  )
+  return `${minutes} phút · ${appointment.modality === 'IN_APP_CHAT' ? 'Chat trong ứng dụng' : 'Video trong ứng dụng'}`
+}
+
 function displayDeadline(appointment: Appointment) {
   return new Intl.DateTimeFormat('vi-VN', {
     timeZone: appointment.timezone,
@@ -101,7 +121,11 @@ function friendlyError(error: unknown, reloaded = false) {
   return 'Chưa thể xử lý lịch hẹn. Vui lòng thử lại.'
 }
 
-export default function SpecialistAppointmentDecisionPanel() {
+export default function SpecialistAppointmentDecisionPanel({
+  initialAppointmentId,
+}: {
+  initialAppointmentId?: string
+}) {
   const { confirm, showActionToast } = useFeedback()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [generatedAt, setGeneratedAt] = useState('')
@@ -110,6 +134,8 @@ export default function SpecialistAppointmentDecisionPanel() {
   const [error, setError] = useState('')
   const [pendingCommand, setPendingCommand] = useState<string | null>(null)
   const commandKeys = useRef(new Map<string, string>())
+  const commandBusy = useRef(false)
+  const focusedAppointment = useRef('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -165,13 +191,38 @@ export default function SpecialistAppointmentDecisionPanel() {
   )
   const visibleAppointments = useMemo(
     () =>
-      appointments.filter((appointment) =>
+      orderSpecialistAppointments(appointments).filter((appointment) =>
         matchesAppointmentFilter(appointment, filter, now),
       ),
     [appointments, filter, now],
   )
+  useEffect(() => {
+    if (
+      !initialAppointmentId ||
+      focusedAppointment.current === initialAppointmentId ||
+      !visibleAppointments.some((item) => item.id === initialAppointmentId)
+    )
+      return
+    const timer = requestAnimationFrame(() => {
+      const heading = document.getElementById(
+        `appointment-${initialAppointmentId}`,
+      )
+      if (!heading) return
+      focusedAppointment.current = initialAppointmentId
+      heading.focus({ preventScroll: true })
+      heading.closest('article')?.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'instant'
+          : 'smooth',
+      })
+    })
+    return () => cancelAnimationFrame(timer)
+  }, [initialAppointmentId, visibleAppointments])
 
   const decide = async (appointment: Appointment, decision: Decision) => {
+    if (commandBusy.current || loading) return
+    commandBusy.current = true
     if (decision === 'reject') {
       const confirmed = await confirm({
         title: 'Từ chối yêu cầu lịch hẹn?',
@@ -180,7 +231,10 @@ export default function SpecialistAppointmentDecisionPanel() {
         confirmLabel: 'Từ chối yêu cầu',
         tone: 'warning',
       })
-      if (!confirmed) return
+      if (!confirmed) {
+        commandBusy.current = false
+        return
+      }
     }
 
     const commandId = `${appointment.id}:${decision}`
@@ -209,6 +263,12 @@ export default function SpecialistAppointmentDecisionPanel() {
             : 'Khung giờ đã được mở lại và lượt tư vấn được hoàn lại.',
         tone: 'success',
       })
+      requestAnimationFrame(() => {
+        const target =
+          document.getElementById(`appointment-${updated.id}`) ??
+          document.getElementById('appointment-list-title')
+        target?.focus({ preventScroll: true })
+      })
     } catch (caught) {
       const shouldReload =
         caught instanceof ApiError && RELOAD_CODES.has(caught.code)
@@ -220,12 +280,17 @@ export default function SpecialistAppointmentDecisionPanel() {
       )
         commandKeys.current.delete(commandId)
     } finally {
+      commandBusy.current = false
       setPendingCommand(null)
     }
   }
 
   return (
-    <section className={styles.panel} aria-labelledby="appointment-title">
+    <section
+      className={styles.panel}
+      data-specialist-journey="appointments"
+      aria-labelledby="appointment-title"
+    >
       <header className={styles.heading}>
         <div>
           <span className={styles.eyebrow}>Không gian chuyên gia</span>
@@ -236,12 +301,22 @@ export default function SpecialistAppointmentDecisionPanel() {
           </p>
         </div>
         <div className={styles.summary} aria-label="Tổng quan lịch hẹn">
-          <span>
-            <strong>{counts.waiting}</strong> chờ phản hồi
-          </span>
-          <span>
-            <strong>{counts.confirmed}</strong> đã xác nhận
-          </span>
+          <button
+            type="button"
+            onClick={() => setFilter('requested')}
+            aria-label={`${counts.waiting} yêu cầu chờ phản hồi`}
+          >
+            <span>Chờ xác nhận</span>
+            <strong>{loading && !generatedAt ? '—' : counts.waiting}</strong>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('upcoming')}
+            aria-label={`${counts.confirmed} lịch hẹn đã xác nhận`}
+          >
+            <span>Đã xác nhận</span>
+            <strong>{loading && !generatedAt ? '—' : counts.confirmed}</strong>
+          </button>
         </div>
       </header>
 
@@ -250,110 +325,189 @@ export default function SpecialistAppointmentDecisionPanel() {
           className={styles.nextAppointment}
           aria-label="Cuộc hẹn tiếp theo"
         >
-          <div>
-            <span>CUỘC HẸN TIẾP THEO</span>
-            <h2>{displayRange(next)}</h2>
-            <p>
-              {next.modality === 'IN_APP_CHAT'
-                ? appointmentTimingCopy(next)
-                : 'Phiên video đã được xác nhận'}
-            </p>
+          <div className={styles.nextHeading}>
+            <span className={styles.calendarIcon}>
+              <CalendarDays size={24} aria-hidden="true" />
+            </span>
+            <div>
+              <div className={styles.nextMeta}>
+                <span>CUỘC HẸN TIẾP THEO</span>
+                <strong className={styles.status} data-status={next.status}>
+                  {STATUS_LABELS[next.status]}
+                </strong>
+              </div>
+              <h2>{displayRange(next)}</h2>
+              <p>
+                {next.modality === 'IN_APP_CHAT'
+                  ? appointmentTimingCopy(next)
+                  : 'Phiên video đã được xác nhận'}
+              </p>
+              <small>
+                {durationCopy(next)} · {next.timezone}
+              </small>
+            </div>
           </div>
           <div className={styles.nextActions}>
-            <strong>{STATUS_LABELS[next.status]}</strong>
             {next.modality === 'IN_APP_CHAT' && (
               <Link
                 href={`/specialist/messages?appointmentId=${encodeURIComponent(next.id)}`}
               >
-                Mở tin nhắn
+                <MessageSquare size={18} aria-hidden="true" /> Mở tin nhắn
               </Link>
             )}
           </div>
+          <SpecialistConsultationBrief appointmentId={next.id} compact />
         </section>
       )}
 
-      <div className={styles.filters} role="group" aria-label="Lọc lịch hẹn">
-        {(
-          [
-            ['all', 'Tất cả'],
-            ['requested', 'Chờ xác nhận'],
-            ['upcoming', 'Sắp tới'],
-            ['history', 'Lịch sử'],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={filter === value}
-            onClick={() => setFilter(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.toolbar}>
-        <div>
-          <h2>Yêu cầu được giao cho bạn</h2>
-          <p>Yêu cầu sắp hết hạn được ưu tiên hiển thị trước.</p>
+      <div className={styles.filterBar}>
+        <div className={styles.filters} role="group" aria-label="Lọc lịch hẹn">
+          {(
+            [
+              ['all', 'Tất cả'],
+              ['requested', 'Chờ xác nhận'],
+              ['upcoming', 'Sắp tới'],
+              ['history', 'Lịch sử'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <button type="button" onClick={() => void load()} disabled={loading}>
+        <button
+          className={styles.reload}
+          type="button"
+          onClick={() => void load()}
+          disabled={loading || Boolean(pendingCommand)}
+        >
+          <RefreshCw
+            size={18}
+            aria-hidden="true"
+            className={loading ? styles.spinning : undefined}
+          />
           {loading ? 'Đang tải…' : 'Tải lại'}
         </button>
       </div>
 
-      <div aria-live="polite" aria-atomic="true">
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
+      <div className={styles.toolbar}>
+        <div>
+          <h2 id="appointment-list-title" tabIndex={-1}>
+            Yêu cầu được giao cho bạn
+          </h2>
+          <p>Yêu cầu sắp hết hạn được ưu tiên hiển thị trước.</p>
+        </div>
+        {generatedAt && (
+          <span className={styles.resultCount}>
+            {visibleAppointments.length} lịch hẹn
+          </span>
         )}
       </div>
 
-      {loading ? (
-        <p className={styles.state}>Đang tải lịch hẹn…</p>
-      ) : appointments.length === 0 ? (
+      {error && (
+        <div className={styles.error} role="alert">
+          <div>
+            <strong>
+              {generatedAt
+                ? 'Chưa thể cập nhật lịch hẹn'
+                : 'Chưa thể tải lịch hẹn'}
+            </strong>
+            <p>{error}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading || Boolean(pendingCommand)}
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
+
+      {loading && !generatedAt ? (
+        <div
+          className={styles.loading}
+          role="status"
+          aria-label="Đang tải lịch hẹn"
+        >
+          {[0, 1, 2].map((item) => (
+            <div className={styles.loadingCard} key={item}>
+              <Skeleton width="48px" height="48px" />
+              <div>
+                <Skeleton width="40%" height="18px" />
+                <Skeleton width="80%" height="24px" />
+                <Skeleton width="60%" height="18px" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : !generatedAt && error ? null : appointments.length === 0 ? (
         <div className={styles.empty}>
+          <span className={styles.calendarIcon}>
+            <CalendarDays size={28} aria-hidden="true" />
+          </span>
           <h2>Chưa có yêu cầu lịch hẹn</h2>
           <p>
             Khi có yêu cầu mới, bạn sẽ thấy thời hạn và lựa chọn phản hồi tại
             đây.
           </p>
+          <Link href="/specialist/availability">Quản lý lịch khả dụng</Link>
         </div>
       ) : visibleAppointments.length === 0 ? (
         <div className={styles.empty}>
           <h2>Không có lịch hẹn trong nhóm này</h2>
           <p>Chọn một bộ lọc khác để xem các lịch hẹn còn lại.</p>
+          <button type="button" onClick={() => setFilter('all')}>
+            Xem tất cả lịch hẹn
+          </button>
         </div>
       ) : (
-        <ul className={styles.list}>
+        <ul className={styles.list} aria-busy={loading}>
           {visibleAppointments.map((appointment) => {
             const deciding = pendingCommand?.startsWith(`${appointment.id}:`)
             return (
-              <li key={appointment.id} className={styles.card}>
+              <li
+                key={appointment.id}
+                className={styles.card}
+                data-status={appointment.status}
+              >
+                <span className={styles.cardIcon} aria-hidden="true">
+                  {appointment.status === 'REQUESTED' ? (
+                    <Clock3 size={22} />
+                  ) : (
+                    <CalendarCheck size={22} />
+                  )}
+                </span>
                 <div className={styles.cardMain}>
                   <div className={styles.cardHeading}>
-                    <div>
-                      <span className={styles.modality}>
-                        {appointment.modality === 'IN_APP_VIDEO'
-                          ? 'Video trong ứng dụng'
-                          : 'Chat trong ứng dụng'}
-                      </span>
-                      <h3>{displayRange(appointment)}</h3>
-                    </div>
                     <span
                       className={styles.status}
                       data-status={appointment.status}
                     >
                       {STATUS_LABELS[appointment.status]}
                     </span>
+                    <span className={styles.modality}>
+                      {durationCopy(appointment)}
+                    </span>
                   </div>
+                  <h3 id={`appointment-${appointment.id}`} tabIndex={-1}>
+                    {displayRange(appointment)}
+                  </h3>
+                  <small className={styles.timezone}>
+                    {appointment.timezone}
+                  </small>
                   <p className={styles.credit}>
                     {CREDIT_LABELS[appointment.creditState]}
                   </p>
                   {appointment.status === 'REQUESTED' && (
                     <p className={styles.deadline}>
-                      Phản hồi trước {displayDeadline(appointment)}
+                      <Clock3 size={16} aria-hidden="true" /> Phản hồi trước{' '}
+                      {displayDeadline(appointment)}
                     </p>
                   )}
                 </div>
@@ -367,26 +521,27 @@ export default function SpecialistAppointmentDecisionPanel() {
                       className={styles.chatLink}
                       href={`/specialist/messages?appointmentId=${encodeURIComponent(appointment.id)}`}
                     >
-                      Mở tin nhắn
+                      <MessageSquare size={18} aria-hidden="true" /> Mở tin nhắn
                     </Link>
                   )}
                 {appointment.status === 'REQUESTED' && (
                   <div className={styles.actions}>
                     <button
                       type="button"
-                      className={styles.accept}
-                      disabled={Boolean(pendingCommand)}
-                      onClick={() => void decide(appointment, 'accept')}
+                      className={styles.reject}
+                      disabled={Boolean(pendingCommand) || loading}
+                      onClick={() => void decide(appointment, 'reject')}
                     >
-                      {deciding ? 'Đang xử lý…' : 'Xác nhận'}
+                      <X size={18} aria-hidden="true" /> Từ chối
                     </button>
                     <button
                       type="button"
-                      className={styles.reject}
-                      disabled={Boolean(pendingCommand)}
-                      onClick={() => void decide(appointment, 'reject')}
+                      className={styles.accept}
+                      disabled={Boolean(pendingCommand) || loading}
+                      onClick={() => void decide(appointment, 'accept')}
                     >
-                      Từ chối
+                      <Check size={18} aria-hidden="true" />{' '}
+                      {deciding ? 'Đang xử lý…' : 'Xác nhận'}
                     </button>
                   </div>
                 )}

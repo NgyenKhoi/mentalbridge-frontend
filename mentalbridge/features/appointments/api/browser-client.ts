@@ -86,9 +86,14 @@ export const appointmentBrowserClient = {
       )
     ).data
   },
-  async list() {
+  async list(originatingPlanActionId?: string) {
     return (
-      await browserApiClient.get<AppointmentList>('/consultation/appointments')
+      await browserApiClient.get<AppointmentList>(
+        '/consultation/appointments',
+        originatingPlanActionId
+          ? { params: { originatingPlanActionId } }
+          : undefined,
+      )
     ).data
   },
   async request(
@@ -97,6 +102,7 @@ export const appointmentBrowserClient = {
     idempotencyKey: string,
     replacesAppointmentId?: string,
     replacesAppointmentVersion?: number,
+    originatingPlanActionId?: string,
   ) {
     return (
       await browserApiClient.post<Appointment>(
@@ -105,6 +111,7 @@ export const appointmentBrowserClient = {
           slotId,
           modality,
           ...(replacesAppointmentId ? { replacesAppointmentId } : {}),
+          ...(originatingPlanActionId ? { originatingPlanActionId } : {}),
         },
         {
           headers: {

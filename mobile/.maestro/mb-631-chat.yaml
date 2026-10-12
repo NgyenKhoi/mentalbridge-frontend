@@ -1,0 +1,43 @@
+appId: com.mentalbridge.mobile
+name: MB-631 real eligible appointment and durable chat
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: sign-in-email-input
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- hideKeyboard
+- tapOn:
+    id: sign-in-password-input
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: sign-in-submit
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- scrollUntilVisible:
+    element:
+      text: 'Phiên trò chuyện'
+    direction: DOWN
+- tapOn: 'Phiên trò chuyện'
+- tapOn: 'Mở phiên trò chuyện'
+- assertVisible: 'Trò chuyện tư vấn'
+- extendedWaitUntil:
+    visible:
+      id: chat-composer
+    timeout: 30000
+- tapOn: 'Tham gia phiên'
+- extendedWaitUntil:
+    notVisible: 'Tham gia phiên'
+    timeout: 15000
+- assertVisible: 'MB631 synthetic peer message'
+- tapOn:
+    id: chat-composer
+- inputText: 'MB631 synthetic user message'
+- hideKeyboard
+- tapOn:
+    id: chat-send
+- extendedWaitUntil:
+    visible: 'MB631 synthetic user message'
+    timeout: 15000

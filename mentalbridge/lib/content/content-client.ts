@@ -3,6 +3,7 @@ import 'server-only'
 import { readContentServerConfig } from '@/lib/config/server'
 import {
   parseAdminResourceDetail,
+  parseResourceReviewDecision,
   parseContentProblem,
   parseResourceList,
   parsePublicResourceDetail,
@@ -15,7 +16,11 @@ import {
   parseResourceProgressItem,
   parseResourceProgressList,
   parseResourceJourney,
+  parseResourceBookmark,
+  parseResourceBookmarkList,
+  parseResourceBingoBoard,
   type AdminResourceDetail,
+  type ResourceReviewDecision,
   type ContentProblem,
   type PublicResourceDetail,
   type ResourceListResponse,
@@ -31,6 +36,10 @@ import {
   type ResourceProgressUpdate,
   type ResourceJourney,
   type ResourceJourneyRequest,
+  type ResourceBookmark,
+  type ResourceBookmarkList,
+  type ResourceBingoBoard,
+  type ResourceBingoSelfConfirmationUpdate,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
@@ -268,7 +277,13 @@ export const contentResourceProgressClient = {
       accessToken,
       correlationId,
       body: update,
-      parseSuccess: parseResourceProgressItem,
+      parseSuccess: (value) => {
+        const progress = parseResourceProgressItem(value)
+        return progress?.resourceId === resourceId &&
+          progress.localDate === localDate
+          ? progress
+          : null
+      },
       mutation: true,
     })
   },
@@ -288,9 +303,118 @@ export const contentResourceJourneyClient = {
       accessToken,
       correlationId,
       body: input,
-      parseSuccess: parseResourceJourney,
+      parseSuccess: (value) => {
+        const journey = parseResourceJourney(value)
+        return journey?.localDate === localDate ? journey : null
+      },
       mutation: true,
     })
+  },
+}
+
+function bingoResult(board: ResourceBingoBoard, etag: string | undefined) {
+  if (!etag || !/^\"(0|[1-9]\d*)\"$/.test(etag)) {
+    throw localError(
+      502,
+      'CONTENT_MALFORMED_RESPONSE',
+      'Content returned an invalid Bingo board version.',
+    )
+  }
+  return { board, etag }
+}
+
+export const contentResourceEngagementClient = {
+  listBookmarks(accessToken: string, correlationId: string) {
+    return contentRequest<ResourceBookmarkList>({
+      method: 'GET',
+      path: '/api/v1/resource-bookmarks',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseResourceBookmarkList,
+    })
+  },
+  saveBookmark(accessToken: string, resourceId: string, correlationId: string) {
+    return contentRequest<ResourceBookmark>({
+      method: 'PUT',
+      path: `/api/v1/resource-bookmarks/${encodeURIComponent(resourceId)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: {},
+      parseSuccess: (value) => {
+        const bookmark = parseResourceBookmark(value)
+        return bookmark?.resourceId === resourceId ? bookmark : null
+      },
+      mutation: true,
+    })
+  },
+  deleteBookmark(
+    accessToken: string,
+    resourceId: string,
+    correlationId: string,
+  ) {
+    return contentRequest<void>({
+      method: 'DELETE',
+      path: `/api/v1/resource-bookmarks/${encodeURIComponent(resourceId)}`,
+      expectedStatus: 204,
+      accessToken,
+      correlationId,
+      mutation: true,
+    })
+  },
+  async getBingo(
+    accessToken: string,
+    weekStart: string,
+    correlationId: string,
+  ) {
+    let etag: string | undefined
+    const board = await contentRequest<ResourceBingoBoard>({
+      method: 'GET',
+      path: `/api/v1/resource-bingo/${encodeURIComponent(weekStart)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: (value) => {
+        const parsed = parseResourceBingoBoard(value)
+        return parsed?.weekStart === weekStart ? parsed : null
+      },
+      onSuccessResponse: (response) => {
+        etag = response.headers.get('etag') ?? undefined
+      },
+    })
+    return bingoResult(board, etag)
+  },
+  async setBingoSelfConfirmation(
+    accessToken: string,
+    weekStart: string,
+    position: number,
+    update: ResourceBingoSelfConfirmationUpdate,
+    etagValue: string,
+    correlationId: string,
+  ) {
+    let etag: string | undefined
+    const board = await contentRequest<ResourceBingoBoard>({
+      method: 'PUT',
+      path: `/api/v1/resource-bingo/${encodeURIComponent(weekStart)}/items/${String(position)}/self-confirmation`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: update,
+      ifMatch: etagValue,
+      parseSuccess: (value) => {
+        const parsed = parseResourceBingoBoard(value)
+        return parsed?.weekStart === weekStart &&
+          parsed.items.some((item) => item.position === position)
+          ? parsed
+          : null
+      },
+      mutation: true,
+      onSuccessResponse: (response) => {
+        etag = response.headers.get('etag') ?? undefined
+      },
+    })
+    return bingoResult(board, etag)
   },
 }
 
@@ -488,12 +612,49 @@ export const contentAdminClient = {
     version: number,
     correlationId: string,
   ) {
-    return contentRequest<never>({
+    return contentRequest<ResourceSummary>({
       method: 'POST',
       path: `/api/v1/resources/${encodeURIComponent(id)}/publish?version=${String(version)}`,
-      expectedStatus: 409,
+      expectedStatus: 200,
       accessToken,
       correlationId,
+      body: {},
+      parseSuccess: parseResourceSummary,
+      mutation: true,
+    })
+  },
+  review(
+    accessToken: string,
+    id: string,
+    version: number,
+    body: unknown,
+    correlationId: string,
+  ) {
+    return contentRequest<ResourceReviewDecision>({
+      method: 'POST',
+      path: `/api/v1/resources/${encodeURIComponent(id)}/review?version=${String(version)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body,
+      parseSuccess: parseResourceReviewDecision,
+      mutation: true,
+    })
+  },
+  createVersion(
+    accessToken: string,
+    id: string,
+    version: number,
+    correlationId: string,
+  ) {
+    return contentRequest<AdminResourceDetail>({
+      method: 'POST',
+      path: `/api/v1/resources/${encodeURIComponent(id)}/versions?version=${String(version)}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: {},
+      parseSuccess: parseAdminResourceDetail,
       mutation: true,
     })
   },

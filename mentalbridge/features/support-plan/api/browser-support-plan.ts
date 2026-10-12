@@ -9,7 +9,46 @@ import type {
   ReplaceSupportPlanOccurrenceEngagementRequest,
   ReplaceCurrentSupportPlanRequest,
   SupportPlanReplacementReview,
+  SupportPlanV3,
+  SupportPlanPersonalization,
+  ReplaceSupportPlanPersonalizationRequest,
+  UpdateActionScheduleRequest,
 } from './support-plan-contract'
+
+export type SupportPlanPersonalizationAuthority = Readonly<{
+  value: SupportPlanPersonalization
+  etag: string
+}>
+
+function personalizationAuthority(
+  value: SupportPlanPersonalization,
+  etag: unknown,
+): SupportPlanPersonalizationAuthority {
+  const fallback = `"${value.revision}"`
+  return {
+    value,
+    etag: typeof etag === 'string' && /^"[0-9]+"$/.test(etag) ? etag : fallback,
+  }
+}
+
+export async function getSupportPlanPersonalization() {
+  const response = await browserApiClient.get<SupportPlanPersonalization>(
+    '/care/support-plan-personalization',
+  )
+  return personalizationAuthority(response.data, response.headers.etag)
+}
+
+export async function replaceSupportPlanPersonalization(
+  request: ReplaceSupportPlanPersonalizationRequest,
+  etag: string,
+) {
+  const response = await browserApiClient.put<SupportPlanPersonalization>(
+    '/care/support-plan-personalization',
+    request,
+    { headers: { 'If-Match': etag } },
+  )
+  return personalizationAuthority(response.data, response.headers.etag)
+}
 
 export async function proposeSupportPlanDraft(
   idempotencyKey: string,
@@ -103,6 +142,43 @@ export async function getSupportPlan(supportPlanId: string) {
   return (
     await browserApiClient.get<SupportPlan>(
       `/care/support-plans/${encodeURIComponent(supportPlanId)}`,
+    )
+  ).data
+}
+
+export async function getSupportPlanActions(supportPlanId: string) {
+  return (
+    await browserApiClient.get<SupportPlanV3>(
+      `/care/support-plans/${encodeURIComponent(supportPlanId)}/actions`,
+    )
+  ).data
+}
+
+export async function getCurrentSupportPlanDraftActions() {
+  return (
+    await browserApiClient.get<SupportPlanV3>(
+      '/care/support-plans/current-draft/actions',
+    )
+  ).data
+}
+
+export async function replaceSupportPlanActionSchedule(
+  supportPlanId: string,
+  actionId: string,
+  version: number,
+  request: UpdateActionScheduleRequest,
+  idempotencyKey: string,
+) {
+  return (
+    await browserApiClient.put<SupportPlanV3>(
+      `/care/support-plans/${encodeURIComponent(supportPlanId)}/actions/${encodeURIComponent(actionId)}/schedule`,
+      request,
+      {
+        headers: {
+          'If-Match': `"${version}"`,
+          'Idempotency-Key': idempotencyKey,
+        },
+      },
     )
   ).data
 }

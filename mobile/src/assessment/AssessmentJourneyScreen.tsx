@@ -220,7 +220,7 @@ function ResultFacts({ assessment }: Readonly<{ assessment: Assessment }>) {
   )
 }
 
-function HelpNowPanel({
+export function HelpNowPanel({
   api,
   defaultTrigger,
   guidance,

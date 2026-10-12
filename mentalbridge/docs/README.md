@@ -4,9 +4,12 @@ This directory is the source of truth for MentalBridge frontend engineering
 decisions. Product/design documents describe intent; these documents describe
 how the executable Next.js application is organized and delivered.
 
-All user-visible frontend work starts by loading the repository skill at
-`.agents/skills/mentalbridge-ui/SKILL.md`; the tables below let that skill select
-the smallest relevant contract set.
+UI design and material journey changes follow the repository-local
+`../../.codex/skills/mentalbridge-stitch-ui/SKILL.md`: written UX brief,
+generation in the established Stitch project, font/component render QA, a
+local interaction prototype, then repository-native implementation. The tables
+below identify the smallest relevant contract set for translating that
+direction into product code.
 
 ## Reading order
 
@@ -45,6 +48,7 @@ không khôi phục chúng như coding standard hiện hành.
 
 Story-specific delivery evidence:
 
+- [MB-637 SupportGuide and SupportPlan v3 product boundary](ADR_SUPPORTPLAN_V3_PRODUCT_BOUNDARY.md)
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
 - [MB-177/MB-178/MB-205 Care-backed screening, profile, consent, history, and progress integration](care-assessment-integration.md)
 - [MB-273 initial-check release evidence](initial-check-release-evidence.md)
@@ -64,6 +68,7 @@ Story-specific delivery evidence:
 - [MB-617 Community interaction notification inbox](mb-617-community-notifications-evidence.md)
 - [MB-618 Community end-to-end closure evidence](mb-618-community-closure-evidence.md)
 - [MB-619 appointment dispute UI evidence](mb-619-appointment-disputes-evidence.md)
+- [MB-656 truthful Resources progress evidence](MB-656-resources-truthful-progress.md)
 - [MB-549 appointment reminder consumer evidence](evidence/mb-549-appointment-reminder-consumer.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 
@@ -105,6 +110,7 @@ to select any additional task-specific material.
 | Community reports, blocks, and auditable moderation  | Implemented | MB-578         |
 | Supportive Community reactions and private bookmarks | Implemented | MB-579         |
 | Governed active Community topic discovery            | Implemented | MB-582         |
+| SupportGuide / SupportPlan v3 boundary and taxonomy  | Proposed    | MB-637         |
 
 When implementation and a document disagree, do not silently choose one. Check
 the installed Next.js documentation and the backend OpenAPI contract, then

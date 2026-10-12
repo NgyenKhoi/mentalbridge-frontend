@@ -2,6 +2,16 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowLeft,
+  CalendarDays,
+  FileText,
+  History,
+  Info,
+  MessageSquare,
+  RefreshCw,
+} from 'lucide-react'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 import { ApiError } from '@/lib/api/api-error'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
@@ -35,6 +45,8 @@ function appointmentError(error: unknown) {
 
 function summaryError(error: unknown) {
   if (error instanceof ApiError) {
+    if (error.status === 401)
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
     if ([403, 404, 410].includes(error.status ?? 0))
       return 'Bản tóm tắt này không còn khả dụng với tài khoản của bạn.'
   }
@@ -60,22 +72,30 @@ function formatAppointment(appointment: Appointment) {
   return { date, time: `${time.format(start)}–${time.format(end)}` }
 }
 
-function formatPublishedAt(value: string) {
+function formatPublishedAt(value: string, timezone?: string) {
   return new Intl.DateTimeFormat('vi-VN', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: timezone,
   }).format(new Date(value))
 }
 
-function SummarySnapshot({ summary }: { summary: SessionSummary }) {
+function SummarySnapshot({
+  summary,
+  timezone,
+}: {
+  summary: SessionSummary
+  timezone?: string
+}) {
   return (
     <div className={styles.snapshot}>
       <div className={styles.snapshotMeta}>
         <span>
-          {summary.amendsSummaryId ? 'Bản đính chính' : 'Bản đầu tiên'}
+          {summary.amendsSummaryId ? 'Bản đính chính' : 'Bản đầu tiên'} · Bản{' '}
+          {summary.version}
         </span>
         <time dateTime={summary.publishedAt}>
-          Xuất bản {formatPublishedAt(summary.publishedAt)}
+          Xuất bản {formatPublishedAt(summary.publishedAt, timezone)}
         </time>
       </div>
 
@@ -133,10 +153,20 @@ function SummarySnapshot({ summary }: { summary: SessionSummary }) {
                   <strong>{step.title}</strong>
                   {step.details && <p>{step.details}</p>}
                   {step.type === 'PLATFORM_RESOURCE' && (
-                    <PlanChangeRequestCard
-                      proposalId={step.id}
-                      viewer="SPECIALIST"
-                    />
+                    <>
+                      {step.resourceId && (
+                        <Link
+                          className={styles.resourceLink}
+                          href={`/resources/${encodeURIComponent(step.resourceId)}${step.resourceVersion ? `?contentVersion=${encodeURIComponent(step.resourceVersion)}` : ''}`}
+                        >
+                          Xem tài nguyên đính kèm
+                        </Link>
+                      )}
+                      <PlanChangeRequestCard
+                        proposalId={step.id}
+                        viewer="SPECIALIST"
+                      />
+                    </>
                   )}
                 </div>
                 <span className={styles.agreed}>Đã thống nhất</span>
@@ -159,7 +189,11 @@ function SummarySnapshot({ summary }: { summary: SessionSummary }) {
   )
 }
 
-export default function SpecialistContinuityManager() {
+export default function SpecialistContinuityManager({
+  initialAppointmentId,
+}: {
+  initialAppointmentId?: string
+}) {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [selectedAppointmentId, setSelectedAppointmentId] = useState('')
   const [summaries, setSummaries] = useState<SessionSummary[]>([])
@@ -169,6 +203,12 @@ export default function SpecialistContinuityManager() {
   const [appointmentsError, setAppointmentsError] = useState('')
   const [summariesError, setSummariesError] = useState('')
   const summaryRequest = useRef(0)
+  const appointmentRequest = useRef(0)
+  const selectedAppointmentRef = useRef(initialAppointmentId ?? '')
+  const selectedSummaryRef = useRef('')
+  const [detailOpen, setDetailOpen] = useState(Boolean(initialAppointmentId))
+  const [summaryCounts, setSummaryCounts] = useState<Record<string, number>>({})
+  const directoryRef = useRef<HTMLElement>(null)
 
   const completedAppointments = useMemo(
     () =>
@@ -198,10 +238,12 @@ export default function SpecialistContinuityManager() {
   )
 
   const loadAppointments = useCallback(async () => {
+    const request = ++appointmentRequest.current
     setLoadingAppointments(true)
     setAppointmentsError('')
     try {
       const data = await appointmentBrowserClient.assigned()
+      if (request !== appointmentRequest.current) return
       setAppointments(data.items)
       const completed = data.items
         .filter((appointment) => appointment.status === 'COMPLETED')
@@ -209,18 +251,38 @@ export default function SpecialistContinuityManager() {
           (left, right) =>
             Date.parse(right.scheduledEndAt) - Date.parse(left.scheduledEndAt),
         )
-      const next = completed[0]?.id ?? ''
+      const previous = selectedAppointmentRef.current
+      const next = previous
+        ? (completed.find((item) => item.id === previous)?.id ?? '')
+        : (completed[0]?.id ?? '')
+      selectedAppointmentRef.current = next || previous
       setSelectedAppointmentId(next)
-      setSummaries([])
-      setSelectedSummaryId('')
-      setSummariesError('')
-      setLoadingSummaries(Boolean(next))
+      if (next !== previous) {
+        summaryRequest.current += 1
+        selectedSummaryRef.current = ''
+        setSummaries([])
+        setSelectedSummaryId('')
+        setSummariesError('')
+        setLoadingSummaries(Boolean(next))
+      }
+      return next
     } catch (error) {
-      setAppointments([])
-      setSelectedAppointmentId('')
+      if (request !== appointmentRequest.current) return
+      if (error instanceof ApiError && [401, 403].includes(error.status ?? 0)) {
+        summaryRequest.current += 1
+        selectedAppointmentRef.current = ''
+        selectedSummaryRef.current = ''
+        setAppointments([])
+        setSelectedAppointmentId('')
+        setSummaries([])
+        setSelectedSummaryId('')
+        setSummaryCounts({})
+        setLoadingSummaries(false)
+      }
       setAppointmentsError(appointmentError(error))
+      return ''
     } finally {
-      setLoadingAppointments(false)
+      if (request === appointmentRequest.current) setLoadingAppointments(false)
     }
   }, [])
 
@@ -236,8 +298,17 @@ export default function SpecialistContinuityManager() {
         'SPECIALIST',
       )
       if (request !== summaryRequest.current) return
-      setSummaries(data.items)
-      setSelectedSummaryId(data.items[0]?.id ?? '')
+      const ordered = [...data.items].sort(
+        (left, right) => right.version - left.version,
+      )
+      const next =
+        ordered.find((item) => item.id === selectedSummaryRef.current)?.id ??
+        ordered[0]?.id ??
+        ''
+      selectedSummaryRef.current = next
+      setSummaries(ordered)
+      setSelectedSummaryId(next)
+      setSummaryCounts((counts) => ({ ...counts, [appointmentId]: data.count }))
     } catch (error) {
       if (request !== summaryRequest.current) return
       setSummariesError(summaryError(error))
@@ -247,70 +318,69 @@ export default function SpecialistContinuityManager() {
   }, [])
 
   useEffect(() => {
-    let active = true
-    void appointmentBrowserClient
-      .assigned()
-      .then((data) => {
-        if (!active) return
-        setAppointments(data.items)
-        const completed = data.items
-          .filter((appointment) => appointment.status === 'COMPLETED')
-          .sort(
-            (left, right) =>
-              Date.parse(right.scheduledEndAt) -
-              Date.parse(left.scheduledEndAt),
-          )
-        const first = completed[0]?.id ?? ''
-        setSelectedAppointmentId(first)
-        setLoadingSummaries(Boolean(first))
-      })
-      .catch((error: unknown) => {
-        if (!active) return
-        setAppointments([])
-        setSelectedAppointmentId('')
-        setAppointmentsError(appointmentError(error))
-      })
-      .finally(() => {
-        if (active) setLoadingAppointments(false)
-      })
+    const timer = window.setTimeout(() => void loadAppointments(), 0)
     return () => {
-      active = false
+      window.clearTimeout(timer)
+      appointmentRequest.current += 1
     }
-  }, [])
+  }, [loadAppointments])
 
   useEffect(() => {
     if (!selectedAppointmentId) return
-    let active = true
-    void sessionSummaryBrowserClient
-      .list(selectedAppointmentId, 'SPECIALIST')
-      .then((data) => {
-        if (!active) return
-        setSummaries(data.items)
-        setSelectedSummaryId(data.items[0]?.id ?? '')
-      })
-      .catch((error: unknown) => {
-        if (!active) return
-        setSummariesError(summaryError(error))
-      })
-      .finally(() => {
-        if (active) setLoadingSummaries(false)
-      })
+    const timer = window.setTimeout(
+      () => void loadSummaries(selectedAppointmentId),
+      0,
+    )
     return () => {
-      active = false
+      window.clearTimeout(timer)
+      summaryRequest.current += 1
     }
-  }, [selectedAppointmentId])
+  }, [selectedAppointmentId, loadSummaries])
 
   const selectAppointment = (appointmentId: string) => {
+    if (appointmentId === selectedAppointmentId) {
+      setDetailOpen(true)
+      requestAnimationFrame(() =>
+        document.getElementById('continuity-session-title')?.focus(),
+      )
+      return
+    }
     summaryRequest.current += 1
+    selectedAppointmentRef.current = appointmentId
+    selectedSummaryRef.current = ''
     setSelectedAppointmentId(appointmentId)
+    setDetailOpen(true)
     setSummaries([])
     setSelectedSummaryId('')
     setSummariesError('')
     setLoadingSummaries(true)
+    requestAnimationFrame(() =>
+      document.getElementById('continuity-session-title')?.focus(),
+    )
+  }
+  const selectVersion = (summaryId: string) => {
+    selectedSummaryRef.current = summaryId
+    setSelectedSummaryId(summaryId)
+  }
+  const backToList = () => {
+    setDetailOpen(false)
+    requestAnimationFrame(() =>
+      directoryRef.current
+        ?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')
+        ?.focus(),
+    )
+  }
+  const reload = async () => {
+    const availableSelection = await loadAppointments()
+    if (availableSelection) await loadSummaries(availableSelection)
   }
 
   return (
-    <section className={styles.page} aria-labelledby="continuity-title">
+    <section
+      className={styles.page}
+      data-specialist-journey="follow-up"
+      aria-labelledby="continuity-title"
+    >
       <header className={styles.heading}>
         <div>
           <span className={styles.eyebrow}>Tiếp nối sau tư vấn</span>
@@ -320,13 +390,25 @@ export default function SpecialistContinuityManager() {
             hoàn thành.
           </p>
         </div>
-        <Link className={styles.primaryLink} href="/specialist/appointments">
-          Mở lịch hẹn
-        </Link>
+        <div className={styles.headingActions}>
+          <button
+            type="button"
+            className={styles.secondaryAction}
+            disabled={loadingAppointments || loadingSummaries}
+            onClick={() => void reload()}
+          >
+            <RefreshCw size={18} aria-hidden="true" />
+            Tải lại
+          </button>
+          <Link className={styles.primaryLink} href="/specialist/appointments">
+            <CalendarDays size={18} aria-hidden="true" />
+            Mở lịch hẹn
+          </Link>
+        </div>
       </header>
 
       <aside className={styles.boundaryNote}>
-        <span aria-hidden="true">✓</span>
+        <Info size={20} aria-hidden="true" />
         <p>
           <strong>Thông tin theo đúng phiên tư vấn</strong>
           Mỗi lần xuất bản được giữ nguyên để bạn có thể xem lại nội dung đã
@@ -343,11 +425,11 @@ export default function SpecialistContinuityManager() {
         </div>
       )}
 
-      {loadingAppointments ? (
+      {loadingAppointments && appointments.length === 0 ? (
         <div className={styles.loadingState} role="status">
-          <span />
-          <span />
-          <span />
+          <Skeleton width="100%" height={92} />
+          <Skeleton width="100%" height={92} />
+          <Skeleton width="100%" height={92} />
           <p>Đang tải các phiên đã hoàn thành…</p>
         </div>
       ) : !appointmentsError && completedAppointments.length === 0 ? (
@@ -360,11 +442,12 @@ export default function SpecialistContinuityManager() {
           </p>
           <Link href="/specialist/appointments">Xem lịch hẹn</Link>
         </div>
-      ) : !appointmentsError ? (
-        <div className={styles.workspace}>
+      ) : completedAppointments.length > 0 ? (
+        <div className={styles.workspace} data-detail-open={detailOpen}>
           <aside
             className={styles.directory}
             aria-label="Các phiên đã hoàn thành"
+            ref={directoryRef}
           >
             <header>
               <div>
@@ -399,6 +482,13 @@ export default function SpecialistContinuityManager() {
                           ? 'Chat trong ứng dụng'
                           : 'Video trong ứng dụng'}
                       </small>
+                      {summaryCounts[appointment.id] !== undefined && (
+                        <em className={styles.summaryBadge}>
+                          {summaryCounts[appointment.id] > 0
+                            ? 'Đã có bản tóm tắt'
+                            : 'Chưa có bản tóm tắt'}
+                        </em>
+                      )}
                     </span>
                     <span aria-hidden="true">›</span>
                   </button>
@@ -407,39 +497,68 @@ export default function SpecialistContinuityManager() {
             </div>
           </aside>
 
-          <section className={styles.detail} aria-live="polite">
+          <section
+            className={styles.detail}
+            aria-label="Nội dung phiên đã chọn"
+            aria-busy={loadingSummaries}
+          >
+            <button
+              className={styles.backButton}
+              type="button"
+              onClick={backToList}
+            >
+              <ArrowLeft size={18} aria-hidden="true" />
+              Quay lại danh sách phiên
+            </button>
             {selectedAppointment && (
               <header className={styles.detailHeader}>
                 <div>
                   <span className={styles.sectionLabel}>
                     Phiên đã hoàn thành
                   </span>
-                  <h2>{formatAppointment(selectedAppointment).date}</h2>
+                  <h2 id="continuity-session-title" tabIndex={-1}>
+                    {formatAppointment(selectedAppointment).date}
+                  </h2>
                   <p>
                     {formatAppointment(selectedAppointment).time} ·{' '}
                     {selectedAppointment.modality === 'IN_APP_CHAT'
                       ? 'Chat trong ứng dụng'
                       : 'Video trong ứng dụng'}
                   </p>
+                  <small>Múi giờ: {selectedAppointment.timezone}</small>
                 </div>
                 <div className={styles.detailActions}>
                   {selectedAppointment.modality === 'IN_APP_CHAT' && (
                     <Link
                       href={`/specialist/messages?appointmentId=${encodeURIComponent(selectedAppointment.id)}`}
                     >
+                      <MessageSquare size={17} aria-hidden="true" />
                       Xem lại hội thoại
                     </Link>
                   )}
-                  <Link href="/specialist/appointments">
+                  <Link
+                    href={`/specialist/appointments?appointmentId=${encodeURIComponent(selectedAppointment.id)}`}
+                  >
                     Quản lý trong lịch hẹn
                   </Link>
                 </div>
               </header>
             )}
 
-            {loadingSummaries ? (
+            {!selectedAppointment ? (
+              <div className={styles.detailState}>
+                <CalendarDays size={32} aria-hidden="true" />
+                <h3>Chọn một phiên đã hoàn thành</h3>
+                <p>
+                  Phiên được yêu cầu không có trong danh sách hiện tại. Hãy chọn
+                  một phiên được cấp quyền.
+                </p>
+              </div>
+            ) : loadingSummaries ? (
               <div className={styles.detailState} role="status">
-                <span className={styles.spinner} />
+                <Skeleton width="100%" height={40} />
+                <Skeleton width="100%" height={96} />
+                <Skeleton width="100%" height={96} />
                 <p>Đang tải nội dung sau phiên…</p>
               </div>
             ) : summariesError ? (
@@ -461,20 +580,25 @@ export default function SpecialistContinuityManager() {
             ) : summaries.length === 0 ? (
               <div className={styles.detailState}>
                 <span className={styles.documentMark} aria-hidden="true">
-                  ≡
+                  <FileText size={28} aria-hidden="true" />
                 </span>
                 <h3>Chưa có bản tóm tắt sau phiên</h3>
                 <p>
                   Mở lịch hẹn này để xuất bản nội dung đã thống nhất với người
                   dùng.
                 </p>
-                <Link href="/specialist/appointments">Mở lịch hẹn</Link>
+                <Link
+                  href={`/specialist/appointments?appointmentId=${encodeURIComponent(selectedAppointment.id)}`}
+                >
+                  Mở lịch hẹn
+                </Link>
               </div>
             ) : (
               <>
                 <div className={styles.versionBar}>
                   <div>
                     <span className={styles.sectionLabel}>
+                      <History size={18} aria-hidden="true" />
                       Lịch sử xuất bản
                     </span>
                     <p>{summaries.length} bản được lưu cho phiên này</p>
@@ -482,23 +606,59 @@ export default function SpecialistContinuityManager() {
                   <div
                     className={styles.versionChoices}
                     aria-label="Chọn bản tóm tắt"
+                    role="tablist"
                   >
                     {summaries.map((summary, index) => (
                       <button
                         type="button"
                         key={summary.id}
-                        aria-pressed={summary.id === selectedSummary?.id}
-                        onClick={() => setSelectedSummaryId(summary.id)}
+                        role="tab"
+                        id={`summary-tab-${summary.version}`}
+                        aria-selected={summary.id === selectedSummary?.id}
+                        tabIndex={summary.id === selectedSummary?.id ? 0 : -1}
+                        aria-controls="continuity-snapshot"
+                        onClick={() => selectVersion(summary.id)}
+                        onKeyDown={(event) => {
+                          let next = index
+                          if (event.key === 'ArrowRight')
+                            next = (index + 1) % summaries.length
+                          else if (event.key === 'ArrowLeft')
+                            next =
+                              (index - 1 + summaries.length) % summaries.length
+                          else if (event.key === 'Home') next = 0
+                          else if (event.key === 'End')
+                            next = summaries.length - 1
+                          else return
+                          event.preventDefault()
+                          selectVersion(summaries[next].id)
+                          document
+                            .getElementById(
+                              `summary-tab-${summaries[next].version}`,
+                            )
+                            ?.focus()
+                        }}
                       >
                         <span>
-                          {index === 0 ? 'Mới nhất' : `Bản ${summary.version}`}
+                          {index === 0
+                            ? `Mới nhất · Bản ${summary.version}`
+                            : `Bản ${summary.version}`}
                         </span>
                       </button>
                     ))}
                   </div>
                 </div>
                 {selectedSummary && (
-                  <SummarySnapshot summary={selectedSummary} />
+                  <div
+                    id="continuity-snapshot"
+                    role="tabpanel"
+                    aria-labelledby={`summary-tab-${selectedSummary.version}`}
+                  >
+                    <SummarySnapshot
+                      key={selectedSummary.id}
+                      summary={selectedSummary}
+                      timezone={selectedAppointment.timezone}
+                    />
+                  </div>
                 )}
               </>
             )}

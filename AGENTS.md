@@ -15,6 +15,16 @@ Before changing application code, read:
    `mentalbridge/node_modules/next/dist/docs/`.
 6. The backend OpenAPI contract for every API boundary being changed.
 
+For any task that starts UI design or materially changes a user journey,
+screen composition, controls, responsive behavior, or motion, also read and
+follow `.codex/skills/mentalbridge-stitch-ui/SKILL.md`. Its Stitch generation,
+render/font inspection, and local interaction-prototype gates must finish
+before production UI implementation begins. This applies to both the Next.js
+and Expo applications. Code-only refactors and tiny copy-only fixes are exempt.
+The baseline must be a verified full-frame repository artifact or real-route
+capture that retains the current shell and navigation; isolated feature
+screenshots cannot authorize a shell or page-composition change.
+
 Do not rely on remembered Next.js behavior when the installed documentation is
 available. If dependencies are not installed, state that the local guide could
 not be checked before making a version-sensitive change.

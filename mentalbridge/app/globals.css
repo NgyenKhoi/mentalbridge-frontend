@@ -4652,7 +4652,9 @@ nav {
     .light-select-trigger
   ):not(.light-select-option):not([class*='close']):not(
     [class*='collapse']
-  ):not([class*='menu']):not([class*='bell']):not([class*='logout']) {
+  ):not([class*='menu']):not([class*='bell']):not([class*='logout']):not(
+    :where([data-availability-ui] *, [data-specialist-journey] *)
+  ) {
   background: transparent !important;
   background-color: transparent !important;
 }
@@ -4660,7 +4662,9 @@ nav {
 [class*='specialist-']
   button:not(.btn-primary):not(.btn-outline):not(.btn-ghost):not(
     .light-select-trigger
-  ):not(.light-select-option):not([class*='close']) {
+  ):not(.light-select-option):not([class*='close']):not(
+    :where([data-availability-ui] *, [data-specialist-journey] *)
+  ) {
   background: transparent !important;
   background-color: transparent !important;
 }

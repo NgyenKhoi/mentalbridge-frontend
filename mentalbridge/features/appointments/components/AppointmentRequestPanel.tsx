@@ -408,13 +408,23 @@ export default function AppointmentRequestPanel({
         }
         authoritativeReplacement = precommand.appointment ?? null
       }
-      const created = await appointmentBrowserClient.request(
-        slot.id,
-        slot.modality,
-        `appointment-${crypto.randomUUID()}`,
-        authoritativeReplacement?.id,
-        authoritativeReplacement?.version,
-      )
+      const requestKey = `appointment-${crypto.randomUUID()}`
+      const created = authoritativeReplacement?.originatingPlanActionId
+        ? await appointmentBrowserClient.request(
+            slot.id,
+            slot.modality,
+            requestKey,
+            authoritativeReplacement.id,
+            authoritativeReplacement.version,
+            authoritativeReplacement.originatingPlanActionId,
+          )
+        : await appointmentBrowserClient.request(
+            slot.id,
+            slot.modality,
+            requestKey,
+            authoritativeReplacement?.id,
+            authoritativeReplacement?.version,
+          )
       let replacedAppointment: Appointment | undefined
       if (authoritativeReplacement) {
         setRescheduling(null)

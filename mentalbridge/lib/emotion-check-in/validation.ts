@@ -1,13 +1,24 @@
 import type {
   Emotion,
+  EmotionInfluenceFactor,
   EmotionCheckIn,
   EmotionCheckInCreate,
   EmotionCheckInList,
   EmotionCheckInProgress,
+  EmotionCheckInTombstone,
   EmotionCheckInValue,
 } from './contract'
 
 const emotions = new Set<Emotion>(['GREAT', 'GOOD', 'OKAY', 'LOW', 'VERY_LOW'])
+const influenceFactors = new Set<EmotionInfluenceFactor>([
+  'sleep',
+  'work',
+  'study',
+  'family',
+  'friends',
+  'health',
+  'other',
+])
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const localDatePattern = /^\d{4}-\d{2}-\d{2}$/
@@ -33,11 +44,25 @@ export const isIdempotencyKey = (value: unknown): value is string =>
 export const isEmotion = (value: unknown): value is Emotion =>
   typeof value === 'string' && emotions.has(value as Emotion)
 
+export const isEmotionInfluenceFactor = (
+  value: unknown,
+): value is EmotionInfluenceFactor =>
+  typeof value === 'string' &&
+  influenceFactors.has(value as EmotionInfluenceFactor)
+
+const isFactors = (value: unknown) =>
+  value === undefined ||
+  (Array.isArray(value) &&
+    value.length <= 3 &&
+    new Set(value).size === value.length &&
+    value.every(isEmotionInfluenceFactor))
+
 const isValue = (value: Record<string, unknown>) =>
   isEmotion(value.emotion) &&
   Number.isInteger(value.intensity) &&
   Number(value.intensity) >= 1 &&
   Number(value.intensity) <= 5 &&
+  isFactors(value.factors) &&
   (value.note === undefined ||
     value.note === null ||
     (typeof value.note === 'string' &&
@@ -46,7 +71,7 @@ const isValue = (value: Record<string, unknown>) =>
 
 export function parseEmotionValue(value: unknown): EmotionCheckInValue | null {
   return object(value) &&
-    exact(value, ['emotion', 'intensity', 'note']) &&
+    exact(value, ['emotion', 'intensity', 'factors', 'note']) &&
     isValue(value)
     ? (value as EmotionCheckInValue)
     : null
@@ -57,7 +82,14 @@ export function parseEmotionCreate(
 ): EmotionCheckInCreate | null {
   if (
     !object(value) ||
-    !exact(value, ['emotion', 'intensity', 'note', 'localDate', 'timezone']) ||
+    !exact(value, [
+      'emotion',
+      'intensity',
+      'factors',
+      'note',
+      'localDate',
+      'timezone',
+    ]) ||
     !isValue(value) ||
     !isLocalDate(value.localDate) ||
     typeof value.timezone !== 'string' ||
@@ -82,6 +114,7 @@ export function parseEmotionCheckIn(value: unknown): EmotionCheckIn | null {
       'timezone',
       'emotion',
       'intensity',
+      'factors',
       'note',
       'sourceLabel',
       'clinicalUse',
@@ -97,6 +130,7 @@ export function parseEmotionCheckIn(value: unknown): EmotionCheckIn | null {
     value.timezone.length < 1 ||
     value.timezone.length > 64 ||
     !isValue(value) ||
+    value.factors === undefined ||
     value.note === undefined ||
     value.sourceLabel !== 'SELF_REPORTED_EMOTION' ||
     value.clinicalUse !== 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER' ||
@@ -109,6 +143,18 @@ export function parseEmotionCheckIn(value: unknown): EmotionCheckIn | null {
   )
     return null
   return value as EmotionCheckIn
+}
+
+export function parseEmotionCheckInTombstone(
+  value: unknown,
+): EmotionCheckInTombstone | null {
+  return object(value) &&
+    exact(value, ['localDate', 'deleted', 'deletedAt']) &&
+    isLocalDate(value.localDate) &&
+    value.deleted === true &&
+    timestamp(value.deletedAt)
+    ? (value as EmotionCheckInTombstone)
+    : null
 }
 
 const nonNegativeInteger = (value: unknown) =>

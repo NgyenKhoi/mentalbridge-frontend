@@ -1,15 +1,22 @@
 # MentalBridge frontend rules
 
-## Required UI skill
+## Stitch-first UI workflow
 
-Before implementing or reviewing any user-visible frontend change, every agent
-must read and follow `.agents/skills/mentalbridge-ui/SKILL.md`. This requirement
-applies to page work, components, layout, responsive behavior, accessibility,
-motion, and user-facing copy. Backend-only or non-rendered changes are exempt.
+For any task that starts UI design or materially changes a user journey,
+screen composition, controls, responsive behavior, or motion, follow
+`../.codex/skills/mentalbridge-stitch-ui/SKILL.md`. Start from a written UX
+brief and a verified full-frame artifact (reuse an existing one when current),
+lock the shell/sidebar/header/tabs, edit only the declared content slot in the
+established Stitch project, inspect font and component rendering, validate a
+shell-integrated local interaction prototype, then translate the accepted
+direction into repository-owned components and tokens.
+Implementation must not begin before those prototype gates pass. Keep the
+Stitch output as design evidence; do not paste its standalone runtime or CDN
+dependencies into the production application.
 
-The repository skill and its linked contracts are the default quality path.
-Claude or another external reviewer may provide optional advice only when the
-product owner requests it; delivery must never depend on external AI access.
+Small copy, accessibility, and state fixes may go directly through the local
+implementation workflow when a new visual direction is unnecessary. Delivery
+must not depend on an external reviewer.
 
 ## User-facing copy
 

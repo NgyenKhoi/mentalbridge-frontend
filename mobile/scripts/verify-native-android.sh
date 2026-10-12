@@ -19,6 +19,14 @@ if [[ -z "$device" ]]; then
 fi
 
 export CI="${CI:-true}"
+if [[ "${PROVIDER_EVIDENCE:-protected-staging}" == "protected-controlled-real-contract" ]]; then
+  npx expo prebuild --platform android --clean --no-install
+  if ! grep -Fq 'android:usesCleartextTraffic=' android/app/src/main/AndroidManifest.xml; then
+    sed -i \
+      's/<application /<application android:usesCleartextTraffic="true" /' \
+      android/app/src/main/AndroidManifest.xml
+  fi
+fi
 npx expo run:android \
   --variant release \
   --no-bundler

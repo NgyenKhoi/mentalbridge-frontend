@@ -7,6 +7,7 @@ const client = vi.hoisted(() => ({
   startAmendment: vi.fn(),
   saveAmendment: vi.fn(),
   submitAmendment: vi.fn(),
+  cancelAmendment: vi.fn(),
   profileAmendments: vi.fn(),
   amendmentDetail: vi.fn(),
   decideAmendment: vi.fn(),
@@ -110,6 +111,42 @@ describe('profile amendment BFF', () => {
       ).status,
     ).toBe(422)
     expect(client.saveAmendment).not.toHaveBeenCalled()
+  })
+  it('forwards cancellation as an owner command with the exact saved version', async () => {
+    const response = await profileAmendmentRoute(
+      request('POST', { 'If-Match': '"4"' }),
+      'cancel',
+      draftAmendment.id,
+    )
+    expect(response.status).toBe(200)
+    expect(client.cancelAmendment).toHaveBeenCalledWith(
+      'synthetic-access',
+      expect.any(String),
+      draftAmendment.id,
+      '"4"',
+    )
+    expect(sessions.ensureRole).toHaveBeenCalledWith(expect.anything(), [
+      'SPECIALIST',
+    ])
+    expect(
+      (
+        await profileAmendmentRoute(
+          request('POST'),
+          'cancel',
+          draftAmendment.id,
+        )
+      ).status,
+    ).toBe(428)
+    expect(
+      (
+        await profileAmendmentRoute(
+          request('POST', { 'If-Match': '"4"' }),
+          'cancel',
+          'bad',
+        )
+      ).status,
+    ).toBe(400)
+    expect(client.cancelAmendment).toHaveBeenCalledTimes(1)
   })
   it('requires ADMIN for a separate bounded queue and rejects unbounded paging', async () => {
     const response = await profileAmendmentRoute(

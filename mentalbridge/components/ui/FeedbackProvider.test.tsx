@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { useRef, useState } from 'react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -42,6 +43,46 @@ function Harness() {
 }
 
 describe('FeedbackProvider', () => {
+  it('restores focus to the supplied destination if confirmation removes its trigger', async () => {
+    const user = userEvent.setup()
+    function RemovalHarness() {
+      const { confirm } = useFeedback()
+      const [removed, setRemoved] = useState(false)
+      const next = useRef<HTMLButtonElement>(null)
+      return (
+        <>
+          <button ref={next}>Tạo mới</button>
+          {!removed && (
+            <button
+              onClick={() =>
+                void confirm({
+                  title: 'Hủy bản nháp?',
+                  description: 'Bản nháp sẽ được bỏ.',
+                  confirmLabel: 'Hủy bản nháp',
+                  restoreFocusTo: () => next.current,
+                }).then((confirmed) => {
+                  if (confirmed) setRemoved(true)
+                })
+              }
+            >
+              Bỏ bản nháp
+            </button>
+          )}
+        </>
+      )
+    }
+    render(
+      <FeedbackProvider>
+        <RemovalHarness />
+      </FeedbackProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Bỏ bản nháp' }))
+    await user.click(screen.getByRole('button', { name: 'Hủy bản nháp' }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Tạo mới' })).toHaveFocus(),
+    )
+  })
+
   it('renders action and notification toasts in separate live regions', async () => {
     const user = userEvent.setup()
     render(

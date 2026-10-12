@@ -2,11 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Laugh,
-  Smile,
-  Meh,
-  Frown,
-  CloudRain,
   Lock,
   X,
   Clock,
@@ -126,14 +121,6 @@ async function fetchJournalEntry(id: string) {
     errorMessage(problem, 'Không thể tải chi tiết nhật ký.'),
     problem?.code,
   )
-}
-
-const MOOD_ICONS: Record<JournalMood, typeof Laugh> = {
-  GREAT: Laugh,
-  GOOD: Smile,
-  OKAY: Meh,
-  LOW: Frown,
-  VERY_LOW: CloudRain,
 }
 
 const PRESET_TAGS = [
@@ -872,7 +859,6 @@ export default function JournalPage() {
                       <div className="journal-mood-grid">
                         {JOURNAL_MOODS.map((option, index) => {
                           const isSelected = mood === option.value
-                          const MoodIcon = MOOD_ICONS[option.value]
                           return (
                             <label
                               key={option.value}
@@ -899,7 +885,7 @@ export default function JournalPage() {
                                 className="journal-mood-icon"
                                 aria-hidden="true"
                               >
-                                <MoodIcon size={22} strokeWidth={1.8} />
+                                {option.emoji}
                               </span>
                               <strong className="journal-mood-name">
                                 {option.label}
@@ -1080,7 +1066,7 @@ export default function JournalPage() {
 
                   {/* Cột phải: gợi ý viết, ô nội dung, thanh đếm ký tự */}
                   <div className="journal-col-right">
-                    {/* Banner hỗ trợ nhẹ nhàng khi chọn tâm trạng Không tốt hoặc Rất tệ */}
+                    {/* Banner hỗ trợ nhẹ nhàng khi chọn tâm trạng Không tốt hoặc Rất không tốt */}
                     {(mood === 'LOW' || mood === 'VERY_LOW') && (
                       <div className="journal-support-banner" role="status">
                         <div
