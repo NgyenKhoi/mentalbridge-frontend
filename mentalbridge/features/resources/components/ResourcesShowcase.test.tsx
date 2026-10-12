@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@/lib/api/api-error'
 
 import { ResourceJourneyBrowserError } from '../api/browser-resource-journey'
 import type { ResourceProgressItem } from '../api/browser-resource-progress'
@@ -16,6 +17,11 @@ const api = vi.hoisted(() => ({
   getResourceProgress: vi.fn(),
   saveResourceProgress: vi.fn(),
   getResourceJourney: vi.fn(),
+  getResourceBookmarks: vi.fn(),
+  saveResourceBookmark: vi.fn(),
+  deleteResourceBookmark: vi.fn(),
+  getResourceBingo: vi.fn(),
+  setResourceBingoSelfConfirmation: vi.fn(),
 }))
 
 vi.mock('../api/browser-resources', () => ({
@@ -33,6 +39,13 @@ vi.mock('../api/browser-resource-journey', () => ({
       this.name = 'ResourceJourneyBrowserError'
     }
   },
+}))
+vi.mock('../api/browser-resource-engagement', () => ({
+  getResourceBookmarks: api.getResourceBookmarks,
+  saveResourceBookmark: api.saveResourceBookmark,
+  deleteResourceBookmark: api.deleteResourceBookmark,
+  getResourceBingo: api.getResourceBingo,
+  setResourceBingoSelfConfirmation: api.setResourceBingoSelfConfirmation,
 }))
 
 const resource: PublicResourceSummary = {
@@ -97,6 +110,34 @@ function completedProgress(localDate = '2026-09-29'): ResourceProgressItem {
   }
 }
 
+function bingo(
+  evidence: 'NONE' | 'SELF_CONFIRMED' | 'CONTENT_VERIFIED' = 'NONE',
+) {
+  return {
+    weekStart: '2026-09-28',
+    timeZone: 'Asia/Ho_Chi_Minh',
+    version: '0',
+    updatedAt: '2026-09-29T02:15:00.000Z',
+    items: [
+      {
+        position: 1,
+        resourceId: resource.id,
+        contentVersion: '7',
+        label: resource.title,
+        evidence,
+        selfConfirmedAt:
+          evidence === 'SELF_CONFIRMED' ? '2026-09-29T02:15:00.000Z' : null,
+        verifiedAt:
+          evidence === 'CONTENT_VERIFIED' ? '2026-09-29T02:15:00.000Z' : null,
+        verificationSource:
+          evidence === 'CONTENT_VERIFIED'
+            ? ('RESOURCE_COMPLETION' as const)
+            : null,
+      },
+    ],
+  }
+}
+
 describe('ResourcesShowcase truthful progress', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -111,6 +152,19 @@ describe('ResourcesShowcase truthful progress', () => {
       journey(date),
     )
     api.saveResourceProgress.mockResolvedValue(completedProgress())
+    api.getResourceBookmarks.mockResolvedValue([])
+    api.saveResourceBookmark.mockResolvedValue({
+      resourceId: resource.id,
+      contentVersion: '7',
+      savedAt: '2026-09-29T02:15:00.000Z',
+      version: '0',
+    })
+    api.deleteResourceBookmark.mockResolvedValue(undefined)
+    api.getResourceBingo.mockResolvedValue({ board: bingo(), etag: '"0"' })
+    api.setResourceBingoSelfConfirmation.mockResolvedValue({
+      board: bingo('SELF_CONFIRMED'),
+      etag: '"1"',
+    })
   })
 
   afterEach(() => {
@@ -252,13 +306,13 @@ describe('ResourcesShowcase truthful progress', () => {
       await screen.findAllByText(
         'Hoàn thành đã được lưu, nhưng chưa thể đối soát hành trình hôm nay. Tổng ngày, chuỗi thực hành và bingo đang được ẩn cho đến khi xác minh lại.',
       ),
-    ).toHaveLength(2)
+    ).toHaveLength(1)
     expect(
       screen.getAllByText(`✓ Đã lưu hoàn thành “${resource.title}”.`),
     ).toHaveLength(1)
     expect(within(panel).queryByText('4 ngày đã lưu')).not.toBeInTheDocument()
     expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument()
-    expect(screen.queryByText('Đã lưu: 0/1 ô')).not.toBeInTheDocument()
+    expect(screen.queryByText('Chưa đánh dấu')).not.toBeInTheDocument()
 
     await user.click(
       within(panel).getByRole('button', { name: 'Đối soát lại' }),
@@ -269,7 +323,7 @@ describe('ResourcesShowcase truthful progress', () => {
       'aria-valuenow',
       '1',
     )
-    expect(screen.getByText('Đã lưu: 1/1 ô')).toBeVisible()
+    expect(await screen.findByText('Chưa đánh dấu')).toBeVisible()
     expect(
       screen.getAllByText(`✓ Đã lưu hoàn thành “${resource.title}”.`),
     ).toHaveLength(1)
@@ -299,5 +353,71 @@ describe('ResourcesShowcase truthful progress', () => {
       ),
     ).toBeVisible()
     expect(screen.queryByText(/content-v7/)).not.toBeInTheDocument()
+  })
+
+  it('persists and rebuilds bookmarks from the owner API', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const view = render(<ResourcesShowcase />)
+
+    const saveButtons = await screen.findAllByRole('button', {
+      name: `Lưu: ${resource.title}`,
+    })
+    await user.click(saveButtons[0])
+    expect(api.saveResourceBookmark).toHaveBeenCalledWith(resource.id)
+    expect(
+      await screen.findAllByRole('button', {
+        name: `Bỏ lưu: ${resource.title}`,
+      }),
+    ).not.toHaveLength(0)
+
+    view.unmount()
+    api.getResourceBookmarks.mockResolvedValue([
+      {
+        resourceId: resource.id,
+        contentVersion: '7',
+        savedAt: '2026-09-29T02:15:00.000Z',
+        version: '0',
+      },
+    ])
+    render(<ResourcesShowcase />)
+    expect(
+      await screen.findAllByRole('button', {
+        name: `Bỏ lưu: ${resource.title}`,
+      }),
+    ).not.toHaveLength(0)
+  })
+
+  it('separates self-confirmed Bingo evidence and hides stale state after a conflict', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    api.setResourceBingoSelfConfirmation
+      .mockResolvedValueOnce({
+        board: bingo('SELF_CONFIRMED'),
+        etag: '"1"',
+      })
+      .mockRejectedValueOnce(
+        new ApiError({
+          message: 'conflict',
+          code: 'STALE_VERSION',
+          status: 412,
+        }),
+      )
+    render(<ResourcesShowcase />)
+
+    await user.click(await screen.findByRole('button', { name: 'Tự đánh dấu' }))
+    expect(await screen.findByText('Bạn tự đánh dấu')).toBeVisible()
+    expect(screen.queryByText(/Đã xác minh/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Bỏ tự đánh dấu' }))
+    expect(
+      await screen.findByText(
+        'Thay đổi Bingo chưa được đối soát. Các dấu cũ đang được ẩn để tránh nhầm là trạng thái hiện tại.',
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText('Bạn tự đánh dấu')).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Tải trạng thái mới nhất' }),
+    )
+    expect(await screen.findByText('Chưa đánh dấu')).toBeVisible()
   })
 })

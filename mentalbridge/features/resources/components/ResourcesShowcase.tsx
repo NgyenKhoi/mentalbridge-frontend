@@ -4,7 +4,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TodayEmotionSummary } from '@/features/emotion-check-in/TodayEmotionSummary'
+import { ApiError } from '@/lib/api/api-error'
 
+import {
+  getResourceBingo,
+  setResourceBingoSelfConfirmation,
+  type ResourceBingoBoard,
+} from '../api/browser-resource-engagement'
 import {
   getResourceJourney,
   ResourceJourneyBrowserError,
@@ -25,7 +31,9 @@ import {
   resourcePresentation,
   shiftDate,
 } from '../model/resource-experience'
+import { useResourceBookmarks } from '../hooks/useResourceBookmarks'
 import { AnimatedResourceSticker } from './AnimatedResourceSticker'
+import { ResourceBingoPanel } from './ResourceBingoPanel'
 import styles from './resources-showcase.module.css'
 
 type Filter = 'all' | 'short' | 'medium' | 'challenge'
@@ -40,6 +48,7 @@ type JourneyState =
   | 'stale-current'
 type JourneyDateState =
   'ready' | 'missing' | 'plan-required' | 'error' | 'stale'
+type BingoState = 'idle' | 'loading' | 'ready' | 'missing' | 'error' | 'stale'
 
 const resourceArtworks = [
   {
@@ -161,6 +170,14 @@ export default function ResourcesShowcase() {
   const [saveError, setSaveError] = useState('')
   const [completionMessage, setCompletionMessage] = useState('')
   const [journeyRetrying, setJourneyRetrying] = useState(false)
+  const [bingoBoard, setBingoBoard] = useState<ResourceBingoBoard | null>(null)
+  const [bingoWeekStart, setBingoWeekStart] = useState('')
+  const [bingoEtag, setBingoEtag] = useState('')
+  const [bingoState, setBingoState] = useState<BingoState>('idle')
+  const [bingoPendingPosition, setBingoPendingPosition] = useState<
+    number | null
+  >(null)
+  const bookmarks = useResourceBookmarks()
   const acknowledgedCompletions = useRef(new Set<string>())
 
   useEffect(() => {
@@ -274,6 +291,67 @@ export default function ResourcesShowcase() {
   const visible = expanded ? curated : curated.slice(0, 5)
   const journey =
     journeyDateStates[today] === 'ready' ? journeys[today] : undefined
+
+  async function fetchBingo(weekStart: string) {
+    try {
+      const result = await getResourceBingo(weekStart)
+      setBingoBoard(result.board)
+      setBingoEtag(result.etag)
+      setBingoWeekStart(weekStart)
+      setBingoState('ready')
+    } catch (error) {
+      setBingoBoard(null)
+      setBingoEtag('')
+      setBingoWeekStart(weekStart)
+      setBingoState(
+        error instanceof ApiError && error.status === 404 ? 'missing' : 'error',
+      )
+    }
+  }
+
+  async function loadBingo(weekStart: string) {
+    setBingoState('loading')
+    setBingoBoard(null)
+    setBingoEtag('')
+    setBingoWeekStart(weekStart)
+    await fetchBingo(weekStart)
+  }
+
+  useEffect(() => {
+    const weekStart = journey?.weekStart
+    if (!weekStart) return
+    let active = true
+    void getResourceBingo(weekStart)
+      .then((result) => {
+        if (!active) return
+        setBingoBoard(result.board)
+        setBingoEtag(result.etag)
+        setBingoWeekStart(weekStart)
+        setBingoState('ready')
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setBingoBoard(null)
+        setBingoEtag('')
+        setBingoWeekStart(weekStart)
+        setBingoState(
+          error instanceof ApiError && error.status === 404
+            ? 'missing'
+            : 'error',
+        )
+      })
+    return () => {
+      active = false
+    }
+  }, [journey?.weekStart])
+
+  const currentBingoBoard =
+    journey?.weekStart === bingoWeekStart ? bingoBoard : null
+  const currentBingoState: BingoState = journey?.weekStart
+    ? journey.weekStart === bingoWeekStart
+      ? bingoState
+      : 'loading'
+    : 'idle'
   const completedRecent = progress
     .filter((entry) => entry.status === 'COMPLETED')
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
@@ -304,6 +382,7 @@ export default function ResourcesShowcase() {
       setJourneys((current) => ({ ...current, [today]: refreshed }))
       setJourneyDateStates(nextStates)
       setJourneyState(currentJourneyState(today, nextStates))
+      await loadBingo(refreshed.weekStart)
     } catch {
       setJourneys((current) => {
         const next = { ...current }
@@ -317,6 +396,32 @@ export default function ResourcesShowcase() {
       setJourneyState('stale-current')
     } finally {
       setJourneyRetrying(false)
+    }
+  }
+
+  async function toggleBingo(position: number, selfConfirmed: boolean) {
+    if (!bingoBoard || bingoState !== 'ready' || bingoPendingPosition !== null)
+      return
+    setBingoPendingPosition(position)
+    try {
+      const result = await setResourceBingoSelfConfirmation(
+        bingoBoard.weekStart,
+        position,
+        selfConfirmed,
+        bingoEtag,
+      )
+      setBingoBoard(result.board)
+      setBingoEtag(result.etag)
+      setBingoState('ready')
+    } catch {
+      // The write may have committed or another device may have changed the
+      // version. Never present the previous board as current after either case.
+      setBingoBoard(null)
+      setBingoEtag('')
+      setBingoWeekStart(bingoBoard.weekStart)
+      setBingoState('stale')
+    } finally {
+      setBingoPendingPosition(null)
     }
   }
 
@@ -422,6 +527,28 @@ export default function ResourcesShowcase() {
               <span className={styles.demoBadge}>
                 Nguồn: {feature.sourceOrganization}
               </span>
+            )}
+            {feature && (
+              <button
+                type="button"
+                className={styles.bookmark}
+                aria-label={`${bookmarks.isBookmarked(feature.id) ? 'Bỏ lưu' : 'Lưu'}: ${feature.title}`}
+                aria-pressed={
+                  bookmarks.state === 'ready' &&
+                  bookmarks.isBookmarked(feature.id)
+                }
+                disabled={
+                  bookmarks.state !== 'ready' ||
+                  bookmarks.pendingResourceId !== null
+                }
+                onClick={() => void bookmarks.toggle(feature.id)}
+              >
+                {bookmarks.pendingResourceId === feature.id
+                  ? '…'
+                  : bookmarks.isBookmarked(feature.id)
+                    ? '★'
+                    : '☆'}
+              </button>
             )}
           </div>
           <div className={styles.heroContent}>
@@ -591,6 +718,22 @@ export default function ResourcesShowcase() {
       </div>
 
       <section className={styles.catalogue} aria-labelledby="catalogue-title">
+        {bookmarks.state !== 'ready' && (
+          <div className={styles.bookmarkState} role="status">
+            <p>
+              {bookmarks.state === 'loading'
+                ? 'Đang tải danh sách đã lưu…'
+                : bookmarks.state === 'stale'
+                  ? 'Thay đổi mục đã lưu chưa được đối soát. Trạng thái cũ đang được ẩn.'
+                  : 'Chưa tải được danh sách đã lưu. Bạn vẫn có thể mở tài nguyên.'}
+            </p>
+            {bookmarks.state !== 'loading' && (
+              <button type="button" onClick={() => void bookmarks.retry()}>
+                Tải lại mục đã lưu
+              </button>
+            )}
+          </div>
+        )}
         <div className={styles.sectionHead}>
           <div>
             <div className={styles.titleLine}>
@@ -708,6 +851,26 @@ export default function ResourcesShowcase() {
                       >
                         {progressLabel}
                       </span>
+                      <button
+                        type="button"
+                        className={styles.cardBookmark}
+                        aria-label={`${bookmarks.isBookmarked(resource.id) ? 'Bỏ lưu' : 'Lưu'}: ${resource.title}`}
+                        aria-pressed={
+                          bookmarks.state === 'ready' &&
+                          bookmarks.isBookmarked(resource.id)
+                        }
+                        disabled={
+                          bookmarks.state !== 'ready' ||
+                          bookmarks.pendingResourceId !== null
+                        }
+                        onClick={() => void bookmarks.toggle(resource.id)}
+                      >
+                        {bookmarks.pendingResourceId === resource.id
+                          ? '…'
+                          : bookmarks.isBookmarked(resource.id)
+                            ? '★ Đã lưu'
+                            : '☆ Lưu'}
+                      </button>
                       <Link
                         href={resourceHref(resource, today)}
                         aria-label={`Mở hoạt động: ${resource.title}`}
@@ -737,52 +900,17 @@ export default function ResourcesShowcase() {
       </section>
 
       <div className={styles.lowerRow}>
-        <section className={styles.bingo} aria-labelledby="bingo-title">
-          <div className={styles.panelHead}>
-            <div>
-              <h2 id="bingo-title">Bingo hoạt động trong kế hoạch</h2>
-              <p>Dấu hoàn thành được lấy từ tiến độ đã lưu của bạn.</p>
-            </div>
-            {journey && (
-              <span>
-                Đã lưu: {journey.bingo.filter((item) => item.stamped).length}/
-                {journey.bingo.length} ô
-              </span>
-            )}
-          </div>
-          {journey ? (
-            journey.bingo.length ? (
-              <div className={styles.bingoGrid} role="list">
-                {journey.bingo.map((item) => (
-                  <div
-                    role="listitem"
-                    key={`${item.position}:${item.resourceId}`}
-                    className={item.stamped ? styles.bingoStamped : ''}
-                    aria-label={`${item.label}, ${item.stamped ? 'đã lưu hoàn thành' : 'chưa hoàn thành'}`}
-                  >
-                    <span aria-hidden="true">{item.stamped ? '✓' : '○'}</span>
-                    <strong>{item.label}</strong>
-                    <small>
-                      {item.stamped ? 'Đã lưu hoàn thành' : 'Chưa hoàn thành'}
-                    </small>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.panelEmpty} role="status">
-                Kế hoạch hôm nay chưa có ô bingo.
-              </p>
-            )
-          ) : (
-            <p className={styles.panelEmpty} role="status">
-              {journeyStateCopy(journeyState)}
-            </p>
-          )}
-          <p className={styles.bingoNote}>
-            Mở một hoạt động không tự đánh dấu hoàn thành. Bạn cần xác nhận lưu
-            tiến độ trong hoạt động đó.
-          </p>
-        </section>
+        <ResourceBingoPanel
+          board={currentBingoBoard}
+          state={currentBingoState}
+          pendingPosition={bingoPendingPosition}
+          onToggle={(position, selfConfirmed) =>
+            void toggleBingo(position, selfConfirmed)
+          }
+          onRetry={() => {
+            if (journey?.weekStart) void loadBingo(journey.weekStart)
+          }}
+        />
 
         <div className={styles.sideStack}>
           <TodayEmotionSummary />

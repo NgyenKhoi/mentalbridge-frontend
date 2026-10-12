@@ -8,6 +8,10 @@ import {
   parseWellbeingDigestPreview,
   parsePublicResourceDetail,
   parseResourceJourney,
+  parseResourceBookmark,
+  parseResourceBookmarkList,
+  parseResourceBingoBoard,
+  parseResourceBingoSelfConfirmationUpdate,
   parseResourceProgressItem,
   parseResourceProgressList,
   parseResourceProgressUpdate,
@@ -195,6 +199,59 @@ describe('Content response validation', () => {
     expect(parseResourceJourney({ ...journey, planDay: 15 })).toBeNull()
     expect(
       parseResourceJourney({ ...journey, planStage: undefined }),
+    ).toBeNull()
+  })
+
+  it('validates closed bookmark and Bingo evidence contracts', () => {
+    const bookmark = {
+      resourceId: requiredSummary.id,
+      contentVersion: '4',
+      savedAt: '2026-09-29T02:00:00.000Z',
+      version: '1',
+    }
+    expect(parseResourceBookmark(bookmark)).toEqual(bookmark)
+    expect(parseResourceBookmarkList({ items: [bookmark] })).toEqual({
+      items: [bookmark],
+    })
+    expect(
+      parseResourceBookmark({ ...bookmark, ownerId: 'private' }),
+    ).toBeNull()
+
+    const item = {
+      position: 1,
+      resourceId: requiredSummary.id,
+      contentVersion: '4',
+      label: 'Thở chậm',
+      evidence: 'SELF_CONFIRMED',
+      selfConfirmedAt: '2026-09-29T02:00:00.000Z',
+      verifiedAt: null,
+      verificationSource: null,
+    }
+    const board = {
+      weekStart: '2026-09-28',
+      timeZone: 'Asia/Ho_Chi_Minh',
+      version: '1',
+      updatedAt: '2026-09-29T02:00:00.000Z',
+      items: [item],
+    }
+    expect(parseResourceBingoBoard(board)).toEqual(board)
+    expect(
+      parseResourceBingoBoard({ ...board, weekStart: '2026-09-29' }),
+    ).toBeNull()
+    expect(
+      parseResourceBingoBoard({
+        ...board,
+        items: [{ ...item, evidence: 'CONTENT_VERIFIED' }],
+      }),
+    ).toBeNull()
+    expect(
+      parseResourceBingoSelfConfirmationUpdate({ selfConfirmed: false }),
+    ).toEqual({ selfConfirmed: false })
+    expect(
+      parseResourceBingoSelfConfirmationUpdate({
+        selfConfirmed: true,
+        fabricated: true,
+      }),
     ).toBeNull()
   })
 

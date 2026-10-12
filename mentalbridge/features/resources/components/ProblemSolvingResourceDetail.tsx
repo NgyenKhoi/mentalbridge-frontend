@@ -37,6 +37,7 @@ import {
 
 import type { PublicResourceDetail } from '../api/browser-resources'
 import { problemSolvingLessonConfig } from '../data/problem-solving-lesson'
+import { useResourceBookmarks } from '../hooks/useResourceBookmarks'
 import styles from './problem-solving-resource-detail.module.css'
 
 type Props = Readonly<{
@@ -133,20 +134,18 @@ export function ProblemSolvingResourceDetail({
   const [playbackSpeedIndex, setPlaybackSpeedIndex] = useState(0)
   const [captionsEnabled, setCaptionsEnabled] = useState(true)
   const [centerButtonVisible, setCenterButtonVisible] = useState(true)
-  const [saved, setSaved] = useState(false)
   const [shareToast, setShareToast] = useState('')
   const [practiceNote, setPracticeNote] = useState('')
   const [recordState, setRecordState] = useState<
     'idle' | 'sending' | 'success' | 'error'
   >('idle')
-  // Load bookmark & draft practice note from localStorage
+  const bookmarks = useResourceBookmarks()
+  const saved = bookmarks.isBookmarked(resource.id)
+
+  // Keep only the unfinished private practice draft in local storage.
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       try {
-        setSaved(
-          window.localStorage.getItem(`mb:resource-bookmark:${resource.id}`) ===
-            'true',
-        )
         const draft = window.localStorage.getItem(
           `mb:practice-draft:problem-solving:${resource.id}`,
         )
@@ -403,17 +402,16 @@ export function ProblemSolvingResourceDetail({
     }
   }
 
-  function toggleBookmark() {
-    const next = !saved
-    setSaved(next)
-    try {
-      window.localStorage.setItem(
-        `mb:resource-bookmark:${resource.id}`,
-        String(next),
-      )
-    } catch {
-      setShareToast('Trình duyệt chưa cho phép lưu trên thiết bị.')
+  async function toggleBookmark() {
+    if (bookmarks.state === 'error' || bookmarks.state === 'stale') {
+      await bookmarks.retry()
+      return
     }
+    const changed = await bookmarks.toggle(resource.id)
+    if (!changed)
+      setShareToast(
+        'Chưa đối soát được mục đã lưu. Hãy tải lại trạng thái trước khi thử lại.',
+      )
   }
 
   async function shareLesson() {
@@ -572,8 +570,12 @@ export function ProblemSolvingResourceDetail({
             <button
               type="button"
               className={styles.bookmarkBtn}
-              onClick={toggleBookmark}
-              aria-pressed={saved}
+              onClick={() => void toggleBookmark()}
+              aria-pressed={bookmarks.state === 'ready' && saved}
+              disabled={
+                bookmarks.state === 'loading' ||
+                bookmarks.pendingResourceId !== null
+              }
               aria-label={
                 saved
                   ? 'Bỏ lưu bài học trên thiết bị'
@@ -585,7 +587,15 @@ export function ProblemSolvingResourceDetail({
                 fill={saved ? 'currentColor' : 'none'}
                 aria-hidden="true"
               />
-              <span>{saved ? 'Đã lưu' : 'Lưu bài học'}</span>
+              <span>
+                {bookmarks.pendingResourceId === resource.id
+                  ? 'Đang lưu…'
+                  : bookmarks.state === 'error' || bookmarks.state === 'stale'
+                    ? 'Tải lại mục đã lưu'
+                    : saved
+                      ? 'Đã lưu'
+                      : 'Lưu bài học'}
+              </span>
             </button>
             <button
               type="button"

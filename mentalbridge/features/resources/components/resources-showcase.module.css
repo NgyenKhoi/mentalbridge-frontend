@@ -105,6 +105,39 @@
   background: rgb(255 255 255 / 17%);
   font-size: 24px !important;
 }
+.bookmark:disabled,
+.cardBookmark:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+.bookmarkState {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #ead7ac;
+  border-radius: 12px;
+  background: #fff9e9;
+  color: #6f5223;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.bookmarkState p {
+  margin: 0;
+}
+.bookmarkState button,
+.bingoState button {
+  flex: none;
+  min-height: 44px;
+  padding: 8px 13px;
+  border: 1px solid var(--rs-moss);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--rs-moss);
+  font-weight: 750;
+}
 .heroContent {
   max-width: 570px;
 }
@@ -690,6 +723,26 @@
   text-decoration: none;
   white-space: nowrap;
 }
+.cardBookmark {
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid #b8cec3;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.cardBookmark[aria-pressed='true'] {
+  border-color: #b58219;
+  background: #fff4d4;
+  color: #795307;
+}
+.audioCard .cardBookmark {
+  border-color: rgb(255 255 255 / 42%);
+  color: #fff;
+}
 .featureCard .cardFooter a {
   padding: 0 12px;
   border-radius: 10px;
@@ -779,6 +832,43 @@
 .bingoGrid > div small {
   color: var(--rs-muted);
   font-size: 10px;
+}
+.bingoGrid > div button {
+  min-height: 44px;
+  margin-top: 5px;
+  padding: 6px 9px;
+  border: 1px solid currentColor;
+  border-radius: 9px;
+  background: rgb(255 255 255 / 72%);
+  color: var(--rs-moss);
+  font-size: 11px;
+  font-weight: 750;
+}
+.bingoGrid .bingoVerified {
+  border: 2px solid #19bd90;
+  background: #e3f6ee;
+}
+.bingoGrid .bingoSelfConfirmed {
+  border: 2px solid #d99c2b;
+  background: #fff8e7;
+}
+.bingoGrid .bingoSelfConfirmed > span {
+  color: #b7760a;
+}
+.bingoState {
+  display: grid;
+  gap: 12px;
+  margin-top: 17px;
+  padding: 16px;
+  border: 1px dashed #c8dcd0;
+  border-radius: 12px;
+  background: #f7faf8;
+  color: var(--rs-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.bingoState p {
+  margin: 0;
 }
 .bingoGrid .bingoStamped {
   border: 2px solid #19bd90;
@@ -1002,6 +1092,21 @@
   }
   .bingoGrid > div {
     min-height: 90px;
+  }
+  .bookmarkState {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .bookmarkState button {
+    width: 100%;
+  }
+  .cardFooter {
+    flex-wrap: wrap;
+  }
+  .cardFooter a,
+  .cardBookmark {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 }
 @media (prefers-reduced-motion: reduce) {

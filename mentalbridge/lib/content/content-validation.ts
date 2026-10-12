@@ -23,6 +23,11 @@ export type ResourceProgressUpdate =
 export type ResourceJourney = components['schemas']['ResourceJourney']
 export type ResourceJourneyRequest =
   components['schemas']['ResourceJourneyRequest']
+export type ResourceBookmark = components['schemas']['ResourceBookmark']
+export type ResourceBookmarkList = components['schemas']['ResourceBookmarkList']
+export type ResourceBingoBoard = components['schemas']['ResourceBingoBoard']
+export type ResourceBingoSelfConfirmationUpdate =
+  components['schemas']['ResourceBingoSelfConfirmationUpdate']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -428,6 +433,140 @@ export function parseResourceProgressList(
     return null
   }
   return list as ResourceProgressList
+}
+
+export function parseResourceBookmark(value: unknown): ResourceBookmark | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, ['resourceId', 'contentVersion', 'savedAt', 'version']) ||
+    typeof item.resourceId !== 'string' ||
+    !UUID.test(item.resourceId) ||
+    typeof item.contentVersion !== 'string' ||
+    !CONTENT_VERSION.test(item.contentVersion) ||
+    !dateTime(item.savedAt) ||
+    typeof item.version !== 'string' ||
+    !CONTENT_VERSION.test(item.version)
+  ) {
+    return null
+  }
+  return item as ResourceBookmark
+}
+
+export function parseResourceBookmarkList(
+  value: unknown,
+): ResourceBookmarkList | null {
+  const list = record(value)
+  if (
+    !list ||
+    !exactKeys(list, ['items']) ||
+    !Array.isArray(list.items) ||
+    list.items.length > 1000 ||
+    !list.items.every((item) => parseResourceBookmark(item) !== null)
+  ) {
+    return null
+  }
+  return list as ResourceBookmarkList
+}
+
+export function parseResourceBingoBoard(
+  value: unknown,
+): ResourceBingoBoard | null {
+  const board = record(value)
+  if (
+    !board ||
+    !exactKeys(board, [
+      'weekStart',
+      'timeZone',
+      'version',
+      'updatedAt',
+      'items',
+    ]) ||
+    typeof board.weekStart !== 'string' ||
+    !isLocalDate(board.weekStart) ||
+    new Date(`${board.weekStart}T00:00:00.000Z`).getUTCDay() !== 1 ||
+    typeof board.timeZone !== 'string' ||
+    board.timeZone.length < 1 ||
+    board.timeZone.length > 64 ||
+    typeof board.version !== 'string' ||
+    !CONTENT_VERSION.test(board.version) ||
+    !dateTime(board.updatedAt) ||
+    !Array.isArray(board.items) ||
+    board.items.length > 9
+  ) {
+    return null
+  }
+  const positions = new Set<number>()
+  const resources = new Set<string>()
+  for (const value of board.items) {
+    const item = record(value)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'position',
+        'resourceId',
+        'contentVersion',
+        'label',
+        'evidence',
+        'selfConfirmedAt',
+        'verifiedAt',
+        'verificationSource',
+      ]) ||
+      !Number.isSafeInteger(item.position) ||
+      (item.position as number) < 1 ||
+      (item.position as number) > 9 ||
+      positions.has(item.position as number) ||
+      typeof item.resourceId !== 'string' ||
+      !UUID.test(item.resourceId) ||
+      resources.has(item.resourceId) ||
+      typeof item.contentVersion !== 'string' ||
+      !CONTENT_VERSION.test(item.contentVersion) ||
+      typeof item.label !== 'string' ||
+      item.label.length < 1 ||
+      item.label.length > 300 ||
+      !['NONE', 'SELF_CONFIRMED', 'CONTENT_VERIFIED'].includes(
+        item.evidence as string,
+      ) ||
+      !nullableDateTime(item.selfConfirmedAt) ||
+      !nullableDateTime(item.verifiedAt) ||
+      !(
+        item.verificationSource === null ||
+        item.verificationSource === 'RESOURCE_COMPLETION' ||
+        item.verificationSource === 'PRACTICE_SESSION'
+      )
+    ) {
+      return null
+    }
+    if (
+      (item.evidence === 'NONE' &&
+        (item.selfConfirmedAt !== null ||
+          item.verifiedAt !== null ||
+          item.verificationSource !== null)) ||
+      (item.evidence === 'SELF_CONFIRMED' &&
+        (item.selfConfirmedAt === null ||
+          item.verifiedAt !== null ||
+          item.verificationSource !== null)) ||
+      (item.evidence === 'CONTENT_VERIFIED' &&
+        (item.verifiedAt === null || item.verificationSource === null))
+    ) {
+      return null
+    }
+    positions.add(item.position as number)
+    resources.add(item.resourceId)
+  }
+  return board as ResourceBingoBoard
+}
+
+export function parseResourceBingoSelfConfirmationUpdate(
+  value: unknown,
+): ResourceBingoSelfConfirmationUpdate | null {
+  const update = record(value)
+  return update &&
+    exactKeys(update, ['selfConfirmed']) &&
+    Object.keys(update).length === 1 &&
+    typeof update.selfConfirmed === 'boolean'
+    ? (update as ResourceBingoSelfConfirmationUpdate)
+    : null
 }
 
 export function parseResourceProgressUpdate(

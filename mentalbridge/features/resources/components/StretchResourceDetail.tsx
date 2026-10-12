@@ -36,6 +36,7 @@ import {
 
 import type { PublicResourceDetail } from '../api/browser-resources'
 import { stretchExerciseSteps } from '../model/stretch-exercise-steps'
+import { useResourceBookmarks } from '../hooks/useResourceBookmarks'
 import styles from './stretch-resource-detail.module.css'
 
 type Props = Readonly<{
@@ -120,7 +121,6 @@ export function StretchResourceDetail({
   const [volume, setVolume] = useState(80)
   const [muted, setMuted] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [shareMessage, setShareMessage] = useState('')
   const [recordState, setRecordState] = useState<
     'idle' | 'sending' | 'success' | 'error'
@@ -128,19 +128,8 @@ export function StretchResourceDetail({
   const [showCues, setShowCues] = useState(true)
   const [playbackRate, setPlaybackRate] = useState(1)
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      try {
-        setSaved(
-          window.localStorage.getItem(`mb:resource-bookmark:${resource.id}`) ===
-            'true',
-        )
-      } catch {
-        setSaved(false)
-      }
-    }, 0)
-    return () => window.clearTimeout(timeout)
-  }, [resource.id])
+  const bookmarks = useResourceBookmarks()
+  const saved = bookmarks.isBookmarked(resource.id)
 
   useEffect(() => {
     const onFullscreenChange = () =>
@@ -370,19 +359,16 @@ export function StretchResourceDetail({
     }
   }
 
-  function toggleBookmark() {
-    const next = !saved
-    setSaved(next)
-    try {
-      window.localStorage.setItem(
-        `mb:resource-bookmark:${resource.id}`,
-        String(next),
-      )
-    } catch {
-      setShareMessage(
-        'Trình duyệt chưa cho phép lưu bài tập trên thiết bị này.',
-      )
+  async function toggleBookmark() {
+    if (bookmarks.state === 'error' || bookmarks.state === 'stale') {
+      await bookmarks.retry()
+      return
     }
+    const changed = await bookmarks.toggle(resource.id)
+    if (!changed)
+      setShareMessage(
+        'Chưa đối soát được mục đã lưu. Hãy tải lại trạng thái trước khi thử lại.',
+      )
   }
 
   async function shareResource() {
@@ -437,8 +423,12 @@ export function StretchResourceDetail({
           <div className={styles.toolbarActions}>
             <button
               type="button"
-              onClick={toggleBookmark}
-              aria-pressed={saved}
+              onClick={() => void toggleBookmark()}
+              aria-pressed={bookmarks.state === 'ready' && saved}
+              disabled={
+                bookmarks.state === 'loading' ||
+                bookmarks.pendingResourceId !== null
+              }
               aria-label={
                 saved
                   ? 'Bỏ lưu bài tập trên thiết bị'
@@ -450,7 +440,15 @@ export function StretchResourceDetail({
                 fill={saved ? 'currentColor' : 'none'}
                 aria-hidden="true"
               />
-              <span>{saved ? 'Đã lưu' : 'Lưu bài tập'}</span>
+              <span>
+                {bookmarks.pendingResourceId === resource.id
+                  ? 'Đang lưu…'
+                  : bookmarks.state === 'error' || bookmarks.state === 'stale'
+                    ? 'Tải lại mục đã lưu'
+                    : saved
+                      ? 'Đã lưu'
+                      : 'Lưu bài tập'}
+              </span>
             </button>
             <button
               type="button"
