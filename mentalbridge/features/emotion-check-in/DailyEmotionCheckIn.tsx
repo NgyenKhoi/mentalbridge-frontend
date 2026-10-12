@@ -7,9 +7,11 @@ import { ApiError } from '@/lib/api/api-error'
 import type {
   Emotion,
   EmotionCheckIn,
+  EmotionInfluenceFactor,
   EmotionCheckInValue,
 } from '@/lib/emotion-check-in/contract'
 import {
+  emotionInfluenceOptions,
   emotionOptions,
   emotionPresentation,
   localDateInTimeZone,
@@ -25,11 +27,28 @@ import styles from './DailyEmotionCheckIn.module.css'
 
 export { localDateInTimeZone } from '@/lib/emotion-check-in/presentation'
 
-type Draft = Readonly<{ emotion: Emotion | null; intensity: number | null }>
+type Draft = Readonly<{
+  emotion: Emotion | null
+  intensity: number | null
+  factors: readonly EmotionInfluenceFactor[]
+  note: string
+}>
 type Phase =
   'loading' | 'empty' | 'ready' | 'saving' | 'deleting' | 'saved' | 'error'
 type RetryKind = 'load' | 'save' | 'delete'
-const emptyDraft: Draft = { emotion: null, intensity: null }
+const emptyDraft: Draft = {
+  emotion: null,
+  intensity: null,
+  factors: [],
+  note: '',
+}
+
+const savedDraft = (checkIn: EmotionCheckIn): Draft => ({
+  emotion: checkIn.emotion,
+  intensity: checkIn.intensity,
+  factors: checkIn.factors,
+  note: checkIn.note ?? '',
+})
 
 function commandKey() {
   const id =
@@ -99,7 +118,7 @@ export function DailyEmotionCheckIn({
       .then((checkIn) => {
         if (!active) return
         setPersisted(checkIn)
-        setDraft({ emotion: checkIn.emotion, intensity: checkIn.intensity })
+        setDraft(savedDraft(checkIn))
         setPhase('ready')
         setMessage('Đã tải ghi nhận tự báo cáo hôm nay.')
       })
@@ -143,7 +162,9 @@ export function DailyEmotionCheckIn({
 
   const draftChanged =
     draft.emotion !== (persisted?.emotion ?? null) ||
-    draft.intensity !== (persisted?.intensity ?? null)
+    draft.intensity !== (persisted?.intensity ?? null) ||
+    draft.note.trim() !== (persisted?.note ?? '') ||
+    draft.factors.join(',') !== (persisted?.factors ?? []).join(',')
   const isComplete = draft.emotion !== null && draft.intensity !== null
   const isSubmitting = phase === 'saving' || phase === 'deleting'
   const loadBlocked = phase === 'error' && retryKind === 'load'
@@ -153,13 +174,16 @@ export function DailyEmotionCheckIn({
     const value: EmotionCheckInValue = {
       emotion: draft.emotion,
       intensity: draft.intensity,
-      note: null,
+      factors: [...draft.factors],
+      note: draft.note.trim() || null,
     }
     const existing = persisted
     if (
       existing &&
       existing.emotion === draft.emotion &&
-      existing.intensity === draft.intensity
+      existing.intensity === draft.intensity &&
+      existing.note === value.note &&
+      existing.factors.join(',') === value.factors?.join(',')
     ) {
       setMessage('Ghi nhận hôm nay không có thay đổi.')
       setPhase('saved')
@@ -181,7 +205,7 @@ export function DailyEmotionCheckIn({
         ? await updateEmotionCheckIn(localDate, existing.revision, value, key)
         : await createEmotionCheckIn({ ...value, localDate, timezone }, key)
       setPersisted(saved)
-      setDraft({ emotion: saved.emotion, intensity: saved.intensity })
+      setDraft(savedDraft(saved))
       mutation.current = null
       setPhase('saved')
       setMessage(
@@ -340,6 +364,75 @@ export function DailyEmotionCheckIn({
               ))}
             </div>
           </fieldset>
+          <details className={styles.contextDisclosure}>
+            <summary>Thêm bối cảnh riêng tư (không bắt buộc)</summary>
+            <div className={styles.contextBody}>
+              <p className={styles.contextPrivacy}>
+                Chỉ lưu khi bạn chọn “Lưu ghi nhận”. Nội dung này giúp bạn xem
+                lại và không tự động gửi cho AI, kế hoạch hỗ trợ hay phân tích.
+              </p>
+              <fieldset
+                className={styles.factorFieldset}
+                disabled={loadBlocked || isSubmitting}
+              >
+                <legend>Điều gì có thể ảnh hưởng đến cảm xúc này?</legend>
+                <p className={styles.factorHint}>Có thể chọn tối đa 3 mục.</p>
+                <div className={styles.factorGrid}>
+                  {emotionInfluenceOptions.map((factor) => {
+                    const selected = draft.factors.includes(factor.value)
+                    const disabled = !selected && draft.factors.length >= 3
+                    return (
+                      <label
+                        key={factor.value}
+                        className={`${styles.factorChip} ${selected ? styles.factorSelected : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          disabled={disabled}
+                          onChange={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              factors: selected
+                                ? current.factors.filter(
+                                    (value) => value !== factor.value,
+                                  )
+                                : emotionInfluenceOptions
+                                    .filter(
+                                      ({ value }) =>
+                                        current.factors.includes(value) ||
+                                        value === factor.value,
+                                    )
+                                    .map(({ value }) => value),
+                            }))
+                          }
+                        />
+                        <span>{factor.label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </fieldset>
+              <label className={styles.noteField}>
+                <span>Ghi chú riêng (không bắt buộc)</span>
+                <textarea
+                  aria-label="Ghi chú riêng (không bắt buộc)"
+                  value={draft.note}
+                  maxLength={500}
+                  rows={3}
+                  disabled={loadBlocked || isSubmitting}
+                  placeholder="Bạn có thể để trống"
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      note: event.target.value,
+                    }))
+                  }
+                />
+                <small>{draft.note.length}/500</small>
+              </label>
+            </div>
+          </details>
           {draftChanged && isComplete ? (
             <p className={styles.unsaved} role="status">
               Lựa chọn này chưa được lưu.

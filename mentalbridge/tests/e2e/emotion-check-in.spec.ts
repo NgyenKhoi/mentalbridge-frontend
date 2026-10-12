@@ -7,6 +7,9 @@ type StoredCheckIn = {
   timezone: string
   emotion: 'GREAT' | 'GOOD' | 'OKAY' | 'LOW' | 'VERY_LOW'
   intensity: number
+  factors: (
+    'sleep' | 'work' | 'study' | 'family' | 'friends' | 'health' | 'other'
+  )[]
   note: string | null
   sourceLabel: 'SELF_REPORTED_EMOTION'
   clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER'
@@ -130,6 +133,8 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
         timezone: string
         emotion: StoredCheckIn['emotion']
         intensity: number
+        factors: StoredCheckIn['factors']
+        note: string | null
       }
       const now = '2026-09-26T02:00:00.000Z'
       stored = {
@@ -138,7 +143,8 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
         timezone: body.timezone,
         emotion: body.emotion,
         intensity: body.intensity,
-        note: null,
+        factors: body.factors,
+        note: body.note,
         sourceLabel: 'SELF_REPORTED_EMOTION',
         clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',
         revision: 1,
@@ -156,11 +162,15 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
       const body = request.postDataJSON() as {
         emotion: StoredCheckIn['emotion']
         intensity: number
+        factors: StoredCheckIn['factors']
+        note: string | null
       }
       stored = {
         ...stored,
         emotion: body.emotion,
         intensity: body.intensity,
+        factors: body.factors,
+        note: body.note,
         revision: 2,
         updatedAt: '2026-09-26T03:00:00.000Z',
       }
@@ -246,6 +256,12 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
     .getByText('Tốt', { exact: true })
     .click()
   await page.locator('.ref-panel-mood').getByText('4', { exact: true }).click()
+  await page
+    .getByText('Thêm bối cảnh riêng tư (không bắt buộc)', { exact: true })
+    .click()
+  await page.getByRole('checkbox', { name: 'Giấc ngủ' }).check()
+  await page.getByRole('checkbox', { name: 'Công việc' }).check()
+  await page.getByLabel('Ghi chú riêng (không bắt buộc)').fill('Một ngày dài')
   await page.getByRole('button', { name: 'Lưu ghi nhận' }).click()
   await expect(
     page.locator('.ref-panel-mood').getByRole('alert'),
@@ -264,10 +280,39 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
   expect(createKeys).toHaveLength(2)
   expect(createKeys[0]).toBe(createKeys[1])
 
+  const dailyEmotionCard = page.locator('.ref-panel-mood')
+  await page.setViewportSize({ width: 1440, height: 1100 })
+  await dailyEmotionCard.screenshot({
+    path: 'docs/evidence/mb-658-emotion-context-desktop.png',
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  const dashboardWidth = await page.locator('main').evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }))
+  expect(dashboardWidth.scrollWidth).toBeLessThanOrEqual(
+    dashboardWidth.clientWidth + 1,
+  )
+  await dailyEmotionCard.screenshot({
+    path: 'docs/evidence/mb-658-emotion-context-mobile.png',
+  })
+  await page.setViewportSize({ width: 1440, height: 900 })
+
   await page.reload()
   await expect(
     page.getByRole('radio', { name: 'Tốt', exact: true }),
   ).toBeChecked()
+  await page
+    .getByText('Thêm bối cảnh riêng tư (không bắt buộc)', { exact: true })
+    .click()
+  await expect(page.getByRole('checkbox', { name: 'Giấc ngủ' })).toBeChecked()
+  await expect(page.getByRole('checkbox', { name: 'Công việc' })).toBeChecked()
+  await expect(page.getByLabel('Ghi chú riêng (không bắt buộc)')).toHaveValue(
+    'Một ngày dài',
+  )
+  await page.getByRole('checkbox', { name: 'Giấc ngủ' }).uncheck()
+  await page.getByRole('checkbox', { name: 'Công việc' }).uncheck()
+  await page.getByLabel('Ghi chú riêng (không bắt buộc)').fill('')
   await page
     .locator('.ref-panel-mood')
     .getByText('Rất tốt', { exact: true })
@@ -287,6 +332,13 @@ test('dashboard and Resources share, update, reload, and delete the persisted da
   await expect(
     page.getByRole('radio', { name: 'Rất tốt', exact: true }),
   ).toBeChecked()
+  await page
+    .getByText('Thêm bối cảnh riêng tư (không bắt buộc)', { exact: true })
+    .click()
+  await expect(page.getByRole('checkbox', { checked: true })).toHaveCount(0)
+  await expect(page.getByLabel('Ghi chú riêng (không bắt buộc)')).toHaveValue(
+    '',
+  )
 
   await page.goto('/resources')
   const emotionCard = page.getByRole('region', {
@@ -350,6 +402,7 @@ test('analytics shows one responsive dashboard without private notes or duplicat
     timezone: 'Asia/Ho_Chi_Minh',
     emotion: emotion as StoredCheckIn['emotion'],
     intensity: Number(intensity),
+    factors: ['sleep'],
     note: 'ghi chú riêng tư không được hiển thị',
     sourceLabel: 'SELF_REPORTED_EMOTION',
     clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',

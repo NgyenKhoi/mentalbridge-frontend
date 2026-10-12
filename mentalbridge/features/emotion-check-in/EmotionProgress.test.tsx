@@ -50,6 +50,7 @@ const history: EmotionCheckIn[] = [
     timezone: 'Asia/Ho_Chi_Minh',
     emotion: 'GOOD',
     intensity: 4,
+    factors: ['sleep'],
     note: 'private note must not render',
     sourceLabel: 'SELF_REPORTED_EMOTION',
     clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',

@@ -42,6 +42,8 @@ function record(
   localDate: string,
   revision = 1,
   emotion: EmotionCheckIn['emotion'] = 'GOOD',
+  factors: EmotionCheckIn['factors'] = [],
+  note: string | null = null,
 ): EmotionCheckIn {
   return {
     id: '40000000-0000-4000-8000-000000000001',
@@ -49,7 +51,8 @@ function record(
     timezone: 'Asia/Ho_Chi_Minh',
     emotion,
     intensity: 4,
-    note: null,
+    factors,
+    note,
     sourceLabel: 'SELF_REPORTED_EMOTION',
     clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',
     revision,
@@ -104,7 +107,12 @@ describe('DailyEmotionCheckIn', () => {
 
     expect(await screen.findByText('Đã lưu ghi nhận hôm nay.')).toBeVisible()
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ emotion: 'GOOD', intensity: 4, note: null }),
+      expect.objectContaining({
+        emotion: 'GOOD',
+        intensity: 4,
+        factors: [],
+        note: null,
+      }),
       expect.stringMatching(/^emotion-check-in-/),
     )
     expect(onPersisted).toHaveBeenCalledOnce()
@@ -134,8 +142,78 @@ describe('DailyEmotionCheckIn', () => {
     expect(update).toHaveBeenCalledWith(
       day,
       1,
-      { emotion: 'GREAT', intensity: 4, note: null },
+      { emotion: 'GREAT', intensity: 4, factors: [], note: null },
       expect.stringMatching(/^emotion-check-in-/),
+    )
+  })
+
+  it('persists, restores, and clears optional private context', async () => {
+    const user = userEvent.setup()
+    const day = localDateInTimeZone(
+      new Date(),
+      Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    )
+    const saved = record(day, 1, 'GOOD', ['sleep', 'work'], 'Một ngày dài')
+    const cleared = record(day, 2, 'GOOD')
+    get.mockResolvedValue(saved)
+    update.mockResolvedValue(cleared)
+    render(<DailyEmotionCheckIn />)
+
+    await screen.findByRole('radio', { name: 'Tốt' })
+    await user.click(
+      screen.getByText('Thêm bối cảnh riêng tư (không bắt buộc)'),
+    )
+    expect(screen.getByRole('checkbox', { name: 'Giấc ngủ' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Công việc' })).toBeChecked()
+    expect(screen.getByLabelText('Ghi chú riêng (không bắt buộc)')).toHaveValue(
+      'Một ngày dài',
+    )
+
+    await user.click(screen.getByRole('checkbox', { name: 'Giấc ngủ' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Công việc' }))
+    await user.clear(screen.getByLabelText('Ghi chú riêng (không bắt buộc)'))
+    await user.click(screen.getByRole('button', { name: 'Cập nhật ghi nhận' }))
+
+    expect(update).toHaveBeenCalledWith(
+      day,
+      1,
+      { emotion: 'GOOD', intensity: 4, factors: [], note: null },
+      expect.stringMatching(/^emotion-check-in-/),
+    )
+    expect(
+      await screen.findByText('Đã cập nhật ghi nhận hôm nay.'),
+    ).toBeVisible()
+  })
+
+  it('limits optional factors to three without blocking the primary flow', async () => {
+    const user = userEvent.setup()
+    get.mockRejectedValue(notFound())
+    create.mockImplementation(async (body) =>
+      record(
+        body.localDate,
+        1,
+        body.emotion,
+        body.factors ?? [],
+        body.note ?? null,
+      ),
+    )
+    render(<DailyEmotionCheckIn />)
+    await screen.findByText('Hôm nay bạn chưa ghi nhận cảm xúc.')
+    await user.click(
+      screen.getByText('Thêm bối cảnh riêng tư (không bắt buộc)'),
+    )
+    await user.click(screen.getByRole('checkbox', { name: 'Giấc ngủ' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Công việc' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Học tập' }))
+    expect(screen.getByRole('checkbox', { name: 'Gia đình' })).toBeDisabled()
+
+    await user.click(screen.getByRole('radio', { name: 'Tốt' }))
+    await user.click(screen.getByRole('radio', { name: '4' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu ghi nhận' }))
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ factors: ['sleep', 'work', 'study'] }),
+      expect.any(String),
     )
   })
 

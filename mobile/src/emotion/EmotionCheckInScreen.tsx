@@ -7,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native'
 
@@ -21,6 +22,7 @@ import type {
   Emotion,
   EmotionCheckIn,
   EmotionCheckInList,
+  EmotionInfluenceFactor,
 } from './emotion-contract'
 
 const emotions: readonly {
@@ -35,14 +37,40 @@ const emotions: readonly {
   { value: 'VERY_LOW', emoji: '😟', label: 'Rất không tốt' },
 ]
 const periods = [7, 14, 30] as const
+const influenceFactors: readonly {
+  value: EmotionInfluenceFactor
+  label: string
+}[] = [
+  { value: 'sleep', label: 'Giấc ngủ' },
+  { value: 'work', label: 'Công việc' },
+  { value: 'study', label: 'Học tập' },
+  { value: 'family', label: 'Gia đình' },
+  { value: 'friends', label: 'Bạn bè' },
+  { value: 'health', label: 'Sức khỏe' },
+  { value: 'other', label: 'Điều khác' },
+]
 type Period = (typeof periods)[number]
 type Draft = Readonly<{
   emotion: Emotion | null
   intensity: number | null
+  factors: readonly EmotionInfluenceFactor[]
+  note: string
 }>
 
-const emptyDraft: Draft = { emotion: null, intensity: null }
+const emptyDraft: Draft = {
+  emotion: null,
+  intensity: null,
+  factors: [],
+  note: '',
+}
 const historyLimit = 30
+
+const savedDraft = (checkIn: EmotionCheckIn): Draft => ({
+  emotion: checkIn.emotion,
+  intensity: checkIn.intensity,
+  factors: checkIn.factors,
+  note: checkIn.note ?? '',
+})
 
 function draftSyncKey(
   subject: string | undefined,
@@ -166,6 +194,7 @@ export function EmotionCheckInScreen({
   ] as const
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [period, setPeriod] = useState<Period>(7)
+  const [contextExpanded, setContextExpanded] = useState(false)
   const [notice, setNotice] = useState<{
     message: string
     tone: 'error' | 'success'
@@ -208,11 +237,7 @@ export function EmotionCheckInScreen({
     const syncKey = draftSyncKey(subject, localDate, current)
     if (syncedDraftKey.current === syncKey) return
     syncedDraftKey.current = syncKey
-    setDraft(
-      current
-        ? { emotion: current.emotion, intensity: current.intensity }
-        : emptyDraft,
-    )
+    setDraft(current ? savedDraft(current) : emptyDraft)
   }, [current, localDate, subject, todayQuery.isSuccess])
 
   const refreshHistoryAndProgress = async () => {
@@ -230,8 +255,9 @@ export function EmotionCheckInScreen({
       const value = {
         emotion: draft.emotion,
         intensity: draft.intensity,
-        note: null,
-      } as const
+        factors: [...draft.factors],
+        note: draft.note.trim() || null,
+      }
       return current
         ? api.updateCheckIn(localDate, current.revision, value, randomUUID())
         : api.createCheckIn({ ...value, localDate, timezone }, randomUUID())
@@ -239,7 +265,7 @@ export function EmotionCheckInScreen({
     onSuccess: async (saved) => {
       queryClient.setQueryData(todayKey, saved)
       syncedDraftKey.current = draftSyncKey(subject, localDate, saved)
-      setDraft({ emotion: saved.emotion, intensity: saved.intensity })
+      setDraft(savedDraft(saved))
       setNotice({
         message: current
           ? 'Đã cập nhật ghi nhận hôm nay.'
@@ -260,10 +286,7 @@ export function EmotionCheckInScreen({
             localDate,
             refreshed.data,
           )
-          setDraft({
-            emotion: refreshed.data.emotion,
-            intensity: refreshed.data.intensity,
-          })
+          setDraft(savedDraft(refreshed.data))
         }
         setNotice({
           message:
@@ -351,7 +374,9 @@ export function EmotionCheckInScreen({
     saveMutation.isPending ||
     deleteMutation.isPending ||
     (current?.emotion === draft.emotion &&
-      current.intensity === draft.intensity)
+      current.intensity === draft.intensity &&
+      current.note === (draft.note.trim() || null) &&
+      current.factors.join(',') === draft.factors.join(','))
   const emotionCopy = new Map(emotions.map((item) => [item.value, item]))
   const selectedWindow = progressQuery.data?.windows.find(
     ({ days }) => days === period,
@@ -471,6 +496,100 @@ export function EmotionCheckInScreen({
                 )
               })}
             </View>
+            <Pressable
+              accessibilityLabel="Thêm bối cảnh riêng tư (không bắt buộc)"
+              accessibilityRole="button"
+              accessibilityState={{ expanded: contextExpanded }}
+              onPress={() => setContextExpanded((value) => !value)}
+              style={({ pressed }) => [
+                styles.contextToggle,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.contextToggleLabel}>
+                Thêm bối cảnh riêng tư (không bắt buộc)
+              </Text>
+              <Text accessible={false} style={styles.contextToggleIcon}>
+                {contextExpanded ? '−' : '+'}
+              </Text>
+            </Pressable>
+            {contextExpanded && (
+              <View style={styles.contextBody}>
+                <Text style={styles.contextPrivacy}>
+                  Chỉ lưu khi bạn chọn “Lưu ghi nhận”. Nội dung này giúp bạn xem
+                  lại và không tự động gửi cho AI, kế hoạch hỗ trợ hay phân
+                  tích.
+                </Text>
+                <Text style={styles.fieldLabel}>
+                  Điều gì có thể ảnh hưởng đến cảm xúc này?
+                </Text>
+                <Text style={styles.supporting}>Có thể chọn tối đa 3 mục.</Text>
+                <View style={styles.factorGrid}>
+                  {influenceFactors.map((factor) => {
+                    const selected = draft.factors.includes(factor.value)
+                    const disabled =
+                      saveMutation.isPending ||
+                      (!selected && draft.factors.length >= 3)
+                    return (
+                      <Pressable
+                        key={factor.value}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: selected, disabled }}
+                        disabled={disabled}
+                        onPress={() =>
+                          setDraft((currentDraft) => ({
+                            ...currentDraft,
+                            factors: selected
+                              ? currentDraft.factors.filter(
+                                  (value) => value !== factor.value,
+                                )
+                              : influenceFactors
+                                  .filter(
+                                    ({ value }) =>
+                                      currentDraft.factors.includes(value) ||
+                                      value === factor.value,
+                                  )
+                                  .map(({ value }) => value),
+                          }))
+                        }
+                        style={({ pressed }) => [
+                          styles.factorChip,
+                          selected && styles.factorSelected,
+                          disabled && styles.factorDisabled,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.factorLabel,
+                            selected && styles.factorLabelSelected,
+                          ]}
+                        >
+                          {factor.label}
+                        </Text>
+                      </Pressable>
+                    )
+                  })}
+                </View>
+                <Text style={styles.fieldLabel}>
+                  Ghi chú riêng (không bắt buộc)
+                </Text>
+                <TextInput
+                  accessibilityLabel="Ghi chú riêng (không bắt buộc)"
+                  editable={!saveMutation.isPending}
+                  maxLength={500}
+                  multiline
+                  onChangeText={(note) =>
+                    setDraft((currentDraft) => ({ ...currentDraft, note }))
+                  }
+                  placeholder="Bạn có thể để trống"
+                  style={styles.noteInput}
+                  textAlignVertical="top"
+                  value={draft.note}
+                />
+                <Text style={styles.noteCount}>{draft.note.length}/500</Text>
+              </View>
+            )}
             <PrimaryButton
               disabled={saveDisabled}
               label={
@@ -801,6 +920,70 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   intensityLabelSelected: { color: colors.white },
+  contextToggle: {
+    alignItems: 'center',
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 48,
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  contextToggleLabel: {
+    color: colors.tealDeep,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  contextToggleIcon: {
+    color: colors.tealDeep,
+    fontSize: 22,
+    fontWeight: '700',
+    marginLeft: spacing.md,
+  },
+  contextBody: { gap: spacing.md },
+  contextPrivacy: {
+    color: colors.inkSoft,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  factorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  factorChip: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.line,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+  },
+  factorSelected: {
+    backgroundColor: colors.tealPale,
+    borderColor: colors.tealDeep,
+  },
+  factorDisabled: { opacity: 0.5 },
+  factorLabel: { color: colors.ink, fontSize: 14, fontWeight: '700' },
+  factorLabelSelected: { color: colors.tealDeep },
+  noteInput: {
+    borderColor: colors.line,
+    borderRadius: radii.control,
+    borderWidth: 1,
+    color: colors.ink,
+    fontSize: typography.body,
+    minHeight: 96,
+    padding: spacing.md,
+  },
+  noteCount: {
+    alignSelf: 'flex-end',
+    color: colors.inkSoft,
+    fontSize: 12,
+  },
   message: {
     color: colors.inkSoft,
     fontSize: typography.body,
