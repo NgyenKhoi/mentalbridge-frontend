@@ -148,6 +148,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/resource-rewards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read authoritative participation rewards for the authenticated owner
+         * @description Calculates bounded XP from persisted reviewed resource completion and verified practice evidence. XP records participation only and is not a treatment, adherence, recovery or mental-health score.
+         */
+        get: operations["getResourceRewards"];
+        /** Replace the authenticated owner's optional reward visibility preference */
+        put: operations["setResourceRewardVisibility"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/resource-journeys/{localDate}": {
         parameters: {
             query?: never;
@@ -782,6 +803,39 @@ export interface components {
             status: components["schemas"]["ResourceProgressStatus"];
             /** @description Current user-managed checklist selections. These selections remain editable after COMPLETED without reversing the recorded completion. */
             completedActionIds: string[];
+        };
+        /** @enum {string} */
+        ResourceRewardVisibility: "VISIBLE" | "HIDDEN";
+        ResourceRewardVisibilityUpdate: {
+            visibilityState: components["schemas"]["ResourceRewardVisibility"];
+        };
+        ResourceRewardGrant: {
+            grantId: string;
+            /** @enum {string} */
+            kind: "RESOURCE_COMPLETION" | "VERIFIED_PRACTICE";
+            xp: number;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** Format: date */
+            localDate: string;
+            /** Format: date-time */
+            grantedAt: string;
+            sourceReference: string;
+            ruleVersion: string;
+        };
+        ResourceRewardReadModel: {
+            totalXp: number;
+            level: number;
+            nextLevelXp: number | null;
+            visibilityState: components["schemas"]["ResourceRewardVisibility"];
+            preferenceVersion: string;
+            policyVersion: string;
+            /** @enum {string} */
+            sourceAvailability: "AVAILABLE";
+            /** Format: date-time */
+            calculatedAt: string;
+            recentGrants: components["schemas"]["ResourceRewardGrant"][];
         };
         /** @enum {string} */
         ResourceKind: "LEARNING" | "PRACTICE" | "HABIT" | "ACTION" | "REFLECTION";
@@ -1675,6 +1729,55 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getResourceRewards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped reward read model with source and rule provenance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceRewardReadModel"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    setResourceRewardVisibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceRewardVisibilityUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated preference and freshly calculated reward read model */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceRewardReadModel"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
             422: components["responses"]["ValidationError"];
             503: components["responses"]["ServiceUnavailable"];
         };

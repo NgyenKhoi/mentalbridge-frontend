@@ -59,6 +59,11 @@ web/mobile contract coverage and responsive fixture-browser evidence are
 recorded in
 [`mb-658-optional-emotion-context.md`](mb-658-optional-emotion-context.md).
 
+MB-659 replaces presentation-only Resource rewards with a Content-authoritative,
+versioned and hideable participation read model. Contract, BFF, component,
+failure-recovery, accessibility and controlled browser evidence is recorded in
+[`../mb-659-resource-reward-evidence.md`](../mb-659-resource-reward-evidence.md).
+
 MB-563 delivers the server-backed notification inbox and lifecycle. Its
 contract/BFF/component/fixture coverage is recorded in
 [`mb-563-notification-inbox.md`](mb-563-notification-inbox.md).

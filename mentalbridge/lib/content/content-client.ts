@@ -16,6 +16,7 @@ import {
   parseResourceProgressItem,
   parseResourceProgressList,
   parseResourceJourney,
+  parseResourceRewardReadModel,
   type AdminResourceDetail,
   type ResourceReviewDecision,
   type ContentProblem,
@@ -33,6 +34,8 @@ import {
   type ResourceProgressUpdate,
   type ResourceJourney,
   type ResourceJourneyRequest,
+  type ResourceRewardReadModel,
+  type ResourceRewardVisibilityUpdate,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
@@ -300,6 +303,35 @@ export const contentResourceJourneyClient = {
         const journey = parseResourceJourney(value)
         return journey?.localDate === localDate ? journey : null
       },
+      mutation: true,
+    })
+  },
+}
+
+export const contentResourceRewardClient = {
+  read(accessToken: string, correlationId: string) {
+    return contentRequest<ResourceRewardReadModel>({
+      method: 'GET',
+      path: '/api/v1/resource-rewards',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseResourceRewardReadModel,
+    })
+  },
+  setVisibility(
+    accessToken: string,
+    update: ResourceRewardVisibilityUpdate,
+    correlationId: string,
+  ) {
+    return contentRequest<ResourceRewardReadModel>({
+      method: 'PUT',
+      path: '/api/v1/resource-rewards',
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: update,
+      parseSuccess: parseResourceRewardReadModel,
       mutation: true,
     })
   },

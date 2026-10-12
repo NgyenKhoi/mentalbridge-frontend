@@ -16,6 +16,11 @@ import {
   type ResourceProgressItem,
 } from '../api/browser-resource-progress'
 import {
+  getResourceRewards,
+  setResourceRewardVisibility,
+  type ResourceRewardReadModel,
+} from '../api/browser-resource-rewards'
+import {
   getResourceCatalogue,
   type PublicResourceSummary,
 } from '../api/browser-resources'
@@ -40,6 +45,7 @@ type JourneyState =
   | 'stale-current'
 type JourneyDateState =
   'ready' | 'missing' | 'plan-required' | 'error' | 'stale'
+type RewardState = 'loading' | 'ready' | 'refreshing' | 'error'
 
 const resourceArtworks = [
   {
@@ -155,6 +161,9 @@ export default function ResourcesShowcase() {
     'loading' | 'ready' | 'error'
   >('loading')
   const [journeyState, setJourneyState] = useState<JourneyState>('loading')
+  const [reward, setReward] = useState<ResourceRewardReadModel | null>(null)
+  const [rewardState, setRewardState] = useState<RewardState>('loading')
+  const [rewardPreferencePending, setRewardPreferencePending] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const [expanded, setExpanded] = useState(false)
   const [pendingId, setPendingId] = useState('')
@@ -188,6 +197,18 @@ export default function ResourcesShowcase() {
       })
       .catch(() => {
         if (active) setProgressState('error')
+      })
+
+    void getResourceRewards()
+      .then((result) => {
+        if (!active) return
+        setReward(result)
+        setRewardState('ready')
+      })
+      .catch(() => {
+        if (!active) return
+        setReward(null)
+        setRewardState('error')
       })
 
     void Promise.allSettled(
@@ -320,6 +341,34 @@ export default function ResourcesShowcase() {
     }
   }
 
+  async function reconcileRewards() {
+    setReward(null)
+    setRewardState('refreshing')
+    try {
+      const refreshed = await getResourceRewards()
+      setReward(refreshed)
+      setRewardState('ready')
+    } catch {
+      setReward(null)
+      setRewardState('error')
+    }
+  }
+
+  async function changeRewardVisibility(visibilityState: 'VISIBLE' | 'HIDDEN') {
+    if (rewardPreferencePending) return
+    setRewardPreferencePending(true)
+    try {
+      const updated = await setResourceRewardVisibility(visibilityState)
+      setReward(updated)
+      setRewardState('ready')
+    } catch {
+      setReward(null)
+      setRewardState('error')
+    } finally {
+      setRewardPreferencePending(false)
+    }
+  }
+
   async function toggleDaily(resource: PublicResourceSummary) {
     if (pendingId) return
     const key = `${resource.id}:${today}`
@@ -369,7 +418,7 @@ export default function ResourcesShowcase() {
     })
     setJourneyDateStates((current) => ({ ...current, [today]: 'stale' }))
 
-    await reconcileTodayJourney()
+    await Promise.all([reconcileTodayJourney(), reconcileRewards()])
     setPendingId('')
   }
 
@@ -786,13 +835,99 @@ export default function ResourcesShowcase() {
 
         <div className={styles.sideStack}>
           <TodayEmotionSummary />
-          <section className={styles.badges} aria-labelledby="truth-title">
+          <section className={styles.badges} aria-labelledby="reward-title">
             <div className={styles.panelHead}>
-              <h2 id="truth-title">Tiến độ của bạn</h2>
+              <div>
+                <span className={styles.rewardEyebrow}>Ghi nhận tự nguyện</span>
+                <h2 id="reward-title">Điểm tham gia của bạn</h2>
+              </div>
+              {rewardState === 'ready' && reward && (
+                <button
+                  type="button"
+                  className={styles.rewardVisibility}
+                  disabled={rewardPreferencePending}
+                  onClick={() =>
+                    void changeRewardVisibility(
+                      reward.visibilityState === 'VISIBLE'
+                        ? 'HIDDEN'
+                        : 'VISIBLE',
+                    )
+                  }
+                >
+                  {reward.visibilityState === 'VISIBLE' ? 'Ẩn' : 'Hiện'}
+                </button>
+              )}
             </div>
+
+            {rewardState === 'loading' || rewardState === 'refreshing' ? (
+              <div className={styles.rewardState} role="status">
+                {rewardState === 'refreshing'
+                  ? 'Hoàn thành đã được lưu. Đang xác minh lại điểm tham gia…'
+                  : 'Đang tải điểm tham gia đã lưu…'}
+              </div>
+            ) : rewardState === 'error' || !reward ? (
+              <div className={styles.rewardState} role="status">
+                <p>
+                  Chưa thể xác minh điểm tham gia lúc này. Số điểm cũ được ẩn để
+                  tránh hiển thị như dữ liệu hiện tại.
+                </p>
+                <button type="button" onClick={() => void reconcileRewards()}>
+                  Thử xác minh lại
+                </button>
+              </div>
+            ) : reward.visibilityState === 'HIDDEN' ? (
+              <p className={styles.truthCopy} role="status">
+                Bạn đã ẩn điểm tham gia. Lựa chọn này không ảnh hưởng đến tài
+                nguyên, kế hoạch hỗ trợ hay hỗ trợ chuyên môn.
+              </p>
+            ) : (
+              <>
+                <div
+                  className={styles.rewardScore}
+                  aria-label={`${reward.totalXp} điểm tham gia, cấp ${reward.level}`}
+                >
+                  <strong>{reward.totalXp}</strong>
+                  <span>
+                    XP tham gia
+                    <small>Cấp {reward.level}</small>
+                  </span>
+                </div>
+                <p className={styles.rewardNext}>
+                  {reward.nextLevelXp === null
+                    ? 'Bạn đã đến cấp hiển thị cao nhất của quy tắc hiện tại.'
+                    : reward.totalXp === 0
+                      ? 'Chưa có hoạt động đủ điều kiện đã được lưu.'
+                      : `Còn ${reward.nextLevelXp - reward.totalXp} XP đến cấp tiếp theo.`}
+                </p>
+                {reward.recentGrants.length > 0 && (
+                  <ul
+                    className={styles.rewardGrants}
+                    aria-label="Điểm được ghi nhận gần đây"
+                  >
+                    {reward.recentGrants.slice(0, 3).map((grant) => (
+                      <li key={grant.grantId}>
+                        <span>
+                          {grant.kind === 'VERIFIED_PRACTICE'
+                            ? 'Buổi thực hành đã xác minh'
+                            : 'Hoạt động đã hoàn thành'}
+                          <small>
+                            {grant.localDate} · bản {grant.contentVersion} ·{' '}
+                            {grant.ruleVersion}
+                          </small>
+                        </span>
+                        <strong>+{grant.xp} XP</strong>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <small className={styles.rewardPolicy}>
+                  Quy tắc {reward.policyVersion}
+                </small>
+              </>
+            )}
             <p className={styles.truthCopy}>
-              Trang này chỉ hiển thị hoạt động và chuỗi thực hành đã được lưu.
-              Việc mở nội dung không được tính là hoàn thành.
+              XP chỉ ghi nhận hoạt động tự chăm sóc đã lưu. Đây không phải điểm
+              điều trị, hồi phục, tuân thủ hay sức khỏe tinh thần.
             </p>
           </section>
           <section className={styles.recent} aria-labelledby="recent-title">

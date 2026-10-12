@@ -798,8 +798,133 @@
 }
 .sideStack {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   gap: 14px;
+}
+.rewardEyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--rs-moss);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.rewardVisibility,
+.rewardState button {
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 1px solid var(--rs-line);
+  border-radius: 18px;
+  background: var(--rs-card);
+  color: var(--rs-moss);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.rewardVisibility:hover,
+.rewardState button:hover {
+  border-color: var(--rs-moss);
+  background: #f1f8f4;
+}
+.rewardVisibility:focus-visible,
+.rewardState button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--rs-moss) 28%, transparent);
+  outline-offset: 2px;
+}
+.rewardVisibility:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.rewardState {
+  min-height: 116px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px dashed var(--rs-line);
+  border-radius: 14px;
+  background: #f8fbf9;
+  color: var(--rs-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.rewardState p {
+  margin: 0 0 12px;
+}
+.rewardScore {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 15px;
+  padding: 13px 15px;
+  border-left: 4px solid var(--rs-moss);
+  background: #eef7f2;
+}
+.rewardScore > strong {
+  color: var(--rs-moss);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 38px;
+  font-weight: 650;
+  line-height: 1;
+}
+.rewardScore > span {
+  display: flex;
+  flex-direction: column;
+  color: var(--rs-ink);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.rewardScore small {
+  margin-top: 3px;
+  color: var(--rs-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.rewardNext {
+  margin: 10px 0 0;
+  color: var(--rs-muted);
+  font-size: 12px;
+}
+.rewardGrants {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.rewardGrants li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rs-line);
+  font-size: 12px;
+}
+.rewardGrants span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  font-weight: 700;
+}
+.rewardGrants small,
+.rewardPolicy {
+  color: var(--rs-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+.rewardGrants strong {
+  flex: 0 0 auto;
+  color: var(--rs-moss);
+  font-size: 12px;
+}
+.rewardPolicy {
+  display: block;
+  margin-top: 10px;
 }
 .truthCopy {
   margin: 14px 0 0;

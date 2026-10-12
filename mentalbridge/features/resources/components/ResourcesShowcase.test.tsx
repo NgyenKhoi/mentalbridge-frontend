@@ -16,6 +16,8 @@ const api = vi.hoisted(() => ({
   getResourceProgress: vi.fn(),
   saveResourceProgress: vi.fn(),
   getResourceJourney: vi.fn(),
+  getResourceRewards: vi.fn(),
+  setResourceRewardVisibility: vi.fn(),
 }))
 
 vi.mock('../api/browser-resources', () => ({
@@ -33,6 +35,10 @@ vi.mock('../api/browser-resource-journey', () => ({
       this.name = 'ResourceJourneyBrowserError'
     }
   },
+}))
+vi.mock('../api/browser-resource-rewards', () => ({
+  getResourceRewards: api.getResourceRewards,
+  setResourceRewardVisibility: api.setResourceRewardVisibility,
 }))
 
 const resource: PublicResourceSummary = {
@@ -97,6 +103,38 @@ function completedProgress(localDate = '2026-09-29'): ResourceProgressItem {
   }
 }
 
+function rewards(
+  totalXp = 0,
+  visibilityState: 'VISIBLE' | 'HIDDEN' = 'VISIBLE',
+) {
+  return {
+    totalXp,
+    level: totalXp >= 10 ? 1 : 0,
+    nextLevelXp: totalXp >= 10 ? 40 : 10,
+    visibilityState,
+    preferenceVersion: '0',
+    policyVersion: 'resource-reward-v1',
+    sourceAvailability: 'AVAILABLE' as const,
+    calculatedAt: '2026-09-29T02:16:00.000Z',
+    recentGrants:
+      totalXp > 0
+        ? [
+            {
+              grantId: 'a'.repeat(64),
+              kind: 'RESOURCE_COMPLETION' as const,
+              xp: 10,
+              resourceId: resource.id,
+              contentVersion: '4',
+              localDate: '2026-09-29',
+              grantedAt: '2026-09-29T02:15:00.000Z',
+              sourceReference: `resource-progress:${resource.id}:2026-09-29`,
+              ruleVersion: 'resource-reward-v1',
+            },
+          ]
+        : [],
+  }
+}
+
 describe('ResourcesShowcase truthful progress', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -111,13 +149,18 @@ describe('ResourcesShowcase truthful progress', () => {
       journey(date),
     )
     api.saveResourceProgress.mockResolvedValue(completedProgress())
+    api.getResourceRewards.mockResolvedValue(rewards())
+    api.setResourceRewardVisibility.mockImplementation(
+      async (visibilityState: 'VISIBLE' | 'HIDDEN') =>
+        rewards(10, visibilityState),
+    )
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('shows an honest empty state for a new owner without reward claims', async () => {
+  it('shows authoritative zero rewards only after the source confirms an empty history', async () => {
     render(<ResourcesShowcase />)
 
     expect(
@@ -129,8 +172,11 @@ describe('ResourcesShowcase truthful progress', () => {
         'Chưa có hoạt động hoàn thành nào được lưu trong 14 ngày gần đây.',
       ),
     ).toBeVisible()
-    expect(document.body).not.toHaveTextContent(/\bXP\b/i)
-    expect(document.body).not.toHaveTextContent(/huy hiệu|cấp độ/i)
+    expect(screen.getByText('0')).toBeVisible()
+    expect(
+      screen.getByText('Chưa có hoạt động đủ điều kiện đã được lưu.'),
+    ).toBeVisible()
+    expect(screen.getByText(/không phải điểm điều trị/i)).toBeVisible()
   })
 
   it('renders the persisted streak, source, plan version, and content version', async () => {
@@ -235,6 +281,9 @@ describe('ResourcesShowcase truthful progress', () => {
       if (todayRequests === 2) throw new Error('reconciliation failed')
       return journey(date, 1, 5)
     })
+    api.getResourceRewards
+      .mockResolvedValueOnce(rewards(10))
+      .mockRejectedValueOnce(new Error('reward reconciliation failed'))
 
     render(<ResourcesShowcase />)
 
@@ -259,6 +308,12 @@ describe('ResourcesShowcase truthful progress', () => {
     expect(within(panel).queryByText('4 ngày đã lưu')).not.toBeInTheDocument()
     expect(within(panel).queryByRole('progressbar')).not.toBeInTheDocument()
     expect(screen.queryByText('Đã lưu: 0/1 ô')).not.toBeInTheDocument()
+    expect(screen.queryByText('10')).not.toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Số điểm cũ được ẩn để tránh hiển thị như dữ liệu hiện tại/i,
+      ),
+    ).toBeVisible()
 
     await user.click(
       within(panel).getByRole('button', { name: 'Đối soát lại' }),
@@ -273,6 +328,44 @@ describe('ResourcesShowcase truthful progress', () => {
     expect(
       screen.getAllByText(`✓ Đã lưu hoàn thành “${resource.title}”.`),
     ).toHaveLength(1)
+  })
+
+  it('lets the owner hide and restore rewards without restricting resources', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    api.getResourceRewards.mockResolvedValue(rewards(10))
+    render(<ResourcesShowcase />)
+
+    expect(await screen.findByText('10')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Ẩn' }))
+    expect(await screen.findByText(/Bạn đã ẩn điểm tham gia/i)).toBeVisible()
+    expect(screen.getByRole('link', { name: /Mở hoạt động:/i })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Hiện' }))
+    expect(await screen.findByText('10')).toBeVisible()
+  })
+
+  it('does not present an outage as a zero-value reward history', async () => {
+    api.getResourceRewards.mockRejectedValue(new Error('unavailable'))
+    render(<ResourcesShowcase />)
+
+    expect(
+      await screen.findByText(/Chưa thể xác minh điểm tham gia lúc này/i),
+    ).toBeVisible()
+    expect(screen.queryByText('0')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Thử xác minh lại' }),
+    ).toBeVisible()
+  })
+
+  it('keeps resource progress failure separate from an available reward source', async () => {
+    api.getResourceProgress.mockRejectedValue(new Error('progress unavailable'))
+    render(<ResourcesShowcase />)
+
+    expect(
+      await screen.findByText(
+        'Chưa tải được danh sách tiến độ. Trang sẽ không suy đoán trạng thái hoàn thành.',
+      ),
+    ).toBeVisible()
+    expect(screen.getByLabelText('0 điểm tham gia, cấp 0')).toBeVisible()
   })
 
   it('rebuilds returning and deleted progress from the server in a new session', async () => {
