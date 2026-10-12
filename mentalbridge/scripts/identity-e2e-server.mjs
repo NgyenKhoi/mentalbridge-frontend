@@ -880,12 +880,13 @@ const server = createServer(async (request, response) => {
             effectiveFrom: '2026-01-01T00:00:00Z',
           },
           {
-            planVersionId: '51500000-0000-4000-8000-000000000002',
+            planVersionId: '62200000-0000-4000-8000-000000000002',
             planCode: 'PLUS',
-            version: 'v2-vnd-2026-01',
+            version: 'sandbox-vnd-2026-10',
+            pricingPolicyVersion: 'sandbox-full-price-v1',
             displayName: 'Plus',
             currency: 'VND',
-            priceVnd: 1390000,
+            priceVnd: 5000,
             billingPeriodMonths: 1,
             consultationCredits: 4,
             maxActiveReservations: 2,
@@ -897,12 +898,13 @@ const server = createServer(async (request, response) => {
             effectiveFrom: '2026-01-01T00:00:00Z',
           },
           {
-            planVersionId: '51500000-0000-4000-8000-000000000003',
+            planVersionId: '62200000-0000-4000-8000-000000000003',
             planCode: 'PREMIUM',
-            version: 'v2-vnd-2026-01',
+            version: 'sandbox-vnd-2026-10',
+            pricingPolicyVersion: 'sandbox-full-price-v1',
             displayName: 'Premium',
             currency: 'VND',
-            priceVnd: 3490000,
+            priceVnd: 10000,
             billingPeriodMonths: 1,
             consultationCredits: 10,
             maxActiveReservations: 4,
@@ -916,6 +918,16 @@ const server = createServer(async (request, response) => {
         ],
         checkoutEnabled: true,
         paymentProvider: 'MOMO',
+        generatedAt: new Date().toISOString(),
+      })
+      return
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/v1/payments') {
+      if (!journalActor(request, response)) return
+      json(response, 200, {
+        items: [],
+        count: 0,
         generatedAt: new Date().toISOString(),
       })
       return

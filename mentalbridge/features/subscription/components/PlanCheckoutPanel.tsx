@@ -6,11 +6,12 @@ import {
   RefreshCw,
   ShieldCheck,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { browserServiceCredits } from '@/features/service-credits/api/browser-client'
 import type { ServiceCreditAccount } from '@/lib/consultation/consultation-validation'
 import type {
   PlanCode,
+  PlanPayment,
   ServicePlanCatalogue,
   ServicePlanVersion,
 } from '@/lib/consultation/billing-validation'
@@ -59,19 +60,29 @@ function friendlyError(error: unknown) {
       return 'Bạn đang có một giao dịch chờ xử lý. Vui lòng hoàn tất giao dịch hiện tại trước.'
     if (error.code === 'SUBSCRIPTION_DOWNGRADE_NOT_SUPPORTED')
       return 'Gói hiện tại không hỗ trợ thay đổi theo hướng này.'
+    if (error.code === 'SUBSCRIPTION_PRICING_POLICY_MISMATCH')
+      return 'Gói hiện tại không thể chuyển sang gói thử nghiệm. Quyền lợi cũ vẫn được giữ nguyên.'
     if (error.code === 'UNAUTHENTICATED')
       return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-    return error.message
+    return 'Chưa thể xác nhận giao dịch. Hãy kiểm tra lại trạng thái trước khi thử tiếp.'
   }
   return 'Không thể tải thông tin gói lúc này. Vui lòng thử lại.'
 }
 
 async function fetchSubscriptionData() {
-  const [catalogue, account] = await Promise.all([
+  const [catalogue, account, history] = await Promise.all([
     browserSubscription.catalogue(),
     browserServiceCredits.get(),
+    browserSubscription.history(),
   ])
-  return { catalogue, account }
+  return {
+    catalogue,
+    account,
+    payment:
+      history.items.find((item) => item.status === 'PENDING') ??
+      history.items[0] ??
+      null,
+  }
 }
 
 function actionFor(
@@ -106,6 +117,10 @@ export default function PlanCheckoutPanel() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState<PlanCode | null>(null)
   const [error, setError] = useState('')
+  const [payment, setPayment] = useState<PlanPayment | null>(null)
+  const checkoutIntent = useRef<{ planVersionId: string; key: string } | null>(
+    null,
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -114,6 +129,7 @@ export default function PlanCheckoutPanel() {
       const result = await fetchSubscriptionData()
       setCatalogue(result.catalogue)
       setAccount(result.account)
+      setPayment(result.payment)
     } catch (caught) {
       setError(friendlyError(caught))
     } finally {
@@ -128,6 +144,7 @@ export default function PlanCheckoutPanel() {
         if (!active) return
         setCatalogue(result.catalogue)
         setAccount(result.account)
+        setPayment(result.payment)
       })
       .catch((caught) => {
         if (active) setError(friendlyError(caught))
@@ -144,11 +161,27 @@ export default function PlanCheckoutPanel() {
     setSubmitting(plan.planCode)
     setError('')
     try {
+      const intent =
+        checkoutIntent.current?.planVersionId === plan.planVersionId
+          ? checkoutIntent.current
+          : {
+              planVersionId: plan.planVersionId,
+              key: `subscription-${crypto.randomUUID()}`,
+            }
+      checkoutIntent.current = intent
       const payment = await browserSubscription.checkout(
         plan.planVersionId,
-        `subscription-${crypto.randomUUID()}`,
+        intent.key,
       )
-      window.location.assign(payment.checkoutUrl)
+      setPayment(payment)
+      checkoutIntent.current = null
+      if (
+        payment.provider === 'MOMO' &&
+        payment.status === 'PENDING' &&
+        payment.checkoutUrl
+      )
+        window.location.assign(payment.checkoutUrl)
+      else setSubmitting(null)
     } catch (caught) {
       setError(friendlyError(caught))
       setSubmitting(null)
@@ -197,6 +230,57 @@ export default function PlanCheckoutPanel() {
           MoMo là phương thức thanh toán duy nhất của luồng này.
         </p>
       </div>
+
+      {catalogue.plans.some(
+        (plan) => plan.pricingPolicyVersion === 'sandbox-full-price-v1',
+      ) && (
+        <p className="svc-price-note svc-checkout-feedback">
+          Gói thử nghiệm: giá và lượt tư vấn chỉ dùng để kiểm tra luồng dịch vụ.
+          Nâng Plus lên Premium thu đủ giá Premium, không khấu trừ giá trị lượt
+          còn lại. Lượt chưa dùng của Plus được thay thế sau khi xác nhận thành
+          công; lịch đã giữ không thay đổi.
+        </p>
+      )}
+
+      {payment && (
+        <div className="svc-price-note svc-checkout-feedback">
+          <p role="status">
+            {payment.status === 'SUCCEEDED'
+              ? 'Giao dịch đã được xác nhận thành công.'
+              : payment.status === 'FAILED'
+                ? 'Giao dịch chưa thành công. Quyền lợi không được kích hoạt từ giao dịch này.'
+                : payment.status === 'CHARGEBACK'
+                  ? 'Giao dịch cần được đối soát lại.'
+                  : 'Giao dịch đang chờ xác nhận. Chưa kích hoạt quyền lợi mới.'}
+          </p>
+          {payment.provider === 'FAKE' && (
+            <p>
+              Đây là giao dịch mô phỏng, không thu tiền thật và không mở ví
+              MoMo.
+            </p>
+          )}
+          {payment.provider === 'MOMO' &&
+            payment.status === 'PENDING' &&
+            !payment.checkoutUrl && (
+              <p>
+                Chưa thể mở thanh toán. Giao dịch vẫn đang chờ xác nhận; hãy
+                kiểm tra trạng thái, không tạo giao dịch mới.
+              </p>
+            )}
+          <button
+            type="button"
+            disabled={loading || submitting !== null}
+            onClick={() => void load()}
+          >
+            Kiểm tra trạng thái
+          </button>
+          {payment.provider === 'MOMO' &&
+            payment.status === 'PENDING' &&
+            payment.checkoutUrl && (
+              <a href={payment.checkoutUrl}>Tiếp tục thanh toán qua MoMo</a>
+            )}
+        </div>
+      )}
 
       {error && (
         <p className="svc-checkout-error" role="alert">
@@ -259,7 +343,11 @@ export default function PlanCheckoutPanel() {
               </ul>
               <button
                 type="button"
-                disabled={!action.available || submitting !== null}
+                disabled={
+                  !action.available ||
+                  submitting !== null ||
+                  payment?.status === 'PENDING'
+                }
                 aria-busy={busy}
                 onClick={() => void checkout(plan)}
               >

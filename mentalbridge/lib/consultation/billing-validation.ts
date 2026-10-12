@@ -1,3 +1,9 @@
+import type { components } from '@/contracts/consultation.generated'
+
+type PricingPolicy = components['schemas']['CommercialPricingPolicy']
+export type AdminPaymentList = components['schemas']['AdminPaymentList']
+export type PlanPaymentHistory = components['schemas']['PlanPaymentHistory']
+
 export type PlanCode = 'FREE' | 'PLUS' | 'PREMIUM'
 
 export type ServicePlanVersion = Readonly<{
@@ -6,6 +12,7 @@ export type ServicePlanVersion = Readonly<{
   version: string
   displayName: string
   currency: 'VND'
+  pricingPolicyVersion?: PricingPolicy
   priceVnd: number
   billingPeriodMonths: 1
   consultationCredits: 0 | 4 | 10
@@ -31,12 +38,13 @@ export type PlanPayment = Readonly<{
   planVersionId: string
   planCode: 'PLUS' | 'PREMIUM'
   planVersion: string
+  pricingPolicyVersion?: PricingPolicy
   purpose: 'PURCHASE' | 'UPGRADE'
   provider: 'FAKE' | 'MOMO'
   status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'CHARGEBACK'
   amountVnd: number
   currency: 'VND'
-  checkoutUrl: string
+  checkoutUrl: string | null
   qrCodeUrl: string | null
   expiresAt: string
   createdAt: string
@@ -50,10 +58,23 @@ function record(value: unknown): Record<string, unknown> | null {
     : null
 }
 
-function exactKeys(value: Record<string, unknown>, keys: string[]) {
+function exactKeys(
+  value: Record<string, unknown>,
+  keys: string[],
+  optional: string[] = [],
+) {
   const actual = Object.keys(value)
   return (
-    actual.length === keys.length && actual.every((key) => keys.includes(key))
+    keys.every((key) => key in value) &&
+    actual.every((key) => keys.includes(key) || optional.includes(key))
+  )
+}
+
+function pricingPolicy(value: unknown) {
+  return (
+    value === undefined ||
+    value === 'upgrade-offset-v1' ||
+    value === 'sandbox-full-price-v1'
   )
 }
 
@@ -110,23 +131,28 @@ export function parseServicePlanCatalogue(
     const plan = record(value)
     if (
       !plan ||
-      !exactKeys(plan, [
-        'planVersionId',
-        'planCode',
-        'version',
-        'displayName',
-        'currency',
-        'priceVnd',
-        'billingPeriodMonths',
-        'consultationCredits',
-        'maxActiveReservations',
-        'creditAllocationVnd',
-        'aiQuotaCode',
-        'supportPlanEnabled',
-        'entitlements',
-        'allowedUpgrades',
-        'effectiveFrom',
-      ]) ||
+      !exactKeys(
+        plan,
+        [
+          'planVersionId',
+          'planCode',
+          'version',
+          'displayName',
+          'currency',
+          'priceVnd',
+          'billingPeriodMonths',
+          'consultationCredits',
+          'maxActiveReservations',
+          'creditAllocationVnd',
+          'aiQuotaCode',
+          'supportPlanEnabled',
+          'entitlements',
+          'allowedUpgrades',
+          'effectiveFrom',
+        ],
+        ['pricingPolicyVersion'],
+      ) ||
+      !pricingPolicy(plan.pricingPolicyVersion) ||
       !uuid(plan.planVersionId) ||
       !['FREE', 'PLUS', 'PREMIUM'].includes(String(plan.planCode)) ||
       typeof plan.version !== 'string' ||
@@ -182,24 +208,29 @@ export function parsePlanPayment(value: unknown): PlanPayment | null {
   const payment = record(value)
   if (
     !payment ||
-    !exactKeys(payment, [
-      'paymentId',
-      'subscriptionId',
-      'planVersionId',
-      'planCode',
-      'planVersion',
-      'purpose',
-      'provider',
-      'status',
-      'amountVnd',
-      'currency',
-      'checkoutUrl',
-      'qrCodeUrl',
-      'expiresAt',
-      'createdAt',
-      'paidAt',
-      'failedAt',
-    ]) ||
+    !exactKeys(
+      payment,
+      [
+        'paymentId',
+        'subscriptionId',
+        'planVersionId',
+        'planCode',
+        'planVersion',
+        'purpose',
+        'provider',
+        'status',
+        'amountVnd',
+        'currency',
+        'checkoutUrl',
+        'qrCodeUrl',
+        'expiresAt',
+        'createdAt',
+        'paidAt',
+        'failedAt',
+      ],
+      ['pricingPolicyVersion'],
+    ) ||
+    !pricingPolicy(payment.pricingPolicyVersion) ||
     !uuid(payment.paymentId) ||
     !uuid(payment.subscriptionId) ||
     !uuid(payment.planVersionId) ||
@@ -215,7 +246,7 @@ export function parsePlanPayment(value: unknown): PlanPayment | null {
     !Number.isSafeInteger(payment.amountVnd) ||
     Number(payment.amountVnd) < 1 ||
     payment.currency !== 'VND' ||
-    !safeMomoUrl(payment.checkoutUrl) ||
+    !(payment.checkoutUrl === null || safeMomoUrl(payment.checkoutUrl)) ||
     !(payment.qrCodeUrl === null || safeMomoUrl(payment.qrCodeUrl)) ||
     !instant(payment.expiresAt) ||
     !instant(payment.createdAt) ||
@@ -236,4 +267,74 @@ export function parseCheckoutInput(value: unknown): { planVersionId: string } {
     throw new Error('planVersionId')
   }
   return { planVersionId: input.planVersionId }
+}
+
+export function parseAdminPaymentList(value: unknown): AdminPaymentList | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, ['generatedAt', 'count', 'items']) ||
+    !instant(response.generatedAt) ||
+    !Array.isArray(response.items) ||
+    response.items.length > 200 ||
+    response.count !== response.items.length
+  )
+    return null
+  for (const value of response.items) {
+    const item = record(value)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'paymentId',
+        'subscriptionId',
+        'planVersionId',
+        'planCode',
+        'pricingPolicyVersion',
+        'purpose',
+        'provider',
+        'status',
+        'amountVnd',
+        'currency',
+        'createdAt',
+        'paidAt',
+        'failedAt',
+      ]) ||
+      !uuid(item.paymentId) ||
+      !uuid(item.subscriptionId) ||
+      !uuid(item.planVersionId) ||
+      !['PLUS', 'PREMIUM'].includes(String(item.planCode)) ||
+      item.pricingPolicyVersion === undefined ||
+      !pricingPolicy(item.pricingPolicyVersion) ||
+      !['PURCHASE', 'UPGRADE'].includes(String(item.purpose)) ||
+      !['FAKE', 'MOMO'].includes(String(item.provider)) ||
+      !['PENDING', 'SUCCEEDED', 'FAILED', 'CHARGEBACK'].includes(
+        String(item.status),
+      ) ||
+      !Number.isSafeInteger(item.amountVnd) ||
+      Number(item.amountVnd) <= 0 ||
+      item.currency !== 'VND' ||
+      !instant(item.createdAt) ||
+      !(item.paidAt === null || instant(item.paidAt)) ||
+      !(item.failedAt === null || instant(item.failedAt))
+    )
+      return null
+  }
+  return response as AdminPaymentList
+}
+
+export function parsePlanPaymentHistory(
+  value: unknown,
+): PlanPaymentHistory | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, ['generatedAt', 'count', 'items']) ||
+    !instant(response.generatedAt) ||
+    !Array.isArray(response.items) ||
+    response.items.length > 50 ||
+    response.count !== response.items.length ||
+    !response.items.every((item) => parsePlanPayment(item) !== null)
+  )
+    return null
+  return response as PlanPaymentHistory
 }
