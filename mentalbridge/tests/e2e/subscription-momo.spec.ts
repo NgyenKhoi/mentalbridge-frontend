@@ -44,8 +44,8 @@ for (const viewport of viewports) {
     ).toBeVisible()
     const plus = page.getByRole('heading', { name: 'Plus' }).locator('..')
     const premium = page.getByRole('heading', { name: 'Premium' }).locator('..')
-    await expect(plus).toContainText(/1\.390\.000/)
-    await expect(premium).toContainText(/3\.490\.000/)
+    await expect(plus).toContainText(/5\.000/)
+    await expect(premium).toContainText(/10\.000/)
     await expect(
       plus.getByRole('button', { name: 'Gói hiện tại' }),
     ).toBeDisabled()

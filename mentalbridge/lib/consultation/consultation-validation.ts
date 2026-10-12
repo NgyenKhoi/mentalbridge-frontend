@@ -655,6 +655,7 @@ export function parseSpecialistEarnings(
     !exactKeys(response, [
       'currency',
       'earningPolicyVersion',
+      ...(response.payoutProvider === undefined ? [] : ['payoutProvider']),
       'settlementHoldDays',
       'minimumWithdrawalVnd',
       'generatedAt',
@@ -665,6 +666,10 @@ export function parseSpecialistEarnings(
     ]) ||
     response.currency !== 'VND' ||
     response.earningPolicyVersion !== 'specialist-earning-v1' ||
+    !(
+      response.payoutProvider === undefined ||
+      PAYOUT_PROVIDERS.includes(response.payoutProvider as never)
+    ) ||
     response.settlementHoldDays !== 7 ||
     response.minimumWithdrawalVnd !== 100000 ||
     !utcInstant(response.generatedAt)

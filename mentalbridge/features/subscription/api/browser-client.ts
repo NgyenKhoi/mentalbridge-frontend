@@ -1,5 +1,7 @@
 import type {
   PlanPayment,
+  AdminPaymentList,
+  PlanPaymentHistory,
   ServicePlanCatalogue,
 } from '@/lib/consultation/billing-validation'
 
@@ -26,6 +28,24 @@ async function responseJson<T>(response: Response) {
 }
 
 export const browserSubscription = {
+  async history() {
+    return responseJson<PlanPaymentHistory>(
+      await fetch('/api/consultation/payments', { cache: 'no-store' }),
+    )
+  },
+  async payment(paymentId: string) {
+    return responseJson<PlanPayment>(
+      await fetch(
+        `/api/consultation/payments/${encodeURIComponent(paymentId)}`,
+        { cache: 'no-store' },
+      ),
+    )
+  },
+  async adminPayments() {
+    return responseJson<AdminPaymentList>(
+      await fetch('/api/consultation/admin/payments', { cache: 'no-store' }),
+    )
+  },
   async catalogue() {
     return responseJson<ServicePlanCatalogue>(
       await fetch('/api/consultation/service-plans', {

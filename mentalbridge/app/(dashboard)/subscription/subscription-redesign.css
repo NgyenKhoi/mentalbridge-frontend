@@ -422,6 +422,27 @@
   text-align: right;
 }
 
+.svc-price-note.svc-checkout-feedback {
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.svc-checkout-feedback button,
+.svc-checkout-feedback a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: var(--space-4);
+  padding: 8px var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--teal-deep);
+  font-size: 16px;
+  font-weight: 650;
+}
+
 .svc-assurance {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
