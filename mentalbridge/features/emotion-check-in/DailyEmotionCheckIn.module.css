@@ -48,6 +48,134 @@
   gap: 16px;
 }
 
+.contextDisclosure {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.contextDisclosure summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--teal-deep);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.contextDisclosure summary:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+.contextBody {
+  display: grid;
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.contextPrivacy,
+.factorHint {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.factorFieldset {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.factorFieldset legend,
+.noteField > span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.factorHint {
+  margin-top: 3px;
+}
+
+.factorGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.factorChip {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.factorChip:has(input:focus-visible) {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.factorChip:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.factorChip input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+}
+
+.factorSelected {
+  border-color: var(--teal-deep);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.noteField {
+  display: grid;
+  gap: 7px;
+}
+
+.noteField textarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+
+.noteField textarea:focus-visible {
+  border-color: var(--teal-deep);
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.noteField small {
+  color: var(--ink-soft);
+  font-size: 11px;
+  justify-self: end;
+}
+
 /* ── 5 Emoji emotion selector ── */
 .emotions {
   min-width: 0;

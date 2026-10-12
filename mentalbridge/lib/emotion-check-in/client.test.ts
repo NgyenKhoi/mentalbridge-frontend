@@ -13,6 +13,7 @@ const checkIn = {
   timezone: 'Asia/Ho_Chi_Minh',
   emotion: 'GOOD' as const,
   intensity: 4,
+  factors: [],
   note: null,
   sourceLabel: 'SELF_REPORTED_EMOTION' as const,
   clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER' as const,
@@ -124,7 +125,12 @@ describe('Emotion check-in server-only client', () => {
 
   it('forwards idempotency and exact revision only at the provider boundary', async () => {
     configure()
-    const value = { emotion: 'LOW' as const, intensity: 3, note: null }
+    const value = {
+      emotion: 'LOW' as const,
+      intensity: 3,
+      factors: ['health' as const],
+      note: null,
+    }
     mockServer.use(
       http.patch(
         `${baseUrl}/api/v1/emotion-check-ins/${localDate}`,
@@ -205,6 +211,7 @@ describe('Emotion check-in server-only client', () => {
       timezone: 'Asia/Ho_Chi_Minh',
       emotion: 'GOOD' as const,
       intensity: 4,
+      factors: [],
       note: null,
     }
     mockServer.use(

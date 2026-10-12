@@ -1,4 +1,4 @@
-import type { Emotion } from './contract'
+import type { Emotion, EmotionInfluenceFactor } from './contract'
 
 export const emotionOrder = [
   'GREAT',
@@ -55,6 +55,19 @@ export const emotionOptions = emotionOrder.map((value) => ({
   value,
   ...emotionPresentation[value],
 }))
+
+export const emotionInfluenceOptions: readonly Readonly<{
+  value: EmotionInfluenceFactor
+  label: string
+}>[] = [
+  { value: 'sleep', label: 'Giấc ngủ' },
+  { value: 'work', label: 'Công việc' },
+  { value: 'study', label: 'Học tập' },
+  { value: 'family', label: 'Gia đình' },
+  { value: 'friends', label: 'Bạn bè' },
+  { value: 'health', label: 'Sức khỏe' },
+  { value: 'other', label: 'Điều khác' },
+]
 
 export function localDateInTimeZone(now: Date, timeZone: string) {
   const parts = new Intl.DateTimeFormat('en-US', {

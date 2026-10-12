@@ -59,6 +59,7 @@ const checkIn = (
   timezone: 'Asia/Ho_Chi_Minh',
   emotion,
   intensity,
+  factors: [],
   note: `ghi chú riêng tư ${id}`,
   sourceLabel: 'SELF_REPORTED_EMOTION',
   clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',

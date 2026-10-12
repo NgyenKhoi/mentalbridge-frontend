@@ -38,6 +38,7 @@ const today: EmotionCheckIn = {
   timezone: 'Asia/Ho_Chi_Minh',
   emotion: 'GOOD',
   intensity: 4,
+  factors: [],
   note: null,
   sourceLabel: 'SELF_REPORTED_EMOTION',
   clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',
@@ -172,6 +173,7 @@ describe('mobile daily emotion check-in journey', () => {
         {
           emotion: 'GOOD',
           intensity: 4,
+          factors: [],
           note: null,
           localDate: '2026-10-07',
           timezone: 'Asia/Ho_Chi_Minh',
@@ -217,7 +219,7 @@ describe('mobile daily emotion check-in journey', () => {
       expect(api.updateCheckIn).toHaveBeenCalledWith(
         '2026-10-07',
         1,
-        { emotion: 'GREAT', intensity: 5, note: null },
+        { emotion: 'GREAT', intensity: 5, factors: [], note: null },
         '11111111-1111-4111-8111-111111111111',
       ),
     )
@@ -231,6 +233,55 @@ describe('mobile daily emotion check-in journey', () => {
     expect(
       screen.getByRole('radio', { name: 'Mức cảm nhận 5', checked: true }),
     ).toBeOnTheScreen()
+  })
+
+  it('restores and clears optional private context without requiring it', async () => {
+    const contextual: EmotionCheckIn = {
+      ...today,
+      factors: ['sleep', 'work'],
+      note: 'Một ngày dài',
+    }
+    const cleared = { ...today, revision: 2, factors: [], note: null }
+    const api = emotionApi({
+      getCheckIn: jest.fn().mockResolvedValue(contextual),
+      updateCheckIn: jest.fn().mockResolvedValue(cleared),
+    })
+    await renderEmotion(screenFor(api))
+
+    await screen.findByRole('radio', { name: 'Tốt', checked: true })
+    await fireEvent.press(
+      screen.getByRole('button', {
+        name: 'Thêm bối cảnh riêng tư (không bắt buộc)',
+      }),
+    )
+    expect(
+      screen.getByRole('checkbox', { name: 'Giấc ngủ', checked: true }),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByRole('checkbox', { name: 'Công việc', checked: true }),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByLabelText('Ghi chú riêng (không bắt buộc)'),
+    ).toHaveDisplayValue('Một ngày dài')
+
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Giấc ngủ' }))
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Công việc' }))
+    await fireEvent.changeText(
+      screen.getByLabelText('Ghi chú riêng (không bắt buộc)'),
+      '',
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Cập nhật ghi nhận' }),
+    )
+
+    await waitFor(() =>
+      expect(api.updateCheckIn).toHaveBeenCalledWith(
+        '2026-10-07',
+        1,
+        { emotion: 'GOOD', intensity: 4, factors: [], note: null },
+        expect.any(String),
+      ),
+    )
   })
 
   it('syncs a new local day with the same revision without carrying over the previous draft', async () => {

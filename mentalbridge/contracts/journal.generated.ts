@@ -186,7 +186,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Return a note-free minimized projection for consented AI reflection.
+         * Return a factor- and note-free minimized projection for consented AI reflection.
          * @description Reminder composition is deliberately unavailable until a separate reminder consent contract is accepted.
          */
         get: operations["getEmotionCheckInConsumerContext"];
@@ -229,7 +229,7 @@ export interface paths {
         put?: never;
         /**
          * Resolve one owner's minimized activity for the Content reminder scheduler.
-         * @description Requires the configured Content/Notification service credential. The response is note-free and reuses the authoritative emotion progress calculation.
+         * @description Requires the configured Content/Notification service credential. The response excludes optional factors and notes and reuses the authoritative emotion progress calculation.
          */
         post: operations["resolveNotificationActivityForScheduler"];
         delete?: never;
@@ -460,10 +460,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/consultation-brief-drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate an editable suggestion from one exact minimized Care-owned draft source
+         * @description Requires the forwarded verified end-user bearer and current AI_PROCESSING consent. It may rewrite only currentSituation and userGoals. It cannot change the screening source, save or approve a brief, grant specialist access, or consume Journal, chat, raw assessment answers, or private specialist notes.
+         */
+        post: operations["generateConsultationBriefDraftSuggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ConsultationBriefAiDraftScreeningContext: {
+            /** @enum {string} */
+            instrument: "PHQ9" | "GAD7";
+            /** @enum {string} */
+            domain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
+            /** @enum {string} */
+            screeningLevel: "MINIMAL" | "MILD" | "MODERATE" | "MODERATELY_SEVERE" | "SEVERE";
+            questionnaireVersion: string;
+            scoringVersion: string;
+            /** Format: date-time */
+            evaluatedAt: string;
+            policyVersion: string;
+        };
+        ConsultationBriefAiDraftProviderRequest: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            consultationBriefId: string;
+            /** Format: int64 */
+            consultationBriefVersion: number;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            currentSituation: string;
+            userGoals: string[];
+            screeningContext: components["schemas"]["ConsultationBriefAiDraftScreeningContext"][];
+            /** @constant */
+            sourceSetVersion: "consultation-brief-ai-source-v1";
+        };
+        ConsultationBriefAiDraftProviderResponse: {
+            currentSituation: string;
+            userGoals: string[];
+            /** @constant */
+            sourceSetVersion: "consultation-brief-ai-source-v1";
+            consentPolicyVersion: string;
+            /** @enum {string} */
+            servicePlan: "FREE" | "PLUS" | "PREMIUM";
+            /** @enum {string} */
+            entitlementSource: "DEFAULT_FREE" | "DEMO" | "PAID";
+            entitlementPolicyVersion: string;
+            /** Format: int64 */
+            entitlementVersion: number;
+            routingPolicyVersion: string;
+            providerApprovalVersion: string;
+            /** @enum {string} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
+            model: string;
+            /** @constant */
+            promptVersion: "consultation-brief-draft-v1";
+            /** @constant */
+            schemaVersion: 1;
+            /** Format: int64 */
+            latencyMs: number;
+            /** Format: int64 */
+            inputTokens: number | null;
+            /** Format: int64 */
+            outputTokens: number | null;
+            /** Format: int64 */
+            estimatedCostMicroUsd: number | null;
+        };
         SupportGuidePhrasingRequest: {
             approvedText: string;
             /** @constant */
@@ -564,10 +643,20 @@ export interface components {
          * @enum {string}
          */
         Emotion: "GREAT" | "GOOD" | "OKAY" | "LOW" | "VERY_LOW";
+        /**
+         * @description Optional self-selected context retained only in the owner record; it is not a diagnosis or downstream inference input.
+         * @enum {string}
+         */
+        EmotionInfluenceFactor: "sleep" | "work" | "study" | "family" | "friends" | "health" | "other";
         EmotionCheckInValue: {
             emotion: components["schemas"]["Emotion"];
             /** @description Strength of the selected feeling, not wellness, severity, diagnosis, or recovery. */
             intensity: number;
+            /**
+             * @description Optional self-selected context; encrypted at rest and excluded from consumer projections, logs, events, analytics, SupportPlan, and automated AI use.
+             * @default []
+             */
+            factors: components["schemas"]["EmotionInfluenceFactor"][];
             /** @description Optional private free text; encrypted at rest and excluded from consumer projections, logs, and events. */
             note?: string | null;
         };
@@ -585,6 +674,7 @@ export interface components {
             timezone: string;
             emotion: components["schemas"]["Emotion"];
             intensity: number;
+            factors: components["schemas"]["EmotionInfluenceFactor"][];
             note: string | null;
             /** @constant */
             sourceLabel: "SELF_REPORTED_EMOTION";
@@ -1831,6 +1921,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SupportGuidePhrasingResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    generateConsultationBriefDraftSuggestion: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsultationBriefAiDraftProviderRequest"];
+            };
+        };
+        responses: {
+            /** @description Bounded editable suggestion with provider and source provenance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefAiDraftProviderResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

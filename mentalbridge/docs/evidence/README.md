@@ -53,6 +53,12 @@ modal. Its controlled multi-route, deletion, responsive and legacy-audit
 evidence is recorded in
 [`mb-657-authoritative-daily-emotion.md`](mb-657-authoritative-daily-emotion.md).
 
+MB-658 adds optional, encrypted influence factors and a private note to that
+owner-controlled daily record. Its consent copy, privacy boundaries,
+web/mobile contract coverage and responsive fixture-browser evidence are
+recorded in
+[`mb-658-optional-emotion-context.md`](mb-658-optional-emotion-context.md).
+
 MB-563 delivers the server-backed notification inbox and lifecycle. Its
 contract/BFF/component/fixture coverage is recorded in
 [`mb-563-notification-inbox.md`](mb-563-notification-inbox.md).

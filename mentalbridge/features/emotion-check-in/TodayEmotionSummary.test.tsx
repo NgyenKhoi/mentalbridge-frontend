@@ -20,6 +20,7 @@ function record(emotion: Emotion): EmotionCheckIn {
     timezone: 'Asia/Ho_Chi_Minh',
     emotion,
     intensity: 4,
+    factors: [],
     note: null,
     sourceLabel: 'SELF_REPORTED_EMOTION',
     clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',

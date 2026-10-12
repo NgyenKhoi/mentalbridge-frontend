@@ -12,6 +12,7 @@ const checkIn = {
   timezone: 'Asia/Ho_Chi_Minh',
   emotion: 'GOOD',
   intensity: 4,
+  factors: ['sleep'],
   note: null,
   sourceLabel: 'SELF_REPORTED_EMOTION',
   clinicalUse: 'NOT_A_DIAGNOSIS_OR_SAFETY_CLASSIFIER',
@@ -42,6 +43,7 @@ describe('Journal mobile emotion API contract', () => {
         timezone: 'Asia/Ho_Chi_Minh',
         emotion: 'GOOD',
         intensity: 4,
+        factors: ['sleep'],
         note: null,
       },
       '22222222-2222-4222-8222-222222222222',
@@ -57,6 +59,7 @@ describe('Journal mobile emotion API contract', () => {
       timezone: 'Asia/Ho_Chi_Minh',
       emotion: 'GOOD',
       intensity: 4,
+      factors: ['sleep'],
       note: null,
     })
     expect(body).not.toHaveProperty('accountId')
@@ -95,7 +98,7 @@ describe('Journal mobile emotion API contract', () => {
     await api.updateCheckIn(
       '2026-10-07',
       1,
-      { emotion: 'GREAT', intensity: 5, note: null },
+      { emotion: 'GREAT', intensity: 5, factors: [], note: null },
       '33333333-3333-4333-8333-333333333333',
     )
     await api.deleteCheckIn(
@@ -108,6 +111,7 @@ describe('Journal mobile emotion API contract', () => {
     expect(JSON.parse(String(requests[0]?.data))).toEqual({
       emotion: 'GREAT',
       intensity: 5,
+      factors: [],
       note: null,
     })
     expect(requests[1]?.method).toBe('delete')

@@ -1,6 +1,8 @@
 import type { components } from '@/contracts/journal.generated'
 
 export type Emotion = components['schemas']['Emotion']
+export type EmotionInfluenceFactor =
+  components['schemas']['EmotionInfluenceFactor']
 export type EmotionCheckInValue = components['schemas']['EmotionCheckInValue']
 export type EmotionCheckInCreate =
   components['schemas']['CreateEmotionCheckInRequest']
