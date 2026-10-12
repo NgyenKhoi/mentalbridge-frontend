@@ -267,4 +267,104 @@ describe('AdminAuditLog', () => {
       })
     })
   })
+
+  it('separates browse error and export error states', async () => {
+    const user = userEvent.setup()
+    render(<AdminAuditLog />)
+    await screen.findByText('Tạm ngưng tài khoản')
+
+    // 1. Export failure shows export error, without setting browse error or clearing table
+    api.exportCsv.mockRejectedValueOnce(
+      new ApiError({
+        message: 'Internal server error',
+        code: 'INTERNAL',
+        status: 500,
+      }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất CSV theo bộ lọc' }),
+    )
+    expect(await screen.findByTestId('export-error')).toHaveTextContent(
+      'Không thể tải nhật ký lúc này. Hãy thử lại.',
+    )
+    expect(screen.queryByTestId('browse-error')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('cell', { name: /Tạm ngưng tài khoản/ }),
+    ).toBeInTheDocument()
+
+    // 2. Subsequent browse failure sets browse error, clears export error
+    api.browse.mockRejectedValueOnce(
+      new ApiError({
+        message: 'Bad request',
+        code: 'BAD_REQUEST',
+        status: 400,
+      }),
+    )
+    await user.selectOptions(
+      screen.getByLabelText('Hành động'),
+      'SPECIALIST_APPROVED',
+    )
+    await user.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+    expect(await screen.findByTestId('browse-error')).toHaveTextContent(
+      'Bộ lọc không hợp lệ. Khoảng thời gian tối đa là 90 ngày và phải nằm trong 365 ngày gần nhất.',
+    )
+    expect(screen.queryByTestId('export-error')).not.toBeInTheDocument()
+  })
+
+  it('disables export button when initial query fails to load', async () => {
+    api.browse.mockRejectedValueOnce(
+      new ApiError({
+        message: 'Internal error',
+        code: 'INTERNAL',
+        status: 500,
+      }),
+    )
+    render(<AdminAuditLog />)
+    expect(await screen.findByTestId('browse-error')).toBeInTheDocument()
+
+    const exportBtn = screen.getByRole('button', {
+      name: 'Xuất CSV theo bộ lọc',
+    })
+    expect(exportBtn).toBeDisabled()
+    expect(api.exportCsv).not.toHaveBeenCalled()
+  })
+
+  it('displays query badge indicating draft filters vs committed query and exports committed filters', async () => {
+    const user = userEvent.setup()
+    render(<AdminAuditLog />)
+    await screen.findByText('Tạm ngưng tài khoản')
+
+    const badge = screen.getByTestId('displayed-query-badge')
+    expect(badge).toHaveTextContent('Đang hiển thị theo bộ lọc hiện tại')
+
+    // Alter draft filter without submitting
+    await user.selectOptions(screen.getByLabelText('Dịch vụ'), 'CONSULTATION')
+    expect(badge).toHaveTextContent(
+      'Đang hiển thị kết quả của bộ lọc trước đó (chưa áp dụng thay đổi)',
+    )
+
+    // Export uses committed query (empty), not draft CONSULTATION
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất CSV theo bộ lọc' }),
+    )
+    await waitFor(() => {
+      expect(api.exportCsv).toHaveBeenCalledWith({})
+    })
+
+    // Now submit filters
+    api.browse.mockResolvedValueOnce({
+      ...page,
+      items: [
+        {
+          ...event,
+          eventId: 'f9999999-9999-9999-9999-999999999999',
+          sourceService: 'CONSULTATION',
+        },
+      ],
+    })
+    await user.click(screen.getByRole('button', { name: 'Áp dụng bộ lọc' }))
+    await waitFor(() => {
+      expect(badge).toHaveTextContent('Đang hiển thị theo bộ lọc hiện tại')
+    })
+  })
 })

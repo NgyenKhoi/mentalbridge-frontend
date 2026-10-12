@@ -96,12 +96,25 @@ export default function AdminAuditLog() {
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
-  const [error, setError] = useState('')
+  const [hasLoadedSuccessfully, setHasLoadedSuccessfully] = useState(false)
+  const [browseError, setBrowseError] = useState('')
+  const [exportError, setExportError] = useState('')
+
+  const isDraftDirty =
+    (inputToIso(from) ?? '') !== (appliedFilters.from ?? '') ||
+    (inputToIso(to) ?? '') !== (appliedFilters.to ?? '') ||
+    sourceService !== (appliedFilters.sourceService ?? '') ||
+    domain !== (appliedFilters.domain ?? '') ||
+    actorType !== (appliedFilters.actorType ?? '') ||
+    action !== (appliedFilters.action ?? '') ||
+    result !== (appliedFilters.result ?? '') ||
+    targetIdentifier.trim() !== (appliedFilters.targetIdentifier ?? '')
 
   const load = useCallback(
     async (filters: AuditSearch, cursor?: string, nextHistory?: string[]) => {
       setLoading(true)
-      setError('')
+      setBrowseError('')
+      setExportError('')
       try {
         const page = await browserAdminAudit.browse({
           ...filters,
@@ -112,6 +125,7 @@ export default function AdminAuditLog() {
         setNextCursor(page.nextCursor ?? null)
         setCurrentCursor(cursor)
         setAppliedFilters(filters)
+        setHasLoadedSuccessfully(true)
         if (nextHistory !== undefined) {
           setCursorHistory(nextHistory)
         }
@@ -121,7 +135,7 @@ export default function AdminAuditLog() {
           retention: page.retentionCutoff,
         })
       } catch (cause) {
-        setError(errorMessage(cause))
+        setBrowseError(errorMessage(cause))
       } finally {
         setLoading(false)
       }
@@ -140,6 +154,7 @@ export default function AdminAuditLog() {
         setCurrentCursor(undefined)
         setAppliedFilters({})
         setCursorHistory([])
+        setHasLoadedSuccessfully(true)
         setEffectiveRange({
           from: page.effectiveFrom,
           to: page.effectiveTo,
@@ -147,7 +162,7 @@ export default function AdminAuditLog() {
         })
       })
       .catch((cause: unknown) => {
-        if (active) setError(errorMessage(cause))
+        if (active) setBrowseError(errorMessage(cause))
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -204,15 +219,16 @@ export default function AdminAuditLog() {
   }
 
   async function exportCsv() {
+    if (!hasLoadedSuccessfully) return
     setExporting(true)
-    setError('')
+    setExportError('')
     try {
       const filters = { ...appliedFilters }
       delete filters.cursor
       delete filters.limit
       await browserAdminAudit.exportCsv(filters)
     } catch (cause) {
-      setError(errorMessage(cause))
+      setExportError(errorMessage(cause))
     } finally {
       setExporting(false)
     }
@@ -232,7 +248,7 @@ export default function AdminAuditLog() {
         </div>
         <button
           onClick={() => void exportCsv()}
-          disabled={loading || exporting}
+          disabled={loading || exporting || !hasLoadedSuccessfully}
         >
           {exporting ? 'Đang xuất…' : 'Xuất CSV theo bộ lọc'}
         </button>
@@ -354,16 +370,34 @@ export default function AdminAuditLog() {
         </div>
       </form>
 
-      {error && (
-        <p className={styles.error} role="alert">
-          {error}
+      {browseError && (
+        <p className={styles.error} role="alert" data-testid="browse-error">
+          {browseError}
+        </p>
+      )}
+
+      {exportError && (
+        <p className={styles.error} role="alert" data-testid="export-error">
+          {exportError}
         </p>
       )}
 
       <div className={styles.summary} role="status">
-        <strong>
-          {loading ? 'Đang tải…' : `${items.length} sự kiện trên trang này`}
-        </strong>
+        <div>
+          <strong>
+            {loading ? 'Đang tải…' : `${items.length} sự kiện trên trang này`}
+          </strong>
+          {hasLoadedSuccessfully && (
+            <span
+              className={styles.queryBadge}
+              data-testid="displayed-query-badge"
+            >
+              {isDraftDirty
+                ? 'Đang hiển thị kết quả của bộ lọc trước đó (chưa áp dụng thay đổi)'
+                : 'Đang hiển thị theo bộ lọc hiện tại'}
+            </span>
+          )}
+        </div>
         {effectiveRange && (
           <span>
             {new Date(effectiveRange.from).toLocaleString('vi-VN')} –{' '}
