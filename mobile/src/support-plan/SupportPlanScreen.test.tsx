@@ -13,6 +13,7 @@ import { ApiError } from '@/api/api-error'
 import { appointment } from '@/appointments/appointment-fixtures'
 
 import type { SupportPlanApi } from './support-plan-api'
+import type { SupportPlanActions } from './support-plan-contract'
 import { SupportPlanScreen } from './SupportPlanScreen'
 import {
   makeOccurrence,
@@ -109,6 +110,61 @@ function makeApi(
     reviewReplacement: jest.fn(),
     replaceCurrent: jest.fn(),
     ...overrides,
+  }
+}
+
+function makeScheduleProjection(
+  plan: ReturnType<typeof makePlan>,
+  firstDuration = 15,
+  secondDuration = 20,
+): SupportPlanActions {
+  const action = (ordinal: number, duration: number) => ({
+    actionId: `action-${ordinal}`,
+    actionType: 'ROUTINE_SELF_MANAGEMENT' as const,
+    actionVersion: 1,
+    representationMode: 'NATIVE_V3' as const,
+    status: 'DRAFT' as const,
+    pathRole: 'PRIMARY' as const,
+    purposeCode: 'WELLBEING_ROUTINE',
+    rationale: null,
+    ordinal,
+    presentation: { title: `Hoạt động ${ordinal}`, summary: null },
+    schedules: [
+      {
+        scheduleId: `30000000-0000-4000-8000-00000000064${ordinal}`,
+        version: 1,
+        schedulePolicyVersion: 'support-plan-activity-schedule-v2',
+        recurrenceType: 'WEEKLY' as const,
+        recurrenceDayOfWeek: null,
+        daysOfWeek: [ordinal],
+        preferredDaypart: 'MORNING' as const,
+        estimatedDurationMinutes: duration,
+        localTime: `0${7 + ordinal}:00:00`,
+        timezone: 'Asia/Ho_Chi_Minh',
+        effectiveFrom: '2099-01-01',
+        effectiveUntil: null,
+        reminderEnabled: true,
+        status: 'DRAFT' as const,
+      },
+    ],
+  })
+  return {
+    supportPlanId: plan.supportPlanId,
+    modelVersion: 3,
+    planPolicyVersion: 'support-plan-selection-v2',
+    representationMode: 'NATIVE_V3',
+    status: plan.status,
+    version: plan.version,
+    updatedAt: plan.updatedAt,
+    focuses: [
+      {
+        focusId: 'focus-1',
+        title: 'Hỗ trợ nhịp hoạt động',
+        rationale: null,
+        personalizationProvenance: null,
+        actions: [action(1, firstDuration), action(2, secondDuration)],
+      },
+    ],
   }
 }
 
@@ -979,4 +1035,61 @@ describe('mobile SupportPlan journey', () => {
       expect(api.changeStatus).not.toHaveBeenCalled()
     },
   )
+
+  it('reloads one stale schedule without losing another unsaved action draft', async () => {
+    const draft = makePlan('DRAFT', { version: 3 })
+    const refreshedDraft = makePlan('DRAFT', {
+      version: 4,
+      updatedAt: '2026-10-12T02:00:00.000Z',
+    })
+    const api = makeApi({
+      getCurrentDraft: jest
+        .fn()
+        .mockResolvedValueOnce(draft)
+        .mockResolvedValue(refreshedDraft),
+      getCurrentDraftActions: jest
+        .fn()
+        .mockResolvedValueOnce(makeScheduleProjection(draft))
+        .mockResolvedValue(makeScheduleProjection(refreshedDraft, 30, 20)),
+      replaceSchedule: jest.fn().mockRejectedValue(
+        new ApiError({
+          message: 'stale',
+          code: 'SUPPORT_PLAN_VERSION_MISMATCH',
+          status: 412,
+        }),
+      ),
+    })
+
+    await renderScreen(<SupportPlanScreen api={api} />)
+
+    const durations = await screen.findAllByLabelText(
+      'Thời lượng dự kiến (phút)',
+    )
+    fireEvent.changeText(durations[0]!, '25')
+    fireEvent.changeText(durations[1]!, '35')
+    const save = screen.getAllByRole('button', { name: 'Lưu lịch' })[0]!
+    await waitFor(() =>
+      expect(save.props.accessibilityState.disabled).toBe(false),
+    )
+    fireEvent.press(save)
+    await waitFor(() => expect(api.replaceSchedule).toHaveBeenCalledTimes(1))
+
+    const reload = await screen.findByRole('button', {
+      name: 'Tải lịch mới',
+    })
+    await act(async () => {
+      await fireEvent.press(reload)
+    })
+
+    await screen.findByText(
+      'Đã tải trạng thái mới nhất. Hãy kiểm tra lại trước khi tiếp tục.',
+    )
+    await waitFor(() => {
+      const reloadedDurations = screen.getAllByLabelText(
+        'Thời lượng dự kiến (phút)',
+      )
+      expect(reloadedDurations[0]!.props.value).toBe('30')
+      expect(reloadedDurations[1]!.props.value).toBe('35')
+    })
+  })
 })

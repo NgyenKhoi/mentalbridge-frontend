@@ -137,7 +137,11 @@ describe('mobile SupportPlan schedule editor', () => {
     expect(screen.getByLabelText('Thời lượng dự kiến (phút)').props.value).toBe(
       '25',
     )
-    fireEvent.press(screen.getByRole('button', { name: 'Tải lịch mới' }))
+    await act(async () => {
+      await fireEvent.press(
+        screen.getByRole('button', { name: 'Tải lịch mới' }),
+      )
+    })
     expect(onReload).toHaveBeenCalledTimes(1)
   })
 
