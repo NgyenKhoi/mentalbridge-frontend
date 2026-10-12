@@ -8,8 +8,10 @@ import type {
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
   SupportPlanV3,
+  UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
 import SupportPlanSchedule from './SupportPlanSchedule'
+import SupportPlanScheduleEditor from './SupportPlanScheduleEditor'
 import ProfessionalSupportPath from './ProfessionalSupportPath'
 
 const domainLabel = {
@@ -71,6 +73,12 @@ type Props = Readonly<{
   focusProjection?: SupportPlanV3 | undefined
   focusProjectionLoading?: boolean
   focusProjectionUnavailable?: boolean
+  onSaveSchedule?: (
+    actionId: string,
+    request: UpdateActionScheduleRequest,
+    idempotencyKey: string,
+  ) => Promise<void>
+  onReloadSchedule?: () => Promise<boolean | void>
 }>
 
 type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
@@ -115,6 +123,8 @@ export default function SupportPlanCard({
   focusProjection,
   focusProjectionLoading = false,
   focusProjectionUnavailable = false,
+  onSaveSchedule,
+  onReloadSchedule,
 }: Props) {
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     initialChoices(plan),
@@ -127,6 +137,7 @@ export default function SupportPlanCard({
     Record<string, boolean>
   >({})
   const [isRationaleOpen, setIsRationaleOpen] = useState(true)
+  const [scheduleDirty, setScheduleDirty] = useState(false)
   const isDraft = plan.status === 'DRAFT'
   const panelProps = (tab: 'plan' | 'today' | 'adjust') =>
     embedded
@@ -512,6 +523,15 @@ export default function SupportPlanCard({
           </ol>
         </section>
 
+        {isDraft && focusProjection && onSaveSchedule && onReloadSchedule && (
+          <SupportPlanScheduleEditor
+            plan={focusProjection}
+            onDirtyChange={setScheduleDirty}
+            onSave={onSaveSchedule}
+            onReload={onReloadSchedule}
+          />
+        )}
+
         {isDraft && (
           <section
             className="support-plan-actions"
@@ -546,16 +566,17 @@ export default function SupportPlanCard({
                 <button
                   className="btn btn-primary"
                   type="button"
-                  disabled={dirty || busy !== null}
+                  disabled={dirty || scheduleDirty || busy !== null}
                   onClick={() => void onActivate()}
                 >
                   {busy === 'ACTIVATING' ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
                 </button>
               )}
             </div>
-            {dirty && (
+            {(dirty || scheduleDirty) && (
               <p className="support-plan-action-hint">
-                Hãy lưu lựa chọn mới trước khi bắt đầu kế hoạch.
+                Hãy lưu lựa chọn nội dung và lịch mới trước khi bắt đầu kế
+                hoạch.
               </p>
             )}
             <p
@@ -642,6 +663,13 @@ export default function SupportPlanCard({
         }`}
         {...panelProps('adjust')}
       >
+        {!isDraft && focusProjection && onSaveSchedule && onReloadSchedule && (
+          <SupportPlanScheduleEditor
+            plan={focusProjection}
+            onSave={onSaveSchedule}
+            onReload={onReloadSchedule}
+          />
+        )}
         <aside className="support-plan-confirmation-note">
           <strong>Quản lý trạng thái kế hoạch</strong>
           <p>

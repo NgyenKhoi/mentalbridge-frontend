@@ -59,6 +59,7 @@ import type {
   PlanChangeRequest,
   CreatePlanChangeRequest,
   PlanChangeDecision,
+  UpdateActionScheduleRequest,
 } from '@/features/support-plan/api/support-plan-contract'
 import {
   parseSupportGuide,
@@ -1072,6 +1073,40 @@ export const careClient = {
       path: `/api/v2/support-plans/${encodeURIComponent(supportPlanId)}`,
       correlationId,
       authorization: accessToken,
+      parseSuccess: parseSupportPlanV3,
+    })
+  },
+
+  currentSupportPlanDraftActions(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<SupportPlanV3> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v2/support-plans/current-draft',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanV3,
+    })
+  },
+
+  replaceSupportPlanActionSchedule(
+    accessToken: string,
+    supportPlanId: string,
+    actionId: string,
+    request: UpdateActionScheduleRequest,
+    version: number,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportPlanV3> {
+    return careRequest({
+      method: 'PUT',
+      path: `/api/v2/support-plans/${encodeURIComponent(supportPlanId)}/actions/${encodeURIComponent(actionId)}/schedule`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      idempotencyKey,
+      body: request,
       parseSuccess: parseSupportPlanV3,
     })
   },

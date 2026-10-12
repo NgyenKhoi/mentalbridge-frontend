@@ -1069,6 +1069,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/support-plans/current-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the current draft through the v3 action model
+         * @description Returns the authenticated user's current draft, including reviewable
+         *     schedule defaults. A default is not activated until the user explicitly
+         *     activates the draft. Existing v2 resource slots are projected without
+         *     rewriting their selection history.
+         */
+        get: operations["getOwnCurrentDraftSupportPlanV3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/actions/{actionId}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Explicitly replace or remove one action schedule
+         * @description Replaces one reviewable draft or active action schedule under strong
+         *     plan-version and idempotency checks. A null schedule removes future
+         *     workload. Changes never alter action eligibility and never classify a
+         *     lower cadence, later time, pause, or removal as failure. For an active
+         *     plan, the replacement starts no earlier than tomorrow in its requested
+         *     timezone and deterministically cancels superseded future occurrences.
+         */
+        put: operations["replaceOwnPlanActionSchedule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/support-plans/{supportPlanId}": {
         parameters: {
             query?: never;
@@ -2572,6 +2620,10 @@ export interface components {
             /** @enum {string} */
             recurrenceType: "ONCE" | "DAILY" | "WEEKLY";
             recurrenceDayOfWeek: number | null;
+            daysOfWeek: number[];
+            /** @enum {string|null} */
+            preferredDaypart: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            estimatedDurationMinutes: number | null;
             /** Format: time */
             localTime: string;
             timezone: string;
@@ -2581,7 +2633,31 @@ export interface components {
             effectiveUntil: string | null;
             reminderEnabled: boolean;
             /** @enum {string} */
-            status: "ACTIVE" | "PAUSED" | "ENDED";
+            status: "DRAFT" | "ACTIVE" | "PAUSED" | "ENDED";
+        };
+        UpdateActionScheduleRequest: {
+            /** @description Null removes future workload without marking non-completion or failure. */
+            schedule: components["schemas"]["ActionScheduleInput"] | null;
+        };
+        ActionScheduleInput: {
+            /** @enum {string} */
+            recurrenceType: "ONCE" | "DAILY" | "WEEKLY";
+            /** @description Required and non-empty for WEEKLY; empty for ONCE and DAILY. */
+            daysOfWeek: number[];
+            /**
+             * @description Null means the user chose an exact local time instead of a daypart default.
+             * @enum {string|null}
+             */
+            preferredDaypart: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            /** Format: time */
+            localTime: string;
+            estimatedDurationMinutes: number;
+            timezone: string;
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveUntil: string | null;
+            reminderEnabled: boolean;
         };
         ActionOccurrenceList: {
             /** Format: uuid */
@@ -2621,7 +2697,7 @@ export interface components {
             /** @enum {string} */
             displayState: "SCHEDULED" | "OVERDUE" | "COMPLETED" | "SKIPPED" | "CANCELLED";
             /** @enum {string|null} */
-            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | "ACTION_ENDED" | null;
+            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | "ACTION_ENDED" | "SCHEDULE_CHANGED" | null;
             /** @description Null unless completion is backed by a bounded Care or owner-domain fact. */
             completionEvidence: components["schemas"]["CompletionEvidence"] | null;
             /** Format: date-time */
@@ -3040,6 +3116,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description The command reuses an idempotency key differently, targets a non-mutable plan or action, or requests recurrence for a review-only action (IDEMPOTENCY_KEY_REUSED, SUPPORT_PLAN_SCHEDULE_NOT_MUTABLE, PLAN_ACTION_SCHEDULE_NOT_MUTABLE, or PLAN_ACTION_UNSCHEDULABLE) */
+        SupportPlanScheduleConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description The occurrence is absent or not owned by the authenticated user (OCCURRENCE_NOT_FOUND) */
         SupportPlanOccurrenceNotFoundProblem: {
             headers: {
@@ -3149,6 +3234,7 @@ export interface components {
         AppointmentId: string;
         SupportEvaluationId: string;
         SupportPlanId: string;
+        PlanActionId: string;
         OccurrenceId: string;
         SessionId: string;
         Instrument: components["schemas"]["Instrument"];
@@ -4841,6 +4927,74 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    getOwnCurrentDraftSupportPlanV3: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current draft SupportPlan v3 read model */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanDraftNotFoundProblem"];
+        };
+    };
+    replaceOwnPlanActionSchedule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+                actionId: components["parameters"]["PlanActionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateActionScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated authoritative SupportPlan v3 read model or identical retry result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanScheduleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
         };
     };
     getOwnSupportPlanV3: {
