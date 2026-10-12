@@ -80,7 +80,9 @@ export const appointmentSchema = z
       ])
       .nullable(),
     sessionOutcomeReason: z.string().max(64).nullable(),
-    sessionPolicyVersion: z.literal('chat-session-completion-v1').nullable(),
+    sessionPolicyVersion: z
+      .enum(['chat-session-completion-v1', 'livekit-video-completion-v1'])
+      .nullable(),
     sessionEndedAt: instant.nullable(),
     sessionSettledAt: instant.nullable(),
     completionFactId: id.nullable(),
@@ -104,6 +106,8 @@ export const appointmentSchema = z
             'SESSION_ACTIVITY_OBSERVED',
             'SCHEDULED_WINDOW_ENDED',
             'EVIDENCE_REQUIREMENTS_MET',
+            'SPECIALIST_VIDEO_END_CONFIRMED',
+            'VIDEO_MANUAL_REVIEW_REQUIRED',
           ]),
           creditOutcome: outcome.nullable(),
           occurredAt: instant,
@@ -117,6 +121,30 @@ export const appointmentSchema = z
       Date.parse(item.scheduledEndAt) - Date.parse(item.scheduledStartAt) ===
       3_600_000,
   )
+  .refine((item) => {
+    if (item.modality !== 'IN_APP_VIDEO')
+      return item.sessionPolicyVersion !== 'livekit-video-completion-v1'
+    if (!['SESSION_ENDED', 'COMPLETED'].includes(item.status))
+      return item.sessionPolicyVersion === null
+    if (
+      item.sessionPolicyVersion !== 'livekit-video-completion-v1' ||
+      item.sessionEndedAt === null
+    )
+      return false
+    if (item.status === 'SESSION_ENDED')
+      return (
+        item.sessionOutcome === null &&
+        item.sessionSettledAt === null &&
+        item.completionFactId === null &&
+        item.creditState === 'HELD'
+      )
+    return (
+      item.sessionOutcome === 'COMPLETED' &&
+      item.sessionSettledAt !== null &&
+      item.completionFactId !== null &&
+      ['CONSUMED', 'AVAILABLE'].includes(item.creditState)
+    )
+  })
 export const appointmentListSchema = z
   .strictObject({
     items: z.array(appointmentSchema).max(100),

@@ -14,6 +14,52 @@ import {
 } from './appointment-model'
 
 describe('MB-630 public appointment/credit contracts', () => {
+  it('accepts additive video history and authoritative completion, never a substituted chat policy', () => {
+    const ended = {
+      ...appointment,
+      status: 'SESSION_ENDED',
+      modality: 'IN_APP_VIDEO',
+      sessionPolicyVersion: 'livekit-video-completion-v1',
+      sessionEndedAt: appointment.scheduledEndAt,
+      history: [],
+    }
+    expect(appointmentSchema.parse(ended).creditState).toBe('HELD')
+    const completed = {
+      ...ended,
+      status: 'COMPLETED',
+      sessionOutcome: 'COMPLETED',
+      sessionSettledAt: appointment.scheduledEndAt,
+      completionFactId: appointment.id,
+      creditState: 'CONSUMED',
+    }
+    expect(appointmentSchema.parse(completed).completionFactId).toBe(
+      appointment.id,
+    )
+    expect(
+      appointmentSchema.safeParse({ ...completed, creditState: 'AVAILABLE' })
+        .success,
+    ).toBe(true)
+    expect(
+      appointmentSchema.safeParse({ ...completed, completionFactId: null })
+        .success,
+    ).toBe(false)
+    expect(
+      appointmentSchema.safeParse({
+        ...ended,
+        sessionPolicyVersion: 'chat-session-completion-v1',
+      }).success,
+    ).toBe(false)
+    expect(
+      appointmentSchema.safeParse({
+        ...ended,
+        sessionOutcome: 'EVIDENCE_REVIEW',
+      }).success,
+    ).toBe(false)
+    expect(
+      appointmentSchema.safeParse({ ...completed, modality: 'IN_APP_CHAT' })
+        .success,
+    ).toBe(false)
+  })
   it('accepts exact authoritative balance/cap without recalculating package or ledger', () => {
     const oldPolicy = {
       ...credits,

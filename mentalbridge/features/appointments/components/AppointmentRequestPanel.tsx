@@ -204,6 +204,8 @@ const historyReason: Record<Appointment['history'][number]['reason'], string> =
     SESSION_ACTIVITY_OBSERVED: 'Phiên tư vấn đã bắt đầu',
     SCHEDULED_WINDOW_ENDED: 'Thời gian tư vấn đã kết thúc',
     EVIDENCE_REQUIREMENTS_MET: 'Phiên tư vấn đã được hoàn tất',
+    SPECIALIST_VIDEO_END_CONFIRMED: 'Chuyên gia đã xác nhận kết thúc cuộc gọi',
+    VIDEO_MANUAL_REVIEW_REQUIRED: 'Phiên tư vấn đang chờ kiểm tra bổ sung',
   }
 
 function appointmentGuidance(appointment: Appointment) {
