@@ -122,6 +122,65 @@ export const supportPlanSchema = z
   })
   .strict()
 
+export const actionScheduleSchema = z
+  .object({
+    scheduleId: z.uuid(),
+    version: z.number().int().min(1),
+    schedulePolicyVersion: z.string().min(1).max(128),
+    recurrenceType: z.enum(['ONCE', 'DAILY', 'WEEKLY']),
+    recurrenceDayOfWeek: z.number().int().min(1).max(7).nullable(),
+    daysOfWeek: z.array(z.number().int().min(1).max(7)).max(7),
+    preferredDaypart: z
+      .enum(['MORNING', 'AFTERNOON', 'EVENING', 'FLEXIBLE'])
+      .nullable(),
+    estimatedDurationMinutes: z.number().int().min(5).max(180).nullable(),
+    localTime: z.iso.time(),
+    timezone: z.string().min(1).max(64),
+    effectiveFrom: z.iso.date(),
+    effectiveUntil: z.iso.date().nullable(),
+    reminderEnabled: z.boolean(),
+    status: z.enum(['DRAFT', 'ACTIVE', 'PAUSED', 'ENDED']),
+  })
+  .strict()
+
+export const actionScheduleInputSchema = z
+  .object({
+    recurrenceType: z.enum(['ONCE', 'DAILY', 'WEEKLY']),
+    daysOfWeek: z.array(z.number().int().min(1).max(7)).max(7),
+    preferredDaypart: z
+      .enum(['MORNING', 'AFTERNOON', 'EVENING', 'FLEXIBLE'])
+      .nullable(),
+    localTime: z.iso.time(),
+    estimatedDurationMinutes: z
+      .number()
+      .int()
+      .min(5)
+      .max(180)
+      .refine((value) => value % 5 === 0),
+    timezone: z.string().min(1).max(64),
+    effectiveFrom: z.iso.date(),
+    effectiveUntil: z.iso.date().nullable(),
+    reminderEnabled: z.boolean(),
+  })
+  .strict()
+  .superRefine((schedule, context) => {
+    if (
+      (schedule.recurrenceType === 'WEEKLY' &&
+        schedule.daysOfWeek.length === 0) ||
+      (schedule.recurrenceType !== 'WEEKLY' && schedule.daysOfWeek.length !== 0)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['daysOfWeek'],
+        message: 'Weekdays must match the recurrence type.',
+      })
+    }
+  })
+
+export const updateActionScheduleRequestSchema = z
+  .object({ schedule: actionScheduleInputSchema.nullable() })
+  .strict()
+
 const planActionProjectionSchema = z.object({
   actionId: z.string().min(1).max(128),
   actionType: z.enum([
@@ -133,19 +192,35 @@ const planActionProjectionSchema = z.object({
     'REASSESSMENT_SCREENING',
     'SELF_REPORT_REVIEW',
   ]),
+  actionVersion: z.number().int().nonnegative(),
+  representationMode: z.enum(['V2_RESOURCE_ADAPTER', 'NATIVE_V3']),
   status: z.enum(['DRAFT', 'ACTIVE', 'ENDED']),
   pathRole: z.enum(['PRIMARY', 'ADJUNCT']),
   purposeCode: z.string().min(1).max(64),
+  rationale: z.string().min(1).max(2048).nullable(),
+  ordinal: z.number().int().min(1).max(20),
   presentation: z.object({
     title: z.string().min(1).max(255),
     summary: z.string().min(1).max(4096).nullable(),
   }),
+  schedules: z.array(actionScheduleSchema).max(50),
 })
 
 export const supportPlanActionsSchema = z.object({
   supportPlanId: z.uuid(),
   modelVersion: z.literal(3),
+  planPolicyVersion: z.string().min(1).max(128),
   representationMode: z.enum(['V2_RESOURCE_ADAPTER', 'NATIVE_V3']),
+  status: z.enum([
+    'DRAFT',
+    'ACTIVE',
+    'PAUSED',
+    'COMPLETED',
+    'SUPERSEDED',
+    'DISCARDED',
+  ]),
+  version: z.number().int().nonnegative(),
+  updatedAt: z.iso.datetime(),
   focuses: z
     .array(
       z.object({
@@ -195,7 +270,13 @@ export const occurrenceSchema = z
       'CANCELLED',
     ]),
     stateReason: z
-      .enum(['PLAN_PAUSED', 'PLAN_COMPLETED', 'PLAN_REPLACED'])
+      .enum([
+        'PLAN_PAUSED',
+        'PLAN_COMPLETED',
+        'PLAN_REPLACED',
+        'ACTION_ENDED',
+        'SCHEDULE_CHANGED',
+      ])
       .nullable(),
     version: z.number().int().nonnegative(),
     source: z
@@ -241,7 +322,10 @@ export const occurrenceListSchema = z
   .object({
     supportPlanId: z.uuid(),
     supportPlanStatus: z.enum(['ACTIVE', 'PAUSED']),
-    schedulePolicyVersion: z.literal('support-plan-activity-schedule-v1'),
+    schedulePolicyVersion: z.enum([
+      'support-plan-activity-schedule-v1',
+      'support-plan-activity-schedule-v2',
+    ]),
     from: z.iso.date(),
     through: z.iso.date(),
     occurrences: z.array(occurrenceSchema).max(217),
@@ -470,6 +554,10 @@ export const reassessmentSummaryReferenceSchema = reassessmentSummarySchema
 export type SupportPlan = z.infer<typeof supportPlanSchema>
 export type SupportPlanActions = z.infer<typeof supportPlanActionsSchema>
 export type PlanActionProjection = z.infer<typeof planActionProjectionSchema>
+export type ActionScheduleInput = z.infer<typeof actionScheduleInputSchema>
+export type UpdateActionScheduleRequest = z.infer<
+  typeof updateActionScheduleRequestSchema
+>
 export type SupportPlanHistory = z.infer<typeof supportPlanHistorySchema>
 export type SupportPlanOccurrence = z.infer<typeof occurrenceSchema>
 export type SupportPlanOccurrenceList = z.infer<typeof occurrenceListSchema>

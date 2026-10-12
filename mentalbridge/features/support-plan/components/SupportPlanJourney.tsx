@@ -18,12 +18,14 @@ import {
   changeSupportPlanStatus,
   getCurrentSupportPlan,
   getCurrentSupportPlanDraft,
+  getCurrentSupportPlanDraftActions,
   getSupportPlanHistory,
   getSupportPlanActions,
   getSupportPlanOccurrences,
   proposeSupportPlanDraft,
   replaceSupportPlan,
   replaceSupportPlanChoices,
+  replaceSupportPlanActionSchedule,
   reviewSupportPlanReplacement,
 } from '../api/browser-support-plan'
 import type {
@@ -31,6 +33,7 @@ import type {
   SupportPlan,
   SupportPlanReplacementReview,
   SupportPlanV3,
+  UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
 import SupportPlanFooter from './SupportPlanFooter'
@@ -422,7 +425,11 @@ export default function SupportPlanJourney() {
 
     let active = true
     for (const target of targets) {
-      void getSupportPlanActions(target.supportPlanId)
+      const projectionRequest =
+        target.status === 'DRAFT'
+          ? getCurrentSupportPlanDraftActions()
+          : getSupportPlanActions(target.supportPlanId)
+      void projectionRequest
         .then((value) => {
           if (!active || value.supportPlanId !== target.supportPlanId) return
           setFocusProjections((current) => ({
@@ -533,6 +540,43 @@ export default function SupportPlanJourney() {
       await recover(errorMessage)
     } finally {
       setBusy(null)
+    }
+  }
+
+  const saveSchedule = async (
+    target: SupportPlan,
+    actionId: string,
+    request: UpdateActionScheduleRequest,
+    idempotencyKey: string,
+  ) => {
+    const updated = await replaceSupportPlanActionSchedule(
+      target.supportPlanId,
+      actionId,
+      target.version,
+      request,
+      idempotencyKey,
+    )
+    const patched = {
+      ...target,
+      version: updated.version,
+      updatedAt: updated.updatedAt,
+    }
+    setFocusProjections((current) => ({
+      ...current,
+      [target.supportPlanId]: {
+        version: updated.version,
+        status: 'ready',
+        value: updated,
+      },
+    }))
+    if (currentPlan?.supportPlanId === target.supportPlanId) {
+      setCurrentPlan(patched)
+      setPlan(patched)
+    } else if (replacementDraft?.supportPlanId === target.supportPlanId) {
+      setReplacementDraft(patched)
+      if (currentPlan) await loadReplacementReview(currentPlan, patched)
+    } else {
+      setPlan(patched)
     }
   }
 
@@ -799,6 +843,12 @@ export default function SupportPlanJourney() {
               onSaveChoices={saveChoices}
               onActivate={activate}
               onStatusChange={changeStatus}
+              onSaveSchedule={(actionId, request, idempotencyKey) =>
+                saveSchedule(plan, actionId, request, idempotencyKey)
+              }
+              onReloadSchedule={async () => {
+                await recover()
+              }}
               activeTab={cardTab}
               focusProjection={
                 focusProjections[plan.supportPlanId]?.version === plan.version
@@ -899,6 +949,17 @@ export default function SupportPlanJourney() {
                   onSaveChoices={saveChoices}
                   onActivate={activate}
                   onStatusChange={changeReplacementDraftStatus}
+                  onSaveSchedule={(actionId, request, idempotencyKey) =>
+                    saveSchedule(
+                      replacementDraft,
+                      actionId,
+                      request,
+                      idempotencyKey,
+                    )
+                  }
+                  onReloadSchedule={async () => {
+                    await recover()
+                  }}
                   draftAction="REPLACEMENT"
                   activeTab="plan"
                   embedded

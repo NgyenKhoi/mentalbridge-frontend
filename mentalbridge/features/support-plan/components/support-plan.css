@@ -4846,3 +4846,146 @@
   max-width: 36rem;
   color: var(--text-secondary);
 }
+
+.support-plan-cadence {
+  margin-top: 1.5rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 1rem);
+  background: var(--surface);
+}
+
+.support-plan-cadence-intro,
+.support-plan-cadence-item p,
+.support-plan-cadence-message {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.support-plan-cadence-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.support-plan-cadence-item {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 0.75rem);
+  background: color-mix(in srgb, var(--surface) 94%, var(--primary) 6%);
+}
+
+.support-plan-cadence-item.is-read-only {
+  background: transparent;
+}
+
+.support-plan-cadence-item h4 {
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.support-plan-cadence-item-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.support-plan-cadence-toggle,
+.support-plan-cadence-reminder,
+.support-plan-weekdays label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.support-plan-cadence-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem 1rem;
+}
+
+.support-plan-cadence-fields > label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.support-plan-cadence-fields input[type='text'],
+.support-plan-cadence-fields input[type='time'],
+.support-plan-cadence-fields input[type='date'],
+.support-plan-cadence-fields input[type='number'],
+.support-plan-cadence-fields select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-sm, 0.55rem);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 500;
+}
+
+.support-plan-cadence-fields input:focus-visible,
+.support-plan-cadence-fields select:focus-visible,
+.support-plan-weekdays input:focus-visible,
+.support-plan-cadence-toggle input:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  outline-offset: 2px;
+}
+
+.support-plan-cadence-reminder,
+.support-plan-weekdays {
+  grid-column: 1 / -1;
+}
+
+.support-plan-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 0.55rem);
+}
+
+.support-plan-weekdays legend {
+  padding: 0 0.25rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.support-plan-cadence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.support-plan-cadence-message {
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .support-plan-cadence-item-heading {
+    display: grid;
+  }
+
+  .support-plan-cadence-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .support-plan-cadence-reminder,
+  .support-plan-weekdays {
+    grid-column: auto;
+  }
+}

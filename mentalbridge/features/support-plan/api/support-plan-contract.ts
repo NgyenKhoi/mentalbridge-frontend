@@ -9,6 +9,10 @@ export type SupportPlanPersonalization =
 export type ReplaceSupportPlanPersonalizationRequest =
   care['schemas']['ReplaceSupportPlanPersonalizationRequest']
 export type PlanAction = care['schemas']['PlanAction']
+export type ActionSchedule = care['schemas']['ActionSchedule']
+export type ActionScheduleInput = care['schemas']['ActionScheduleInput']
+export type UpdateActionScheduleRequest =
+  care['schemas']['UpdateActionScheduleRequest']
 export type SupportPlanHistoryPage = care['schemas']['SupportPlanHistoryPage']
 export type ProposeSupportPlanDraftRequest =
   care['schemas']['ProposeSupportPlanDraftRequest']

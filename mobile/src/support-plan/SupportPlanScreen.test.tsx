@@ -63,6 +63,13 @@ function makeApi(
       representationMode: 'V2_RESOURCE_ADAPTER',
       focuses: [],
     }),
+    getCurrentDraftActions: jest.fn().mockResolvedValue({
+      supportPlanId: '10000000-0000-4000-8000-000000000001',
+      modelVersion: 3,
+      representationMode: 'V2_RESOURCE_ADAPTER',
+      focuses: [],
+    }),
+    replaceSchedule: jest.fn(),
     getAppointments: jest.fn().mockResolvedValue({
       items: [],
       count: 0,

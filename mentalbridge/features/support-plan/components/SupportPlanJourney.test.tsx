@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
   changeSupportPlanStatus: vi.fn(),
   getCurrentSupportPlan: vi.fn(),
   getCurrentSupportPlanDraft: vi.fn(),
+  getCurrentSupportPlanDraftActions: vi.fn(),
   getSupportPlan: vi.fn(),
   getSupportPlanHistory: vi.fn(),
   getSupportPlanActions: vi.fn(),
@@ -19,6 +20,7 @@ const api = vi.hoisted(() => ({
   proposeSupportPlanDraft: vi.fn(),
   replaceSupportPlan: vi.fn(),
   replaceSupportPlanChoices: vi.fn(),
+  replaceSupportPlanActionSchedule: vi.fn(),
   replaceSupportPlanPersonalization: vi.fn(),
   reviewSupportPlanReplacement: vi.fn(),
 }))
@@ -105,6 +107,9 @@ describe('SupportPlanJourney', () => {
         },
       ],
     })
+    api.getCurrentSupportPlanDraftActions.mockImplementation(() =>
+      api.getSupportPlanActions(),
+    )
     api.getSupportPlanPersonalization.mockResolvedValue({
       value: {
         personalizationId: null,

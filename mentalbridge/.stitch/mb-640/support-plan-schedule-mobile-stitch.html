@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>MentalBridge - Bản nháp kế hoạch tuần</title>
+<!-- Google Fonts: Newsreader (Editorial Serif) & Be Vietnam Pro (Native Vietnamese Diacritics) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,400&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "secondary": "#2a685d",
+            "surface": "#ecfef1",
+            "background": "#ecfef1",
+            "tertiary-fixed": "#ffddb4",
+            "on-surface-variant": "#404846",
+            "surface-variant": "#d5e7da",
+            "on-primary-fixed": "#00201c",
+            "on-primary": "#ffffff",
+            "tertiary-fixed-dim": "#f9bb64",
+            "on-secondary-fixed-variant": "#085045",
+            "on-error": "#ffffff",
+            "outline": "#717976",
+            "secondary-fixed-dim": "#94d3c4",
+            "surface-container-lowest": "#ffffff",
+            "on-tertiary-fixed-variant": "#633f00",
+            "surface-bright": "#ecfef1",
+            "outline-variant": "#c0c8c5",
+            "inverse-primary": "#a2d0c6",
+            "on-secondary": "#ffffff",
+            "inverse-on-surface": "#e3f5e8",
+            "primary-fixed": "#beece2",
+            "tertiary-container": "#5e3c00",
+            "surface-container-high": "#dbede0",
+            "on-error-container": "#93000a",
+            "on-primary-fixed-variant": "#224e47",
+            "primary-container": "#1e4a43",
+            "on-tertiary-container": "#e0a550",
+            "on-secondary-container": "#316e63",
+            "on-background": "#101f17",
+            "surface-tint": "#3b665e",
+            "surface-container-low": "#e6f8eb",
+            "on-primary-container": "#8cb9af",
+            "on-surface": "#101f17",
+            "secondary-fixed": "#b0efe0",
+            "inverse-surface": "#24342b",
+            "on-tertiary": "#ffffff",
+            "surface-container-highest": "#d5e7da",
+            "on-tertiary-fixed": "#291800",
+            "error-container": "#ffdad6",
+            "error": "#ba1a1a",
+            "secondary-container": "#b0efe0",
+            "surface-container": "#e0f2e6",
+            "primary": "#01332d",
+            "tertiary": "#412800",
+            "primary-fixed-dim": "#a2d0c6",
+            "surface-dim": "#cdded2"
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "space-xxl": "4rem",
+            "gutter": "2rem",
+            "space-sm": "0.5rem",
+            "gutter-desktop-wide": "2.5rem",
+            "margin-compact": "1.5rem",
+            "margin": "3rem",
+            "space-xs": "0.25rem",
+            "space-xl": "2.5rem",
+            "space-md": "1rem",
+            "space-lg": "1.5rem"
+          },
+          fontFamily: {
+            "headline-sm": ["Newsreader", "serif"],
+            "headline-lg": ["Newsreader", "serif"],
+            "body-md": ["Be Vietnam Pro", "sans-serif"],
+            "label-lg": ["Be Vietnam Pro", "sans-serif"],
+            "headline-xl": ["Newsreader", "serif"],
+            "headline-md": ["Newsreader", "serif"],
+            "label-sm": ["Be Vietnam Pro", "sans-serif"],
+            "label-md": ["Be Vietnam Pro", "sans-serif"],
+            "body-sm": ["Be Vietnam Pro", "sans-serif"],
+            "body-lg": ["Be Vietnam Pro", "sans-serif"],
+            "body-xl": ["Be Vietnam Pro", "sans-serif"],
+            "display-lg": ["Newsreader", "serif"]
+          },
+          fontSize: {
+            "headline-sm": ["1.25rem", { lineHeight: "1.75rem", fontWeight: "600" }],
+            "headline-lg": ["1.875rem", { lineHeight: "2.35rem", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "body-md": ["0.95rem", { lineHeight: "1.55rem", fontWeight: "400" }],
+            "label-lg": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0.01em", fontWeight: "600" }],
+            "headline-xl": ["2.25rem", { lineHeight: "2.75rem", letterSpacing: "-0.015em", fontWeight: "400" }],
+            "headline-md": ["1.35rem", { lineHeight: "1.85rem", fontWeight: "500" }],
+            "label-sm": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0.03em", fontWeight: "600" }],
+            "label-md": ["0.8125rem", { lineHeight: "1.125rem", letterSpacing: "0.02em", fontWeight: "500" }],
+            "body-sm": ["0.8125rem", { lineHeight: "1.35rem", fontWeight: "400" }],
+            "body-lg": ["1.0625rem", { lineHeight: "1.65rem", fontWeight: "400" }],
+            "body-xl": ["1.1875rem", { lineHeight: "1.75rem", fontWeight: "400" }],
+            "display-lg": ["2.75rem", { lineHeight: "3.25rem", letterSpacing: "-0.02em", fontWeight: "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .touch-target {
+      min-width: 44px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased font-body-md min-h-screen selection:bg-secondary-fixed selection:text-primary">
+<!-- Locked Native Mobile Viewport (Zero horizontal overflow, 375px native, 320-430px bounds) -->
+<div class="w-full max-w-[430px] mx-auto min-h-screen bg-[#F5F8F2] flex flex-col relative shadow-xl overflow-x-hidden border-x border-[#1E4A43]/10">
+<!-- In-flow Floating Save Toast Notification (Hidden by default, triggered on save) -->
+<div aria-live="polite" class="hidden mx-4 mt-3 p-3.5 bg-primary-container text-on-primary rounded-xl shadow-md border border-white/20 items-center justify-between transition-all duration-150 animate-fadeIn" id="save-toast" role="status">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-[#8cb9af] text-[20px]" data-icon="check_circle">check_circle</span>
+<span class="font-label-md text-label-md">Đã lưu nhịp tuần thành công</span>
+</div>
+<button aria-label="Đóng thông báo" class="touch-target text-white/80 hover:text-white" onclick="dismissToast()">
+<span class="material-symbols-outlined text-[18px]" data-icon="close">close</span>
+</button>
+</div>
+<!-- 1. LOCKED MOBILE SHELL: Top Bar -->
+<header class="w-full bg-surface-container-lowest sticky top-0 z-40 px-3.5 h-14 flex items-center justify-between border-b border-[#1E4A43]/10 shadow-[0_1px_3px_rgba(27,42,34,0.03)]">
+<!-- Hamburger Menu Button (44x44px touch target) -->
+<button aria-label="Mở trình đơn chính" class="touch-target rounded-xl text-on-surface hover:bg-surface-container transition-colors duration-150" type="button">
+<span class="material-symbols-outlined text-[22px]" data-icon="menu">menu</span>
+</button>
+<!-- Brand Identity with calm leaf/brain anchor -->
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-primary text-[24px]" data-icon="psychology_alt" style="font-variation-settings: 'FILL' 1;">psychology_alt</span>
+<span class="font-headline-sm text-headline-sm text-primary tracking-tight font-semibold">MentalBridge</span>
+</div>
+<!-- Trailing Action: Search & User Avatar -->
+<div class="flex items-center space-x-1">
+<button aria-label="Tìm kiếm nội dung" class="touch-target rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors duration-150" type="button">
+<span class="material-symbols-outlined text-[20px]" data-icon="search">search</span>
+</button>
+<div aria-label="Tài khoản An Nguyễn" class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-label-sm text-label-sm font-bold ml-1 ring-2 ring-[#CFE3D8]">
+          AN
+        </div>
+</div>
+</header>
+<main class="flex-1 px-4 pt-3.5 pb-10 space-y-5">
+<!-- Breadcrumb / Category Tracker -->
+<div class="flex items-center space-x-1.5 text-on-surface-variant font-label-sm text-label-sm">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="tracking-wide text-[11px] font-semibold text-secondary">KẾ HOẠCH HỖ TRỢ / BẢN NHÁP TUẦN</span>
+</div>
+<!-- Hero Section -->
+<section class="space-y-2">
+<h1 class="font-headline-lg text-headline-lg text-primary leading-tight font-medium">
+          Hôm nay, mình đi một bước nhỏ
+        </h1>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+          Kế hoạch này gom những việc hữu ích vào đúng lúc, để bạn không phải tự nhớ mọi thứ.
+        </p>
+</section>
+<!-- Subheader Chips -->
+<div class="flex flex-wrap items-center gap-2 pt-0.5">
+<div class="inline-flex items-center space-x-1.5 bg-[#E9EFE3] text-primary px-3 py-1.5 rounded-full font-label-md text-label-md border border-[#CFE3D8]">
+<span class="material-symbols-outlined text-[16px] text-secondary" data-icon="calendar_today">calendar_today</span>
+<span>Thứ Bảy, 10 tháng 10</span>
+</div>
+<div class="inline-flex items-center space-x-1.5 bg-[rgba(225,166,81,0.15)] text-[#9B681F] px-3 py-1.5 rounded-full font-label-md text-label-md border border-[#E0A550]/30 font-medium">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-[#9B681F]"></span>
+<span>Bản nháp đang mở</span>
+</div>
+</div>
+<!-- 4 Route Tabs (Exact order: 'Hôm nay', 'Kế hoạch', 'Tiến triển', 'Điều chỉnh') -->
+<nav aria-label="Phân hệ kế hoạch" class="flex border-b border-[#1E4A43]/15 overflow-x-auto no-scrollbar scroll-smooth">
+<a class="touch-target flex-1 px-2.5 pb-2 text-center font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors whitespace-nowrap" href="#hom-nay">
+          Hôm nay
+        </a>
+<a aria-current="page" class="touch-target flex-1 px-2.5 pb-2 text-center font-label-md text-label-md text-primary font-bold border-b-2 border-primary relative flex items-center justify-center gap-1.5 whitespace-nowrap" href="#ke-hoach">
+<span>Kế hoạch</span>
+<span class="bg-primary text-white text-[11px] px-1.5 py-0.5 rounded-full leading-none font-medium">3 việc</span>
+</a>
+<a class="touch-target flex-1 px-2.5 pb-2 text-center font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors whitespace-nowrap" href="#tien-trien">
+          Tiến triển
+        </a>
+<a class="touch-target flex-1 px-2.5 pb-2 text-center font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors whitespace-nowrap" href="#dieu-chinh">
+          Điều chỉnh
+        </a>
+</nav>
+<!-- 2. DRAFT KẾ HOẠCH PANEL -->
+<section class="space-y-4 pt-1">
+<div>
+<h2 class="font-headline-md text-headline-md text-primary font-medium">
+            Nhịp phù hợp với tuần của bạn
+          </h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 leading-normal">
+            Xem lại và tinh chỉnh tần suất, khung giờ cho từng hoạt động trước khi chính thức kích hoạt. Thay đổi lịch không làm thay đổi các hoạt động được xem là phù hợp.
+          </p>
+</div>
+<!-- In-flow Stale Recovery Banner -->
+<div class="bg-[#FFF8E6] border border-[#E0A550]/40 rounded-xl p-3 flex items-start justify-between gap-2 shadow-sm">
+<div class="flex items-start space-x-2">
+<span class="material-symbols-outlined text-[#9B681F] text-[20px] mt-0.5" data-icon="sync_problem">sync_problem</span>
+<div>
+<p class="font-label-md text-label-md font-semibold text-[#633F00]">Kế hoạch đã thay đổi ở nơi khác</p>
+<p class="font-body-sm text-[12px] text-on-surface-variant leading-snug">Đồng bộ lịch phiên mới nhất mà không mất các thay đổi nháp đang soạn.</p>
+</div>
+</div>
+<button class="touch-target whitespace-nowrap px-2.5 py-1.5 bg-[#FFFFFF] border border-[#E0A550]/50 text-[#633F00] rounded-lg font-label-sm text-label-sm font-semibold shadow-2xs hover:bg-[#FAF4E6] active:scale-98 transition-all shrink-0" type="button">
+            Tải lịch mới nhất
+          </button>
+</div>
+<!-- Single-column Accordion List (3 Actions) -->
+<div class="space-y-3">
+<!-- Item 1 (Collapsed) -->
+<article class="bg-surface-container-lowest rounded-2xl border border-[#1E4A43]/10 p-3.5 shadow-sm transition-all duration-150">
+<button aria-controls="item-1-content" aria-expanded="false" class="w-full flex items-start justify-between text-left touch-target min-h-0" onclick="toggleAccordion('item-1-content', 'item-1-icon')" type="button">
+<div class="space-y-1 pr-2">
+<div class="flex items-center space-x-2 flex-wrap">
+<span class="bg-[#CFE3D8] text-primary text-[11px] font-semibold px-2 py-0.5 rounded-full">Cảm xúc · 2 phút</span>
+</div>
+<h3 class="font-headline-sm text-[1.05rem] text-primary font-medium pt-0.5">Ghi lại cảm xúc hôm nay</h3>
+<p class="font-body-sm text-[12px] text-on-surface-variant">
+                  Mỗi ngày · Buổi sáng (09:00) · 2 phút · Múi giờ Asia/Ho_Chi_Minh (GMT+7)
+                </p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant transition-transform duration-200 text-[22px] mt-1 shrink-0" data-icon="expand_more" id="item-1-icon">expand_more</span>
+</button>
+<div class="hidden mt-3 pt-3 border-t border-[#E9EFE3] text-on-surface-variant text-body-sm" id="item-1-content">
+<p class="mb-2">Hoạt động tự phản tư nhanh giúp nhận diện dòng năng lượng tâm lý lúc khởi đầu ngày mới.</p>
+<div class="flex items-center space-x-2 text-secondary text-label-sm font-medium">
+<span class="material-symbols-outlined text-[16px]" data-icon="lock">lock</span>
+<span>Bảo mật y tế · Dữ liệu ghi nhớ mã hoá đầu cuối</span>
+</div>
+</div>
+</article>
+<!-- Item 2 (Expanded by default, Dirty State showing lowered workload) -->
+<article class="bg-surface-container-lowest rounded-2xl border-2 border-[#1E4A43]/30 p-4 shadow-md transition-all duration-150">
+<!-- Header with 'Đang chỉnh sửa' badge -->
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<div class="flex items-center space-x-2 flex-wrap">
+<span class="bg-[#CFE3D8] text-primary text-[11px] font-semibold px-2 py-0.5 rounded-full">Nhật ký · 5 phút</span>
+<span class="bg-[rgba(225,166,81,0.2)] text-[#9B681F] text-[11px] font-semibold px-2 py-0.5 rounded-full border border-[#E0A550]/40 flex items-center space-x-1">
+<span class="w-1.5 h-1.5 rounded-full bg-[#9B681F]"></span>
+<span>Đang chỉnh sửa</span>
+</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-primary font-medium pt-1">Viết vài dòng để nhẹ lòng</h3>
+</div>
+<button aria-label="Thu gọn mục này" class="touch-target -mr-2 -mt-2 text-on-surface-variant" onclick="toggleAccordion('item-2-form', 'item-2-icon')" type="button">
+<span class="material-symbols-outlined text-[24px]" data-icon="expand_less" id="item-2-icon">expand_less</span>
+</button>
+</div>
+<!-- Configuration Form Inside Expanded Card -->
+<div class="mt-4 pt-3.5 border-t border-[#E9EFE3] space-y-4" id="item-2-form">
+<!-- Frequency Cadence Selection -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface font-semibold mb-2">Tần suất thực hiện</label>
+<div aria-label="Tần suất" class="grid grid-cols-2 gap-2" role="radiogroup">
+<button class="touch-target px-3 py-2 rounded-xl text-center font-label-md text-label-md bg-[#F1F4EB] text-on-surface-variant border border-outline-variant/40 hover:bg-white active:scale-98 transition-all" type="button">
+                    Một lần
+                  </button>
+<button class="touch-target px-3 py-2 rounded-xl text-center font-label-md text-label-md bg-[#F1F4EB] text-on-surface-variant border border-outline-variant/40 hover:bg-white active:scale-98 transition-all" type="button">
+                    Mỗi ngày
+                  </button>
+<button aria-checked="true" class="touch-target px-3 py-2 rounded-xl text-center font-label-md text-label-md bg-primary-container text-on-primary font-semibold border border-primary-container shadow-xs active:scale-98 transition-all flex items-center justify-center space-x-1" type="button">
+<span class="material-symbols-outlined text-[16px]" data-icon="check">check</span>
+<span>Theo tuần</span>
+</button>
+<button class="touch-target px-3 py-2 rounded-xl text-center font-label-md text-label-md bg-[#F1F4EB] text-on-surface-variant border border-outline-variant/40 hover:bg-white active:scale-98 transition-all" type="button">
+                    Không lặp lại
+                  </button>
+</div>
+</div>
+<!-- Weekday Multi-select Chips (T2, T4, T6 active) -->
+<div>
+<div class="flex items-center justify-between mb-2">
+<label class="font-label-md text-label-md text-on-surface font-semibold">Các ngày trong tuần</label>
+<span class="text-[12px] text-secondary font-medium">3 ngày / tuần (đã giảm tải)</span>
+</div>
+<div aria-label="Chọn ngày trong tuần" class="flex flex-wrap gap-1.5" role="group">
+<!-- T2 active -->
+<button aria-pressed="true" class="touch-target w-11 h-11 rounded-xl font-label-md text-label-md font-semibold bg-primary text-white transition-all shadow-xs" type="button">
+                    T2
+                  </button>
+<!-- T3 inactive -->
+<button aria-pressed="false" class="touch-target w-11 h-11 rounded-xl font-label-md text-label-md font-medium bg-[#F1F4EB] text-on-surface-variant border border-outline-variant/40 hover:bg-white transition-all" type="button">
+                    T3
+                  </button>
+<!-- T4 active -->
+<button aria-pressed="true" class="touch-target w-11 h-11 rounded-xl font-label-md text-label-md font-semibold bg-primary text-white transition-all shadow-xs" type="button">
+                    T4
+                  </button>
+<!-- T5 inactive -->
+<button aria-pressed="false" class="touch-target w-11 h-11 rounded-xl font-label-md text-label-md font-medium bg-[#F1F4EB] text-on-surface-variant border border-outline-variant/40 hover:bg-white transition-all" type="button">
+                    T5
+                  </button>
+<!-- T6 active -->
+<button aria-pressed="true" class="touch-target w-11 h-11 rounded-xl font-label-md text-label-md font-semibold bg-primary text-white transition-all shadow-xs" type="button">
+                    T6
+                  </button>
+<!-- T7 inactive -->
+<button aria-pressed="false" class="touch-target w-11 h-11 rounded-xl font-label-md text-label-md font-medium bg-[#F1F4EB] text-on-surface-variant border border-outline-variant/40 hover:bg-white transition-all" type="button">
+                    T7
+                  </button>
+<!-- CN inactive -->
+<button aria-pressed="false" class="touch-target w-11 h-11 rounded-xl font-label-md text-label-md font-medium bg-[#F1F4EB] text-on-surface-variant border border-outline-variant/40 hover:bg-white transition-all" type="button">
+                    CN
+                  </button>
+</div>
+</div>
+<!-- Timing Mode Switch: 'Theo buổi' vs 'Giờ cụ thể' -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface font-semibold mb-2">Cách hẹn giờ</label>
+<div class="flex p-1 bg-[#F1F4EB] rounded-xl border border-outline-variant/40">
+<button class="touch-target flex-1 rounded-lg bg-white text-primary font-label-md text-label-md font-semibold shadow-xs transition-all" type="button">
+                    Theo buổi
+                  </button>
+<button class="touch-target flex-1 rounded-lg text-on-surface-variant font-label-md text-label-md hover:text-on-surface transition-all" type="button">
+                    Giờ cụ thể
+                  </button>
+</div>
+</div>
+<!-- Daypart Grid (>=44px touch targets) -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface font-semibold mb-2">Khung thời gian trong ngày</label>
+<div class="grid grid-cols-2 gap-2">
+<button class="touch-target px-3 py-2.5 rounded-xl border border-outline-variant/40 bg-white text-on-surface-variant font-label-md text-label-md text-left flex items-center justify-between hover:bg-[#F9FAF6]" type="button">
+<span>Buổi sáng</span>
+<span class="text-[11px] text-outline">08:00 - 11:30</span>
+</button>
+<button class="touch-target px-3 py-2.5 rounded-xl border-2 border-primary bg-secondary-fixed/20 text-primary font-label-md text-label-md text-left flex items-center justify-between font-semibold shadow-xs" type="button">
+<span>Buổi chiều</span>
+<span class="text-[11px] text-secondary">13:30 - 17:00</span>
+</button>
+<button class="touch-target px-3 py-2.5 rounded-xl border border-outline-variant/40 bg-white text-on-surface-variant font-label-md text-label-md text-left flex items-center justify-between hover:bg-[#F9FAF6]" type="button">
+<span>Buổi tối</span>
+<span class="text-[11px] text-outline">19:00 - 22:00</span>
+</button>
+<button class="touch-target px-3 py-2.5 rounded-xl border border-outline-variant/40 bg-white text-on-surface-variant font-label-md text-label-md text-left flex items-center justify-between hover:bg-[#F9FAF6]" type="button">
+<span>Linh hoạt</span>
+<span class="text-[11px] text-outline">Tùy ý</span>
+</button>
+</div>
+</div>
+<!-- Estimated Duration Select Dropdown -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface font-semibold mb-1.5" for="duration-select">Thời lượng dự kiến</label>
+<div class="relative">
+<select class="w-full h-12 bg-white border border-[#CFE3D8] rounded-xl px-3.5 pr-10 font-body-md text-body-md text-on-surface focus:outline-hidden focus:border-primary focus:ring-2 focus:ring-[#3D7A6E]/20 transition-all appearance-none" id="duration-select">
+<option value="2">2 phút (Siêu ngắn)</option>
+<option selected="" value="5">5 phút (Nhẹ nhàng vừa phải)</option>
+<option value="10">10 phút (Sâu lắng hơn)</option>
+<option value="15">15 phút (Đầy đủ chi tiết)</option>
+</select>
+<span class="material-symbols-outlined pointer-events-none absolute right-3 top-3.5 text-on-surface-variant text-[20px]" data-icon="unfold_more">unfold_more</span>
+</div>
+</div>
+<!-- Effective Start Date Input -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface font-semibold mb-1.5" for="effective-date">Ngày bắt đầu áp dụng</label>
+<div class="relative">
+<input class="w-full h-12 bg-white border border-[#CFE3D8] rounded-xl px-3.5 pr-10 font-body-md text-body-md text-on-surface focus:outline-hidden focus:border-primary focus:ring-2 focus:ring-[#3D7A6E]/20 transition-all" id="effective-date" type="text" value="Thứ Hai, 12/10/2024"/>
+<span class="material-symbols-outlined pointer-events-none absolute right-3 top-3.5 text-on-surface-variant text-[20px]" data-icon="edit_calendar">edit_calendar</span>
+</div>
+</div>
+<!-- Long Timezone Text Safe Wrapping -->
+<div class="p-3 bg-[#F1F4EB] rounded-xl border border-outline-variant/30 flex items-start space-x-2">
+<span class="material-symbols-outlined text-secondary text-[18px] shrink-0 mt-0.5" data-icon="schedule">schedule</span>
+<p class="font-body-sm text-[12px] text-on-surface-variant leading-relaxed break-words">
+                  Múi giờ Asia/Ho_Chi_Minh (GMT+7) - Giờ Đông Dương
+                </p>
+</div>
+<!-- Action Buttons for Dirty Item -->
+<div class="pt-1 flex items-center space-x-2">
+<button class="touch-target flex-1 bg-primary hover:bg-[#163732] active:scale-98 text-white rounded-xl font-label-lg text-label-lg font-semibold shadow-sm transition-all duration-150" onclick="handleSaveRhythm()" type="button">
+                  Lưu nhịp
+                </button>
+<button class="touch-target px-4 bg-[#E9EFE3] hover:bg-white active:scale-98 text-primary border border-[#CFE3D8] rounded-xl font-label-lg text-label-lg font-medium transition-all duration-150" onclick="handleResetRhythm()" type="button">
+                  Hoàn tác
+                </button>
+</div>
+</div>
+</article>
+<!-- Item 3 (Review-only) -->
+<article class="bg-[#F8FAF6] rounded-2xl border border-[#1E4A43]/15 p-4 shadow-2xs">
+<div class="space-y-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2 flex-wrap">
+<span class="bg-[#CFE3D8] text-primary text-[11px] font-semibold px-2 py-0.5 rounded-full">Tư vấn · 50 phút</span>
+<span class="bg-surface-variant text-on-surface-variant text-[11px] font-semibold px-2 py-0.5 rounded-full border border-outline-variant/40 flex items-center space-x-1">
+<span class="material-symbols-outlined text-[13px]" data-icon="lock">lock</span>
+<span>Chỉ xem xét</span>
+</span>
+</div>
+<span class="material-symbols-outlined text-outline text-[20px]" data-icon="lock_person">lock_person</span>
+</div>
+<h3 class="font-headline-sm text-[1.05rem] text-primary font-medium">Chuẩn bị cho buổi tư vấn chuyên môn</h3>
+<!-- Explanation -->
+<p class="font-body-sm text-[12.5px] text-on-surface-variant leading-relaxed">
+                Hoạt động gắn liền với lịch hẹn đã xác nhận cùng chuyên viên tâm lý. Không áp dụng cấu hình lặp lại tự do nhằm bảo vệ tính toàn vẹn của lịch làm việc chuyên môn.
+              </p>
+<!-- Fixed Time Display -->
+<div class="inline-flex items-center space-x-2 bg-white px-3 py-2 rounded-xl border border-[#CFE3D8] text-primary font-label-md text-label-md">
+<span class="material-symbols-outlined text-secondary text-[18px]" data-icon="event_available">event_available</span>
+<span class="font-semibold">14:30 · Thứ Bảy, 10 tháng 10</span>
+</div>
+</div>
+</article>
+</div>
+<!-- Neutral Reassurance Callout -->
+<div class="p-3.5 bg-[#E9EFE3]/80 border border-[#CFE3D8] rounded-xl flex items-start space-x-2.5">
+<span class="material-symbols-outlined text-secondary text-[20px] shrink-0 mt-0.5" data-icon="spa" style="font-variation-settings: 'FILL' 1;">spa</span>
+<p class="font-body-sm text-[12.5px] text-on-surface leading-normal">
+            Giảm tải hoặc dời hoạt động sang ngày khác hoàn toàn không ảnh hưởng đến tiến trình hỗ trợ của bạn.
+          </p>
+</div>
+</section>
+<!-- 3. PLAN ACTIVATION SECTION & DIRTY STATE -->
+<section class="pt-2 space-y-3.5 border-t border-[#1E4A43]/15">
+<h2 class="font-headline-md text-headline-md text-primary font-medium">
+          Bắt đầu áp dụng kế hoạch
+        </h2>
+<!-- Prominent Amber Dirty Warning -->
+<div class="p-3.5 bg-[rgba(225,166,81,0.18)] border border-[#E0A550] rounded-xl flex items-start space-x-2.5 shadow-2xs" id="dirty-warning-banner">
+<span class="material-symbols-outlined text-[#9B681F] text-[20px] shrink-0 mt-0.5" data-icon="warning">warning</span>
+<div class="space-y-0.5">
+<p class="font-label-md text-label-md font-semibold text-[#633F00]">Chưa hoàn tất lưu thay đổi</p>
+<p class="font-body-sm text-[12.5px] text-on-surface-variant leading-snug">
+              Lưu hoặc hoàn tác thay đổi lịch trước khi bắt đầu kế hoạch. Bạn đang có tinh chỉnh nhịp tuần chưa được lưu.
+            </p>
+</div>
+</div>
+<!-- Action CTAs -->
+<div class="space-y-2.5 pt-1">
+<!-- Disabled Activation CTA -->
+<button class="touch-target w-full bg-primary/40 cursor-not-allowed text-white/90 rounded-xl font-label-lg text-label-lg font-semibold py-3.5 shadow-none flex items-center justify-center space-x-2 transition-all" disabled="" id="activate-plan-btn" type="button">
+<span class="material-symbols-outlined text-[18px]" data-icon="flag">flag</span>
+<span>Bắt đầu kế hoạch này</span>
+</button>
+<!-- Secondary Action -->
+<button class="touch-target w-full bg-[#E9EFE3] hover:bg-white text-primary border border-[#CFE3D8] rounded-xl font-label-lg text-label-lg font-medium py-3.5 transition-all active:scale-98 text-center" type="button">
+            Lưu bản nháp và tiếp tục sau
+          </button>
+</div>
+<!-- Privacy Assurance Badge -->
+<div class="pt-2 flex items-center justify-center space-x-1.5 text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-secondary text-[14px]" data-icon="verified_user">verified_user</span>
+<span>Bảo mật y tế · Quyền riêng tư theo chuẩn thông tin sức khỏe</span>
+</div>
+</section>
+</main>
+</div>
+<!-- Inline Micro-interactions -->
+<script>
+    function toggleAccordion(contentId, iconId) {
+      const content = document.getElementById(contentId);
+      const icon = document.getElementById(iconId);
+      if (!content) return;
+
+      const isHidden = content.classList.contains('hidden');
+      if (isHidden) {
+        content.classList.remove('hidden');
+        if (icon) icon.textContent = 'expand_less';
+      } else {
+        content.classList.add('hidden');
+        if (icon) icon.textContent = 'expand_more';
+      }
+    }
+
+    function handleSaveRhythm() {
+      const toast = document.getElementById('save-toast');
+      const warningBanner = document.getElementById('dirty-warning-banner');
+      const activateBtn = document.getElementById('activate-plan-btn');
+
+      // Feedback toast reveal
+      if (toast) {
+        toast.classList.remove('hidden');
+        toast.classList.add('flex');
+        setTimeout(() => {
+          dismissToast();
+        }, 3200);
+      }
+
+      // Resolve dirty state
+      if (warningBanner) {
+        warningBanner.innerHTML = `
+          <span class="material-symbols-outlined text-secondary text-[20px] shrink-0 mt-0.5" data-icon="check_circle">check_circle</span>
+          <div class="space-y-0.5">
+            <p class="font-label-md text-label-md font-semibold text-secondary">Tất cả nhịp tuần đã sẵn sàng</p>
+            <p class="font-body-sm text-[12.5px] text-on-surface-variant leading-snug">
+              Bạn có thể bắt đầu kế hoạch ngay bây giờ hoặc tiếp tục tinh chỉnh nếu cần.
+            </p>
+          </div>
+        `;
+        warningBanner.className = "p-3.5 bg-secondary-fixed/30 border border-secondary/40 rounded-xl flex items-start space-x-2.5 shadow-2xs";
+      }
+
+      // Enable activate button
+      if (activateBtn) {
+        activateBtn.disabled = false;
+        activateBtn.classList.remove('bg-primary/40', 'cursor-not-allowed', 'text-white/90');
+        activateBtn.classList.add('bg-primary', 'hover:bg-[#163732]', 'text-white', 'shadow-sm', 'active:scale-98');
+      }
+    }
+
+    function handleResetRhythm() {
+      const warningBanner = document.getElementById('dirty-warning-banner');
+      const activateBtn = document.getElementById('activate-plan-btn');
+
+      if (warningBanner) {
+        warningBanner.className = "p-3.5 bg-[rgba(225,166,81,0.18)] border border-[#E0A550] rounded-xl flex items-start space-x-2.5 shadow-2xs";
+        warningBanner.innerHTML = `
+          <span class="material-symbols-outlined text-[#9B681F] text-[20px] shrink-0 mt-0.5" data-icon="warning">warning</span>
+          <div class="space-y-0.5">
+            <p class="font-label-md text-label-md font-semibold text-[#633F00]">Đã hoàn tác về phiên bản trước</p>
+            <p class="font-body-sm text-[12.5px] text-on-surface-variant leading-snug">
+              Các thiết lập đã trở về trạng thái đã lưu ban đầu.
+            </p>
+          </div>
+        `;
+      }
+
+      if (activateBtn) {
+        activateBtn.disabled = false;
+        activateBtn.classList.remove('bg-primary/40', 'cursor-not-allowed', 'text-white/90');
+        activateBtn.classList.add('bg-primary', 'hover:bg-[#163732]', 'text-white', 'shadow-sm', 'active:scale-98');
+      }
+    }
+
+    function dismissToast() {
+      const toast = document.getElementById('save-toast');
+      if (toast) {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+      }
+    }
+  </script>
+</body></html>

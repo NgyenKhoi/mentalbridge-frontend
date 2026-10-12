@@ -245,6 +245,47 @@ export function parseSupportPlanV3(value: unknown): SupportPlanV3 | null {
   )
     return null
 
+  const validSchedule = (candidate: unknown) => {
+    if (!object(candidate)) return false
+    const days = candidate.daysOfWeek
+    return (
+      isUuid(String(candidate.scheduleId)) &&
+      Number.isInteger(candidate.version) &&
+      Number(candidate.version) >= 1 &&
+      text(candidate.schedulePolicyVersion, 128) &&
+      ['ONCE', 'DAILY', 'WEEKLY'].includes(String(candidate.recurrenceType)) &&
+      (candidate.recurrenceDayOfWeek === null ||
+        (Number.isInteger(candidate.recurrenceDayOfWeek) &&
+          Number(candidate.recurrenceDayOfWeek) >= 1 &&
+          Number(candidate.recurrenceDayOfWeek) <= 7)) &&
+      Array.isArray(days) &&
+      days.length <= 7 &&
+      new Set(days).size === days.length &&
+      days.every(
+        (day) => Number.isInteger(day) && Number(day) >= 1 && Number(day) <= 7,
+      ) &&
+      (candidate.preferredDaypart === null ||
+        ['MORNING', 'AFTERNOON', 'EVENING', 'FLEXIBLE'].includes(
+          String(candidate.preferredDaypart),
+        )) &&
+      (candidate.estimatedDurationMinutes === null ||
+        (Number.isInteger(candidate.estimatedDurationMinutes) &&
+          Number(candidate.estimatedDurationMinutes) >= 5 &&
+          Number(candidate.estimatedDurationMinutes) <= 180 &&
+          Number(candidate.estimatedDurationMinutes) % 5 === 0)) &&
+      typeof candidate.localTime === 'string' &&
+      /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(candidate.localTime) &&
+      text(candidate.timezone, 64) &&
+      typeof candidate.effectiveFrom === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(candidate.effectiveFrom) &&
+      (candidate.effectiveUntil === null ||
+        (typeof candidate.effectiveUntil === 'string' &&
+          /^\d{4}-\d{2}-\d{2}$/.test(candidate.effectiveUntil))) &&
+      typeof candidate.reminderEnabled === 'boolean' &&
+      ['DRAFT', 'ACTIVE', 'PAUSED', 'ENDED'].includes(String(candidate.status))
+    )
+  }
+
   const validAction = (candidate: unknown) => {
     if (!object(candidate)) return false
     return (
@@ -261,7 +302,9 @@ export function parseSupportPlanV3(value: unknown): SupportPlanV3 | null {
       ['PRIMARY', 'ADJUNCT'].includes(String(candidate.pathRole)) &&
       object(candidate.presentation) &&
       text(candidate.presentation.title, 255) &&
-      Array.isArray(candidate.schedules)
+      Array.isArray(candidate.schedules) &&
+      candidate.schedules.length <= 50 &&
+      candidate.schedules.every(validSchedule)
     )
   }
   const validFocus = (candidate: unknown) => {
