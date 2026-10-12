@@ -411,6 +411,7 @@ export default function SpecialistEarningsManager() {
     )
   const destination = data.destination
   const sandbox =
+    data.payoutProvider === 'FAKE' ||
     destination?.provider === 'FAKE' ||
     data.payouts.some((p) => p.provider === 'FAKE')
   const reason = error

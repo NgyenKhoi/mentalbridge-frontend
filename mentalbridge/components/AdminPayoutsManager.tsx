@@ -34,7 +34,7 @@ function date(value: string) {
 export default function AdminPayoutsManager({
   onNotice,
 }: {
-  onNotice: (message: string) => void
+  onNotice?: (message: string) => void
 }) {
   const [data, setData] = useState<AdminPayoutList | null>(null)
   const [loading, setLoading] = useState(true)
@@ -129,12 +129,21 @@ export default function AdminPayoutsManager({
           type="button"
           onClick={() => {
             void load()
-            onNotice('Đang làm mới dữ liệu chi trả.')
+            onNotice?.('Đang làm mới dữ liệu chi trả.')
           }}
         >
           Làm mới
         </button>
       </header>
+      {data.items.some((item) => item.provider === 'FAKE') && (
+        <p role="note">
+          Có giao dịch mô phỏng trong danh sách. Những giao dịch này không
+          chuyển tiền thật.
+        </p>
+      )}
+      <p>
+        Chỉ tổng hợp các yêu cầu đang hiển thị, tối đa 200 yêu cầu gần nhất.
+      </p>
       <section className="apo-metrics" aria-label="Tổng quan chi trả">
         <article>
           <small>Tổng yêu cầu</small>

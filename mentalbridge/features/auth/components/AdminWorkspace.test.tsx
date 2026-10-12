@@ -31,5 +31,11 @@ describe('AdminWorkspace', () => {
       'href',
       '/admin/reports',
     )
+    expect(
+      screen.getByRole('link', { name: 'Thanh toán gói' }),
+    ).toHaveAttribute('href', '/admin/payments')
+    expect(
+      screen.getByRole('link', { name: 'Chi trả chuyên gia' }),
+    ).toHaveAttribute('href', '/admin/payouts')
   })
 })
