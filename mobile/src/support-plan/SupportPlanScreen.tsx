@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { randomUUID } from 'expo-crypto'
 import { router } from 'expo-router'
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Linking,
@@ -734,7 +734,12 @@ function OccurrenceCard({
 export function SupportPlanScreen({
   api,
   proposalId,
-}: Readonly<{ api: SupportPlanApi; proposalId?: string }>) {
+  nativeProposalEntry,
+}: Readonly<{
+  api: SupportPlanApi
+  proposalId?: string
+  nativeProposalEntry?: ReactNode
+}>) {
   const { session, signOut } = useSession()
   const subject = session?.subject
   const queryClient = useQueryClient()
@@ -1329,6 +1334,7 @@ export function SupportPlanScreen({
           })
         }
       />
+      {nativeProposalEntry}
       {authorityRecovery === 'refreshing' && (
         <Text accessibilityLiveRegion="polite" style={styles.supportingText}>
           Đang tải lại trạng thái có thẩm quyền…

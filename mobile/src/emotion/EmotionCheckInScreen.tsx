@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { randomUUID } from 'expo-crypto'
 import { router } from 'expo-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -16,6 +16,7 @@ import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import type { ResolvedEmotionPlanOrigin } from '@/support-plan/emotion-plan-context'
 
 import type { EmotionApi } from './emotion-api'
 import type {
@@ -55,6 +56,20 @@ type Draft = Readonly<{
   intensity: number | null
   factors: readonly EmotionInfluenceFactor[]
   note: string
+}>
+type SaveCommand = Readonly<{
+  subject: string
+  localDate: string
+  timezone: string
+  scope: string
+  draft: Draft
+  current: EmotionCheckIn | null
+}>
+type DeleteCommand = Readonly<{
+  subject: string
+  localDate: string
+  timezone: string
+  scope: string
 }>
 
 const emptyDraft: Draft = {
@@ -160,10 +175,14 @@ export function EmotionCheckInScreen({
   api,
   now = () => new Date(),
   timezone: timezoneOverride,
+  planOrigin,
+  onReturnToPlan,
 }: Readonly<{
   api: EmotionApi
   now?: () => Date
   timezone?: string
+  planOrigin?: ResolvedEmotionPlanOrigin
+  onReturnToPlan?: () => void
 }>) {
   const { session, signOut } = useSession()
   const queryClient = useQueryClient()
@@ -203,6 +222,12 @@ export function EmotionCheckInScreen({
     null,
   )
   const syncedDraftKey = useRef<string | undefined>(undefined)
+  const scope = `${subject}:${localDate}:${timezone}`
+  const currentScope = useRef(scope)
+  useLayoutEffect(() => {
+    currentScope.current = scope
+  }, [scope])
+  const saveKey = useRef<{ signature: string; key: string } | null>(null)
 
   const todayQuery = useQuery({
     queryKey: todayKey,
@@ -238,48 +263,93 @@ export function EmotionCheckInScreen({
     if (syncedDraftKey.current === syncKey) return
     syncedDraftKey.current = syncKey
     setDraft(current ? savedDraft(current) : emptyDraft)
+    setNotice(null)
+    setPendingDeleteDate(null)
   }, [current, localDate, subject, todayQuery.isSuccess])
 
-  const refreshHistoryAndProgress = async () => {
+  const refreshHistoryAndProgress = async (owner: {
+    subject: string
+    timezone: string
+  }) => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: historyKey }),
-      queryClient.invalidateQueries({ queryKey: progressKey }),
+      queryClient.invalidateQueries({
+        queryKey: ['emotion-check-in', owner.subject, 'history'],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: [
+          'emotion-check-in',
+          owner.subject,
+          'progress',
+          owner.timezone,
+        ],
+      }),
     ])
   }
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!draft.emotion || !draft.intensity) {
+    mutationFn: async (command: SaveCommand) => {
+      if (!command.draft.emotion || !command.draft.intensity) {
         throw new Error('Emotion check-in draft is incomplete')
       }
       const value = {
-        emotion: draft.emotion,
-        intensity: draft.intensity,
-        factors: [...draft.factors],
-        note: draft.note.trim() || null,
+        emotion: command.draft.emotion,
+        intensity: command.draft.intensity,
+        factors: [...command.draft.factors],
+        note: command.draft.note.trim() || null,
       }
-      return current
-        ? api.updateCheckIn(localDate, current.revision, value, randomUUID())
-        : api.createCheckIn({ ...value, localDate, timezone }, randomUUID())
+      const signature = JSON.stringify([
+        command.scope,
+        command.current?.revision,
+        value,
+      ])
+      if (saveKey.current?.signature !== signature)
+        saveKey.current = { signature, key: randomUUID() }
+      return command.current
+        ? api.updateCheckIn(
+            command.localDate,
+            command.current.revision,
+            value,
+            saveKey.current.key,
+          )
+        : api.createCheckIn(
+            {
+              ...value,
+              localDate: command.localDate,
+              timezone: command.timezone,
+            },
+            saveKey.current.key,
+          )
     },
-    onSuccess: async (saved) => {
-      queryClient.setQueryData(todayKey, saved)
-      syncedDraftKey.current = draftSyncKey(subject, localDate, saved)
-      setDraft(savedDraft(saved))
-      setNotice({
-        message: current
-          ? 'Đã cập nhật ghi nhận hôm nay.'
-          : 'Đã lưu ghi nhận hôm nay.',
-        tone: 'success',
-      })
-      await refreshHistoryAndProgress()
+    onSuccess: async (saved, command) => {
+      queryClient.setQueryData(
+        ['emotion-check-in', command.subject, 'today', command.localDate],
+        saved,
+      )
+      if (currentScope.current === command.scope) {
+        syncedDraftKey.current = draftSyncKey(
+          command.subject,
+          command.localDate,
+          saved,
+        )
+        setDraft(savedDraft(saved))
+        saveKey.current = null
+        setNotice({
+          message: command.current
+            ? 'Đã cập nhật ghi nhận hôm nay.'
+            : 'Đã lưu ghi nhận hôm nay.',
+          tone: 'success',
+        })
+      }
+      await refreshHistoryAndProgress(command)
     },
-    onError: async (error) => {
+    onError: async (error, command) => {
+      if (currentScope.current !== command.scope) return
       if (
         error instanceof ApiError &&
         (error.status === 409 || error.status === 412)
       ) {
         const refreshed = await todayQuery.refetch()
+        if (currentScope.current !== command.scope) return
         if (refreshed.isSuccess && refreshed.data) {
           syncedDraftKey.current = draftSyncKey(
             subject,
@@ -300,29 +370,45 @@ export function EmotionCheckInScreen({
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (date: string) => api.deleteCheckIn(date, randomUUID()),
-    onSuccess: async (tombstone) => {
-      if (tombstone.localDate === localDate) {
-        queryClient.setQueryData(todayKey, null)
-        syncedDraftKey.current = draftSyncKey(subject, localDate, null)
+    mutationFn: (command: DeleteCommand) =>
+      api.deleteCheckIn(command.localDate, randomUUID()),
+    onSuccess: async (tombstone, command) => {
+      queryClient.setQueryData(
+        ['emotion-check-in', command.subject, 'today', tombstone.localDate],
+        null,
+      )
+      if (
+        currentScope.current === command.scope &&
+        tombstone.localDate === localDate
+      ) {
+        syncedDraftKey.current = draftSyncKey(
+          command.subject,
+          tombstone.localDate,
+          null,
+        )
         setDraft(emptyDraft)
       }
-      queryClient.setQueryData<EmotionCheckInList>(historyKey, (history) =>
-        history
-          ? {
-              ...history,
-              items: history.items.filter(
-                ({ localDate: date }) => date !== tombstone.localDate,
-              ),
-            }
-          : history,
+      queryClient.setQueryData<EmotionCheckInList>(
+        ['emotion-check-in', command.subject, 'history', historyLimit],
+        (history) =>
+          history
+            ? {
+                ...history,
+                items: history.items.filter(
+                  ({ localDate: date }) => date !== tombstone.localDate,
+                ),
+              }
+            : history,
       )
-      setPendingDeleteDate(null)
-      setNotice({ message: 'Đã xóa ghi nhận đã chọn.', tone: 'success' })
-      await refreshHistoryAndProgress()
+      if (currentScope.current === command.scope) {
+        setPendingDeleteDate(null)
+        setNotice({ message: 'Đã xóa ghi nhận đã chọn.', tone: 'success' })
+      }
+      await refreshHistoryAndProgress(command)
     },
-    onError: (error) => {
-      setNotice({ message: mutationErrorMessage(error), tone: 'error' })
+    onError: (error, command) => {
+      if (currentScope.current === command.scope)
+        setNotice({ message: mutationErrorMessage(error), tone: 'error' })
     },
   })
 
@@ -369,6 +455,7 @@ export function EmotionCheckInScreen({
   }
 
   const saveDisabled =
+    Boolean(planOrigin && planOrigin.occurrence.localDate !== localDate) ||
     !draft.emotion ||
     !draft.intensity ||
     saveMutation.isPending ||
@@ -402,6 +489,38 @@ export function EmotionCheckInScreen({
       </Text>
 
       <View style={styles.panel}>
+        {planOrigin && onReturnToPlan && (
+          <View style={styles.planOrigin} testID="emotion-plan-origin">
+            <Text style={styles.supporting}>
+              Đang ghi nhận cho hoạt động trong kế hoạch
+            </Text>
+            <Text style={styles.sectionTitle}>{planOrigin.title}</Text>
+            <Text accessibilityLiveRegion="polite" style={styles.supporting}>
+              {saveMutation.isSuccess && saveMutation.variables?.scope === scope
+                ? 'Đã lưu ghi nhận cảm xúc. Quay lại để kiểm tra hoạt động trong kế hoạch.'
+                : 'Lưu cảm xúc xong, bạn có thể quay lại để kiểm tra hoạt động.'}
+            </Text>
+            {planOrigin.occurrence.localDate !== localDate && (
+              <Text style={styles.supporting}>
+                Ngày của hoạt động vừa mở đã qua. Ghi nhận đã lưu được giữ
+                nguyên; quay lại để kiểm tra đúng hoạt động này.
+              </Text>
+            )}
+            {current && current.timezone !== planOrigin.timezone && (
+              <Text style={styles.supporting}>
+                Ghi nhận hôm nay dùng múi giờ khác với hoạt động này. Bạn vẫn có
+                thể xem và sửa cảm xúc; việc hoàn thành sẽ được kiểm tra riêng
+                khi quay lại.
+              </Text>
+            )}
+            <PrimaryButton
+              label="Quay lại hoạt động"
+              testID="emotion-return-to-plan"
+              disabled={saveMutation.isPending || deleteMutation.isPending}
+              onPress={onReturnToPlan}
+            />
+          </View>
+        )}
         <Text accessibilityRole="header" style={styles.sectionTitle}>
           Cảm xúc hôm nay
         </Text>
@@ -599,7 +718,16 @@ export function EmotionCheckInScreen({
                     ? 'Cập nhật ghi nhận'
                     : 'Lưu ghi nhận'
               }
-              onPress={() => saveMutation.mutate()}
+              onPress={() =>
+                saveMutation.mutate({
+                  subject,
+                  localDate,
+                  timezone,
+                  scope,
+                  draft,
+                  current,
+                })
+              }
             />
           </>
         )}
@@ -756,7 +884,14 @@ export function EmotionCheckInScreen({
                         <Pressable
                           accessibilityRole="button"
                           disabled={deleteMutation.isPending}
-                          onPress={() => deleteMutation.mutate(item.localDate)}
+                          onPress={() =>
+                            deleteMutation.mutate({
+                              subject,
+                              localDate: item.localDate,
+                              timezone,
+                              scope,
+                            })
+                          }
                           style={({ pressed }) => [
                             styles.dangerButton,
                             pressed && styles.pressed,
@@ -810,6 +945,13 @@ export function EmotionCheckInScreen({
 }
 
 const styles = StyleSheet.create({
+  planOrigin: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radii.control,
+    padding: spacing.lg,
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
   backButton: {
     alignSelf: 'flex-start',
     justifyContent: 'center',
