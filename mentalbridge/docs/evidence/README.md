@@ -1,5 +1,11 @@
 # Synthetic browser evidence
 
+MB-648 adds the bounded, presentation-only SupportPlan Companion shell. Its
+state-machine, isolation, fallback, accessibility, responsive, performance, and
+Stitch evidence is recorded in
+[`mb-648-support-plan-companion-shell.md`](mb-648-support-plan-companion-shell.md),
+with controlled desktop, mobile, and reduced-motion captures in this directory.
+
 MB-660 persists owner-scoped resource bookmarks and optional weekly Bingo with
 separate self-confirmed and Content-verified evidence. Its contract, conflict,
 reload/delete, typography, responsive, and fixture-browser verification is

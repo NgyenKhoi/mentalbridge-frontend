@@ -544,6 +544,26 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   })
 
   await page.goto('/support-plan')
+  const companion = page.getByRole('complementary', {
+    name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+  })
+  await expect(companion).toBeVisible()
+  const companionControls = companion.getByRole('button')
+  expect(await companionControls.count()).toBe(3)
+  expect(
+    await companionControls.evaluateAll((buttons) =>
+      buttons.every((button) => {
+        const rect = button.getBoundingClientRect()
+        return rect.width >= 44 && rect.height >= 44
+      }),
+    ),
+  ).toBe(true)
+  await companion.getByRole('button', { name: 'Thu gọn bạn đồng hành' }).click()
+  await expect(
+    companion.getByRole('button', { name: 'Mở rộng bạn đồng hành' }),
+  ).toHaveAttribute('aria-expanded', 'false')
+  expect(activationCommands).toBe(0)
+  await companion.getByRole('button', { name: 'Mở rộng bạn đồng hành' }).click()
   const typography = await page.evaluate(() => ({
     body: getComputedStyle(
       document.querySelector<HTMLElement>('.support-plan-page')!,
@@ -559,6 +579,31 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true)
+  await page.screenshot({
+    path: 'docs/evidence/mb-648-companion-mobile.png',
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(companion).toHaveAttribute('data-motion', 'reduced')
+  await page.screenshot({
+    path: 'docs/evidence/mb-648-companion-reduced-motion.png',
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await expect(companion).toBeVisible()
+  expect(
+    await companion
+      .locator('.support-plan-companion-title')
+      .evaluate((title) => title.scrollWidth <= title.clientWidth),
+  ).toBe(true)
+  await page.screenshot({
+    path: 'docs/evidence/mb-648-companion-desktop.png',
+    fullPage: true,
+    animations: 'disabled',
+  })
   await expect(
     page.getByText('Hướng dẫn an toàn đồng bộ luôn khả dụng.'),
   ).toBeVisible()
@@ -795,9 +840,8 @@ test('MB-374 confirms lifecycle commands and reloads immutable completion histor
   ).toBeVisible()
 
   await page.getByRole('button', { name: 'Kết thúc kế hoạch' }).click()
-  await page
-    .getByLabel('Lý do (không bắt buộc)')
-    .selectOption('PLAN_NO_LONGER_FITS')
+  await page.getByLabel('Lý do (không bắt buộc)').click()
+  await page.getByRole('option', { name: 'Kế hoạch không còn phù hợp' }).click()
   await page.getByRole('button', { name: 'Xác nhận kết thúc' }).click()
 
   await expect(page.getByText('Đã kết thúc')).toBeVisible()
