@@ -21,6 +21,7 @@ import { ConsultationBriefEditor } from './ConsultationBriefEditor'
 import { AppointmentRatingDialog } from './AppointmentRatingDialog'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
+import { VideoConsultationPanel } from './VideoConsultationPanel'
 import styles from './AppointmentRequestPanel.module.css'
 
 function format(value: string, timezone: string) {
@@ -1032,6 +1033,14 @@ export default function AppointmentRequestPanel({
                   appointmentId={focusedAppointment.id}
                 />
               </section>
+            )}
+
+            {focusedAppointment.modality === 'IN_APP_VIDEO' && (
+              <VideoConsultationPanel
+                appointmentId={focusedAppointment.id}
+                role="USER"
+                onVerified={() => void loadAppointments()}
+              />
             )}
 
             {focusedAppointment.status === 'COMPLETED' && (

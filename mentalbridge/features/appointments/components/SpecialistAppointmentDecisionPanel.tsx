@@ -27,6 +27,7 @@ import {
 import styles from './SpecialistAppointmentDecisionPanel.module.css'
 import { SpecialistConsultationBrief } from './SpecialistConsultationBrief'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
+import { VideoConsultationPanel } from './VideoConsultationPanel'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 
 type Decision = 'accept' | 'reject'
@@ -547,6 +548,13 @@ export default function SpecialistAppointmentDecisionPanel({
                 )}
                 {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) && (
                   <SpecialistConsultationBrief appointmentId={appointment.id} />
+                )}
+                {appointment.modality === 'IN_APP_VIDEO' && (
+                  <VideoConsultationPanel
+                    appointmentId={appointment.id}
+                    role="SPECIALIST"
+                    onVerified={() => void load()}
+                  />
                 )}
                 {appointment.status === 'COMPLETED' && (
                   <SessionSummaryPanel
