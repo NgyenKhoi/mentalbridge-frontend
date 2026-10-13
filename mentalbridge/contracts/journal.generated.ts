@@ -743,12 +743,30 @@ export interface components {
             ownerAccountId: string;
             timezone: string;
         };
+        NotificationActivityAchievementMilestone: {
+            /** @enum {integer} */
+            days: 3 | 7;
+            reachedAt: string | null;
+        };
+        NotificationActivityAchievementFact: {
+            distinctDays: number;
+            longestStreak: number;
+            firstOccurredAt: string | null;
+            streakMilestones: components["schemas"]["NotificationActivityAchievementMilestone"][];
+        };
+        NotificationActivityAchievementFacts: {
+            /** Format: uuid */
+            ownerAccountId: string;
+            journal: components["schemas"]["NotificationActivityAchievementFact"];
+            emotionCheckIn: components["schemas"]["NotificationActivityAchievementFact"];
+        };
         NotificationActivity: {
             /** Format: date */
             asOfLocalDate: string;
             timezone: string;
             journal: components["schemas"]["NotificationActivityStreak"];
             emotionCheckIn: components["schemas"]["NotificationActivityStreak"];
+            achievementFacts: components["schemas"]["NotificationActivityAchievementFacts"];
             /** @constant */
             interpretation: "FACTUAL_ACTIVITY_NOT_ADHERENCE_OR_RECOVERY";
         };

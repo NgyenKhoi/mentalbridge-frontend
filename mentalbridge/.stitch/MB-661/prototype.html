@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MB-661 — Bộ sưu tập hành trình</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+        color: #173b32;
+        background: #f5f1e8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-width: 320px;
+      }
+      button {
+        min-height: 44px;
+        border: 1px solid #99b4a5;
+        border-radius: 999px;
+        padding: 10px 16px;
+        background: #fff;
+        color: #174d3d;
+        font: 700 14px inherit;
+        cursor: pointer;
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        min-height: 100vh;
+      }
+      aside {
+        padding: 28px 20px;
+        background: #183f35;
+        color: #f8f4ea;
+      }
+      .brand {
+        font:
+          700 26px Georgia,
+          serif;
+        margin-bottom: 36px;
+      }
+      nav a {
+        display: block;
+        padding: 12px;
+        color: inherit;
+        text-decoration: none;
+        border-radius: 12px;
+      }
+      nav a[aria-current] {
+        background: #2a594c;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        padding: 18px 32px;
+        border-bottom: 1px solid #d9dfd8;
+        background: #fffdf8;
+      }
+      main {
+        max-width: 1180px;
+        margin: auto;
+        padding: 44px 32px 72px;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: Fraunces, Georgia, serif;
+      }
+      h1 {
+        max-width: 700px;
+        margin: 0 0 12px;
+        font-size: clamp(34px, 5vw, 58px);
+        line-height: 1.06;
+      }
+      .lead {
+        max-width: 720px;
+        color: #52675f;
+        line-height: 1.7;
+      }
+      .notice {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin: 28px 0;
+        padding: 18px;
+        border: 1px dashed #b68a4f;
+        border-radius: 18px;
+        background: #fff8e9;
+      }
+      .section {
+        margin-top: 36px;
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 18px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .card {
+        min-height: 205px;
+        padding: 20px;
+        border: 1px solid #cddbd2;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 14px 35px -32px #173b32;
+      }
+      .card[data-state='earned'] {
+        background: linear-gradient(145deg, #fff, #eef7f0);
+      }
+      .card[data-state='unavailable'] {
+        border-style: dashed;
+        background: #fff9ed;
+      }
+      .tag {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #e4efe7;
+        color: #245746;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .card p,
+      .card small {
+        color: #5b6d65;
+        line-height: 1.55;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .empty {
+        padding: 50px 24px;
+        text-align: center;
+        border: 1px solid #d8e1da;
+        border-radius: 24px;
+        background: #fff;
+      }
+      @media (max-width: 900px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+        aside {
+          display: none;
+        }
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 560px) {
+        header,
+        main {
+          padding-left: 18px;
+          padding-right: 18px;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .notice,
+        .section-head {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        button {
+          width: 100%;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition: none !important;
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside>
+        <div class="brand">MentalBridge</div>
+        <nav aria-label="Điều hướng chính">
+          <a href="#">Tổng quan</a><a href="#">Nhật ký</a
+          ><a href="#">Tài nguyên</a
+          ><a href="#" aria-current="page">Thành tựu</a>
+        </nav>
+      </aside>
+      <div>
+        <header>
+          <strong>Bộ sưu tập riêng tư</strong
+          ><button id="visibility" type="button">Ẩn bộ sưu tập</button>
+        </header>
+        <main>
+          <section id="collection">
+            <p class="tag">Riêng tư • Chỉ mình bạn</p>
+            <h1>Những bước nhỏ, được ghi nhận đúng như chúng đã diễn ra.</h1>
+            <p class="lead">
+              Bộ sưu tập dùng các sự kiện đã lưu để đánh dấu cột mốc. Không chấm
+              điểm cảm xúc, không so sánh và không suy đoán hồi phục.
+            </p>
+            <div class="notice" id="notice">
+              <span
+                ><strong>Một nguồn tạm thời chưa xác minh được.</strong
+                ><br />Các mục Nhật ký vẫn hiển thị trạng thái rõ ràng, không
+                dùng dữ liệu cũ để ước đoán.</span
+              ><button id="retry" type="button">Thử lại</button>
+            </div>
+            <section class="section">
+              <div class="section-head">
+                <div>
+                  <p class="tag">NHẬT KÝ</p>
+                  <h2>Viết Nhật ký</h2>
+                </div>
+                <small>Nội dung trang viết không rời khỏi Nhật ký.</small>
+              </div>
+              <div class="grid">
+                <article class="card" data-state="earned">
+                  <span class="tag">Đã ghi nhận</span>
+                  <h3>Dòng đầu tiên</h3>
+                  <p>Lần đầu bạn lưu một trang Nhật ký riêng tư.</p>
+                  <small>Đã ghi nhận ngày 12/10/2026</small>
+                </article>
+                <article class="card" data-state="unavailable">
+                  <span class="tag">Chưa thể xác minh</span>
+                  <h3>Ba ngày liền nhau</h3>
+                  <p>
+                    Nguồn dữ liệu hiện chưa khả dụng. Tiến độ cũ không được dùng
+                    như thông tin hiện tại.
+                  </p>
+                </article>
+                <article class="card">
+                  <span class="tag">Chưa ghi nhận</span>
+                  <h3>Bảy ngày liền nhau</h3>
+                  <p>Mốc chỉ dựa trên chuỗi ngày do máy chủ xác minh.</p>
+                  <small>3/7 ngày liền nhau từng ghi nhận</small>
+                </article>
+              </div>
+            </section>
+          </section>
+          <section id="hidden" class="empty hidden">
+            <h2>Bộ sưu tập đang được ẩn</h2>
+            <p>
+              Các cột mốc vẫn riêng tư. Bạn có thể hiển thị lại bất cứ lúc nào.
+            </p>
+            <button id="restore" type="button">Hiển thị bộ sưu tập</button>
+          </section>
+        </main>
+      </div>
+    </div>
+    <script>
+      const collection = document.querySelector('#collection'),
+        hidden = document.querySelector('#hidden'),
+        visibility = document.querySelector('#visibility')
+      function setHidden(value) {
+        collection.classList.toggle('hidden', value)
+        hidden.classList.toggle('hidden', !value)
+        visibility.textContent = value ? 'Hiển thị bộ sưu tập' : 'Ẩn bộ sưu tập'
+        visibility.setAttribute('aria-pressed', String(value))
+      }
+      visibility.addEventListener('click', () =>
+        setHidden(!collection.classList.contains('hidden')),
+      )
+      document
+        .querySelector('#restore')
+        .addEventListener('click', () => setHidden(false))
+      document.querySelector('#retry').addEventListener('click', (event) => {
+        event.currentTarget.textContent = 'Đã xác minh lại'
+        document.querySelector('#notice').querySelector('span').innerHTML =
+          '<strong>Nguồn đã được xác minh.</strong><br />Trạng thái mới đã thay thế dữ liệu chưa xác minh.'
+      })
+    </script>
+  </body>
+</html>

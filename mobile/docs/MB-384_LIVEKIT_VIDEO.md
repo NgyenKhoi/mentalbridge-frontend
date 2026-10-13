@@ -49,7 +49,7 @@ or SPECIALIST from Identity; registration remains USER-only and ADMIN is rejecte
 ## Backend configuration and webhook
 
 Keep LiveKit keys exclusively in backend process configuration/root `.env`.
-See backend `docs/runbooks/mb-384-livekit-video.md` and ADR 0038. Clients use the
+See backend `docs/runbooks/mb-384-livekit-video.md` and ADR 0039. Clients use the
 existing backend/BFF base URL; do not add LiveKit secrets to Expo or Next.js env.
 
 During the approved local E2E, a temporary free Cloudflare/ngrok tunnel may point
