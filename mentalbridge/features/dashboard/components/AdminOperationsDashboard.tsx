@@ -183,7 +183,9 @@ export function AdminOperationsDashboard({
 
             <div className={styles.grid}>
               {/* Identity Block */}
-              {data.identity.status === 'AVAILABLE' && data.identity.data ? (
+              {(data.identity.status === 'AVAILABLE' ||
+                data.identity.status === 'STALE') &&
+              data.identity.data ? (
                 <div className={styles.card}>
                   <div className={styles.cardHeader}>
                     <h3 className={styles.cardTitle}>Tài khoản người dùng</h3>
@@ -193,10 +195,14 @@ export function AdminOperationsDashboard({
                       </span>
                       <span
                         className={
-                          isStale ? styles.badgeStale : styles.badgeAvailable
+                          isStale || data.identity.status === 'STALE'
+                            ? styles.badgeStale
+                            : styles.badgeAvailable
                         }
                       >
-                        {isStale ? 'STALE' : 'AVAILABLE'}
+                        {isStale || data.identity.status === 'STALE'
+                          ? 'STALE'
+                          : 'AVAILABLE'}
                       </span>
                     </div>
                   </div>
@@ -270,7 +276,8 @@ export function AdminOperationsDashboard({
               )}
 
               {/* Consultation - Specialists Block */}
-              {data.consultation.status === 'AVAILABLE' &&
+              {(data.consultation.status === 'AVAILABLE' ||
+                data.consultation.status === 'STALE') &&
               data.consultation.data ? (
                 <div className={styles.card}>
                   <div className={styles.cardHeader}>
@@ -281,10 +288,14 @@ export function AdminOperationsDashboard({
                       </span>
                       <span
                         className={
-                          isStale ? styles.badgeStale : styles.badgeAvailable
+                          isStale || data.consultation.status === 'STALE'
+                            ? styles.badgeStale
+                            : styles.badgeAvailable
                         }
                       >
-                        {isStale ? 'STALE' : 'AVAILABLE'}
+                        {isStale || data.consultation.status === 'STALE'
+                          ? 'STALE'
+                          : 'AVAILABLE'}
                       </span>
                     </div>
                   </div>
@@ -342,7 +353,8 @@ export function AdminOperationsDashboard({
               )}
 
               {/* Consultation - Appointments Block */}
-              {data.consultation.status === 'AVAILABLE' &&
+              {(data.consultation.status === 'AVAILABLE' ||
+                data.consultation.status === 'STALE') &&
               data.consultation.data ? (
                 <div className={styles.card}>
                   <div className={styles.cardHeader}>
@@ -353,10 +365,14 @@ export function AdminOperationsDashboard({
                       </span>
                       <span
                         className={
-                          isStale ? styles.badgeStale : styles.badgeAvailable
+                          isStale || data.consultation.status === 'STALE'
+                            ? styles.badgeStale
+                            : styles.badgeAvailable
                         }
                       >
-                        {isStale ? 'STALE' : 'AVAILABLE'}
+                        {isStale || data.consultation.status === 'STALE'
+                          ? 'STALE'
+                          : 'AVAILABLE'}
                       </span>
                     </div>
                   </div>
@@ -468,7 +484,8 @@ export function AdminOperationsDashboard({
               )}
 
               {/* Notification Delivery Health Block */}
-              {data.notifications.status === 'AVAILABLE' &&
+              {(data.notifications.status === 'AVAILABLE' ||
+                data.notifications.status === 'STALE') &&
               data.notifications.data ? (
                 <div className={styles.card}>
                   <div className={styles.cardHeader}>
@@ -481,10 +498,14 @@ export function AdminOperationsDashboard({
                       </span>
                       <span
                         className={
-                          isStale ? styles.badgeStale : styles.badgeAvailable
+                          isStale || data.notifications.status === 'STALE'
+                            ? styles.badgeStale
+                            : styles.badgeAvailable
                         }
                       >
-                        {isStale ? 'STALE' : 'AVAILABLE'}
+                        {isStale || data.notifications.status === 'STALE'
+                          ? 'STALE'
+                          : 'AVAILABLE'}
                       </span>
                     </div>
                   </div>
@@ -565,7 +586,9 @@ export function AdminOperationsDashboard({
               )}
 
               {/* Community Reports Block */}
-              {data.community.status === 'AVAILABLE' && data.community.data ? (
+              {(data.community.status === 'AVAILABLE' ||
+                data.community.status === 'STALE') &&
+              data.community.data ? (
                 <div className={styles.card}>
                   <div className={styles.cardHeader}>
                     <h3 className={styles.cardTitle}>Kiểm duyệt cộng đồng</h3>
@@ -575,10 +598,14 @@ export function AdminOperationsDashboard({
                       </span>
                       <span
                         className={
-                          isStale ? styles.badgeStale : styles.badgeAvailable
+                          isStale || data.community.status === 'STALE'
+                            ? styles.badgeStale
+                            : styles.badgeAvailable
                         }
                       >
-                        {isStale ? 'STALE' : 'AVAILABLE'}
+                        {isStale || data.community.status === 'STALE'
+                          ? 'STALE'
+                          : 'AVAILABLE'}
                       </span>
                     </div>
                   </div>

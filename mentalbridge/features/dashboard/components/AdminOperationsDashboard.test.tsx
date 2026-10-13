@@ -251,4 +251,42 @@ describe('AdminOperationsDashboard Component', () => {
     // Data remains rendered
     expect(screen.getByText('100')).toBeInTheDocument()
   })
+
+  it('renders real values with STALE badge when an individual upstream source reports STALE status without network failure', async () => {
+    const staleSourceData: AdminOperationsDashboardResponse = {
+      ...mockDashboardData,
+      identity: {
+        ...mockDashboardData.identity,
+        status: 'STALE',
+        error: 'Source IDENTITY asOf age 360000ms exceeds max-age threshold of 300000ms. Classified STALE.',
+      },
+    }
+
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => staleSourceData,
+    } as Response)
+
+    render(<AdminOperationsDashboard />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Tài khoản người dùng')).toBeInTheDocument()
+    })
+
+    // Real identity data and provenance are preserved and displayed
+    expect(screen.getByText('IDENTITY')).toBeInTheDocument()
+    expect(screen.getByText('100')).toBeInTheDocument()
+    expect(screen.getByText('85')).toBeInTheDocument()
+
+    // Identity badge is STALE
+    expect(screen.getByText('STALE')).toBeInTheDocument()
+
+    // Other sources remain AVAILABLE
+    expect(screen.getAllByText('AVAILABLE').length).toBeGreaterThan(0)
+
+    // Global network disconnect banner is NOT displayed
+    expect(
+      screen.queryByText(/Kết nối máy chủ bị gián đoạn/i),
+    ).not.toBeInTheDocument()
+  })
 })

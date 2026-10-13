@@ -68,9 +68,11 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
       return NextResponse.json({ code: 'UNAUTHORIZED' }, { status })
     })
 
+    const freshAsOf = new Date().toISOString()
+
     identity.getAccountsSummary.mockResolvedValue({
       source: 'IDENTITY',
-      asOf: '2026-10-05T12:00:00.000Z',
+      asOf: freshAsOf,
       totalAccounts: 120,
       activeAccounts: 100,
       pendingVerificationAccounts: 15,
@@ -85,7 +87,7 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
 
     consultation.getOperationsSummary.mockResolvedValue({
       source: 'CONSULTATION',
-      asOf: '2026-10-05T12:00:00.000Z',
+      asOf: freshAsOf,
       specialists: {
         total: 20,
         pendingReview: 3,
@@ -111,7 +113,7 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
 
     contentAdmin.getNotificationOperationsSummary.mockResolvedValue({
       source: 'CONTENT_NOTIFICATION',
-      asOf: '2026-10-05T12:00:00.000Z',
+      asOf: freshAsOf,
       inApp: {
         total: 200,
         delivered: 180,
@@ -134,7 +136,7 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
 
     community.operationsSummary.mockResolvedValue({
       source: 'COMMUNITY',
-      asOf: '2026-10-05T12:00:00.000Z',
+      asOf: freshAsOf,
       openModerationCases: 2,
       totalModerationCases: 10,
     })
@@ -178,7 +180,7 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
 
     expect(payload.community.status).toBe('AVAILABLE')
     expect(payload.community.source).toBe('COMMUNITY')
-    expect(payload.community.asOf).toBe('2026-10-05T12:00:00.000Z')
+    expect(payload.community.asOf).toBeTruthy()
     expect(payload.community.data.openModerationCases).toBe(2)
     expect(payload.community.data.totalModerationCases).toBe(10)
 
@@ -224,5 +226,110 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
     // Remaining services remain available
     expect(payload.identity.status).toBe('AVAILABLE')
     expect(payload.identity.data.total).toBe(120)
+  })
+
+  it('classifies upstream source as STALE when asOf is older than 5 minutes while preserving real data and provenance', async () => {
+    const staleTime = new Date(Date.now() - 360_000).toISOString() // 6 minutes ago
+    identity.getAccountsSummary.mockResolvedValueOnce({
+      source: 'IDENTITY',
+      asOf: staleTime,
+      totalAccounts: 120,
+      activeAccounts: 100,
+      pendingVerificationAccounts: 15,
+      disabledAccounts: 5,
+      deletionPendingAccounts: 0,
+      byRole: { users: 95, specialists: 20, admins: 5 },
+    })
+
+    const response = await GET(request())
+    expect(response.status).toBe(200)
+
+    const payload = await response.json()
+    expect(payload.identity.status).toBe('STALE')
+    expect(payload.identity.source).toBe('IDENTITY')
+    expect(payload.identity.asOf).toBe(staleTime)
+    expect(payload.identity.data).not.toBeNull()
+    expect(payload.identity.data.total).toBe(120)
+    expect(payload.identity.error).toContain('exceeds max-age threshold')
+
+    // Other sources remain independently evaluated and AVAILABLE
+    expect(payload.consultation.status).toBe('AVAILABLE')
+    expect(payload.notifications.status).toBe('AVAILABLE')
+    expect(payload.community.status).toBe('AVAILABLE')
+  })
+
+  it('classifies upstream source as STALE fail-closed when asOf is invalid, empty, or implausibly in future', async () => {
+    // Consultation with empty string asOf
+    consultation.getOperationsSummary.mockResolvedValueOnce({
+      source: 'CONSULTATION',
+      asOf: '',
+      specialists: { total: 20, pendingReview: 3, active: 15, rejected: 1, suspended: 1 },
+      appointments: { total: 50, requested: 5, confirmed: 20, inProgress: 5, sessionEnded: 2, completed: 15, cancelled: 2, rejected: 1, expired: 0, userNoShow: 0, specialistNoShow: 0, bothNoShow: 0 },
+    })
+
+    // Community with implausibly future asOf (> 60s skew tolerance)
+    const futureTime = new Date(Date.now() + 120_000).toISOString()
+    community.operationsSummary.mockResolvedValueOnce({
+      source: 'COMMUNITY',
+      asOf: futureTime,
+      openModerationCases: 2,
+      totalModerationCases: 10,
+    })
+
+    const response = await GET(request())
+    expect(response.status).toBe(200)
+
+    const payload = await response.json()
+
+    // Consultation is STALE fail-closed but preserves data
+    expect(payload.consultation.status).toBe('STALE')
+    expect(payload.consultation.data.specialists.active).toBe(15)
+    expect(payload.consultation.error).toContain('missing or empty asOf')
+
+    // Community is STALE fail-closed due to clock skew drift but preserves data
+    expect(payload.community.status).toBe('STALE')
+    expect(payload.community.data.openModerationCases).toBe(2)
+    expect(payload.community.error).toContain('implausibly in the future')
+
+    // Identity remains AVAILABLE
+    expect(payload.identity.status).toBe('AVAILABLE')
+  })
+
+  it('demonstrates recovery when a previously stale source returns a fresh timestamp', async () => {
+    const staleTime = new Date(Date.now() - 400_000).toISOString()
+    identity.getAccountsSummary.mockResolvedValueOnce({
+      source: 'IDENTITY',
+      asOf: staleTime,
+      totalAccounts: 120,
+      activeAccounts: 100,
+      pendingVerificationAccounts: 15,
+      disabledAccounts: 5,
+      deletionPendingAccounts: 0,
+      byRole: { users: 95, specialists: 20, admins: 5 },
+    })
+
+    // First call: STALE
+    const firstResponse = await GET(request())
+    const firstPayload = await firstResponse.json()
+    expect(firstPayload.identity.status).toBe('STALE')
+
+    // Second call: restored fresh timestamp
+    const freshTime = new Date().toISOString()
+    identity.getAccountsSummary.mockResolvedValueOnce({
+      source: 'IDENTITY',
+      asOf: freshTime,
+      totalAccounts: 125,
+      activeAccounts: 105,
+      pendingVerificationAccounts: 15,
+      disabledAccounts: 5,
+      deletionPendingAccounts: 0,
+      byRole: { users: 100, specialists: 20, admins: 5 },
+    })
+
+    const secondResponse = await GET(request())
+    const secondPayload = await secondResponse.json()
+    expect(secondPayload.identity.status).toBe('AVAILABLE')
+    expect(secondPayload.identity.error).toBeNull()
+    expect(secondPayload.identity.data.total).toBe(125)
   })
 })
