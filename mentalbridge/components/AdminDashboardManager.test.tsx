@@ -19,14 +19,14 @@ function metrics() {
     unavailableReason: null,
   })
   return {
-    projectionVersion: 'product-journey-metrics-v1',
+    projectionVersion: 'product-journey-metrics-v2',
     window: { from: '2026-09-09T08:00:00Z', to: '2026-10-09T08:00:00Z' },
     asOf: '2026-10-09T08:00:00Z',
     interpretation: 'DESCRIPTIVE_PRODUCT_ACTIVITY_NOT_CLINICAL_EFFECTIVENESS',
     sources: [
       {
         source: 'IDENTITY',
-        sourceVersion: 'identity-account-projection-v1',
+        sourceVersion: 'identity-account-projection-v3',
         status: 'AVAILABLE',
         asOf: '2026-10-09T08:00:00Z',
         unavailableReason: null,
@@ -48,7 +48,10 @@ function metrics() {
     ],
     stages: [
       available('USER_ACCOUNTS_REGISTERED', 'IDENTITY', 100),
-      available('USER_ACCOUNTS_ACTIVATED', 'IDENTITY', 80),
+      available('USER_ACCOUNTS_ACTIVATED', 'IDENTITY', 80, {
+        denominatorStage: 'USER_ACCOUNTS_REGISTERED',
+        percentage: 80,
+      }),
       available('COMPLETED_SCREENING_EPISODES', 'CARE', 70),
       available('SUPPORT_GUIDES_GENERATED', 'CARE', 60),
       {
@@ -114,6 +117,7 @@ describe('AdminDashboardManager', () => {
     expect(
       screen.getByText(/không chứng minh hiệu quả lâm sàng/i),
     ).toBeInTheDocument()
+    expect(screen.getByText('80% trong số tài khoản đăng ký')).toBeVisible()
     const display = new Intl.DateTimeFormat('vi-VN', {
       dateStyle: 'short',
       timeStyle: 'short',

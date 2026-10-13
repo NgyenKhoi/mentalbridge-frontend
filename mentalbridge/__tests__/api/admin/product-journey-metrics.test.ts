@@ -58,14 +58,14 @@ describe('product journey metrics BFF', () => {
 
   it('requires ADMIN and forwards only the explicit window', async () => {
     const body = {
-      projectionVersion: 'product-journey-metrics-v1',
+      projectionVersion: 'product-journey-metrics-v2',
       window: { from: '2026-10-02T08:00:00Z', to: '2026-10-09T08:00:00Z' },
       asOf: '2026-10-09T08:00:00Z',
       interpretation: 'DESCRIPTIVE_PRODUCT_ACTIVITY_NOT_CLINICAL_EFFECTIVENESS',
       sources: [
         {
           source: 'IDENTITY',
-          sourceVersion: 'identity-account-projection-v2',
+          sourceVersion: 'identity-account-projection-v3',
           status: 'AVAILABLE',
           asOf: '2026-10-09T08:00:00Z',
           unavailableReason: null,
@@ -91,8 +91,14 @@ describe('product journey metrics BFF', () => {
             stage,
             source: 'IDENTITY',
             status: 'AVAILABLE',
-            count: 0,
-            rate: null,
+            count: stage === 'USER_ACCOUNTS_REGISTERED' ? 10 : 8,
+            rate:
+              stage === 'USER_ACCOUNTS_ACTIVATED'
+                ? {
+                    denominatorStage: 'USER_ACCOUNTS_REGISTERED',
+                    percentage: 80,
+                  }
+                : null,
             unavailableReason: null,
           }),
         ),
@@ -154,5 +160,29 @@ describe('product journey metrics BFF', () => {
       request('from=2026-10-02T08%3A00%3A00Z&to=2026-10-09T08%3A00%3A00Z'),
     )
     expect(mismatchedWindow.status).toBe(502)
+
+    vi.mocked(fetch).mockReset()
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(json(account()))
+      .mockResolvedValueOnce(
+        json({
+          ...body,
+          stages: body.stages.map((stage) =>
+            stage.stage === 'USER_ACCOUNTS_ACTIVATED'
+              ? {
+                  ...stage,
+                  rate: {
+                    denominatorStage: 'CONSULTATIONS_REQUESTED',
+                    percentage: 80,
+                  },
+                }
+              : stage,
+          ),
+        }),
+      )
+    const inconsistentRate = await GET(
+      request('from=2026-10-02T08%3A00%3A00Z&to=2026-10-09T08%3A00%3A00Z'),
+    )
+    expect(inconsistentRate.status).toBe(502)
   })
 })

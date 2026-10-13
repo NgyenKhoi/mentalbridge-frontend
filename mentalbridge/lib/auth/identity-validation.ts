@@ -677,6 +677,11 @@ export function parsePlatformReportPage(
 }
 
 const PRODUCT_JOURNEY_SOURCES = new Set(['IDENTITY', 'CARE', 'CONSULTATION'])
+const PRODUCT_JOURNEY_SOURCE_VERSIONS: Readonly<Record<string, string>> = {
+  IDENTITY: 'identity-account-projection-v3',
+  CARE: 'care-product-journey-v1',
+  CONSULTATION: 'consultation-product-journey-v3',
+}
 const PRODUCT_JOURNEY_STAGES = new Set([
   'USER_ACCOUNTS_REGISTERED',
   'USER_ACCOUNTS_ACTIVATED',
@@ -688,6 +693,22 @@ const PRODUCT_JOURNEY_STAGES = new Set([
   'CONSULTATIONS_CONFIRMED',
   'CONSULTATIONS_COMPLETED',
 ])
+const PRODUCT_JOURNEY_STAGE_SOURCES: Readonly<Record<string, string>> = {
+  USER_ACCOUNTS_REGISTERED: 'IDENTITY',
+  USER_ACCOUNTS_ACTIVATED: 'IDENTITY',
+  COMPLETED_SCREENING_EPISODES: 'CARE',
+  SUPPORT_GUIDES_GENERATED: 'CARE',
+  SUPPORT_GUIDES_OPENED: 'CARE',
+  PAID_SUPPORT_PLANS_ACTIVATED: 'CARE',
+  CONSULTATIONS_REQUESTED: 'CONSULTATION',
+  CONSULTATIONS_CONFIRMED: 'CONSULTATION',
+  CONSULTATIONS_COMPLETED: 'CONSULTATION',
+}
+const PRODUCT_JOURNEY_RATE_DENOMINATORS: Readonly<Record<string, string>> = {
+  USER_ACCOUNTS_ACTIVATED: 'USER_ACCOUNTS_REGISTERED',
+  CONSULTATIONS_CONFIRMED: 'CONSULTATIONS_REQUESTED',
+  CONSULTATIONS_COMPLETED: 'CONSULTATIONS_REQUESTED',
+}
 
 export function parseProductJourneyMetrics(
   value: unknown,
@@ -702,7 +723,7 @@ export function parseProductJourneyMetrics(
       'sources',
       'stages',
     ]) ||
-    value.projectionVersion !== 'product-journey-metrics-v1' ||
+    value.projectionVersion !== 'product-journey-metrics-v2' ||
     value.interpretation !==
       'DESCRIPTIVE_PRODUCT_ACTIVITY_NOT_CLINICAL_EFFECTIVENESS' ||
     !isDateTime(value.asOf) ||
@@ -736,7 +757,8 @@ export function parseProductJourneyMetrics(
       )
         return false
       return source.status === 'AVAILABLE'
-        ? typeof source.sourceVersion === 'string' &&
+        ? source.sourceVersion ===
+            PRODUCT_JOURNEY_SOURCE_VERSIONS[String(source.source)] &&
             isDateTime(source.asOf) &&
             source.unavailableReason === null
         : source.sourceVersion === null &&
@@ -762,6 +784,7 @@ export function parseProductJourneyMetrics(
         ]) ||
         !PRODUCT_JOURNEY_STAGES.has(String(stage.stage)) ||
         !PRODUCT_JOURNEY_SOURCES.has(String(stage.source)) ||
+        stage.source !== PRODUCT_JOURNEY_STAGE_SOURCES[String(stage.stage)] ||
         !['AVAILABLE', 'UNAVAILABLE'].includes(String(stage.status))
       )
         return false
@@ -796,6 +819,43 @@ export function parseProductJourneyMetrics(
     })
   )
     return null
+
+  const stages = new Map(
+    value.stages.map((stage) => {
+      const record = stage as Record<string, unknown>
+      return [String(record.stage), record]
+    }),
+  )
+  for (const [stageCode, stage] of stages) {
+    const denominatorCode = PRODUCT_JOURNEY_RATE_DENOMINATORS[stageCode]
+    if (!denominatorCode) {
+      if (stage.rate !== null) return null
+      continue
+    }
+    if (stage.status === 'UNAVAILABLE') continue
+    const denominator = stages.get(denominatorCode)
+    if (
+      !denominator ||
+      denominator.status !== 'AVAILABLE' ||
+      !Number.isSafeInteger(denominator.count)
+    )
+      return null
+    const numeratorCount = Number(stage.count)
+    const denominatorCount = Number(denominator.count)
+    if (numeratorCount > denominatorCount) return null
+    if (denominatorCount === 0) {
+      if (stage.rate !== null) return null
+      continue
+    }
+    if (
+      !isRecord(stage.rate) ||
+      stage.rate.denominatorStage !== denominatorCode
+    )
+      return null
+    const expectedPercentage =
+      Math.round((numeratorCount / denominatorCount) * 1_000) / 10
+    if (stage.rate.percentage !== expectedPercentage) return null
+  }
 
   return value as ProductJourneyMetrics
 }

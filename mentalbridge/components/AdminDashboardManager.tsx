@@ -20,6 +20,11 @@ const LABELS: Record<string, string> = {
   CONSULTATIONS_COMPLETED: 'Lịch tư vấn đã hoàn thành',
 }
 
+const RATE_DENOMINATOR_LABELS: Record<string, string> = {
+  USER_ACCOUNTS_REGISTERED: 'trong số tài khoản đăng ký',
+  CONSULTATIONS_REQUESTED: 'trong số lịch tư vấn đã yêu cầu',
+}
+
 function windowFor(days: RangeDays) {
   const to = new Date()
   const from = new Date(to)
@@ -153,10 +158,10 @@ export function ProductJourneyMetricsPanel({
             <span>TỔNG HỢP TOÀN NỀN TẢNG</span>
             <h2 id="journey-title">Các mốc hoạt động</h2>
             <p>
-              Mỗi con số là một sự kiện được nguồn thẩm quyền ghi nhận trong cửa
-              sổ nửa mở [từ, đến). Các mốc là tổng độc lập, không phải một
-              cohort chuyển đổi và không chứng minh hiệu quả lâm sàng hay quan
-              hệ nguyên nhân–kết quả.
+              Các tỷ lệ cho biết mức tiến triển của cùng nhóm tài khoản đăng ký
+              hoặc lịch tư vấn được yêu cầu trong khoảng đã chọn. Các số liệu
+              chỉ mô tả hoạt động sản phẩm, không chứng minh hiệu quả lâm sàng
+              hay quan hệ nguyên nhân–kết quả.
             </p>
           </div>
           {metrics ? (
@@ -211,8 +216,9 @@ export function ProductJourneyMetricsPanel({
                     </p>
                   ) : stage.rate ? (
                     <p>
-                      {stage.rate.percentage.toLocaleString('vi-VN')}% so với
-                      mốc tham chiếu
+                      {stage.rate.percentage.toLocaleString('vi-VN')}%{' '}
+                      {RATE_DENOMINATOR_LABELS[stage.rate.denominatorStage] ??
+                        'trong nhóm tham chiếu'}
                     </p>
                   ) : (
                     <p>Số lượng trong khoảng đã chọn</p>
