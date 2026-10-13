@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -59,6 +59,33 @@ describe('CommunityComments', () => {
       etag: '"0"',
     })
     api.confirm.mockResolvedValue(true)
+  })
+
+  it('locks reply intent while sending and retains the draft after failure', async () => {
+    const user = userEvent.setup()
+    let rejectRequest: (error: Error) => void = () => {}
+    api.create.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectRequest = reject
+        }),
+    )
+    const onCountChange = vi.fn()
+    render(<CommunityComments postId={postId} onCountChange={onCountChange} />)
+    await screen.findByText(root.content)
+    await user.click(screen.getByRole('button', { name: 'Phản hồi' }))
+    const draft = screen.getByLabelText('Lời phản hồi của bạn')
+    await user.type(draft, 'Mình đang lắng nghe.')
+    await user.click(screen.getByRole('button', { name: 'Gửi phản hồi' }))
+    expect(draft).toBeDisabled()
+    for (const name of ['Hủy phản hồi', 'Phản hồi', 'Chỉnh sửa', 'Xóa']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled()
+    }
+    await act(async () => rejectRequest(new Error('offline')))
+    expect(draft).toBeEnabled()
+    expect(draft).toHaveValue('Mình đang lắng nghe.')
+    expect(screen.getByRole('button', { name: 'Gửi phản hồi' })).toBeEnabled()
+    expect(onCountChange).not.toHaveBeenCalled()
   })
 
   it('creates a one-level reply with supportive composer guidance', async () => {
