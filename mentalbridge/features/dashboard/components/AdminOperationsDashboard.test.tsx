@@ -258,7 +258,8 @@ describe('AdminOperationsDashboard Component', () => {
       identity: {
         ...mockDashboardData.identity,
         status: 'STALE',
-        error: 'Source IDENTITY asOf age 360000ms exceeds max-age threshold of 300000ms. Classified STALE.',
+        error:
+          'Source IDENTITY asOf age 360000ms exceeds max-age threshold of 300000ms. Classified STALE.',
       },
     }
 

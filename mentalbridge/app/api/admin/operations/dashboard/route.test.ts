@@ -210,6 +210,34 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
     expect(payload).not.toHaveProperty('password')
   })
 
+  it('evaluates a source timestamp against the time after downstream requests settle', async () => {
+    const identitySummary = await identity.getAccountsSummary()
+    let currentEpoch = Date.now()
+    const startEpoch = currentEpoch
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => currentEpoch)
+
+    try {
+      identity.getAccountsSummary.mockImplementationOnce(async () => {
+        currentEpoch = startEpoch + 120_000
+        return {
+          ...identitySummary,
+          asOf: new Date(currentEpoch).toISOString(),
+        }
+      })
+
+      const response = await GET(request())
+      const payload = await response.json()
+
+      expect(payload.identity.status).toBe('AVAILABLE')
+      expect(payload.identity.asOf).toBe(new Date(currentEpoch).toISOString())
+      expect(payload.consultation.status).toBe('AVAILABLE')
+      expect(payload.notifications.status).toBe('AVAILABLE')
+      expect(payload.community.status).toBe('AVAILABLE')
+    } finally {
+      nowSpy.mockRestore()
+    }
+  })
+
   it('gracefully degrades to UNAVAILABLE when a downstream service is down without demo fallback', async () => {
     consultation.getOperationsSummary.mockRejectedValueOnce(
       new Error('Connection refused'),
@@ -263,8 +291,27 @@ describe('GET /api/admin/operations/dashboard BFF', () => {
     consultation.getOperationsSummary.mockResolvedValueOnce({
       source: 'CONSULTATION',
       asOf: '',
-      specialists: { total: 20, pendingReview: 3, active: 15, rejected: 1, suspended: 1 },
-      appointments: { total: 50, requested: 5, confirmed: 20, inProgress: 5, sessionEnded: 2, completed: 15, cancelled: 2, rejected: 1, expired: 0, userNoShow: 0, specialistNoShow: 0, bothNoShow: 0 },
+      specialists: {
+        total: 20,
+        pendingReview: 3,
+        active: 15,
+        rejected: 1,
+        suspended: 1,
+      },
+      appointments: {
+        total: 50,
+        requested: 5,
+        confirmed: 20,
+        inProgress: 5,
+        sessionEnded: 2,
+        completed: 15,
+        cancelled: 2,
+        rejected: 1,
+        expired: 0,
+        userNoShow: 0,
+        specialistNoShow: 0,
+        bothNoShow: 0,
+      },
     })
 
     // Community with implausibly future asOf (> 60s skew tolerance)

@@ -37,9 +37,6 @@ export async function GET(request: NextRequest) {
     return consultationAuthenticationFailure(error, correlationId)
   }
 
-  const now = new Date().toISOString()
-  const nowEpoch = Date.now()
-
   const [
     identityResult,
     consultationResult,
@@ -54,6 +51,9 @@ export async function GET(request: NextRequest) {
     ),
     communityClient.operationsSummary(actor.accessToken, correlationId),
   ])
+
+  const now = new Date().toISOString()
+  const nowEpoch = Date.now()
 
   let identityBlock: AuthoritativeBlock<IdentityAccountsData>
   if (identityResult.status === 'fulfilled') {
@@ -140,8 +140,7 @@ export async function GET(request: NextRequest) {
       source: 'CONTENT_NOTIFICATION',
       asOf: now,
       data: null,
-      error:
-        'Content notification service summary is currently unreachable.',
+      error: 'Content notification service summary is currently unreachable.',
     }
   }
 

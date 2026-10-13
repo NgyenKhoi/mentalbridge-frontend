@@ -17,7 +17,9 @@ describe('evaluateSourceFreshness', () => {
   it('classifies timestamp older than default 5 minutes as STALE with real age and rationale', () => {
     // 6 minutes ago (360_000 ms > 300_000 ms)
     const asOf = new Date(baseTime - 360_000).toISOString()
-    const result = evaluateSourceFreshness(asOf, 'CONSULTATION', { now: baseTime })
+    const result = evaluateSourceFreshness(asOf, 'CONSULTATION', {
+      now: baseTime,
+    })
 
     expect(result.status).toBe('STALE')
     expect(result.ageMs).toBe(360_000)
@@ -35,7 +37,9 @@ describe('evaluateSourceFreshness', () => {
       maxAgeMs: 20_000,
     })
     expect(staleResult.status).toBe('STALE')
-    expect(staleResult.rationale).toContain('exceeds max-age threshold of 20000ms')
+    expect(staleResult.rationale).toContain(
+      'exceeds max-age threshold of 20000ms',
+    )
 
     // With 60s maxAge, 30s is AVAILABLE
     const availableResult = evaluateSourceFreshness(asOf, 'IDENTITY', {
@@ -62,7 +66,9 @@ describe('evaluateSourceFreshness', () => {
 
       // 7 minutes ago (420_000 ms)
       const asOf = new Date(baseTime - 420_000).toISOString()
-      const result = evaluateSourceFreshness(asOf, 'COMMUNITY', { now: baseTime })
+      const result = evaluateSourceFreshness(asOf, 'COMMUNITY', {
+        now: baseTime,
+      })
 
       expect(result.status).toBe('AVAILABLE')
       expect(result.ageMs).toBe(420_000)
@@ -73,7 +79,9 @@ describe('evaluateSourceFreshness', () => {
 
       // 6 minutes ago (360_000 ms > 300_000 ms)
       const asOf = new Date(baseTime - 360_000).toISOString()
-      const result = evaluateSourceFreshness(asOf, 'COMMUNITY', { now: baseTime })
+      const result = evaluateSourceFreshness(asOf, 'COMMUNITY', {
+        now: baseTime,
+      })
 
       expect(result.status).toBe('STALE')
     })
@@ -83,7 +91,9 @@ describe('evaluateSourceFreshness', () => {
     it('tolerates small future clock skew within DEFAULT_MAX_CLOCK_SKEW_MS (60s) as age 0 AVAILABLE', () => {
       // 30 seconds into the future (within 60_000 ms tolerance)
       const asOf = new Date(baseTime + 30_000).toISOString()
-      const result = evaluateSourceFreshness(asOf, 'CONTENT_NOTIFICATION', { now: baseTime })
+      const result = evaluateSourceFreshness(asOf, 'CONTENT_NOTIFICATION', {
+        now: baseTime,
+      })
 
       expect(result.status).toBe('AVAILABLE')
       expect(result.ageMs).toBe(0)
@@ -92,7 +102,9 @@ describe('evaluateSourceFreshness', () => {
     it('classifies implausible future timestamps (> 60s ahead) as STALE fail-closed', () => {
       // 70 seconds into the future (> 60_000 ms tolerance)
       const asOf = new Date(baseTime + 70_000).toISOString()
-      const result = evaluateSourceFreshness(asOf, 'CONTENT_NOTIFICATION', { now: baseTime })
+      const result = evaluateSourceFreshness(asOf, 'CONTENT_NOTIFICATION', {
+        now: baseTime,
+      })
 
       expect(result.status).toBe('STALE')
       expect(result.rationale).toContain('implausibly in the future')
@@ -121,30 +133,41 @@ describe('evaluateSourceFreshness', () => {
 
   describe('fail-closed invalid / missing timestamps', () => {
     it('classifies null or undefined asOf as STALE fail-closed', () => {
-      const nullResult = evaluateSourceFreshness(null, 'IDENTITY', { now: baseTime })
+      const nullResult = evaluateSourceFreshness(null, 'IDENTITY', {
+        now: baseTime,
+      })
       expect(nullResult.status).toBe('STALE')
       expect(nullResult.ageMs).toBeNull()
       expect(nullResult.rationale).toContain('missing or empty asOf timestamp')
 
-      const undefResult = evaluateSourceFreshness(undefined, 'IDENTITY', { now: baseTime })
+      const undefResult = evaluateSourceFreshness(undefined, 'IDENTITY', {
+        now: baseTime,
+      })
       expect(undefResult.status).toBe('STALE')
       expect(undefResult.ageMs).toBeNull()
       expect(undefResult.rationale).toContain('missing or empty asOf timestamp')
     })
 
     it('classifies empty or whitespace string as STALE fail-closed', () => {
-      const emptyResult = evaluateSourceFreshness('   ', 'CONSULTATION', { now: baseTime })
+      const emptyResult = evaluateSourceFreshness('   ', 'CONSULTATION', {
+        now: baseTime,
+      })
       expect(emptyResult.status).toBe('STALE')
       expect(emptyResult.ageMs).toBeNull()
       expect(emptyResult.rationale).toContain('missing or empty asOf timestamp')
     })
 
     it('classifies unparseable garbage timestamp as STALE fail-closed', () => {
-      const invalidResult = evaluateSourceFreshness('not-a-timestamp', 'COMMUNITY', { now: baseTime })
+      const invalidResult = evaluateSourceFreshness(
+        'not-a-timestamp',
+        'COMMUNITY',
+        { now: baseTime },
+      )
       expect(invalidResult.status).toBe('STALE')
       expect(invalidResult.ageMs).toBeNull()
-      expect(invalidResult.rationale).toContain('invalid unparseable asOf timestamp')
+      expect(invalidResult.rationale).toContain(
+        'invalid unparseable asOf timestamp',
+      )
     })
   })
 })
-
