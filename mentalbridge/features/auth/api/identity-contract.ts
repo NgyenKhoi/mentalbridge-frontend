@@ -38,4 +38,5 @@ export type PlatformReportPage = Schemas['PlatformReportPage']
 export type PlatformReportSchedule = Schemas['PlatformReportSchedule']
 export type PlatformReportScheduleRequest =
   Schemas['PlatformReportScheduleRequest']
+export type ProductJourneyMetrics = Schemas['ProductJourneyMetrics']
 export type IdentityProblem = Schemas['Problem']
