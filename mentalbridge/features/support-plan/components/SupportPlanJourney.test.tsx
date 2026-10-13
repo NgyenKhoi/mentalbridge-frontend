@@ -276,6 +276,45 @@ describe('SupportPlanJourney', () => {
     expect(api.proposeSupportPlanDraft).not.toHaveBeenCalled()
   })
 
+  it('reports unsaved resource choices and clears the entry guard when the original choice is restored', async () => {
+    const onDirtyChange = vi.fn()
+    api.getCurrentSupportPlanDraft.mockResolvedValue(supportPlanFixture())
+    render(<SupportPlanJourney onDirtyChange={onDirtyChange} />)
+    const alternative = await screen.findByRole('radio', {
+      name: /Reviewed alternative/,
+    })
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
+    fireEvent.click(alternative)
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
+    fireEvent.click(
+      screen.getByRole('radio', { name: /Reviewed primary resource/ }),
+    )
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
+  })
+
+  it('combines schedule and personalization drafts without clearing the guard when only one is undone', async () => {
+    const onDirtyChange = vi.fn()
+    const draft = { ...supportPlanFixture(), version: 2 }
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.getCurrentSupportPlanDraftActions.mockResolvedValue(
+      scheduleProjection(2),
+    )
+    const view = render(<SupportPlanJourney onDirtyChange={onDirtyChange} />)
+    const durations = await screen.findAllByLabelText(
+      'Thời lượng dự kiến (phút)',
+    )
+    fireEvent.click(screen.getByRole('tab', { name: 'Điều chỉnh' }))
+    await screen.findByRole('radio', { name: '10 phút' })
+    fireEvent.change(durations[0], { target: { value: '25' } })
+    fireEvent.click(screen.getByRole('radio', { name: '10 phút' }))
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
+    fireEvent.change(durations[0], { target: { value: '15' } })
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true)
+    expect(api.replaceSupportPlanPersonalization).not.toHaveBeenCalled()
+    view.unmount()
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false)
+  })
+
   it('preserves another action draft when saving one schedule advances the plan version', async () => {
     const draft = { ...supportPlanFixture(), version: 2 }
     api.getCurrentSupportPlanDraft.mockResolvedValue(draft)

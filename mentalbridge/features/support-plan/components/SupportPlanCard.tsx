@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { SlidersHorizontal } from 'lucide-react'
 
 import LightSelect from '@/components/LightSelect'
@@ -82,6 +82,7 @@ type Props = Readonly<{
     idempotencyKey: string,
   ) => Promise<void>
   onReloadSchedule?: () => Promise<boolean | void>
+  onDirtyChange?: (dirty: boolean) => void
 }>
 
 type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
@@ -128,6 +129,7 @@ export default function SupportPlanCard({
   focusProjectionUnavailable = false,
   onSaveSchedule,
   onReloadSchedule,
+  onDirtyChange,
 }: Props) {
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     initialChoices(plan),
@@ -141,6 +143,7 @@ export default function SupportPlanCard({
   >({})
   const [isRationaleOpen, setIsRationaleOpen] = useState(true)
   const [scheduleDirty, setScheduleDirty] = useState(false)
+  const [engagementDirty, setEngagementDirty] = useState(false)
   const isDraft = plan.status === 'DRAFT'
   const panelProps = (tab: 'plan' | 'today' | 'adjust') =>
     embedded
@@ -192,6 +195,10 @@ export default function SupportPlanCard({
       ),
     [choices, plan],
   )
+  useEffect(() => {
+    onDirtyChange?.(dirty || scheduleDirty || engagementDirty)
+  }, [dirty, scheduleDirty, engagementDirty, onDirtyChange])
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   const submitChoices = async () => {
     const slotSelections = plan.slots.flatMap((slot) => {
@@ -644,6 +651,7 @@ export default function SupportPlanCard({
           <SupportPlanSchedule
             planStatus={plan.status}
             compactToday
+            onDirtyChange={setEngagementDirty}
             onToggleStatus={() =>
               setPendingStatus(plan.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED')
             }

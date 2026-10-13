@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import type {
   Emotion,
   EmotionCheckIn,
@@ -24,6 +25,10 @@ import {
   updateEmotionCheckIn,
 } from './api/browser-emotion-check-in'
 import styles from './DailyEmotionCheckIn.module.css'
+import {
+  emotionPlanHref,
+  type ResolvedEmotionPlanOrigin,
+} from '@/features/support-plan/emotion-plan-origin'
 
 export { localDateInTimeZone } from '@/lib/emotion-check-in/presentation'
 
@@ -71,12 +76,20 @@ function announceChange() {
 
 export function DailyEmotionCheckIn({
   onPersisted,
-}: Readonly<{ onPersisted?: () => void }>) {
+  creationTimezone,
+  planOrigin,
+}: Readonly<{
+  onPersisted?: () => void
+  creationTimezone?: string
+  planOrigin?: ResolvedEmotionPlanOrigin
+}>) {
   const { confirm } = useFeedback()
-  const timezone = useMemo(
+  const browserTimezone = useMemo(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     [],
   )
+  const timezone = creationTimezone ?? browserTimezone
+  const planHeading = useRef<HTMLParagraphElement>(null)
   const [localDate, setLocalDate] = useState(() =>
     localDateInTimeZone(new Date(), timezone),
   )
@@ -89,7 +102,34 @@ export function DailyEmotionCheckIn({
   const [message, setMessage] = useState('')
   const [reload, setReload] = useState(0)
   const activeDate = useRef(localDate)
+  const mounted = useRef(true)
   const mutation = useRef<{ fingerprint: string; key: string } | null>(null)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+
+  const checkDay = useCallback(() => {
+    const nextDate = localDateInTimeZone(new Date(), timezone)
+    if (activeDate.current === nextDate) return false
+    activeDate.current = nextDate
+    mutation.current = null
+    setPhase('loading')
+    setMessage('Đang tải ghi nhận hôm nay…')
+    setLocalDate(nextDate)
+    return true
+  }, [timezone])
+
+  useEffect(() => {
+    if (!planOrigin) return
+    planHeading.current?.focus({ preventScroll: true })
+    document
+      .getElementById('emotion-check-in')
+      ?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  }, [planOrigin])
 
   useEffect(() => {
     let active = true
@@ -116,14 +156,14 @@ export function DailyEmotionCheckIn({
     let active = true
     void getEmotionCheckIn(localDate)
       .then((checkIn) => {
-        if (!active) return
+        if (!active || activeDate.current !== localDate) return
         setPersisted(checkIn)
         setDraft(savedDraft(checkIn))
         setPhase('ready')
         setMessage('Đã tải ghi nhận tự báo cáo hôm nay.')
       })
       .catch((error: unknown) => {
-        if (!active) return
+        if (!active || activeDate.current !== localDate) return
         setPersisted(null)
         setDraft(emptyDraft)
         if (error instanceof ApiError && error.status === 404) {
@@ -141,15 +181,6 @@ export function DailyEmotionCheckIn({
   }, [localDate, reload])
 
   useEffect(() => {
-    const checkDay = () => {
-      const nextDate = localDateInTimeZone(new Date(), timezone)
-      if (activeDate.current === nextDate) return
-      activeDate.current = nextDate
-      mutation.current = null
-      setPhase('loading')
-      setMessage('Đang tải ghi nhận hôm nay…')
-      setLocalDate(nextDate)
-    }
     const interval = window.setInterval(checkDay, 60_000)
     window.addEventListener('focus', checkDay)
     document.addEventListener('visibilitychange', checkDay)
@@ -158,19 +189,29 @@ export function DailyEmotionCheckIn({
       window.removeEventListener('focus', checkDay)
       document.removeEventListener('visibilitychange', checkDay)
     }
-  }, [timezone])
+  }, [checkDay])
 
   const draftChanged =
     draft.emotion !== (persisted?.emotion ?? null) ||
     draft.intensity !== (persisted?.intensity ?? null) ||
     draft.note.trim() !== (persisted?.note ?? '') ||
     draft.factors.join(',') !== (persisted?.factors ?? []).join(',')
+  useUnsavedChangesGuard(
+    Boolean(planOrigin && draftChanged),
+    'Lựa chọn cảm xúc chưa được xác nhận lưu. Nếu rời trang, hãy kiểm tra lại ghi nhận khi quay lại; kế hoạch không tự thay đổi.',
+  )
   const isComplete = draft.emotion !== null && draft.intensity !== null
   const isSubmitting = phase === 'saving' || phase === 'deleting'
-  const loadBlocked = phase === 'error' && retryKind === 'load'
+  const originDayChanged = Boolean(
+    planOrigin && localDate !== planOrigin.localDate,
+  )
+  const loadBlocked =
+    (phase === 'error' && retryKind === 'load') || originDayChanged
 
   const save = async () => {
-    if (!draft.emotion || !draft.intensity) return
+    if (checkDay()) return
+    if (!draft.emotion || !draft.intensity || loadBlocked || isSubmitting)
+      return
     const value: EmotionCheckInValue = {
       emotion: draft.emotion,
       intensity: draft.intensity,
@@ -204,6 +245,7 @@ export function DailyEmotionCheckIn({
       const saved = existing
         ? await updateEmotionCheckIn(localDate, existing.revision, value, key)
         : await createEmotionCheckIn({ ...value, localDate, timezone }, key)
+      if (!mounted.current || activeDate.current !== localDate) return
       setPersisted(saved)
       setDraft(savedDraft(saved))
       mutation.current = null
@@ -214,17 +256,20 @@ export function DailyEmotionCheckIn({
       onPersisted?.()
       announceChange()
     } catch (error) {
+      if (!mounted.current || activeDate.current !== localDate) return
       if (
         error instanceof ApiError &&
         (error.status === 409 || error.status === 412)
       ) {
         try {
           const latest = await getEmotionCheckIn(localDate)
+          if (!mounted.current || activeDate.current !== localDate) return
           setPersisted(latest)
           setMessage(
             'Ghi nhận đã thay đổi ở nơi khác. Bản mới nhất đã được tải; lựa chọn của bạn chưa được lưu.',
           )
         } catch {
+          if (!mounted.current || activeDate.current !== localDate) return
           setMessage(
             'Ghi nhận đã thay đổi ở nơi khác và chưa thể tải bản mới nhất. Lựa chọn của bạn chưa được lưu.',
           )
@@ -236,7 +281,7 @@ export function DailyEmotionCheckIn({
   }
 
   const remove = async (ask = true) => {
-    if (!persisted) return
+    if (checkDay() || !persisted || loadBlocked || isSubmitting) return
     if (
       ask &&
       !(await confirm({
@@ -249,6 +294,8 @@ export function DailyEmotionCheckIn({
       }))
     )
       return
+    if (!mounted.current || activeDate.current !== localDate || checkDay())
+      return
     const fingerprint = JSON.stringify({ action: 'delete', localDate })
     if (mutation.current?.fingerprint !== fingerprint)
       mutation.current = { fingerprint, key: commandKey() }
@@ -257,6 +304,7 @@ export function DailyEmotionCheckIn({
     setMessage('Đang xóa ghi nhận…')
     try {
       await deleteEmotionCheckIn(localDate, key)
+      if (!mounted.current || activeDate.current !== localDate) return
       setPersisted(null)
       setDraft(emptyDraft)
       mutation.current = null
@@ -265,6 +313,7 @@ export function DailyEmotionCheckIn({
       onPersisted?.()
       announceChange()
     } catch (error) {
+      if (!mounted.current || activeDate.current !== localDate) return
       setPhase('error')
       if (error instanceof ApiError && error.status === 404) {
         setRetryKind('load')
@@ -290,9 +339,46 @@ export function DailyEmotionCheckIn({
 
   return (
     <div
+      id="emotion-check-in"
       className={styles.card}
       aria-busy={phase === 'loading' || isSubmitting}
     >
+      {planOrigin && (
+        <aside
+          className={styles.planContext}
+          aria-label="Hoạt động từ kế hoạch hỗ trợ"
+        >
+          <p ref={planHeading} tabIndex={-1}>
+            <strong>{planOrigin.title}</strong> · {planOrigin.localDate}
+          </p>
+          <p>
+            Lưu cảm xúc không tự đánh dấu hoàn thành kế hoạch. Quay lại đúng
+            hoạt động và chọn “Kiểm tra ghi nhận”.
+          </p>
+          {originDayChanged && (
+            <p role="alert">
+              Ngày đã thay đổi. Hãy quay lại kế hoạch để mở hoạt động của hôm
+              nay; ghi nhận mới không thay cho hoạt động của ngày trước.
+            </p>
+          )}
+          {persisted &&
+            (persisted.timezone !== timezone ||
+              Date.parse(persisted.createdAt) <
+                Date.parse(planOrigin.activatedAt)) && (
+              <p>
+                Ghi nhận đã có dùng múi giờ khác hoặc được tạo trước khi hoạt
+                động bắt đầu, nên có thể không được tính cho lần thực hiện này.
+                Nội dung đã lưu vẫn được giữ nguyên.
+              </p>
+            )}
+          <Link
+            className={styles.planReturn}
+            href={emotionPlanHref(planOrigin, '/support-plan')}
+          >
+            Quay lại hoạt động trong kế hoạch
+          </Link>
+        </aside>
+      )}
       <header className={styles.header}>
         <h2 className={styles.title}>Cảm xúc hôm nay</h2>
         <p className={styles.subtitle}>Tự chọn cảm xúc phù hợp nhất với bạn</p>
@@ -454,7 +540,7 @@ export function DailyEmotionCheckIn({
               <button
                 type="button"
                 className={styles.deleteBtn}
-                disabled={isSubmitting}
+                disabled={isSubmitting || loadBlocked}
                 onClick={() => void remove()}
               >
                 {phase === 'deleting' ? 'Đang xóa…' : 'Xóa ghi nhận'}
