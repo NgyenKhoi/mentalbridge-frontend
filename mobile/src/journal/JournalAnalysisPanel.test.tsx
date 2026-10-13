@@ -59,15 +59,13 @@ async function mount(ui: ReactElement) {
 describe('Explicit mobile Journal AI', () => {
   it('explains a missing Care profile without granting consent or blocking manual writing', async () => {
     const api = journalApi({
-      consent: jest
-        .fn()
-        .mockRejectedValue(
-          new ApiError({
-            status: 404,
-            code: 'PROFILE_NOT_FOUND',
-            message: 'private details',
-          }),
-        ),
+      consent: jest.fn().mockRejectedValue(
+        new ApiError({
+          status: 404,
+          code: 'PROFILE_NOT_FOUND',
+          message: 'private details',
+        }),
+      ),
     })
     await mount(
       <JournalAnalysisPanel
