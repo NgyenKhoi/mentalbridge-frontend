@@ -744,6 +744,8 @@ export interface paths {
          * @description Returns the persisted draft snapshot without re-running entitlement or
          *     resource-provider decisions. The response retains the exact rationale,
          *     choices, source versions, and safety copy used when Care created it.
+         *     The bounded system-copy encoding erratum described by SupportPlan
+         *     corrects only the two known malformed Vietnamese display literals.
          */
         get: operations["getOwnCurrentSupportPlanDraft"];
         put?: never;
@@ -2322,6 +2324,14 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        /**
+         * @description Persisted owner snapshot. Under mb-support-plan-selection-v1, reads
+         *     present the two exact known malformed system-generated rationale and
+         *     negative-screen STANDARD_SAFETY_REMINDER literals with their original
+         *     Vietnamese characters restored. This encoding erratum changes no stored
+         *     text, identity, version, policy/source provenance, lifecycle, or safety
+         *     decision; all other copy remains unchanged.
+         */
         SupportPlan: {
             /** Format: uuid */
             supportPlanId: string;
@@ -2492,6 +2502,11 @@ export interface components {
             /** @constant */
             reasonCode: "USER_PREFERENCE_AND_CARE_POLICY";
         };
+        /**
+         * @description Canonical v3 representation. V2_RESOURCE_ADAPTER retains the bounded
+         *     system-copy display encoding erratum described by SupportPlan without
+         *     rewriting the v2 snapshot. Native v3 authored copy is not decoded.
+         */
         SupportPlanV3: {
             /** Format: uuid */
             supportPlanId: string;

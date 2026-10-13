@@ -247,9 +247,12 @@ describe('SupportPlanCard', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Kết thúc kế hoạch' }))
-    fireEvent.change(screen.getByLabelText('Lý do (không bắt buộc)'), {
-      target: { value: 'USER_DECISION' },
-    })
+    fireEvent.click(
+      screen.getByRole('combobox', { name: 'Lý do (không bắt buộc)' }),
+    )
+    fireEvent.click(
+      screen.getByRole('option', { name: 'Tôi chủ động kết thúc' }),
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận kết thúc' }))
 
     await waitFor(() =>

@@ -68,7 +68,7 @@ describe('admin amendment queue', () => {
       await screen.findByRole('button', { name: /Chuyên gia Bình/ }),
     )
     await screen.findByRole('button', { name: 'Phê duyệt và công khai' })
-    await user.click(screen.getByRole('button', { name: 'Lý do từ chối' }))
+    await user.click(screen.getByRole('combobox', { name: 'Lý do từ chối' }))
     await user.click(
       screen.getByRole('option', {
         name: 'Nội dung hồ sơ chưa phù hợp để công khai',

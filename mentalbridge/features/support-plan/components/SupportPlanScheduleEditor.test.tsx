@@ -181,4 +181,88 @@ describe('SupportPlanScheduleEditor', () => {
       await screen.findByText(/không ảnh hưởng đến kết quả kế hoạch/),
     ).toBeVisible()
   })
+
+  it('restores the latest saved snapshot and marks a subsequent edit dirty', async () => {
+    const onDirtyChange = vi.fn()
+    render(
+      <SupportPlanScheduleEditor
+        plan={plan()}
+        onDirtyChange={onDirtyChange}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        onReload={vi.fn()}
+      />,
+    )
+    const time = screen.getByLabelText('Giờ địa phương')
+    fireEvent.change(time, { target: { value: '09:30' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }))
+    await screen.findByText('Đã lưu lịch cho các hoạt động tương lai.')
+    fireEvent.change(time, { target: { value: '11:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }))
+    expect(time).toHaveValue('09:30')
+    expect(time).toHaveFocus()
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false)
+    fireEvent.change(time, { target: { value: '12:00' } })
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true)
+  })
+
+  it('focuses invalid duration instead of sending a command', async () => {
+    const onSave = vi.fn()
+    render(
+      <SupportPlanScheduleEditor
+        plan={plan()}
+        onSave={onSave}
+        onReload={vi.fn()}
+      />,
+    )
+    const duration = screen.getByLabelText('Thời lượng dự kiến (phút)')
+    fireEvent.change(duration, { target: { value: '7' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Thời lượng cần từ 5 đến 180 phút',
+    )
+    expect(duration).toHaveAttribute('aria-invalid', 'true')
+    expect(duration).toHaveFocus()
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it.each([true, false])(
+    'restores keyboard focus after undoing schedule enabled=%s',
+    (enabled) => {
+      const value = plan()
+      if (!enabled) value.focuses[0].actions[0].schedules = []
+      render(
+        <SupportPlanScheduleEditor
+          plan={value}
+          onSave={vi.fn()}
+          onReload={vi.fn()}
+        />,
+      )
+      const toggle = screen.getByRole('checkbox', { name: 'Lên lịch' })
+      fireEvent.click(toggle)
+      fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }))
+      expect(toggle).toHaveProperty('checked', enabled)
+      if (enabled) expect(screen.getByLabelText('Giờ địa phương')).toHaveFocus()
+      else expect(toggle).toHaveFocus()
+    },
+  )
+
+  it('uses themed selects and real checkboxes, with read-only controls on paused plans', () => {
+    render(
+      <SupportPlanScheduleEditor
+        plan={{ ...plan(), status: 'PAUSED' }}
+        onSave={vi.fn()}
+        onReload={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('combobox', { name: 'Nhịp hoạt động' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('combobox', { name: 'Thời điểm trong ngày' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('checkbox', { name: 'Nhắc tôi về hoạt động này' }),
+    ).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Thứ Hai' })).toBeChecked()
+  })
 })
