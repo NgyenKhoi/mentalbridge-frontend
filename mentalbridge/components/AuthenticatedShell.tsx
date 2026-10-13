@@ -119,6 +119,14 @@ const groups = [
         </Svg>,
       ],
       [
+        '/achievements',
+        'Thành tựu',
+        <Svg key="achievement">
+          <path d="M12 3c1.2 3.2 3.4 5.2 6.5 6.2-3.1 1-5.3 3-6.5 6.2-1.2-3.2-3.4-5.2-6.5-6.2C8.6 8.2 10.8 6.2 12 3Z" />
+          <path d="M6 15c.6 1.7 1.7 2.8 3.4 3.4C7.7 19 6.6 20.1 6 21.8c-.6-1.7-1.7-2.8-3.4-3.4C4.3 17.8 5.4 16.7 6 15Z" />
+        </Svg>,
+      ],
+      [
         '/analytics',
         'Phân tích',
         <Svg key="n">
@@ -155,6 +163,7 @@ const labels: Record<string, string> = {
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',
   '/resources': 'Tài nguyên',
+  '/achievements': 'Bộ sưu tập hành trình',
   '/analytics': 'Phân tích',
   '/subscription': 'Gói dịch vụ',
   '/notifications': 'Thông báo',
