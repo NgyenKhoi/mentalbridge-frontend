@@ -37,11 +37,28 @@
         "expo-image-picker",
         {
           "photosPermission": "Chọn ảnh hoặc video bạn muốn chia sẻ trong cộng đồng MentalBridge.",
-          "cameraPermission": false,
-          "microphonePermission": false
+          "cameraPermission": "Cho phép MentalBridge dùng camera khi bạn tham gia tư vấn video.",
+          "microphonePermission": "Cho phép MentalBridge dùng micro khi bạn tham gia tư vấn video."
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "@livekit/react-native-expo-plugin",
+        {
+          "android": {
+            "audioType": "communication",
+            "enableScreenShareService": false
+          },
+          "ios": { "enableMultitaskingCameraAccess": false }
+        }
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Cho phép MentalBridge dùng camera khi bạn tham gia tư vấn video.",
+          "microphonePermission": "Cho phép MentalBridge dùng micro khi bạn tham gia tư vấn video."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

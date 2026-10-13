@@ -52,7 +52,7 @@ describe('Mobile Delivery Contract v1', () => {
   it('pins the agreed SDK and JavaScript toolchain baseline', () => {
     const packageConfig = z
       .object({
-        main: z.literal('expo-router/entry'),
+        main: z.literal('index.js'),
         packageManager: z.literal('npm@10.9.2'),
         engines: z.object({
           node: z.literal('22.13.0'),
@@ -74,6 +74,16 @@ describe('Mobile Delivery Contract v1', () => {
       node: '22.13.0',
       npm: '10.9.2',
     })
+    const entry = readFileSync(resolve(mobileRoot, 'index.js'), 'utf8')
+    expect(entry.indexOf("import './src/video/register'")).toBeLessThan(
+      entry.indexOf("import 'expo-router/entry'"),
+    )
+    const nativeRegistration = readFileSync(
+      resolve(mobileRoot, 'src/video/register.native.ts'),
+      'utf8',
+    )
+    expect(nativeRegistration).toContain('registerGlobals()')
+    expect(nativeRegistration).toContain('setLogLevel(LogLevel.silent)')
   })
 
   it('pins native staging runners and their selected toolchains', () => {

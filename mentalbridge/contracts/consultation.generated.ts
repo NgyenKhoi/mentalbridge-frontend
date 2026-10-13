@@ -4,6 +4,74 @@
  */
 
 export interface paths {
+    "/api/v1/specialist/appointments/{appointmentId}/video-completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Explicit assigned approved Specialist assertion of actual consultation end, accepted immediately without waiting for scheduled end or webhook grace. Stable idempotency and strong Appointment If-Match are required. Provider closure and paired trusted evidence are verified separately. Incomplete verification remains SESSION_ENDED with HELD credit, including after 24h; no timeout release, no-show, refund or earning is authorized. Verified completion reuses the existing immutable completion fact, consumed-credit ledger and MB-516 earning contract. */
+        post: operations["confirmVideoConsultationFinished"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/video/livekit/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Raw provider body authenticated using LiveKit signature, expiry and SHA256 body verification, not an Identity bearer token. Only minimized assigned-participant metadata is retained for 90 days unless a dispute or valid retention hold applies. Duplicate delivery is idempotent; reordered events are paired by room and participant session SID. Unsupported, unknown or privacy-purged rooms are safely ignored. Media events never create completion facts or settle credits on their own. */
+        post: operations["receiveLiveKitParticipationEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appointments/{appointmentId}/video-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Assigned USER or SPECIALIST only. Waiting begins five minutes early for local preview, without a provider connection or attendance. Current authorization is authoritative; no media event completes an appointment. */
+        get: operations["getAppointmentVideoSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appointments/{appointmentId}/video-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description No request body. Rechecks exact assigned actor/role, approved specialist, held credit, video modality, CONFIRMED/IN_PROGRESS and [startsAt,endsAt). Uses the owner room mapping, never a client room/actor. Token is room-scoped, in-memory only, 30–300 seconds maximum and expires no later than endsAt. LiveKit SDK refresh does not extend the appointment; server revocation/closure remains required. */
+        post: operations["issueAppointmentVideoAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile/amendments/current": {
         parameters: {
             query?: never;
@@ -1079,6 +1147,56 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        VideoCompletion: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            confirmationId: string;
+            /** @enum {string} */
+            verificationState: "PENDING_VERIFICATION" | "VERIFIED" | "EVIDENCE_REVIEW";
+            /** @enum {string} */
+            appointmentStatus: "SESSION_ENDED" | "COMPLETED";
+            /** @enum {string} */
+            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            /** Format: uuid */
+            completionFactId: string | null;
+            /** Format: date-time */
+            acceptedAt: string;
+            /** Format: date-time */
+            manualReviewAt: string;
+            version: number;
+        };
+        AppointmentVideoSession: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** @enum {string} */
+            phase: "TOO_EARLY" | "WAITING" | "ACTIVE" | "ENDED" | "COMPLETED" | "NOT_AVAILABLE" | "UNAVAILABLE";
+            previewAllowed: boolean;
+            joinAllowed: boolean;
+            /** Format: date-time */
+            startsAt: string;
+            /** Format: date-time */
+            endsAt: string;
+            /** Format: date-time */
+            serverTime: string;
+            version: number;
+            completion: components["schemas"]["VideoCompletion"] | null;
+        };
+        AppointmentVideoAccess: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** @constant */
+            provider: "LIVEKIT";
+            /** Format: uri */
+            serverUrl: string;
+            roomName: string;
+            /** @description Sensitive in-memory-only provider JWT; never log or persist */
+            participantToken: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            endsAt: string;
+        };
         ServicePlanCatalogue: {
             plans: components["schemas"]["ServicePlanVersion"][];
             checkoutEnabled: boolean;
@@ -2013,7 +2131,7 @@ export interface components {
             /** Format: uuid */
             actorId: string | null;
             /** @enum {string} */
-            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED" | "SESSION_ACTIVITY_OBSERVED" | "SCHEDULED_WINDOW_ENDED" | "EVIDENCE_REQUIREMENTS_MET";
+            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED" | "SESSION_ACTIVITY_OBSERVED" | "SCHEDULED_WINDOW_ENDED" | "EVIDENCE_REQUIREMENTS_MET" | "SPECIALIST_VIDEO_END_CONFIRMED" | "VIDEO_MANUAL_REVIEW_REQUIRED";
             creditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
             /** Format: date-time */
             occurredAt: string;
@@ -2221,7 +2339,7 @@ export interface components {
             sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
             sessionOutcomeReason: string | null;
             /** @enum {string|null} */
-            sessionPolicyVersion: "chat-session-completion-v1" | null;
+            sessionPolicyVersion: "chat-session-completion-v1" | "livekit-video-completion-v1" | null;
             /** Format: date-time */
             sessionEndedAt: string | null;
             /** Format: date-time */
@@ -2610,6 +2728,155 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    confirmVideoConsultationFinished: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    confirmation: "CONSULTATION_FINISHED";
+                };
+            };
+        };
+        responses: {
+            /** @description Idempotent replay or authoritative verified completion */
+            200: {
+                headers: {
+                    /** @description Current strong Appointment version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoCompletion"];
+                };
+            };
+            /** @description Confirmation persisted; verification pending or requiring review, credit HELD */
+            202: {
+                headers: {
+                    /** @description Current strong Appointment version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoCompletion"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    receiveLiveKitParticipationEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/webhook+json": string;
+            };
+        };
+        responses: {
+            /** @description Authenticated event processed or safely ignored */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            409: components["responses"]["ConflictProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    getAppointmentVideoSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No-store current video eligibility, without credentials or sensitive content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentVideoSession"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    issueAppointmentVideoAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sensitive no-store connection response; never log or persist its token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentVideoAccess"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description VIDEO_JOIN_NOT_ALLOWED for early/late/ended/cancelled/completed/unapproved or otherwise ineligible appointment */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description VIDEO_PROVIDER_UNAVAILABLE or VIDEO_DISABLED. No credentials are issued and no completion/financial fact is created. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getOwnProfileAmendment: {
         parameters: {
             query?: never;
