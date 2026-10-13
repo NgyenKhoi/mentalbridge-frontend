@@ -176,8 +176,10 @@ function MultiChoiceGroup({
 
 export default function SupportPlanPersonalization({
   onReviewPlan,
+  onDirtyChange,
 }: Readonly<{
   onReviewPlan: (reasonCode: SupportPlanReviewReasonCode) => void
+  onDirtyChange?: (dirty: boolean) => void
 }>) {
   const [authority, setAuthority] =
     useState<SupportPlanPersonalizationAuthority>()
@@ -228,6 +230,10 @@ export default function SupportPlanPersonalization({
       JSON.stringify(form) !== JSON.stringify(formFrom(authority.value)),
     [authority, form],
   )
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   const setScalar = <K extends ScalarKey>(key: K, value: FormValue[K]) => {
     setForm((current) => ({ ...current, [key]: value }))

@@ -170,7 +170,7 @@ function malformedResponse(cause?: unknown) {
   })
 }
 
-async function careRequest<T>(options: RequestOptions<T>): Promise<T> {
+export async function careRequest<T>(options: RequestOptions<T>): Promise<T> {
   const config = readCareServerConfig()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs)

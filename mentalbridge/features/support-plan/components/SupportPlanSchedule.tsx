@@ -100,6 +100,7 @@ type Props = Readonly<{
   onToggleStatus?: () => void
   onEndPlan?: () => void
   onSwitchToManageTab?: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }>
 
 export default function SupportPlanSchedule({
@@ -108,6 +109,7 @@ export default function SupportPlanSchedule({
   onToggleStatus,
   onEndPlan,
   onSwitchToManageTab,
+  onDirtyChange,
 }: Props) {
   const { showActionToast } = useFeedback()
   const today = useMemo(() => dateInZone(new Date(), DEFAULT_TIMEZONE), [])
@@ -129,6 +131,22 @@ export default function SupportPlanSchedule({
   )
   const [detailOpen, setDetailOpen] = useState(false)
   const [message, setMessage] = useState('')
+  const edited = schedule?.occurrences.find(
+    (item) => item.occurrenceId === editingId,
+  )
+  const dirty = Boolean(
+    draft &&
+    (!edited ||
+      draft.state !== edited.state ||
+      draft.helpfulness !== edited.helpfulness ||
+      draft.barrierCode !== edited.barrierCode ||
+      draft.reflection.trim() !== (edited.reflection ?? '') ||
+      draft.summaryReuseApproved !== edited.summaryReuseApproved),
+  )
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   // Compute 7 days of the currently navigated week
   const weekDays = useMemo(() => {

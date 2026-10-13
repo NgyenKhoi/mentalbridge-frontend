@@ -1,8 +1,130 @@
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
+import type { SupportPlanV3 } from '@/features/support-plan/api/support-plan-contract'
 
 import { test } from './test-fixtures'
 
 const accessCookie = 'mentalbridge_access'
+
+// The entry read identifies the actual legacy resource model. This projection
+// does not manufacture native actions, Emotion evidence, or a converted plan.
+function adapterProjection(value: ReturnType<typeof plan>): SupportPlanV3 {
+  const state = value.status as SupportPlanV3['status']
+  const professional = value.templateFamilies.some((family) =>
+    family.family.endsWith('PROFESSIONAL_ADJUNCT'),
+  )
+  return {
+    supportPlanId: value.supportPlanId,
+    modelVersion: 3,
+    planPolicyVersion: value.source.selectionPolicyVersion,
+    representationMode: 'V2_RESOURCE_ADAPTER',
+    status: state,
+    version: value.version,
+    safety: value.safety as SupportPlanV3['safety'],
+    focuses: [
+      {
+        focusId: 'resource-support',
+        title: 'Nội dung hỗ trợ đã chọn',
+        rationale: value.rationale.text,
+        ordinal: 1,
+        personalizationProvenance: null,
+        actions: value.slots.map((slot, index) => ({
+          actionId: slot.selectedResource.resourceId,
+          actionType: 'RESOURCE',
+          actionVersion: 0,
+          representationMode: 'V2_RESOURCE_ADAPTER',
+          status:
+            state === 'DRAFT'
+              ? 'DRAFT'
+              : ['ACTIVE', 'PAUSED'].includes(state)
+                ? 'ACTIVE'
+                : 'ENDED',
+          pathRole: professional ? 'ADJUNCT' : 'PRIMARY',
+          purposeCode: slot.purposeCode,
+          rationale: null,
+          ordinal: index + 1,
+          source: {
+            ownerDomain: 'CONTENT',
+            sourceKind: 'RESOURCE_VERSION',
+            sourceId: slot.selectedResource.resourceId,
+            sourceRevision: slot.selectedResource.contentVersion,
+            sourcePolicyVersion: null,
+            publicationId: slot.selectedResource.publicationId,
+            eligibilityPolicyVersion:
+              value.source.resourceEligibilityPolicyVersion,
+            verifiedAt: value.source.resourcesResolvedAt,
+          },
+          provenance: {
+            category: 'SYSTEM_POLICY',
+            referenceId: value.source.supportEvaluationId,
+            referenceVersion: '2',
+            acceptedAt: value.createdAt,
+          },
+          presentation: {
+            title: slot.selectedResource.title,
+            summary: slot.selectedResource.summary,
+            instructions: null,
+            externalUrl: slot.selectedResource.externalUrl,
+          },
+          schedules: [],
+          createdAt: value.createdAt,
+          updatedAt: value.updatedAt,
+          activatedAt: value.activatedAt,
+          endedAt: null,
+        })),
+      },
+    ],
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    activatedAt: value.activatedAt,
+    completedAt: value.completedAt,
+    completionReason: value.completionReason,
+    supersededAt: value.supersededAt,
+    discardedAt: value.discardedAt,
+    disclaimerCode: 'WELLBEING_SUPPORT_NOT_TREATMENT',
+    disclaimer: value.disclaimer,
+  }
+}
+
+async function mockEntry(
+  page: Page,
+  current: () => ReturnType<typeof plan> | undefined,
+  draft: () => ReturnType<typeof plan> | undefined,
+  history: () => ReturnType<typeof plan>[] = () => [],
+) {
+  for (const [path, read] of [
+    ['current', current],
+    ['current-draft', draft],
+  ] as const)
+    await page.route(`**/api/care/v2/support-plans/${path}`, (route) => {
+      const value = read()
+      return route.fulfill(
+        value
+          ? { status: 200, json: adapterProjection(value) }
+          : {
+              status: 404,
+              json: {
+                type: '/problems/support-plan-not-found',
+                title: 'Not found',
+                status: 404,
+                code:
+                  path === 'current'
+                    ? 'SUPPORT_PLAN_CURRENT_NOT_FOUND'
+                    : 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+              },
+            },
+      )
+    })
+  await page.route('**/api/care/v2/support-plans/history?*', (route) =>
+    route.fulfill({
+      status: 200,
+      json: {
+        items: history().map(adapterProjection),
+        hasMore: false,
+        nextCursor: null,
+      },
+    }),
+  )
+}
 
 function plan() {
   return {
@@ -156,6 +278,11 @@ test('MB-643 keeps professional support primary and reflects an explicitly reque
   }
   let bookingCommands = 0
   let appointment: Record<string, unknown> | null = null
+  await mockEntry(
+    page,
+    () => current,
+    () => undefined,
+  )
 
   await page.route('**/api/care/support-plans/current', (route) =>
     route.fulfill({ status: 200, json: current }),
@@ -359,6 +486,11 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   let occurrenceHelpfulness: 'HELPFUL' | null = null
   let occurrenceReflection: string | null = null
   let occurrenceSummaryReuseApproved = false
+  await mockEntry(
+    page,
+    () => (persisted.status === 'ACTIVE' ? persisted : undefined),
+    () => (persisted.status === 'DRAFT' ? persisted : undefined),
+  )
   const today = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
@@ -544,6 +676,13 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   })
 
   await page.goto('/support-plan')
+  await expect(
+    page.getByRole('heading', {
+      name: 'Hôm nay, mình đi một bước nhỏ',
+      exact: true,
+    }),
+  ).toBeVisible()
+  await page.evaluate(() => document.fonts.ready)
   const typography = await page.evaluate(() => ({
     body: getComputedStyle(
       document.querySelector<HTMLElement>('.support-plan-page')!,
@@ -594,7 +733,9 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   await page
     .getByLabel(/Ghi chú riêng/)
     .fill('Tôi muốn tiếp tục theo nhịp này.')
-  await page.getByRole('checkbox').check()
+  const summaryConsent = page.getByRole('checkbox')
+  await summaryConsent.locator('..').click()
+  await expect(summaryConsent).toBeChecked()
   await page.getByRole('button', { name: 'Lưu tự ghi nhận' }).click()
   await expect(page.getByText('Bạn đã ghi nhận là đã làm')).toBeVisible()
   await expect(page.getByText(/Tôi muốn tiếp tục theo nhịp này/)).toBeVisible()
@@ -623,6 +764,33 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
 test('MB-373 presents the stable Free entitlement path without a plan', async ({
   page,
 }) => {
+  await mockEntry(
+    page,
+    () => undefined,
+    () => undefined,
+  )
+  await page.route(
+    '**/api/care/v2/support-plans/evaluation-source?*',
+    (route) =>
+      route.fulfill({
+        status: 200,
+        json: {
+          sourceSupportEvaluationId: '20000000-0000-4000-8000-000000000372',
+        },
+      }),
+  )
+  await page.route('**/api/care/v2/support-plans', (route) =>
+    route.fulfill({
+      status: 403,
+      json: {
+        type: '/problems/support-plan-entitlement-required',
+        title: 'Paid entitlement required.',
+        status: 403,
+        code: 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED',
+        correlationId: '70000000-0000-4000-8000-000000000641',
+      },
+    }),
+  )
   await page.route('**/api/care/support-plans/current', async (route) => {
     await route.fulfill({
       status: 404,
@@ -658,7 +826,10 @@ test('MB-373 presents the stable Free entitlement path without a plan', async ({
   })
 
   await page.goto('/support-plan')
-  await expect(page.getByText(/dành cho gói Plus và Premium/)).toBeVisible()
+  await expect(
+    page.getByText(/Kế hoạch hỗ trợ dài hạn dành cho Plus và Premium/),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Xem kế hoạch được đề xuất' }).click()
   await expect(
     page.getByRole('link', { name: 'Xem gợi ý hỗ trợ' }),
   ).toHaveAttribute('href', '/support-guides')
@@ -677,6 +848,13 @@ test('MB-374 confirms lifecycle commands and reloads immutable completion histor
   }
   let terminalHistory: ReturnType<typeof plan>[] = []
   const commands: string[] = []
+  await mockEntry(
+    page,
+    () =>
+      ['ACTIVE', 'PAUSED'].includes(persisted.status) ? persisted : undefined,
+    () => undefined,
+    () => terminalHistory,
+  )
 
   await page.route('**/api/care/support-plans/current', async (route) => {
     if (!['ACTIVE', 'PAUSED'].includes(persisted.status)) {
@@ -795,9 +973,10 @@ test('MB-374 confirms lifecycle commands and reloads immutable completion histor
   ).toBeVisible()
 
   await page.getByRole('button', { name: 'Kết thúc kế hoạch' }).click()
+  await page.getByRole('combobox', { name: 'Lý do (không bắt buộc)' }).click()
   await page
-    .getByLabel('Lý do (không bắt buộc)')
-    .selectOption('PLAN_NO_LONGER_FITS')
+    .getByRole('option', { name: 'Kế hoạch không còn phù hợp', exact: true })
+    .click()
   await page.getByRole('button', { name: 'Xác nhận kết thúc' }).click()
 
   await expect(page.getByText('Đã kết thúc')).toBeVisible()

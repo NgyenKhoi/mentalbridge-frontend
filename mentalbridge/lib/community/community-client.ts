@@ -23,6 +23,7 @@ import {
   type CommunityProblem,
   type CommunityTopic,
   type PutCommunityProfileRequest,
+  type PutCommunityAvatarRequest,
   type CreateMediaUploadIntentRequest,
   type MediaUploadIntent,
   type CommunityMediaRecord,
@@ -391,6 +392,22 @@ export const communityClient = {
           body: input,
           headers: ifMatch ? { 'If-Match': ifMatch } : undefined,
         },
+      ),
+    )
+  },
+  async putAvatar(
+    accessToken: string,
+    correlationId: string,
+    input: PutCommunityAvatarRequest,
+    ifMatch: string,
+  ) {
+    return requireProfileEtag(
+      await request<CommunityProfile>(
+        '/api/v1/community/profile/avatar',
+        accessToken,
+        correlationId,
+        parseCommunityProfile,
+        { method: 'PUT', body: input, headers: { 'If-Match': ifMatch } },
       ),
     )
   },

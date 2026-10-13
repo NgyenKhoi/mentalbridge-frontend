@@ -1,0 +1,152 @@
+[
+  {
+    "filename": "stitch-desktop-final.html",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "fonts": [
+      {
+        "name": "Be Vietnam Pro",
+        "count": 3,
+        "loaded": true
+      },
+      {
+        "name": "Fraunces",
+        "count": 3,
+        "loaded": true
+      }
+    ],
+    "errors": [],
+    "journey": null,
+    "overflow": false,
+    "nativeExecution": "NOT_RUN — source via RN Web only"
+  },
+  {
+    "filename": "stitch-mobile-final.html",
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "fonts": [
+      {
+        "name": "Be Vietnam Pro",
+        "count": 3,
+        "loaded": true
+      },
+      {
+        "name": "Fraunces",
+        "count": 3,
+        "loaded": true
+      }
+    ],
+    "errors": [],
+    "journey": null,
+    "overflow": false,
+    "nativeExecution": "NOT_RUN — source via RN Web only"
+  },
+  {
+    "filename": "native-baseline.html?screen=emotion",
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "fonts": [
+      {
+        "name": "Be Vietnam Pro",
+        "count": 0,
+        "loaded": false
+      },
+      {
+        "name": "Fraunces",
+        "count": 0,
+        "loaded": false
+      }
+    ],
+    "errors": [],
+    "journey": null,
+    "overflow": false,
+    "nativeExecution": "NOT_RUN — source via RN Web only"
+  },
+  {
+    "filename": "native-baseline.html?screen=support-plan",
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "fonts": [
+      {
+        "name": "Be Vietnam Pro",
+        "count": 0,
+        "loaded": false
+      },
+      {
+        "name": "Fraunces",
+        "count": 0,
+        "loaded": false
+      }
+    ],
+    "errors": [],
+    "journey": null,
+    "overflow": false,
+    "nativeExecution": "NOT_RUN — source via RN Web only"
+  },
+  {
+    "filename": "native-baseline.html?screen=native-plan",
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "fonts": [
+      {
+        "name": "Be Vietnam Pro",
+        "count": 0,
+        "loaded": false
+      },
+      {
+        "name": "Fraunces",
+        "count": 0,
+        "loaded": false
+      }
+    ],
+    "errors": [],
+    "journey": {
+      "exactReturnInView": true,
+      "explicitReconcile": true,
+      "retry": true,
+      "sourceFixtureOnly": true,
+      "nativeExecution": "NOT_RUN — MB-666"
+    },
+    "overflow": false,
+    "nativeExecution": "NOT_RUN — source via RN Web only"
+  },
+  {
+    "filename": "native-baseline.html?screen=native-plan",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "fonts": [
+      {
+        "name": "Be Vietnam Pro",
+        "count": 0,
+        "loaded": false
+      },
+      {
+        "name": "Fraunces",
+        "count": 0,
+        "loaded": false
+      }
+    ],
+    "errors": [],
+    "journey": {
+      "exactReturnInView": true,
+      "explicitReconcile": true,
+      "retry": true,
+      "sourceFixtureOnly": true,
+      "nativeExecution": "NOT_RUN — MB-666"
+    },
+    "overflow": false,
+    "nativeExecution": "NOT_RUN — source via RN Web only"
+  }
+]

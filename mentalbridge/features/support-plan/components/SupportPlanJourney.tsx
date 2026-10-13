@@ -234,7 +234,9 @@ function currentWeekBounds(localDate: string) {
   }
 }
 
-export default function SupportPlanJourney() {
+export default function SupportPlanJourney({
+  onDirtyChange,
+}: Readonly<{ onDirtyChange?: (dirty: boolean) => void }>) {
   const { showActionToast } = useFeedback()
   const [plan, setPlan] = useState<SupportPlan>()
   const [currentPlan, setCurrentPlan] = useState<SupportPlan>()
@@ -254,6 +256,9 @@ export default function SupportPlanJourney() {
   const [commandMessage, setCommandMessage] = useState('')
   const [recoveryVersion, setRecoveryVersion] = useState(0)
   const [activeTab, setActiveTab] = useState<JourneyTab>('today')
+  const [cardDirty, setCardDirty] = useState(false)
+  const [replacementDirty, setReplacementDirty] = useState(false)
+  const [personalizationDirty, setPersonalizationDirty] = useState(false)
   const [weeklyStats, setWeeklyStats] = useState<WeeklyProgressStats | null>(
     null,
   )
@@ -267,6 +272,11 @@ export default function SupportPlanJourney() {
   const activationKey = useRef<string | undefined>(undefined)
   const replacementKey = useRef<string | undefined>(undefined)
   const replacementDraftReviewRef = useRef<HTMLDivElement>(null)
+  const dirty = cardDirty || replacementDirty || personalizationDirty
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   const loadReplacementReview = useCallback(
     async (current: SupportPlan, draft: SupportPlan) => {
@@ -876,7 +886,10 @@ export default function SupportPlanJourney() {
       {!loading && (plan || activeTab === 'progress') && (
         <>
           {plan && activeTab === 'adjust' && (
-            <SupportPlanPersonalization onReviewPlan={reviewPersonalizedPlan} />
+            <SupportPlanPersonalization
+              onReviewPlan={reviewPersonalizedPlan}
+              onDirtyChange={setPersonalizationDirty}
+            />
           )}
           {plan && activeTab !== 'progress' && (
             <SupportPlanCard
@@ -891,6 +904,7 @@ export default function SupportPlanJourney() {
                 saveSchedule(plan, actionId, request, idempotencyKey)
               }
               onReloadSchedule={() => reloadSchedule(plan)}
+              onDirtyChange={setCardDirty}
               activeTab={cardTab}
               focusProjection={
                 focusProjections[plan.supportPlanId]?.version === plan.version
@@ -1000,6 +1014,7 @@ export default function SupportPlanJourney() {
                     )
                   }
                   onReloadSchedule={() => reloadSchedule(replacementDraft)}
+                  onDirtyChange={setReplacementDirty}
                   draftAction="REPLACEMENT"
                   activeTab="plan"
                   embedded
@@ -1059,7 +1074,10 @@ export default function SupportPlanJourney() {
           aria-labelledby="tab-plan"
           className="support-plan-tab-pane is-active"
         >
-          <SupportPlanPersonalization onReviewPlan={reviewPersonalizedPlan} />
+          <SupportPlanPersonalization
+            onReviewPlan={reviewPersonalizedPlan}
+            onDirtyChange={setPersonalizationDirty}
+          />
           <section
             className={`support-plan-state ${message ? 'notice' : ''}`}
             aria-live="polite"

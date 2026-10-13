@@ -334,6 +334,7 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
                 <CommunityAvatar
                   displayName={comment.author.displayName}
                   avatarPreset={comment.author.avatarPreset}
+                  avatarImage={comment.author.avatarImage}
                   deleted={comment.author.state === 'DELETED'}
                   anonymous={comment.author.state === 'ANONYMOUS'}
                 />
