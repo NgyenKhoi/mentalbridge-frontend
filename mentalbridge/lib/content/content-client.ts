@@ -19,6 +19,7 @@ import {
   parseResourceBookmark,
   parseResourceBookmarkList,
   parseResourceBingoBoard,
+  parseAchievementCollection,
   type AdminResourceDetail,
   type ResourceReviewDecision,
   type ContentProblem,
@@ -40,6 +41,8 @@ import {
   type ResourceBookmarkList,
   type ResourceBingoBoard,
   type ResourceBingoSelfConfirmationUpdate,
+  type AchievementCollection,
+  type AchievementPreferenceUpdate,
 } from './content-validation'
 
 const MAX_CONTENT_RESPONSE_BYTES = 128 * 1024
@@ -415,6 +418,71 @@ export const contentResourceEngagementClient = {
       },
     })
     return bingoResult(board, etag)
+  },
+}
+
+function achievementResult(
+  collection: AchievementCollection,
+  etag: string | undefined,
+) {
+  if (!etag || !/^"(0|[1-9]\d*)"$/.test(etag)) {
+    throw localError(
+      502,
+      'CONTENT_MALFORMED_RESPONSE',
+      'Content returned an invalid achievement preference version.',
+    )
+  }
+  if (etag !== `"${collection.preferenceVersion}"`) {
+    throw localError(
+      502,
+      'CONTENT_MALFORMED_RESPONSE',
+      'Content returned mismatched achievement preference versions.',
+    )
+  }
+  return { collection, etag }
+}
+
+export const contentAchievementClient = {
+  async get(accessToken: string, timezone: string, correlationId: string) {
+    let etag: string | undefined
+    const query = new URLSearchParams({ timezone })
+    const collection = await contentRequest<AchievementCollection>({
+      method: 'GET',
+      path: `/api/v1/achievements?${query.toString()}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      parseSuccess: parseAchievementCollection,
+      onSuccessResponse: (response) => {
+        etag = response.headers.get('etag') ?? undefined
+      },
+    })
+    return achievementResult(collection, etag)
+  },
+  async setVisibility(
+    accessToken: string,
+    timezone: string,
+    update: AchievementPreferenceUpdate,
+    etagValue: string,
+    correlationId: string,
+  ) {
+    let etag: string | undefined
+    const query = new URLSearchParams({ timezone })
+    const collection = await contentRequest<AchievementCollection>({
+      method: 'PUT',
+      path: `/api/v1/achievements/preference?${query.toString()}`,
+      expectedStatus: 200,
+      accessToken,
+      correlationId,
+      body: update,
+      ifMatch: etagValue,
+      parseSuccess: parseAchievementCollection,
+      mutation: true,
+      onSuccessResponse: (response) => {
+        etag = response.headers.get('etag') ?? undefined
+      },
+    })
+    return achievementResult(collection, etag)
   },
 }
 

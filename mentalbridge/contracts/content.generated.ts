@@ -243,6 +243,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/achievements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the authenticated owner's private multi-domain achievement collection
+         * @description Returns deterministic facts from minimized owner projections. Journal and emotion content, clinical scores, consultation data and inferred recovery states never enter this boundary. A failed domain source is reported explicitly and does not reuse stale facts.
+         */
+        get: operations["getAchievements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/achievements/preference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the owner's private collection visibility preference */
+        put: operations["setAchievementVisibility"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/resource-journeys/{localDate}": {
         parameters: {
             query?: never;
@@ -950,6 +987,57 @@ export interface components {
             /** Format: date-time */
             calculatedAt: string;
             recentGrants: components["schemas"]["ResourceRewardGrant"][];
+        };
+        /** @enum {string} */
+        AchievementVisibility: "VISIBLE" | "HIDDEN";
+        AchievementPreferenceUpdate: {
+            visibilityState: components["schemas"]["AchievementVisibility"];
+        };
+        AchievementProgress: {
+            current: number;
+            target: number;
+            /** @enum {string} */
+            unit: "EVENT" | "CONSECUTIVE_DAY" | "DISTINCT_RESOURCE" | "PRACTICE_DAY";
+        };
+        AchievementItem: {
+            definitionId: string;
+            /** @enum {string} */
+            domain: "JOURNAL" | "EMOTION_CHECK_IN" | "RESOURCE" | "JOURNEY";
+            /** @enum {string} */
+            kind: "MILESTONE" | "CONSISTENCY" | "JOURNEY";
+            /** @enum {string} */
+            tier: "FIRST_STEP" | "STEADY_STEP" | "DEEPENING_STEP" | "JOURNEY";
+            title: string;
+            description: string;
+            /** @enum {string} */
+            status: "EARNED" | "UNEARNED" | "SOURCE_UNAVAILABLE" | "GRANDFATHERED" | "DEFERRED";
+            /** @enum {string} */
+            evidenceClass: "OWNER_SOURCE_FACT" | "OWNER_STREAK_MILESTONE" | "OWNER_PRACTICE_WINDOW" | "USER_CONFIRMED_JOURNEY";
+            /** Format: date-time */
+            unlockedAt: string | null;
+            /** @enum {string} */
+            ruleVersion: "achievement-rules-v1";
+            /** @enum {string} */
+            privacy: "PRIVATE";
+            progress: components["schemas"]["AchievementProgress"] | null;
+        };
+        AchievementSource: {
+            /** @enum {string} */
+            domain: "JOURNAL" | "EMOTION_CHECK_IN" | "RESOURCE" | "JOURNEY";
+            /** @enum {string} */
+            availability: "AVAILABLE" | "UNAVAILABLE" | "DEFERRED";
+            /** Format: date */
+            asOfLocalDate: string | null;
+        };
+        AchievementCollection: {
+            visibilityState: components["schemas"]["AchievementVisibility"];
+            preferenceVersion: string;
+            /** @enum {string} */
+            policyVersion: "achievement-rules-v1";
+            /** Format: date-time */
+            calculatedAt: string;
+            sources: components["schemas"]["AchievementSource"][];
+            items: components["schemas"]["AchievementItem"][];
         };
         /** @enum {string} */
         ResourceKind: "LEARNING" | "PRACTICE" | "HABIT" | "ACTION" | "REFLECTION";
@@ -2028,6 +2116,67 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getAchievements: {
+        parameters: {
+            query: {
+                timezone: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Private owner-scoped collection */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AchievementCollection"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    setAchievementVisibility: {
+        parameters: {
+            query: {
+                timezone: string;
+            };
+            header: {
+                "If-Match": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AchievementPreferenceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated preference and freshly calculated collection */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AchievementCollection"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            412: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+            428: components["responses"]["RequestRejected"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
