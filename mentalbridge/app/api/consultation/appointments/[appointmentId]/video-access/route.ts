@@ -13,6 +13,23 @@ import {
 import { consultationClient } from '@/lib/consultation/consultation-client'
 import { validUuid } from '@/lib/consultation/consultation-validation'
 
+async function hasRequestBody(request: NextRequest) {
+  const reader = request.body?.getReader()
+  if (!reader) return false
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) return false
+      if (value.byteLength > 0) {
+        await reader.cancel()
+        return true
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
+
 export async function POST(
   request: NextRequest,
   context: RouteContext<'/api/consultation/appointments/[appointmentId]/video-access'>,
@@ -31,7 +48,7 @@ export async function POST(
   if (
     !validUuid(appointmentId) ||
     request.nextUrl.search ||
-    request.body !== null
+    (await hasRequestBody(request))
   )
     return carryConsultationSession(
       localProblem(

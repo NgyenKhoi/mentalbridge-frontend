@@ -101,6 +101,33 @@ describe('MB-384 video BFF authority', () => {
     ).toBe(400)
     expect(owner.videoAccess).not.toHaveBeenCalled()
   })
+  it('accepts a transport-created empty body stream without accepting payload bytes', async () => {
+    const streamed = new NextRequest(
+      `http://localhost/api/consultation/appointments/${id}/video-access`,
+      {
+        method: 'POST',
+        body: '',
+        headers: {
+          cookie: 'mentalbridge_access=synthetic-access',
+          'Content-Length': '0',
+        },
+      },
+    )
+    expect(streamed.body).not.toBeNull()
+    expect((await access(streamed, context)).status).toBe(200)
+    expect(owner.videoAccess).toHaveBeenCalledOnce()
+    owner.videoAccess.mockClear()
+    const nonempty = new NextRequest(
+      `http://localhost/api/consultation/appointments/${id}/video-access`,
+      {
+        method: 'POST',
+        body: ' ',
+        headers: { cookie: 'mentalbridge_access=synthetic-access' },
+      },
+    )
+    expect((await access(nonempty, context)).status).toBe(400)
+    expect(owner.videoAccess).not.toHaveBeenCalled()
+  })
   it('rejects unauthorized actors without reaching the owner', async () => {
     identity.ensureRole.mockImplementation(() => {
       throw new ApiError({
