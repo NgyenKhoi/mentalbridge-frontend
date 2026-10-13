@@ -233,7 +233,7 @@ export default function CommunityFeed({ view = 'feed' }: CommunityFeedProps) {
             <p>
               {savedView
                 ? 'Tìm lại những câu chuyện bạn muốn đọc tiếp hoặc giữ bên mình.'
-                : 'Những câu chuyện thật. Những bước tiến nhỏ. Cùng nhau mỗi ngày.'}
+                : 'Cùng chia sẻ, lắng nghe và đi qua những ngày thường.'}
             </p>
             {savedView && (
               <div className="community-private-context">

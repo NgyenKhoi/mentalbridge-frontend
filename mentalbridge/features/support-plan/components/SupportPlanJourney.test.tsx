@@ -800,9 +800,12 @@ describe('SupportPlanJourney', () => {
       await screen.findByRole('button', { name: 'Kết thúc kế hoạch' }),
     )
     await screen.findByRole('dialog', { name: 'Kết thúc kế hoạch?' })
-    fireEvent.change(screen.getByLabelText('Lý do (không bắt buộc)'), {
-      target: { value: 'PLAN_NO_LONGER_FITS' },
-    })
+    fireEvent.click(
+      screen.getByRole('combobox', { name: 'Lý do (không bắt buộc)' }),
+    )
+    fireEvent.click(
+      screen.getByRole('option', { name: 'Kế hoạch không còn phù hợp' }),
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận kết thúc' }))
 
     await waitFor(() =>

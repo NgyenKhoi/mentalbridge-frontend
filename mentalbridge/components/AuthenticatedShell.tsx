@@ -23,6 +23,13 @@ const Svg = ({ children }: { children: React.ReactNode }) => (
   </svg>
 )
 
+const CommunityIcon = () => (
+  <Svg>
+    <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" />
+    <path d="M8 11h8M8 15h4" />
+  </Svg>
+)
+
 const groups = [
   {
     title: 'Tổng quan',
@@ -102,6 +109,7 @@ const groups = [
   {
     title: 'Thông tin',
     items: [
+      ['/community', 'Cộng đồng', <CommunityIcon key="community" />],
       [
         '/resources',
         'Tài nguyên',
@@ -234,7 +242,7 @@ export default function AuthenticatedShell({
             {collapsed ? '›' : '‹'}
           </button>
         </div>
-        <nav aria-label="Điều hướng chính">
+        <nav id="user-main-navigation" aria-label="Điều hướng chính">
           {groups.map((g) => (
             <section key={g.title}>
               <h2>{g.title}</h2>
@@ -243,7 +251,10 @@ export default function AuthenticatedShell({
                   key={item[0] as string}
                   href={item[0] as string}
                   onClick={() => setMobile(false)}
-                  className={pathname === item[0] ? 'active' : ''}
+                  className={`${pathname === item[0] ? 'active' : ''} ${item[0] === '/community' ? 'ref-community-nav' : ''}`}
+                  aria-label={
+                    item[0] === '/community' ? 'Cộng đồng' : undefined
+                  }
                   title={collapsed ? (item[1] as string) : undefined}
                 >
                   <i>{item[2]}</i>
@@ -264,11 +275,15 @@ export default function AuthenticatedShell({
         </div>
       </aside>
       <div className="ref-main">
-        <header className={`ref-topbar ${isProgressiveRelaxation ? 'pmr-topbar' : ''}`}>
+        <header
+          className={`ref-topbar ${isProgressiveRelaxation ? 'pmr-topbar' : ''}`}
+        >
           <button
             className="ref-mobile"
             onClick={() => setMobile(true)}
             aria-label="Mở menu"
+            aria-expanded={mobile}
+            aria-controls="user-main-navigation"
           >
             <Svg>
               <path d="M4 7h16M4 12h16M4 17h16" />
@@ -293,14 +308,34 @@ export default function AuthenticatedShell({
             </Svg>
             <input
               type="search"
-              placeholder={isProgressiveRelaxation ? 'Tìm kiếm chuyên gia, bài tập, nhật ký...' : 'Tìm kiếm chuyên gia, nhật ký...'}
+              placeholder={
+                isProgressiveRelaxation
+                  ? 'Tìm kiếm chuyên gia, bài tập, nhật ký...'
+                  : 'Tìm kiếm chuyên gia, nhật ký...'
+              }
             />
             <kbd>{isProgressiveRelaxation ? '⌘K' : '⌘ K'}</kbd>
           </label>
           <div className="ref-top-actions">
+            <Link
+              href="/community"
+              className="ref-community-link"
+              onClick={() => setMobile(false)}
+            >
+              <CommunityIcon />
+              <span>Cộng đồng</span>
+            </Link>
             {isProgressiveRelaxation && (
-              <Link href="/support-guides" className="pmr-help" aria-label="Trợ giúp">
-                <Svg><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4" /><path d="M12 17h.01" /></Svg>
+              <Link
+                href="/support-guides"
+                className="pmr-help"
+                aria-label="Trợ giúp"
+              >
+                <Svg>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4" />
+                  <path d="M12 17h.01" />
+                </Svg>
               </Link>
             )}
             <Link
@@ -311,7 +346,9 @@ export default function AuthenticatedShell({
               <Svg>
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               </Svg>
-              {isProgressiveRelaxation && <span className="pmr-notify-dot" aria-hidden="true" />}
+              {isProgressiveRelaxation && (
+                <span className="pmr-notify-dot" aria-hidden="true" />
+              )}
             </Link>
             <Link
               href="/profile"
@@ -319,8 +356,13 @@ export default function AuthenticatedShell({
               aria-label={`Hồ sơ ${displayName}`}
             >
               {isProgressiveRelaxation ? (
-                <Svg><circle cx="12" cy="8" r="3" /><path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" /></Svg>
-              ) : initials}
+                <Svg>
+                  <circle cx="12" cy="8" r="3" />
+                  <path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" />
+                </Svg>
+              ) : (
+                initials
+              )}
             </Link>
           </div>
         </header>

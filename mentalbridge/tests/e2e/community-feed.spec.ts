@@ -31,7 +31,11 @@ test.describe('Community feed journey', () => {
     expect(reset.status()).toBe(204)
     await login(page)
 
-    await page.goto('/community')
+    await page
+      .getByRole('banner')
+      .getByRole('link', { name: 'Cộng đồng', exact: true })
+      .click()
+    await expect(page).toHaveURL(/\/community$/)
     await expect(
       page.getByRole('heading', { name: 'Cộng đồng MentalBridge' }),
     ).toBeVisible()
@@ -64,6 +68,52 @@ test.describe('Community feed journey', () => {
     await expect(
       page.getByText(/không thay thế tư vấn chuyên môn/),
     ).toHaveCount(0)
+  })
+
+  test('opens Community from the visible compact USER header and mobile menu, then returns to the dashboard', async ({
+    page,
+    request,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    expect(
+      (await request.post(`${identityFixtureUrl}/__test/reset`)).status(),
+    ).toBe(204)
+    await login(page)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    const entry = page
+      .getByRole('banner')
+      .getByRole('link', { name: 'Cộng đồng', exact: true })
+    await expect(entry).toBeVisible()
+    await expect(entry.locator('span')).toBeVisible()
+    const box = await entry.boundingBox()
+    expect(box!.width).toBeGreaterThanOrEqual(44)
+    expect(box!.height).toBeGreaterThanOrEqual(44)
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true)
+    await entry.focus()
+    await page.keyboard.press('Enter')
+    await expect(page).toHaveURL(/\/community$/)
+    await page.getByRole('link', { name: 'Về không gian của bạn' }).click()
+    await expect(page).toHaveURL(/\/dashboard$/)
+
+    await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
+    const menuEntry = page
+      .getByRole('navigation', { name: 'Điều hướng chính', exact: true })
+      .getByRole('link', { name: 'Cộng đồng', exact: true })
+    await expect(menuEntry).toBeVisible()
+    await menuEntry.click()
+    await expect(page).toHaveURL(/\/community$/)
+    await expect(
+      page.getByRole('heading', { name: 'Cộng đồng MentalBridge' }),
+    ).toBeVisible()
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true)
   })
 
   test('creates, edits and deletes an owned personal story', async ({
@@ -133,8 +183,11 @@ test.describe('Community feed journey', () => {
       .getByRole('button', { name: /^Tài nguyên/ })
       .click()
     await page
-      .locator('#community-resource-select')
-      .selectOption('30000000-0000-4000-8000-000000000001')
+      .getByRole('combobox', { name: /Tài nguyên MentalBridge/ })
+      .click()
+    await page
+      .getByRole('option', { name: 'Published Resource', exact: true })
+      .click()
     await page.getByRole('button', { name: 'Đăng câu chuyện' }).click()
 
     await expect(page).toHaveURL(/\/community\/[0-9a-f-]+$/)
@@ -190,12 +243,20 @@ test.describe('Community feed journey', () => {
       expect(main).not.toBeNull()
       expect(feed).not.toBeNull()
       expect(topics).not.toBeNull()
-      const gutter = viewport.width <= 760 ? 16 : 24
+      const gutter = viewport.width <= 760 ? 12 : 24
       expect(main!.width).toBe(viewport.width)
-      expect(feed!.x).toBe(gutter)
-      expect(topics!.x + topics!.width).toBeCloseTo(viewport.width - gutter, 0)
+      const pageWidth = Math.min(
+        viewport.width - gutter * 2,
+        viewport.width > 900 ? 960 : 680,
+      )
+      expect(feed!.x).toBeCloseTo((viewport.width - pageWidth) / 2, 0)
+      expect(feed!.width).toBeLessThanOrEqual(680)
+      expect(topics!.x + topics!.width).toBeCloseTo(
+        (viewport.width + pageWidth) / 2,
+        0,
+      )
       if (viewport.width > 900) {
-        expect(topics!.x - (feed!.x + feed!.width)).toBeCloseTo(32, 0)
+        expect(topics!.x - (feed!.x + feed!.width)).toBeCloseTo(24, 0)
         const brand = await page
           .getByRole('link', { name: 'Cộng đồng MentalBridge' })
           .boundingBox()
@@ -241,8 +302,8 @@ test.describe('Community feed journey', () => {
       .boundingBox()
     expect(empty).not.toBeNull()
     expect(emptyTopics).not.toBeNull()
-    expect(empty!.x).toBe(24)
-    expect(emptyTopics!.x - (empty!.x + empty!.width)).toBeCloseTo(32, 0)
+    expect(empty!.x).toBe((1920 - 960) / 2)
+    expect(emptyTopics!.x - (empty!.x + empty!.width)).toBeCloseTo(24, 0)
     await page.screenshot({
       path: 'docs/evidence/community-overview-empty-1920.png',
       fullPage: true,
