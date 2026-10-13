@@ -74,22 +74,29 @@ export default function SpecialistNotificationCenter() {
   async function markRead(item: Notification) {
     if (item.read) return
     setBusy(item.id)
+    setError('')
     try {
       const updated = await markNotificationRead(item.id)
       setItems((current) =>
         current.map((entry) => (entry.id === item.id ? updated : entry)),
       )
       setUnreadCount((count) => Math.max(0, count - 1))
+    } catch {
+      setError('Không thể đánh dấu thông báo đã đọc. Vui lòng thử lại.')
     } finally {
       setBusy('')
     }
   }
 
-  async function remove(id: string) {
-    setBusy(id)
+  async function remove(item: Notification) {
+    setBusy(item.id)
+    setError('')
     try {
-      await deleteNotification(id)
-      setItems((current) => current.filter((entry) => entry.id !== id))
+      await deleteNotification(item.id)
+      setItems((current) => current.filter((entry) => entry.id !== item.id))
+      if (!item.read) setUnreadCount((count) => Math.max(0, count - 1))
+    } catch {
+      setError('Không thể xóa thông báo. Vui lòng thử lại.')
     } finally {
       setBusy('')
     }
@@ -97,10 +104,13 @@ export default function SpecialistNotificationCenter() {
 
   async function markAll() {
     setBusy('all')
+    setError('')
     try {
       await markAllNotificationsRead()
       setItems((current) => current.map((item) => ({ ...item, read: true })))
       setUnreadCount(0)
+    } catch {
+      setError('Không thể đánh dấu tất cả đã đọc. Vui lòng thử lại.')
     } finally {
       setBusy('')
     }
@@ -234,7 +244,7 @@ export default function SpecialistNotificationCenter() {
                   )}
                   <button
                     aria-label={`Xóa ${item.title}`}
-                    onClick={() => void remove(item.id)}
+                    onClick={() => void remove(item)}
                   >
                     Xóa
                   </button>
