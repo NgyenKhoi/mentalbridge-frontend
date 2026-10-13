@@ -196,21 +196,77 @@ describe('Identity mobile session lifecycle', () => {
     expect(credentials.clear).not.toHaveBeenCalled()
   })
 
-  it('rejects a non-USER account and revokes the newly issued server session', async () => {
+  it('signs in the Identity-confirmed active, verified SPECIALIST without client role selection', async () => {
     const { api, credentials, service } = setup()
     api.login.mockResolvedValue(tokenPair)
-    api.logout.mockResolvedValue()
     api.getCurrentAccount.mockResolvedValue({
       ...userAccount,
       roles: ['SPECIALIST'],
     })
-
     await expect(
       service.signIn('specialist@example.com', 'correct-password'),
-    ).rejects.toMatchObject({ code: 'INVALID_SESSION_ACCOUNT' })
+    ).resolves.toMatchObject({
+      session: { role: 'SPECIALIST', subject: userAccount.accountId },
+    })
+    expect(api.login).toHaveBeenCalledWith({
+      email: 'specialist@example.com',
+      password: 'correct-password',
+    })
+    expect(credentials.clear).not.toHaveBeenCalled()
+  })
+
+  it('restores and refreshes SPECIALIST only after rechecking Identity account state', async () => {
+    const { api, credentials, service } = setup()
+    credentials.getCredentials.mockResolvedValue(activeCredentials)
+    api.getCurrentAccount.mockResolvedValue({
+      ...userAccount,
+      roles: ['SPECIALIST'],
+    })
+    await expect(service.restore()).resolves.toMatchObject({
+      session: { role: 'SPECIALIST' },
+    })
+    api.refresh.mockResolvedValue(rotatedTokenPair)
+    api.logout.mockResolvedValue()
+    await expect(service.refresh()).resolves.toMatchObject({
+      session: { role: 'SPECIALIST' },
+    })
+    api.getCurrentAccount.mockResolvedValue({
+      ...userAccount,
+      roles: ['SPECIALIST'],
+      status: 'DISABLED',
+    })
+    await expect(service.restore()).resolves.toBeNull()
     expect(api.logout).toHaveBeenCalledWith(refreshToken)
     expect(credentials.clear).toHaveBeenCalled()
   })
+
+  it.each([
+    { roles: ['ADMIN'] as AccountDetail['roles'] },
+    { roles: ['USER', 'SPECIALIST'] as AccountDetail['roles'] },
+    { roles: [] as AccountDetail['roles'] },
+    { roles: ['SPECIALIST'] as AccountDetail['roles'], emailVerified: false },
+    {
+      roles: ['SPECIALIST'] as AccountDetail['roles'],
+      status: 'DISABLED' as const,
+    },
+  ])(
+    'rejects unsupported/unverified/inactive account %j and revokes the newly issued session',
+    async (override) => {
+      const { api, credentials, service } = setup()
+      api.login.mockResolvedValue(tokenPair)
+      api.logout.mockResolvedValue()
+      api.getCurrentAccount.mockResolvedValue({
+        ...userAccount,
+        ...override,
+      })
+
+      await expect(
+        service.signIn('specialist@example.com', 'correct-password'),
+      ).rejects.toMatchObject({ code: 'INVALID_SESSION_ACCOUNT' })
+      expect(api.logout).toHaveBeenCalledWith(refreshToken)
+      expect(credentials.clear).toHaveBeenCalled()
+    },
+  )
 
   it('invokes server logout and clears local credentials', async () => {
     const { api, credentials, service } = setup()
