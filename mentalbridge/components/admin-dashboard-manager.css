@@ -82,6 +82,12 @@
   font-size: 12px;
   white-space: nowrap;
 }
+.adm-window-provenance {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+  text-align: right;
+}
 .adm-partial-notice {
   margin: 0 var(--space-6) var(--space-4);
   padding: var(--space-3) var(--space-4);
@@ -237,6 +243,10 @@
   }
   .adm-journey-panel > header {
     flex-direction: column;
+  }
+  .adm-window-provenance {
+    justify-items: start;
+    text-align: left;
   }
   .adm-journey-flow {
     grid-template-columns: 1fr;

@@ -678,8 +678,8 @@ export function parsePlatformReportPage(
 
 const PRODUCT_JOURNEY_SOURCES = new Set(['IDENTITY', 'CARE', 'CONSULTATION'])
 const PRODUCT_JOURNEY_STAGES = new Set([
-  'REGISTERED_ACCOUNTS',
-  'ACTIVE_REGISTERED_ACCOUNTS',
+  'USER_ACCOUNTS_REGISTERED',
+  'USER_ACCOUNTS_ACTIVATED',
   'COMPLETED_SCREENING_EPISODES',
   'SUPPORT_GUIDES_GENERATED',
   'SUPPORT_GUIDES_OPENED',
@@ -785,7 +785,7 @@ export function parseProductJourneyMetrics(
       if (!isRecord(stage.rate)) return false
       return (
         hasOnlyKeys(stage.rate, ['denominatorStage', 'percentage']) &&
-        ['REGISTERED_ACCOUNTS', 'CONSULTATIONS_REQUESTED'].includes(
+        ['USER_ACCOUNTS_REGISTERED', 'CONSULTATIONS_REQUESTED'].includes(
           String(stage.rate.denominatorStage),
         ) &&
         typeof stage.rate.percentage === 'number' &&

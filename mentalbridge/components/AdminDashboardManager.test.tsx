@@ -47,11 +47,8 @@ function metrics() {
       },
     ],
     stages: [
-      available('REGISTERED_ACCOUNTS', 'IDENTITY', 100),
-      available('ACTIVE_REGISTERED_ACCOUNTS', 'IDENTITY', 80, {
-        denominatorStage: 'REGISTERED_ACCOUNTS',
-        percentage: 80,
-      }),
+      available('USER_ACCOUNTS_REGISTERED', 'IDENTITY', 100),
+      available('USER_ACCOUNTS_ACTIVATED', 'IDENTITY', 80),
       available('COMPLETED_SCREENING_EPISODES', 'CARE', 70),
       available('SUPPORT_GUIDES_GENERATED', 'CARE', 60),
       {
@@ -117,6 +114,17 @@ describe('AdminDashboardManager', () => {
     expect(
       screen.getByText(/không chứng minh hiệu quả lâm sàng/i),
     ).toBeInTheDocument()
+    const display = new Intl.DateTimeFormat('vi-VN', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    })
+    expect(screen.getByText(/Khoảng dữ liệu:/)).toHaveTextContent(
+      display.format(new Date('2026-09-09T08:00:00Z')),
+    )
+    expect(screen.getByText(/Khoảng dữ liệu:/)).toHaveTextContent(
+      display.format(new Date('2026-10-09T08:00:00Z')),
+    )
+    expect(screen.getByText(/Chốt dữ liệu:/)).toBeInTheDocument()
   })
 
   it('requests a fresh explicit window when the admin changes range', async () => {

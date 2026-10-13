@@ -593,7 +593,13 @@ export const identityClient = {
       expectedStatus: 200,
       correlationId,
       authorization: accessToken,
-      parseSuccess: parseProductJourneyMetrics,
+      parseSuccess: (value) => {
+        const parsed = parseProductJourneyMetrics(value)
+        return parsed?.window.from === params.from &&
+          parsed.window.to === params.to
+          ? parsed
+          : null
+      },
     })
   },
 
