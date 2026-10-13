@@ -4,6 +4,7 @@ import {
   feedPageSchema,
   postDetailSchema,
   postWriteSchema,
+  profileSchema,
   uploadIntentSchema,
   uploadWriteSchema,
 } from './community-contract'
@@ -12,9 +13,65 @@ import {
   fixturePost,
   fixturePostId,
   fixtureSummary,
+  fixtureProfile,
 } from './community-fixtures'
 
-describe('Community v1.10 public boundary', () => {
+describe('Community v1.11 public boundary', () => {
+  it('accepts additive verified photos on named authors and profiles without exposing anonymous or deleted identity', () => {
+    const avatarImage = {
+      mediaId: fixturePostId,
+      url: 'https://res.cloudinary.com/qa/image/upload/avatar.jpg',
+      width: 512,
+      height: 512,
+    }
+    expect(
+      authorSchema.parse({ ...fixturePost.author, avatarImage }).avatarImage,
+    ).toEqual(avatarImage)
+    expect(
+      profileSchema.parse({ ...fixtureProfile.profile, avatarImage })
+        .avatarImage,
+    ).toEqual(avatarImage)
+    expect(
+      feedPageSchema.safeParse({
+        items: [
+          {
+            ...fixtureSummary,
+            author: { ...fixtureSummary.author, avatarImage },
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+      }).success,
+    ).toBe(true)
+    for (const state of ['ANONYMOUS', 'DELETED']) {
+      expect(
+        authorSchema.safeParse({
+          ...fixturePost.author,
+          communityProfileId: state === 'ANONYMOUS' ? null : fixturePostId,
+          avatarPreset: null,
+          state,
+          avatarImage,
+        }).success,
+      ).toBe(false)
+    }
+    for (const invalid of [
+      null,
+      { ...avatarImage, url: 'http://example.com/avatar.jpg' },
+      { ...avatarImage, width: 0 },
+      { ...avatarImage, ownerAccountId: fixturePostId },
+    ]) {
+      expect(
+        authorSchema.safeParse({ ...fixturePost.author, avatarImage: invalid })
+          .success,
+      ).toBe(false)
+      expect(
+        profileSchema.safeParse({
+          ...fixtureProfile.profile,
+          avatarImage: invalid,
+        }).success,
+      ).toBe(false)
+    }
+  })
   it('accepts only the public post projection, without health or private owner fields', () => {
     expect(postDetailSchema.parse(fixturePost)).toEqual(fixturePost)
     for (const field of [
