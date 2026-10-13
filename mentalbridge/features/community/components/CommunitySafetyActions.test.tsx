@@ -35,7 +35,8 @@ describe('CommunitySafetyActions', () => {
 
     await user.click(screen.getByRole('button', { name: 'Tùy chọn an toàn' }))
     await user.click(screen.getByRole('button', { name: 'Báo cáo' }))
-    await user.selectOptions(screen.getByLabelText('Lý do'), 'SPAM')
+    await user.click(screen.getByRole('combobox', { name: 'Lý do' }))
+    await user.click(screen.getByRole('option', { name: 'Nội dung rác' }))
     await user.type(
       screen.getByLabelText('Thông tin thêm (không bắt buộc)'),
       'Nội dung lặp lại',
@@ -60,9 +61,11 @@ describe('CommunitySafetyActions', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Tùy chọn an toàn' }))
     await user.click(screen.getByRole('button', { name: 'Báo cáo' }))
-    await user.selectOptions(
-      screen.getByLabelText('Lý do'),
-      'SELF_HARM_OR_CRISIS_CONCERN',
+    await user.click(screen.getByRole('combobox', { name: 'Lý do' }))
+    await user.click(
+      screen.getByRole('option', {
+        name: 'Lo ngại tự làm hại hoặc khủng hoảng',
+      }),
     )
     expect(
       screen.getByText(/không tự động liên hệ bên thứ ba/),

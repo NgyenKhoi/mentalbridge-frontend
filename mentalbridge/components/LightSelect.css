@@ -5,26 +5,35 @@
 
 .light-select-trigger {
   width: 100%;
-  height: 50px;
+  min-height: 50px;
+  min-width: 0;
   padding: 0 15px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius-control);
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-be-vietnam), sans-serif;
   font-size: 16px;
   text-align: left;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition:
+    border-color var(--motion-fast),
+    background-color var(--motion-fast);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.light-select-trigger:hover {
+.light-select-trigger:hover:not(:disabled) {
   background: #fff;
   border-color: var(--ink-faint);
+}
+
+.light-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  background: var(--surface-soft);
 }
 
 .light-select-trigger:focus {
@@ -67,6 +76,11 @@
   animation: light-select-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.light-select-menu.opens-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
 @keyframes light-select-appear {
   from {
     opacity: 0;
@@ -79,6 +93,7 @@
 }
 
 .light-select-option {
+  min-height: 44px;
   width: 100%;
   padding: 12px 15px;
   border: none;
@@ -90,6 +105,11 @@
   cursor: pointer;
   transition: background 0.15s ease;
   border-bottom: 1px solid var(--line);
+}
+
+.light-select-option:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -3px;
 }
 
 .light-select-option:last-child {
@@ -121,4 +141,14 @@
 
 .light-select-menu::-webkit-scrollbar-thumb:hover {
   background: var(--ink-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .light-select-trigger,
+  .light-select-chevron,
+  .light-select-menu,
+  .light-select-option {
+    transition: none;
+    animation: none;
+  }
 }

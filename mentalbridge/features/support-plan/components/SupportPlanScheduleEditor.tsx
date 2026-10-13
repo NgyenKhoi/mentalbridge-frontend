@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Bell, CalendarClock, Check, Clock3, RotateCcw } from 'lucide-react'
 
+import LightSelect from '@/components/LightSelect'
 import { ApiError } from '@/lib/api/api-error'
 import type {
   ActionScheduleInput,
@@ -54,6 +56,17 @@ const cadenceLabels = {
   DAILY: 'Mỗi ngày',
   WEEKLY: 'Theo tuần',
 } as const
+
+const daypartOptions = [
+  { value: '', label: 'Giờ cụ thể' },
+  { value: 'MORNING', label: 'Buổi sáng' },
+  { value: 'AFTERNOON', label: 'Buổi chiều' },
+  { value: 'EVENING', label: 'Buổi tối' },
+  { value: 'FLEXIBLE', label: 'Linh hoạt' },
+]
+
+const fieldId = (actionId: string, field: string) =>
+  `support-plan-${actionId}-${field}`
 
 function currentSchedule(action: PlanAction) {
   return action.schedules.find((schedule) => schedule.status !== 'ENDED')
@@ -212,9 +225,13 @@ function SupportPlanScheduleEditorState({
   const [savingActionId, setSavingActionId] = useState<string>()
   const [messages, setMessages] = useState<Record<string, string>>({})
   const [staleActionId, setStaleActionId] = useState<string>()
+  const [validationFields, setValidationFields] = useState<
+    Record<string, string>
+  >({})
   const commandKeys = useRef<
     Record<string, { signature: string; key: string }>
   >({})
+  const focusAfterUndo = useRef<string | undefined>(undefined)
   const [reloadRequest, setReloadRequest] = useState<{
     actionId: string
     planVersion: number
@@ -249,6 +266,15 @@ function SupportPlanScheduleEditorState({
   )
 
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange])
+  useEffect(() => {
+    const actionId = focusAfterUndo.current
+    if (!actionId) return
+    focusAfterUndo.current = undefined
+    const target =
+      document.getElementById(fieldId(actionId, 'time')) ??
+      document.getElementById(fieldId(actionId, 'enabled'))
+    target?.focus()
+  }, [editor])
 
   const update = (actionId: string, patch: Partial<ScheduleForm>) => {
     setEditor((current) => ({
@@ -259,32 +285,68 @@ function SupportPlanScheduleEditorState({
       },
     }))
     setMessages((current) => ({ ...current, [actionId]: '' }))
-    setStaleActionId(undefined)
+    setValidationFields((current) => ({ ...current, [actionId]: '' }))
+    setStaleActionId((current) => (current === actionId ? undefined : current))
   }
 
   const save = async (action: PlanAction) => {
     const form = forms[action.actionId]
-    if (!form) return
+    if (!form || savingActionId) return
+    const invalid = (field: string, message: string) => {
+      setMessages((current) => ({ ...current, [action.actionId]: message }))
+      setValidationFields((current) => ({
+        ...current,
+        [action.actionId]: field,
+      }))
+      document.getElementById(fieldId(action.actionId, field))?.focus()
+    }
+    if (form.enabled && !/^([01]\d|2[0-3]):[0-5]\d$/.test(form.localTime)) {
+      invalid('time', 'Hãy chọn giờ hoạt động hợp lệ.')
+      return
+    }
+    if (
+      form.enabled &&
+      (!Number.isInteger(form.estimatedDurationMinutes) ||
+        form.estimatedDurationMinutes < 5 ||
+        form.estimatedDurationMinutes > 180 ||
+        form.estimatedDurationMinutes % 5 !== 0)
+    ) {
+      invalid('duration', 'Thời lượng cần từ 5 đến 180 phút, theo bước 5 phút.')
+      return
+    }
+    if (form.enabled) {
+      try {
+        new Intl.DateTimeFormat('vi-VN', { timeZone: form.timezone.trim() })
+      } catch {
+        invalid(
+          'timezone',
+          'Hãy nhập múi giờ IANA hợp lệ, ví dụ Asia/Ho_Chi_Minh.',
+        )
+        return
+      }
+      if (!form.timezone.trim()) {
+        invalid('timezone', 'Hãy nhập múi giờ cho lịch hoạt động.')
+        return
+      }
+      if (!form.effectiveFrom) {
+        invalid('starts', 'Hãy chọn ngày bắt đầu.')
+        return
+      }
+    }
     if (
       form.enabled &&
       form.recurrenceType === 'WEEKLY' &&
       form.daysOfWeek.length === 0
     ) {
-      setMessages((current) => ({
-        ...current,
-        [action.actionId]: 'Hãy chọn ít nhất một ngày trong tuần.',
-      }))
+      invalid('day-1', 'Hãy chọn ít nhất một ngày trong tuần.')
       return
     }
     if (
       form.enabled &&
       form.effectiveUntil &&
-      form.effectiveUntil < form.effectiveFrom
+      form.effectiveUntil < toRequest(form, plan.status).schedule!.effectiveFrom
     ) {
-      setMessages((current) => ({
-        ...current,
-        [action.actionId]: 'Ngày kết thúc cần bằng hoặc sau ngày bắt đầu.',
-      }))
+      invalid('ends', 'Ngày kết thúc cần bằng hoặc sau ngày bắt đầu.')
       return
     }
 
@@ -361,10 +423,13 @@ function SupportPlanScheduleEditorState({
           </h3>
         </div>
       </div>
-      <p className="support-plan-cadence-intro">
-        Chọn số lần, thời điểm và thời lượng vừa sức. Giảm hoặc bỏ lịch không
-        được xem là thất bại và không làm thay đổi nội dung đã được duyệt.
-      </p>
+      <ul className="support-plan-cadence-intro">
+        <li>Chọn số lần, thời điểm và thời lượng vừa sức.</li>
+        <li>
+          Giảm hoặc bỏ lịch không được xem là thất bại và không làm thay đổi nội
+          dung đã được duyệt.
+        </li>
+      </ul>
       {!planMutable && (
         <p role="status">
           Hãy tiếp tục kế hoạch trước khi thay đổi lịch hoạt động tương lai.
@@ -398,13 +463,21 @@ function SupportPlanScheduleEditorState({
           )
           return (
             <article
-              className="support-plan-cadence-item"
+              className={`support-plan-cadence-item${itemDirty ? ' is-dirty' : ''}`}
               key={action.actionId}
+              aria-labelledby={fieldId(action.actionId, 'title')}
+              aria-busy={savingActionId === action.actionId}
             >
               <div className="support-plan-cadence-item-heading">
-                <div>
-                  <h4>{action.presentation.title}</h4>
+                <span className="support-plan-cadence-icon" aria-hidden="true">
+                  <CalendarClock />
+                </span>
+                <div className="support-plan-cadence-title">
+                  <h4 id={fieldId(action.actionId, 'title')}>
+                    {action.presentation.title}
+                  </h4>
                   <p>
+                    <Clock3 aria-hidden="true" />
                     {form.enabled
                       ? `${cadenceLabels[form.recurrenceType]} · ${form.localTime} · ${form.estimatedDurationMinutes} phút`
                       : 'Không có lịch tương lai'}
@@ -412,6 +485,8 @@ function SupportPlanScheduleEditorState({
                 </div>
                 <label className="support-plan-cadence-toggle">
                   <input
+                    id={fieldId(action.actionId, 'enabled')}
+                    className="support-plan-themed-checkbox"
                     type="checkbox"
                     checked={form.enabled}
                     disabled={disabled}
@@ -419,66 +494,92 @@ function SupportPlanScheduleEditorState({
                       update(action.actionId, { enabled: event.target.checked })
                     }
                   />
+                  <span
+                    className="support-plan-checkbox-mark"
+                    aria-hidden="true"
+                  >
+                    <Check />
+                  </span>
                   <span>Lên lịch</span>
                 </label>
               </div>
 
               {form.enabled && (
                 <div className="support-plan-cadence-fields">
-                  <label>
-                    Nhịp hoạt động
-                    <select
+                  <div className="support-plan-cadence-field">
+                    <label
+                      id={fieldId(action.actionId, 'cadence-label')}
+                      htmlFor={fieldId(action.actionId, 'cadence')}
+                    >
+                      Nhịp hoạt động
+                    </label>
+                    <LightSelect
+                      id={fieldId(action.actionId, 'cadence')}
+                      labelledBy={fieldId(action.actionId, 'cadence-label')}
                       value={form.recurrenceType}
                       disabled={
                         disabled ||
                         action.actionType === 'REASSESSMENT_SCREENING'
                       }
-                      onChange={(event) =>
+                      onChange={(value) =>
                         update(action.actionId, {
-                          recurrenceType: event.target
-                            .value as ScheduleForm['recurrenceType'],
+                          recurrenceType:
+                            value as ScheduleForm['recurrenceType'],
                           daysOfWeek:
-                            event.target.value === 'WEEKLY'
+                            value === 'WEEKLY'
                               ? form.daysOfWeek.length
                                 ? form.daysOfWeek
                                 : [1]
                               : [],
                         })
                       }
+                      options={
+                        action.actionType === 'REASSESSMENT_SCREENING'
+                          ? [{ value: 'ONCE', label: 'Một lần' }]
+                          : ['WEEKLY', 'DAILY', 'ONCE'].map((value) => ({
+                              value,
+                              label:
+                                cadenceLabels[
+                                  value as keyof typeof cadenceLabels
+                                ],
+                            }))
+                      }
+                    />
+                  </div>
+                  <div className="support-plan-cadence-field">
+                    <label
+                      id={fieldId(action.actionId, 'daypart-label')}
+                      htmlFor={fieldId(action.actionId, 'daypart')}
                     >
-                      {action.actionType === 'REASSESSMENT_SCREENING' ? (
-                        <option value="ONCE">Một lần</option>
-                      ) : (
-                        <>
-                          <option value="WEEKLY">Theo tuần</option>
-                          <option value="DAILY">Mỗi ngày</option>
-                          <option value="ONCE">Một lần</option>
-                        </>
-                      )}
-                    </select>
-                  </label>
-                  <label>
-                    Thời điểm trong ngày
-                    <select
+                      Thời điểm trong ngày
+                    </label>
+                    <LightSelect
+                      id={fieldId(action.actionId, 'daypart')}
+                      labelledBy={fieldId(action.actionId, 'daypart-label')}
                       value={form.preferredDaypart}
                       disabled={disabled}
-                      onChange={(event) =>
+                      onChange={(value) =>
                         update(action.actionId, {
-                          preferredDaypart: event.target
-                            .value as ScheduleForm['preferredDaypart'],
+                          preferredDaypart:
+                            value as ScheduleForm['preferredDaypart'],
                         })
                       }
-                    >
-                      <option value="">Giờ cụ thể</option>
-                      <option value="MORNING">Buổi sáng</option>
-                      <option value="AFTERNOON">Buổi chiều</option>
-                      <option value="EVENING">Buổi tối</option>
-                      <option value="FLEXIBLE">Linh hoạt</option>
-                    </select>
-                  </label>
+                      options={daypartOptions}
+                    />
+                  </div>
                   <label>
                     Giờ địa phương
                     <input
+                      id={fieldId(action.actionId, 'time')}
+                      aria-invalid={
+                        validationFields[action.actionId] === 'time' ||
+                        undefined
+                      }
+                      aria-describedby={
+                        validationFields[action.actionId] === 'time'
+                          ? fieldId(action.actionId, 'message')
+                          : undefined
+                      }
                       type="time"
                       value={form.localTime}
                       disabled={disabled}
@@ -493,6 +594,16 @@ function SupportPlanScheduleEditorState({
                   <label>
                     Thời lượng dự kiến (phút)
                     <input
+                      id={fieldId(action.actionId, 'duration')}
+                      aria-invalid={
+                        validationFields[action.actionId] === 'duration' ||
+                        undefined
+                      }
+                      aria-describedby={
+                        validationFields[action.actionId] === 'duration'
+                          ? fieldId(action.actionId, 'message')
+                          : undefined
+                      }
                       type="number"
                       min="5"
                       max="180"
@@ -509,6 +620,16 @@ function SupportPlanScheduleEditorState({
                   <label>
                     Múi giờ
                     <input
+                      id={fieldId(action.actionId, 'timezone')}
+                      aria-invalid={
+                        validationFields[action.actionId] === 'timezone' ||
+                        undefined
+                      }
+                      aria-describedby={
+                        validationFields[action.actionId] === 'timezone'
+                          ? fieldId(action.actionId, 'message')
+                          : undefined
+                      }
                       type="text"
                       list="support-plan-timezones"
                       value={form.timezone}
@@ -523,6 +644,16 @@ function SupportPlanScheduleEditorState({
                   <label>
                     Bắt đầu từ
                     <input
+                      id={fieldId(action.actionId, 'starts')}
+                      aria-invalid={
+                        validationFields[action.actionId] === 'starts' ||
+                        undefined
+                      }
+                      aria-describedby={
+                        validationFields[action.actionId] === 'starts'
+                          ? fieldId(action.actionId, 'message')
+                          : undefined
+                      }
                       type="date"
                       min={minimumDate}
                       value={
@@ -541,6 +672,16 @@ function SupportPlanScheduleEditorState({
                   <label>
                     Kết thúc vào (không bắt buộc)
                     <input
+                      id={fieldId(action.actionId, 'ends')}
+                      aria-invalid={
+                        validationFields[action.actionId] === 'ends' ||
+                        undefined
+                      }
+                      aria-describedby={
+                        validationFields[action.actionId] === 'ends'
+                          ? fieldId(action.actionId, 'message')
+                          : undefined
+                      }
                       type="date"
                       min={
                         form.effectiveFrom < minimumDate
@@ -558,6 +699,7 @@ function SupportPlanScheduleEditorState({
                   </label>
                   <label className="support-plan-cadence-reminder">
                     <input
+                      className="support-plan-themed-checkbox"
                       type="checkbox"
                       checked={form.reminderEnabled}
                       disabled={disabled}
@@ -567,7 +709,14 @@ function SupportPlanScheduleEditorState({
                         })
                       }
                     />
-                    Nhắc tôi về hoạt động này
+                    <span
+                      className="support-plan-checkbox-mark"
+                      aria-hidden="true"
+                    >
+                      <Check />
+                    </span>
+                    <Bell aria-hidden="true" />
+                    <span>Nhắc tôi về hoạt động này</span>
                   </label>
                   {form.recurrenceType === 'WEEKLY' && (
                     <fieldset
@@ -578,6 +727,8 @@ function SupportPlanScheduleEditorState({
                       {weekdayOptions.map(([day, label]) => (
                         <label key={day}>
                           <input
+                            id={fieldId(action.actionId, `day-${day}`)}
+                            className="support-plan-weekday-input"
                             type="checkbox"
                             checked={form.daysOfWeek.includes(day)}
                             onChange={(event) =>
@@ -590,7 +741,7 @@ function SupportPlanScheduleEditorState({
                               })
                             }
                           />
-                          {label}
+                          <span>{label}</span>
                         </label>
                       ))}
                     </fieldset>
@@ -599,12 +750,31 @@ function SupportPlanScheduleEditorState({
               )}
 
               <div className="support-plan-cadence-actions">
+                <span className="support-plan-cadence-dirty-status">
+                  {itemDirty ? 'Có thay đổi chưa lưu' : 'Lịch đã lưu'}
+                </span>
+                <button
+                  className="btn btn-ghost"
+                  type="button"
+                  disabled={disabled || !itemDirty}
+                  onClick={() => {
+                    const snapshot = JSON.parse(
+                      initial[action.actionId],
+                    ) as ScheduleForm
+                    focusAfterUndo.current = action.actionId
+                    update(action.actionId, snapshot)
+                  }}
+                >
+                  <RotateCcw aria-hidden="true" />
+                  Hoàn tác
+                </button>
                 <button
                   className="btn btn-primary"
                   type="button"
-                  disabled={disabled || !itemDirty}
+                  disabled={disabled || Boolean(savingActionId) || !itemDirty}
                   onClick={() => void save(action)}
                 >
+                  <Check aria-hidden="true" />
                   {savingActionId === action.actionId
                     ? 'Đang lưu…'
                     : 'Lưu lịch'}
@@ -628,7 +798,11 @@ function SupportPlanScheduleEditorState({
                 )}
               </div>
               {messages[action.actionId] && (
-                <p role="status" className="support-plan-cadence-message">
+                <p
+                  id={fieldId(action.actionId, 'message')}
+                  role={validationFields[action.actionId] ? 'alert' : 'status'}
+                  className="support-plan-cadence-message"
+                >
                   {messages[action.actionId]}
                 </p>
               )}

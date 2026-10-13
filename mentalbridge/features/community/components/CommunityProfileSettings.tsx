@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import {
@@ -34,6 +34,7 @@ function validDisplayName(value: string) {
 }
 
 export default function CommunityProfileSettings() {
+  const nameInput = useRef<HTMLInputElement>(null)
   const { showActionToast } = useFeedback()
   const [profile, setProfile] = useState<CommunityProfile | null>(null)
   const [etag, setEtag] = useState<string | null>(null)
@@ -43,6 +44,7 @@ export default function CommunityProfileSettings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [nameError, setNameError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -80,9 +82,11 @@ export default function CommunityProfileSettings() {
     event.preventDefault()
     const normalizedName = displayName.trim().normalize('NFC')
     if (!validDisplayName(normalizedName)) {
-      setError('Tên hiển thị cần có từ 1 đến 80 ký tự an toàn.')
+      setNameError('Tên hiển thị cần có từ 1 đến 80 ký tự an toàn.')
+      nameInput.current?.focus()
       return
     }
+    setNameError('')
     setSaving(true)
     setError('')
     try {
@@ -140,7 +144,7 @@ export default function CommunityProfileSettings() {
         </p>
       </header>
 
-      <form className="community-profile-form" onSubmit={save}>
+      <form className="community-profile-form" onSubmit={save} noValidate>
         <div
           className="community-profile-preview"
           aria-label="Xem trước danh tính"
@@ -160,20 +164,39 @@ export default function CommunityProfileSettings() {
             Tên hiển thị hoặc biệt danh
           </label>
           <input
+            ref={nameInput}
             id="community-display-name"
             value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
+            onChange={(event) => {
+              setDisplayName(event.target.value)
+              setNameError('')
+            }}
             maxLength={160}
             autoComplete="off"
             required
-            aria-describedby="community-name-help"
+            disabled={saving}
+            aria-invalid={Boolean(nameError)}
+            aria-describedby={
+              nameError
+                ? 'community-name-help community-name-error'
+                : 'community-name-help'
+            }
           />
           <small id="community-name-help">
             Tối đa 80 ký tự. Tránh dùng họ tên thật nếu bạn muốn giữ riêng tư.
           </small>
+          {nameError && (
+            <p
+              id="community-name-error"
+              className="community-profile-error"
+              role="alert"
+            >
+              {nameError}
+            </p>
+          )}
         </div>
 
-        <fieldset>
+        <fieldset disabled={saving}>
           <legend>Hình đại diện an toàn</legend>
           <p>
             Chọn một biểu tượng có sẵn; cộng đồng không lấy ảnh từ hồ sơ khác.
