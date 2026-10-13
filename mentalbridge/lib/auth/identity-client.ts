@@ -23,6 +23,7 @@ import type {
   PlatformReportType,
   PlatformReportSchedule,
   PlatformReportScheduleRequest,
+  ProductJourneyMetrics,
 } from '@/features/auth/api/identity-contract'
 import { readIdentityServerConfig } from '@/lib/config/server'
 
@@ -35,6 +36,7 @@ import {
   parsePlatformReport,
   parsePlatformReportCatalogue,
   parsePlatformReportPage,
+  parseProductJourneyMetrics,
 } from './identity-validation'
 import {
   parseReportSchedule,
@@ -576,6 +578,28 @@ export const identityClient = {
       authorization: accessToken,
       correlationId,
       emptySuccess: true,
+    })
+  },
+
+  productJourneyMetrics(
+    accessToken: string,
+    params: { from: string; to: string },
+    correlationId: string,
+  ) {
+    const query = new URLSearchParams({ from: params.from, to: params.to })
+    return identityRequest<ProductJourneyMetrics>({
+      method: 'GET',
+      path: `/api/v1/admin/product-journey-metrics?${query.toString()}`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: (value) => {
+        const parsed = parseProductJourneyMetrics(value)
+        return parsed?.window.from === params.from &&
+          parsed.window.to === params.to
+          ? parsed
+          : null
+      },
     })
   },
 
