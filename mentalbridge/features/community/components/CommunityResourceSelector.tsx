@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
+
+import LightSelect from '@/components/LightSelect'
 
 import {
   getResourceCatalogue,
@@ -18,6 +20,7 @@ export default function CommunityResourceSelector({
   disabled?: boolean
   compact?: boolean
 }>) {
+  const selectId = useId()
   const [generation, setGeneration] = useState(0)
   const [result, setResult] = useState<{
     key: number
@@ -48,7 +51,7 @@ export default function CommunityResourceSelector({
 
   return (
     <div className="community-resource-selector">
-      <label htmlFor="community-resource-select">
+      <label htmlFor={selectId} id={`${selectId}-label`}>
         Tài nguyên MentalBridge <span>(không bắt buộc)</span>
       </label>
       {!compact && (
@@ -57,22 +60,20 @@ export default function CommunityResourceSelector({
           vào bài viết.
         </p>
       )}
-      <select
-        id="community-resource-select"
+      <LightSelect
+        id={selectId}
+        labelledBy={`${selectId}-label`}
         value={value ?? ''}
         disabled={disabled || loading}
-        onChange={(event) => onChange(event.target.value || null)}
-      >
-        <option value="">Không đính kèm tài nguyên</option>
-        {!currentAvailable && value && (
-          <option value={value}>Tài nguyên hiện không còn khả dụng</option>
-        )}
-        {items.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.title}
-          </option>
-        ))}
-      </select>
+        onChange={(nextValue) => onChange(nextValue || null)}
+        options={[
+          { value: '', label: 'Không đính kèm tài nguyên' },
+          ...(!currentAvailable && value
+            ? [{ value, label: 'Tài nguyên hiện không còn khả dụng' }]
+            : []),
+          ...items.map((item) => ({ value: item.id, label: item.title })),
+        ]}
+      />
       {loading && <small role="status">Đang tải danh sách tài nguyên…</small>}
       {failed && (
         <div className="community-resource-selector-error" role="alert">

@@ -134,9 +134,11 @@ describe('CommunityPostDetail', () => {
     render(<CommunityPostDetail postId={post.postId} />)
 
     await user.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }))
-    await user.selectOptions(
-      await screen.findByLabelText(/Tài nguyên MentalBridge/),
-      replacement,
+    await user.click(
+      await screen.findByRole('combobox', { name: /Tài nguyên MentalBridge/ }),
+    )
+    await user.click(
+      screen.getByRole('option', { name: 'Tài nguyên thay thế' }),
     )
     await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
     expect(api.update).toHaveBeenLastCalledWith(
@@ -146,9 +148,11 @@ describe('CommunityPostDetail', () => {
     )
 
     await user.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }))
-    await user.selectOptions(
-      await screen.findByLabelText(/Tài nguyên MentalBridge/),
-      '',
+    await user.click(
+      await screen.findByRole('combobox', { name: /Tài nguyên MentalBridge/ }),
+    )
+    await user.click(
+      screen.getByRole('option', { name: 'Không đính kèm tài nguyên' }),
     )
     await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
     expect(api.update).toHaveBeenLastCalledWith(
