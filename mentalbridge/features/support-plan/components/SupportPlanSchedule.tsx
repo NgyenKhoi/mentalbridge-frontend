@@ -108,6 +108,7 @@ type Props = Readonly<{
   onDirtyChange?: (dirty: boolean) => void
   supportPlanId?: string
   companionSnapshot?: ContextualCompanionSnapshot
+  companionRequestPending?: boolean
   onCompanionRequest?: (request: ContextualCompanionRequest) => void
   onCompanionDismiss?: () => void
 }>
@@ -121,6 +122,7 @@ export default function SupportPlanSchedule({
   onDirtyChange,
   supportPlanId,
   companionSnapshot,
+  companionRequestPending = false,
   onCompanionRequest,
   onCompanionDismiss,
 }: Props) {
@@ -160,6 +162,7 @@ export default function SupportPlanSchedule({
         actionTitle={item.source.title}
         surface="TODAY"
         disabled={dirty}
+        requestPending={companionRequestPending}
         snapshot={companionSnapshot}
         onRequest={onCompanionRequest}
         onDismiss={onCompanionDismiss}

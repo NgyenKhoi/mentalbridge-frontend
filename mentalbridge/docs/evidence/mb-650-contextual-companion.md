@@ -15,6 +15,13 @@ Loading is visible without disabling or covering the original action. Dismiss
 restores focus to the request trigger. A failed Care request shows a neutral
 availability response and permits retry; it does not invent an explanation.
 
+Both native and legacy journeys use a synchronous ref admission guard before
+starting the POST. While one request is pending, every contextual trigger in
+that journey is disabled while the original SupportPlan actions remain usable.
+Rapid same-tick clicks and cross-card clicks therefore share the one visible
+pending state. Dismissal or tab invalidation cannot open a second request until
+the admitted promise settles; a later explicit click can retry normally.
+
 ## UX and accessibility checks
 
 | Requirement                           | Implementation                                                                                                                                                                               |
@@ -48,14 +55,18 @@ production accepts only the strict Care response.
   dismiss and focus restoration.
 - Journey test proves action-card request → bound response while the source
   action remains available.
+- Native and legacy journey regressions prove rapid repeat clicks, cross-card
+  clicks and tab changes cannot start a second request; retry is restored only
+  after the admitted request settles and a completed response may be dismissed.
 - Production Playwright proves the explicit desktop card → response → original
-  action journey, mobile in-flow tray, 44px trigger and no horizontal overflow.
+  action journey, pending cross-card controls, mobile in-flow tray, 44px trigger
+  and no horizontal overflow.
 - Existing shell, SupportPlan Journey/Card/Schedule, storage denial and reduced
   motion suites remain part of the final quality gate.
 
 Final local verification on 2026-10-14:
 
-- `npm run quality`: 232 test files / 1,273 tests, contracts, lint, typecheck and
+- `npm run quality`: 232 test files / 1,276 tests, contracts, lint, typecheck and
   production build passed.
 - `node scripts/run-e2e.mjs tests/e2e/support-plan.spec.ts tests/e2e/support-plan-contextual-companion.spec.ts --workers=1 --reporter=line`:
   5/5 passed.

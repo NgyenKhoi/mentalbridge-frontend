@@ -117,4 +117,23 @@ describe('SupportPlanContextualCompanion', () => {
     expect(screen.getByText('Nội dung vẫn đọc được.')).toBeVisible()
     expect(container.querySelector('[aria-live]')).toBeNull()
   })
+
+  it('disables every contextual trigger while the journey has an admitted request', () => {
+    const onRequest = vi.fn()
+    render(
+      <SupportPlanContextualCompanion
+        supportPlanId={planId}
+        actionId={actionId}
+        actionTitle="Bài thở 4–6"
+        surface="PLAN"
+        requestPending
+        onRequest={onRequest}
+        onDismiss={vi.fn()}
+      />,
+    )
+    const trigger = screen.getByRole('button', { name: /Bài thở 4–6/ })
+    expect(trigger).toBeDisabled()
+    fireEvent.click(trigger)
+    expect(onRequest).not.toHaveBeenCalled()
+  })
 })

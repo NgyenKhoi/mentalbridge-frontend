@@ -89,6 +89,7 @@ type Props = Readonly<{
   onReloadSchedule?: () => Promise<boolean | void>
   onDirtyChange?: (dirty: boolean) => void
   companionSnapshot?: ContextualCompanionSnapshot
+  companionRequestPending?: boolean
   onCompanionRequest?: (request: ContextualCompanionRequest) => void
   onCompanionDismiss?: () => void
 }>
@@ -139,6 +140,7 @@ export default function SupportPlanCard({
   onReloadSchedule,
   onDirtyChange,
   companionSnapshot,
+  companionRequestPending = false,
   onCompanionRequest,
   onCompanionDismiss,
 }: Props) {
@@ -308,6 +310,7 @@ export default function SupportPlanCard({
           professionalSupportRequired={professionalSupportRequired}
           supportPlanId={plan.supportPlanId}
           companionSnapshot={companionSnapshot}
+          companionRequestPending={companionRequestPending}
           onCompanionRequest={onCompanionRequest}
           onCompanionDismiss={onCompanionDismiss}
           companionDisabled={dirty || scheduleDirty || engagementDirty}
@@ -357,6 +360,7 @@ export default function SupportPlanCard({
                           actionTitle={action.presentation.title}
                           surface="PLAN"
                           disabled={dirty || scheduleDirty || engagementDirty}
+                          requestPending={companionRequestPending}
                           snapshot={companionSnapshot}
                           onRequest={onCompanionRequest}
                           onDismiss={onCompanionDismiss}
@@ -697,6 +701,7 @@ export default function SupportPlanCard({
             onDirtyChange={setEngagementDirty}
             supportPlanId={plan.supportPlanId}
             companionSnapshot={companionSnapshot}
+            companionRequestPending={companionRequestPending}
             onCompanionRequest={onCompanionRequest}
             onCompanionDismiss={onCompanionDismiss}
             onToggleStatus={() =>

@@ -170,6 +170,8 @@ export default function NativeSupportPlanJourney({
   const [contextualCompanion, setContextualCompanion] =
     useState<ContextualCompanionSnapshot>()
   const companionSequence = useRef(0)
+  const companionInFlight = useRef(false)
+  const [companionRequestPending, setCompanionRequestPending] = useState(false)
   const dirty = scheduleDirty || personalizationDirty
   const [history, setHistory] = useState<SupportPlanActionHistory | undefined>(
     initialHistory,
@@ -226,7 +228,14 @@ export default function NativeSupportPlanJourney({
 
   const requestCompanionExplanation = useCallback(
     async (request: ContextualCompanionRequest) => {
-      if (dirty || !['TODAY', 'PLAN'].includes(request.surface)) return
+      if (
+        dirty ||
+        companionInFlight.current ||
+        !['TODAY', 'PLAN'].includes(request.surface)
+      )
+        return
+      companionInFlight.current = true
+      setCompanionRequestPending(true)
       const requestId = ++companionSequence.current
       setContextualCompanion({ ...request, requestId, status: 'loading' })
       try {
@@ -251,6 +260,9 @@ export default function NativeSupportPlanJourney({
           message:
             'Chưa thể tải lời giải thích lúc này. Bạn vẫn có thể tiếp tục hoạt động hoặc thử lại khi phù hợp.',
         })
+      } finally {
+        companionInFlight.current = false
+        setCompanionRequestPending(false)
       }
     },
     [dirty],
@@ -903,6 +915,7 @@ export default function NativeSupportPlanJourney({
                             actionTitle={action.presentation.title}
                             surface="TODAY"
                             disabled={dirty}
+                            requestPending={companionRequestPending}
                             snapshot={contextualCompanion}
                             onRequest={(request) =>
                               void requestCompanionExplanation(request)
@@ -1125,6 +1138,7 @@ export default function NativeSupportPlanJourney({
                               actionTitle={action.presentation.title}
                               surface="PLAN"
                               disabled={dirty}
+                              requestPending={companionRequestPending}
                               snapshot={contextualCompanion}
                               onRequest={(request) =>
                                 void requestCompanionExplanation(request)

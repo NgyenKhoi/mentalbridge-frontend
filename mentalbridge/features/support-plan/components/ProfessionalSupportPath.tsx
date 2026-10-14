@@ -37,6 +37,7 @@ export default function ProfessionalSupportPath({
   professionalSupportRequired,
   supportPlanId,
   companionSnapshot,
+  companionRequestPending = false,
   onCompanionRequest,
   onCompanionDismiss,
   companionDisabled = false,
@@ -44,6 +45,7 @@ export default function ProfessionalSupportPath({
   professionalSupportRequired: boolean
   supportPlanId: string
   companionSnapshot?: ContextualCompanionSnapshot
+  companionRequestPending?: boolean
   onCompanionRequest?: (request: ContextualCompanionRequest) => void
   onCompanionDismiss?: () => void
   companionDisabled?: boolean
@@ -183,6 +185,7 @@ export default function ProfessionalSupportPath({
             actionTitle={action.presentation.title}
             surface="PLAN"
             disabled={companionDisabled}
+            requestPending={companionRequestPending}
             snapshot={companionSnapshot}
             onRequest={onCompanionRequest}
             onDismiss={onCompanionDismiss}

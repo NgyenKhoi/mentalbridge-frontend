@@ -271,6 +271,8 @@ export default function SupportPlanJourney({
   const [contextualCompanion, setContextualCompanion] =
     useState<ContextualCompanionSnapshot>()
   const companionSequence = useRef(0)
+  const companionInFlight = useRef(false)
+  const [companionRequestPending, setCompanionRequestPending] = useState(false)
   const [cardDirty, setCardDirty] = useState(false)
   const [replacementDirty, setReplacementDirty] = useState(false)
   const [personalizationDirty, setPersonalizationDirty] = useState(false)
@@ -293,7 +295,9 @@ export default function SupportPlanJourney({
 
   const requestCompanionExplanation = useCallback(
     async (request: ContextualCompanionRequest) => {
-      if (dirty) return
+      if (dirty || companionInFlight.current) return
+      companionInFlight.current = true
+      setCompanionRequestPending(true)
       const requestId = ++companionSequence.current
       setContextualCompanion({ ...request, requestId, status: 'loading' })
       setCompanionEvent('REQUEST_STARTED')
@@ -321,6 +325,9 @@ export default function SupportPlanJourney({
             'Chưa thể tải lời giải thích lúc này. Bạn vẫn có thể tiếp tục hoạt động hoặc thử lại khi phù hợp.',
         })
         setCompanionEvent('CONTENT_READY')
+      } finally {
+        companionInFlight.current = false
+        setCompanionRequestPending(false)
       }
     },
     [dirty],
@@ -1035,6 +1042,7 @@ export default function SupportPlanJourney({
                       'unavailable'
                   }
                   companionSnapshot={contextualCompanion}
+                  companionRequestPending={companionRequestPending}
                   onCompanionRequest={(request) =>
                     void requestCompanionExplanation(request)
                   }
@@ -1159,6 +1167,7 @@ export default function SupportPlanJourney({
                           ?.status === 'unavailable'
                       }
                       companionSnapshot={contextualCompanion}
+                      companionRequestPending={companionRequestPending}
                       onCompanionRequest={(request) =>
                         void requestCompanionExplanation(request)
                       }

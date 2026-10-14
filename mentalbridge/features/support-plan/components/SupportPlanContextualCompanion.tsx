@@ -15,6 +15,7 @@ export default function SupportPlanContextualCompanion({
   actionTitle,
   surface,
   disabled = false,
+  requestPending = false,
   snapshot,
   onRequest,
   onDismiss,
@@ -24,6 +25,7 @@ export default function SupportPlanContextualCompanion({
   actionTitle: string
   surface: 'TODAY' | 'PLAN'
   disabled?: boolean
+  requestPending?: boolean
   snapshot?: ContextualCompanionSnapshot
   onRequest: (request: ContextualCompanionRequest) => void
   onDismiss: () => void
@@ -42,7 +44,7 @@ export default function SupportPlanContextualCompanion({
         aria-label={`Nhờ bạn đồng hành giải thích: ${actionTitle}`}
         aria-expanded={active}
         aria-busy={active && snapshot.status === 'loading'}
-        disabled={disabled || (active && snapshot.status === 'loading')}
+        disabled={disabled || requestPending}
         onClick={() =>
           onRequest({
             targetId,

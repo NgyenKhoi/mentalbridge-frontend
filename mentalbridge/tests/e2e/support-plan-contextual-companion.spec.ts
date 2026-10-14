@@ -26,8 +26,41 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
         sameSite: 'Lax',
       },
     ])
-    const plan = nativeSupportPlanFixture()
+    const basePlan = nativeSupportPlanFixture()
     const occurrence = emotionOccurrenceFixture()
+    const secondActionId = '20000000-0000-4000-8000-000000000650'
+    const secondOccurrenceId = '30000000-0000-4000-8000-000000000650'
+    const secondAction = {
+      ...basePlan.focuses[0].actions[0],
+      actionId: secondActionId,
+      actionType: 'RESOURCE' as const,
+      purposeCode: 'UNDERSTAND_CURRENT_PATTERN',
+      ordinal: 2,
+      presentation: {
+        ...basePlan.focuses[0].actions[0].presentation,
+        title: 'Bài thực hành tiếp theo',
+      },
+      schedules: basePlan.focuses[0].actions[0].schedules.map((schedule) => ({
+        ...schedule,
+        scheduleId: '40000000-0000-4000-8000-000000000650',
+      })),
+    }
+    const plan = {
+      ...basePlan,
+      focuses: [
+        {
+          ...basePlan.focuses[0],
+          actions: [...basePlan.focuses[0].actions, secondAction],
+        },
+      ],
+    }
+    const secondOccurrence = {
+      ...occurrence,
+      occurrenceId: secondOccurrenceId,
+      actionId: secondActionId,
+      actionType: 'RESOURCE' as const,
+      scheduleId: '40000000-0000-4000-8000-000000000650',
+    }
     const responseText =
       'Hoạt động này giúp bạn ghi nhận cảm xúc do chính bạn lựa chọn.'
     let requests = 0
@@ -60,14 +93,19 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
           representationMode: plan.representationMode,
           from: '2026-10-13',
           through: '2026-10-13',
-          occurrences: [occurrence],
+          occurrences: [occurrence, secondOccurrence],
           interpretationCode:
             'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
         })
+      const companionPrefix = `/api/care/v2/support-plans/${plan.supportPlanId}/actions/`
       if (
-        path ===
-        `/api/care/v2/support-plans/${plan.supportPlanId}/actions/${occurrence.actionId}/companion-explanation`
+        path.startsWith(companionPrefix) &&
+        path.endsWith('/companion-explanation')
       ) {
+        const responseActionId = path.slice(
+          companionPrefix.length,
+          -'/companion-explanation'.length,
+        )
         requests++
         expect(request.method()).toBe('POST')
         expect(request.postDataJSON()).toEqual({ surface: 'TODAY' })
@@ -78,7 +116,7 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
         return json({
           schemaVersion: 'support-plan-companion-message-v1',
           supportPlanId: plan.supportPlanId,
-          actionId: occurrence.actionId,
+          actionId: responseActionId,
           intent: 'EXPLAIN_ACTION',
           surface: 'TODAY',
           text: responseText,
@@ -107,6 +145,13 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
       name: 'Ghi nhận cảm xúc',
       exact: true,
     })
+    const secondActivity = page.getByRole('article', {
+      name: 'Bài thực hành tiếp theo',
+      exact: true,
+    })
+    const secondTrigger = secondActivity.getByRole('button', {
+      name: /Nhờ bạn đồng hành giải thích/,
+    })
     await expect(activity).toBeVisible()
     await trigger.focus()
     expect(requests).toBe(0)
@@ -114,7 +159,12 @@ test.describe('MB-650 contextual SupportPlan Companion', () => {
     await expect(
       activity.getByText('Đang chuẩn bị lời giải thích…'),
     ).toBeVisible()
+    await expect(trigger).toBeDisabled()
+    await expect(secondTrigger).toBeDisabled()
+    await trigger.evaluate((button) => (button as HTMLElement).click())
+    await secondTrigger.evaluate((button) => (button as HTMLElement).click())
     await expect(originalAction).toBeEnabled()
+    expect(requests).toBe(1)
     releaseFirstResponse?.()
     const desktopBubble = activity.locator('.support-plan-contextual-bubble')
     await expect(desktopBubble).toContainText(responseText)
