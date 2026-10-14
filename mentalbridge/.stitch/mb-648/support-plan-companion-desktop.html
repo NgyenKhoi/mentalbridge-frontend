@@ -1205,7 +1205,8 @@
       document.getElementById('companion-status-badge').innerText = state.badge;
       document.getElementById('companion-state-title').innerText = state.title;
       document.getElementById('companion-state-desc').innerText = state.desc;
-      document.getElementById('companion-state-count').innerText = state.index;
+      const stateCount = document.getElementById('companion-state-count');
+      if (stateCount) stateCount.innerText = state.index;
       document.getElementById('companion-svg-emblem').innerHTML = state.emblemSvg;
       document.getElementById('companion-halo').style.backgroundColor = state.haloColor;
 

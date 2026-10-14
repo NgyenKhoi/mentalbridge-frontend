@@ -877,6 +877,8 @@ export default function SupportPlanJourney() {
       </header>
 
       <div className="mb-support-companion-layout">
+        <SupportPlanCompanionShell state={companionState} surface={activeTab} />
+
         <div className="mb-support-companion-content">
           {loading && (
             <div
@@ -1145,8 +1147,6 @@ export default function SupportPlanJourney() {
             </div>
           )}
         </div>
-
-        <SupportPlanCompanionShell state={companionState} surface={activeTab} />
       </div>
 
       <SupportPlanFooter updatedAt={plan?.updatedAt} />

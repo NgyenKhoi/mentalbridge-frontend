@@ -1,9 +1,10 @@
 import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { extname, join } from 'node:path'
 import { chromium } from 'playwright'
 
-const root = new URL('.', import.meta.url).pathname.slice(1)
+const root = fileURLToPath(new URL('.', import.meta.url))
 const port = 4178
 
 const server = createServer(async (request, response) => {

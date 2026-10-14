@@ -64,8 +64,10 @@ describe('SupportPlanCompanionShell', () => {
     },
   )
 
-  it('persists presentation preferences and collapses without plan actions', () => {
-    render(<SupportPlanCompanionShell state="idle" surface="plan" />)
+  it('persists presentation preferences and collapses to a marked rail without plan actions', () => {
+    const { container } = render(
+      <SupportPlanCompanionShell state="idle" surface="plan" />,
+    )
 
     const mute = screen.getByRole('button', {
       name: 'Tắt lời nhắc của bạn đồng hành',
@@ -95,6 +97,11 @@ describe('SupportPlanCompanionShell', () => {
         .getByText(companionStateCopy.idle.description)
         .closest('.support-plan-companion-body'),
     ).toHaveAttribute('hidden')
+    expect(
+      container
+        .querySelector('.support-plan-companion-mark')
+        ?.closest('.support-plan-companion-body'),
+    ).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
   })
 

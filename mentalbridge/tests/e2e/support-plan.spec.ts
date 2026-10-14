@@ -548,6 +548,18 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
   })
   await expect(companion).toBeVisible()
+  expect(
+    await page.evaluate(() => {
+      const shell = document.querySelector('.support-plan-companion')
+      const content = document.querySelector('.mb-support-companion-content')
+      return Boolean(
+        shell &&
+        content &&
+        shell.compareDocumentPosition(content) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      )
+    }),
+  ).toBe(true)
   const companionControls = companion.getByRole('button')
   expect(await companionControls.count()).toBe(3)
   expect(
@@ -586,6 +598,13 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   })
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await expect(companion).toHaveAttribute('data-motion', 'reduced')
+  expect(
+    await companion.evaluate(
+      (shell) =>
+        Number.parseFloat(getComputedStyle(shell).transitionDuration) <=
+        0.00001,
+    ),
+  ).toBe(true)
   await page.screenshot({
     path: 'docs/evidence/mb-648-companion-reduced-motion.png',
     fullPage: true,
@@ -599,6 +618,9 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       .locator('.support-plan-companion-title')
       .evaluate((title) => title.scrollWidth <= title.clientWidth),
   ).toBe(true)
+  await companion.getByRole('button', { name: 'Thu gọn bạn đồng hành' }).click()
+  await expect(companion.locator('.support-plan-companion-mark')).toBeVisible()
+  await companion.getByRole('button', { name: 'Mở rộng bạn đồng hành' }).click()
   await page.screenshot({
     path: 'docs/evidence/mb-648-companion-desktop.png',
     fullPage: true,
