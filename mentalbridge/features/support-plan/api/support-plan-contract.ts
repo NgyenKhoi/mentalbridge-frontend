@@ -10,6 +10,10 @@ export type ActionOccurrenceList = care['schemas']['ActionOccurrenceList']
 export type CompletionEvidence = care['schemas']['CompletionEvidence']
 export type EmotionCheckInOccurrenceReconciliation =
   care['schemas']['EmotionCheckInOccurrenceReconciliation']
+export type JournalOccurrenceReconciliation =
+  care['schemas']['JournalOccurrenceReconciliation']
+export type ReconcileJournalOccurrenceRequest =
+  careOperations['reconcileOwnJournalOccurrence']['requestBody']['content']['application/json']
 export type NativeSupportPlanReplacementReview =
   care['schemas']['NativeSupportPlanReplacementReview']
 export type ProposeNativeSupportPlanRequest =
