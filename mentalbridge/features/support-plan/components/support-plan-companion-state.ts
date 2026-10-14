@@ -52,15 +52,15 @@ export const companionStateCopy: Readonly<
   },
   'celebrating-light': {
     label: 'Đã ghi nhận',
-    description: 'Lựa chọn bạn vừa xác nhận đã được ghi nhận.',
+    description: 'Hoạt động đã được ghi nhận hoàn thành.',
   },
   'calm-empathetic': {
-    label: 'Tĩnh lặng',
-    description: 'Mình ở đây cùng bạn, không thúc giục hay phán xét.',
+    label: 'Xem lại nhẹ nhàng',
+    description: 'Bạn có thể xem kỹ từng lựa chọn theo nhịp của mình.',
   },
   waiting: {
-    label: 'Đang đồng hành',
-    description: 'Mình sẽ chờ trong khi MentalBridge hoàn tất bước này.',
+    label: 'Chờ bạn quyết định',
+    description: 'Bạn có thể xem kỹ rồi xác nhận khi đã sẵn sàng.',
   },
 }
 

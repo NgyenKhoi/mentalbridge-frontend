@@ -44,7 +44,10 @@ import SupportPlanPersonalization, {
   type SupportPlanReviewReasonCode,
 } from './SupportPlanPersonalization'
 import SupportPlanReplacementReviewView from './SupportPlanReplacementReview'
-import { transitionSupportPlanCompanion } from './support-plan-companion-state'
+import {
+  transitionSupportPlanCompanion,
+  type SupportPlanCompanionEvent,
+} from './support-plan-companion-state'
 
 import './support-plan.css'
 
@@ -258,6 +261,8 @@ export default function SupportPlanJourney({
   const [commandMessage, setCommandMessage] = useState('')
   const [recoveryVersion, setRecoveryVersion] = useState(0)
   const [activeTab, setActiveTab] = useState<JourneyTab>('today')
+  const [companionEvent, setCompanionEvent] =
+    useState<SupportPlanCompanionEvent>('SURFACE_ENTERED')
   const [cardDirty, setCardDirty] = useState(false)
   const [replacementDirty, setReplacementDirty] = useState(false)
   const [personalizationDirty, setPersonalizationDirty] = useState(false)
@@ -274,11 +279,24 @@ export default function SupportPlanJourney({
   const activationKey = useRef<string | undefined>(undefined)
   const replacementKey = useRef<string | undefined>(undefined)
   const replacementDraftReviewRef = useRef<HTMLDivElement>(null)
+  const previousCompanionSurface = useRef<JourneyTab>('today')
+  const preserveCompanionEventAcrossSurface = useRef(false)
   const dirty = cardDirty || replacementDirty || personalizationDirty
   useEffect(() => {
     onDirtyChange?.(dirty)
   }, [dirty, onDirtyChange])
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
+  useEffect(() => {
+    if (previousCompanionSurface.current === activeTab) return
+    previousCompanionSurface.current = activeTab
+    if (preserveCompanionEventAcrossSurface.current) {
+      preserveCompanionEventAcrossSurface.current = false
+      return
+    }
+    setCompanionEvent(
+      activeTab === 'adjust' ? 'SENSITIVE_CONTEXT_ENTERED' : 'CONTENT_READY',
+    )
+  }, [activeTab])
 
   const loadReplacementReview = useCallback(
     async (current: SupportPlan, draft: SupportPlan) => {
@@ -681,7 +699,13 @@ export default function SupportPlanJourney({
         completionReason,
       )
       await Promise.all([load(), loadHistory()])
-      if (status === 'COMPLETED' || status === 'DISCARDED') {
+      if (status === 'COMPLETED') {
+        if (activeTab !== 'progress') {
+          preserveCompanionEventAcrossSurface.current = true
+        }
+        setActiveTab('progress')
+        setCompanionEvent('EXPLICIT_COMPLETION_ACKNOWLEDGED')
+      } else if (status === 'DISCARDED') {
         setActiveTab('progress')
       }
       const statusMessage = {
@@ -787,16 +811,6 @@ export default function SupportPlanJourney({
             tab.id === 'plan' || (tab.id === 'progress' && history.length > 0),
         )
       : journeyTabs
-  const companionEvent =
-    loading || busy || creating || replacementLoading
-      ? 'WAITING_FOR_USER'
-      : !plan && activeTab === 'plan'
-        ? 'SURFACE_ENTERED'
-        : activeTab === 'progress'
-          ? 'NEXT_STEP_AVAILABLE'
-          : activeTab === 'adjust'
-            ? 'SENSITIVE_CONTEXT_ENTERED'
-            : 'CONTENT_READY'
   const companionState = transitionSupportPlanCompanion('idle', companionEvent)
 
   const handleTabKeyDown = (

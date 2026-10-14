@@ -29,10 +29,14 @@ import {
 import './support-plan-companion.css'
 
 const MOTION_STORAGE_KEY = 'mentalbridge_support_plan_companion_motion'
-const MUTED_STORAGE_KEY = 'mentalbridge_support_plan_companion_muted'
+const MUTED_STORAGE_KEY = 'mentalbridge_support_plan_companion_session_muted'
 const PREFERENCE_EVENT = 'mentalbridge:companion-preference'
+// Mute is session-only by policy. The same legacy key in localStorage is
+// deliberately ignored; reduced motion remains an explicit durable preference.
 const memoryPreferences = new Map<string, string>()
 const volatilePreferences = new Set<string>()
+
+type PreferenceScope = 'local' | 'session'
 
 function subscribePreferences(onChange: () => void) {
   const onStorage = (event: StorageEvent) => {
@@ -53,12 +57,16 @@ function subscribePreferences(onChange: () => void) {
   }
 }
 
-function readPreference(key: string) {
+function preferenceStorage(scope: PreferenceScope) {
+  return scope === 'session' ? window.sessionStorage : window.localStorage
+}
+
+function readPreference(key: string, scope: PreferenceScope) {
   if (volatilePreferences.has(key)) {
     return memoryPreferences.get(key) ?? null
   }
   try {
-    const value = window.localStorage.getItem(key)
+    const value = preferenceStorage(scope).getItem(key)
     if (value === null) {
       memoryPreferences.delete(key)
     } else {
@@ -70,14 +78,18 @@ function readPreference(key: string) {
   }
 }
 
-function storedPreference(key: string, expected: string) {
-  return readPreference(key) === expected
+function storedPreference(
+  key: string,
+  expected: string,
+  scope: PreferenceScope,
+) {
+  return readPreference(key, scope) === expected
 }
 
-function writePreference(key: string, value: string) {
+function writePreference(key: string, value: string, scope: PreferenceScope) {
   memoryPreferences.set(key, value)
   try {
-    window.localStorage.setItem(key, value)
+    preferenceStorage(scope).setItem(key, value)
     volatilePreferences.delete(key)
   } catch {
     volatilePreferences.add(key)
@@ -166,12 +178,12 @@ export default function SupportPlanCompanionShell({
   const [expanded, setExpanded] = useState(defaultExpanded)
   const muted = useSyncExternalStore(
     subscribePreferences,
-    () => storedPreference(MUTED_STORAGE_KEY, 'true'),
+    () => storedPreference(MUTED_STORAGE_KEY, 'true', 'session'),
     () => false,
   )
   const userReducedMotion = useSyncExternalStore(
     subscribePreferences,
-    () => storedPreference(MOTION_STORAGE_KEY, 'reduced'),
+    () => storedPreference(MOTION_STORAGE_KEY, 'reduced', 'local'),
     () => false,
   )
 
@@ -179,11 +191,15 @@ export default function SupportPlanCompanionShell({
   const copy = companionStateCopy[state]
 
   const toggleMuted = () => {
-    writePreference(MUTED_STORAGE_KEY, String(!muted))
+    writePreference(MUTED_STORAGE_KEY, String(!muted), 'session')
   }
 
   const toggleMotion = () => {
-    writePreference(MOTION_STORAGE_KEY, userReducedMotion ? 'full' : 'reduced')
+    writePreference(
+      MOTION_STORAGE_KEY,
+      userReducedMotion ? 'full' : 'reduced',
+      'local',
+    )
   }
 
   return (
@@ -263,11 +279,7 @@ export default function SupportPlanCompanionShell({
           <CharacterRenderer state={state} reducedMotion={reducedMotion} />
         </CharacterBoundary>
 
-        <div
-          className="support-plan-companion-copy"
-          aria-live={muted ? 'off' : 'polite'}
-          aria-atomic="true"
-        >
+        <div className="support-plan-companion-copy">
           <span>{copy.label}</span>
           <p>{copy.description}</p>
           <small>{companionSurfaceCopy[surface]}</small>

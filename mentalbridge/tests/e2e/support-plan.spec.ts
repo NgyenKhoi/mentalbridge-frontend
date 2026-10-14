@@ -783,6 +783,12 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     uploadThroughput: 93_750,
     connectionType: 'cellular3g',
   })
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      'mentalbridge_support_plan_companion_muted',
+      'true',
+    )
+  })
   const mobileLoadStartedAt = performance.now()
   await page.goto('/support-plan')
   await expect(
@@ -798,6 +804,34 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
   })
   await expect(companion).toBeVisible()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Tắt lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'false')
+  expect(await companion.locator('[aria-live]').count()).toBe(0)
+  await companion
+    .getByRole('button', { name: 'Tắt lời nhắc của bạn đồng hành' })
+    .click()
+  await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Bật lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await page.reload()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Bật lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await page.evaluate(() => window.sessionStorage.clear())
+  await page.reload()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Tắt lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'false')
   expect(
     await page.evaluate(() => {
       const shell = document.querySelector('.support-plan-companion')

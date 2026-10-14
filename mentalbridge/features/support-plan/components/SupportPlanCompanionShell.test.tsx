@@ -27,6 +27,7 @@ function installMotionPreference(matches = false) {
 describe('SupportPlanCompanionShell', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    window.sessionStorage.clear()
     installMotionPreference()
   })
 
@@ -64,8 +65,8 @@ describe('SupportPlanCompanionShell', () => {
     },
   )
 
-  it('persists presentation preferences and collapses to a marked rail without plan actions', () => {
-    const { container } = render(
+  it('scopes mute to the session, keeps motion local, and collapses without plan actions', () => {
+    const { container, rerender } = render(
       <SupportPlanCompanionShell state="idle" surface="plan" />,
     )
 
@@ -80,8 +81,20 @@ describe('SupportPlanCompanionShell', () => {
     fireEvent.click(mute)
     expect(mute).toHaveAttribute('aria-pressed', 'true')
     expect(
-      window.localStorage.getItem('mentalbridge_support_plan_companion_muted'),
+      window.sessionStorage.getItem(
+        'mentalbridge_support_plan_companion_session_muted',
+      ),
     ).toBe('true')
+    expect(
+      window.localStorage.getItem('mentalbridge_support_plan_companion_muted'),
+    ).toBeNull()
+
+    rerender(<SupportPlanCompanionShell state="idle" surface="progress" />)
+    expect(
+      screen.getByRole('button', {
+        name: 'Bật lời nhắc của bạn đồng hành',
+      }),
+    ).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.click(motion)
     expect(
@@ -105,6 +118,57 @@ describe('SupportPlanCompanionShell', () => {
     expect(screen.queryByRole('textbox')).toBeNull()
   })
 
+  it('keeps mute across a remount in one session but not a new session', () => {
+    const first = render(
+      <SupportPlanCompanionShell state="idle" surface="today" />,
+    )
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Tắt lời nhắc của bạn đồng hành',
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Giảm chuyển động' }))
+    first.unmount()
+
+    const remount = render(
+      <SupportPlanCompanionShell state="idle" surface="plan" />,
+    )
+    expect(
+      screen.getByRole('button', {
+        name: 'Bật lời nhắc của bạn đồng hành',
+      }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    remount.unmount()
+
+    window.sessionStorage.clear()
+    render(<SupportPlanCompanionShell state="idle" surface="today" />)
+    expect(
+      screen.getByRole('button', {
+        name: 'Tắt lời nhắc của bạn đồng hành',
+      }),
+    ).toHaveAttribute('aria-pressed', 'false')
+    expect(
+      screen.getByRole('complementary', {
+        name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+      }),
+    ).toHaveAttribute('data-motion', 'reduced')
+  })
+
+  it('ignores the legacy permanent mute value', () => {
+    window.localStorage.setItem(
+      'mentalbridge_support_plan_companion_muted',
+      'true',
+    )
+
+    render(<SupportPlanCompanionShell state="idle" surface="today" />)
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Tắt lời nhắc của bạn đồng hành',
+      }),
+    ).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it.each([
     [
       'localStorage getter',
@@ -125,6 +189,32 @@ describe('SupportPlanCompanionShell', () => {
             Object.defineProperty(window, 'localStorage', descriptor)
           } else {
             Object.defineProperty(window, 'localStorage', {
+              configurable: true,
+              value: originalStorage,
+            })
+          }
+        }
+      },
+    ],
+    [
+      'sessionStorage getter',
+      () => {
+        const originalStorage = window.sessionStorage
+        const descriptor = Object.getOwnPropertyDescriptor(
+          window,
+          'sessionStorage',
+        )
+        Object.defineProperty(window, 'sessionStorage', {
+          configurable: true,
+          get: () => {
+            throw new DOMException('Storage denied', 'SecurityError')
+          },
+        })
+        return () => {
+          if (descriptor) {
+            Object.defineProperty(window, 'sessionStorage', descriptor)
+          } else {
+            Object.defineProperty(window, 'sessionStorage', {
               configurable: true,
               value: originalStorage,
             })
@@ -219,6 +309,17 @@ describe('SupportPlanCompanionShell', () => {
     expect(
       screen.getByRole('button', { name: 'Bật chuyển động nhẹ' }),
     ).toBeDisabled()
+  })
+
+  it('does not expose passive visual-state changes as live announcements', () => {
+    const { container, rerender } = render(
+      <SupportPlanCompanionShell state="greeting" surface="today" />,
+    )
+
+    expect(container.querySelector('[aria-live]')).toBeNull()
+    rerender(<SupportPlanCompanionShell state="idle" surface="progress" />)
+    expect(container.querySelector('[aria-live]')).toBeNull()
+    expect(screen.getByText(companionStateCopy.idle.description)).toBeVisible()
   })
 
   it('falls back to a static character if an optional runtime fails', () => {
