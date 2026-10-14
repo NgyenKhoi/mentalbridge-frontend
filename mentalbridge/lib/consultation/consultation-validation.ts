@@ -2118,17 +2118,22 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
         : item.creditState !== 'HELD' && item.sessionSettledAt !== null) &&
       (item.modality !== 'IN_APP_VIDEO' || item.sessionOutcome === null)
     )
-  if (item.status === 'COMPLETED')
+  if (item.status === 'COMPLETED') {
+    const historicalVideoCompletion =
+      item.modality === 'IN_APP_VIDEO' &&
+      item.sessionPolicyVersion === 'chat-session-completion-v1' &&
+      item.sessionOutcomeReason === 'EVIDENCE_REQUIREMENTS_MET'
     return (
       item.decidedAt !== null &&
       item.decisionReason === 'SPECIALIST_ACCEPTED' &&
       item.sessionOutcome === 'COMPLETED' &&
-      sessionPolicyMatches &&
+      (sessionPolicyMatches || historicalVideoCompletion) &&
       item.sessionEndedAt !== null &&
       item.sessionSettledAt !== null &&
       item.completionFactId !== null &&
       ['CONSUMED', 'AVAILABLE'].includes(String(item.creditState))
     )
+  }
   if (item.status === 'REJECTED')
     return (
       item.decidedAt !== null &&

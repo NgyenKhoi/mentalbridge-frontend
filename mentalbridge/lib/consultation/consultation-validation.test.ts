@@ -424,6 +424,47 @@ describe('Consultation contract validation', () => {
       creditState: 'CONSUMED',
     }
     expect(parseAppointment(videoCompleted)).toEqual(videoCompleted)
+    const historicalVideoCompleted = {
+      ...videoCompleted,
+      id: '11111111-2222-4333-8444-555555555555',
+      sessionPolicyVersion: 'chat-session-completion-v1',
+      sessionOutcomeReason: 'EVIDENCE_REQUIREMENTS_MET',
+    }
+    expect(parseAppointment(historicalVideoCompleted)).toEqual(
+      historicalVideoCompleted,
+    )
+    const mixedVideoHistory = {
+      items: [videoCompleted, historicalVideoCompleted],
+      count: 2,
+      generatedAt: '2026-10-14T03:00:00Z',
+    }
+    expect(parseAppointmentList(mixedVideoHistory)).toEqual(mixedVideoHistory)
+    expect(
+      parseAppointment({
+        ...historicalVideoCompleted,
+        creditState: 'AVAILABLE',
+      }),
+    ).not.toBeNull()
+    for (const incomplete of [
+      { completionFactId: null },
+      { sessionSettledAt: null },
+      { sessionEndedAt: null },
+      { creditState: 'HELD' },
+      { sessionOutcomeReason: null },
+    ]) {
+      expect(
+        parseAppointment({ ...historicalVideoCompleted, ...incomplete }),
+      ).toBeNull()
+    }
+    expect(
+      parseAppointmentList({
+        ...mixedVideoHistory,
+        items: [
+          videoCompleted,
+          { ...historicalVideoCompleted, completionFactId: null },
+        ],
+      }),
+    ).toBeNull()
     expect(
       parseAppointment({ ...videoCompleted, creditState: 'AVAILABLE' }),
     ).not.toBeNull()
