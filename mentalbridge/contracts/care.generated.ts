@@ -1156,9 +1156,12 @@ export interface paths {
          * Propose a new native Care-admitted action plan without converting v2 history
          * @description Uses the exact owned guided screening evaluation, current paid entitlement,
          *     approved resource admission and immutable personalization revision. Saved
-         *     EMOTION_CHECK_IN activity-mode intent admits one optional native Emotion
-         *     action with a clear purpose and reviewable schedule defaults. Emotion values
-         *     never select actions. Required professional-support paths remain primary.
+         *     EMOTION_CHECK_IN and JOURNALING activity-mode intents admit one optional
+         *     action of each corresponding type under support-plan-journal-actions-v1.
+         *     Actions have bounded purposes and reviewable budget-sharing schedule
+         *     defaults. Private Journal content and Emotion values never select actions.
+         *     Previously saved Emotion-policy plans retain their original action intent.
+         *     Required professional-support paths remain primary.
          *     No existing v2 plan is converted, backfilled or mutated. An existing current
          *     plan requires the separate reassessment-backed replacement command; the
          *     draft alone never changes it. An incompatible existing draft must be
@@ -1205,7 +1208,7 @@ export interface paths {
         /**
          * Explicitly activate one native draft after fresh Care admission checks
          * @description Revalidates paid entitlement, exact screening context, policy, admitted
-         *     resource versions and snapshotted explicit Emotion intent outside local
+         *     resource versions and snapshotted explicit Journal/Emotion intent outside local
          *     locks. The owner transaction rechecks the draft version and preferences,
          *     activates the plan/actions and cadence atomically, and records retry
          *     identity in the existing command ledger. No second current plan is allowed.
@@ -1227,7 +1230,7 @@ export interface paths {
         get?: never;
         /**
          * Explicitly pause, resume, complete or discard one native plan
-         * @description Same Care-owned lifecycle rules as v2 history. No Emotion evidence changes
+         * @description Same Care-owned lifecycle rules as v2 history. No Journal/Emotion evidence changes
          *     plan lifecycle. Natural identical-state retries preserve version. Completing
          *     or pausing cancels only governed future open occurrences, preserving facts.
          *     DISCARDED is draft-only; ACTIVE resumes a PAUSED plan, not draft activation.
@@ -1254,7 +1257,7 @@ export interface paths {
          * @description Read-only review with fresh paid entitlement, current screening compatibility
          *     and exact Content admission. Requires the latest owned canonical reassessment
          *     with the same PHQ-9/GAD-7 pair as the proposed native draft. Existing current
-         *     v2 state is projected without conversion. A new explicit Emotion intent is an
+         *     v2 state is projected without conversion. A new explicit Journal/Emotion intent is an
          *     admitted alternative, not a better clinical outcome. Four reassessment
          *     dimensions remain separate; no automatic plan change occurs.
          */
@@ -1368,6 +1371,40 @@ export interface paths {
          *     Care. This command does not create actions or change plan eligibility/lifecycle.
          */
         post: operations["reconcileOwnEmotionCheckInOccurrence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/journal/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile a Journal writing action with an exact owned saved entry
+         * @description Explicit USER command. journalId selects a candidate, never asserts completion.
+         *     Care resolves the owned native JOURNAL action and occurrence, closes the
+         *     read transaction, then reads Journal/AI's content-free creation fact with
+         *     the verified owner bearer. Locked acceptance checks subject, exact entry,
+         *     action/source link, occurrence local date in its schedule timezone, and
+         *     creation at or after plan/action activation. Completion uses the server
+         *     creation instant, not the user-selected Journal date or an edit timestamp.
+         *     One entry creation fact may satisfy only one occurrence; repeats preserve
+         *     accepted evidence, completion time, version and the one minimized event.
+         *     MISSING and DELETED never create completion or erase accepted history.
+         *     Once completed, another entry cannot replace the accepted reference.
+         *     Dependency uncertainty returns 503 rather than absence or success.
+         *     No text, preview, tags, mood, AI reflection or analysis enters Care.
+         *     This does not grant AI-processing, specialist sharing or reflection reuse,
+         *     change plan lifecycle, or describe writing as recovery/treatment adherence.
+         */
+        post: operations["reconcileOwnJournalOccurrence"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2909,6 +2946,31 @@ export interface components {
             completionEvidence: null | (components["schemas"]["CompletionEvidence"] & {
                 /** @constant */
                 kind?: "EMOTION_CHECK_IN";
+                /** @constant */
+                ownerDomain?: "JOURNAL_AI";
+            });
+        } & (unknown & unknown);
+        JournalOccurrenceReconciliation: {
+            /** @constant */
+            schemaVersion: "journal-entry-occurrence-reconciliation-v1";
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: uuid */
+            actionId: string;
+            /** Format: date */
+            localDate: string;
+            /** Format: uuid */
+            journalId: string;
+            /** @enum {string} */
+            sourceState: "RECORDED" | "MISSING" | "DELETED";
+            /** @enum {string} */
+            occurrenceState: "SCHEDULED" | "COMPLETED";
+            version: number;
+            /** Format: date-time */
+            completedAt: string | null;
+            completionEvidence: null | (components["schemas"]["CompletionEvidence"] & {
+                /** @constant */
+                kind?: "JOURNAL_ENTRY";
                 /** @constant */
                 ownerDomain?: "JOURNAL_AI";
             });
@@ -5609,6 +5671,61 @@ export interface operations {
                 };
             };
             /** @description Emotion evidence owner unavailable or its projection invalid; no completion is recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reconcileOwnJournalOccurrence: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    journalId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Current Journal source state and persisted occurrence outcome */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalOccurrenceReconciliation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Unsupported/inactive action, non-open/future occurrence, writing date/activation mismatch, stale link or conflicting/used evidence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Journal evidence owner unavailable or invalid; no completion recorded */
             503: {
                 headers: {
                     [name: string]: unknown;
