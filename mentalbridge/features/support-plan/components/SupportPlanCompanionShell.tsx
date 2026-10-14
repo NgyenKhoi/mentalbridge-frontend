@@ -31,19 +31,59 @@ import './support-plan-companion.css'
 const MOTION_STORAGE_KEY = 'mentalbridge_support_plan_companion_motion'
 const MUTED_STORAGE_KEY = 'mentalbridge_support_plan_companion_muted'
 const PREFERENCE_EVENT = 'mentalbridge:companion-preference'
+const memoryPreferences = new Map<string, string>()
+const volatilePreferences = new Set<string>()
 
 function subscribePreferences(onChange: () => void) {
-  window.addEventListener('storage', onChange)
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null) {
+      volatilePreferences.clear()
+    } else {
+      volatilePreferences.delete(event.key)
+    }
+    onChange()
+  }
+
+  window.addEventListener('storage', onStorage)
   window.addEventListener(PREFERENCE_EVENT, onChange)
 
   return () => {
-    window.removeEventListener('storage', onChange)
+    window.removeEventListener('storage', onStorage)
     window.removeEventListener(PREFERENCE_EVENT, onChange)
   }
 }
 
+function readPreference(key: string) {
+  if (volatilePreferences.has(key)) {
+    return memoryPreferences.get(key) ?? null
+  }
+  try {
+    const value = window.localStorage.getItem(key)
+    if (value === null) {
+      memoryPreferences.delete(key)
+    } else {
+      memoryPreferences.set(key, value)
+    }
+    return value
+  } catch {
+    return memoryPreferences.get(key) ?? null
+  }
+}
+
 function storedPreference(key: string, expected: string) {
-  return window.localStorage.getItem(key) === expected
+  return readPreference(key) === expected
+}
+
+function writePreference(key: string, value: string) {
+  memoryPreferences.set(key, value)
+  try {
+    window.localStorage.setItem(key, value)
+    volatilePreferences.delete(key)
+  } catch {
+    volatilePreferences.add(key)
+    // Restricted storage keeps the preference for the current page lifetime.
+  }
+  window.dispatchEvent(new Event(PREFERENCE_EVENT))
 }
 
 export type SupportPlanCompanionCharacterProps = Readonly<{
@@ -139,16 +179,11 @@ export default function SupportPlanCompanionShell({
   const copy = companionStateCopy[state]
 
   const toggleMuted = () => {
-    window.localStorage.setItem(MUTED_STORAGE_KEY, String(!muted))
-    window.dispatchEvent(new Event(PREFERENCE_EVENT))
+    writePreference(MUTED_STORAGE_KEY, String(!muted))
   }
 
   const toggleMotion = () => {
-    window.localStorage.setItem(
-      MOTION_STORAGE_KEY,
-      userReducedMotion ? 'full' : 'reduced',
-    )
-    window.dispatchEvent(new Event(PREFERENCE_EVENT))
+    writePreference(MOTION_STORAGE_KEY, userReducedMotion ? 'full' : 'reduced')
   }
 
   return (

@@ -29,8 +29,10 @@ The desktop shell is an in-flow right dock. At narrower widths it becomes an
 in-flow tray below the tabs, so it does not cover plan actions or sensitive
 inputs. Expand/collapse, mute, and motion controls are keyboard accessible and
 at least 44 by 44 pixels. Mute and explicit reduced-motion preferences persist
-locally as presentation settings. System `prefers-reduced-motion` takes
-precedence, removes repeated movement, and keeps the same visible state text.
+locally as presentation settings. If the browser denies the `localStorage`
+getter, read, or write, the shell keeps a page-lifetime in-memory preference
+and remains interactive. System `prefers-reduced-motion` takes precedence,
+removes repeated movement, and keeps the same visible state text.
 
 The default character is an inline decorative SVG/CSS mark. A renderer adapter
 allows a later approved animation runtime. A local error boundary replaces a
@@ -54,16 +56,38 @@ The Stitch source is `../../.stitch/mb-648`. Final Stitch screens are
 font, diacritic, 44px target, overflow, collapse, and reduced-motion browser
 checks through `node .stitch/mb-648/prototype-qa.mjs`.
 
-The Companion performance budget is at most 150 KB of additional animation
-assets and no network request during a visual-state transition. Measured result:
-0 bytes of animation assets because the implementation uses existing Lucide
-icons and CSS, and the state reducer performs no I/O. Reduced-motion mode has no
-character animation or transition. The production build and focused Playwright
-journey provide the runtime check.
+The Companion adds 0 bytes of animation assets and performs no network request
+during a visual-state transition. It uses existing Lucide icons and CSS, and
+the state reducer performs no I/O. Reduced-motion mode has no character
+animation or transition.
+
+`mb-648-companion-performance.json` records the reproducible Chromium
+fixture-browser measurement from the production standalone route. The mobile
+profile uses a 375 x 667 viewport, 4x CPU throttle, 150 ms network latency,
+1,600 Kbps download, and 750 Kbps upload. Desktop uses 1280 x 900 with no CPU
+or network throttle. Initial load is measured through the primary heading,
+transition time through destination content, and CPU from Chromium
+`Performance.getMetrics`. Request-animation-frame pacing is the portable
+compositor/GPU-facing measure: p95 frame interval and intervals over 34 ms.
+
+| Profile | Initial load (budget) | Tab transition (budget) | Idle normal CPU / p95 / drops | Idle reduced CPU / p95 / drops |
+| --- | ---: | ---: | ---: | ---: |
+| Mobile throttled | 5,173.537 ms (10,000 ms) | 89.931 ms (1,500 ms) | 313.784 ms / 16.7 ms / 0 (450 ms / 80 ms / 12) | 79.716 ms / 16.7 ms / 0 (450 ms / 80 ms / 12) |
+| Desktop | 261.290 ms (5,000 ms) | 443.609 ms (750 ms) | 65.978 ms / 16.7 ms / 0 (250 ms / 50 ms / 8) | 19.360 ms / 16.7 ms / 0 (250 ms / 50 ms / 8) |
+
+Reproduce and overwrite the evidence artifact with:
+
+```powershell
+$env:MB648_WRITE_PERFORMANCE_EVIDENCE="true"
+node scripts/run-e2e.mjs tests/e2e/support-plan.spec.ts --workers=1 --reporter=line
+```
+
+The Playwright assertions enforce the same budgets on every execution. The
+idle window is 1,200 ms for each normal and reduced-motion sample.
 
 ## Verification
 
-- `npx vitest run features/support-plan/components/SupportPlanCompanionShell.test.tsx features/support-plan/components/SupportPlanJourney.test.tsx lib/animations/use-reduced-motion.test.tsx --reporter=dot`: 39 tests.
+- `npx vitest run features/support-plan/components/SupportPlanCompanionShell.test.tsx features/support-plan/components/SupportPlanJourney.test.tsx lib/animations/use-reduced-motion.test.tsx --reporter=dot`: 44 tests, including storage-denial regressions for the getter, `getItem`, and `setItem` plus authoritative plan-control isolation.
 - `node scripts/run-e2e.mjs tests/e2e/support-plan.spec.ts --workers=1 --reporter=line`: SupportPlan fixture-browser journeys and controlled screenshots.
 - `npm run quality`: 231 test files and 1,258 tests, plus formatting,
   lint, generated route types, TypeScript, contract checks, and production

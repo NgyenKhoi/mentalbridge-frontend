@@ -105,6 +105,108 @@ describe('SupportPlanCompanionShell', () => {
     expect(screen.queryByRole('textbox')).toBeNull()
   })
 
+  it.each([
+    [
+      'localStorage getter',
+      () => {
+        const originalStorage = window.localStorage
+        const descriptor = Object.getOwnPropertyDescriptor(
+          window,
+          'localStorage',
+        )
+        Object.defineProperty(window, 'localStorage', {
+          configurable: true,
+          get: () => {
+            throw new DOMException('Storage denied', 'SecurityError')
+          },
+        })
+        return () => {
+          if (descriptor) {
+            Object.defineProperty(window, 'localStorage', descriptor)
+          } else {
+            Object.defineProperty(window, 'localStorage', {
+              configurable: true,
+              value: originalStorage,
+            })
+          }
+        }
+      },
+    ],
+    [
+      'localStorage.getItem',
+      () => {
+        const spy = vi
+          .spyOn(Storage.prototype, 'getItem')
+          .mockImplementation(() => {
+            throw new DOMException('Storage denied', 'SecurityError')
+          })
+        return () => spy.mockRestore()
+      },
+    ],
+    [
+      'localStorage.setItem',
+      () => {
+        const spy = vi
+          .spyOn(Storage.prototype, 'setItem')
+          .mockImplementation(() => {
+            throw new DOMException('Storage denied', 'SecurityError')
+          })
+        return () => spy.mockRestore()
+      },
+    ],
+  ] satisfies ReadonlyArray<[string, () => () => void]>)(
+    'keeps presentation preferences and plan controls usable when %s throws',
+    (_denial, installDenial) => {
+      const restore = installDenial()
+      const planAction = vi.fn()
+      let mute: HTMLElement | undefined
+      let motion: HTMLElement | undefined
+
+      try {
+        render(
+          <>
+            <SupportPlanCompanionShell state="idle" surface="plan" />
+            <button type="button" onClick={planAction}>
+              Lưu kế hoạch
+            </button>
+          </>,
+        )
+
+        expect(
+          screen.getByRole('complementary', {
+            name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+          }),
+        ).toBeVisible()
+        mute = screen.getByRole('button', { name: /lời nhắc/ })
+        motion = screen.getByRole('button', { name: /chuyển động/ })
+        const mutedBefore = mute.getAttribute('aria-pressed')
+        const motionBefore = motion.getAttribute('aria-pressed')
+
+        fireEvent.click(mute)
+        fireEvent.click(motion)
+        fireEvent.click(screen.getByRole('button', { name: 'Lưu kế hoạch' }))
+
+        expect(mute).toHaveAttribute(
+          'aria-pressed',
+          mutedBefore === 'true' ? 'false' : 'true',
+        )
+        expect(motion).toHaveAttribute(
+          'aria-pressed',
+          motionBefore === 'true' ? 'false' : 'true',
+        )
+        expect(planAction).toHaveBeenCalledOnce()
+        expect(screen.queryByRole('textbox')).toBeNull()
+      } finally {
+        restore()
+        if (mute && motion) {
+          // A successful write clears the page-lifetime fallback between cases.
+          fireEvent.click(mute)
+          fireEvent.click(motion)
+        }
+      }
+    },
+  )
+
   it('keeps a static pose when the device requests reduced motion', () => {
     installMotionPreference(true)
     render(<SupportPlanCompanionShell state="greeting" surface="today" />)
