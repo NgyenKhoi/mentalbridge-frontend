@@ -5,13 +5,16 @@ import { useSyncExternalStore } from 'react'
 const QUERY = '(prefers-reduced-motion: reduce)'
 
 function subscribe(onChange: () => void) {
+  if (typeof window.matchMedia !== 'function') return () => undefined
   const preference = window.matchMedia(QUERY)
   preference.addEventListener('change', onChange)
   return () => preference.removeEventListener('change', onChange)
 }
 
 function snapshot() {
-  return window.matchMedia(QUERY).matches
+  return typeof window.matchMedia === 'function'
+    ? window.matchMedia(QUERY).matches
+    : true
 }
 
 // Motion's current hook snapshots only at mount. Subscribe so a preference

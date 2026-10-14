@@ -36,6 +36,7 @@ import type {
   UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
+import SupportPlanCompanionShell from './SupportPlanCompanionShell'
 import SupportPlanFooter from './SupportPlanFooter'
 import SupportPlanHistory from './SupportPlanHistory'
 import SupportPlanIcon from './SupportPlanIcon'
@@ -43,6 +44,10 @@ import SupportPlanPersonalization, {
   type SupportPlanReviewReasonCode,
 } from './SupportPlanPersonalization'
 import SupportPlanReplacementReviewView from './SupportPlanReplacementReview'
+import {
+  transitionSupportPlanCompanion,
+  type SupportPlanCompanionEvent,
+} from './support-plan-companion-state'
 
 import './support-plan.css'
 
@@ -256,6 +261,8 @@ export default function SupportPlanJourney({
   const [commandMessage, setCommandMessage] = useState('')
   const [recoveryVersion, setRecoveryVersion] = useState(0)
   const [activeTab, setActiveTab] = useState<JourneyTab>('today')
+  const [companionEvent, setCompanionEvent] =
+    useState<SupportPlanCompanionEvent>('SURFACE_ENTERED')
   const [cardDirty, setCardDirty] = useState(false)
   const [replacementDirty, setReplacementDirty] = useState(false)
   const [personalizationDirty, setPersonalizationDirty] = useState(false)
@@ -272,11 +279,24 @@ export default function SupportPlanJourney({
   const activationKey = useRef<string | undefined>(undefined)
   const replacementKey = useRef<string | undefined>(undefined)
   const replacementDraftReviewRef = useRef<HTMLDivElement>(null)
+  const previousCompanionSurface = useRef<JourneyTab>('today')
+  const preserveCompanionEventAcrossSurface = useRef(false)
   const dirty = cardDirty || replacementDirty || personalizationDirty
   useEffect(() => {
     onDirtyChange?.(dirty)
   }, [dirty, onDirtyChange])
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
+  useEffect(() => {
+    if (previousCompanionSurface.current === activeTab) return
+    previousCompanionSurface.current = activeTab
+    if (preserveCompanionEventAcrossSurface.current) {
+      preserveCompanionEventAcrossSurface.current = false
+      return
+    }
+    setCompanionEvent(
+      activeTab === 'adjust' ? 'SENSITIVE_CONTEXT_ENTERED' : 'CONTENT_READY',
+    )
+  }, [activeTab])
 
   const loadReplacementReview = useCallback(
     async (current: SupportPlan, draft: SupportPlan) => {
@@ -679,7 +699,13 @@ export default function SupportPlanJourney({
         completionReason,
       )
       await Promise.all([load(), loadHistory()])
-      if (status === 'COMPLETED' || status === 'DISCARDED') {
+      if (status === 'COMPLETED') {
+        if (activeTab !== 'progress') {
+          preserveCompanionEventAcrossSurface.current = true
+        }
+        setActiveTab('progress')
+        setCompanionEvent('EXPLICIT_COMPLETION_ACKNOWLEDGED')
+      } else if (status === 'DISCARDED') {
         setActiveTab('progress')
       }
       const statusMessage = {
@@ -785,6 +811,7 @@ export default function SupportPlanJourney({
             tab.id === 'plan' || (tab.id === 'progress' && history.length > 0),
         )
       : journeyTabs
+  const companionState = transitionSupportPlanCompanion('idle', companionEvent)
 
   const handleTabKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,
@@ -873,264 +900,282 @@ export default function SupportPlanJourney({
         )}
       </header>
 
-      {loading && (
-        <div className="support-plan-state support-plan-loading" role="status">
-          <span className="sr-only">Đang tải kế hoạch hỗ trợ hiện tại…</span>
-          <Skeleton width="28%" height={14} />
-          <Skeleton width="70%" height={42} />
-          <Skeleton width="92%" height={18} />
-          <Skeleton width="100%" height={154} />
-        </div>
-      )}
+      <div className="mb-support-companion-layout">
+        <SupportPlanCompanionShell state={companionState} surface={activeTab} />
 
-      {!loading && (plan || activeTab === 'progress') && (
-        <>
-          {plan && activeTab === 'adjust' && (
-            <SupportPlanPersonalization
-              onReviewPlan={reviewPersonalizedPlan}
-              onDirtyChange={setPersonalizationDirty}
-            />
-          )}
-          {plan && activeTab !== 'progress' && (
-            <SupportPlanCard
-              key={`${plan.supportPlanId}:${recoveryVersion}`}
-              plan={plan}
-              busy={busy}
-              message={commandMessage}
-              onSaveChoices={saveChoices}
-              onActivate={activate}
-              onStatusChange={changeStatus}
-              onSaveSchedule={(actionId, request, idempotencyKey) =>
-                saveSchedule(plan, actionId, request, idempotencyKey)
-              }
-              onReloadSchedule={() => reloadSchedule(plan)}
-              onDirtyChange={setCardDirty}
-              activeTab={cardTab}
-              focusProjection={
-                focusProjections[plan.supportPlanId]?.version === plan.version
-                  ? focusProjections[plan.supportPlanId]?.value
-                  : undefined
-              }
-              focusProjectionLoading={
-                focusProjections[plan.supportPlanId]?.version !== plan.version
-              }
-              focusProjectionUnavailable={
-                focusProjections[plan.supportPlanId]?.version ===
-                  plan.version &&
-                focusProjections[plan.supportPlanId]?.status === 'unavailable'
-              }
-            />
-          )}
-
-          {activeTab === 'progress' && (
-            <section
-              id="panel-progress"
-              role="tabpanel"
-              aria-labelledby="tab-progress"
-              className="mb-support-progress"
+        <div className="mb-support-companion-content">
+          {loading && (
+            <div
+              className="support-plan-state support-plan-loading"
+              role="status"
             >
-              <div className="mb-support-progress-intro">
-                <p className="mb-support-workspace-eyebrow">
-                  Nhìn lại nhẹ nhàng
-                </p>
-                <h2>Điều gì đã phù hợp với bạn?</h2>
-                <p>
-                  Đây là các ghi nhận để bạn hiểu nhịp của mình, không phải điểm
-                  số hay đánh giá mức độ cố gắng.
-                </p>
-              </div>
-              {message && (
-                <p className="support-plan-notice" role="status">
-                  {message}
-                </p>
-              )}
-              {weeklyStats && weeklyStats.total > 0 ? (
-                <div className="mb-support-progress-facts">
-                  <p>
-                    Bạn đã ghi nhận <strong>{weeklyStats.completed}</strong>{' '}
-                    hoạt động là đã làm trong tuần này.
-                  </p>
-                  <p>
-                    <strong>{weeklyStats.remaining}</strong> hoạt động vẫn đang
-                    mở; bạn có thể làm, dời hoặc bỏ qua tùy nhịp hôm nay.
-                  </p>
-                </div>
-              ) : (
-                <p className="mb-support-progress-empty">
-                  Chưa có ghi nhận nào trong tuần này. Bạn có thể quay lại sau
-                  khi thực hiện hoặc bỏ qua một hoạt động.
-                </p>
-              )}
-              <SupportPlanHistory
-                items={history}
-                loading={historyLoading}
-                loadingMore={historyLoadingMore}
-                hasMore={historyHasMore}
-                message={historyMessage}
-                onRetry={() => void loadHistory()}
-                onLoadMore={() => void loadHistory(historyCursor)}
-              />
-            </section>
+              <span className="sr-only">
+                Đang tải kế hoạch hỗ trợ hiện tại…
+              </span>
+              <Skeleton width="28%" height={14} />
+              <Skeleton width="70%" height={42} />
+              <Skeleton width="92%" height={18} />
+              <Skeleton width="100%" height={154} />
+            </div>
           )}
 
-          {activeTab === 'adjust' && currentPlan && !replacementDraft && (
-            <section className="support-plan-reassessment-callout">
-              <div>
-                <span>Sau đánh giá lại</span>
-                <h2>Xem một phương án kế hoạch mới</h2>
-                <p>
-                  Kế hoạch hiện tại vẫn hoạt động trong khi hệ thống kiểm tra và
-                  so sánh phương án mới.
-                </p>
-              </div>
-              <button
-                className="btn btn-outline"
-                type="button"
-                disabled={creating}
-                onClick={() => void create()}
-              >
-                {creating ? 'Đang tạo phương án…' : 'Tạo phương án để xem lại'}
-              </button>
-              {message && <p role="status">{message}</p>}
-            </section>
-          )}
-          {activeTab === 'adjust' && currentPlan && replacementDraft && (
+          {!loading && (plan || activeTab === 'progress') && (
             <>
-              <div ref={replacementDraftReviewRef}>
+              {plan && activeTab === 'adjust' && (
+                <SupportPlanPersonalization
+                  onReviewPlan={reviewPersonalizedPlan}
+                  onDirtyChange={setPersonalizationDirty}
+                />
+              )}
+              {plan && activeTab !== 'progress' && (
                 <SupportPlanCard
-                  key={`${replacementDraft.supportPlanId}:${recoveryVersion}`}
-                  plan={replacementDraft}
+                  key={`${plan.supportPlanId}:${recoveryVersion}`}
+                  plan={plan}
                   busy={busy}
                   message={commandMessage}
                   onSaveChoices={saveChoices}
                   onActivate={activate}
-                  onStatusChange={changeReplacementDraftStatus}
+                  onStatusChange={changeStatus}
                   onSaveSchedule={(actionId, request, idempotencyKey) =>
-                    saveSchedule(
-                      replacementDraft,
-                      actionId,
-                      request,
-                      idempotencyKey,
-                    )
+                    saveSchedule(plan, actionId, request, idempotencyKey)
                   }
-                  onReloadSchedule={() => reloadSchedule(replacementDraft)}
-                  onDirtyChange={setReplacementDirty}
-                  draftAction="REPLACEMENT"
-                  activeTab="plan"
-                  embedded
+                  onReloadSchedule={() => reloadSchedule(plan)}
+                  onDirtyChange={setCardDirty}
+                  activeTab={cardTab}
                   focusProjection={
-                    focusProjections[replacementDraft.supportPlanId]
-                      ?.version === replacementDraft.version
-                      ? focusProjections[replacementDraft.supportPlanId]?.value
+                    focusProjections[plan.supportPlanId]?.version ===
+                    plan.version
+                      ? focusProjections[plan.supportPlanId]?.value
                       : undefined
                   }
                   focusProjectionLoading={
-                    focusProjections[replacementDraft.supportPlanId]
-                      ?.version !== replacementDraft.version
+                    focusProjections[plan.supportPlanId]?.version !==
+                    plan.version
                   }
                   focusProjectionUnavailable={
-                    focusProjections[replacementDraft.supportPlanId]
-                      ?.version === replacementDraft.version &&
-                    focusProjections[replacementDraft.supportPlanId]?.status ===
+                    focusProjections[plan.supportPlanId]?.version ===
+                      plan.version &&
+                    focusProjections[plan.supportPlanId]?.status ===
                       'unavailable'
                   }
                 />
-              </div>
-              {replacementLoading && !replacementReview && (
-                <div className="support-plan-state" role="status">
-                  Đang kiểm tra lại hai kế hoạch…
-                </div>
               )}
-              {replacementReview && (
-                <SupportPlanReplacementReviewView
-                  review={replacementReview}
-                  busy={replacementLoading}
-                  message={replacementMessage}
-                  onConfirm={() => void confirmReplacement()}
-                />
+
+              {activeTab === 'progress' && (
+                <section
+                  id="panel-progress"
+                  role="tabpanel"
+                  aria-labelledby="tab-progress"
+                  className="mb-support-progress"
+                >
+                  <div className="mb-support-progress-intro">
+                    <p className="mb-support-workspace-eyebrow">
+                      Nhìn lại nhẹ nhàng
+                    </p>
+                    <h2>Điều gì đã phù hợp với bạn?</h2>
+                    <p>
+                      Đây là các ghi nhận để bạn hiểu nhịp của mình, không phải
+                      điểm số hay đánh giá mức độ cố gắng.
+                    </p>
+                  </div>
+                  {message && (
+                    <p className="support-plan-notice" role="status">
+                      {message}
+                    </p>
+                  )}
+                  {weeklyStats && weeklyStats.total > 0 ? (
+                    <div className="mb-support-progress-facts">
+                      <p>
+                        Bạn đã ghi nhận <strong>{weeklyStats.completed}</strong>{' '}
+                        hoạt động là đã làm trong tuần này.
+                      </p>
+                      <p>
+                        <strong>{weeklyStats.remaining}</strong> hoạt động vẫn
+                        đang mở; bạn có thể làm, dời hoặc bỏ qua tùy nhịp hôm
+                        nay.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mb-support-progress-empty">
+                      Chưa có ghi nhận nào trong tuần này. Bạn có thể quay lại
+                      sau khi thực hiện hoặc bỏ qua một hoạt động.
+                    </p>
+                  )}
+                  <SupportPlanHistory
+                    items={history}
+                    loading={historyLoading}
+                    loadingMore={historyLoadingMore}
+                    hasMore={historyHasMore}
+                    message={historyMessage}
+                    onRetry={() => void loadHistory()}
+                    onLoadMore={() => void loadHistory(historyCursor)}
+                  />
+                </section>
               )}
-              {!replacementLoading &&
-                !replacementReview &&
-                replacementMessage && (
-                  <section
-                    className="support-plan-replacement-error"
-                    role="alert"
+
+              {activeTab === 'adjust' && currentPlan && !replacementDraft && (
+                <section className="support-plan-reassessment-callout">
+                  <div>
+                    <span>Sau đánh giá lại</span>
+                    <h2>Xem một phương án kế hoạch mới</h2>
+                    <p>
+                      Kế hoạch hiện tại vẫn hoạt động trong khi hệ thống kiểm
+                      tra và so sánh phương án mới.
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    disabled={creating}
+                    onClick={() => void create()}
                   >
-                    <p>{replacementMessage}</p>
-                    <Link className="btn btn-outline" href="/assessments">
-                      Hoàn tất đánh giá lại
-                    </Link>
-                  </section>
-                )}
+                    {creating
+                      ? 'Đang tạo phương án…'
+                      : 'Tạo phương án để xem lại'}
+                  </button>
+                  {message && <p role="status">{message}</p>}
+                </section>
+              )}
+              {activeTab === 'adjust' && currentPlan && replacementDraft && (
+                <>
+                  <div ref={replacementDraftReviewRef}>
+                    <SupportPlanCard
+                      key={`${replacementDraft.supportPlanId}:${recoveryVersion}`}
+                      plan={replacementDraft}
+                      busy={busy}
+                      message={commandMessage}
+                      onSaveChoices={saveChoices}
+                      onActivate={activate}
+                      onStatusChange={changeReplacementDraftStatus}
+                      onSaveSchedule={(actionId, request, idempotencyKey) =>
+                        saveSchedule(
+                          replacementDraft,
+                          actionId,
+                          request,
+                          idempotencyKey,
+                        )
+                      }
+                      onReloadSchedule={() => reloadSchedule(replacementDraft)}
+                      onDirtyChange={setReplacementDirty}
+                      draftAction="REPLACEMENT"
+                      activeTab="plan"
+                      embedded
+                      focusProjection={
+                        focusProjections[replacementDraft.supportPlanId]
+                          ?.version === replacementDraft.version
+                          ? focusProjections[replacementDraft.supportPlanId]
+                              ?.value
+                          : undefined
+                      }
+                      focusProjectionLoading={
+                        focusProjections[replacementDraft.supportPlanId]
+                          ?.version !== replacementDraft.version
+                      }
+                      focusProjectionUnavailable={
+                        focusProjections[replacementDraft.supportPlanId]
+                          ?.version === replacementDraft.version &&
+                        focusProjections[replacementDraft.supportPlanId]
+                          ?.status === 'unavailable'
+                      }
+                    />
+                  </div>
+                  {replacementLoading && !replacementReview && (
+                    <div className="support-plan-state" role="status">
+                      Đang kiểm tra lại hai kế hoạch…
+                    </div>
+                  )}
+                  {replacementReview && (
+                    <SupportPlanReplacementReviewView
+                      review={replacementReview}
+                      busy={replacementLoading}
+                      message={replacementMessage}
+                      onConfirm={() => void confirmReplacement()}
+                    />
+                  )}
+                  {!replacementLoading &&
+                    !replacementReview &&
+                    replacementMessage && (
+                      <section
+                        className="support-plan-replacement-error"
+                        role="alert"
+                      >
+                        <p>{replacementMessage}</p>
+                        <Link className="btn btn-outline" href="/assessments">
+                          Hoàn tất đánh giá lại
+                        </Link>
+                      </section>
+                    )}
+                </>
+              )}
             </>
           )}
-        </>
-      )}
 
-      {!loading && !plan && activeTab === 'plan' && (
-        <div
-          id="panel-plan"
-          role="tabpanel"
-          aria-labelledby="tab-plan"
-          className="support-plan-tab-pane is-active"
-        >
-          <SupportPlanPersonalization
-            onReviewPlan={reviewPersonalizedPlan}
-            onDirtyChange={setPersonalizationDirty}
-          />
-          <section
-            className={`support-plan-state ${message ? 'notice' : ''}`}
-            aria-live="polite"
-          >
-            <div className="support-plan-state-mark" aria-hidden="true">
-              <EmptyStateIcon reason={reason} />
+          {!loading && !plan && activeTab === 'plan' && (
+            <div
+              id="panel-plan"
+              role="tabpanel"
+              aria-labelledby="tab-plan"
+              className="support-plan-tab-pane is-active"
+            >
+              <SupportPlanPersonalization
+                onReviewPlan={reviewPersonalizedPlan}
+                onDirtyChange={setPersonalizationDirty}
+              />
+              <section
+                className={`support-plan-state ${message ? 'notice' : ''}`}
+                aria-live="polite"
+              >
+                <div className="support-plan-state-mark" aria-hidden="true">
+                  <EmptyStateIcon reason={reason} />
+                </div>
+                <h2>
+                  {reason === 'FREE'
+                    ? 'Kế hoạch hỗ trợ chưa thuộc gói hiện tại'
+                    : reason === 'STALE'
+                      ? 'Cần hoàn tất bài sàng lọc'
+                      : reason === 'DEPENDENCY'
+                        ? 'Chưa thể tạo kế hoạch'
+                        : 'Chưa có kế hoạch hỗ trợ'}
+                </h2>
+                <p>
+                  {message ||
+                    'Nếu bạn đang dùng Plus hoặc Premium, MentalBridge có thể tạo kế hoạch từ kết quả kiểm tra ban đầu gần nhất.'}
+                </p>
+                <div className="support-plan-state-actions">
+                  {reason === 'FREE' ? (
+                    <Link className="btn btn-primary" href="/support-guides">
+                      Xem gợi ý hỗ trợ
+                    </Link>
+                  ) : reason === 'STALE' ? (
+                    <Link className="btn btn-primary" href="/assessments">
+                      Xem các bài sàng lọc
+                    </Link>
+                  ) : (
+                    <button
+                      className="btn btn-primary"
+                      type="button"
+                      disabled={creating}
+                      onClick={() => void create()}
+                    >
+                      {creating ? 'Đang tạo kế hoạch…' : 'Tạo kế hoạch hỗ trợ'}
+                    </button>
+                  )}
+                  {reason === 'DEPENDENCY' && (
+                    <button
+                      className="btn btn-ghost"
+                      type="button"
+                      disabled={creating}
+                      onClick={() => void load()}
+                    >
+                      Tải lại
+                    </button>
+                  )}
+                </div>
+              </section>
             </div>
-            <h2>
-              {reason === 'FREE'
-                ? 'Kế hoạch hỗ trợ chưa thuộc gói hiện tại'
-                : reason === 'STALE'
-                  ? 'Cần hoàn tất bài sàng lọc'
-                  : reason === 'DEPENDENCY'
-                    ? 'Chưa thể tạo kế hoạch'
-                    : 'Chưa có kế hoạch hỗ trợ'}
-            </h2>
-            <p>
-              {message ||
-                'Nếu bạn đang dùng Plus hoặc Premium, MentalBridge có thể tạo kế hoạch từ kết quả kiểm tra ban đầu gần nhất.'}
-            </p>
-            <div className="support-plan-state-actions">
-              {reason === 'FREE' ? (
-                <Link className="btn btn-primary" href="/support-guides">
-                  Xem gợi ý hỗ trợ
-                </Link>
-              ) : reason === 'STALE' ? (
-                <Link className="btn btn-primary" href="/assessments">
-                  Xem các bài sàng lọc
-                </Link>
-              ) : (
-                <button
-                  className="btn btn-primary"
-                  type="button"
-                  disabled={creating}
-                  onClick={() => void create()}
-                >
-                  {creating ? 'Đang tạo kế hoạch…' : 'Tạo kế hoạch hỗ trợ'}
-                </button>
-              )}
-              {reason === 'DEPENDENCY' && (
-                <button
-                  className="btn btn-ghost"
-                  type="button"
-                  disabled={creating}
-                  onClick={() => void load()}
-                >
-                  Tải lại
-                </button>
-              )}
-            </div>
-          </section>
+          )}
         </div>
-      )}
+      </div>
 
       <SupportPlanFooter updatedAt={plan?.updatedAt} />
     </div>

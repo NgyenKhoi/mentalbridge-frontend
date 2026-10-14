@@ -239,6 +239,47 @@ describe('SupportPlanJourney', () => {
     expect(api.getCurrentSupportPlanDraft).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps generic loading neutral instead of pretending to wait for a user choice', async () => {
+    api.getCurrentSupportPlan.mockImplementationOnce(
+      () => new Promise(() => undefined),
+    )
+    api.getCurrentSupportPlanDraft.mockImplementationOnce(
+      () => new Promise(() => undefined),
+    )
+
+    render(<SupportPlanJourney />)
+
+    await waitFor(() =>
+      expect(api.getCurrentSupportPlan).toHaveBeenCalledOnce(),
+    )
+    expect(
+      screen.getByText('Đang tải kế hoạch hỗ trợ hiện tại…'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Chờ bạn quyết định')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/xác nhận khi đã sẵn sàng/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('uses greeting only for route entry and keeps Progress neutral without an approved next step', async () => {
+    api.getCurrentSupportPlan.mockResolvedValue(activePlan())
+
+    render(<SupportPlanJourney />)
+
+    expect(screen.getAllByText('Chào bạn').length).toBeGreaterThan(0)
+    const progressTab = await screen.findByRole('tab', { name: 'Tiến triển' })
+    fireEvent.click(progressTab)
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Nghỉ nhẹ').length).toBeGreaterThan(0),
+    )
+    expect(screen.queryByText('Khích lệ nhẹ')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Hôm nay' }))
+    expect(screen.queryByText('Chào bạn')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Nghỉ nhẹ').length).toBeGreaterThan(0)
+  })
+
   it('exposes the four journey tabs and supports roving keyboard navigation', async () => {
     api.getCurrentSupportPlan.mockResolvedValue(activePlan())
 
@@ -259,6 +300,7 @@ describe('SupportPlanJourney', () => {
     fireEvent.keyDown(planTab, { key: 'End' })
     await waitFor(() => expect(adjustTab).toHaveFocus())
     expect(adjustTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getAllByText('Xem lại nhẹ nhàng').length).toBeGreaterThan(0)
 
     fireEvent.keyDown(adjustTab, { key: 'Home' })
     await waitFor(() => expect(todayTab).toHaveFocus())
@@ -856,6 +898,9 @@ describe('SupportPlanJourney', () => {
       ),
     )
     expect(await screen.findByText('Đã kết thúc')).toBeVisible()
+    expect(
+      screen.getByText('Hoạt động đã được ghi nhận hoàn thành.'),
+    ).toBeVisible()
     expect(api.getCurrentSupportPlan).toHaveBeenCalledTimes(2)
     expect(api.getSupportPlanHistory).toHaveBeenCalledTimes(2)
   })
@@ -896,6 +941,9 @@ describe('SupportPlanJourney', () => {
     )
 
     expect(await screen.findByText('Đã kết thúc')).toBeVisible()
+    expect(
+      screen.queryByText('Hoạt động đã được ghi nhận hoàn thành.'),
+    ).not.toBeInTheDocument()
     expect(screen.getByText(/Kế hoạch đã thay đổi ở nơi khác/)).toBeVisible()
     expect(
       screen.queryByRole('button', { name: 'Kết thúc kế hoạch' }),

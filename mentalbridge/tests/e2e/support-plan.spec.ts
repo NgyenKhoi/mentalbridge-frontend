@@ -1,9 +1,90 @@
-import { expect, type Page } from '@playwright/test'
+import { writeFile } from 'node:fs/promises'
+import { expect, type CDPSession, type Page } from '@playwright/test'
 import type { SupportPlanV3 } from '@/features/support-plan/api/support-plan-contract'
 
 import { test } from './test-fixtures'
 
 const accessCookie = 'mentalbridge_access'
+
+type CompanionIdleSample = Readonly<{
+  windowMs: number
+  taskDurationMs: number
+  scriptDurationMs: number
+  layoutDurationMs: number
+  recalcStyleDurationMs: number
+  frames: number
+  p95FrameIntervalMs: number
+  worstFrameIntervalMs: number
+  droppedFrameIntervals: number
+}>
+
+async function performanceMetrics(session: CDPSession) {
+  const result = await session.send('Performance.getMetrics')
+  return new Map(
+    result.metrics.map((metric) => [metric.name, metric.value] as const),
+  )
+}
+
+async function measureCompanionIdle(
+  page: Page,
+  session: CDPSession,
+  windowMs = 1_200,
+): Promise<CompanionIdleSample> {
+  const before = await performanceMetrics(session)
+  const framePacing = await page.evaluate(async (duration) => {
+    const intervals: number[] = []
+    const startedAt = performance.now()
+    let previous = startedAt
+
+    await new Promise<void>((resolve) => {
+      const sample = (now: number) => {
+        intervals.push(now - previous)
+        previous = now
+        if (now - startedAt >= duration) {
+          resolve()
+          return
+        }
+        requestAnimationFrame(sample)
+      }
+      requestAnimationFrame(sample)
+    })
+
+    const ordered = [...intervals].sort((left, right) => left - right)
+    return {
+      frames: intervals.length,
+      p95FrameIntervalMs:
+        ordered[
+          Math.min(ordered.length - 1, Math.floor(ordered.length * 0.95))
+        ] ?? 0,
+      worstFrameIntervalMs: ordered.at(-1) ?? 0,
+      droppedFrameIntervals: intervals.filter((interval) => interval > 34)
+        .length,
+    }
+  }, windowMs)
+  const after = await performanceMetrics(session)
+  const deltaMilliseconds = (name: string) =>
+    Number(
+      (((after.get(name) ?? 0) - (before.get(name) ?? 0)) * 1_000).toFixed(3),
+    )
+
+  return {
+    windowMs,
+    taskDurationMs: deltaMilliseconds('TaskDuration'),
+    scriptDurationMs: deltaMilliseconds('ScriptDuration'),
+    layoutDurationMs: deltaMilliseconds('LayoutDuration'),
+    recalcStyleDurationMs: deltaMilliseconds('RecalcStyleDuration'),
+    frames: framePacing.frames,
+    p95FrameIntervalMs: Number(framePacing.p95FrameIntervalMs.toFixed(3)),
+    worstFrameIntervalMs: Number(framePacing.worstFrameIntervalMs.toFixed(3)),
+    droppedFrameIntervals: framePacing.droppedFrameIntervals,
+  }
+}
+
+async function measureTransition(action: () => Promise<void>) {
+  const startedAt = performance.now()
+  await action()
+  return Number((performance.now() - startedAt).toFixed(3))
+}
 
 // The entry read identifies the actual legacy resource model. This projection
 // does not manufacture native actions, Emotion evidence, or a converted plan.
@@ -475,7 +556,7 @@ test('MB-643 keeps professional support primary and reflects an explicitly reque
 
 test('MB-373 saves an admitted alternative and reloads the activated current plan', async ({
   page,
-}) => {
+}, testInfo) => {
   await page.setViewportSize({ width: 375, height: 667 })
   const draft = plan()
   let persisted = draft
@@ -675,6 +756,40 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     })
   })
 
+  const performanceBudgets = {
+    mobileThrottled: {
+      initialLoadMs: 10_000,
+      transitionMs: 1_500,
+      idleTaskDurationMs: 450,
+      p95FrameIntervalMs: 80,
+      droppedFrameIntervals: 12,
+    },
+    desktop: {
+      initialLoadMs: 5_000,
+      transitionMs: 750,
+      idleTaskDurationMs: 250,
+      p95FrameIntervalMs: 50,
+      droppedFrameIntervals: 8,
+    },
+  } as const
+  const performanceSession = await page.context().newCDPSession(page)
+  await performanceSession.send('Performance.enable')
+  await performanceSession.send('Network.enable')
+  await performanceSession.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+  await performanceSession.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 150,
+    downloadThroughput: 200_000,
+    uploadThroughput: 93_750,
+    connectionType: 'cellular3g',
+  })
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      'mentalbridge_support_plan_companion_muted',
+      'true',
+    )
+  })
+  const mobileLoadStartedAt = performance.now()
   await page.goto('/support-plan')
   await expect(
     page.getByRole('heading', {
@@ -682,6 +797,69 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       exact: true,
     }),
   ).toBeVisible()
+  const mobileInitialLoadMs = Number(
+    (performance.now() - mobileLoadStartedAt).toFixed(3),
+  )
+  const companion = page.getByRole('complementary', {
+    name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+  })
+  await expect(companion).toBeVisible()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Tắt lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'false')
+  expect(await companion.locator('[aria-live]').count()).toBe(0)
+  await companion
+    .getByRole('button', { name: 'Tắt lời nhắc của bạn đồng hành' })
+    .click()
+  await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Bật lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await page.reload()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Bật lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await page.evaluate(() => window.sessionStorage.clear())
+  await page.reload()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Tắt lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'false')
+  expect(
+    await page.evaluate(() => {
+      const shell = document.querySelector('.support-plan-companion')
+      const content = document.querySelector('.mb-support-companion-content')
+      return Boolean(
+        shell &&
+        content &&
+        shell.compareDocumentPosition(content) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      )
+    }),
+  ).toBe(true)
+  const companionControls = companion.getByRole('button')
+  expect(await companionControls.count()).toBe(3)
+  expect(
+    await companionControls.evaluateAll((buttons) =>
+      buttons.every((button) => {
+        const rect = button.getBoundingClientRect()
+        return rect.width >= 44 && rect.height >= 44
+      }),
+    ),
+  ).toBe(true)
+  await companion.getByRole('button', { name: 'Thu gọn bạn đồng hành' }).click()
+  await expect(
+    companion.getByRole('button', { name: 'Mở rộng bạn đồng hành' }),
+  ).toHaveAttribute('aria-expanded', 'false')
+  expect(activationCommands).toBe(0)
+  await companion.getByRole('button', { name: 'Mở rộng bạn đồng hành' }).click()
   await page.evaluate(() => document.fonts.ready)
   const typography = await page.evaluate(() => ({
     body: getComputedStyle(
@@ -698,6 +876,175 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true)
+  const mobileIdleNormal = await measureCompanionIdle(page, performanceSession)
+  const mobileTransitionMs = await measureTransition(async () => {
+    await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+    await expect(
+      page.getByText('Hướng dẫn an toàn đồng bộ luôn khả dụng.'),
+    ).toBeVisible()
+  })
+  await page.getByRole('tab', { name: 'Hôm nay' }).click()
+  await expect(
+    page.getByRole('heading', {
+      name: 'Hôm nay, mình đi một bước nhỏ',
+      exact: true,
+    }),
+  ).toBeVisible()
+  await page.screenshot({
+    path: 'docs/evidence/mb-648-companion-mobile.png',
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(companion).toHaveAttribute('data-motion', 'reduced')
+  const mobileIdleReduced = await measureCompanionIdle(page, performanceSession)
+  expect(
+    await companion.evaluate(
+      (shell) =>
+        Number.parseFloat(getComputedStyle(shell).transitionDuration) <=
+        0.00001,
+    ),
+  ).toBe(true)
+  await page.screenshot({
+    path: 'docs/evidence/mb-648-companion-reduced-motion.png',
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await performanceSession.send('Emulation.setCPUThrottlingRate', { rate: 1 })
+  await performanceSession.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 0,
+    downloadThroughput: -1,
+    uploadThroughput: -1,
+    connectionType: 'none',
+  })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  const desktopLoadStartedAt = performance.now()
+  await page.reload()
+  await expect(
+    page.getByRole('heading', {
+      name: 'Hôm nay, mình đi một bước nhỏ',
+      exact: true,
+    }),
+  ).toBeVisible()
+  await expect(companion).toBeVisible()
+  const desktopInitialLoadMs = Number(
+    (performance.now() - desktopLoadStartedAt).toFixed(3),
+  )
+  expect(
+    await companion
+      .locator('.support-plan-companion-title')
+      .evaluate((title) => title.scrollWidth <= title.clientWidth),
+  ).toBe(true)
+  const desktopIdleNormal = await measureCompanionIdle(page, performanceSession)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(companion).toHaveAttribute('data-motion', 'reduced')
+  const desktopIdleReduced = await measureCompanionIdle(
+    page,
+    performanceSession,
+  )
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  const desktopTransitionMs = await measureTransition(async () => {
+    await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+    await expect(
+      page.getByText('Hướng dẫn an toàn đồng bộ luôn khả dụng.'),
+    ).toBeVisible()
+  })
+  const performanceEvidence = {
+    evidenceClass: 'fixture-browser',
+    generatedAt: new Date().toISOString(),
+    command:
+      '$env:MB648_WRITE_PERFORMANCE_EVIDENCE="true"; node scripts/run-e2e.mjs tests/e2e/support-plan.spec.ts --workers=1 --reporter=line',
+    measurement: {
+      initialLoad:
+        'wall time from production-route navigation/reload until the primary heading is visible',
+      cpu: 'Chromium Performance.getMetrics duration deltas during a 1200 ms idle window',
+      rendering:
+        'requestAnimationFrame pacing during the same idle window; intervals over 34 ms count as dropped-frame intervals',
+      transition:
+        'wall time from tab activation until destination content is visible',
+    },
+    budgets: performanceBudgets,
+    profiles: {
+      mobileThrottled: {
+        viewport: { width: 375, height: 667 },
+        cpuThrottleRate: 4,
+        network: {
+          latencyMs: 150,
+          downloadKbps: 1_600,
+          uploadKbps: 750,
+        },
+        initialLoadMs: mobileInitialLoadMs,
+        transitionMs: mobileTransitionMs,
+        idleNormal: mobileIdleNormal,
+        idleReducedMotion: mobileIdleReduced,
+      },
+      desktop: {
+        viewport: { width: 1280, height: 900 },
+        cpuThrottleRate: 1,
+        network: 'unthrottled fixture route',
+        initialLoadMs: desktopInitialLoadMs,
+        transitionMs: desktopTransitionMs,
+        idleNormal: desktopIdleNormal,
+        idleReducedMotion: desktopIdleReduced,
+      },
+    },
+  }
+
+  expect(mobileInitialLoadMs).toBeLessThanOrEqual(
+    performanceBudgets.mobileThrottled.initialLoadMs,
+  )
+  expect(mobileTransitionMs).toBeLessThanOrEqual(
+    performanceBudgets.mobileThrottled.transitionMs,
+  )
+  expect(desktopInitialLoadMs).toBeLessThanOrEqual(
+    performanceBudgets.desktop.initialLoadMs,
+  )
+  expect(desktopTransitionMs).toBeLessThanOrEqual(
+    performanceBudgets.desktop.transitionMs,
+  )
+  for (const sample of [mobileIdleNormal, mobileIdleReduced]) {
+    expect(sample.taskDurationMs).toBeLessThanOrEqual(
+      performanceBudgets.mobileThrottled.idleTaskDurationMs,
+    )
+    expect(sample.p95FrameIntervalMs).toBeLessThanOrEqual(
+      performanceBudgets.mobileThrottled.p95FrameIntervalMs,
+    )
+    expect(sample.droppedFrameIntervals).toBeLessThanOrEqual(
+      performanceBudgets.mobileThrottled.droppedFrameIntervals,
+    )
+  }
+  for (const sample of [desktopIdleNormal, desktopIdleReduced]) {
+    expect(sample.taskDurationMs).toBeLessThanOrEqual(
+      performanceBudgets.desktop.idleTaskDurationMs,
+    )
+    expect(sample.p95FrameIntervalMs).toBeLessThanOrEqual(
+      performanceBudgets.desktop.p95FrameIntervalMs,
+    )
+    expect(sample.droppedFrameIntervals).toBeLessThanOrEqual(
+      performanceBudgets.desktop.droppedFrameIntervals,
+    )
+  }
+  await testInfo.attach('mb-648-companion-performance.json', {
+    body: JSON.stringify(performanceEvidence, null, 2),
+    contentType: 'application/json',
+  })
+  if (process.env.MB648_WRITE_PERFORMANCE_EVIDENCE === 'true') {
+    await writeFile(
+      'docs/evidence/mb-648-companion-performance.json',
+      `${JSON.stringify(performanceEvidence, null, 2)}\n`,
+      'utf8',
+    )
+  }
+  await companion.getByRole('button', { name: 'Thu gọn bạn đồng hành' }).click()
+  await expect(companion.locator('.support-plan-companion-mark')).toBeVisible()
+  await companion.getByRole('button', { name: 'Mở rộng bạn đồng hành' }).click()
+  await page.screenshot({
+    path: 'docs/evidence/mb-648-companion-desktop.png',
+    fullPage: true,
+    animations: 'disabled',
+  })
   await expect(
     page.getByText('Hướng dẫn an toàn đồng bộ luôn khả dụng.'),
   ).toBeVisible()
