@@ -26,6 +26,7 @@ import {
   replaceSupportPlan,
   replaceSupportPlanChoices,
   replaceSupportPlanActionSchedule,
+  requestSupportPlanActionCompanionExplanation,
   reviewSupportPlanReplacement,
 } from '../api/browser-support-plan'
 import type {
@@ -37,6 +38,10 @@ import type {
 } from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
 import SupportPlanCompanionShell from './SupportPlanCompanionShell'
+import type {
+  ContextualCompanionRequest,
+  ContextualCompanionSnapshot,
+} from './support-plan-contextual-companion'
 import SupportPlanFooter from './SupportPlanFooter'
 import SupportPlanHistory from './SupportPlanHistory'
 import SupportPlanIcon from './SupportPlanIcon'
@@ -263,6 +268,9 @@ export default function SupportPlanJourney({
   const [activeTab, setActiveTab] = useState<JourneyTab>('today')
   const [companionEvent, setCompanionEvent] =
     useState<SupportPlanCompanionEvent>('SURFACE_ENTERED')
+  const [contextualCompanion, setContextualCompanion] =
+    useState<ContextualCompanionSnapshot>()
+  const companionSequence = useRef(0)
   const [cardDirty, setCardDirty] = useState(false)
   const [replacementDirty, setReplacementDirty] = useState(false)
   const [personalizationDirty, setPersonalizationDirty] = useState(false)
@@ -282,21 +290,84 @@ export default function SupportPlanJourney({
   const previousCompanionSurface = useRef<JourneyTab>('today')
   const preserveCompanionEventAcrossSurface = useRef(false)
   const dirty = cardDirty || replacementDirty || personalizationDirty
+
+  const requestCompanionExplanation = useCallback(
+    async (request: ContextualCompanionRequest) => {
+      if (dirty) return
+      const requestId = ++companionSequence.current
+      setContextualCompanion({ ...request, requestId, status: 'loading' })
+      setCompanionEvent('REQUEST_STARTED')
+      try {
+        const response = await requestSupportPlanActionCompanionExplanation(
+          request.supportPlanId,
+          request.actionId,
+          request.surface,
+        )
+        if (companionSequence.current !== requestId) return
+        setContextualCompanion({
+          ...request,
+          requestId,
+          status: response.delivery === 'TEMPLATE' ? 'fallback' : 'ready',
+          message: response.text,
+        })
+        setCompanionEvent('CONTENT_READY')
+      } catch {
+        if (companionSequence.current !== requestId) return
+        setContextualCompanion({
+          ...request,
+          requestId,
+          status: 'fallback',
+          message:
+            'Chưa thể tải lời giải thích lúc này. Bạn vẫn có thể tiếp tục hoạt động hoặc thử lại khi phù hợp.',
+        })
+        setCompanionEvent('CONTENT_READY')
+      }
+    },
+    [dirty],
+  )
+
+  const clearCompanionExplanation = useCallback(() => {
+    companionSequence.current += 1
+    setContextualCompanion(undefined)
+  }, [])
+
+  const dismissCompanionExplanation = useCallback(() => {
+    const targetId = contextualCompanion?.targetId
+    clearCompanionExplanation()
+    setCompanionEvent('CONTENT_READY')
+    if (targetId)
+      window.requestAnimationFrame(() =>
+        document.getElementById(targetId)?.focus(),
+      )
+  }, [clearCompanionExplanation, contextualCompanion?.targetId])
   useEffect(() => {
     onDirtyChange?.(dirty)
   }, [dirty, onDirtyChange])
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
   useEffect(() => {
+    if (!dirty || !contextualCompanion) return
+    const frame = window.requestAnimationFrame(() => {
+      clearCompanionExplanation()
+      setCompanionEvent('CONTENT_READY')
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [clearCompanionExplanation, dirty, contextualCompanion])
+  useEffect(() => {
     if (previousCompanionSurface.current === activeTab) return
     previousCompanionSurface.current = activeTab
-    if (preserveCompanionEventAcrossSurface.current) {
-      preserveCompanionEventAcrossSurface.current = false
-      return
-    }
-    setCompanionEvent(
-      activeTab === 'adjust' ? 'SENSITIVE_CONTEXT_ENTERED' : 'CONTENT_READY',
-    )
-  }, [activeTab])
+    const preserveEvent = preserveCompanionEventAcrossSurface.current
+    preserveCompanionEventAcrossSurface.current = false
+    const frame = window.requestAnimationFrame(() => {
+      clearCompanionExplanation()
+      if (!preserveEvent)
+        setCompanionEvent(
+          activeTab === 'adjust'
+            ? 'SENSITIVE_CONTEXT_ENTERED'
+            : 'CONTENT_READY',
+        )
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [activeTab, clearCompanionExplanation])
 
   const loadReplacementReview = useCallback(
     async (current: SupportPlan, draft: SupportPlan) => {
@@ -901,7 +972,12 @@ export default function SupportPlanJourney({
       </header>
 
       <div className="mb-support-companion-layout">
-        <SupportPlanCompanionShell state={companionState} surface={activeTab} />
+        <SupportPlanCompanionShell
+          state={companionState}
+          surface={activeTab}
+          contextual={contextualCompanion}
+          onContextualDismiss={dismissCompanionExplanation}
+        />
 
         <div className="mb-support-companion-content">
           {loading && (
@@ -958,6 +1034,11 @@ export default function SupportPlanJourney({
                     focusProjections[plan.supportPlanId]?.status ===
                       'unavailable'
                   }
+                  companionSnapshot={contextualCompanion}
+                  onCompanionRequest={(request) =>
+                    void requestCompanionExplanation(request)
+                  }
+                  onCompanionDismiss={dismissCompanionExplanation}
                 />
               )}
 
@@ -1077,6 +1158,11 @@ export default function SupportPlanJourney({
                         focusProjections[replacementDraft.supportPlanId]
                           ?.status === 'unavailable'
                       }
+                      companionSnapshot={contextualCompanion}
+                      onCompanionRequest={(request) =>
+                        void requestCompanionExplanation(request)
+                      }
+                      onCompanionDismiss={dismissCompanionExplanation}
                     />
                   </div>
                   {replacementLoading && !replacementReview && (

@@ -488,6 +488,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/support-plan-companion/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Phrase one policy-selected SupportPlan Companion intent.
+         * @description Care authenticates with its dedicated service credential and forwards the verified end-user bearer plus one exact v1 intent envelope containing only the approved minimized context. Journal/AI validates both caller boundaries, surface, intent and context before checking current AI consent or calling one configured provider. Missing consent, provider rate/quota limit, timeout, provider failure, malformed output and policy rejection return deterministic template copy. The operation cannot create or mutate a plan, action, schedule, review, consent, booking or source-domain record.
+         */
+        post: operations["createSupportPlanCompanionMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/consultation-brief-drafts": {
         parameters: {
             query?: never;
@@ -585,6 +605,34 @@ export interface components {
             promptVersion: "support-guide-phrasing-v1";
             /** @constant */
             schemaVersion: 1;
+        };
+        SupportPlanCompanionNavigation: {
+            /** @enum {string} */
+            destination: "TODAY" | "PLAN" | "PROGRESS" | "ADJUST" | "ACTION_DETAIL" | "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "SPECIALIST_DISCOVERY" | "REASSESSMENT";
+            label: string;
+        };
+        SupportPlanCompanionMessage: {
+            /** @constant */
+            schemaVersion: "support-plan-companion-message-v1";
+            /** @enum {string} */
+            intent: "EXPLAIN_ACTION" | "EXPLAIN_FOCUS" | "SUGGEST_NEXT_STEP" | "ENCOURAGE" | "SUMMARIZE_PROGRESS" | "EXPLAIN_REVIEW_OPTION" | "NAVIGATE";
+            /** @enum {string} */
+            surface: "TODAY" | "PLAN" | "PROGRESS" | "ADJUST";
+            text: string;
+            /** @enum {string} */
+            delivery: "GENERATED" | "TEMPLATE";
+            navigation: components["schemas"]["SupportPlanCompanionNavigation"] | null;
+            /** @constant */
+            policyVersion: "support-plan-companion-policy-v1";
+            /** @constant */
+            promptVersion: "support-plan-companion-prompt-v1";
+            /** @constant */
+            templateVersion: "support-plan-companion-template-v1";
+            /** @enum {string|null} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK" | null;
+            model: string | null;
+            /** @enum {string|null} */
+            fallbackReason: "CONSENT_REQUIRED" | "CONSENT_UNAVAILABLE" | "PROVIDER_DISABLED" | "PROVIDER_TIMEOUT" | "PROVIDER_QUOTA_LIMITED" | "PROVIDER_UNAVAILABLE" | "MALFORMED_OUTPUT" | "POLICY_REJECTED" | null;
         };
         CreateAiConversationRequest: {
             title?: string;
@@ -1110,6 +1158,265 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** @constant */
+        schemaVersion: "support-plan-companion-context-v1";
+        /** @constant */
+        locale: "vi-VN";
+        /** @enum {string} */
+        actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+        boundedTitle: string;
+        boundedRationale: string;
+        /** @enum {string} */
+        dueState: "DUE_TODAY" | "UPCOMING" | "OVERDUE" | "UNSCHEDULED" | "COMPLETED" | "SKIPPED";
+        /** @enum {string} */
+        destination: "TODAY" | "PLAN" | "PROGRESS" | "ADJUST" | "ACTION_DETAIL" | "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "SPECIALIST_DISCOVERY" | "REASSESSMENT";
+        navigation: {
+            destination: components["schemas"]["destination"];
+            label: components["schemas"]["boundedTitle"];
+        };
+        actionContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "ACTION";
+            action: {
+                actionType: components["schemas"]["actionType"];
+                title: components["schemas"]["boundedTitle"];
+                rationale?: components["schemas"]["boundedRationale"];
+                /** @enum {string} */
+                availability: "AVAILABLE" | "UNAVAILABLE" | "SOURCE_UNAVAILABLE";
+                dueState?: components["schemas"]["dueState"];
+                navigation?: components["schemas"]["navigation"];
+            };
+        };
+        focusContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "FOCUS";
+            focus: {
+                title: string;
+                rationale?: components["schemas"]["boundedRationale"];
+                navigation?: components["schemas"]["navigation"];
+            };
+        };
+        nextStepContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "NEXT_STEP";
+            nextStep: {
+                label: components["schemas"]["boundedTitle"];
+                destination: components["schemas"]["destination"];
+                actionType?: components["schemas"]["actionType"];
+                dueState?: components["schemas"]["dueState"];
+            };
+        };
+        acknowledgementContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "ACKNOWLEDGEMENT";
+            acknowledgement: {
+                /** @enum {string} */
+                reason: "ACTION_SAVED" | "EXPLICIT_COMPLETION_SAVED" | "REVIEW_SUBMITTED" | "PREFERENCE_SAVED";
+                title?: components["schemas"]["boundedTitle"];
+            };
+        };
+        progressContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "PROGRESS";
+            progress: {
+                /** @enum {string} */
+                period: "TODAY" | "SEVEN_DAYS" | "PLAN";
+                completedCount: number;
+                availableCount: number;
+                evidenceAsOf: string;
+                partial: boolean;
+                unavailableEvidence?: ("CARE_ACTIONS" | "CONTENT_RESOURCE_PROGRESS" | "JOURNAL_ACTION_EVIDENCE" | "EMOTION_CHECK_IN_EVIDENCE" | "CONSULTATION_EVIDENCE")[];
+            } & (unknown & unknown);
+        };
+        reviewContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "REVIEW";
+            review: {
+                /** @enum {string} */
+                outcome: "KEEP_CURRENT" | "ALTERNATIVES_AVAILABLE" | "CURRENT_NOT_ADMISSIBLE";
+                dimensions: {
+                    /** @enum {string} */
+                    code: "SCREENING_CHANGE" | "JOURNAL_CONTEXT" | "PLAN_ENGAGEMENT" | "SELF_REPORTED_EXPERIENCE";
+                    /** @enum {string} */
+                    availability: "AVAILABLE" | "MISSING" | "UNAVAILABLE" | "NOT_APPLICABLE";
+                    /** @enum {string} */
+                    direction: "INCREASED" | "STABLE" | "DECREASED" | "MIXED" | "UNKNOWN";
+                }[] & (unknown & unknown & unknown & unknown);
+                options: {
+                    /** @enum {string} */
+                    optionCode: "KEEP_CURRENT" | "REDUCE_WORKLOAD" | "MOVE_TIME" | "CHOOSE_ADMITTED_ALTERNATIVE" | "CONSIDER_PROFESSIONAL_SUPPORT";
+                    label: components["schemas"]["boundedTitle"];
+                }[];
+                barrierPatterns?: ("TIME" | "ENERGY" | "ACCESS" | "PREFERENCE" | "OTHER_DECLARED")[];
+                helpfulnessPatterns?: ("HELPFUL" | "NEUTRAL" | "NOT_HELPFUL" | "NOT_REPORTED")[];
+                contradictoryEvidence: boolean;
+            };
+        };
+        navigationContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "NAVIGATION";
+            navigation: {
+                destination: components["schemas"]["destination"];
+                label: components["schemas"]["boundedTitle"];
+                sourceActionTitle?: components["schemas"]["boundedTitle"];
+            };
+        };
+        /**
+         * SupportPlan Companion context v1
+         * @description Closed, minimized, model-facing context variants. Identifiers and raw source-domain payloads stay outside this contract.
+         */
+        "support-plan-companion-context-v1.schema": {
+            $defs: {
+                /** @constant */
+                schemaVersion: "support-plan-companion-context-v1";
+                /** @constant */
+                locale: "vi-VN";
+                boundedTitle: string;
+                boundedRationale: string;
+                /** @enum {string} */
+                actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+                /** @enum {string} */
+                dueState: "DUE_TODAY" | "UPCOMING" | "OVERDUE" | "UNSCHEDULED" | "COMPLETED" | "SKIPPED";
+                /** @enum {string} */
+                destination: "TODAY" | "PLAN" | "PROGRESS" | "ADJUST" | "ACTION_DETAIL" | "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "SPECIALIST_DISCOVERY" | "REASSESSMENT";
+                navigation: {
+                    destination: components["schemas"]["destination"];
+                    label: components["schemas"]["boundedTitle"];
+                };
+                actionContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "ACTION";
+                    action: {
+                        actionType: components["schemas"]["actionType"];
+                        title: components["schemas"]["boundedTitle"];
+                        rationale?: components["schemas"]["boundedRationale"];
+                        /** @enum {string} */
+                        availability: "AVAILABLE" | "UNAVAILABLE" | "SOURCE_UNAVAILABLE";
+                        dueState?: components["schemas"]["dueState"];
+                        navigation?: components["schemas"]["navigation"];
+                    };
+                };
+                focusContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "FOCUS";
+                    focus: {
+                        title: string;
+                        rationale?: components["schemas"]["boundedRationale"];
+                        navigation?: components["schemas"]["navigation"];
+                    };
+                };
+                nextStepContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "NEXT_STEP";
+                    nextStep: {
+                        label: components["schemas"]["boundedTitle"];
+                        destination: components["schemas"]["destination"];
+                        actionType?: components["schemas"]["actionType"];
+                        dueState?: components["schemas"]["dueState"];
+                    };
+                };
+                acknowledgementContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "ACKNOWLEDGEMENT";
+                    acknowledgement: {
+                        /** @enum {string} */
+                        reason: "ACTION_SAVED" | "EXPLICIT_COMPLETION_SAVED" | "REVIEW_SUBMITTED" | "PREFERENCE_SAVED";
+                        title?: components["schemas"]["boundedTitle"];
+                    };
+                };
+                progressContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "PROGRESS";
+                    progress: {
+                        /** @enum {string} */
+                        period: "TODAY" | "SEVEN_DAYS" | "PLAN";
+                        completedCount: number;
+                        availableCount: number;
+                        evidenceAsOf: string;
+                        partial: boolean;
+                        unavailableEvidence?: ("CARE_ACTIONS" | "CONTENT_RESOURCE_PROGRESS" | "JOURNAL_ACTION_EVIDENCE" | "EMOTION_CHECK_IN_EVIDENCE" | "CONSULTATION_EVIDENCE")[];
+                    } & (unknown & unknown);
+                };
+                reviewContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "REVIEW";
+                    review: {
+                        /** @enum {string} */
+                        outcome: "KEEP_CURRENT" | "ALTERNATIVES_AVAILABLE" | "CURRENT_NOT_ADMISSIBLE";
+                        dimensions: {
+                            /** @enum {string} */
+                            code: "SCREENING_CHANGE" | "JOURNAL_CONTEXT" | "PLAN_ENGAGEMENT" | "SELF_REPORTED_EXPERIENCE";
+                            /** @enum {string} */
+                            availability: "AVAILABLE" | "MISSING" | "UNAVAILABLE" | "NOT_APPLICABLE";
+                            /** @enum {string} */
+                            direction: "INCREASED" | "STABLE" | "DECREASED" | "MIXED" | "UNKNOWN";
+                        }[] & (unknown & unknown & unknown & unknown);
+                        options: {
+                            /** @enum {string} */
+                            optionCode: "KEEP_CURRENT" | "REDUCE_WORKLOAD" | "MOVE_TIME" | "CHOOSE_ADMITTED_ALTERNATIVE" | "CONSIDER_PROFESSIONAL_SUPPORT";
+                            label: components["schemas"]["boundedTitle"];
+                        }[];
+                        barrierPatterns?: ("TIME" | "ENERGY" | "ACCESS" | "PREFERENCE" | "OTHER_DECLARED")[];
+                        helpfulnessPatterns?: ("HELPFUL" | "NEUTRAL" | "NOT_HELPFUL" | "NOT_REPORTED")[];
+                        contradictoryEvidence: boolean;
+                    };
+                };
+                navigationContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "NAVIGATION";
+                    navigation: {
+                        destination: components["schemas"]["destination"];
+                        label: components["schemas"]["boundedTitle"];
+                        sourceActionTitle?: components["schemas"]["boundedTitle"];
+                    };
+                };
+            };
+        } & (components["schemas"]["actionContext"] | components["schemas"]["focusContext"] | components["schemas"]["nextStepContext"] | components["schemas"]["acknowledgementContext"] | components["schemas"]["progressContext"] | components["schemas"]["reviewContext"] | components["schemas"]["navigationContext"]);
+        /**
+         * SupportPlan Companion intent envelope v1
+         * @description Language-neutral proposal for deterministic intent selection and minimized context. This is not a callable API.
+         */
+        "support-plan-companion-intent-v1.schema": {
+            /** @constant */
+            schemaVersion: "support-plan-companion-intent-v1";
+            /** @constant */
+            policyVersion: "support-plan-companion-policy-v1";
+            /** @constant */
+            requestSource: "USER_INITIATED";
+            /** @enum {string} */
+            surface: "TODAY" | "PLAN" | "PROGRESS" | "ADJUST";
+            /** @enum {string} */
+            intent: "EXPLAIN_ACTION" | "EXPLAIN_FOCUS" | "SUGGEST_NEXT_STEP" | "ENCOURAGE" | "SUMMARIZE_PROGRESS" | "EXPLAIN_REVIEW_OPTION" | "NAVIGATE";
+            context: components["schemas"]["support-plan-companion-context-v1.schema"];
+        } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
     };
     responses: {
         /** @description Request failed validation. */
@@ -2029,6 +2336,34 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    createSupportPlanCompanionMessage: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["support-plan-companion-intent-v1.schema"];
+            };
+        };
+        responses: {
+            /** @description Bounded generated phrasing or deterministic template copy was returned without mutation authority. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanCompanionMessage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     generateConsultationBriefDraftSuggestion: {

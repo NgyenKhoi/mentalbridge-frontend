@@ -1,5 +1,5 @@
 import { constants } from 'node:fs'
-import { access, copyFile, readFile, writeFile } from 'node:fs/promises'
+import { access, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import openapiTS, { astToString, COMMENT_HEADER } from 'openapi-typescript'
@@ -12,6 +12,11 @@ const snapshotPath = path.join(
   'journal-ai-service-v1.yaml',
 )
 const generatedPath = path.join(appRoot, 'contracts', 'journal.generated.ts')
+const proposalDirectory = path.join(appRoot, 'contracts', 'proposals')
+const proposalNames = [
+  'support-plan-companion-intent-v1.schema.json',
+  'support-plan-companion-context-v1.schema.json',
+]
 const defaultBackendSource = path.resolve(
   appRoot,
   '..',
@@ -40,6 +45,16 @@ async function syncSnapshot() {
   if (!(await exists(sourcePath)))
     throw new Error(`Journal OpenAPI source not found at ${sourcePath}.`)
   await copyFile(sourcePath, snapshotPath)
+  const backendContracts = path.resolve(path.dirname(sourcePath), '..')
+  await mkdir(proposalDirectory, { recursive: true })
+  await Promise.all(
+    proposalNames.map((name) =>
+      copyFile(
+        path.join(backendContracts, 'proposals', name),
+        path.join(proposalDirectory, name),
+      ),
+    ),
+  )
   console.log(`Synced Journal OpenAPI snapshot from ${sourcePath}`)
 }
 async function check(expected) {

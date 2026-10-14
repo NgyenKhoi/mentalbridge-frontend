@@ -12,9 +12,40 @@ import {
   parseCompletionEvidence,
   parseEmotionCheckInReconciliation,
   parseSupportPlanActionHistory,
+  parseSupportPlanContextualCompanionMessage,
 } from './support-plan-action-validation'
 
 describe('Canonical native SupportPlan boundaries', () => {
+  it('binds contextual Companion output to a strict bounded response shape', () => {
+    const message = {
+      schemaVersion: 'support-plan-companion-message-v1',
+      supportPlanId: '10000000-0000-4000-8000-000000000650',
+      actionId: '20000000-0000-4000-8000-000000000650',
+      intent: 'EXPLAIN_ACTION',
+      surface: 'PLAN',
+      text: 'Lời giải thích đã được kiểm duyệt.',
+      delivery: 'GENERATED',
+      policyVersion: 'support-plan-companion-policy-v1',
+      promptVersion: 'support-plan-companion-prompt-v1',
+      templateVersion: 'support-plan-companion-template-v1',
+      provider: 'OPENAI',
+      model: 'test-model',
+      fallbackReason: null,
+    }
+    expect(parseSupportPlanContextualCompanionMessage(message)).toEqual(message)
+    expect(
+      parseSupportPlanContextualCompanionMessage({
+        ...message,
+        privateContext: 'must not cross the boundary',
+      }),
+    ).toBeNull()
+    expect(
+      parseSupportPlanContextualCompanionMessage({
+        ...message,
+        delivery: 'TEMPLATE',
+      }),
+    ).toBeNull()
+  })
   it('accepts the source-owned full action shape and rejects unknown payload or wrong source attribution', () => {
     const plan = nativeSupportPlanFixture()
     expect(parseCanonicalSupportPlan(plan)).toEqual(plan)

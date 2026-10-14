@@ -20,6 +20,7 @@ const client = vi.hoisted(() => ({
   occurrences: vi.fn(),
   occurrenceState: vi.fn(),
   reconcile: vi.fn(),
+  companionExplanation: vi.fn(),
 }))
 const session = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -221,6 +222,48 @@ describe('Native SupportPlan bounded BFF', () => {
     ).toBe(400)
     expect(
       (await supportPlanActionHandler(request(), 'reconcile', 'bad-id')).status,
+    ).toBe(400)
+  })
+  it('forwards only exact plan/action identity and an approved contextual surface', async () => {
+    const actionId = '20000000-0000-4000-8000-000000000650'
+    client.companionExplanation.mockResolvedValue({
+      supportPlanId: id,
+      actionId,
+      surface: 'PLAN',
+    })
+    const response = await supportPlanActionHandler(
+      request('POST', { surface: 'PLAN' }),
+      'companionExplanation',
+      id,
+      actionId,
+    )
+    expect(response.status).toBe(200)
+    expect(client.companionExplanation).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      actionId,
+      'PLAN',
+      expect.any(String),
+    )
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', { surface: 'PLAN', context: { private: true } }),
+          'companionExplanation',
+          id,
+          actionId,
+        )
+      ).status,
+    ).toBe(400)
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', { surface: 'PROGRESS' }),
+          'companionExplanation',
+          id,
+          actionId,
+        )
+      ).status,
     ).toBe(400)
   })
   it('rejects a chunked body after its first chunk instead of reading an unbounded command', async () => {

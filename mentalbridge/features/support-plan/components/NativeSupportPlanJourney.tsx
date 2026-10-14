@@ -33,6 +33,7 @@ import {
 import {
   changeSupportPlanStatus,
   replaceSupportPlanActionSchedule,
+  requestSupportPlanActionCompanionExplanation,
 } from '../api/browser-support-plan'
 import type {
   ActionOccurrence,
@@ -44,6 +45,12 @@ import type {
 } from '../api/support-plan-contract'
 import { emotionPlanHref, type EmotionPlanOrigin } from '../emotion-plan-origin'
 import ProfessionalSupportPath from './ProfessionalSupportPath'
+import SupportPlanCompanionShell from './SupportPlanCompanionShell'
+import SupportPlanContextualCompanion from './SupportPlanContextualCompanion'
+import type {
+  ContextualCompanionRequest,
+  ContextualCompanionSnapshot,
+} from './support-plan-contextual-companion'
 import SupportPlanDescription from './SupportPlanDescription'
 import SupportPlanFooter from './SupportPlanFooter'
 import SupportPlanPersonalization from './SupportPlanPersonalization'
@@ -160,6 +167,9 @@ export default function NativeSupportPlanJourney({
   const busyRef = useRef(false)
   const [scheduleDirty, setScheduleDirty] = useState(false)
   const [personalizationDirty, setPersonalizationDirty] = useState(false)
+  const [contextualCompanion, setContextualCompanion] =
+    useState<ContextualCompanionSnapshot>()
+  const companionSequence = useRef(0)
   const dirty = scheduleDirty || personalizationDirty
   const [history, setHistory] = useState<SupportPlanActionHistory | undefined>(
     initialHistory,
@@ -213,6 +223,58 @@ export default function NativeSupportPlanJourney({
     year: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(`${day}T00:00:00Z`))
+
+  const requestCompanionExplanation = useCallback(
+    async (request: ContextualCompanionRequest) => {
+      if (dirty || !['TODAY', 'PLAN'].includes(request.surface)) return
+      const requestId = ++companionSequence.current
+      setContextualCompanion({ ...request, requestId, status: 'loading' })
+      try {
+        const response = await requestSupportPlanActionCompanionExplanation(
+          request.supportPlanId,
+          request.actionId,
+          request.surface,
+        )
+        if (companionSequence.current !== requestId) return
+        setContextualCompanion({
+          ...request,
+          requestId,
+          status: response.delivery === 'TEMPLATE' ? 'fallback' : 'ready',
+          message: response.text,
+        })
+      } catch {
+        if (companionSequence.current !== requestId) return
+        setContextualCompanion({
+          ...request,
+          requestId,
+          status: 'fallback',
+          message:
+            'Chưa thể tải lời giải thích lúc này. Bạn vẫn có thể tiếp tục hoạt động hoặc thử lại khi phù hợp.',
+        })
+      }
+    },
+    [dirty],
+  )
+
+  const clearCompanionExplanation = useCallback(() => {
+    companionSequence.current += 1
+    setContextualCompanion(undefined)
+  }, [])
+
+  const dismissCompanionExplanation = useCallback(() => {
+    const targetId = contextualCompanion?.targetId
+    clearCompanionExplanation()
+    if (targetId)
+      window.requestAnimationFrame(() =>
+        document.getElementById(targetId)?.focus(),
+      )
+  }, [clearCompanionExplanation, contextualCompanion?.targetId])
+
+  useEffect(() => {
+    if (!dirty || !contextualCompanion) return
+    const frame = window.requestAnimationFrame(clearCompanionExplanation)
+    return () => window.cancelAnimationFrame(frame)
+  }, [clearCompanionExplanation, dirty, contextualCompanion])
 
   const reloadPlans = useCallback(async () => {
     const [nextCurrent, nextDraft] = await Promise.all([
@@ -305,6 +367,7 @@ export default function NativeSupportPlanJourney({
       return false
     setScheduleDirty(false)
     setPersonalizationDirty(false)
+    clearCompanionExplanation()
     setTab(next)
     return true
   }
@@ -599,7 +662,7 @@ export default function NativeSupportPlanJourney({
     )
 
   return (
-    <div className="support-plan-page">
+    <div className="support-plan-page mb-support-companion-page-layout">
       <header className="mb-support-workspace-header">
         <div className="mb-support-workspace-heading">
           <div>
@@ -658,6 +721,12 @@ export default function NativeSupportPlanJourney({
           })}
         </nav>
       </header>
+      <SupportPlanCompanionShell
+        state={contextualCompanion?.status === 'loading' ? 'thinking' : 'idle'}
+        surface={tab}
+        contextual={contextualCompanion}
+        onContextualDismiss={dismissCompanionExplanation}
+      />
       {message && (
         <div className="support-plan-state" role="alert">
           <p>{message}</p>
@@ -825,6 +894,22 @@ export default function NativeSupportPlanJourney({
                         </ul>
                       )}
                       <div className={styles.actions}>
+                        {['RESOURCE', 'JOURNAL', 'EMOTION_CHECK_IN'].includes(
+                          action.actionType,
+                        ) && (
+                          <SupportPlanContextualCompanion
+                            supportPlanId={nativeCurrent?.supportPlanId ?? ''}
+                            actionId={action.actionId}
+                            actionTitle={action.presentation.title}
+                            surface="TODAY"
+                            disabled={dirty}
+                            snapshot={contextualCompanion}
+                            onRequest={(request) =>
+                              void requestCompanionExplanation(request)
+                            }
+                            onDismiss={dismissCompanionExplanation}
+                          />
+                        )}
                         {emotion && canAct && item.state !== 'SKIPPED' && (
                           <>
                             <Link
@@ -1027,6 +1112,25 @@ export default function NativeSupportPlanJourney({
                               Ghi nhận điều bạn đang cảm nhận; không thay đổi
                               các hướng hỗ trợ khác.
                             </p>
+                          )}
+                          {[
+                            'RESOURCE',
+                            'JOURNAL',
+                            'EMOTION_CHECK_IN',
+                            'PROFESSIONAL_SUPPORT',
+                          ].includes(action.actionType) && (
+                            <SupportPlanContextualCompanion
+                              supportPlanId={plan.supportPlanId}
+                              actionId={action.actionId}
+                              actionTitle={action.presentation.title}
+                              surface="PLAN"
+                              disabled={dirty}
+                              snapshot={contextualCompanion}
+                              onRequest={(request) =>
+                                void requestCompanionExplanation(request)
+                              }
+                              onDismiss={dismissCompanionExplanation}
+                            />
                           )}
                         </li>
                       ))}

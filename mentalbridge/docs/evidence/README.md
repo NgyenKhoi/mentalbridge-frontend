@@ -71,6 +71,12 @@ web/mobile contract coverage and responsive fixture-browser evidence are
 recorded in
 [`mb-658-optional-emotion-context.md`](mb-658-optional-emotion-context.md).
 
+MB-650 adds explicit contextual Companion explanations to eligible SupportPlan
+actions while keeping Care facts and original actions authoritative. Its
+contract, fallback, desktop/mobile, typography and accessibility evidence is
+recorded in
+[`mb-650-contextual-companion.md`](mb-650-contextual-companion.md).
+
 MB-563 delivers the server-backed notification inbox and lifecycle. Its
 contract/BFF/component/fixture coverage is recorded in
 [`mb-563-notification-inbox.md`](mb-563-notification-inbox.md).

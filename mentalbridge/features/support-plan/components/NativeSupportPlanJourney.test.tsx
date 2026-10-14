@@ -31,6 +31,7 @@ const api = vi.hoisted(() => ({
   getCurrentReassessmentSummary: vi.fn(),
   replaceSupportPlanActionSchedule: vi.fn(),
   changeSupportPlanStatus: vi.fn(),
+  requestSupportPlanActionCompanionExplanation: vi.fn(),
 }))
 const feedback = vi.hoisted(() => ({ confirm: vi.fn() }))
 vi.mock('../api/browser-support-plan-actions', () => api)
@@ -156,6 +157,46 @@ describe('Native SupportPlan Emotion journey', () => {
         message: 'Missing',
       }),
     )
+    api.requestSupportPlanActionCompanionExplanation.mockResolvedValue({
+      schemaVersion: 'support-plan-companion-message-v1',
+      supportPlanId: nativeSupportPlanFixture().supportPlanId,
+      actionId: emotionActionId,
+      intent: 'EXPLAIN_ACTION',
+      surface: 'TODAY',
+      text: 'Đây là một hoạt động đã được Care chọn cho kế hoạch của bạn.',
+      delivery: 'GENERATED',
+      policyVersion: 'support-plan-companion-policy-v1',
+      promptVersion: 'support-plan-companion-prompt-v1',
+      templateVersion: 'support-plan-companion-template-v1',
+      provider: 'OPENAI',
+      model: 'test-model',
+      fallbackReason: null,
+    })
+  })
+  it('requests a contextual response only after click and preserves the source action', async () => {
+    const user = userEvent.setup()
+    mount()
+    const trigger = await screen.findByRole('button', {
+      name: 'Nhờ bạn đồng hành giải thích: Check-in cảm xúc',
+    })
+    trigger.focus()
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).not.toHaveBeenCalled()
+    await user.click(trigger)
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledWith(
+      nativeSupportPlanFixture().supportPlanId,
+      emotionActionId,
+      'TODAY',
+    )
+    expect(
+      await screen.findAllByText(
+        'Đây là một hoạt động đã được Care chọn cho kế hoạch của bạn.',
+      ),
+    ).not.toHaveLength(0)
+    expect(screen.getByRole('link', { name: 'Ghi nhận cảm xúc' })).toBeVisible()
   })
   it('opens the canonical form with exact activity identity and focuses return without hidden completion', async () => {
     mount()

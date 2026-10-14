@@ -16,6 +16,7 @@ import {
   Volume2,
   VolumeX,
   Waves,
+  X,
 } from 'lucide-react'
 
 import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
@@ -25,6 +26,7 @@ import {
   type SupportPlanCompanionState,
   type SupportPlanCompanionSurface,
 } from './support-plan-companion-state'
+import type { ContextualCompanionSnapshot } from './support-plan-contextual-companion'
 
 import './support-plan-companion.css'
 
@@ -108,7 +110,17 @@ type Props = Readonly<{
   surface: SupportPlanCompanionSurface
   defaultExpanded?: boolean
   CharacterRenderer?: ComponentType<SupportPlanCompanionCharacterProps>
+  contextual?: ContextualCompanionSnapshot
+  onContextualDismiss?: () => void
 }>
+
+export function useSupportPlanCompanionMuted() {
+  return useSyncExternalStore(
+    subscribePreferences,
+    () => storedPreference(MUTED_STORAGE_KEY, 'true', 'session'),
+    () => false,
+  )
+}
 
 function StaticCharacter() {
   return (
@@ -172,15 +184,13 @@ export default function SupportPlanCompanionShell({
   surface,
   defaultExpanded = true,
   CharacterRenderer = DefaultCharacter,
+  contextual,
+  onContextualDismiss,
 }: Props) {
   const bodyId = useId()
   const systemReducedMotion = useReactiveReducedMotion()
   const [expanded, setExpanded] = useState(defaultExpanded)
-  const muted = useSyncExternalStore(
-    subscribePreferences,
-    () => storedPreference(MUTED_STORAGE_KEY, 'true', 'session'),
-    () => false,
-  )
+  const muted = useSupportPlanCompanionMuted()
   const userReducedMotion = useSyncExternalStore(
     subscribePreferences,
     () => storedPreference(MOTION_STORAGE_KEY, 'reduced', 'local'),
@@ -189,6 +199,7 @@ export default function SupportPlanCompanionShell({
 
   const reducedMotion = systemReducedMotion || userReducedMotion
   const copy = companionStateCopy[state]
+  const displayedExpanded = expanded || Boolean(contextual)
 
   const toggleMuted = () => {
     writePreference(MUTED_STORAGE_KEY, String(!muted), 'session')
@@ -204,7 +215,7 @@ export default function SupportPlanCompanionShell({
 
   return (
     <aside
-      className={`support-plan-companion ${expanded ? 'is-expanded' : 'is-collapsed'}`}
+      className={`support-plan-companion ${displayedExpanded ? 'is-expanded' : 'is-collapsed'}`}
       aria-label="Bạn đồng hành trong kế hoạch hỗ trợ"
       data-motion={reducedMotion ? 'reduced' : 'full'}
       data-muted={muted}
@@ -221,7 +232,7 @@ export default function SupportPlanCompanionShell({
         </div>
 
         <div className="support-plan-companion-controls">
-          {expanded && (
+          {displayedExpanded && (
             <>
               <button
                 type="button"
@@ -256,13 +267,22 @@ export default function SupportPlanCompanionShell({
           <button
             type="button"
             aria-controls={bodyId}
-            aria-expanded={expanded}
+            aria-expanded={displayedExpanded}
             aria-label={
-              expanded ? 'Thu gọn bạn đồng hành' : 'Mở rộng bạn đồng hành'
+              displayedExpanded
+                ? 'Thu gọn bạn đồng hành'
+                : 'Mở rộng bạn đồng hành'
             }
-            onClick={() => setExpanded((current) => !current)}
+            onClick={() => {
+              if (contextual) onContextualDismiss?.()
+              setExpanded(!displayedExpanded)
+            }}
           >
-            {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            {displayedExpanded ? (
+              <ChevronUp size={20} />
+            ) : (
+              <ChevronDown size={20} />
+            )}
           </button>
         </div>
       </div>
@@ -270,7 +290,7 @@ export default function SupportPlanCompanionShell({
       <div
         id={bodyId}
         className="support-plan-companion-body"
-        hidden={!expanded}
+        hidden={!displayedExpanded}
       >
         <CharacterBoundary
           resetKey={`${CharacterRenderer.name}:${state}`}
@@ -284,6 +304,40 @@ export default function SupportPlanCompanionShell({
           <p>{copy.description}</p>
           <small>{companionSurfaceCopy[surface]}</small>
         </div>
+
+        {contextual && (
+          <div
+            className="support-plan-companion-contextual-tray"
+            data-status={contextual.status}
+            {...(contextual.status === 'loading' || muted
+              ? {}
+              : { role: 'status', 'aria-live': 'polite' })}
+          >
+            <div>
+              <strong>
+                {contextual.status === 'loading'
+                  ? 'Đang chuẩn bị lời giải thích…'
+                  : 'Giải thích theo hoạt động'}
+              </strong>
+              <button
+                type="button"
+                aria-label="Đóng lời giải thích"
+                onClick={onContextualDismiss}
+              >
+                <X size={17} aria-hidden="true" />
+              </button>
+            </div>
+            <small>{contextual.actionTitle}</small>
+            {contextual.status !== 'loading' && <p>{contextual.message}</p>}
+            {contextual.status !== 'loading' && (
+              <small>
+                {contextual.status === 'ready'
+                  ? 'Nội dung do AI diễn đạt từ thông tin kế hoạch đã duyệt.'
+                  : 'Phản hồi dự phòng; hoạt động gốc vẫn giữ nguyên.'}
+              </small>
+            )}
+          </div>
+        )}
 
         <p className="support-plan-companion-authority">
           Bạn luôn là người quyết định thay đổi trong kế hoạch.
