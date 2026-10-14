@@ -12,6 +12,53 @@ import { supportPlanActionClient } from './support-plan-action-client'
 
 describe('Care native action transport', () => {
   afterEach(() => vi.unstubAllEnvs())
+  it('checks a Journal candidate through the exact bounded owner path and rejects a swapped response', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    const journalId = '50000000-0000-4000-8000-000000000642'
+    const result = {
+      schemaVersion: 'journal-entry-occurrence-reconciliation-v1',
+      occurrenceId: emotionOccurrenceId,
+      actionId: emotionActionId,
+      journalId,
+      localDate: '2026-10-14',
+      sourceState: 'MISSING',
+      occurrenceState: 'SCHEDULED',
+      version: 0,
+      completedAt: null,
+      completionEvidence: null,
+    }
+    let response = result
+    mockServer.use(
+      http.post(
+        `http://care.test/api/v2/support-plan-occurrences/${emotionOccurrenceId}/journal/reconcile`,
+        async ({ request }) => {
+          expect(request.headers.get('authorization')).toBe(
+            'Bearer owner-token',
+          )
+          expect(request.headers.get('idempotency-key')).toBeNull()
+          expect(await request.json()).toEqual({ journalId })
+          return HttpResponse.json(response)
+        },
+      ),
+    )
+    expect(
+      await supportPlanActionClient.reconcileJournal(
+        'owner-token',
+        emotionOccurrenceId,
+        journalId,
+        'correlation',
+      ),
+    ).toEqual(result)
+    response = { ...result, journalId: emotionActionId }
+    await expect(
+      supportPlanActionClient.reconcileJournal(
+        'owner-token',
+        emotionOccurrenceId,
+        journalId,
+        'correlation',
+      ),
+    ).rejects.toMatchObject({ status: 502, code: 'CARE_MALFORMED_RESPONSE' })
+  })
   it('does not transmit fact payload and accepts deleted source with retained completion', async () => {
     vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
     const result = {

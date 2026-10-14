@@ -10,14 +10,23 @@ import { createSupportPlanApi } from './support-plan-api'
 import { createSupportPlanActionApi } from './support-plan-action-api'
 import { SupportPlanActionWorkspace } from './SupportPlanActionWorkspace'
 import { parseEmotionPlanOrigin } from './emotion-plan-context'
+import { noJournalOrigin, parseJournalPlanOrigin } from './journal-plan-context'
 
 export function SupportPlanRoute() {
   const runtimeConfig = useRuntimeConfig()
-  const { proposalId, occurrenceId, actionId } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
     proposalId?: string
     occurrenceId?: string
     actionId?: string
+    source?: string
+    localDate?: string
+    journalId?: string
   }>()
+  const { proposalId, occurrenceId, actionId } = params
+  const journalContext =
+    params.source !== undefined ||
+    params.journalId !== undefined ||
+    params.localDate !== undefined
   const [services] = useState(() => {
     const client = createApiClient({
       config: runtimeConfig,
@@ -33,7 +42,14 @@ export function SupportPlanRoute() {
   return (
     <SupportPlanActionWorkspace
       {...services}
-      origin={parseEmotionPlanOrigin(occurrenceId, actionId)}
+      origin={
+        journalContext
+          ? { state: 'none' }
+          : parseEmotionPlanOrigin(occurrenceId, actionId)
+      }
+      journalOrigin={
+        journalContext ? parseJournalPlanOrigin(params) : noJournalOrigin
+      }
       {...(typeof proposalId === 'string' ? { proposalId } : {})}
     />
   )

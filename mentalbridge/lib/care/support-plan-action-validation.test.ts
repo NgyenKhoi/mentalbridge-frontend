@@ -11,6 +11,7 @@ import {
   parseCanonicalSupportPlan,
   parseCompletionEvidence,
   parseEmotionCheckInReconciliation,
+  parseJournalReconciliation,
   parseSupportPlanActionHistory,
 } from './support-plan-action-validation'
 
@@ -166,5 +167,73 @@ describe('Canonical native SupportPlan boundaries', () => {
       parseSupportPlanActionHistory({ ...page, items: [active] }),
     ).toBeNull()
     expect(parseSupportPlanActionHistory({ ...page, hasMore: true })).toBeNull()
+  })
+})
+
+describe('Minimized Journal occurrence reconciliation', () => {
+  const journalId = '50000000-0000-4000-8000-000000000642'
+  const value = {
+    schemaVersion: 'journal-entry-occurrence-reconciliation-v1',
+    occurrenceId: '40000000-0000-4000-8000-000000000642',
+    actionId: '30000000-0000-4000-8000-000000000642',
+    localDate: '2026-10-14',
+    journalId,
+    sourceState: 'RECORDED',
+    occurrenceState: 'COMPLETED',
+    version: 1,
+    completedAt: '2026-10-14T02:01:00Z',
+    completionEvidence: {
+      ownerDomain: 'JOURNAL_AI',
+      kind: 'JOURNAL_ENTRY',
+      factId: journalId,
+      factRevision: '1',
+      occurredAt: '2026-10-14T02:00:00Z',
+      verifiedAt: '2026-10-14T02:01:00Z',
+    },
+  }
+  it('retains accepted creation evidence separately from current deleted or missing source state', () => {
+    for (const sourceState of ['RECORDED', 'MISSING', 'DELETED']) {
+      const result = { ...value, sourceState }
+      expect(parseJournalReconciliation(result)).toEqual(result)
+    }
+  })
+  it('never accepts manual, swapped-entry, mutable-revision or content-bearing evidence', () => {
+    for (const completionEvidence of [
+      null,
+      {
+        ...value.completionEvidence,
+        ownerDomain: 'CARE',
+        kind: 'USER_ACKNOWLEDGEMENT',
+      },
+      { ...value.completionEvidence, factId: value.actionId },
+      { ...value.completionEvidence, factRevision: '2' },
+      { ...value.completionEvidence, journalText: 'private reflection' },
+    ])
+      expect(
+        parseJournalReconciliation({ ...value, completionEvidence }),
+      ).toBeNull()
+    expect(
+      parseJournalReconciliation({ ...value, journalText: 'private' }),
+    ).toBeNull()
+    expect(
+      parseJournalReconciliation({ ...value, journalId: [journalId] }),
+    ).toBeNull()
+  })
+  it('keeps authoritative absence open and rejects false recorded completion', () => {
+    const open = {
+      ...value,
+      sourceState: 'MISSING',
+      occurrenceState: 'SCHEDULED',
+      version: 0,
+      completedAt: null,
+      completionEvidence: null,
+    }
+    expect(parseJournalReconciliation(open)).toEqual(open)
+    expect(
+      parseJournalReconciliation({ ...open, sourceState: 'RECORDED' }),
+    ).toBeNull()
+    expect(
+      parseJournalReconciliation({ ...value, localDate: '2026-02-30' }),
+    ).toBeNull()
   })
 })

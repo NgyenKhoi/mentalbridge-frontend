@@ -1,0 +1,47 @@
+{
+  "projectId": "1256373820415012052",
+  "batch": "corrected",
+  "nativeInstantPrototype": "CREATED_BY_USER_PLAY_NOT_VERIFIED",
+  "screens": [
+    {
+      "id": "4b38c27e0f23407da05c1da890d0110c",
+      "title": "MB-642 D01 · Hôm nay (Chuẩn White Workspace)",
+      "viewport": "desktop",
+      "stem": "corrected-desktop-01",
+      "htmlFile": "screens/corrected-desktop-01.html",
+      "pngFile": "screens/corrected-desktop-01.png"
+    },
+    {
+      "id": "7740733a520f4580807f1d76a7eea5dd",
+      "title": "MB-642 D02 · Viết nhật ký (Chuẩn Journal Page Modal)",
+      "viewport": "desktop",
+      "stem": "corrected-desktop-02",
+      "htmlFile": "screens/corrected-desktop-02.html",
+      "pngFile": "screens/corrected-desktop-02.png"
+    },
+    {
+      "id": "689a22e56281434599353b3a32d03ebf",
+      "title": "MB-642 D03 · Lưu chưa thành công (Chuẩn Journal Modal)",
+      "viewport": "desktop",
+      "stem": "corrected-desktop-03",
+      "htmlFile": "screens/corrected-desktop-03.html",
+      "pngFile": "screens/corrected-desktop-03.png"
+    },
+    {
+      "id": "5950bce964734f0bb0b06343869ac7c7",
+      "title": "MB-642 D04 · Đã lưu nhật ký (Chuẩn Journal Page)",
+      "viewport": "desktop",
+      "stem": "corrected-desktop-04",
+      "htmlFile": "screens/corrected-desktop-04.html",
+      "pngFile": "screens/corrected-desktop-04.png"
+    },
+    {
+      "id": "78c21026928347a486ce575e43d37855",
+      "title": "MB-642 D05 · Quay lại hoạt động (Chuẩn White Workspace)",
+      "viewport": "desktop",
+      "stem": "corrected-desktop-05",
+      "htmlFile": "screens/corrected-desktop-05.html",
+      "pngFile": "screens/corrected-desktop-05.png"
+    }
+  ]
+}

@@ -8,7 +8,14 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react'
-import { CalendarDays, Check, Smile, SlidersHorizontal } from 'lucide-react'
+import {
+  BookOpen,
+  CalendarDays,
+  Check,
+  LockKeyhole,
+  Smile,
+  SlidersHorizontal,
+} from 'lucide-react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { Disclosure } from '@/components/ui/Disclosure'
 import { ApiError } from '@/lib/api/api-error'
@@ -27,6 +34,7 @@ import {
   getSupportPlanActionOccurrences,
   proposeNativeSupportPlanDraft,
   reconcileEmotionCheckInOccurrence,
+  reconcileJournalOccurrence,
   replaceWithNativeSupportPlan,
   reviewNativeSupportPlanReplacement,
 } from '../api/browser-support-plan-actions'
@@ -43,6 +51,7 @@ import type {
   UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
 import { emotionPlanHref, type EmotionPlanOrigin } from '../emotion-plan-origin'
+import { journalPlanHref, type JournalPlanOrigin } from '../journal-plan-origin'
 import ProfessionalSupportPath from './ProfessionalSupportPath'
 import SupportPlanDescription from './SupportPlanDescription'
 import SupportPlanFooter from './SupportPlanFooter'
@@ -134,12 +143,16 @@ export default function NativeSupportPlanJourney({
   initialDraft,
   initialHistory,
   origin,
+  journalOrigin,
+  invalidJournalOrigin,
   onBackToLegacy,
 }: Readonly<{
   initialCurrent?: SupportPlanV3
   initialDraft?: SupportPlanV3
   initialHistory?: SupportPlanActionHistory
   origin?: EmotionPlanOrigin
+  journalOrigin?: JournalPlanOrigin
+  invalidJournalOrigin?: boolean
   onBackToLegacy?: () => void
 }>) {
   const { confirm } = useFeedback()
@@ -195,7 +208,7 @@ export default function NativeSupportPlanJourney({
     Intl.DateTimeFormat().resolvedOptions().timeZone ??
     'Asia/Ho_Chi_Minh'
   const [day, setDay] = useState(
-    () => origin?.localDate ?? localToday(timezone),
+    () => journalOrigin?.localDate ?? origin?.localDate ?? localToday(timezone),
   )
   const availableTabs =
     current || draft ? tabs : tabs.filter((item) => item.id !== 'today')
@@ -275,16 +288,19 @@ export default function NativeSupportPlanJourney({
     if (tab === 'progress') void loadHistory()
   }, [tab, loadHistory])
   useEffect(() => {
-    if (!origin || tab !== 'today') return
+    const returned = journalOrigin ?? origin
+    if (!returned || tab !== 'today') return
     const item = occurrences.find(
       (candidate) =>
-        candidate.occurrenceId === origin.occurrenceId &&
-        candidate.actionId === origin.actionId &&
-        candidate.localDate === origin.localDate,
+        candidate.occurrenceId === returned.occurrenceId &&
+        candidate.actionId === returned.actionId &&
+        candidate.localDate === returned.localDate &&
+        candidate.actionType ===
+          (journalOrigin ? 'JOURNAL' : 'EMOTION_CHECK_IN'),
     )
     if (!item) return
     document.getElementById(`activity-${item.occurrenceId}`)?.focus()
-  }, [origin, occurrences, tab])
+  }, [origin, journalOrigin, occurrences, tab])
   useUnsavedChangesGuard(
     dirty,
     'Các lựa chọn và chỉnh sửa lịch chưa lưu sẽ không được giữ khi rời trang.',
@@ -513,6 +529,7 @@ export default function NativeSupportPlanJourney({
   async function rowCommand(
     item: ActionOccurrence,
     state?: 'SCHEDULED' | 'COMPLETED' | 'SKIPPED',
+    journalId?: string,
   ) {
     if (rowLocks.current.has(item.occurrenceId)) return
     rowLocks.current.add(item.occurrenceId)
@@ -534,6 +551,41 @@ export default function NativeSupportPlanJourney({
         setOccurrences((values) =>
           values.map((value) =>
             value.occurrenceId === item.occurrenceId ? result : value,
+          ),
+        )
+      } else if (item.actionType === 'JOURNAL') {
+        if (!journalId) throw new Error('Missing saved Journal candidate')
+        const result = await reconcileJournalOccurrence(
+          item.occurrenceId,
+          journalId,
+        )
+        if (
+          result.occurrenceId !== item.occurrenceId ||
+          result.actionId !== item.actionId ||
+          result.localDate !== item.localDate ||
+          result.journalId !== journalId ||
+          (result.completionEvidence &&
+            (result.completionEvidence.kind !== 'JOURNAL_ENTRY' ||
+              result.completionEvidence.ownerDomain !== 'JOURNAL_AI' ||
+              result.completionEvidence.factId !== journalId))
+        )
+          throw new Error('Wrong Journal activity')
+        setSourceStates((values) => ({
+          ...values,
+          [item.occurrenceId]: result.sourceState,
+        }))
+        setOccurrences((values) =>
+          values.map((value) =>
+            value.occurrenceId === item.occurrenceId
+              ? {
+                  ...value,
+                  state: result.occurrenceState,
+                  displayState: result.occurrenceState,
+                  version: result.version,
+                  completionEvidence: result.completionEvidence,
+                  outcomeRecordedAt: result.completedAt,
+                }
+              : value,
           ),
         )
       } else {
@@ -568,7 +620,11 @@ export default function NativeSupportPlanJourney({
     } catch (error) {
       setRowMessages((values) => ({
         ...values,
-        [item.occurrenceId]: errorMessage(error),
+        [item.occurrenceId]:
+          item.actionType === 'JOURNAL' &&
+          (!(error instanceof ApiError) || error.status === 503)
+            ? 'Chưa thể kiểm tra bài nhật ký. Bài đã lưu và trạng thái hoạt động vẫn được giữ. Hãy thử kiểm tra lại.'
+            : errorMessage(error),
       }))
     } finally {
       rowLocks.current.delete(item.occurrenceId)
@@ -596,6 +652,20 @@ export default function NativeSupportPlanJourney({
         item.occurrenceId === origin.occurrenceId &&
         item.actionId === origin.actionId &&
         item.localDate === origin.localDate,
+    )
+  const journalOriginMatched =
+    !journalOrigin ||
+    joined.some(
+      ({ item, action }) =>
+        item.actionType === 'JOURNAL' &&
+        item.occurrenceId === journalOrigin.occurrenceId &&
+        item.actionId === journalOrigin.actionId &&
+        item.localDate === journalOrigin.localDate &&
+        action.source?.ownerDomain === 'JOURNAL_AI' &&
+        action.source.sourceKind === 'JOURNAL_TEMPLATE' &&
+        action.source.sourceId === 'short-reflection' &&
+        action.source.sourceRevision === '1' &&
+        action.source.sourcePolicyVersion === 'journal-writing-intent-v1',
     )
 
   return (
@@ -658,6 +728,16 @@ export default function NativeSupportPlanJourney({
           })}
         </nav>
       </header>
+      {(invalidJournalOrigin ||
+        (!journalOriginMatched && !loadingOccurrences)) && (
+        <p className={styles.notice} role="status">
+          Không tìm thấy hoạt động nhật ký đã mở trong kế hoạch hiện tại. Nhật
+          ký của bạn không bị thay đổi.{' '}
+          <Link className="btn btn-secondary" href="/journal">
+            Về nhật ký
+          </Link>
+        </p>
+      )}
       {message && (
         <div className="support-plan-state" role="alert">
           <p>{message}</p>
@@ -773,22 +853,84 @@ export default function NativeSupportPlanJourney({
                   )}
                 {joined.map(({ item, action, schedule }) => {
                   const emotion = action.actionType === 'EMOTION_CHECK_IN'
+                  const journal = action.actionType === 'JOURNAL'
+                  const supportedJournal =
+                    journal &&
+                    item.representationMode === 'NATIVE_V3' &&
+                    action.representationMode === 'NATIVE_V3' &&
+                    (item.state === 'COMPLETED' ||
+                      action.actionVersion === item.actionVersion) &&
+                    action.source?.ownerDomain === 'JOURNAL_AI' &&
+                    action.source.sourceKind === 'JOURNAL_TEMPLATE' &&
+                    action.source.sourceId === 'short-reflection' &&
+                    action.source.sourceRevision === '1' &&
+                    action.source.sourcePolicyVersion ===
+                      'journal-writing-intent-v1'
                   const canAct =
                     nativeCurrent?.status === 'ACTIVE' &&
                     action.status === 'ACTIVE' &&
                     item.state !== 'CANCELLED'
+                  const canWriteJournal =
+                    canAct &&
+                    !!nativeCurrent?.activatedAt &&
+                    !!action.activatedAt
                   const pending = !!rowBusy[item.occurrenceId]
                   const sourceState = sourceStates[item.occurrenceId]
+                  const returnedJournal =
+                    journalOriginMatched &&
+                    journalOrigin?.occurrenceId === item.occurrenceId &&
+                    journalOrigin.actionId === item.actionId &&
+                    journalOrigin.localDate === item.localDate
+                  // Accepted history always wins over a new URL candidate.
+                  const journalId =
+                    item.state === 'COMPLETED'
+                      ? item.completionEvidence?.kind === 'JOURNAL_ENTRY' &&
+                        item.completionEvidence.ownerDomain === 'JOURNAL_AI'
+                        ? item.completionEvidence.factId
+                        : undefined
+                      : returnedJournal
+                        ? journalOrigin?.journalId
+                        : undefined
+                  let journalToday: string | undefined
+                  if (supportedJournal) {
+                    try {
+                      journalToday = localToday(schedule.timezone)
+                    } catch {
+                      /* Invalid schedule timezone cannot enable a writing command. */
+                    }
+                  }
+                  const writingToday = item.localDate === journalToday
+                  const journalOriginForRow: JournalPlanOrigin = {
+                    source: 'journal',
+                    occurrenceId: item.occurrenceId,
+                    actionId: item.actionId,
+                    localDate: item.localDate,
+                    ...(journalId ? { journalId } : {}),
+                  }
+                  const canCheckJournal =
+                    supportedJournal &&
+                    !!journalToday &&
+                    !loadingOccurrences &&
+                    !occurrenceError &&
+                    !!journalId &&
+                    (item.state === 'COMPLETED' ||
+                      (canWriteJournal &&
+                        item.state === 'SCHEDULED' &&
+                        item.localDate <= journalToday))
                   return (
                     <article
                       key={item.occurrenceId}
-                      className={`${styles.activity} ${emotion ? styles.emotion : ''}`}
+                      className={`${styles.activity} ${emotion || journal ? styles.emotion : ''}`}
                       aria-labelledby={`activity-${item.occurrenceId}`}
                     >
                       <div className={styles.activityTop}>
-                        {emotion && (
+                        {(emotion || journal) && (
                           <span className={styles.mark}>
-                            <Smile size={22} aria-hidden="true" />
+                            {journal ? (
+                              <BookOpen size={22} aria-hidden="true" />
+                            ) : (
+                              <Smile size={22} aria-hidden="true" />
+                            )}
                           </span>
                         )}
                         <div>
@@ -824,7 +966,143 @@ export default function NativeSupportPlanJourney({
                           </li>
                         </ul>
                       )}
+                      {journal && (
+                        <p className={styles.privacy}>
+                          <LockKeyhole size={17} aria-hidden="true" />
+                          <span>
+                            Nội dung nhật ký vẫn riêng tư. Kế hoạch chỉ ghi nhận
+                            việc bạn đã lưu bài.
+                          </span>
+                        </p>
+                      )}
+                      {journal &&
+                        returnedJournal &&
+                        journalId &&
+                        item.state !== 'COMPLETED' && (
+                          <p className={styles.meta} role="status">
+                            Bạn đã quay lại từ Nhật ký. Hoạt động chưa được xác
+                            nhận hoàn thành.
+                          </p>
+                        )}
+                      {journal &&
+                        item.state === 'SCHEDULED' &&
+                        !writingToday && (
+                          <p className={styles.meta}>
+                            Hoạt động này dành cho ngày {shortDateLabel}. Hãy
+                            chọn hoạt động hôm nay để viết bài mới; đổi ngày
+                            trong nhật ký không ghi nhận cho ngày khác.
+                          </p>
+                        )}
+                      {journal &&
+                        (!supportedJournal ||
+                          (!canWriteJournal && item.state !== 'COMPLETED')) && (
+                          <p className={styles.meta}>
+                            Hoạt động hiện chưa cho phép viết từ kế hoạch. Bạn
+                            vẫn có thể dùng Nhật ký riêng.
+                          </p>
+                        )}
                       <div className={styles.actions}>
+                        {supportedJournal &&
+                          canWriteJournal &&
+                          item.state === 'SCHEDULED' &&
+                          writingToday &&
+                          !loadingOccurrences &&
+                          !occurrenceError &&
+                          !journalId &&
+                          (pending ? (
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              disabled
+                            >
+                              Viết nhật ký
+                            </button>
+                          ) : (
+                            <Link
+                              className="btn btn-primary"
+                              href={journalPlanHref(
+                                journalOriginForRow,
+                                '/journal',
+                              )}
+                            >
+                              Viết nhật ký
+                            </Link>
+                          ))}
+                        {supportedJournal &&
+                          canWriteJournal &&
+                          item.state === 'SCHEDULED' &&
+                          writingToday &&
+                          !loadingOccurrences &&
+                          !occurrenceError &&
+                          (sourceState === 'MISSING' ||
+                            sourceState === 'DELETED') &&
+                          (pending ? (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              disabled
+                            >
+                              Viết bài mới
+                            </button>
+                          ) : (
+                            <Link
+                              className="btn btn-secondary"
+                              href={journalPlanHref(
+                                {
+                                  source: 'journal',
+                                  occurrenceId: item.occurrenceId,
+                                  actionId: item.actionId,
+                                  localDate: item.localDate,
+                                },
+                                '/journal',
+                              )}
+                            >
+                              Viết bài mới
+                            </Link>
+                          ))}
+                        {supportedJournal && journalId && (
+                          <>
+                            {pending ? (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                disabled
+                              >
+                                Xem nhật ký
+                              </button>
+                            ) : (
+                              <Link
+                                className="btn btn-secondary"
+                                href={journalPlanHref(
+                                  journalOriginForRow,
+                                  '/journal',
+                                )}
+                              >
+                                Xem nhật ký
+                              </Link>
+                            )}
+                            {canCheckJournal && (
+                              <button
+                                type="button"
+                                className={
+                                  item.state === 'COMPLETED'
+                                    ? 'btn btn-secondary'
+                                    : 'btn btn-primary'
+                                }
+                                disabled={pending}
+                                onClick={() =>
+                                  void rowCommand(item, undefined, journalId)
+                                }
+                              >
+                                {pending
+                                  ? 'Đang kiểm tra…'
+                                  : rowMessages[item.occurrenceId]
+                                    ? 'Thử kiểm tra lại'
+                                    : 'Kiểm tra ghi nhận'}
+                              </button>
+                            )}
+                          </>
+                        )}
                         {emotion && canAct && item.state !== 'SKIPPED' && (
                           <>
                             <Link
@@ -903,19 +1181,46 @@ export default function NativeSupportPlanJourney({
                       )}
                       {sourceState && (
                         <p role="status">
-                          {sourceState === 'RECORDED'
-                            ? 'Đã tìm thấy ghi nhận cảm xúc phù hợp.'
-                            : sourceState === 'DELETED'
-                              ? item.state === 'COMPLETED'
-                                ? 'Ghi nhận cảm xúc gốc đã được xóa. Lần hoàn thành được chấp nhận trước đó vẫn được giữ.'
-                                : 'Ghi nhận cảm xúc ngày này đã được xóa. Hoạt động chưa được ghi nhận hoàn thành.'
-                              : item.state === 'COMPLETED'
-                                ? 'Hiện không còn tìm thấy ghi nhận gốc. Lần hoàn thành đã được chấp nhận vẫn được giữ.'
-                                : 'Chưa có ghi nhận cảm xúc phù hợp cho hoạt động ngày này.'}
+                          {journal
+                            ? sourceState === 'RECORDED'
+                              ? 'Đã tìm thấy bài nhật ký phù hợp cho hoạt động này.'
+                              : sourceState === 'DELETED'
+                                ? item.state === 'COMPLETED'
+                                  ? 'Bài nhật ký gốc đã được xóa. Lần hoàn thành được chấp nhận trước đó vẫn được giữ.'
+                                  : 'Bài nhật ký đã được xóa. Hoạt động chưa được ghi nhận hoàn thành.'
+                                : item.state === 'COMPLETED'
+                                  ? 'Hiện không còn tìm thấy bài nhật ký gốc. Lần hoàn thành đã được chấp nhận vẫn được giữ.'
+                                  : 'Chưa tìm thấy bài nhật ký đã lưu. Hoạt động chưa được ghi nhận hoàn thành.'
+                            : sourceState === 'RECORDED'
+                              ? 'Đã tìm thấy ghi nhận cảm xúc phù hợp.'
+                              : sourceState === 'DELETED'
+                                ? item.state === 'COMPLETED'
+                                  ? 'Ghi nhận cảm xúc gốc đã được xóa. Lần hoàn thành được chấp nhận trước đó vẫn được giữ.'
+                                  : 'Ghi nhận cảm xúc ngày này đã được xóa. Hoạt động chưa được ghi nhận hoàn thành.'
+                                : item.state === 'COMPLETED'
+                                  ? 'Hiện không còn tìm thấy ghi nhận gốc. Lần hoàn thành đã được chấp nhận vẫn được giữ.'
+                                  : 'Chưa có ghi nhận cảm xúc phù hợp cho hoạt động ngày này.'}
                         </p>
                       )}
                       {rowMessages[item.occurrenceId] && (
-                        <p role="alert">{rowMessages[item.occurrenceId]}</p>
+                        <div>
+                          <p role="alert">{rowMessages[item.occurrenceId]}</p>
+                          {journal && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              disabled={pending || busy}
+                              onClick={() =>
+                                void command(async () => {
+                                  await reloadPlans()
+                                  await loadOccurrences()
+                                })
+                              }
+                            >
+                              Tải lại hoạt động
+                            </button>
+                          )}
+                        </div>
                       )}
                     </article>
                   )

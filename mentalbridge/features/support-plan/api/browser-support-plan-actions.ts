@@ -4,6 +4,7 @@ import type {
   ActionOccurrenceList,
   ChangeSupportPlanStatusRequest,
   EmotionCheckInOccurrenceReconciliation,
+  JournalOccurrenceReconciliation,
   NativeSupportPlanReplacementReview,
   ReplaceCurrentSupportPlanRequest,
   SupportPlanActionHistory,
@@ -152,6 +153,18 @@ export async function reconcileEmotionCheckInOccurrence(id: string) {
   return (
     await browserApiClient.post<EmotionCheckInOccurrenceReconciliation>(
       `${occurrencePath(id)}/emotion-check-in/reconcile`,
+    )
+  ).data
+}
+
+export async function reconcileJournalOccurrence(
+  id: string,
+  journalId: string,
+) {
+  return (
+    await browserApiClient.post<JournalOccurrenceReconciliation>(
+      `${occurrencePath(id)}/journal/reconcile`,
+      { journalId },
     )
   ).data
 }

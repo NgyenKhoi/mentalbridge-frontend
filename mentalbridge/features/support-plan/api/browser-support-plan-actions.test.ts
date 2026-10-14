@@ -7,6 +7,7 @@ import {
   getSupportPlanActionOccurrences,
   proposeNativeSupportPlanDraft,
   reconcileEmotionCheckInOccurrence,
+  reconcileJournalOccurrence,
   reviewNativeSupportPlanReplacement,
   replaceWithNativeSupportPlan,
 } from './browser-support-plan-actions'
@@ -16,6 +17,13 @@ describe('Native SupportPlan same-origin browser transport', () => {
     vi.clearAllMocks()
     for (const method of Object.values(client))
       method.mockResolvedValue({ data: { version: 1 } })
+  })
+  it('sends only a Journal candidate ID for owner verification, never private content or a fact assertion', async () => {
+    await reconcileJournalOccurrence('occurrence-id', 'journal-id')
+    expect(client.post).toHaveBeenCalledWith(
+      '/care/v2/support-plan-occurrences/occurrence-id/journal/reconcile',
+      { journalId: 'journal-id' },
+    )
   })
   it('sends only explicit proposal/activation authority and same-origin paths', async () => {
     await proposeNativeSupportPlanDraft('evaluation-id', 'proposal-retry-key')
