@@ -65,7 +65,9 @@ journey provide the runtime check.
 
 - `npx vitest run features/support-plan/components/SupportPlanCompanionShell.test.tsx features/support-plan/components/SupportPlanJourney.test.tsx lib/animations/use-reduced-motion.test.tsx --reporter=dot`: 39 tests.
 - `node scripts/run-e2e.mjs tests/e2e/support-plan.spec.ts --workers=1 --reporter=line`: SupportPlan fixture-browser journeys and controlled screenshots.
-- `npm run quality`: formatting, lint, generated route types, TypeScript, contract checks, unit/component tests, and production build.
+- `npm run quality`: 231 test files and 1,258 tests, plus formatting,
+  lint, generated route types, TypeScript, contract checks, and production
+  build after synchronizing `origin/dev` at `ff163e0`.
 
 All browser identities and plan data are synthetic. These artifacts are
 fixture-browser evidence, not live cross-stack evidence.
