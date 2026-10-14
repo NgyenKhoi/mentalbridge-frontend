@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const communityContractVersion = '1.10.0'
+export const communityContractVersion = '1.11.0'
 const id = z.uuid()
 const version = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const text = (minimum: number, maximum: number) =>
@@ -44,19 +44,28 @@ export const reportReasonSchema = z.enum([
   'SEXUAL_OR_VIOLENT_CONTENT',
   'OTHER',
 ])
+const avatarImageSchema = z.strictObject({
+  mediaId: id,
+  url: https,
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+})
 export const authorSchema = z
   .strictObject({
     communityProfileId: id.nullable(),
     displayName: text(1, 80),
     avatarPreset: avatarSchema.nullable(),
+    avatarImage: avatarImageSchema.optional(),
     state: z.enum(['ACTIVE', 'DELETED', 'ANONYMOUS']),
   })
   .refine((author) =>
     author.state === 'ACTIVE'
       ? author.communityProfileId !== null
       : author.state === 'ANONYMOUS'
-        ? author.communityProfileId === null && author.avatarPreset === null
-        : author.avatarPreset === null,
+        ? author.communityProfileId === null &&
+          author.avatarPreset === null &&
+          author.avatarImage === undefined
+        : author.avatarPreset === null && author.avatarImage === undefined,
   )
 export const mediaSchema = z.strictObject({
   mediaId: id,
@@ -151,6 +160,7 @@ export const profileSchema = z.strictObject({
   communityProfileId: id,
   displayName: text(1, 80),
   avatarPreset: avatarSchema.nullable(),
+  avatarImage: avatarImageSchema.optional(),
   status: z.enum(['ACTIVE', 'DELETED']),
   version,
   createdAt: z.iso.datetime({ offset: true }),

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -16,6 +17,11 @@ import type {
   EmotionCheckInProgress,
 } from './emotion-contract'
 import { EmotionCheckInScreen } from './EmotionCheckInScreen'
+import {
+  nativeIds,
+  nativeOccurrence,
+  nativePlan,
+} from '@/support-plan/native-plan-test-fixtures'
 
 const mockBack = jest.fn()
 const mockSignOut = jest.fn()
@@ -138,6 +144,54 @@ const screenFor = (api: EmotionApi) => (
 )
 
 describe('mobile daily emotion check-in journey', () => {
+  it('reuses canonical form for an owned plan origin and returns only after explicit choice', async () => {
+    const api = emotionApi({
+      getCheckIn: jest.fn().mockRejectedValue(
+        new ApiError({
+          status: 404,
+          code: 'EMOTION_CHECK_IN_NOT_FOUND',
+          message: 'missing',
+        }),
+      ),
+    })
+    const onReturn = jest.fn()
+    await renderEmotion(
+      <EmotionCheckInScreen
+        api={api}
+        now={() => new Date('2026-10-07T03:00:00Z')}
+        timezone="Asia/Ho_Chi_Minh"
+        planOrigin={{
+          origin: {
+            occurrenceId: nativeIds.occurrence,
+            actionId: nativeIds.action,
+          },
+          plan: nativePlan(),
+          occurrence: nativeOccurrence({ localDate: '2026-10-07' }),
+          title: 'Dành một phút nhìn lại cảm xúc',
+          timezone: 'Asia/Ho_Chi_Minh',
+          isToday: true,
+        }}
+        onReturnToPlan={onReturn}
+      />,
+    )
+    await screen.findByText('Đang ghi nhận cho hoạt động trong kế hoạch')
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Tốt' }))
+    await fireEvent.press(screen.getByRole('radio', { name: 'Mức cảm nhận 4' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Lưu ghi nhận' }))
+    await screen.findByText(
+      'Đã lưu ghi nhận cảm xúc. Quay lại để kiểm tra hoạt động trong kế hoạch.',
+    )
+    expect(onReturn).not.toHaveBeenCalled()
+    expect(api.createCheckIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timezone: 'Asia/Ho_Chi_Minh',
+        localDate: '2026-10-07',
+      }),
+      expect.any(String),
+    )
+    await fireEvent.press(screen.getByTestId('emotion-return-to-plan'))
+    expect(onReturn).toHaveBeenCalledTimes(1)
+  })
   beforeEach(() => {
     jest.clearAllMocks()
     mockSubject = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -373,6 +427,80 @@ describe('mobile daily emotion check-in journey', () => {
     expect(screen.queryByRole('radio', { checked: true })).not.toBeOnTheScreen()
     expect(api.updateCheckIn).not.toHaveBeenCalled()
   })
+
+  it.each(['day', 'subject'] as const)(
+    'does not let a delayed old-context save overwrite the new %s',
+    async (change) => {
+      const next = {
+        ...today,
+        localDate: change === 'day' ? '2026-10-08' : today.localDate,
+        id: '33333333-3333-4333-8333-333333333333',
+        emotion: 'GREAT' as const,
+        intensity: 5,
+      }
+      let resolve!: (value: EmotionCheckIn) => void
+      const api = emotionApi({
+        getCheckIn: jest
+          .fn()
+          .mockResolvedValueOnce(today)
+          .mockResolvedValue(next),
+        updateCheckIn: jest.fn().mockImplementation(
+          () =>
+            new Promise((done) => {
+              resolve = done
+            }),
+        ),
+      })
+      const queryClient = createTestQueryClient()
+      const view = await renderEmotion(screenFor(api), queryClient)
+      await screen.findByRole('radio', { name: 'Tốt', checked: true })
+      await fireEvent.press(screen.getByRole('radio', { name: 'Bình thường' }))
+      await fireEvent.press(
+        screen.getByRole('button', { name: 'Cập nhật ghi nhận' }),
+      )
+      await waitFor(() => expect(api.updateCheckIn).toHaveBeenCalledTimes(1))
+      if (change === 'subject')
+        mockSubject = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+      await view.rerender(
+        <QueryClientProvider client={queryClient}>
+          <EmotionCheckInScreen
+            api={api}
+            timezone="Asia/Ho_Chi_Minh"
+            now={() =>
+              new Date(
+                change === 'day'
+                  ? '2026-10-08T03:00:00Z'
+                  : '2026-10-07T03:00:00Z',
+              )
+            }
+          />
+        </QueryClientProvider>,
+      )
+      await screen.findByRole('radio', { name: 'Rất tốt', checked: true })
+      const acceptedOld = { ...today, emotion: 'OKAY' as const, revision: 2 }
+      await act(async () => resolve(acceptedOld))
+      expect(
+        screen.getByRole('radio', { name: 'Rất tốt', checked: true }),
+      ).toBeTruthy()
+      expect(screen.queryByText('Đã cập nhật ghi nhận hôm nay.')).toBeNull()
+      expect(
+        queryClient.getQueryData([
+          'emotion-check-in',
+          mockSubject,
+          'today',
+          next.localDate,
+        ]),
+      ).toEqual(next)
+      expect(
+        queryClient.getQueryData([
+          'emotion-check-in',
+          'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          'today',
+          today.localDate,
+        ]),
+      ).toEqual(acceptedOld)
+    },
+  )
 
   it('shows sparse history as missing data and only authoritative 7/14/30 periods', async () => {
     const api = emotionApi({

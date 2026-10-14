@@ -329,6 +329,8 @@ export type AppointmentHistoryEntry = Readonly<{
     | 'SESSION_ACTIVITY_OBSERVED'
     | 'SCHEDULED_WINDOW_ENDED'
     | 'EVIDENCE_REQUIREMENTS_MET'
+    | 'SPECIALIST_VIDEO_END_CONFIRMED'
+    | 'VIDEO_MANUAL_REVIEW_REQUIRED'
   creditOutcome: AppointmentCancellationCreditOutcome | null
   occurredAt: string
 }>
@@ -406,7 +408,7 @@ export type Appointment = Readonly<{
   cancellationCreditOutcome: AppointmentCancellationCreditOutcome | null
   sessionOutcome: ChatSessionOutcome | null
   sessionOutcomeReason: string | null
-  sessionPolicyVersion: 'chat-session-completion-v1' | null
+  sessionPolicyVersion: ConsultationSchemas['Appointment']['sessionPolicyVersion']
   sessionEndedAt: string | null
   sessionSettledAt: string | null
   completionFactId: string | null
@@ -2048,9 +2050,11 @@ export function parseAppointment(value: unknown): Appointment | null {
       item.sessionOutcomeReason === null ||
       typeof item.sessionOutcomeReason === 'string'
     ) ||
-    !['chat-session-completion-v1', null].includes(
-      item.sessionPolicyVersion as string | null,
-    ) ||
+    ![
+      'chat-session-completion-v1',
+      'livekit-video-completion-v1',
+      null,
+    ].includes(item.sessionPolicyVersion as string | null) ||
     !(item.sessionEndedAt === null || utcInstant(item.sessionEndedAt)) ||
     !(item.sessionSettledAt === null || utcInstant(item.sessionSettledAt)) ||
     !(item.completionFactId === null || uuid(item.completionFactId)) ||
@@ -2072,6 +2076,11 @@ export function parseAppointment(value: unknown): Appointment | null {
 }
 
 function validAppointmentOutcome(item: Record<string, unknown>) {
+  const sessionPolicyMatches =
+    item.sessionPolicyVersion ===
+    (item.modality === 'IN_APP_VIDEO'
+      ? 'livekit-video-completion-v1'
+      : 'chat-session-completion-v1')
   const cancellationFields = [
     item.cancelledAt,
     item.cancellationReason,
@@ -2100,18 +2109,21 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
       item.decidedAt !== null &&
       item.decisionReason === 'SPECIALIST_ACCEPTED' &&
       item.sessionEndedAt !== null &&
-      item.sessionPolicyVersion === 'chat-session-completion-v1' &&
+      sessionPolicyMatches &&
       item.sessionOutcome !== 'COMPLETED' &&
       (item.sessionOutcome === null
-        ? item.creditState === 'HELD' && item.sessionSettledAt === null
-        : item.creditState !== 'HELD' && item.sessionSettledAt !== null)
+        ? item.creditState === 'HELD' &&
+          item.sessionSettledAt === null &&
+          item.completionFactId === null
+        : item.creditState !== 'HELD' && item.sessionSettledAt !== null) &&
+      (item.modality !== 'IN_APP_VIDEO' || item.sessionOutcome === null)
     )
   if (item.status === 'COMPLETED')
     return (
       item.decidedAt !== null &&
       item.decisionReason === 'SPECIALIST_ACCEPTED' &&
       item.sessionOutcome === 'COMPLETED' &&
-      item.sessionPolicyVersion === 'chat-session-completion-v1' &&
+      sessionPolicyMatches &&
       item.sessionEndedAt !== null &&
       item.sessionSettledAt !== null &&
       item.completionFactId !== null &&
@@ -2173,6 +2185,8 @@ function validAppointmentHistoryEntry(value: unknown) {
       'SESSION_ACTIVITY_OBSERVED',
       'SCHEDULED_WINDOW_ENDED',
       'EVIDENCE_REQUIREMENTS_MET',
+      'SPECIALIST_VIDEO_END_CONFIRMED',
+      'VIDEO_MANUAL_REVIEW_REQUIRED',
     ].includes(String(item.reason)) ||
     !['RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT', null].includes(
       item.creditOutcome as string | null,

@@ -7,6 +7,7 @@ import type { RuntimeConfig } from '@/config/runtime-config'
 import { useRuntimeConfig } from '@/config/runtime-config-context'
 import { createDiscoveryApi } from '@/discovery/discovery-api'
 import { secureCredentialStore } from '@/security/credential-store'
+import { createVideoApi } from '@/video/video-api'
 
 import { createAppointmentApi } from './appointment-api'
 import { AppointmentsScreen } from './AppointmentsScreen'
@@ -24,6 +25,7 @@ function AccountAppointmentsRoute({
       client,
       api: createAppointmentApi(client, subject),
       discovery: createDiscoveryApi(client),
+      video: createVideoApi(client),
     }
   })
   useEffect(() => {
@@ -41,6 +43,7 @@ function AccountAppointmentsRoute({
     <AppointmentsScreen
       api={binding.api}
       discovery={binding.discovery}
+      videoApi={binding.video}
       onBack={() => router.back()}
     />
   )

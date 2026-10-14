@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@/lib/api/api-error'
 
 const api = vi.hoisted(() => ({
   get: vi.fn(),
@@ -22,10 +23,29 @@ import {
   deleteCommunityBookmark,
   getCommunityFeed,
   getCommunitySavedPosts,
+  putCommunityAvatar,
+  type CommunityUploadSession,
 } from './browser-community'
 
 describe('Community feed browser API', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it('replaces only the Community photo with the exact version and no account or arbitrary URL', async () => {
+    const mediaId = '30000000-0000-4000-8000-000000000001'
+    api.put.mockResolvedValue({
+      data: { version: 3 },
+      headers: { etag: '"3"' },
+    })
+    expect(await putCommunityAvatar(mediaId, '"2"')).toEqual({
+      data: { version: 3 },
+      etag: '"3"',
+    })
+    expect(api.put).toHaveBeenCalledWith(
+      '/community/profile/avatar',
+      { mediaId },
+      { headers: { 'If-Match': '"2"' } },
+    )
+  })
 
   it('serializes one to three explicit topic filters as repeated query values', async () => {
     api.get.mockResolvedValue({
@@ -143,6 +163,124 @@ describe('uploadCommunityMedia', () => {
       ),
     ).rejects.toThrow('COMMUNITY_PROVIDER_UPLOAD_FAILED')
     expect(api.post).toHaveBeenCalledTimes(1)
+  })
+
+  it('reconciles a lost provider response on the same intent without uploading twice', async () => {
+    const mediaId = '30000000-0000-4000-8000-000000000001'
+    const session: CommunityUploadSession = {
+      idempotencyKey: 'avatar-file-0001',
+    }
+    api.post
+      .mockResolvedValueOnce({
+        data: {
+          mediaId,
+          state: 'PENDING',
+          uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload',
+          expiresAt: '2026-10-14T08:30:00Z',
+          uploadFields: { signature: 'signed-value' },
+          version: 0,
+        },
+      })
+      .mockResolvedValueOnce({ data: { mediaId, state: 'READY' } })
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Network interrupted'))
+    const file = new File(['image'], 'avatar.webp', { type: 'image/webp' })
+
+    await expect(
+      uploadCommunityMedia(file, undefined, session),
+    ).rejects.toThrow('Network interrupted')
+    expect(await uploadCommunityMedia(file, undefined, session)).toMatchObject({
+      mediaId,
+      state: 'READY',
+    })
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(api.post).toHaveBeenCalledTimes(2)
+    expect(api.post).toHaveBeenLastCalledWith(
+      `/community/media/${mediaId}/finalize`,
+    )
+    expect(api.post.mock.calls[0][2]).toEqual({
+      headers: { 'Idempotency-Key': 'avatar-file-0001' },
+    })
+  })
+
+  it('retries the same signed upload only when the owner confirms that no upload exists', async () => {
+    const mediaId = '30000000-0000-4000-8000-000000000001'
+    const session: CommunityUploadSession = {
+      idempotencyKey: 'avatar-file-0002',
+      uploadAttempted: true,
+      intent: {
+        mediaId,
+        state: 'PENDING',
+        uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload',
+        expiresAt: '2026-10-14T08:30:00Z',
+        uploadFields: { signature: 'signed-value' },
+        version: 0,
+      },
+    }
+    api.post
+      .mockRejectedValueOnce(
+        new ApiError({
+          message: 'Missing',
+          code: 'COMMUNITY_MEDIA_UPLOAD_MISSING',
+          status: 409,
+        }),
+      )
+      .mockResolvedValueOnce({ data: { mediaId, state: 'READY' } })
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status: 200 }))
+    const controller = new AbortController()
+    const result = await uploadCommunityMedia(
+      new File(['image'], 'avatar.webp', { type: 'image/webp' }),
+      controller.signal,
+      session,
+    )
+    expect(result.state).toBe('READY')
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledWith(
+      session.intent?.uploadUrl,
+      expect.objectContaining({ signal: controller.signal }),
+    )
+    expect(api.post.mock.calls).toEqual([
+      [
+        `/community/media/${mediaId}/finalize`,
+        undefined,
+        { signal: controller.signal },
+      ],
+      [
+        `/community/media/${mediaId}/finalize`,
+        undefined,
+        { signal: controller.signal },
+      ],
+    ])
+  })
+
+  it('does not issue a second intent or provider upload when verification is unavailable', async () => {
+    const session: CommunityUploadSession = {
+      idempotencyKey: 'avatar-file-0003',
+      uploadAttempted: true,
+      intent: {
+        mediaId: '30000000-0000-4000-8000-000000000001',
+        state: 'PENDING',
+        uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload',
+        expiresAt: '2026-10-14T08:30:00Z',
+        uploadFields: { signature: 'signed-value' },
+        version: 0,
+      },
+    }
+    api.post.mockRejectedValueOnce(
+      new ApiError({
+        message: 'Unavailable',
+        code: 'COMMUNITY_MEDIA_PROVIDER_UNAVAILABLE',
+        status: 503,
+      }),
+    )
+    await expect(
+      uploadCommunityMedia(
+        new File(['image'], 'avatar.webp', { type: 'image/webp' }),
+        undefined,
+        session,
+      ),
+    ).rejects.toMatchObject({ code: 'COMMUNITY_MEDIA_PROVIDER_UNAVAILABLE' })
+    expect(api.post).toHaveBeenCalledTimes(1)
+    expect(fetch).not.toHaveBeenCalled()
   })
 })
 

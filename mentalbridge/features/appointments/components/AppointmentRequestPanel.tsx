@@ -21,6 +21,7 @@ import { ConsultationBriefEditor } from './ConsultationBriefEditor'
 import { AppointmentRatingDialog } from './AppointmentRatingDialog'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
+import { VideoConsultationPanel } from './VideoConsultationPanel'
 import styles from './AppointmentRequestPanel.module.css'
 
 function format(value: string, timezone: string) {
@@ -204,6 +205,8 @@ const historyReason: Record<Appointment['history'][number]['reason'], string> =
     SESSION_ACTIVITY_OBSERVED: 'Phiên tư vấn đã bắt đầu',
     SCHEDULED_WINDOW_ENDED: 'Thời gian tư vấn đã kết thúc',
     EVIDENCE_REQUIREMENTS_MET: 'Phiên tư vấn đã được hoàn tất',
+    SPECIALIST_VIDEO_END_CONFIRMED: 'Chuyên gia đã xác nhận kết thúc cuộc gọi',
+    VIDEO_MANUAL_REVIEW_REQUIRED: 'Phiên tư vấn đang chờ kiểm tra bổ sung',
   }
 
 function appointmentGuidance(appointment: Appointment) {
@@ -1030,6 +1033,14 @@ export default function AppointmentRequestPanel({
                   appointmentId={focusedAppointment.id}
                 />
               </section>
+            )}
+
+            {focusedAppointment.modality === 'IN_APP_VIDEO' && (
+              <VideoConsultationPanel
+                appointmentId={focusedAppointment.id}
+                role="USER"
+                onVerified={() => void loadAppointments()}
+              />
             )}
 
             {focusedAppointment.status === 'COMPLETED' && (

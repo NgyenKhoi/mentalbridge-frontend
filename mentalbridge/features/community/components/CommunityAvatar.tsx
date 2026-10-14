@@ -1,4 +1,34 @@
-import type { CommunityAvatarPreset } from '@/lib/community/community-validation'
+'use client'
+
+import Image from 'next/image'
+import { useState, type ReactNode } from 'react'
+import type {
+  CommunityAvatarImage,
+  CommunityAvatarPreset,
+} from '@/lib/community/community-validation'
+
+const passthroughLoader = ({ src }: { src: string }) => src
+
+function Photo({
+  image,
+  fallback,
+}: Readonly<{ image: CommunityAvatarImage; fallback: ReactNode }>) {
+  const [failed, setFailed] = useState(false)
+  return failed ? (
+    fallback
+  ) : (
+    <Image
+      loader={passthroughLoader}
+      unoptimized
+      src={image.url}
+      width={image.width}
+      height={image.height}
+      alt=""
+      sizes="96px"
+      onError={() => setFailed(true)}
+    />
+  )
+}
 
 function PresetMark({ preset }: Readonly<{ preset: CommunityAvatarPreset }>) {
   return (
@@ -51,11 +81,13 @@ function PresetMark({ preset }: Readonly<{ preset: CommunityAvatarPreset }>) {
 export default function CommunityAvatar({
   displayName,
   avatarPreset,
+  avatarImage,
   deleted = false,
   anonymous = false,
 }: Readonly<{
   displayName: string
   avatarPreset: CommunityAvatarPreset | null
+  avatarImage?: CommunityAvatarImage | null
   deleted?: boolean
   anonymous?: boolean
 }>) {
@@ -65,15 +97,26 @@ export default function CommunityAvatar({
       ? '—'
       : [...displayName][0]?.toUpperCase()
 
+  const fallback =
+    avatarPreset && !deleted && !anonymous ? (
+      <PresetMark preset={avatarPreset} />
+    ) : (
+      fallbackMark
+    )
+
   return (
     <div
       className={`community-avatar${deleted ? ' is-deleted' : ''}${anonymous ? ' is-anonymous' : ''}${avatarPreset && !deleted && !anonymous ? ` is-${avatarPreset.toLowerCase()}` : ''}`}
       aria-hidden="true"
     >
-      {avatarPreset && !deleted && !anonymous ? (
-        <PresetMark preset={avatarPreset} />
+      {avatarImage && !deleted && !anonymous ? (
+        <Photo
+          key={`${avatarImage.mediaId}:${avatarImage.url}`}
+          image={avatarImage}
+          fallback={fallback}
+        />
       ) : (
-        fallbackMark
+        fallback
       )}
     </div>
   )

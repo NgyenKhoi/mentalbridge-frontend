@@ -385,6 +385,60 @@ describe('Consultation contract validation', () => {
       version: 1,
     }
     expect(parseAppointment(appointment)).toEqual(appointment)
+    const videoEnded = {
+      ...appointment,
+      status: 'SESSION_ENDED',
+      modality: 'IN_APP_VIDEO',
+      sessionPolicyVersion: 'livekit-video-completion-v1',
+      sessionEndedAt: '2026-09-25T02:15:00Z',
+      history: [
+        {
+          ...appointment.history[0],
+          reason: 'SPECIALIST_VIDEO_END_CONFIRMED',
+          fromStatus: 'CONFIRMED',
+          toStatus: 'SESSION_ENDED',
+          actorType: 'SPECIALIST',
+        },
+      ],
+    }
+    expect(parseAppointment(videoEnded)).toEqual(videoEnded)
+    expect(
+      parseAppointment({
+        ...videoEnded,
+        history: [
+          {
+            ...videoEnded.history[0],
+            reason: 'VIDEO_MANUAL_REVIEW_REQUIRED',
+            actorType: 'SYSTEM',
+            actorId: null,
+          },
+        ],
+      }),
+    ).not.toBeNull()
+    const videoCompleted = {
+      ...videoEnded,
+      status: 'COMPLETED',
+      sessionOutcome: 'COMPLETED',
+      sessionSettledAt: '2026-09-25T02:15:01Z',
+      completionFactId: appointment.id,
+      creditState: 'CONSUMED',
+    }
+    expect(parseAppointment(videoCompleted)).toEqual(videoCompleted)
+    expect(
+      parseAppointment({ ...videoCompleted, creditState: 'AVAILABLE' }),
+    ).not.toBeNull()
+    expect(
+      parseAppointment({ ...videoCompleted, completionFactId: null }),
+    ).toBeNull()
+    expect(
+      parseAppointment({
+        ...videoEnded,
+        sessionPolicyVersion: 'chat-session-completion-v1',
+      }),
+    ).toBeNull()
+    expect(
+      parseAppointment({ ...videoEnded, sessionOutcome: 'EVIDENCE_REVIEW' }),
+    ).toBeNull()
     expect(
       parseAppointment({ ...appointment, modality: 'IN_PERSON' }),
     ).toBeNull()

@@ -4,6 +4,8 @@ import {
   parseCommunityFeedPage,
   parseCommunityProfile,
   parseCommunityProfileInput,
+  parseCommunityAvatarInput,
+  parseCommunityAvatarImage,
   parseCommunityPostDetail,
   parseCommunityPostWrite,
   parseCommunityTopics,
@@ -45,6 +47,55 @@ const post = {
 }
 
 describe('Community response validation', () => {
+  it('accepts only an owned-media selection shape, never a photo URL or another owner', () => {
+    const mediaId = '30000000-0000-4000-8000-000000000001'
+    expect(parseCommunityAvatarInput({ mediaId })).toEqual({ mediaId })
+    expect(parseCommunityAvatarInput({ mediaId: null })).toEqual({
+      mediaId: null,
+    })
+    for (const input of [
+      {},
+      { mediaId: '1-1-1-1-1' },
+      { mediaId, accountId: mediaId },
+      { url: 'https://example.test/photo' },
+    ]) {
+      expect(parseCommunityAvatarInput(input)).toBeNull()
+    }
+  })
+
+  it('validates photo metadata and rejects anonymous or deleted author photo leakage', () => {
+    const avatarImage = {
+      mediaId: '30000000-0000-4000-8000-000000000001',
+      url: 'https://media.example.test/avatar.webp',
+      width: 800,
+      height: 800,
+    }
+    expect(parseCommunityAvatarImage(avatarImage)).toEqual(avatarImage)
+    expect(
+      parseCommunityPostDetail({
+        ...post,
+        author: { ...post.author, avatarImage },
+        content: 'Hôm nay',
+      })?.author.avatarImage,
+    ).toEqual(avatarImage)
+    for (const invalid of [
+      { ...avatarImage, url: 'javascript:alert(1)' },
+      { ...avatarImage, width: null },
+      { ...avatarImage, height: 0 },
+      { ...avatarImage, storageKey: 'private' },
+    ]) {
+      expect(parseCommunityAvatarImage(invalid)).toBeNull()
+    }
+    for (const state of ['DELETED', 'ANONYMOUS']) {
+      expect(
+        parseCommunityPostDetail({
+          ...post,
+          author: { ...post.author, state, avatarImage },
+          content: 'Hôm nay',
+        }),
+      ).toBeNull()
+    }
+  })
   it('accepts contract-shaped feed and detail payloads', () => {
     expect(
       parseCommunityFeedPage({

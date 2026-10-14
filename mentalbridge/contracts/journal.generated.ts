@@ -158,6 +158,34 @@ export interface paths {
         patch: operations["updateEmotionCheckIn"];
         trace?: never;
     };
+    "/api/v1/emotion-check-ins/{localDate}/completion-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve the authenticated owner's content-free daily check-in fact.
+         * @description MB-641 provider boundary for Care reconciliation. Requires the owner's
+         *     bearer context; no caller-supplied account, action, occurrence or fact ID
+         *     is accepted. Returns RECORDED, MISSING or DELETED from the owner store.
+         *     Deleted becomes MISSING after the existing tombstone retention expires.
+         *     A recorded fact references the creation revision (1) and createdAt;
+         *     same-day edits never create a second completion fact. No emotion,
+         *     intensity, factors, note, encrypted payload, score or AI result is read
+         *     or returned. This read does not mutate or complete a SupportPlan.
+         *     Dependency uncertainty is 503, never MISSING. Responses are no-store.
+         */
+        get: operations["getEmotionCheckInCompletionEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/emotion-check-in-progress": {
         parameters: {
             query?: never;
@@ -687,6 +715,35 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        EmotionCheckInCompletionEvidence: {
+            /** @constant */
+            schemaVersion: "emotion-check-in-completion-evidence-v1";
+            /** Format: uuid */
+            subjectUserId: string;
+            /** Format: date */
+            localDate: string;
+            /** @enum {string} */
+            state: "RECORDED" | "MISSING" | "DELETED";
+            /** Format: date-time */
+            verifiedAt: string;
+            fact: null | components["schemas"]["EmotionCheckInCompletionFact"];
+        } & unknown;
+        EmotionCheckInCompletionFact: {
+            /** @constant */
+            ownerDomain: "JOURNAL_AI";
+            /** @constant */
+            kind: "EMOTION_CHECK_IN";
+            /** Format: uuid */
+            factId: string;
+            /**
+             * @description Creation-fact revision, not the mutable emotion payload revision.
+             * @constant
+             */
+            factRevision: "1";
+            /** Format: date-time */
+            occurredAt: string;
+            timezone: string;
         };
         EmotionCheckInList: {
             items: components["schemas"]["EmotionCheckIn"][];
@@ -1308,6 +1365,33 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    getEmotionCheckInCompletionEvidence: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                localDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized authoritative existence or absence evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckInCompletionEvidence"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             503: components["responses"]["DependencyUnavailable"];
         };
     };

@@ -1,5 +1,11 @@
 import 'server-only'
 
+import {
+  parseVideoSession,
+  parseVideoAccess,
+  parseVideoCompletion,
+} from './video-validation'
+
 import { readConsultationServerConfig } from '@/lib/config/server'
 import {
   parseAvailabilitySlot,
@@ -89,7 +95,7 @@ export class ConsultationServiceError extends Error {
   }
 }
 
-type Result<T> = Readonly<{ data: T; etag: string | null }>
+type Result<T> = Readonly<{ data: T; etag: string | null; status: number }>
 
 async function json(response: Response) {
   const length = Number(response.headers.get('content-length'))
@@ -165,7 +171,11 @@ async function request<T>(options: {
     }
     const parsed = options.parse(value)
     if (!parsed) throw malformed()
-    return { data: parsed, etag: response.headers.get('etag') }
+    return {
+      data: parsed,
+      etag: response.headers.get('etag'),
+      status: response.status,
+    }
   } catch (error) {
     if (error instanceof ConsultationServiceError) throw error
     if (controller.signal.aborted)
@@ -207,6 +217,42 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  videoSession(token: string, correlationId: string, appointmentId: string) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/appointments/${encodeURIComponent(appointmentId)}/video-session`,
+      token,
+      correlationId,
+      parse: parseVideoSession,
+    })
+  },
+  videoAccess(token: string, correlationId: string, appointmentId: string) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/appointments/${encodeURIComponent(appointmentId)}/video-access`,
+      token,
+      correlationId,
+      parse: parseVideoAccess,
+    })
+  },
+  videoCompletion(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+    ifMatch: string,
+    idempotencyKey: string,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/specialist/appointments/${encodeURIComponent(appointmentId)}/video-completion`,
+      token,
+      correlationId,
+      ifMatch,
+      idempotencyKey,
+      body: { confirmation: 'CONSULTATION_FINISHED' },
+      parse: parseVideoCompletion,
+    })
+  },
   ownAmendment(token: string, correlationId: string) {
     return request({
       method: 'GET',

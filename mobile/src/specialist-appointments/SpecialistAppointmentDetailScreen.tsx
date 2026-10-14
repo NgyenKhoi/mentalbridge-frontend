@@ -9,6 +9,8 @@ import { SpecialistContinuityPanel } from '@/specialist-continuity/SpecialistCon
 import type { SpecialistSummaryApi } from '@/specialist-summary/specialist-summary-api'
 import { SpecialistSummaryPanel } from '@/specialist-summary/SpecialistSummaryPanel'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { VideoConsultationPanel } from '@/video/VideoConsultationPanel'
+import type { VideoApi } from '@/video/video-api'
 
 import type { SpecialistAppointmentApi } from './specialist-appointment-api'
 import {
@@ -33,6 +35,8 @@ const HISTORY_LABELS: Record<string, string> = {
   SESSION_ACTIVITY_OBSERVED: 'Phiên đã ghi nhận hoạt động',
   SCHEDULED_WINDOW_ENDED: 'Khung giờ tư vấn đã kết thúc',
   EVIDENCE_REQUIREMENTS_MET: 'Phiên đã được xác nhận hoàn thành',
+  SPECIALIST_VIDEO_END_CONFIRMED: 'Bạn đã gửi xác nhận kết thúc phiên video',
+  VIDEO_MANUAL_REVIEW_REQUIRED: 'Phiên video cần được kiểm tra thêm',
 }
 
 export function SpecialistAppointmentDetailScreen({
@@ -41,12 +45,14 @@ export function SpecialistAppointmentDetailScreen({
   chatHandoff,
   continuityApi,
   summaryApi,
+  videoApi,
 }: Readonly<{
   appointmentApi: SpecialistAppointmentApi
   appointmentId: string
   chatHandoff: SpecialistChatHandoff
   continuityApi: SpecialistContinuityApi
   summaryApi: SpecialistSummaryApi
+  videoApi?: VideoApi
 }>) {
   const { session } = useSession()
   const queryKey = [
@@ -126,7 +132,7 @@ export function SpecialistAppointmentDetailScreen({
             <Text style={styles.badge}>
               {APPOINTMENT_STATUS_LABELS[appointment.status]}
             </Text>
-            <Text style={styles.copy}>
+            <Text style={[styles.copy, { color: colors.white }]}>
               {appointment.modality === 'IN_APP_CHAT'
                 ? 'Tư vấn qua trò chuyện trong ứng dụng'
                 : 'Tư vấn video trong ứng dụng'}
@@ -165,6 +171,15 @@ export function SpecialistAppointmentDetailScreen({
               appointmentVersion={appointment.version}
             />
           ) : null}
+
+          {authorityConfirmed &&
+            appointment.modality === 'IN_APP_VIDEO' &&
+            videoApi && (
+              <VideoConsultationPanel
+                api={videoApi}
+                appointmentId={appointment.id}
+              />
+            )}
 
           {authorityConfirmed && canPublishSummary(appointment) ? (
             <SpecialistSummaryPanel

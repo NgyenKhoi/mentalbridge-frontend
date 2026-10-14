@@ -1,5 +1,6 @@
 /* ── Container ── */
 .card {
+  scroll-margin-top: 120px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -10,6 +11,40 @@
   font-family: inherit;
   height: 100%;
   box-sizing: border-box;
+}
+
+.planContext {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+.planContext p + p {
+  margin-top: var(--space-2);
+}
+.planContext strong {
+  color: var(--ink);
+}
+.planContext [tabindex]:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+.planReturn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: var(--space-2);
+  color: var(--teal-deep);
+  font-weight: 600;
+  text-decoration: underline;
+}
+.planReturn:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
 }
 
 .header {

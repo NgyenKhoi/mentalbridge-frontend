@@ -24,29 +24,25 @@ const record = (state: MediaRecord['state']): MediaRecord => ({
 })
 function setup(state: MediaRecord['state']) {
   const methods = {
-    uploadIntent: jest
-      .fn()
-      .mockResolvedValue({
-        mediaId: fixturePostId,
-        state: 'PENDING',
-        version: 0,
-      }),
+    uploadIntent: jest.fn().mockResolvedValue({
+      mediaId: fixturePostId,
+      state: 'PENDING',
+      version: 0,
+    }),
     finalize: jest.fn().mockResolvedValue(record(state)),
     removeMedia: jest.fn().mockResolvedValue(undefined),
   }
   const api = methods as unknown as CommunityApi
   const transport: CommunityMediaTransport = {
-    pick: jest
-      .fn()
-      .mockResolvedValue({
-        uri: 'file:///selected.jpg',
-        request: {
-          fileName: 'selected.jpg',
-          mediaType: 'IMAGE',
-          mimeType: 'image/jpeg',
-          sizeBytes: 25,
-        },
-      }),
+    pick: jest.fn().mockResolvedValue({
+      uri: 'file:///selected.jpg',
+      request: {
+        fileName: 'selected.jpg',
+        mediaType: 'IMAGE',
+        mimeType: 'image/jpeg',
+        sizeBytes: 25,
+      },
+    }),
     upload: jest.fn().mockResolvedValue(undefined),
   }
   return { methods, api, transport, onChange: jest.fn() }

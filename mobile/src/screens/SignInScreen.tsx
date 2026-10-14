@@ -57,8 +57,8 @@ export function SignInScreen() {
         Tiếp tục hành trình của bạn
       </Text>
       <Text style={styles.description}>
-        Phiên chỉ được mở sau khi MentalBridge xác nhận tài khoản cá nhân đang
-        hoạt động.
+        Đăng nhập bằng tài khoản của bạn. MentalBridge kiểm tra trạng thái tài
+        khoản trước khi mở không gian phù hợp.
       </Text>
       {notice ? (
         <Text accessibilityRole="alert" style={styles.error}>

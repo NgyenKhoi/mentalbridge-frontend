@@ -17,6 +17,8 @@ import {
   type SlotSelection,
 } from '@/discovery/discovery-model'
 import { colors, radii, spacing, typography } from '@/theme/tokens'
+import { VideoConsultationPanel } from '@/video/VideoConsultationPanel'
+import type { VideoApi } from '@/video/video-api'
 
 import type { AppointmentApi } from './appointment-api'
 import type { Appointment, CreditAccount } from './appointment-contract'
@@ -40,6 +42,7 @@ type Props = Readonly<{
   api: AppointmentApi
   discovery: DiscoveryApi
   onBack: () => void
+  videoApi?: VideoApi
   initialSelection?: SlotSelection | undefined
   originatingPlanActionId?: string | undefined
 }>
@@ -126,6 +129,7 @@ function AccountAppointmentsScreen({
   onBack,
   initialSelection,
   originatingPlanActionId,
+  videoApi,
   subject,
 }: Props & { subject: string }) {
   const list = useQuery({
@@ -588,6 +592,12 @@ function AccountAppointmentsScreen({
                           params: { appointmentId: item.id },
                         })
                       }
+                    />
+                  )}
+                  {item.modality === 'IN_APP_VIDEO' && videoApi && (
+                    <VideoConsultationPanel
+                      api={videoApi}
+                      appointmentId={item.id}
                     />
                   )}
                   {changeAllowed && !review && (

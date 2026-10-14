@@ -40,17 +40,20 @@ function invalidSession(message: string) {
   return new ApiError({ code: 'INVALID_SESSION_ACCOUNT', message, status: 401 })
 }
 
-function acceptedUserSession(account: AccountDetail): AppSession {
+function acceptedMobileSession(account: AccountDetail): AppSession {
+  const role = account.roles[0]
   if (
     account.status !== 'ACTIVE' ||
     !account.emailVerified ||
     account.roles.length !== 1 ||
-    account.roles[0] !== 'USER'
+    (role !== 'USER' && role !== 'SPECIALIST')
   ) {
-    throw invalidSession('Identity did not return an active USER account.')
+    throw invalidSession(
+      'Identity did not return an active supported mobile account.',
+    )
   }
 
-  return { role: 'USER', subject: account.accountId }
+  return { role, subject: account.accountId }
 }
 
 function isRejectedCredential(error: unknown) {
@@ -86,7 +89,7 @@ export function createSessionService({
   ): Promise<AuthenticatedSession> {
     const account = await api.getCurrentAccount()
     return {
-      session: acceptedUserSession(account),
+      session: acceptedMobileSession(account),
       accessExpiresAt: stored.accessExpiresAt,
     }
   }

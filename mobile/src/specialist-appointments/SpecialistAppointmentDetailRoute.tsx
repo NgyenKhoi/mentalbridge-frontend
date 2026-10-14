@@ -7,6 +7,7 @@ import { useRuntimeConfig } from '@/config/runtime-config-context'
 import { secureCredentialStore } from '@/security/credential-store'
 import { createSpecialistContinuityApi } from '@/specialist-continuity/specialist-continuity-api'
 import { createSpecialistSummaryApi } from '@/specialist-summary/specialist-summary-api'
+import { createVideoApi } from '@/video/video-api'
 
 import { createSpecialistAppointmentApi } from './specialist-appointment-api'
 import { SpecialistAppointmentDetailScreen } from './SpecialistAppointmentDetailScreen'
@@ -27,16 +28,19 @@ export function SpecialistAppointmentDetailRoute() {
       appointment: createSpecialistAppointmentApi(client),
       continuity: createSpecialistContinuityApi(client),
       summary: createSpecialistSummaryApi(client, specialistAccountId),
+      video: createVideoApi(client),
     }
   }, [runtimeConfig, specialistAccountId])
 
   return (
     <SpecialistAppointmentDetailScreen
+      key={`${specialistAccountId}:${appointmentId}`}
       appointmentApi={apis.appointment}
       appointmentId={appointmentId}
       chatHandoff={sharedAppointmentChatHandoff}
       continuityApi={apis.continuity}
       summaryApi={apis.summary}
+      videoApi={apis.video}
     />
   )
 }
