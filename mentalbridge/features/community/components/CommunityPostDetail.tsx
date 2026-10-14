@@ -251,6 +251,7 @@ export default function CommunityPostDetail({ postId }: { postId: string }) {
           <CommunityAvatar
             displayName={post.author.displayName}
             avatarPreset={post.author.avatarPreset}
+            avatarImage={post.author.avatarImage}
             deleted={post.author.state === 'DELETED'}
             anonymous={post.author.state === 'ANONYMOUS'}
           />

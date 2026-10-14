@@ -1,4 +1,5 @@
 import { browserApiClient } from '@/lib/api/browser-client'
+import { ApiError } from '@/lib/api/api-error'
 import { parseOwnerVersion } from '@/lib/community/community-validation'
 import type {
   CommunityAvatarPreset,
@@ -161,18 +162,39 @@ export async function putCommunityProfile(
 export async function createCommunityMediaUploadIntent(
   input: CreateMediaUploadIntentRequest,
   idempotencyKey: string,
+  signal?: AbortSignal,
 ) {
   const response = await browserApiClient.post<MediaUploadIntent>(
     '/community/media/upload-intents',
     input,
-    { headers: { 'Idempotency-Key': idempotencyKey } },
+    {
+      headers: { 'Idempotency-Key': idempotencyKey },
+      ...(signal ? { signal } : {}),
+    },
   )
   return response.data
 }
 
-export async function finalizeCommunityMedia(mediaId: string) {
+export async function putCommunityAvatar(
+  mediaId: string | null,
+  etag: string,
+  signal?: AbortSignal,
+) {
+  const response = await browserApiClient.put<CommunityProfile>(
+    '/community/profile/avatar',
+    { mediaId },
+    { headers: { 'If-Match': etag }, ...(signal ? { signal } : {}) },
+  )
+  return { data: response.data, etag: response.headers.etag ?? null }
+}
+
+export async function finalizeCommunityMedia(
+  mediaId: string,
+  signal?: AbortSignal,
+) {
   const response = await browserApiClient.post<CommunityMediaRecord>(
     `/community/media/${encodeURIComponent(mediaId)}/finalize`,
+    ...(signal ? ([undefined, { signal }] as const) : []),
   )
   return response.data
 }
@@ -321,22 +343,50 @@ export async function createCommunityModerationAction(
   return response.data
 }
 
-export async function uploadCommunityMedia(file: File, signal?: AbortSignal) {
+export type CommunityUploadSession = {
+  idempotencyKey: string
+  intent?: MediaUploadIntent
+  uploadAttempted?: boolean
+}
+
+export async function uploadCommunityMedia(
+  file: File,
+  signal?: AbortSignal,
+  session?: CommunityUploadSession,
+) {
   const mediaType = file.type.startsWith('image/') ? 'IMAGE' : 'VIDEO'
-  const intent = await createCommunityMediaUploadIntent(
-    {
-      fileName: file.name,
-      mediaType,
-      mimeType: file.type,
-      sizeBytes: file.size,
-    },
-    crypto.randomUUID(),
-  )
+  const intent =
+    session?.intent ??
+    (await createCommunityMediaUploadIntent(
+      {
+        fileName: file.name,
+        mediaType,
+        mimeType: file.type,
+        sizeBytes: file.size,
+      },
+      session?.idempotencyKey ?? crypto.randomUUID(),
+      signal,
+    ))
+  if (session) session.intent = intent
+  if (session?.uploadAttempted) {
+    try {
+      const current = await finalizeCommunityMedia(intent.mediaId, signal)
+      if (current.state !== 'READY') throw new Error('COMMUNITY_MEDIA_REJECTED')
+      return current
+    } catch (cause) {
+      if (
+        !(cause instanceof ApiError) ||
+        cause.code !== 'COMMUNITY_MEDIA_UPLOAD_MISSING'
+      )
+        throw cause
+    }
+  }
   const form = new FormData()
   Object.entries(intent.uploadFields).forEach(([name, value]) =>
     form.append(name, value),
   )
   form.append('file', file, file.name)
+  if (session) session.uploadAttempted = true
   const upload = await fetch(intent.uploadUrl, {
     method: 'POST',
     body: form,
@@ -344,7 +394,7 @@ export async function uploadCommunityMedia(file: File, signal?: AbortSignal) {
     signal,
   })
   if (!upload.ok) throw new Error('COMMUNITY_PROVIDER_UPLOAD_FAILED')
-  const result = await finalizeCommunityMedia(intent.mediaId)
+  const result = await finalizeCommunityMedia(intent.mediaId, signal)
   if (result.state !== 'READY') throw new Error('COMMUNITY_MEDIA_REJECTED')
   return result
 }

@@ -1,9 +1,9 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { Suspense, useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import PlanGate, { type PlanId } from '@/components/PlanGate'
 import LatestPhq9Result from '@/features/assessment/components/LatestPhq9Result'
-import { DailyEmotionCheckIn } from '@/features/emotion-check-in/DailyEmotionCheckIn'
+import { PlanEmotionCheckIn } from '@/features/emotion-check-in/PlanEmotionCheckIn'
 import { EmotionProgress } from '@/features/emotion-check-in/EmotionProgress'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -194,9 +194,11 @@ export default function DashboardPage() {
       </section>
       <section ref={bentoRef} className="ref-panel">
         <div className="ref-panel-col ref-panel-mood">
-          <DailyEmotionCheckIn
-            onPersisted={() => setEmotionRefresh((value) => value + 1)}
-          />
+          <Suspense fallback={<p role="status">Đang tải cảm xúc hôm nay…</p>}>
+            <PlanEmotionCheckIn
+              onPersisted={() => setEmotionRefresh((value) => value + 1)}
+            />
+          </Suspense>
         </div>
         <div className="ref-panel-col ref-panel-result">
           <header className="ref-col-header">

@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     '.next-dev-configs/**',
     '.playwright-realtime-e2e/**',
     '.vite-realtime-e2e/**',
+    // Retrieved design/prototype evidence includes generated third-party bundles,
+    // not application source. Its behavior is checked by the prototype QA gate.
+    '.stitch/**',
     'out/**',
     'build/**',
     'coverage/**',

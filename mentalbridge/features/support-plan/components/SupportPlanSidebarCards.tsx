@@ -6,6 +6,12 @@ import type { SupportPlanOccurrence } from '../api/support-plan-contract'
 import SupportPlanIcon, { type SupportPlanIconName } from './SupportPlanIcon'
 
 type Props = Readonly<{
+  activityRhythm?: ReadonlyArray<{
+    id: string
+    title: string
+    time: string
+    state: string
+  }>
   occurrences?: SupportPlanOccurrence[]
   planStatus?: 'ACTIVE' | 'PAUSED' | 'COMPLETED'
   onToggleStatus?: () => void
@@ -37,6 +43,7 @@ function timeLabel(value: string) {
 }
 
 export default function SupportPlanSidebarCards({
+  activityRhythm,
   occurrences = [],
   planStatus = 'ACTIVE',
   onToggleStatus,
@@ -65,14 +72,30 @@ export default function SupportPlanSidebarCards({
               Nhịp hôm nay
             </h3>
             <p className="support-plan-side-card-subtitle">
-              {visibleToday.length > 0
-                ? `${visibleToday.length} hoạt động trong lịch`
+              {(activityRhythm?.length ?? visibleToday.length) > 0
+                ? `${activityRhythm?.length ?? visibleToday.length} hoạt động trong lịch`
                 : 'Một ngày nhẹ cũng là một ngày hợp lệ'}
             </p>
           </div>
         </div>
 
-        {visibleToday.length > 0 ? (
+        {activityRhythm && activityRhythm.length > 0 ? (
+          <ol className="support-plan-rhythm-list">
+            {activityRhythm.slice(0, 4).map((activity) => (
+              <li key={activity.id}>
+                <span className="support-plan-rhythm-icon" aria-hidden="true">
+                  <SupportPlanIcon name="calendar_today" size={16} />
+                </span>
+                <span className="support-plan-rhythm-copy">
+                  <strong>{activity.title}</strong>
+                  <span>
+                    {activity.time} · {activity.state}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : visibleToday.length > 0 ? (
           <ol className="support-plan-rhythm-list">
             {visibleToday.slice(0, 4).map((occurrence) => (
               <li key={occurrence.occurrenceId}>

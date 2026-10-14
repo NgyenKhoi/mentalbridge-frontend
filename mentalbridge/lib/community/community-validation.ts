@@ -30,6 +30,9 @@ export type CommunityTopicCode = components['schemas']['CommunityTopicCode']
 export type CommunityProfile = components['schemas']['CommunityProfile']
 export type CommunityAvatarPreset =
   components['schemas']['CommunityAvatarPreset']
+export type CommunityAvatarImage = components['schemas']['CommunityAvatarImage']
+export type PutCommunityAvatarRequest =
+  components['schemas']['PutCommunityAvatarRequest']
 export type PutCommunityProfileRequest =
   components['schemas']['PutCommunityProfileRequest']
 export type CommunityProblem = components['schemas']['Problem']
@@ -306,7 +309,12 @@ function parseAuthor(value: unknown): CommunityAuthor | null {
   const allowedKeys = hasAvatarPreset
     ? ['communityProfileId', 'displayName', 'avatarPreset', 'state']
     : ['communityProfileId', 'displayName', 'state']
+  if (Object.hasOwn(author, 'avatarImage')) allowedKeys.push('avatarImage')
   const normalizedAvatarPreset = hasAvatarPreset ? author.avatarPreset : null
+  const hasImage = Object.hasOwn(author, 'avatarImage')
+  const avatarImage = hasImage
+    ? parseCommunityAvatarImage(author.avatarImage)
+    : null
   const anonymous = author.state === 'ANONYMOUS'
   if (
     !exactKeys(author, allowedKeys) ||
@@ -319,7 +327,8 @@ function parseAuthor(value: unknown): CommunityAuthor | null {
     (author.state !== 'ACTIVE' &&
       author.state !== 'DELETED' &&
       author.state !== 'ANONYMOUS') ||
-    (anonymous && normalizedAvatarPreset !== null)
+    (anonymous && normalizedAvatarPreset !== null) ||
+    (hasImage && (author.state !== 'ACTIVE' || !avatarImage))
   ) {
     return null
   }
@@ -331,6 +340,7 @@ function parseAuthor(value: unknown): CommunityAuthor | null {
     displayName: author.displayName,
     avatarPreset: normalizedAvatarPreset,
     state: author.state,
+    ...(avatarImage ? { avatarImage } : {}),
   }
 }
 
@@ -346,6 +356,7 @@ export function parseCommunityProfile(value: unknown): CommunityProfile | null {
       'version',
       'createdAt',
       'updatedAt',
+      ...(Object.hasOwn(profile, 'avatarImage') ? ['avatarImage'] : []),
     ]) ||
     typeof profile.communityProfileId !== 'string' ||
     !UUID.test(profile.communityProfileId) ||
@@ -354,7 +365,10 @@ export function parseCommunityProfile(value: unknown): CommunityProfile | null {
     (profile.status !== 'ACTIVE' && profile.status !== 'DELETED') ||
     !nonNegativeInteger(profile.version) ||
     !dateTime(profile.createdAt) ||
-    !dateTime(profile.updatedAt)
+    !dateTime(profile.updatedAt) ||
+    (Object.hasOwn(profile, 'avatarImage') &&
+      (profile.status !== 'ACTIVE' ||
+        !parseCommunityAvatarImage(profile.avatarImage)))
   ) {
     return null
   }
@@ -375,6 +389,39 @@ export function parseCommunityProfileInput(
     return null
   }
   return input as PutCommunityProfileRequest
+}
+
+export function parseCommunityAvatarImage(
+  value: unknown,
+): CommunityAvatarImage | null {
+  const image = record(value)
+  if (
+    !image ||
+    !exactKeys(image, ['mediaId', 'url', 'width', 'height']) ||
+    typeof image.mediaId !== 'string' ||
+    !UUID.test(image.mediaId) ||
+    !httpsUrl(image.url) ||
+    !Number.isSafeInteger(image.width) ||
+    Number(image.width) < 1 ||
+    !Number.isSafeInteger(image.height) ||
+    Number(image.height) < 1
+  )
+    return null
+  return image as CommunityAvatarImage
+}
+
+export function parseCommunityAvatarInput(
+  value: unknown,
+): PutCommunityAvatarRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['mediaId']) ||
+    (input.mediaId !== null &&
+      (typeof input.mediaId !== 'string' || !UUID.test(input.mediaId)))
+  )
+    return null
+  return input as PutCommunityAvatarRequest
 }
 
 export function isCommunityEtag(value: string | null): value is string {
