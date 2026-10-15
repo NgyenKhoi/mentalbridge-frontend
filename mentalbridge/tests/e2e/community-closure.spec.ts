@@ -64,8 +64,11 @@ test.describe('MB-618 Community closure journey', () => {
       .getByRole('button', { name: /^Tài nguyên/ })
       .click()
     await page
-      .locator('#community-resource-select')
-      .selectOption(publishedResourceId)
+      .getByRole('combobox', { name: /Tài nguyên MentalBridge/ })
+      .click()
+    await page
+      .getByRole('option', { name: 'Published Resource', exact: true })
+      .click()
     await page
       .getByRole('checkbox', { name: 'Thêm cảnh báo nội dung nhạy cảm' })
       .check()
@@ -103,7 +106,9 @@ test.describe('MB-618 Community closure journey', () => {
     await expect(
       page.locator(`a[href="/resources/${publishedResourceId}"]`),
     ).toBeVisible()
-    await expect(page.locator('.community-media-trigger')).toHaveCount(2)
+    await expect(
+      page.getByRole('button', { name: /^Mở nội dung đính kèm/ }),
+    ).toHaveCount(2)
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -111,19 +116,18 @@ test.describe('MB-618 Community closure journey', () => {
     ).toBe(true)
 
     await page.setViewportSize({ width: 1280, height: 800 })
-    await page.locator('.community-media-trigger').first().click()
-    await expect(page.locator('#community-media-viewer-title')).toContainText(
-      '1/2',
-    )
-    await page.locator('.community-media-viewer nav button').last().click()
-    await expect(page.locator('#community-media-viewer-title')).toContainText(
-      '2/2',
-    )
+    const firstMedia = page.getByRole('button', {
+      name: 'Mở nội dung đính kèm 1 trên 2',
+    })
+    await firstMedia.click()
+    const viewer = page.getByRole('dialog', { name: /Nội dung đính kèm/ })
+    await expect(viewer).toContainText('1/2')
+    await viewer.getByRole('button', { name: 'Tiếp', exact: true }).click()
+    await expect(viewer).toContainText('2/2')
     await page.keyboard.press('ArrowLeft')
-    await expect(page.locator('#community-media-viewer-title')).toContainText(
-      '1/2',
-    )
-    await page.locator('.community-media-viewer header button').click()
+    await expect(viewer).toContainText('1/2')
+    await viewer.getByRole('button', { name: 'Đóng trình xem' }).click()
+    await expect(firstMedia).toBeFocused()
   })
 
   test('reports, blocks, hides and fails closed after an audited admin decision', async ({
@@ -150,9 +154,10 @@ test.describe('MB-618 Community closure journey', () => {
 
     await safetyTrigger.click()
     await page.getByRole('button', { name: 'B\u00e1o c\u00e1o' }).click()
+    await page.getByRole('combobox', { name: 'Lý do' }).click()
     await page
-      .locator('.community-report-form select')
-      .selectOption('SELF_HARM_OR_CRISIS_CONCERN')
+      .getByRole('option', { name: 'Lo ngại tự làm hại hoặc khủng hoảng' })
+      .click()
     await page
       .locator('.community-report-form textarea')
       .fill('Please review this synthetic closure case.')

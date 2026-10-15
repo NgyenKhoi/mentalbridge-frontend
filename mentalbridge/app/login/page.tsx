@@ -5,7 +5,7 @@ import LoginForm from '@/features/auth/components/LoginForm'
 import './auth.css'
 
 export default async function LoginPage(props: PageProps<'/login'>) {
-  const { credential } = await props.searchParams
+  const { credential, logout } = await props.searchParams
   const notice =
     credential === 'reset'
       ? 'Mật khẩu đã được đặt lại. Hãy đăng nhập bằng mật khẩu mới.'
@@ -44,7 +44,10 @@ export default async function LoginPage(props: PageProps<'/login'>) {
               </p>
             </div>
 
-            <LoginForm notice={notice} />
+            <LoginForm
+              notice={notice}
+              warning={logout === 'unconfirmed' ? 'Đã đăng xuất trên thiết bị này. Chưa xác nhận được trạng thái đăng xuất trên các thiết bị khác; vui lòng thử lại sau khi đăng nhập.' : undefined}
+            />
 
             <div className="anonymous-cta">
               <div className="divider">

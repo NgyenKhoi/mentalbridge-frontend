@@ -1,0 +1,178 @@
+.activity {
+  min-width: 0;
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.emotion {
+  padding: var(--space-6);
+  margin-block: var(--space-4);
+  border: 1px solid var(--line);
+  border-inline-start: var(--space-1) solid var(--teal);
+  border-radius: var(--radius-panel);
+}
+.activityTop {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.activity h3 {
+  font-family: var(--font-display), serif;
+  font-size: 1.35rem;
+  line-height: 1.35;
+}
+.mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: var(--radius-control);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+.meta {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+.outcome {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block: var(--space-4);
+  font-weight: 650;
+  color: var(--teal-deep);
+}
+.purpose {
+  padding-inline-start: var(--space-5);
+  margin-block: var(--space-3);
+  color: var(--ink-soft);
+}
+.privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin-block: var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  background: var(--surface-soft);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+.privacy svg {
+  flex: 0 0 auto;
+  margin-block-start: var(--space-1);
+  color: var(--teal-deep);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block: var(--space-4);
+}
+.actions > :is(button, a) {
+  min-height: 44px;
+}
+.day {
+  display: grid;
+  gap: var(--space-1);
+  font-size: 0.875rem;
+}
+.day input {
+  min-height: 44px;
+  max-width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+}
+.notice {
+  margin-block: var(--space-5);
+  padding: var(--space-5);
+  border-radius: var(--radius-panel);
+  color: var(--ink);
+  background: var(--surface-soft);
+}
+.focus {
+  margin-block: var(--space-8);
+}
+.actionList {
+  list-style: none;
+  padding: 0;
+}
+.actionList > li {
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.actionList h4 {
+  font-size: 1rem;
+}
+.history {
+  display: grid;
+  gap: var(--space-4);
+}
+.comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+  margin-block: var(--space-4);
+}
+.comparison ul {
+  padding-inline-start: var(--space-5);
+}
+.dimensions {
+  display: grid;
+  gap: var(--space-3);
+  margin-block: var(--space-4);
+}
+.dimensions > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.dimensions dt {
+  font-weight: 650;
+}
+.dimensions dd {
+  color: var(--ink-soft);
+}
+.activity h3:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: var(--space-1);
+}
+.actions :is(button, a) {
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+.actions :disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+@media (max-width: 600px) {
+  .dayHeader {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+  .day {
+    width: 100%;
+  }
+  .comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .emotion {
+    padding: var(--space-4);
+  }
+  .actions > :is(button, a) {
+    width: 100%;
+    justify-content: center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .actions :is(button, a) {
+    transition: none;
+  }
+}

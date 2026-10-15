@@ -680,6 +680,69 @@
   backdrop-filter: blur(5px);
   animation: journal-backdrop-enter var(--motion-base) var(--ease-standard) both;
 }
+
+/* Canonical Journal modal owns its top layer; global chrome remains unchanged. */
+dialog.journal-modal-layer {
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+}
+.journal-modal-layer > div {
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  max-height: none;
+  height: 100%;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+}
+.journal-plan-origin {
+  flex-shrink: 0;
+  margin: var(--space-3) var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--teal);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.journal-plan-origin p {
+  margin: var(--space-2) 0;
+  max-width: 70ch;
+}
+.journal-plan-context:empty {
+  display: none;
+}
+.journal-plan-return {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--teal-deep);
+}
+.journal-modal-layer .journal-dialog-close-btn {
+  width: 44px;
+  height: 44px;
+}
+.journal-modal-layer :is(.journal-btn-save, .journal-btn-cancel) {
+  min-height: 44px;
+}
+@media (max-width: 860px) {
+  .journal-modal-layer > div {
+    align-items: end;
+    padding: 0;
+  }
+  .journal-modal-layer .journal-plan-origin {
+    margin: var(--space-2) var(--space-4);
+  }
+}
 .journal-dialog {
   width: min(760px, 100%);
   max-height: min(calc(100dvh - 2rem), 800px);
@@ -923,7 +986,7 @@
   line-height: 1.2;
 }
 
-/* Mood 1: Tuyệt vời (Green) */
+/* Mood 1: Rất tốt (Green) */
 .journal-mood-card.mood-great {
   background: #f1f8f3;
   border-color: #c9e8d1;
@@ -995,7 +1058,7 @@
   box-shadow: 0 4px 12px rgba(53, 78, 125, 0.28);
 }
 
-/* Mood 5: Rất tệ (Muted Indigo-Purple - KHÔNG DÙNG ĐỎ) */
+/* Mood 5: Rất không tốt (Muted Indigo-Purple - KHÔNG DÙNG ĐỎ) */
 .journal-mood-card.mood-very_low {
   background: #f4f2f8;
   border-color: #d6cee8;
@@ -1149,7 +1212,7 @@
   color: var(--ink-soft);
 }
 
-/* Banner hỗ trợ dịu dàng (khi chọn Không tốt / Rất tệ) */
+/* Banner hỗ trợ dịu dàng (khi chọn Không tốt / Rất không tốt) */
 .journal-support-banner {
   display: flex;
   align-items: flex-start;

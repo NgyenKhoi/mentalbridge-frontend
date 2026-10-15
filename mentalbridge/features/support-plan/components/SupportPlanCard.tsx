@@ -1,14 +1,21 @@
 ﻿'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { SlidersHorizontal } from 'lucide-react'
 
+import LightSelect from '@/components/LightSelect'
 import { Dialog } from '@/components/ui/Dialog'
 import { Disclosure } from '@/components/ui/Disclosure'
 import type {
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
+  SupportPlanV3,
+  UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
 import SupportPlanSchedule from './SupportPlanSchedule'
+import SupportPlanScheduleEditor from './SupportPlanScheduleEditor'
+import ProfessionalSupportPath from './ProfessionalSupportPath'
+import SupportPlanDescription from './SupportPlanDescription'
 
 const domainLabel = {
   DEPRESSIVE_SYMPTOMS: 'Hỗ trợ dấu hiệu trầm cảm',
@@ -65,6 +72,17 @@ type Props = Readonly<{
   ) => Promise<void>
   draftAction?: 'ACTIVATE' | 'REPLACEMENT'
   activeTab?: 'plan' | 'schedule' | 'manage'
+  embedded?: boolean
+  focusProjection?: SupportPlanV3 | undefined
+  focusProjectionLoading?: boolean
+  focusProjectionUnavailable?: boolean
+  onSaveSchedule?: (
+    actionId: string,
+    request: UpdateActionScheduleRequest,
+    idempotencyKey: string,
+  ) => Promise<void>
+  onReloadSchedule?: () => Promise<boolean | void>
+  onDirtyChange?: (dirty: boolean) => void
 }>
 
 type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
@@ -105,6 +123,13 @@ export default function SupportPlanCard({
   onStatusChange,
   draftAction = 'ACTIVATE',
   activeTab,
+  embedded = false,
+  focusProjection,
+  focusProjectionLoading = false,
+  focusProjectionUnavailable = false,
+  onSaveSchedule,
+  onReloadSchedule,
+  onDirtyChange,
 }: Props) {
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     initialChoices(plan),
@@ -117,8 +142,23 @@ export default function SupportPlanCard({
     Record<string, boolean>
   >({})
   const [isRationaleOpen, setIsRationaleOpen] = useState(true)
+  const [scheduleDirty, setScheduleDirty] = useState(false)
+  const [engagementDirty, setEngagementDirty] = useState(false)
   const isDraft = plan.status === 'DRAFT'
+  const panelProps = (tab: 'plan' | 'today' | 'adjust') =>
+    embedded
+      ? {}
+      : {
+          id: `panel-${tab}`,
+          role: 'tabpanel' as const,
+          'aria-labelledby': `tab-${tab}`,
+        }
   const safetyPositive = plan.safety.status === 'POSITIVE_SAFETY_SCREEN'
+  const professionalSupportRequired = plan.templateFamilies.some(
+    ({ family }) =>
+      family === 'DEPRESSIVE_PROFESSIONAL_ADJUNCT' ||
+      family === 'ANXIETY_PROFESSIONAL_ADJUNCT',
+  )
   const statusLabel = {
     DRAFT: 'Chưa bắt đầu',
     ACTIVE: 'Đang hoạt động',
@@ -155,6 +195,10 @@ export default function SupportPlanCard({
       ),
     [choices, plan],
   )
+  useEffect(() => {
+    onDirtyChange?.(dirty || scheduleDirty || engagementDirty)
+  }, [dirty, scheduleDirty, engagementDirty, onDirtyChange])
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   const submitChoices = async () => {
     const slotSelections = plan.slots.flatMap((slot) => {
@@ -213,9 +257,7 @@ export default function SupportPlanCard({
         className={`support-plan-tab-pane ${
           !activeTab || activeTab === 'plan' ? 'is-active' : 'is-hidden'
         }`}
-        id="panel-plan"
-        role="tabpanel"
-        aria-labelledby="tab-plan"
+        {...panelProps('plan')}
       >
         <header className="support-plan-card-header">
           <div>
@@ -250,15 +292,56 @@ export default function SupportPlanCard({
           </small>
         </section>
 
-        {/* Vì sao có đề xuất này dạng expand/collapse */}
-        <Disclosure
-          className="support-plan-evaluation-disclosure"
-          summary="Vì sao có đề xuất này?"
-          open={isRationaleOpen}
-          onToggle={(e) => setIsRationaleOpen(e.currentTarget.open)}
+        <ProfessionalSupportPath
+          key={plan.supportPlanId}
+          professionalSupportRequired={professionalSupportRequired}
+          supportPlanId={plan.supportPlanId}
+        />
+
+        <section
+          className="support-plan-focus-summary"
+          aria-label="Trọng tâm và lý do đề xuất"
         >
-          <p>{rationaleText}</p>
-        </Disclosure>
+          <div className="support-plan-section-heading">
+            <div>
+              <span>Vì sao có đề xuất này?</span>
+              <h3>Trọng tâm kế hoạch</h3>
+            </div>
+          </div>
+          {focusProjectionLoading && (
+            <p role="status">Đang tải lý do cho từng trọng tâm…</p>
+          )}
+          {focusProjection?.focuses.map((focus) => (
+            <article key={focus.focusId} className="support-plan-focus-item">
+              <div>
+                <h4>{focus.title}</h4>
+                {focus.personalizationProvenance && (
+                  <span>Được sắp xếp từ lựa chọn của bạn</span>
+                )}
+              </div>
+              {focus.rationale && (
+                <SupportPlanDescription text={focus.rationale} />
+              )}
+            </article>
+          ))}
+          {focusProjectionUnavailable && (
+            <p role="status">
+              Chưa thể tải giải thích theo từng trọng tâm. Lý do tổng quát bên
+              dưới vẫn có thể xem và kế hoạch không bị thay đổi.
+            </p>
+          )}
+        </section>
+
+        {!focusProjection && (
+          <Disclosure
+            className="support-plan-evaluation-disclosure"
+            summary="Lý do tổng quát"
+            open={isRationaleOpen}
+            onToggle={(e) => setIsRationaleOpen(e.currentTarget.open)}
+          >
+            <p>{rationaleText}</p>
+          </Disclosure>
+        )}
 
         {/* Khối 3 nội dung đã xác nhận */}
         <section
@@ -354,7 +437,9 @@ export default function SupportPlanCard({
                       <div className="support-plan-slot-accordion-body">
                         {slot.selectedResource ? (
                           <div className="support-plan-selected-resource-details">
-                            <p>{slot.selectedResource.summary}</p>
+                            <SupportPlanDescription
+                              text={slot.selectedResource.summary}
+                            />
                             {slot.selectedResource.externalUrl && (
                               <a
                                 href={slot.selectedResource.externalUrl}
@@ -452,6 +537,15 @@ export default function SupportPlanCard({
           </ol>
         </section>
 
+        {isDraft && focusProjection && onSaveSchedule && onReloadSchedule && (
+          <SupportPlanScheduleEditor
+            plan={focusProjection}
+            onDirtyChange={setScheduleDirty}
+            onSave={onSaveSchedule}
+            onReload={onReloadSchedule}
+          />
+        )}
+
         {isDraft && (
           <section
             className="support-plan-actions"
@@ -486,16 +580,17 @@ export default function SupportPlanCard({
                 <button
                   className="btn btn-primary"
                   type="button"
-                  disabled={dirty || busy !== null}
+                  disabled={dirty || scheduleDirty || busy !== null}
                   onClick={() => void onActivate()}
                 >
                   {busy === 'ACTIVATING' ? 'Đang bắt đầu…' : 'Bắt đầu kế hoạch'}
                 </button>
               )}
             </div>
-            {dirty && (
+            {(dirty || scheduleDirty) && (
               <p className="support-plan-action-hint">
-                Hãy lưu lựa chọn mới trước khi bắt đầu kế hoạch.
+                Hãy lưu lựa chọn nội dung và lịch mới trước khi bắt đầu kế
+                hoạch.
               </p>
             )}
             <p
@@ -550,18 +645,19 @@ export default function SupportPlanCard({
         className={`support-plan-tab-pane ${
           !activeTab || activeTab === 'schedule' ? 'is-active' : 'is-hidden'
         }`}
-        id="panel-schedule"
-        role="tabpanel"
-        aria-labelledby="tab-schedule"
+        {...panelProps('today')}
       >
         {plan.status === 'ACTIVE' || plan.status === 'PAUSED' ? (
           <SupportPlanSchedule
             planStatus={plan.status}
+            compactToday
+            onDirtyChange={setEngagementDirty}
             onToggleStatus={() =>
               setPendingStatus(plan.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED')
             }
+            onEndPlan={() => setPendingStatus('COMPLETED')}
             onSwitchToManageTab={() => {
-              const el = document.getElementById('tab-manage')
+              const el = document.getElementById('tab-adjust')
               el?.click()
             }}
           />
@@ -580,42 +676,60 @@ export default function SupportPlanCard({
         className={`support-plan-tab-pane ${
           !activeTab || activeTab === 'manage' ? 'is-active' : 'is-hidden'
         }`}
-        id="panel-manage"
-        role="tabpanel"
-        aria-labelledby="tab-manage"
+        {...panelProps('adjust')}
       >
-        <aside className="support-plan-confirmation-note">
-          <strong>Quản lý trạng thái kế hoạch</strong>
-          <p>
-            Tạm dừng sẽ hủy các lịch tương lai; tiếp tục chỉ khôi phục các mục
-            vẫn còn ở tương lai. Kết thúc không mang ý nghĩa phục hồi.
-          </p>
-          {(plan.status === 'ACTIVE' || plan.status === 'PAUSED') && (
-            <div className="support-plan-lifecycle-actions">
-              <button
-                className="btn btn-outline"
-                type="button"
-                disabled={busy !== null}
-                onClick={() =>
-                  requestLifecycle(
-                    plan.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
-                  )
-                }
-              >
-                {plan.status === 'ACTIVE'
-                  ? 'Tạm dừng kế hoạch'
-                  : 'Tiếp tục kế hoạch'}
-              </button>
-              <button
-                className="btn btn-ghost"
-                type="button"
-                disabled={busy !== null}
-                onClick={() => requestLifecycle('COMPLETED')}
-              >
-                Kết thúc kế hoạch
-              </button>
-            </div>
-          )}
+        {!isDraft && focusProjection && onSaveSchedule && onReloadSchedule && (
+          <SupportPlanScheduleEditor
+            plan={focusProjection}
+            onDirtyChange={setScheduleDirty}
+            onSave={onSaveSchedule}
+            onReload={onReloadSchedule}
+          />
+        )}
+        <aside className="support-plan-lifecycle-panel">
+          <span className="support-plan-cadence-icon" aria-hidden="true">
+            <SlidersHorizontal size={20} />
+          </span>
+          <div>
+            <h4>Quản lý trạng thái kế hoạch</h4>
+            <ul>
+              <li>Tạm dừng sẽ hủy các lịch tương lai.</li>
+              <li>Tiếp tục chỉ khôi phục các mục vẫn còn ở tương lai.</li>
+              <li>Kết thúc không mang ý nghĩa phục hồi.</li>
+            </ul>
+            {scheduleDirty && (
+              <p className="support-plan-action-hint" role="status">
+                Hãy lưu hoặc hoàn tác lịch đang chỉnh trước khi đổi trạng thái
+                kế hoạch.
+              </p>
+            )}
+            {(plan.status === 'ACTIVE' || plan.status === 'PAUSED') && (
+              <div className="support-plan-lifecycle-actions">
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  disabled={busy !== null || scheduleDirty}
+                  onClick={() =>
+                    requestLifecycle(
+                      plan.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
+                    )
+                  }
+                >
+                  {plan.status === 'ACTIVE'
+                    ? 'Tạm dừng kế hoạch'
+                    : 'Tiếp tục kế hoạch'}
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  type="button"
+                  disabled={busy !== null || scheduleDirty}
+                  onClick={() => requestLifecycle('COMPLETED')}
+                >
+                  Kết thúc kế hoạch
+                </button>
+              </div>
+            )}
+          </div>
         </aside>
       </div>
 
@@ -652,21 +766,36 @@ export default function SupportPlanCard({
               {lifecycleConfirmation[pendingStatus].message}
             </p>
             {pendingStatus === 'COMPLETED' && (
-              <label>
-                Lý do (không bắt buộc)
-                <select
+              <div className="support-plan-cadence-field">
+                <label
+                  htmlFor="support-plan-completion-reason"
+                  id="support-plan-completion-reason-label"
+                >
+                  Lý do (không bắt buộc)
+                </label>
+                <LightSelect
+                  id="support-plan-completion-reason"
+                  labelledBy="support-plan-completion-reason-label"
                   value={completionReason}
                   disabled={busy !== null}
-                  onChange={(event) => setCompletionReason(event.target.value)}
-                >
-                  <option value="">Không nêu lý do</option>
-                  <option value="USER_DECISION">Tôi chủ động kết thúc</option>
-                  <option value="PLAN_NO_LONGER_FITS">
-                    Kế hoạch không còn phù hợp
-                  </option>
-                  <option value="OTHER">Lý do khác</option>
-                </select>
-              </label>
+                  onChange={setCompletionReason}
+                  options={[
+                    { value: '', label: 'Không nêu lý do' },
+                    { value: 'USER_DECISION', label: 'Tôi chủ động kết thúc' },
+                    {
+                      value: 'PLAN_NO_LONGER_FITS',
+                      label: 'Kế hoạch không còn phù hợp',
+                    },
+                    { value: 'OTHER', label: 'Lý do khác' },
+                  ]}
+                />
+              </div>
+            )}
+            {scheduleDirty && (
+              <p role="status">
+                Quay lại để lưu hoặc hoàn tác lịch đang chỉnh trước khi xác
+                nhận.
+              </p>
             )}
             <div>
               <button
@@ -680,7 +809,7 @@ export default function SupportPlanCard({
               <button
                 className="btn btn-primary"
                 type="button"
-                disabled={busy !== null}
+                disabled={busy !== null || scheduleDirty}
                 autoFocus
                 onClick={() => void confirmLifecycle()}
               >

@@ -150,6 +150,6 @@ test('MB-550 email entry path opens only an owned appointment', async ({
   )
   await page.goto('/appointments/26000000-0000-4000-8000-000000000099')
   await expect(
-    page.getByText(/Không tìm thấy lịch hẹn này trong tài khoản của bạn/),
+    page.getByRole('heading', { name: 'Không tìm thấy lịch hẹn này' }),
   ).toBeVisible()
 })

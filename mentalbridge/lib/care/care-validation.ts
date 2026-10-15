@@ -413,7 +413,7 @@ export function parseAiProcessingDisclosure(
   if (
     !isRecord(value) ||
     value.consentType !== 'AI_PROCESSING' ||
-    value.version !== 'ai-processing-capstone-v1' ||
+    value.version !== 'ai-processing-capstone-v2' ||
     value.locale !== 'vi-VN' ||
     typeof value.title !== 'string' ||
     value.title.length < 1 ||
@@ -467,7 +467,7 @@ export function parseConsentRequest(
       (value.consentType === 'PRIVACY_POLICY' &&
         value.policyVersion === 'privacy-capstone-v3') ||
       (value.consentType === 'AI_PROCESSING' &&
-        value.policyVersion === 'ai-processing-capstone-v1')
+        value.policyVersion === 'ai-processing-capstone-v2')
     ) ||
     typeof value.granted !== 'boolean'
   )

@@ -18,7 +18,43 @@ describe('USER home screen', () => {
     jest.clearAllMocks()
   })
 
-  it('opens the personal profile as the primary USER action', async () => {
+  it('opens the persisted notification inbox', async () => {
+    await render(<UserHomeScreen />)
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Thông báo của tôi' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith('./notifications')
+  })
+
+  it('opens owner-scoped appointments', async () => {
+    await render(<UserHomeScreen />)
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Lịch hẹn của tôi' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith('./appointments')
+  })
+
+  it('opens approved specialist discovery', async () => {
+    await render(<UserHomeScreen />)
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Tìm chuyên gia' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith('./specialists')
+  })
+
+  it('opens the standalone peer-support Community journey', async () => {
+    await render(<UserHomeScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Mở cộng đồng' }))
+    expect(mockPush).toHaveBeenCalledWith('./community')
+  })
+
+  it('opens the private Journal journey', async () => {
+    await render(<UserHomeScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Viết nhật ký' }))
+    expect(mockPush).toHaveBeenCalledWith('./journal')
+  })
+
+  it('opens the personal profile action', async () => {
     await render(<UserHomeScreen />)
 
     await fireEvent.press(
@@ -36,5 +72,35 @@ describe('USER home screen', () => {
     )
 
     expect(mockPush).toHaveBeenCalledWith('./assessment')
+  })
+
+  it('opens the Care-backed support plan journey', async () => {
+    await render(<UserHomeScreen />)
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Mở kế hoạch hỗ trợ' }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('./support-plan')
+  })
+
+  it('opens the Journal-backed daily emotion journey', async () => {
+    await render(<UserHomeScreen />)
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Ghi nhận cảm xúc' }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('./emotion')
+  })
+
+  it('opens the reviewed Content resources journey', async () => {
+    await render(<UserHomeScreen />)
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Khám phá tài nguyên' }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('./resources')
   })
 })

@@ -15,3 +15,9 @@ jest.mock('react-native-safe-area-context', () => mockSafeAreaContext)
 jest.mock('expo-crypto', () => ({
   randomUUID: jest.fn(() => '11111111-1111-4111-8111-111111111111'),
 }))
+
+// Jest has no native WebRTC/audio bridge. Screen tests keep the adapter closed;
+// VideoMedia.test.tsx supplies explicit SDK behavior mocks. Neither is a native
+// execution claim; CNG/build/runtime checks remain separate.
+jest.mock('@livekit/react-native', () => ({}))
+jest.mock('@livekit/react-native-webrtc', () => ({}))

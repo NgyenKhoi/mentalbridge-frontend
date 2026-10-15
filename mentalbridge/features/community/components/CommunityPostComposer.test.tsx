@@ -157,9 +157,11 @@ describe('CommunityPostComposer', () => {
     await user.type(screen.getByLabelText('Nội dung'), 'Một tài nguyên hữu ích')
     await user.click(screen.getByText('Câu chuyện của tôi'))
     await user.click(screen.getByRole('button', { name: /^Tài nguyên/ }))
-    await user.selectOptions(
-      await screen.findByLabelText(/Tài nguyên MentalBridge/),
-      resourceId,
+    await user.click(
+      await screen.findByRole('combobox', { name: /Tài nguyên MentalBridge/ }),
+    )
+    await user.click(
+      screen.getByRole('option', { name: 'Thở chậm trong hai phút' }),
     )
     await user.click(screen.getByRole('button', { name: 'Đăng câu chuyện' }))
 

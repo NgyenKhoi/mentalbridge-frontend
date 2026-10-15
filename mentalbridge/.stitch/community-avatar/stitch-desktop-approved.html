@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cộng đồng MentalBridge - Thiết lập Danh tính &amp; Ảnh đại diện (/community/profile)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<style>
+    body {
+      font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+      background-color: #f1f4eb;
+      color: #1b2a22;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .tap-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    .transition-custom {
+      transition: opacity 160ms cubic-bezier(0.16, 1, 0.3, 1), transform 160ms cubic-bezier(0.16, 1, 0.3, 1), background-color 160ms ease, border-color 160ms ease;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .transition-custom, button, input, .animate-spin {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col relative selection:bg-[#0f615c]/20 selection:text-[#0f615c]">
+<!-- ==================== LOCKED DESKTOP SHELL HEADER (68px, px-6 / px-4 on mobile) ==================== -->
+<header class="h-[64px] sm:h-[68px] w-full bg-white border-b border-[#e2ebe8] sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between">
+<div class="flex items-center h-full">
+<!-- Brand Logo + Label (x=24px on desktop) -->
+<a class="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-[#0f615c] rounded-lg p-1 shrink-0" href="/community">
+<div class="w-9 h-9 rounded-[12px] bg-[#e9efe3] border border-[#d6e5e0] flex items-center justify-center p-1.5 shadow-sm shrink-0"><svg class="w-full h-full" fill="none" viewbox="0 0 36 36"><circle cx="9" cy="10" fill="#3d7a6e" r="3.5"></circle><circle cx="28" cy="11" fill="#e4ad57" r="3.5"></circle><circle cx="21" cy="28" fill="#ca7e5e" r="3.5"></circle></svg></div>
+<div class="flex flex-col leading-tight">
+<span class="font-semibold text-[15px] text-[#1b2a22] tracking-tight">MentalBridge</span>
+<span class="text-xs font-medium text-[#52796f]">Cộng đồng</span>
+</div>
+</a>
+<!-- Desktop Nav Tabs (gap 32px from logo, full 68px height, 18px stroke icons) -->
+<nav class="hidden md:flex items-center gap-6 h-full ml-8">
+<!-- Bảng tin -->
+<a class="h-full flex items-center gap-2 px-1 text-sm font-medium text-[#52796f] hover:text-[#0f615c] transition-colors focus:outline-none focus:ring-2 focus:ring-[#0f615c] border-b-2 border-transparent" href="/community">
+<svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<rect height="18" rx="2" width="18" x="3" y="3"></rect>
+<path d="M7 8h10M7 12h10M7 16h6"></path>
+</svg>
+<span>Bảng tin</span>
+</a>
+<!-- Bài viết đã lưu -->
+<a class="h-full flex items-center gap-2 px-1 text-sm font-medium text-[#52796f] hover:text-[#0f615c] transition-colors focus:outline-none focus:ring-2 focus:ring-[#0f615c] border-b-2 border-transparent" href="/community/saved">
+<svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+</svg>
+<span>Bài viết đã lưu</span>
+</a>
+<!-- Danh tính (Active) -->
+<a aria-current="page" class="h-full flex items-center gap-2 px-1 text-sm font-medium text-[#0f615c] border-b-2 border-[#0f615c] transition-colors focus:outline-none" href="/community/profile">
+<svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+</svg>
+<span>Danh tính</span>
+</a>
+</nav>
+</div>
+<!-- Right Actions -->
+<div class="flex items-center gap-5 ml-auto">
+<a class="hidden sm:inline-flex text-sm font-medium text-[#0f615c] hover:underline underline-offset-4 transition-colors tap-target items-center" href="/safety-directory">
+        Cần hỗ trợ ngay
+      </a>
+<a class="min-h-[44px] inline-flex items-center gap-2 px-4 rounded-xl bg-[#e7f3ef] hover:bg-[#d8ece5] text-[#0f615c] text-sm font-medium transition-custom focus:outline-none focus:ring-2 focus:ring-[#0f615c]" href="/dashboard">
+<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Trang cá nhân</span>
+</a>
+</div>
+</header>
+<!-- ==================== MAIN CONTENT (CENTERED 680px COLUMN) ==================== -->
+<main class="flex-1 w-full max-w-[680px] mx-auto px-4 pt-6 pb-20 sm:pb-24">
+<!-- Breadcrumb / Back Link -->
+<div class="mb-4">
+<a class="inline-flex items-center gap-1.5 text-sm font-medium text-[#0f615c] hover:underline focus:outline-none focus:ring-2 focus:ring-[#0f615c] rounded px-1 py-0.5 -ml-1 transition-colors" href="/community">
+<span aria-hidden="true">&lt;</span>
+<span>Trở về bảng tin</span>
+</a>
+</div>
+<!-- Page Title & Privacy Introduction -->
+<div class="mb-6">
+<h1 class="text-2xl font-bold text-[#1b2a22] mt-2 mb-1 tracking-tight">
+        Bạn muốn xuất hiện như thế nào?
+      </h1>
+<p class="text-sm text-[#475569] leading-relaxed">
+        Thiết lập tên gọi và ảnh hiển thị của bạn trong không gian thảo luận chung. Danh tính công khai giúp bạn kết nối tử tế; bạn vẫn có thể chọn chế độ ẩn danh riêng cho từng bài viết khi cần khoảng lặng.
+      </p>
+</div>
+<!-- MAIN INTERACTIVE SETTINGS FORM (WHITE CARD) -->
+<section aria-labelledby="profile-settings-title" class="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-[#e2ebe8] space-y-7">
+<h2 class="sr-only" id="profile-settings-title">Cài đặt danh tính và ảnh đại diện cộng đồng</h2>
+<!-- IDENTITY PREVIEW PANEL (SAGE CONTAINER) -->
+<div class="rounded-xl bg-[#f2fbf9] border border-[#d3ede7] p-4">
+<span class="text-[11px] font-semibold uppercase tracking-wider text-[#0f615c]">BẢN XEM TRƯỚC HIỂN THỊ TRONG CỘNG ĐỒNG</span>
+<div class="mt-3 flex items-center gap-3.5">
+<!-- Live Preview Avatar -->
+<div class="relative w-14 h-14 rounded-full overflow-hidden border-2 border-white shadow-sm bg-[#e2ebe6] shrink-0 flex items-center justify-center" id="live-preview-box">
+<img alt="Ảnh đại diện của bạn" class="w-full h-full object-cover" id="live-preview-img" src="https://lh3.googleusercontent.com/aida/AEtjO1UJpH7NH6iBV2NMq5rkAE1sJtZj2-LALXIjaW2eLVChOk35SazAHmAHUQF-mrOnizXko-0h2L-pL5A47XbiIE7ewqzjC25xXzTNJWA-M8zIrGtnjQY5tLOvWEbCn1Uwo7gNOqn9wQRQk9HaeX1ax14ko8h9N18m-LRpvUxYMc1BYzS-wGiV5GTR5YMNYYjGUquBkJHHBsTxm_8fe_dtyhBduVL11ZjhILfGQdwa8CTqXTMajlXEjJ1wrFA8"/>
+<div class="hidden w-full h-full flex items-center justify-center" id="live-preview-preset"></div>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-semibold text-base text-[#1b2a22]" id="live-preview-name">Minh An</span>
+<span class="text-xs text-[#52796f] font-normal">· Vừa xong</span>
+</div>
+<p class="text-xs text-[#64748b] mt-0.5">Hình ảnh và tên này xuất hiện khi bạn bình luận hoặc chia sẻ bài viết công khai.</p>
+</div>
+</div>
+</div>
+<!-- ==================== UPLOADED PHOTO REGION ==================== -->
+<div class="border-b border-[#edf2ef] pb-7">
+<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
+<div>
+<h3 class="text-base font-semibold text-[#1b2a22] flex items-center gap-2">
+<span>Ảnh đại diện tải lên</span>
+<span class="text-xs font-normal text-[#0f615c] bg-[#e7f3ef] px-2 py-0.5 rounded-md border border-[#cbe3db]">Cộng đồng</span>
+</h3>
+<p class="text-xs text-[#64748b] mt-1">Ảnh chụp cá nhân giúp không gian thảo luận gần gũi và chân thật hơn.</p>
+</div>
+<!-- Delete photo trigger -> Triggers confirmation modal -->
+<div id="delete-affordance-wrap">
+<button class="text-xs font-medium text-[#b91c1c] hover:text-[#991b1b] hover:underline focus:outline-none focus:ring-2 focus:ring-[#b91c1c] rounded px-2 py-1 transition-colors" id="btn-trigger-delete" onclick="openDeleteModal()" type="button">
+              Xóa ảnh tải lên
+            </button>
+</div>
+</div>
+<div class="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+<!-- 96x96px Circular Avatar Display with 44x44px Camera Trigger Button -->
+<div class="relative shrink-0">
+<div class="w-24 h-24 rounded-full overflow-hidden border-[3px] border-[#cbe3db] bg-[#e6ede9] shadow-inner flex items-center justify-center relative" id="avatar-frame-96">
+<img alt="Ảnh đại diện 96px" class="w-full h-full object-cover" id="avatar-img-96" src="https://lh3.googleusercontent.com/aida/AEtjO1UJpH7NH6iBV2NMq5rkAE1sJtZj2-LALXIjaW2eLVChOk35SazAHmAHUQF-mrOnizXko-0h2L-pL5A47XbiIE7ewqzjC25xXzTNJWA-M8zIrGtnjQY5tLOvWEbCn1Uwo7gNOqn9wQRQk9HaeX1ax14ko8h9N18m-LRpvUxYMc1BYzS-wGiV5GTR5YMNYYjGUquBkJHHBsTxm_8fe_dtyhBduVL11ZjhILfGQdwa8CTqXTMajlXEjJ1wrFA8"/>
+<div class="hidden w-full h-full flex items-center justify-center" id="avatar-preset-96"></div>
+<!-- Loading Spinner Overlay -->
+<div class="hidden absolute inset-0 bg-[#1b2a22]/70 backdrop-blur-[1px] flex flex-col items-center justify-center text-white p-1 text-center" id="avatar-loading-overlay">
+<svg class="animate-spin h-5 w-5 text-white mb-1" fill="none" viewbox="0 0 24 24">
+<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+<path class="opacity-75" d="M4 12a8 8 0 018-8v8H4z" fill="currentColor"></path>
+</svg>
+<span class="text-[10px] font-medium leading-tight">Đang kiểm tra ảnh...</span>
+</div>
+</div>
+<!-- Camera Trigger Button (Min 44x44px Touch Target) -->
+<label class="tap-target absolute -bottom-1 -right-1 w-11 h-11 rounded-full bg-[#0f615c] hover:bg-[#0b4844] text-white border-2 border-white shadow-md flex items-center justify-center cursor-pointer transition-custom hover:scale-105 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-[#0f615c]" for="photo-file-input" title="Thay đổi ảnh đại diện">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<input accept="image/jpeg,image/png,image/webp" class="sr-only" id="photo-file-input" onchange="handleFileSelection(event)" type="file"/>
+</label>
+</div>
+<!-- Controls & Informational Text -->
+<div class="flex-1 w-full space-y-3">
+<div class="flex flex-wrap items-center gap-3">
+<label class="tap-target inline-flex items-center justify-center px-4 py-2 rounded-xl bg-[#e7f3ef] hover:bg-[#d8ece5] text-[#0f615c] text-sm font-semibold border border-[#cbe3db] cursor-pointer transition-custom shadow-sm focus-within:ring-2 focus-within:ring-[#0f615c]" for="photo-file-input">
+<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Chọn ảnh từ máy</span>
+</label>
+<span class="text-xs text-[#64748b]">JPEG, PNG, WebP · Tối đa 10MB</span>
+</div>
+<!-- Staging state -->
+<div class="hidden p-3.5 rounded-xl bg-[#f8faf9] border border-[#d2e3dc] space-y-2.5" id="staging-controls">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 overflow-hidden text-xs">
+<span class="font-medium text-[#1b2a22] truncate max-w-[200px]" id="staging-filename">anh-moi.jpg</span>
+<span class="text-[#0f615c] bg-[#e7f3ef] px-1.5 py-0.5 rounded border border-[#d2e3dc] shrink-0 font-medium text-[11px]">Bản xem trước</span>
+</div>
+<span class="text-[11px] text-[#64748b]">Chưa lưu lên hệ thống</span>
+</div>
+<!-- Staging Actions -->
+<div class="flex items-center gap-2 pt-1">
+<button class="tap-target inline-flex items-center justify-center px-4 py-2 rounded-lg bg-[#0f615c] hover:bg-[#0b4844] text-white text-xs font-semibold transition-custom shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#0f615c]" id="btn-save-photo" onclick="saveStagedPhoto()" type="button">
+<span>Lưu ảnh đại diện</span>
+</button>
+<button class="tap-target inline-flex items-center justify-center px-3 py-2 rounded-lg bg-white hover:bg-[#f1f5f3] text-[#475569] hover:text-[#1b2a22] text-xs font-medium border border-[#cbd5e1] transition-custom focus:outline-none focus:ring-2 focus:ring-[#cbd5e1]" id="btn-cancel-photo" onclick="cancelStagedPhoto()" type="button">
+                  Hủy
+                </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- ==================== DISPLAY NAME INPUT (MAX 80 CODE POINTS) ==================== -->
+<div>
+<label class="block text-sm font-semibold text-[#1b2a22] mb-1.5" for="display-name-input">
+          Tên hiển thị công khai <span class="text-[#dc2626]">*</span>
+</label>
+<p class="text-xs text-[#64748b] mb-2.5">Tên này sẽ gắn liền với các chia sẻ và phản hồi của bạn trên Bảng tin.</p>
+<div class="relative">
+<input class="w-full px-4 py-3 rounded-xl border border-[#cbd5e1] focus:border-[#0f615c] focus:ring-2 focus:ring-[#0f615c]/20 text-sm text-[#1b2a22] font-medium outline-none transition-custom placeholder-[#94a3b8]" id="display-name-input" maxlength="80" oninput="handleNameInput(event)" placeholder="Nhập tên gọi thân thiện..." type="text" value="Minh An"/>
+<span class="absolute right-3.5 top-3.5 text-xs text-[#94a3b8] font-normal" id="name-counter">7/80</span>
+</div>
+</div>
+<!-- ==================== 7 CHUẨN PRESETS (THEMATIC LINE ICONS) ==================== -->
+<div>
+<div class="flex items-center justify-between mb-1.5"><label class="block text-sm font-semibold text-[#1b2a22]">Biểu tượng dự phòng</label><span class="text-xs text-[#52604f]">Tự động dùng khi không tải ảnh</span></div>
+<p class="text-xs text-[#52604f] mb-3.5">Tự động dùng khi không tải ảnh hoặc khi ảnh chưa sẵn sàng:</p>
+<!-- 7 Standard Presets Grid -->
+<div aria-label="Biểu tượng dự phòng" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" role="radiogroup"><label aria-checked="true" class="preset-card relative flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-[#0f615c] bg-[#e7f3ef] cursor-pointer transition-custom tap-target" role="radio" tabindex="0"><input checked="" class="sr-only" name="preset-choice" onchange="handlePresetChange(event)" type="radio" value="null"/><span class="w-8 h-8 rounded-full bg-[#d6e5e0] border border-[#bcd6cd] text-[#0f615c] flex items-center justify-center font-bold text-xs shrink-0" id="preset-badge-null">MA</span><div class="flex flex-col min-w-0"><span class="text-xs font-semibold text-[#1b2a22] truncate">Chữ cái tên</span><span class="text-[10px] text-[#52604f]">Tự động tạo từ tên của bạn</span></div></label><label aria-checked="false" class="preset-card relative flex items-center gap-2.5 p-2.5 rounded-xl border border-[#e2e8f0] bg-white cursor-pointer transition-custom hover:border-[#cbd5e1] tap-target" role="radio" tabindex="0"><input class="sr-only" name="preset-choice" onchange="handlePresetChange(event)" type="radio" value="LEAF"/><span class="w-8 h-8 rounded-full bg-[#f0f7f3] border border-[#cbe3d6] text-[#2d6a4f] flex items-center justify-center shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M6 3c5 0 11 3 13 13-3 2-7 2-10 1-3-1-4-4-4-8 0-2 .5-4 1-6z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M6 21c2-3 6-7 13-5" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><div class="flex flex-col min-w-0"><span class="text-xs font-medium text-[#1b2a22] truncate">Lá xanh</span><span class="text-[10px] text-[#64748b]">Tự nhiên</span></div></label><label aria-checked="false" class="preset-card relative flex items-center gap-2.5 p-2.5 rounded-xl border border-[#e2e8f0] bg-white cursor-pointer transition-custom hover:border-[#cbd5e1] tap-target" role="radio" tabindex="0"><input class="sr-only" name="preset-choice" onchange="handlePresetChange(event)" type="radio" value="SUNRISE"/><span class="w-8 h-8 rounded-full bg-[#fdf8ed] border border-[#f5dfb8] text-[#b45309] flex items-center justify-center shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 3v3m0 12v3M4.22 7.22l2.12 2.12M17.66 14.66l2.12 2.12M3 15h3m12 0h3M7.22 19.78l2.12-2.12M17.66 9.34l2.12-2.12" stroke-linecap="round" stroke-linejoin="round"></path><path d="M17 15a5 5 0 00-10 0" stroke-linecap="round" stroke-linejoin="round"></path><path d="M4 19h16" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><div class="flex flex-col min-w-0"><span class="text-xs font-medium text-[#1b2a22] truncate">Bình minh</span><span class="text-[10px] text-[#64748b]">Khởi đầu</span></div></label><label aria-checked="false" class="preset-card relative flex items-center gap-2.5 p-2.5 rounded-xl border border-[#e2e8f0] bg-white cursor-pointer transition-custom hover:border-[#cbd5e1] tap-target" role="radio" tabindex="0"><input class="sr-only" name="preset-choice" onchange="handlePresetChange(event)" type="radio" value="WAVE"/><span class="w-8 h-8 rounded-full bg-[#f0f7fb] border border-[#c6e3f5] text-[#0369a1] flex items-center justify-center shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M3 11c3-2 5 2 8 0s5-2 8 0" stroke-linecap="round" stroke-linejoin="round"></path><path d="M3 16c3-2 5 2 8 0s5-2 8 0" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><div class="flex flex-col min-w-0"><span class="text-xs font-medium text-[#1b2a22] truncate">Gợn sóng</span><span class="text-[10px] text-[#64748b]">Thư thái</span></div></label><label aria-checked="false" class="preset-card relative flex items-center gap-2.5 p-2.5 rounded-xl border border-[#e2e8f0] bg-white cursor-pointer transition-custom hover:border-[#cbd5e1] tap-target" role="radio" tabindex="0"><input class="sr-only" name="preset-choice" onchange="handlePresetChange(event)" type="radio" value="LOTUS"/><span class="w-8 h-8 rounded-full bg-[#faf5ff] border border-[#e9d5ff] text-[#7e22ce] flex items-center justify-center shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 4c-1.5 3-2 6-2 9 1 1 3 1 4 0 0-3-.5-6-2-9z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M10 13c-2.5-1-5-1-6 2 2 1.5 5 1.5 7 0" stroke-linecap="round" stroke-linejoin="round"></path><path d="M14 13c2.5-1 5-1 6 2-2 1.5-5 1.5-7 0" stroke-linecap="round" stroke-linejoin="round"></path><path d="M8 18c2 1 6 1 8 0" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><div class="flex flex-col min-w-0"><span class="text-xs font-medium text-[#1b2a22] truncate">Hoa sen</span><span class="text-[10px] text-[#64748b]">Tĩnh tại</span></div></label><label aria-checked="false" class="preset-card relative flex items-center gap-2.5 p-2.5 rounded-xl border border-[#e2e8f0] bg-white cursor-pointer transition-custom hover:border-[#cbd5e1] tap-target" role="radio" tabindex="0"><input class="sr-only" name="preset-choice" onchange="handlePresetChange(event)" type="radio" value="CLOUD"/><span class="w-8 h-8 rounded-full bg-[#f1f5f9] border border-[#cbd5e1] text-[#475569] flex items-center justify-center shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M3 15a4 4 0 004 4h10a4 4 0 001.5-7.7A5 5 0 009 8.5 4 4 0 003 15z" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><div class="flex flex-col min-w-0"><span class="text-xs font-medium text-[#1b2a22] truncate">Mây nhẹ</span><span class="text-[10px] text-[#64748b]">Bồng bềnh</span></div></label><label aria-checked="false" class="preset-card relative flex items-center gap-2.5 p-2.5 rounded-xl border border-[#e2e8f0] bg-white cursor-pointer transition-custom hover:border-[#cbd5e1] tap-target" role="radio" tabindex="0"><input class="sr-only" name="preset-choice" onchange="handlePresetChange(event)" type="radio" value="SPROUT"/><span class="w-8 h-8 rounded-full bg-[#f4f7ee] border border-[#d2e3bd] text-[#4d7c0f] flex items-center justify-center shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 20v-8m0 0a4 4 0 014-4c0 4-4 4-4 4zm0 0a4 4 0 00-4-4c0 4 4 4 4 4z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M7 20h10" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><div class="flex flex-col min-w-0"><span class="text-xs font-medium text-[#1b2a22] truncate">Mầm cây</span><span class="text-[10px] text-[#64748b]">Phát triển</span></div></label></div>
+</div>
+<!-- ==================== PRIVACY NOTICE CARD ==================== -->
+<div class="p-4 rounded-xl bg-[#f2fbf9] border border-[#d3ede7] text-xs text-[#334155] leading-relaxed flex items-start gap-3">
+<svg class="w-4 h-4 text-[#0f615c] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="9" stroke-width="2"></circle>
+<path d="M12 8v4m0 4h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<p>
+          Ảnh bạn chọn hiển thị cùng tên trên bài viết và bình luận; bài ẩn danh không hiển thị ảnh này.
+        </p>
+</div>
+<!-- ==================== PRIMARY SAVE BUTTON (MIN 44PX H, NO FAKE AUTO-SAVE TEXT) ==================== -->
+<div class="flex items-center justify-end pt-3 border-t border-[#edf2ef]">
+<button class="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center px-7 py-2.5 rounded-xl bg-[#0f615c] hover:bg-[#0b4844] text-white text-sm font-semibold transition-custom shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0f615c]" id="btn-save-general" onclick="saveGeneralSettings()" type="button"><span>Lưu thay đổi</span></button>
+</div>
+</section>
+</main>
+<!-- ==================== CONFIRMATION MODAL FOR PHOTO DELETION ==================== -->
+<div aria-describedby="delete-modal-desc" aria-labelledby="delete-modal-title" aria-modal="true" class="hidden fixed inset-0 z-50 overflow-y-auto" id="delete-confirm-modal" role="dialog">
+<!-- Backdrop -->
+<div class="fixed inset-0 bg-[#1b2a22]/50 backdrop-blur-sm transition-opacity" onclick="closeDeleteModal()"></div>
+<div class="flex min-h-full items-center justify-center p-4 text-center">
+<div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all w-full max-w-sm p-6 border border-[#e2ebe8]">
+<div class="w-12 h-12 rounded-full bg-[#fef2f2] text-[#dc2626] mx-auto flex items-center justify-center mb-4">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<h3 class="text-base font-bold text-[#1b2a22] text-center" id="delete-modal-title">
+          Xóa ảnh đại diện này?
+        </h3>
+<p class="text-xs text-[#64748b] text-center mt-2 leading-relaxed" id="delete-modal-desc">
+          Ảnh tải lên của bạn sẽ bị gỡ bỏ khỏi cộng đồng. Hồ sơ sẽ tự động chuyển về biểu tượng an toàn dự phòng bạn đã chọn.
+        </p>
+<div class="mt-6 flex items-center gap-3">
+<button class="min-h-[44px] flex-1 rounded-xl bg-white border border-[#cbd5e1] hover:bg-[#f8faf9] text-xs font-semibold text-[#475569] transition-custom focus:outline-none focus:ring-2 focus:ring-[#cbd5e1]" onclick="closeDeleteModal()" type="button">
+            Hủy
+          </button>
+<button class="min-h-[44px] flex-1 rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-semibold transition-custom shadow-sm focus:outline-none focus:ring-2 focus:ring-[#dc2626] focus:ring-offset-1" onclick="confirmDeletePhoto()" type="button">
+            Xác nhận xóa
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- ==================== FLOATING SAFETY WIDGET (48x48px AMBER WITH HAND-HOLDING-HEART ICON) ==================== -->
+<aside aria-label="Hỗ trợ khẩn cấp" class="fixed bottom-6 right-6 z-50"><button aria-haspopup="dialog" aria-label="Mở hỗ trợ khẩn cấp" class="w-[52px] h-[52px] rounded-full bg-[#b98437] text-white flex items-center justify-center shadow-lg hover:brightness-105 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#b98437]" type="button"><svg aria-hidden="true" class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24"><path d="M12 11.3 8.9 8.4a2.35 2.35 0 0 1 3.1-3.52 2.35 2.35 0 0 1 3.1 3.52L12 11.3Z"></path><path d="M3.5 14.2h2.35l2.1 3.05h5.8c1.2 0 2.35-.48 3.2-1.33l3.55-3.56a1.48 1.48 0 0 0-2.06-.08l-2.53 2.06"></path><path d="M9.1 14.15h4.1a1.5 1.5 0 0 1 0 3H9.6"></path><path d="M3.5 12.85v6.3"></path></svg></button></aside>
+<!-- ==================== MOBILE 4-NAV FIXED BOTTOM BAR (64px) ==================== -->
+<nav aria-label="Điều hướng chính" class="md:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-white border-t border-[#e2ebe8] z-40 flex items-center justify-around px-2">
+<!-- Bảng tin -->
+<a class="flex flex-col items-center justify-center gap-1 text-[#52796f] hover:text-[#0f615c] w-16 py-1" href="/community">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<rect height="18" rx="2" width="18" x="3" y="3"></rect>
+<path d="M7 8h10M7 12h10M7 16h6"></path>
+</svg>
+<span class="text-[11px] font-medium">Bảng tin</span>
+</a>
+<!-- Đã lưu -->
+<a class="flex flex-col items-center justify-center gap-1 text-[#52796f] hover:text-[#0f615c] w-16 py-1" href="/community/saved">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+</svg>
+<span class="text-[11px] font-medium">Đã lưu</span>
+</a>
+<!-- Danh tính (Active Sage Pill) -->
+<a class="flex flex-col items-center justify-center gap-1 text-[#0f615c] bg-[#e7f3ef] rounded-xl px-2.5 py-1.5 font-semibold" href="/community/profile">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+</svg>
+<span class="text-[11px]">Danh tính</span>
+</a>
+<!-- Hỗ trợ -->
+<a class="flex flex-col items-center justify-center gap-1 text-[#52796f] hover:text-[#0f615c] w-16 py-1" href="/safety-directory">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path>
+</svg>
+<span class="text-[11px] font-medium">Hỗ trợ</span>
+</a>
+</nav>
+<!-- ==================== JAVASCRIPT STATE & INTERACTIONS ==================== -->
+<script>
+    const state = {
+      authoritativePhoto: "https://lh3.googleusercontent.com/aida/AEtjO1UJpH7NH6iBV2NMq5rkAE1sJtZj2-LALXIjaW2eLVChOk35SazAHmAHUQF-mrOnizXko-0h2L-pL5A47XbiIE7ewqzjC25xXzTNJWA-M8zIrGtnjQY5tLOvWEbCn1Uwo7gNOqn9wQRQk9HaeX1ax14ko8h9N18m-LRpvUxYMc1BYzS-wGiV5GTR5YMNYYjGUquBkJHHBsTxm_8fe_dtyhBduVL11ZjhILfGQdwa8CTqXTMajlXEjJ1wrFA8",
+      stagedFile: null,
+      stagedDataUrl: null,
+      hasPhoto: true,
+      displayName: "Minh An",
+      selectedPreset: "null"
+    };
+
+    const presetSvgMap = {
+      LEAF: `
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-full h-full p-2 text-[#2d6a4f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 3c5 0 11 3 13 13-3 2-7 2-10 1-3-1-4-4-4-8 0-2 .5-4 1-6z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 21c2-3 6-7 13-5" />
+        </svg>
+      `,
+      SUNRISE: `
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-full h-full p-2 text-[#b45309]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v3m0 12v3M4.22 7.22l2.12 2.12M17.66 14.66l2.12 2.12M3 15h3m12 0h3M7.22 19.78l2.12-2.12M17.66 9.34l2.12-2.12" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 15a5 5 0 00-10 0" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 19h16" />
+        </svg>
+      `,
+      WAVE: `
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-full h-full p-2 text-[#0369a1]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 11c3-2 5 2 8 0s5-2 8 0" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16c3-2 5 2 8 0s5-2 8 0" />
+        </svg>
+      `,
+      LOTUS: `
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-full h-full p-2 text-[#7e22ce]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4c-1.5 3-2 6-2 9 1 1 3 1 4 0 0-3-.5-6-2-9z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 13c-2.5-1-5-1-6 2 2 1.5 5 1.5 7 0" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M14 13c2.5-1 5-1 6 2-2 1.5-5 1.5-7 0" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 18c2 1 6 1 8 0" />
+        </svg>
+      `,
+      CLOUD: `
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-full h-full p-2 text-[#475569]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h10a4 4 0 001.5-7.7A5 5 0 009 8.5 4 4 0 003 15z" />
+        </svg>
+      `,
+      SPROUT: `
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-full h-full p-2 text-[#4d7c0f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 20v-8m0 0a4 4 0 014-4c0 4-4 4-4 4zm0 0a4 4 0 00-4-4c0 4 4 4 4 4z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M7 20h10" />
+        </svg>
+      `
+    };
+
+    const elements = {
+      livePreviewImg: document.getElementById('live-preview-img'),
+      livePreviewPreset: document.getElementById('live-preview-preset'),
+      livePreviewName: document.getElementById('live-preview-name'),
+      avatarImg96: document.getElementById('avatar-img-96'),
+      avatarPreset96: document.getElementById('avatar-preset-96'),
+      avatarLoadingOverlay: document.getElementById('avatar-loading-overlay'),
+      stagingControls: document.getElementById('staging-controls'),
+      stagingFilename: document.getElementById('staging-filename'),
+      deleteAffordanceWrap: document.getElementById('delete-affordance-wrap'),
+      displayNameInput: document.getElementById('display-name-input'),
+      nameCounter: document.getElementById('name-counter'),
+      presetBadgeNull: document.getElementById('preset-badge-null'),
+      deleteModal: document.getElementById('delete-confirm-modal')
+    };
+
+    function getInitials(name) {
+      if (!name) return "MA";
+      const parts = name.trim().split(/\s+/);
+      if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
+    function renderPresetHtml(presetKey, isLarge) {
+      if (presetKey === "null" || !presetKey) {
+        const initials = getInitials(state.displayName);
+        const textSize = isLarge ? "text-2xl" : "text-base";
+        return `<div class="w-full h-full bg-[#d6e5e0] border border-[#bcd6cd] text-[#0f615c] font-bold ${textSize} flex items-center justify-center">${initials}</div>`;
+      }
+      const svg = presetSvgMap[presetKey] || "";
+      const bgMap = {
+        LEAF: "bg-[#f0f7f3] border-[#cbe3d6]",
+        SUNRISE: "bg-[#fdf8ed] border-[#f5dfb8]",
+        WAVE: "bg-[#f0f7fb] border-[#c6e3f5]",
+        LOTUS: "bg-[#faf5ff] border-[#e9d5ff]",
+        CLOUD: "bg-[#f1f5f9] border-[#cbd5e1]",
+        SPROUT: "bg-[#f4f7ee] border-[#d2e3bd]"
+      };
+      return `<div class="w-full h-full ${bgMap[presetKey] || 'bg-slate-100'} border flex items-center justify-center">${svg}</div>`;
+    }
+
+    function updateVisualDisplay() {
+      const currentPhoto = state.stagedDataUrl || (state.hasPhoto ? state.authoritativePhoto : null);
+
+      if (currentPhoto) {
+        elements.livePreviewImg.src = currentPhoto;
+        elements.livePreviewImg.classList.remove('hidden');
+        elements.livePreviewPreset.classList.add('hidden');
+
+        elements.avatarImg96.src = currentPhoto;
+        elements.avatarImg96.classList.remove('hidden');
+        elements.avatarPreset96.classList.add('hidden');
+
+        elements.deleteAffordanceWrap.classList.remove('hidden');
+      } else {
+        elements.livePreviewImg.classList.add('hidden');
+        elements.livePreviewPreset.classList.remove('hidden');
+        elements.livePreviewPreset.innerHTML = renderPresetHtml(state.selectedPreset, false);
+
+        elements.avatarImg96.classList.add('hidden');
+        elements.avatarPreset96.classList.remove('hidden');
+        elements.avatarPreset96.innerHTML = renderPresetHtml(state.selectedPreset, true);
+
+        elements.deleteAffordanceWrap.classList.add('hidden');
+      }
+
+      elements.presetBadgeNull.innerText = getInitials(state.displayName);
+      elements.livePreviewName.innerText = state.displayName || "Bạn";
+    }
+
+    function handleFileSelection(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert("Vui lòng chọn tệp hình ảnh định dạng JPEG, PNG hoặc WebP.");
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        alert("Dung lượng ảnh vượt quá 10MB. Vui lòng chọn ảnh nhỏ hơn.");
+        return;
+      }
+
+      state.stagedFile = file;
+      elements.stagingFilename.innerText = file.name;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        state.stagedDataUrl = e.target.result;
+        elements.stagingControls.classList.remove('hidden');
+        updateVisualDisplay();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function saveStagedPhoto() {
+      if (!state.stagedDataUrl) return;
+
+      elements.avatarLoadingOverlay.classList.remove('hidden');
+
+      setTimeout(() => {
+        state.authoritativePhoto = state.stagedDataUrl;
+        state.hasPhoto = true;
+        state.stagedFile = null;
+        state.stagedDataUrl = null;
+
+        elements.avatarLoadingOverlay.classList.add('hidden');
+        elements.stagingControls.classList.add('hidden');
+        updateVisualDisplay();
+      }, 400);
+    }
+
+    function cancelStagedPhoto() {
+      state.stagedFile = null;
+      state.stagedDataUrl = null;
+      elements.stagingControls.classList.add('hidden');
+      document.getElementById('photo-file-input').value = "";
+      updateVisualDisplay();
+    }
+
+    // Modal delete confirmation handlers
+    function openDeleteModal() {
+      elements.deleteModal.classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+      elements.deleteModal.classList.add('hidden');
+    }
+
+    function confirmDeletePhoto() {
+      state.hasPhoto = false;
+      state.stagedDataUrl = null;
+      state.stagedFile = null;
+      document.getElementById('photo-file-input').value = "";
+      elements.stagingControls.classList.add('hidden');
+      closeDeleteModal();
+      updateVisualDisplay();
+    }
+
+    function handleNameInput(e) {
+      state.displayName = e.target.value;
+      const count = Array.from(state.displayName).length;
+      elements.nameCounter.innerText = `${count}/80`;
+      updateVisualDisplay();
+    }
+
+    function handlePresetChange(e) {
+      state.selectedPreset = e.target.value;
+      document.querySelectorAll('.preset-card').forEach(card => {
+        const radio = card.querySelector('input[type="radio"]');
+        if (radio.checked) {
+          card.classList.add('border-2', 'border-[#0f615c]', 'bg-[#e7f3ef]');
+          card.classList.remove('border', 'border-[#e2e8f0]', 'bg-white');
+          card.setAttribute('aria-checked', 'true');
+        } else {
+          card.classList.remove('border-2', 'border-[#0f615c]', 'bg-[#e7f3ef]');
+          card.classList.add('border', 'border-[#e2e8f0]', 'bg-white');
+          card.setAttribute('aria-checked', 'false');
+        }
+      });
+      updateVisualDisplay();
+    }
+
+    function saveGeneralSettings() {
+      const btn = document.getElementById('btn-save-general');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `
+        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>Đang lưu...</span>
+      `;
+      btn.disabled = true;
+
+      setTimeout(() => {
+        btn.innerHTML = `<span>Đã lưu thành công!</span>`;
+        btn.classList.add('bg-[#15803d]');
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.classList.remove('bg-[#15803d]');
+          btn.disabled = false;
+        }, 1200);
+      }, 400);
+    }
+
+    document.querySelectorAll('.preset-card').forEach(card => {
+      card.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          const radio = card.querySelector('input[type="radio"]');
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change'));
+        }
+      });
+    });
+
+    updateVisualDisplay();
+  </script>
+</body></html>

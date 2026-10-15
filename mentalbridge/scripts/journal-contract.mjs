@@ -1,5 +1,5 @@
 import { constants } from 'node:fs'
-import { access, copyFile, readFile, writeFile } from 'node:fs/promises'
+import { access, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import openapiTS, { astToString, COMMENT_HEADER } from 'openapi-typescript'
@@ -12,6 +12,10 @@ const snapshotPath = path.join(
   'journal-ai-service-v1.yaml',
 )
 const generatedPath = path.join(appRoot, 'contracts', 'journal.generated.ts')
+const referencedSchemas = [
+  '../proposals/support-plan-companion-intent-v1.schema.json',
+  '../proposals/support-plan-companion-context-v1.schema.json',
+]
 const defaultBackendSource = path.resolve(
   appRoot,
   '..',
@@ -40,6 +44,11 @@ async function syncSnapshot() {
   if (!(await exists(sourcePath)))
     throw new Error(`Journal OpenAPI source not found at ${sourcePath}.`)
   await copyFile(sourcePath, snapshotPath)
+  for (const reference of referencedSchemas) {
+    const target = path.resolve(path.dirname(snapshotPath), reference)
+    await mkdir(path.dirname(target), { recursive: true })
+    await copyFile(path.resolve(path.dirname(sourcePath), reference), target)
+  }
   console.log(`Synced Journal OpenAPI snapshot from ${sourcePath}`)
 }
 async function check(expected) {
@@ -63,6 +72,16 @@ async function check(expected) {
     throw new Error(
       'The committed Journal OpenAPI snapshot differs from its provider source.',
     )
+  if (sourcePath) {
+    for (const reference of referencedSchemas) {
+      const source = path.resolve(path.dirname(sourcePath), reference)
+      const snapshot = path.resolve(path.dirname(snapshotPath), reference)
+      if (!(await readFile(source)).equals(await readFile(snapshot)))
+        throw new Error(
+          `Journal referenced schema differs from its provider: ${reference}`,
+        )
+    }
+  }
   console.log('Journal OpenAPI snapshot and generated types are valid.')
 }
 const argumentsSet = new Set(process.argv.slice(2))

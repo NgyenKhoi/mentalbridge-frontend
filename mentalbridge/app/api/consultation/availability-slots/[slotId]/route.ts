@@ -15,11 +15,16 @@ import {
   validEtag,
   validUuid,
 } from '@/lib/consultation/consultation-validation'
+import {
+  isSpecialistMockEnabled,
+  specialistMockService,
+} from '@/lib/mock/specialist-mock-service'
 
 type Context = { params: Promise<{ slotId: string }> }
 
 export async function DELETE(request: NextRequest, context: Context) {
   const correlationId = correlationIdFrom(request)
+  const mockEnabled = isSpecialistMockEnabled(request)
   const { slotId } = await context.params
   if (!validUuid(slotId))
     return localProblem(
@@ -34,34 +39,56 @@ export async function DELETE(request: NextRequest, context: Context) {
       'SPECIALIST',
     ])
   } catch (error) {
-    return consultationAuthenticationFailure(error, correlationId)
+    if (!mockEnabled) {
+      return consultationAuthenticationFailure(error, correlationId)
+    }
   }
   const etag = request.headers.get('If-Match')
   if (!validEtag(etag))
-    return carryConsultationSession(
-      localProblem(
-        428,
-        'AVAILABILITY_SLOT_VERSION_REQUIRED',
-        'Cần phiên bản hiện tại của khung giờ.',
+    return actor
+      ? carryConsultationSession(
+          localProblem(
+            428,
+            'AVAILABILITY_SLOT_VERSION_REQUIRED',
+            'Cần phiên bản hiện tại của khung giờ.',
+            correlationId,
+          ),
+          actor,
+        )
+      : localProblem(
+          428,
+          'AVAILABILITY_SLOT_VERSION_REQUIRED',
+          'Cần phiên bản hiện tại của khung giờ.',
+          correlationId,
+        )
+
+  if (mockEnabled) {
+    const withdrawn = specialistMockService.withdrawSlot(slotId)
+    if (withdrawn) {
+      const res = consultationSuccess(
+        withdrawn,
         correlationId,
-      ),
-      actor,
-    )
+        `"${withdrawn.version}"`,
+      )
+      return actor ? carryConsultationSession(res, actor) : res
+    }
+  }
+
   try {
     const result = await consultationClient.withdrawAvailability(
-      actor.accessToken,
+      actor!.accessToken,
       correlationId,
       slotId,
       etag,
     )
     return carryConsultationSession(
       consultationSuccess(result.data, correlationId, result.etag),
-      actor,
+      actor!,
     )
   } catch (error) {
     return carryConsultationSession(
       consultationFailure(error, correlationId),
-      actor,
+      actor!,
     )
   }
 }

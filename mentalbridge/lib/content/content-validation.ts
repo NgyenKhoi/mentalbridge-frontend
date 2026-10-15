@@ -3,6 +3,8 @@ import type { components } from '@/contracts/content.generated'
 export type ResourceSummary = components['schemas']['ResourceSummary']
 export type PublicResourceDetail = components['schemas']['PublicResourceDetail']
 export type AdminResourceDetail = components['schemas']['AdminResourceDetail']
+export type ResourceReviewDecision =
+  components['schemas']['ResourceReviewDecision']
 export type ResourceListResponse = components['schemas']['ResourceListResponse']
 export type NotificationPreferences =
   components['schemas']['NotificationPreferences']
@@ -21,6 +23,15 @@ export type ResourceProgressUpdate =
 export type ResourceJourney = components['schemas']['ResourceJourney']
 export type ResourceJourneyRequest =
   components['schemas']['ResourceJourneyRequest']
+export type ResourceBookmark = components['schemas']['ResourceBookmark']
+export type ResourceBookmarkList = components['schemas']['ResourceBookmarkList']
+export type ResourceBingoBoard = components['schemas']['ResourceBingoBoard']
+export type ResourceBingoSelfConfirmationUpdate =
+  components['schemas']['ResourceBingoSelfConfirmationUpdate']
+export type AchievementCollection =
+  components['schemas']['AchievementCollection']
+export type AchievementPreferenceUpdate =
+  components['schemas']['AchievementPreferenceUpdate']
 
 const UUID =
   /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
@@ -243,11 +254,39 @@ export function parseAdminResourceDetail(
     !nullableDateTime(item.effectiveAt) ||
     !nullableDateTime(item.expiresAt) ||
     !Number.isSafeInteger(item.version) ||
-    (item.version as number) < 0
+    (item.version as number) < 0 ||
+    typeof item.isCorrectionDraft !== 'boolean' ||
+    !(
+      item.reviewDecision === null ||
+      (parseResourceReviewDecision(item.reviewDecision) !== null &&
+        record(item.reviewDecision)?.contentVersion === item.contentVersion)
+    )
   ) {
     return null
   }
   return item as AdminResourceDetail
+}
+
+export function parseResourceReviewDecision(
+  value: unknown,
+): ResourceReviewDecision | null {
+  const item = record(value)
+  if (
+    !item ||
+    typeof item.resourceId !== 'string' ||
+    !UUID.test(item.resourceId) ||
+    typeof item.contentVersion !== 'string' ||
+    !CONTENT_VERSION.test(item.contentVersion) ||
+    !['APPROVED', 'REJECTED'].includes(item.decision as string) ||
+    typeof item.reasonCode !== 'string' ||
+    typeof item.authorityVersion !== 'string' ||
+    typeof item.reviewedBy !== 'string' ||
+    !UUID.test(item.reviewedBy) ||
+    !dateTime(item.reviewedAt)
+  ) {
+    return null
+  }
+  return item as ResourceReviewDecision
 }
 
 export function parseResourceList(value: unknown): ResourceListResponse | null {
@@ -398,6 +437,288 @@ export function parseResourceProgressList(
     return null
   }
   return list as ResourceProgressList
+}
+
+export function parseResourceBookmark(value: unknown): ResourceBookmark | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, ['resourceId', 'contentVersion', 'savedAt', 'version']) ||
+    typeof item.resourceId !== 'string' ||
+    !UUID.test(item.resourceId) ||
+    typeof item.contentVersion !== 'string' ||
+    !CONTENT_VERSION.test(item.contentVersion) ||
+    !dateTime(item.savedAt) ||
+    typeof item.version !== 'string' ||
+    !CONTENT_VERSION.test(item.version)
+  ) {
+    return null
+  }
+  return item as ResourceBookmark
+}
+
+export function parseResourceBookmarkList(
+  value: unknown,
+): ResourceBookmarkList | null {
+  const list = record(value)
+  if (
+    !list ||
+    !exactKeys(list, ['items']) ||
+    !Array.isArray(list.items) ||
+    list.items.length > 1000 ||
+    !list.items.every((item) => parseResourceBookmark(item) !== null)
+  ) {
+    return null
+  }
+  return list as ResourceBookmarkList
+}
+
+export function parseResourceBingoBoard(
+  value: unknown,
+): ResourceBingoBoard | null {
+  const board = record(value)
+  if (
+    !board ||
+    !exactKeys(board, [
+      'weekStart',
+      'timeZone',
+      'version',
+      'updatedAt',
+      'items',
+    ]) ||
+    typeof board.weekStart !== 'string' ||
+    !isLocalDate(board.weekStart) ||
+    new Date(`${board.weekStart}T00:00:00.000Z`).getUTCDay() !== 1 ||
+    typeof board.timeZone !== 'string' ||
+    board.timeZone.length < 1 ||
+    board.timeZone.length > 64 ||
+    typeof board.version !== 'string' ||
+    !CONTENT_VERSION.test(board.version) ||
+    !dateTime(board.updatedAt) ||
+    !Array.isArray(board.items) ||
+    board.items.length > 9
+  ) {
+    return null
+  }
+  const positions = new Set<number>()
+  const resources = new Set<string>()
+  for (const value of board.items) {
+    const item = record(value)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'position',
+        'resourceId',
+        'contentVersion',
+        'label',
+        'evidence',
+        'selfConfirmedAt',
+        'verifiedAt',
+        'verificationSource',
+      ]) ||
+      !Number.isSafeInteger(item.position) ||
+      (item.position as number) < 1 ||
+      (item.position as number) > 9 ||
+      positions.has(item.position as number) ||
+      typeof item.resourceId !== 'string' ||
+      !UUID.test(item.resourceId) ||
+      resources.has(item.resourceId) ||
+      typeof item.contentVersion !== 'string' ||
+      !CONTENT_VERSION.test(item.contentVersion) ||
+      typeof item.label !== 'string' ||
+      item.label.length < 1 ||
+      item.label.length > 300 ||
+      !['NONE', 'SELF_CONFIRMED', 'CONTENT_VERIFIED'].includes(
+        item.evidence as string,
+      ) ||
+      !nullableDateTime(item.selfConfirmedAt) ||
+      !nullableDateTime(item.verifiedAt) ||
+      !(
+        item.verificationSource === null ||
+        item.verificationSource === 'RESOURCE_COMPLETION' ||
+        item.verificationSource === 'PRACTICE_SESSION'
+      )
+    ) {
+      return null
+    }
+    if (
+      (item.evidence === 'NONE' &&
+        (item.selfConfirmedAt !== null ||
+          item.verifiedAt !== null ||
+          item.verificationSource !== null)) ||
+      (item.evidence === 'SELF_CONFIRMED' &&
+        (item.selfConfirmedAt === null ||
+          item.verifiedAt !== null ||
+          item.verificationSource !== null)) ||
+      (item.evidence === 'CONTENT_VERIFIED' &&
+        (item.verifiedAt === null || item.verificationSource === null))
+    ) {
+      return null
+    }
+    positions.add(item.position as number)
+    resources.add(item.resourceId)
+  }
+  return board as ResourceBingoBoard
+}
+
+export function parseResourceBingoSelfConfirmationUpdate(
+  value: unknown,
+): ResourceBingoSelfConfirmationUpdate | null {
+  const update = record(value)
+  return update &&
+    exactKeys(update, ['selfConfirmed']) &&
+    Object.keys(update).length === 1 &&
+    typeof update.selfConfirmed === 'boolean'
+    ? (update as ResourceBingoSelfConfirmationUpdate)
+    : null
+}
+
+export function parseAchievementCollection(
+  value: unknown,
+): AchievementCollection | null {
+  const collection = record(value)
+  if (
+    !collection ||
+    !exactKeys(collection, [
+      'visibilityState',
+      'preferenceVersion',
+      'policyVersion',
+      'calculatedAt',
+      'sources',
+      'items',
+    ]) ||
+    !['VISIBLE', 'HIDDEN'].includes(collection.visibilityState as string) ||
+    typeof collection.preferenceVersion !== 'string' ||
+    !CONTENT_VERSION.test(collection.preferenceVersion) ||
+    collection.policyVersion !== 'achievement-rules-v1' ||
+    !dateTime(collection.calculatedAt) ||
+    !Array.isArray(collection.sources) ||
+    collection.sources.length !== 4 ||
+    !Array.isArray(collection.items) ||
+    collection.items.length !== 11
+  ) {
+    return null
+  }
+
+  const sourceDomains = new Set<string>()
+  for (const sourceValue of collection.sources) {
+    const source = record(sourceValue)
+    if (
+      !source ||
+      !exactKeys(source, ['domain', 'availability', 'asOfLocalDate']) ||
+      !['JOURNAL', 'EMOTION_CHECK_IN', 'RESOURCE', 'JOURNEY'].includes(
+        source.domain as string,
+      ) ||
+      sourceDomains.has(source.domain as string) ||
+      !['AVAILABLE', 'UNAVAILABLE', 'DEFERRED'].includes(
+        source.availability as string,
+      ) ||
+      !(
+        source.asOfLocalDate === null ||
+        (typeof source.asOfLocalDate === 'string' &&
+          isLocalDate(source.asOfLocalDate))
+      )
+    ) {
+      return null
+    }
+    sourceDomains.add(source.domain as string)
+  }
+
+  const definitionIds = new Set<string>()
+  for (const itemValue of collection.items) {
+    const item = record(itemValue)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'definitionId',
+        'domain',
+        'kind',
+        'tier',
+        'title',
+        'description',
+        'status',
+        'evidenceClass',
+        'unlockedAt',
+        'ruleVersion',
+        'privacy',
+        'progress',
+      ]) ||
+      typeof item.definitionId !== 'string' ||
+      !/^[a-z]+[a-z0-9.-]{2,79}$/.test(item.definitionId) ||
+      definitionIds.has(item.definitionId) ||
+      !['JOURNAL', 'EMOTION_CHECK_IN', 'RESOURCE', 'JOURNEY'].includes(
+        item.domain as string,
+      ) ||
+      !['MILESTONE', 'CONSISTENCY', 'JOURNEY'].includes(item.kind as string) ||
+      !['FIRST_STEP', 'STEADY_STEP', 'DEEPENING_STEP', 'JOURNEY'].includes(
+        item.tier as string,
+      ) ||
+      typeof item.title !== 'string' ||
+      item.title.length < 1 ||
+      typeof item.description !== 'string' ||
+      item.description.length < 1 ||
+      ![
+        'EARNED',
+        'UNEARNED',
+        'SOURCE_UNAVAILABLE',
+        'GRANDFATHERED',
+        'DEFERRED',
+      ].includes(item.status as string) ||
+      ![
+        'OWNER_SOURCE_FACT',
+        'OWNER_STREAK_MILESTONE',
+        'OWNER_PRACTICE_WINDOW',
+        'USER_CONFIRMED_JOURNEY',
+      ].includes(item.evidenceClass as string) ||
+      !nullableDateTime(item.unlockedAt) ||
+      item.ruleVersion !== 'achievement-rules-v1' ||
+      item.privacy !== 'PRIVATE'
+    ) {
+      return null
+    }
+    if (item.progress !== null) {
+      const progress = record(item.progress)
+      if (
+        !progress ||
+        !exactKeys(progress, ['current', 'target', 'unit']) ||
+        !Number.isSafeInteger(progress.current) ||
+        (progress.current as number) < 0 ||
+        !Number.isSafeInteger(progress.target) ||
+        (progress.target as number) < 1 ||
+        (progress.current as number) > (progress.target as number) ||
+        ![
+          'EVENT',
+          'CONSECUTIVE_DAY',
+          'DISTINCT_RESOURCE',
+          'PRACTICE_DAY',
+        ].includes(progress.unit as string)
+      ) {
+        return null
+      }
+    }
+    if (
+      ['EARNED', 'GRANDFATHERED'].includes(item.status as string) !==
+        (item.unlockedAt !== null) ||
+      (['SOURCE_UNAVAILABLE', 'DEFERRED'].includes(item.status as string) &&
+        item.progress !== null)
+    ) {
+      return null
+    }
+    definitionIds.add(item.definitionId)
+  }
+  return collection as AchievementCollection
+}
+
+export function parseAchievementPreferenceUpdate(
+  value: unknown,
+): AchievementPreferenceUpdate | null {
+  const item = record(value)
+  return item &&
+    exactKeys(item, ['visibilityState']) &&
+    Object.keys(item).length === 1 &&
+    ['VISIBLE', 'HIDDEN'].includes(item.visibilityState as string)
+    ? (item as AchievementPreferenceUpdate)
+    : null
 }
 
 export function parseResourceProgressUpdate(

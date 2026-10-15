@@ -1,7 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
@@ -12,29 +18,71 @@ import {
   changeSupportPlanStatus,
   getCurrentSupportPlan,
   getCurrentSupportPlanDraft,
+  getCurrentSupportPlanDraftActions,
   getSupportPlanHistory,
+  getSupportPlanActions,
   getSupportPlanOccurrences,
   proposeSupportPlanDraft,
   replaceSupportPlan,
   replaceSupportPlanChoices,
+  replaceSupportPlanActionSchedule,
   reviewSupportPlanReplacement,
 } from '../api/browser-support-plan'
 import type {
   ReplaceSupportPlanChoicesRequest,
   SupportPlan,
   SupportPlanReplacementReview,
+  SupportPlanV3,
+  UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
+import SupportPlanCompanionShell from './SupportPlanCompanionShell'
 import SupportPlanFooter from './SupportPlanFooter'
-import SupportPlanHero, { type WeeklyProgressStats } from './SupportPlanHero'
 import SupportPlanHistory from './SupportPlanHistory'
 import SupportPlanIcon from './SupportPlanIcon'
+import SupportPlanPersonalization, {
+  type SupportPlanReviewReasonCode,
+} from './SupportPlanPersonalization'
 import SupportPlanReplacementReviewView from './SupportPlanReplacementReview'
+import {
+  transitionSupportPlanCompanion,
+  type SupportPlanCompanionEvent,
+} from './support-plan-companion-state'
 
 import './support-plan.css'
 
 type EmptyReason = 'NONE' | 'FREE' | 'STALE' | 'DEPENDENCY'
 type Busy = 'SAVING' | 'ACTIVATING' | 'LIFECYCLE' | null
+type JourneyTab = 'today' | 'plan' | 'progress' | 'adjust'
+
+type WeeklyProgressStats = {
+  completed: number
+  total: number
+  percent: number
+  remaining: number
+}
+
+type FocusProjectionState = {
+  version: number
+  status: 'ready' | 'unavailable'
+  value?: SupportPlanV3
+}
+
+const journeyTabs: ReadonlyArray<{ id: JourneyTab; label: string }> = [
+  { id: 'today', label: 'Hôm nay' },
+  { id: 'plan', label: 'Kế hoạch' },
+  { id: 'progress', label: 'Tiến triển' },
+  { id: 'adjust', label: 'Điều chỉnh' },
+]
+
+function todayLabel() {
+  return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date())
+}
 
 function EmptyStateIcon({ reason }: Readonly<{ reason: EmptyReason }>) {
   return (
@@ -191,11 +239,16 @@ function currentWeekBounds(localDate: string) {
   }
 }
 
-export default function SupportPlanJourney() {
+export default function SupportPlanJourney({
+  onDirtyChange,
+}: Readonly<{ onDirtyChange?: (dirty: boolean) => void }>) {
   const { showActionToast } = useFeedback()
   const [plan, setPlan] = useState<SupportPlan>()
   const [currentPlan, setCurrentPlan] = useState<SupportPlan>()
   const [replacementDraft, setReplacementDraft] = useState<SupportPlan>()
+  const [focusProjections, setFocusProjections] = useState<
+    Record<string, FocusProjectionState>
+  >({})
   const [replacementReview, setReplacementReview] =
     useState<SupportPlanReplacementReview>()
   const [replacementLoading, setReplacementLoading] = useState(false)
@@ -207,9 +260,12 @@ export default function SupportPlanJourney() {
   const [message, setMessage] = useState('')
   const [commandMessage, setCommandMessage] = useState('')
   const [recoveryVersion, setRecoveryVersion] = useState(0)
-  const [activeTab, setActiveTab] = useState<'plan' | 'schedule' | 'manage'>(
-    'plan',
-  )
+  const [activeTab, setActiveTab] = useState<JourneyTab>('today')
+  const [companionEvent, setCompanionEvent] =
+    useState<SupportPlanCompanionEvent>('SURFACE_ENTERED')
+  const [cardDirty, setCardDirty] = useState(false)
+  const [replacementDirty, setReplacementDirty] = useState(false)
+  const [personalizationDirty, setPersonalizationDirty] = useState(false)
   const [weeklyStats, setWeeklyStats] = useState<WeeklyProgressStats | null>(
     null,
   )
@@ -222,6 +278,25 @@ export default function SupportPlanJourney() {
   const creationKey = useRef<string | undefined>(undefined)
   const activationKey = useRef<string | undefined>(undefined)
   const replacementKey = useRef<string | undefined>(undefined)
+  const replacementDraftReviewRef = useRef<HTMLDivElement>(null)
+  const previousCompanionSurface = useRef<JourneyTab>('today')
+  const preserveCompanionEventAcrossSurface = useRef(false)
+  const dirty = cardDirty || replacementDirty || personalizationDirty
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
+  useEffect(() => {
+    if (previousCompanionSurface.current === activeTab) return
+    previousCompanionSurface.current = activeTab
+    if (preserveCompanionEventAcrossSurface.current) {
+      preserveCompanionEventAcrossSurface.current = false
+      return
+    }
+    setCompanionEvent(
+      activeTab === 'adjust' ? 'SENSITIVE_CONTEXT_ENTERED' : 'CONTENT_READY',
+    )
+  }, [activeTab])
 
   const loadReplacementReview = useCallback(
     async (current: SupportPlan, draft: SupportPlan) => {
@@ -264,6 +339,12 @@ export default function SupportPlanJourney() {
         setCurrentPlan(current)
         setReplacementDraft(current ? draft : undefined)
         setPlan(current ?? draft)
+        setActiveTab((selected) => {
+          if (current && draft) return 'adjust'
+          if (!current && draft && selected === 'today') return 'plan'
+          if (!current && !draft) return 'plan'
+          return selected
+        })
         setReason('NONE')
         if (current && draft) await loadReplacementReview(current, draft)
         else setReplacementReview(undefined)
@@ -298,6 +379,7 @@ export default function SupportPlanJourney() {
         }
 
         if (options?.messageAfterLoad) setMessage(options.messageAfterLoad)
+        return { current, draft }
       } catch (error) {
         const state = stateFor(error)
         setWeeklyStats(null)
@@ -306,9 +388,11 @@ export default function SupportPlanJourney() {
           setCurrentPlan(undefined)
           setReplacementDraft(undefined)
           setReplacementReview(undefined)
+          setActiveTab('plan')
         }
         setReason(state.reason)
         setMessage(options?.messageAfterLoad ?? state.message)
+        return undefined
       } finally {
         setLoading(false)
       }
@@ -328,10 +412,12 @@ export default function SupportPlanJourney() {
       )
       setHistoryCursor(page.nextCursor ?? undefined)
       setHistoryHasMore(page.hasMore)
+      return page
     } catch {
       setHistoryMessage(
         'Chưa thể tải các kế hoạch trước đây. Kế hoạch hiện tại không bị thay đổi.',
       )
+      return undefined
     } finally {
       setHistoryLoading(false)
       setHistoryLoadingMore(false)
@@ -340,11 +426,66 @@ export default function SupportPlanJourney() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void load()
-      void loadHistory()
+      void Promise.all([load(), loadHistory()]).then(
+        ([loaded, historyPage]) => {
+          if (
+            loaded &&
+            !loaded.current &&
+            !loaded.draft &&
+            historyPage &&
+            historyPage.items.length > 0
+          ) {
+            setActiveTab('progress')
+          }
+        },
+      )
     }, 0)
     return () => window.clearTimeout(timer)
   }, [load, loadHistory])
+
+  useEffect(() => {
+    const targets = [plan, replacementDraft].filter(
+      (candidate, index, values): candidate is SupportPlan =>
+        Boolean(candidate) &&
+        values.findIndex(
+          (value) => value?.supportPlanId === candidate?.supportPlanId,
+        ) === index,
+    )
+    if (targets.length === 0) return
+
+    let active = true
+    for (const target of targets) {
+      const projectionRequest =
+        target.status === 'DRAFT'
+          ? getCurrentSupportPlanDraftActions()
+          : getSupportPlanActions(target.supportPlanId)
+      void projectionRequest
+        .then((value) => {
+          if (!active || value.supportPlanId !== target.supportPlanId) return
+          setFocusProjections((current) => ({
+            ...current,
+            [target.supportPlanId]: {
+              version: target.version,
+              status: 'ready',
+              value,
+            },
+          }))
+        })
+        .catch(() => {
+          if (!active) return
+          setFocusProjections((current) => ({
+            ...current,
+            [target.supportPlanId]: {
+              version: target.version,
+              status: 'unavailable',
+            },
+          }))
+        })
+    }
+    return () => {
+      active = false
+    }
+  }, [plan, replacementDraft])
 
   const create = async () => {
     setCreating(true)
@@ -380,9 +521,28 @@ export default function SupportPlanJourney() {
   }
 
   const recover = async (messageAfterLoad?: string) => {
-    await load({ preserveOnError: true, messageAfterLoad })
+    const recovered = await load({ preserveOnError: true, messageAfterLoad })
     setRecoveryVersion((current) => current + 1)
     await loadHistory()
+    return recovered
+  }
+
+  const reviewPersonalizedPlan = (reasonCode: SupportPlanReviewReasonCode) => {
+    if (
+      reasonCode === 'PREFERENCES_CHANGED_AFTER_DRAFT_CREATION' &&
+      currentPlan &&
+      replacementDraft
+    ) {
+      setActiveTab('adjust')
+      window.requestAnimationFrame(() =>
+        replacementDraftReviewRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        }),
+      )
+      return
+    }
+    setActiveTab('plan')
   }
 
   const saveChoices = async (request: ReplaceSupportPlanChoicesRequest) => {
@@ -413,6 +573,87 @@ export default function SupportPlanJourney() {
     }
   }
 
+  const saveSchedule = async (
+    target: SupportPlan,
+    actionId: string,
+    request: UpdateActionScheduleRequest,
+    idempotencyKey: string,
+  ) => {
+    const updated = await replaceSupportPlanActionSchedule(
+      target.supportPlanId,
+      actionId,
+      target.version,
+      request,
+      idempotencyKey,
+    )
+    const patched = {
+      ...target,
+      version: updated.version,
+      updatedAt: updated.updatedAt,
+    }
+    setFocusProjections((current) => ({
+      ...current,
+      [target.supportPlanId]: {
+        version: updated.version,
+        status: 'ready',
+        value: updated,
+      },
+    }))
+    if (currentPlan?.supportPlanId === target.supportPlanId) {
+      setCurrentPlan(patched)
+      setPlan(patched)
+    } else if (replacementDraft?.supportPlanId === target.supportPlanId) {
+      setReplacementDraft(patched)
+      if (currentPlan) await loadReplacementReview(currentPlan, patched)
+    } else {
+      setPlan(patched)
+    }
+  }
+
+  const reloadSchedule = async (target: SupportPlan) => {
+    try {
+      const [authoritative, projection] = await Promise.all([
+        target.status === 'DRAFT'
+          ? getCurrentSupportPlanDraft()
+          : getCurrentSupportPlan(),
+        target.status === 'DRAFT'
+          ? getCurrentSupportPlanDraftActions()
+          : getSupportPlanActions(target.supportPlanId),
+      ])
+      if (
+        authoritative.supportPlanId !== target.supportPlanId ||
+        projection.supportPlanId !== target.supportPlanId ||
+        projection.version !== authoritative.version ||
+        projection.status !== authoritative.status
+      ) {
+        throw new Error('Support plan authority changed')
+      }
+      setFocusProjections((current) => ({
+        ...current,
+        [target.supportPlanId]: {
+          version: authoritative.version,
+          status: 'ready',
+          value: projection,
+        },
+      }))
+      if (currentPlan?.supportPlanId === target.supportPlanId) {
+        setCurrentPlan(authoritative)
+        setPlan(authoritative)
+      } else if (replacementDraft?.supportPlanId === target.supportPlanId) {
+        setReplacementDraft(authoritative)
+        if (currentPlan) {
+          await loadReplacementReview(currentPlan, authoritative)
+        }
+      } else {
+        setPlan(authoritative)
+      }
+      return true
+    } catch (error) {
+      setCommandMessage(mutationMessage(error))
+      return false
+    }
+  }
+
   const activate = async () => {
     if (!plan || plan.status !== 'DRAFT') return
     setBusy('ACTIVATING')
@@ -424,7 +665,11 @@ export default function SupportPlanJourney() {
         plan.version,
         activationKey.current,
       )
-      setPlan(await getCurrentSupportPlan())
+      const activated = await getCurrentSupportPlan()
+      setPlan(activated)
+      setCurrentPlan(activated)
+      setReplacementDraft(undefined)
+      setActiveTab('today')
       activationKey.current = undefined
       showActionToast({
         title: 'Kế hoạch hỗ trợ đã bắt đầu',
@@ -454,10 +699,19 @@ export default function SupportPlanJourney() {
         completionReason,
       )
       await Promise.all([load(), loadHistory()])
+      if (status === 'COMPLETED') {
+        if (activeTab !== 'progress') {
+          preserveCompanionEventAcrossSurface.current = true
+        }
+        setActiveTab('progress')
+        setCompanionEvent('EXPLICIT_COMPLETION_ACKNOWLEDGED')
+      } else if (status === 'DISCARDED') {
+        setActiveTab('progress')
+      }
       const statusMessage = {
         ACTIVE: 'Đã tiếp tục kế hoạch hỗ trợ',
         PAUSED: 'Đã tạm dừng kế hoạch hỗ trợ',
-        COMPLETED: 'Đã kết thúc kế hoạch hỗ trợ',
+        COMPLETED: 'Kế hoạch hỗ trợ đã khép lại',
         DISCARDED: 'Đã bỏ bản nháp kế hoạch',
       }[status]
       showActionToast({ title: statusMessage, tone: 'success' })
@@ -465,7 +719,15 @@ export default function SupportPlanJourney() {
       const errorMessage = mutationMessage(error)
       setCommandMessage(errorMessage)
       setMessage(errorMessage)
-      await recover(errorMessage)
+      const recovered = await recover(errorMessage)
+      if (
+        (status === 'COMPLETED' || status === 'DISCARDED') &&
+        recovered &&
+        !recovered.current &&
+        !recovered.draft
+      ) {
+        setActiveTab('progress')
+      }
     } finally {
       setBusy(null)
     }
@@ -536,233 +798,383 @@ export default function SupportPlanJourney() {
     }
   }
 
+  const cardTab =
+    activeTab === 'today'
+      ? 'schedule'
+      : activeTab === 'adjust'
+        ? 'manage'
+        : 'plan'
+  const availableTabs =
+    !loading && !plan
+      ? journeyTabs.filter(
+          (tab) =>
+            tab.id === 'plan' || (tab.id === 'progress' && history.length > 0),
+        )
+      : journeyTabs
+  const companionState = transitionSupportPlanCompanion('idle', companionEvent)
+
+  const handleTabKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentTab: JourneyTab,
+  ) => {
+    const currentIndex = availableTabs.findIndex((tab) => tab.id === currentTab)
+    if (currentIndex < 0) return
+
+    let nextIndex: number | undefined
+    if (event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % availableTabs.length
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex =
+        (currentIndex - 1 + availableTabs.length) % availableTabs.length
+    } else if (event.key === 'Home') {
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      nextIndex = availableTabs.length - 1
+    }
+
+    if (nextIndex === undefined) return
+    event.preventDefault()
+    const nextTab = availableTabs[nextIndex].id
+    setActiveTab(nextTab)
+    window.requestAnimationFrame(() => {
+      document.getElementById(`tab-${nextTab}`)?.focus()
+    })
+  }
+
   return (
     <div className="support-plan-page">
-      <SupportPlanHero stats={weeklyStats} />
-
-      {/* Thanh tab điều hướng 3 tab & controls */}
-      <div className="support-plan-nav-row">
-        <nav
-          className="support-plan-tabs"
-          role="tablist"
-          aria-label="Phân loại kế hoạch hỗ trợ"
-        >
-          <button
-            type="button"
-            role="tab"
-            id="tab-plan"
-            aria-controls="panel-plan"
-            aria-selected={activeTab === 'plan'}
-            className={`support-plan-tab-btn ${activeTab === 'plan' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('plan')}
-          >
-            Kế hoạch
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="tab-schedule"
-            aria-controls="panel-schedule"
-            aria-selected={activeTab === 'schedule'}
-            className={`support-plan-tab-btn ${activeTab === 'schedule' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('schedule')}
-          >
-            Hoạt động của tôi
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="tab-manage"
-            aria-controls="panel-manage"
-            aria-selected={activeTab === 'manage'}
-            className={`support-plan-tab-btn ${activeTab === 'manage' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('manage')}
-          >
-            Quản lý & Lịch sử
-          </button>
-        </nav>
-
-        <div className="support-plan-nav-controls">
-          <div className="support-plan-date-chip">
-            <SupportPlanIcon name="calendar_today" size={16} />
-            <span>
-              {(() => {
-                const now = new Date()
-                const month = now.getMonth() + 1
-                const year = now.getFullYear()
-                const week = Math.min(
-                  4,
-                  Math.max(1, Math.ceil(now.getDate() / 7)),
-                )
-                return `Tháng ${month}, ${year} · Tuần ${week}`
-              })()}
+      <header className="mb-support-workspace-header">
+        <div className="mb-support-workspace-heading">
+          <div>
+            <p className="mb-support-workspace-eyebrow">
+              <span aria-hidden="true" />
+              Kế hoạch hỗ trợ
+            </p>
+            <h1>Hôm nay, mình đi một bước nhỏ</h1>
+            <p className="mb-support-workspace-lead">
+              Kế hoạch này gom những việc hữu ích vào đúng lúc, để bạn không
+              phải tự nhớ mọi thứ.
+            </p>
+          </div>
+          <div className="mb-support-workspace-context">
+            <span className="mb-support-workspace-date">
+              <SupportPlanIcon name="calendar_today" size={17} />
+              {todayLabel()}
             </span>
+            {!loading && plan && (
+              <button
+                type="button"
+                className="mb-support-workspace-adjust"
+                onClick={() => setActiveTab('adjust')}
+              >
+                <SupportPlanIcon name="settings_suggest" size={17} />
+                Điều chỉnh kế hoạch
+              </button>
+            )}
           </div>
         </div>
-      </div>
 
-      {loading && (
-        <div className="support-plan-state support-plan-loading" role="status">
-          <span className="sr-only">Đang tải kế hoạch hỗ trợ hiện tại…</span>
-          <Skeleton width="28%" height={14} />
-          <Skeleton width="70%" height={42} />
-          <Skeleton width="92%" height={18} />
-          <Skeleton width="100%" height={154} />
-        </div>
-      )}
+        {!loading && (
+          <nav
+            className="mb-support-workspace-tabs"
+            role="tablist"
+            aria-label="Các chế độ của kế hoạch hỗ trợ"
+          >
+            {availableTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`tab-${tab.id}`}
+                aria-controls={`panel-${tab.id}`}
+                aria-selected={activeTab === tab.id}
+                tabIndex={activeTab === tab.id ? 0 : -1}
+                className={activeTab === tab.id ? 'is-active' : undefined}
+                onClick={() => setActiveTab(tab.id)}
+                onKeyDown={(event) => handleTabKeyDown(event, tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        )}
+      </header>
 
-      {!loading && plan && (
-        <>
-          <SupportPlanCard
-            key={`${plan.supportPlanId}:${plan.version}:${recoveryVersion}`}
-            plan={plan}
-            busy={busy}
-            message={commandMessage}
-            onSaveChoices={saveChoices}
-            onActivate={activate}
-            onStatusChange={changeStatus}
-            activeTab={activeTab}
-          />
-          {currentPlan && !replacementDraft && (
+      <div className="mb-support-companion-layout">
+        <SupportPlanCompanionShell state={companionState} surface={activeTab} />
+
+        <div className="mb-support-companion-content">
+          {loading && (
             <div
-              className={`support-plan-tab-pane ${activeTab === 'manage' ? 'is-active' : 'is-hidden'}`}
+              className="support-plan-state support-plan-loading"
+              role="status"
             >
-              <section className="support-plan-reassessment-callout">
-                <div>
-                  <span>Sau đánh giá lại</span>
-                  <h2>Xem một phương án kế hoạch mới</h2>
-                  <p>
-                    Kế hoạch hiện tại vẫn hoạt động trong khi hệ thống kiểm tra
-                    và so sánh phương án mới.
-                  </p>
-                </div>
-                <button
-                  className="btn btn-outline"
-                  type="button"
-                  disabled={creating}
-                  onClick={() => void create()}
+              <span className="sr-only">
+                Đang tải kế hoạch hỗ trợ hiện tại…
+              </span>
+              <Skeleton width="28%" height={14} />
+              <Skeleton width="70%" height={42} />
+              <Skeleton width="92%" height={18} />
+              <Skeleton width="100%" height={154} />
+            </div>
+          )}
+
+          {!loading && (plan || activeTab === 'progress') && (
+            <>
+              {plan && activeTab === 'adjust' && (
+                <SupportPlanPersonalization
+                  onReviewPlan={reviewPersonalizedPlan}
+                  onDirtyChange={setPersonalizationDirty}
+                />
+              )}
+              {plan && activeTab !== 'progress' && (
+                <SupportPlanCard
+                  key={`${plan.supportPlanId}:${recoveryVersion}`}
+                  plan={plan}
+                  busy={busy}
+                  message={commandMessage}
+                  onSaveChoices={saveChoices}
+                  onActivate={activate}
+                  onStatusChange={changeStatus}
+                  onSaveSchedule={(actionId, request, idempotencyKey) =>
+                    saveSchedule(plan, actionId, request, idempotencyKey)
+                  }
+                  onReloadSchedule={() => reloadSchedule(plan)}
+                  onDirtyChange={setCardDirty}
+                  activeTab={cardTab}
+                  focusProjection={
+                    focusProjections[plan.supportPlanId]?.version ===
+                    plan.version
+                      ? focusProjections[plan.supportPlanId]?.value
+                      : undefined
+                  }
+                  focusProjectionLoading={
+                    focusProjections[plan.supportPlanId]?.version !==
+                    plan.version
+                  }
+                  focusProjectionUnavailable={
+                    focusProjections[plan.supportPlanId]?.version ===
+                      plan.version &&
+                    focusProjections[plan.supportPlanId]?.status ===
+                      'unavailable'
+                  }
+                />
+              )}
+
+              {activeTab === 'progress' && (
+                <section
+                  id="panel-progress"
+                  role="tabpanel"
+                  aria-labelledby="tab-progress"
+                  className="mb-support-progress"
                 >
-                  {creating
-                    ? 'Đang tạo phương án…'
-                    : 'Tạo phương án để xem lại'}
-                </button>
-                {message && <p role="status">{message}</p>}
+                  <div className="mb-support-progress-intro">
+                    <p className="mb-support-workspace-eyebrow">
+                      Nhìn lại nhẹ nhàng
+                    </p>
+                    <h2>Điều gì đã phù hợp với bạn?</h2>
+                    <p>
+                      Đây là các ghi nhận để bạn hiểu nhịp của mình, không phải
+                      điểm số hay đánh giá mức độ cố gắng.
+                    </p>
+                  </div>
+                  {message && (
+                    <p className="support-plan-notice" role="status">
+                      {message}
+                    </p>
+                  )}
+                  {weeklyStats && weeklyStats.total > 0 ? (
+                    <div className="mb-support-progress-facts">
+                      <p>
+                        Bạn đã ghi nhận <strong>{weeklyStats.completed}</strong>{' '}
+                        hoạt động là đã làm trong tuần này.
+                      </p>
+                      <p>
+                        <strong>{weeklyStats.remaining}</strong> hoạt động vẫn
+                        đang mở; bạn có thể làm, dời hoặc bỏ qua tùy nhịp hôm
+                        nay.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mb-support-progress-empty">
+                      Chưa có ghi nhận nào trong tuần này. Bạn có thể quay lại
+                      sau khi thực hiện hoặc bỏ qua một hoạt động.
+                    </p>
+                  )}
+                  <SupportPlanHistory
+                    items={history}
+                    loading={historyLoading}
+                    loadingMore={historyLoadingMore}
+                    hasMore={historyHasMore}
+                    message={historyMessage}
+                    onRetry={() => void loadHistory()}
+                    onLoadMore={() => void loadHistory(historyCursor)}
+                  />
+                </section>
+              )}
+
+              {activeTab === 'adjust' && currentPlan && !replacementDraft && (
+                <section className="support-plan-reassessment-callout">
+                  <div>
+                    <span>Sau đánh giá lại</span>
+                    <h2>Xem một phương án kế hoạch mới</h2>
+                    <p>
+                      Kế hoạch hiện tại vẫn hoạt động trong khi hệ thống kiểm
+                      tra và so sánh phương án mới.
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    disabled={creating}
+                    onClick={() => void create()}
+                  >
+                    {creating
+                      ? 'Đang tạo phương án…'
+                      : 'Tạo phương án để xem lại'}
+                  </button>
+                  {message && <p role="status">{message}</p>}
+                </section>
+              )}
+              {activeTab === 'adjust' && currentPlan && replacementDraft && (
+                <>
+                  <div ref={replacementDraftReviewRef}>
+                    <SupportPlanCard
+                      key={`${replacementDraft.supportPlanId}:${recoveryVersion}`}
+                      plan={replacementDraft}
+                      busy={busy}
+                      message={commandMessage}
+                      onSaveChoices={saveChoices}
+                      onActivate={activate}
+                      onStatusChange={changeReplacementDraftStatus}
+                      onSaveSchedule={(actionId, request, idempotencyKey) =>
+                        saveSchedule(
+                          replacementDraft,
+                          actionId,
+                          request,
+                          idempotencyKey,
+                        )
+                      }
+                      onReloadSchedule={() => reloadSchedule(replacementDraft)}
+                      onDirtyChange={setReplacementDirty}
+                      draftAction="REPLACEMENT"
+                      activeTab="plan"
+                      embedded
+                      focusProjection={
+                        focusProjections[replacementDraft.supportPlanId]
+                          ?.version === replacementDraft.version
+                          ? focusProjections[replacementDraft.supportPlanId]
+                              ?.value
+                          : undefined
+                      }
+                      focusProjectionLoading={
+                        focusProjections[replacementDraft.supportPlanId]
+                          ?.version !== replacementDraft.version
+                      }
+                      focusProjectionUnavailable={
+                        focusProjections[replacementDraft.supportPlanId]
+                          ?.version === replacementDraft.version &&
+                        focusProjections[replacementDraft.supportPlanId]
+                          ?.status === 'unavailable'
+                      }
+                    />
+                  </div>
+                  {replacementLoading && !replacementReview && (
+                    <div className="support-plan-state" role="status">
+                      Đang kiểm tra lại hai kế hoạch…
+                    </div>
+                  )}
+                  {replacementReview && (
+                    <SupportPlanReplacementReviewView
+                      review={replacementReview}
+                      busy={replacementLoading}
+                      message={replacementMessage}
+                      onConfirm={() => void confirmReplacement()}
+                    />
+                  )}
+                  {!replacementLoading &&
+                    !replacementReview &&
+                    replacementMessage && (
+                      <section
+                        className="support-plan-replacement-error"
+                        role="alert"
+                      >
+                        <p>{replacementMessage}</p>
+                        <Link className="btn btn-outline" href="/assessments">
+                          Hoàn tất đánh giá lại
+                        </Link>
+                      </section>
+                    )}
+                </>
+              )}
+            </>
+          )}
+
+          {!loading && !plan && activeTab === 'plan' && (
+            <div
+              id="panel-plan"
+              role="tabpanel"
+              aria-labelledby="tab-plan"
+              className="support-plan-tab-pane is-active"
+            >
+              <SupportPlanPersonalization
+                onReviewPlan={reviewPersonalizedPlan}
+                onDirtyChange={setPersonalizationDirty}
+              />
+              <section
+                className={`support-plan-state ${message ? 'notice' : ''}`}
+                aria-live="polite"
+              >
+                <div className="support-plan-state-mark" aria-hidden="true">
+                  <EmptyStateIcon reason={reason} />
+                </div>
+                <h2>
+                  {reason === 'FREE'
+                    ? 'Kế hoạch hỗ trợ chưa thuộc gói hiện tại'
+                    : reason === 'STALE'
+                      ? 'Cần hoàn tất bài sàng lọc'
+                      : reason === 'DEPENDENCY'
+                        ? 'Chưa thể tạo kế hoạch'
+                        : 'Chưa có kế hoạch hỗ trợ'}
+                </h2>
+                <p>
+                  {message ||
+                    'Nếu bạn đang dùng Plus hoặc Premium, MentalBridge có thể tạo kế hoạch từ kết quả kiểm tra ban đầu gần nhất.'}
+                </p>
+                <div className="support-plan-state-actions">
+                  {reason === 'FREE' ? (
+                    <Link className="btn btn-primary" href="/support-guides">
+                      Xem gợi ý hỗ trợ
+                    </Link>
+                  ) : reason === 'STALE' ? (
+                    <Link className="btn btn-primary" href="/assessments">
+                      Xem các bài sàng lọc
+                    </Link>
+                  ) : (
+                    <button
+                      className="btn btn-primary"
+                      type="button"
+                      disabled={creating}
+                      onClick={() => void create()}
+                    >
+                      {creating ? 'Đang tạo kế hoạch…' : 'Tạo kế hoạch hỗ trợ'}
+                    </button>
+                  )}
+                  {reason === 'DEPENDENCY' && (
+                    <button
+                      className="btn btn-ghost"
+                      type="button"
+                      disabled={creating}
+                      onClick={() => void load()}
+                    >
+                      Tải lại
+                    </button>
+                  )}
+                </div>
               </section>
             </div>
           )}
-          {currentPlan && replacementDraft && (
-            <>
-              <SupportPlanCard
-                key={`${replacementDraft.supportPlanId}:${replacementDraft.version}:${recoveryVersion}`}
-                plan={replacementDraft}
-                busy={busy}
-                message={commandMessage}
-                onSaveChoices={saveChoices}
-                onActivate={activate}
-                onStatusChange={changeReplacementDraftStatus}
-                draftAction="REPLACEMENT"
-              />
-              {replacementLoading && !replacementReview && (
-                <div className="support-plan-state" role="status">
-                  Đang kiểm tra lại hai kế hoạch…
-                </div>
-              )}
-              {replacementReview && (
-                <SupportPlanReplacementReviewView
-                  review={replacementReview}
-                  busy={replacementLoading}
-                  message={replacementMessage}
-                  onConfirm={() => void confirmReplacement()}
-                />
-              )}
-              {!replacementLoading &&
-                !replacementReview &&
-                replacementMessage && (
-                  <section
-                    className="support-plan-replacement-error"
-                    role="alert"
-                  >
-                    <p>{replacementMessage}</p>
-                    <Link className="btn btn-outline" href="/assessments">
-                      Hoàn tất đánh giá lại
-                    </Link>
-                  </section>
-                )}
-            </>
-          )}
-        </>
-      )}
-
-      {!loading && !plan && (
-        <div
-          className={`support-plan-tab-pane ${activeTab === 'plan' ? 'is-active' : 'is-hidden'}`}
-        >
-          <section
-            className={`support-plan-state ${message ? 'notice' : ''}`}
-            aria-live="polite"
-          >
-            <div className="support-plan-state-mark" aria-hidden="true">
-              <EmptyStateIcon reason={reason} />
-            </div>
-            <h2>
-              {reason === 'FREE'
-                ? 'Kế hoạch hỗ trợ chưa thuộc gói hiện tại'
-                : reason === 'STALE'
-                  ? 'Cần hoàn tất bài sàng lọc'
-                  : reason === 'DEPENDENCY'
-                    ? 'Chưa thể tạo kế hoạch'
-                    : 'Chưa có kế hoạch hỗ trợ'}
-            </h2>
-            <p>
-              {message ||
-                'Nếu bạn đang dùng Plus hoặc Premium, MentalBridge có thể tạo kế hoạch từ kết quả kiểm tra ban đầu gần nhất.'}
-            </p>
-            <div className="support-plan-state-actions">
-              {reason === 'FREE' ? (
-                <Link className="btn btn-primary" href="/support-guides">
-                  Xem gợi ý hỗ trợ
-                </Link>
-              ) : reason === 'STALE' ? (
-                <Link className="btn btn-primary" href="/assessments">
-                  Xem các bài sàng lọc
-                </Link>
-              ) : (
-                <button
-                  className="btn btn-primary"
-                  type="button"
-                  disabled={creating}
-                  onClick={() => void create()}
-                >
-                  {creating ? 'Đang tạo kế hoạch…' : 'Tạo kế hoạch hỗ trợ'}
-                </button>
-              )}
-              {reason === 'DEPENDENCY' && (
-                <button
-                  className="btn btn-ghost"
-                  type="button"
-                  disabled={creating}
-                  onClick={() => void load()}
-                >
-                  Tải lại
-                </button>
-              )}
-            </div>
-          </section>
         </div>
-      )}
-
-      <div
-        className={`support-plan-tab-pane ${activeTab === 'manage' ? 'is-active' : 'is-hidden'}`}
-      >
-        <SupportPlanHistory
-          items={history}
-          loading={historyLoading}
-          loadingMore={historyLoadingMore}
-          hasMore={historyHasMore}
-          message={historyMessage}
-          onRetry={() => void loadHistory()}
-          onLoadMore={() => void loadHistory(historyCursor)}
-        />
       </div>
 
       <SupportPlanFooter updatedAt={plan?.updatedAt} />

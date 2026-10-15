@@ -23,6 +23,13 @@ const Svg = ({ children }: { children: React.ReactNode }) => (
   </svg>
 )
 
+const CommunityIcon = () => (
+  <Svg>
+    <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" />
+    <path d="M8 11h8M8 15h4" />
+  </Svg>
+)
+
 const groups = [
   {
     title: 'Tổng quan',
@@ -102,12 +109,21 @@ const groups = [
   {
     title: 'Thông tin',
     items: [
+      ['/community', 'Cộng đồng', <CommunityIcon key="community" />],
       [
         '/resources',
         'Tài nguyên',
         <Svg key="r">
           <circle cx="12" cy="12" r="8.5" />
           <path d="M12 8v4l3 2" />
+        </Svg>,
+      ],
+      [
+        '/achievements',
+        'Thành tựu',
+        <Svg key="achievement">
+          <path d="M12 3c1.2 3.2 3.4 5.2 6.5 6.2-3.1 1-5.3 3-6.5 6.2-1.2-3.2-3.4-5.2-6.5-6.2C8.6 8.2 10.8 6.2 12 3Z" />
+          <path d="M6 15c.6 1.7 1.7 2.8 3.4 3.4C7.7 19 6.6 20.1 6 21.8c-.6-1.7-1.7-2.8-3.4-3.4C4.3 17.8 5.4 16.7 6 15Z" />
         </Svg>,
       ],
       [
@@ -147,6 +163,7 @@ const labels: Record<string, string> = {
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',
   '/resources': 'Tài nguyên',
+  '/achievements': 'Bộ sưu tập hành trình',
   '/analytics': 'Phân tích',
   '/subscription': 'Gói dịch vụ',
   '/notifications': 'Thông báo',
@@ -234,7 +251,7 @@ export default function AuthenticatedShell({
             {collapsed ? '›' : '‹'}
           </button>
         </div>
-        <nav aria-label="Điều hướng chính">
+        <nav id="user-main-navigation" aria-label="Điều hướng chính">
           {groups.map((g) => (
             <section key={g.title}>
               <h2>{g.title}</h2>
@@ -243,7 +260,10 @@ export default function AuthenticatedShell({
                   key={item[0] as string}
                   href={item[0] as string}
                   onClick={() => setMobile(false)}
-                  className={pathname === item[0] ? 'active' : ''}
+                  className={`${pathname === item[0] ? 'active' : ''} ${item[0] === '/community' ? 'ref-community-nav' : ''}`}
+                  aria-label={
+                    item[0] === '/community' ? 'Cộng đồng' : undefined
+                  }
                   title={collapsed ? (item[1] as string) : undefined}
                 >
                   <i>{item[2]}</i>
@@ -269,6 +289,8 @@ export default function AuthenticatedShell({
             className="ref-mobile"
             onClick={() => setMobile(true)}
             aria-label="Mở menu"
+            aria-expanded={mobile}
+            aria-controls="user-main-navigation"
           >
             <Svg>
               <path d="M4 7h16M4 12h16M4 17h16" />
@@ -301,6 +323,27 @@ export default function AuthenticatedShell({
             {isProgressiveRelaxation && (
               <Link href="/support-guides" className="pmr-help" aria-label="Trợ giúp">
                 <Svg><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4" /><path d="M12 17h.01" /></Svg>
+              </Link>
+            )}
+            <Link
+              href="/community"
+              className="ref-community-link"
+              onClick={() => setMobile(false)}
+            >
+              <CommunityIcon />
+              <span>Cộng đồng</span>
+            </Link>
+            {isProgressiveRelaxation && (
+              <Link
+                href="/support-guides"
+                className="pmr-help"
+                aria-label="Trợ giúp"
+              >
+                <Svg>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4" />
+                  <path d="M12 17h.01" />
+                </Svg>
               </Link>
             )}
             <Link

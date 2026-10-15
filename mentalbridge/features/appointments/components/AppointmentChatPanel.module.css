@@ -738,3 +738,353 @@
     transition: none !important;
   }
 }
+
+:global(.role-content-messages) .page {
+  color: var(--color-text);
+  font-family: var(--font-be-vietnam), sans-serif;
+}
+:global(.role-content-messages) .layout {
+  position: relative;
+  gap: 0;
+  background: var(--color-surface);
+}
+:global(.role-content-messages) .layout.withSessionDetails {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 345px);
+}
+:global(.role-content-messages) .chat {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--color-surface);
+}
+:global(.role-content-messages) .chatHeader {
+  min-height: 92px;
+  max-height: none;
+  flex-basis: auto;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 20px;
+  border-color: var(--color-border);
+}
+:global(.role-content-messages) .avatar {
+  width: 46px;
+  height: 46px;
+  flex-basis: 46px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font: 700 17px var(--font-fraunces), Georgia, serif;
+}
+:global(.role-content-messages) .chatTitleRow {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+:global(.role-content-messages) .chatTitleRow > strong {
+  color: var(--color-text);
+  font-size: 16px;
+}
+:global(.role-content-messages) .phaseBadge {
+  min-height: 24px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 10px;
+}
+.mockBadge { display: inline-flex; align-items: center; min-height: 22px; border-radius: 999px; padding: 3px 8px; background: var(--color-surface-soft); color: var(--color-primary); font-size: 9px; font-weight: 800; }
+:global(.role-content-messages) .chatMeta {
+  flex-wrap: wrap;
+  gap: 4px 7px;
+  max-width: 100%;
+  white-space: normal;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+:global(.role-content-messages) .chatMeta h1 {
+  color: var(--color-text-muted);
+  font-family: var(--font-be-vietnam), sans-serif;
+  font-size: 11px;
+}
+:global(.role-content-messages) .chatMeta p {
+  flex-basis: 100%;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  font-size: 11px;
+}
+:global(.role-content-messages) .chatActions {
+  gap: 5px;
+}
+:global(.role-content-messages) .refreshButton {
+  width: 32px;
+  min-height: 32px;
+  flex-basis: 32px;
+  border-color: var(--color-border);
+  background: var(--color-surface) !important;
+  color: var(--color-text-muted);
+}
+:global(.role-content-messages) .timeRemaining {
+  max-width: 90px;
+}
+:global(.role-content-messages) .timeRemaining strong {
+  color: var(--color-text);
+  font-size: 11px;
+}
+:global(.role-content-messages) .timeRemaining span {
+  color: var(--color-text-muted);
+  font-size: 9px;
+}
+:global(.role-content-messages) .notice,
+:global(.role-content-messages) .attendance {
+  min-height: 50px;
+  padding: 9px 19px;
+  border-color: var(--color-border);
+  background: color-mix(in srgb, var(--color-primary-soft) 48%, var(--color-surface));
+}
+:global(.role-content-messages) .attendance strong { color: var(--color-text); }
+:global(.role-content-messages) .attendance p { color: var(--color-text-muted); }
+:global(.role-content-messages) .attendance button {
+  min-height: 35px;
+  border-color: var(--color-primary-action, var(--color-primary));
+  background: var(--color-primary-action, var(--color-primary)) !important;
+  color: #fff !important;
+}
+:global(.role-content-messages) .attendance button:disabled {
+  background: var(--color-primary-soft) !important;
+  color: var(--color-primary) !important;
+}
+:global(.role-content-messages) .messages {
+  gap: 12px;
+  padding: 24px;
+  background: color-mix(in srgb, var(--color-app-bg) 50%, var(--color-surface));
+}
+.threadIntro { width: min(100%, 470px); align-self: center; margin: 8px 0 18px; padding: 20px 22px; border: 1px solid var(--color-border); border-radius: 19px; background: var(--color-surface); text-align: center; box-shadow: 0 9px 25px rgba(24,47,37,.035); }
+.threadIntro > span { width: 38px; height: 38px; display: grid; place-items: center; margin: 0 auto 10px; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary); }
+.threadIntro h2 { margin: 0 0 6px; color: var(--color-text); font: 600 18px/1.3 var(--font-fraunces), Georgia, serif; }
+.threadIntro p { margin: 0; color: var(--color-text-muted); font-size: 11px; line-height: 1.6; }
+.threadIntro small { display: block; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--color-border); color: var(--color-primary); font-size: 10px; font-weight: 700; }
+:global(.role-content-messages) .empty {
+  width: min(100%, 470px);
+  max-width: 470px;
+  margin: auto;
+  padding: 27px 25px;
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background: var(--color-surface);
+  box-shadow: 0 10px 28px rgba(24, 47, 37, .04);
+}
+:global(.role-content-messages) .empty > svg { margin-bottom: 15px; }
+:global(.role-content-messages) .empty h2 {
+  margin-bottom: 9px;
+  color: var(--color-text);
+  font: 600 21px/1.25 var(--font-fraunces), Georgia, serif;
+}
+:global(.role-content-messages) .empty p {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.safetyBadges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+.safetyBadges span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-primary);
+  font-size: 10px;
+  font-weight: 700;
+}
+:global(.role-content-messages) .messageRow { max-width: min(80%, 520px); }
+:global(.role-content-messages) .messageRow p {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 1.6;
+  box-shadow: 0 3px 12px rgba(24, 47, 37, .035);
+}
+:global(.role-content-messages) .messageRow.own p {
+  border-color: var(--color-primary-action, var(--color-primary));
+  background: var(--color-primary-action, var(--color-primary));
+  color: #fff;
+}
+:global(.role-content-messages) .messageRow time { color: var(--color-text-muted); }
+:global(.role-content-messages) .composer {
+  padding: 13px 19px 14px;
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+.composerSuggestions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+.composerSuggestions > span {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+.composerSuggestions button {
+  min-height: 29px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--color-surface-soft) !important;
+  color: var(--color-primary);
+  font: 650 10px var(--font-be-vietnam), sans-serif;
+  cursor: pointer;
+}
+:global(.role-content-messages) .composerBox {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+:global(.role-content-messages) .composer textarea { color: var(--color-text); }
+:global(.role-content-messages) .composer button[type='submit'] {
+  background: var(--color-primary-action, var(--color-primary)) !important;
+  color: #fff !important;
+}
+:global(.role-content-messages) .composer button[type='submit']:disabled {
+  background: var(--color-primary-soft) !important;
+  color: var(--color-primary) !important;
+}
+:global(.role-content-messages) .composer > p { color: var(--color-text-muted); }
+
+:global(.role-content-messages) .sessionCard {
+  min-width: 0;
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+  padding: 24px 22px;
+  background: var(--color-surface);
+  box-shadow: none;
+}
+:global(.role-content-messages) .sessionCard h2 {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  font: 600 19px var(--font-fraunces), Georgia, serif;
+}
+.sessionHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.sessionHeading h2 { flex: 1; }
+.sessionClose { display: none; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface) !important; color: var(--color-text-muted); cursor: pointer; }
+.patientCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 21px;
+  padding: 15px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+}
+.patientAvatar {
+  width: 47px;
+  height: 47px;
+  flex: 0 0 47px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-primary-action, var(--color-primary));
+  color: #fff;
+  font: 600 15px var(--font-fraunces), Georgia, serif;
+}
+.patientCard > div { display: grid; gap: 2px; min-width: 0; }
+.patientCard strong { color: var(--color-text); font-size: 13px; }
+.patientCard small,
+.patientCard div span { color: var(--color-text-muted); font-size: 10px; }
+.previewClinical { display: grid; gap: 11px; margin-bottom: 20px; }
+.previewClinical .sideLabel { margin: 4px 0 0; }
+.previewReason,.previewNote { margin: 0; padding: 13px; border: 1px solid var(--color-border); border-radius: 13px; background: var(--color-surface); color: var(--color-text); font-size: 11px; line-height: 1.6; }
+.previewNote { background: var(--color-surface-soft); color: var(--color-text-muted); }
+.previewScores { display: grid; gap: 9px; }
+.previewScores > div { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 9px; padding: 12px 13px; border: 1px solid var(--color-border); border-radius: 13px; background: var(--color-surface); }
+.previewScores span { color: var(--color-text); font-size: 11px; font-weight: 750; }
+.previewScores strong { color: var(--color-primary); font-size: 12px; }
+.previewScores i { grid-column: 1 / -1; display: block; height: 5px; max-width: 100%; border-radius: 999px; background: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary-soft); }
+.sideLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 10px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+.sideLabel svg { color: var(--color-primary); }
+:global(.role-content-messages) .sessionTime {
+  color: var(--color-text);
+  font: 600 25px/1.2 var(--font-fraunces), Georgia, serif;
+}
+:global(.role-content-messages) .sessionDate { color: var(--color-text-muted); font-size: 11px; }
+:global(.role-content-messages) .progress { background: var(--color-primary-soft); }
+:global(.role-content-messages) .progress i { background: var(--color-primary); }
+:global(.role-content-messages) .progressLabels,
+:global(.role-content-messages) .sessionFacts dt,
+:global(.role-content-messages) .creditState p { color: var(--color-text-muted); }
+:global(.role-content-messages) .sessionFacts { border-color: var(--color-border); }
+:global(.role-content-messages) .sessionFacts > div { border-color: var(--color-border); }
+:global(.role-content-messages) .sessionFacts dd,
+:global(.role-content-messages) .creditState strong { color: var(--color-text); }
+.clinicalAccess {
+  margin-top: 19px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface-soft);
+}
+.clinicalAccess p {
+  margin: 0 0 13px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.clinicalAccess a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.sessionPrivacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 13px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.sessionPrivacy svg { flex: 0 0 auto; color: var(--color-primary); }
+@media (max-width: 1450px) {
+  :global(.role-content-messages) .layout.withSessionDetails { grid-template-columns: minmax(0,1fr); }
+  :global(.role-content-messages) .sessionCard {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: block;
+    width: min(345px, 88%);
+    box-shadow: -14px 0 32px rgba(22, 45, 34, .12);
+  }
+  .sessionClose { display: grid; }
+}
+@media (max-width: 819px) {
+  :global(.role-content-messages) .chatHeader { min-height: 70px; padding: 9px 12px; }
+  :global(.role-content-messages) .messages { padding: 14px 12px; }
+  :global(.role-content-messages) .composer { padding: 10px 12px; }
+  :global(.role-content-messages) .empty { padding: 20px; }
+}

@@ -1,7 +1,7 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import SessionActions from '@/features/auth/components/SessionActions'
 
 import {
   browserConsultation,
@@ -28,7 +28,11 @@ function initials(displayName: string) {
     .join('')
 }
 
-export default function SpecialistWorkspaceIdentity() {
+export default function SpecialistWorkspaceIdentity({
+  compact = false,
+}: {
+  compact?: boolean
+}) {
   const [profile, setProfile] = useState<SpecialistProfile | null>(null)
   const [state, setState] = useState<'loading' | 'missing' | 'unavailable'>(
     'loading',
@@ -65,19 +69,12 @@ export default function SpecialistWorkspaceIdentity() {
         : 'Chưa tải được hồ sơ'
 
   return (
-    <Link
-      className="role-user"
-      href="/specialist/profile"
-      aria-label={`${displayName} · ${status}`}
-    >
-      <span aria-hidden="true">{profile ? initials(displayName) : 'CG'}</span>
-      <div className="role-user-copy">
-        <strong>{displayName}</strong>
-        <small>{status}</small>
-      </div>
-      {profile?.approvalStatus === 'APPROVED' && (
-        <span className="role-online" aria-hidden="true" />
-      )}
-    </Link>
+    <SessionActions
+      compact={compact}
+      accountKind="specialist"
+      displayName={displayName}
+      avatar={profile ? initials(displayName) : 'CG'}
+      description={status}
+    />
   )
 }

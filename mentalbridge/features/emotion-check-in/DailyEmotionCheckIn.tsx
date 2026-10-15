@@ -1,52 +1,59 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import type {
   Emotion,
   EmotionCheckIn,
+  EmotionInfluenceFactor,
   EmotionCheckInValue,
 } from '@/lib/emotion-check-in/contract'
 import {
+  emotionInfluenceOptions,
+  emotionOptions,
+  emotionPresentation,
+  localDateInTimeZone,
+} from '@/lib/emotion-check-in/presentation'
+import {
   createEmotionCheckIn,
+  deleteEmotionCheckIn,
   getEmotionCheckIn,
+  listEmotionCheckIns,
   updateEmotionCheckIn,
 } from './api/browser-emotion-check-in'
 import styles from './DailyEmotionCheckIn.module.css'
+import {
+  emotionPlanHref,
+  type ResolvedEmotionPlanOrigin,
+} from '@/features/support-plan/emotion-plan-origin'
 
-const emotions: ReadonlyArray<{
-  value: Emotion
-  emoji: string
-  label: string
-}> = [
-  { value: 'GREAT', emoji: '😄', label: 'Rất tốt' },
-  { value: 'GOOD', emoji: '😊', label: 'Tốt' },
-  { value: 'OKAY', emoji: '😌', label: 'Bình thường' },
-  { value: 'LOW', emoji: '🥱', label: 'Không tốt' },
-  { value: 'VERY_LOW', emoji: '😟', label: 'Rất không tốt' },
-]
+export { localDateInTimeZone } from '@/lib/emotion-check-in/presentation'
 
 type Draft = Readonly<{
   emotion: Emotion | null
   intensity: number | null
+  factors: readonly EmotionInfluenceFactor[]
+  note: string
 }>
-type Phase = 'loading' | 'empty' | 'ready' | 'saving' | 'saved' | 'error'
-type RetryKind = 'load' | 'save'
-
-const emptyDraft: Draft = { emotion: null, intensity: null }
-
-export function localDateInTimeZone(now: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now)
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((item) => item.type === type)?.value ?? ''
-  return `${part('year')}-${part('month')}-${part('day')}`
+type Phase =
+  'loading' | 'empty' | 'ready' | 'saving' | 'deleting' | 'saved' | 'error'
+type RetryKind = 'load' | 'save' | 'delete'
+const emptyDraft: Draft = {
+  emotion: null,
+  intensity: null,
+  factors: [],
+  note: '',
 }
+
+const savedDraft = (checkIn: EmotionCheckIn): Draft => ({
+  emotion: checkIn.emotion,
+  intensity: checkIn.intensity,
+  factors: checkIn.factors,
+  note: checkIn.note ?? '',
+})
 
 function commandKey() {
   const id =
@@ -55,66 +62,91 @@ function commandKey() {
   return `emotion-check-in-${id}`
 }
 
-function messageFor(error: unknown, saving: boolean) {
+function messageFor(error: unknown, mutation: boolean) {
   if (error instanceof ApiError && error.status === 401)
     return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.'
-  return saving
-    ? 'Chưa thể lưu ghi nhận. Lựa chọn của bạn vẫn được giữ để thử lại.'
+  return mutation
+    ? 'Chưa thể lưu thay đổi. Lựa chọn của bạn vẫn được giữ để thử lại.'
     : 'Ghi nhận cảm xúc hôm nay tạm thời chưa tải được.'
 }
 
-const INFLUENCE_FACTORS = [
-  'Giấc ngủ',
-  'Công việc',
-  'Học tập',
-  'Gia đình',
-  'Bạn bè',
-  'Sức khỏe',
-  'Khác',
-]
+function announceChange() {
+  window.dispatchEvent(new CustomEvent('mb:emotion-check-in-updated'))
+}
 
 export function DailyEmotionCheckIn({
   onPersisted,
-}: Readonly<{ onPersisted?: () => void }>) {
-  const timezone = useMemo(
+  creationTimezone,
+  planOrigin,
+}: Readonly<{
+  onPersisted?: () => void
+  creationTimezone?: string
+  planOrigin?: ResolvedEmotionPlanOrigin
+}>) {
+  const { confirm } = useFeedback()
+  const browserTimezone = useMemo(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     [],
   )
+  const timezone = creationTimezone ?? browserTimezone
+  const planHeading = useRef<HTMLParagraphElement>(null)
   const [localDate, setLocalDate] = useState(() =>
     localDateInTimeZone(new Date(), timezone),
   )
   const [persisted, setPersisted] = useState<EmotionCheckIn | null>(null)
   const [yesterdayCheckIn, setYesterdayCheckIn] =
     useState<EmotionCheckIn | null>(null)
-  const [selectedFactors, setSelectedFactors] = useState<string[]>([])
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [phase, setPhase] = useState<Phase>('loading')
   const [retryKind, setRetryKind] = useState<RetryKind>('load')
   const [message, setMessage] = useState('')
   const [reload, setReload] = useState(0)
   const activeDate = useRef(localDate)
+  const mounted = useRef(true)
   const mutation = useRef<{ fingerprint: string; key: string } | null>(null)
 
   useEffect(() => {
-    let active = true
-    const yDate = new Date()
-    yDate.setDate(yDate.getDate() - 1)
-    const yDateStr = localDateInTimeZone(yDate, timezone)
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
-    void import('./api/browser-emotion-check-in')
-      .then((m) => {
-        if (!active || typeof m.listEmotionCheckIns !== 'function') return
-        return m.listEmotionCheckIns(10)
-      })
-      .then((res) => {
-        if (!active || !res) return
-        const found = res.items?.find((item) => item.localDate === yDateStr)
-        setYesterdayCheckIn(found ?? null)
+  const checkDay = useCallback(() => {
+    const nextDate = localDateInTimeZone(new Date(), timezone)
+    if (activeDate.current === nextDate) return false
+    activeDate.current = nextDate
+    mutation.current = null
+    setPhase('loading')
+    setMessage('Đang tải ghi nhận hôm nay…')
+    setLocalDate(nextDate)
+    return true
+  }, [timezone])
+
+  useEffect(() => {
+    if (!planOrigin) return
+    planHeading.current?.focus({ preventScroll: true })
+    document
+      .getElementById('emotion-check-in')
+      ?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  }, [planOrigin])
+
+  useEffect(() => {
+    let active = true
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayDate = localDateInTimeZone(yesterday, timezone)
+    void listEmotionCheckIns(10)
+      .then((result) => {
+        if (active)
+          setYesterdayCheckIn(
+            result.items.find((item) => item.localDate === yesterdayDate) ??
+              null,
+          )
       })
       .catch(() => {
         if (active) setYesterdayCheckIn(null)
       })
-
     return () => {
       active = false
     }
@@ -122,45 +154,33 @@ export function DailyEmotionCheckIn({
 
   useEffect(() => {
     let active = true
-    const load = async () => {
-      try {
-        const checkIn = await getEmotionCheckIn(localDate)
-        if (!active) return
+    void getEmotionCheckIn(localDate)
+      .then((checkIn) => {
+        if (!active || activeDate.current !== localDate) return
         setPersisted(checkIn)
-        setDraft({ emotion: checkIn.emotion, intensity: checkIn.intensity })
+        setDraft(savedDraft(checkIn))
         setPhase('ready')
         setMessage('Đã tải ghi nhận tự báo cáo hôm nay.')
-      } catch (error) {
-        if (!active) return
+      })
+      .catch((error: unknown) => {
+        if (!active || activeDate.current !== localDate) return
+        setPersisted(null)
+        setDraft(emptyDraft)
         if (error instanceof ApiError && error.status === 404) {
-          setPersisted(null)
-          setDraft(emptyDraft)
           setPhase('empty')
           setMessage('Hôm nay bạn chưa ghi nhận cảm xúc.')
           return
         }
-        setPersisted(null)
-        setDraft(emptyDraft)
         setPhase('error')
         setRetryKind('load')
         setMessage(messageFor(error, false))
-      }
-    }
-    void load()
+      })
     return () => {
       active = false
     }
   }, [localDate, reload])
 
   useEffect(() => {
-    const checkDay = () => {
-      const nextDate = localDateInTimeZone(new Date(), timezone)
-      if (activeDate.current === nextDate) return
-      activeDate.current = nextDate
-      setPhase('loading')
-      setMessage('Đang tải ghi nhận hôm nay…')
-      setLocalDate(nextDate)
-    }
     const interval = window.setInterval(checkDay, 60_000)
     window.addEventListener('focus', checkDay)
     document.addEventListener('visibilitychange', checkDay)
@@ -169,35 +189,49 @@ export function DailyEmotionCheckIn({
       window.removeEventListener('focus', checkDay)
       document.removeEventListener('visibilitychange', checkDay)
     }
-  }, [timezone])
+  }, [checkDay])
 
-  // Nút Lưu ghi nhận: Khi user đã chọn đủ cảm xúc + mức độ thì nút sáng rõ, cho phép bấm
+  const draftChanged =
+    draft.emotion !== (persisted?.emotion ?? null) ||
+    draft.intensity !== (persisted?.intensity ?? null) ||
+    draft.note.trim() !== (persisted?.note ?? '') ||
+    draft.factors.join(',') !== (persisted?.factors ?? []).join(',')
+  useUnsavedChangesGuard(
+    Boolean(planOrigin && draftChanged),
+    'Lựa chọn cảm xúc chưa được xác nhận lưu. Nếu rời trang, hãy kiểm tra lại ghi nhận khi quay lại; kế hoạch không tự thay đổi.',
+  )
   const isComplete = draft.emotion !== null && draft.intensity !== null
-  const isSubmitting = phase === 'saving'
-  const loadBlocked = phase === 'error' && retryKind === 'load'
-  const isDisabled = !isComplete || isSubmitting || loadBlocked
+  const isSubmitting = phase === 'saving' || phase === 'deleting'
+  const originDayChanged = Boolean(
+    planOrigin && localDate !== planOrigin.localDate,
+  )
+  const loadBlocked =
+    (phase === 'error' && retryKind === 'load') || originDayChanged
 
   const save = async () => {
-    if (!draft.emotion || !draft.intensity) return
+    if (checkDay()) return
+    if (!draft.emotion || !draft.intensity || loadBlocked || isSubmitting)
+      return
     const value: EmotionCheckInValue = {
       emotion: draft.emotion,
       intensity: draft.intensity,
-      note: null,
+      factors: [...draft.factors],
+      note: draft.note.trim() || null,
     }
     const existing = persisted
-
-    // Nếu giá trị đã trùng với bản đã lưu, thông báo thành công và không cần request lại
     if (
       existing &&
       existing.emotion === draft.emotion &&
-      existing.intensity === draft.intensity
+      existing.intensity === draft.intensity &&
+      existing.note === value.note &&
+      existing.factors.join(',') === value.factors?.join(',')
     ) {
-      setMessage('Đã cập nhật ghi nhận hôm nay.')
+      setMessage('Ghi nhận hôm nay không có thay đổi.')
       setPhase('saved')
       return
     }
-
     const fingerprint = JSON.stringify({
+      action: 'save',
       localDate,
       revision: existing?.revision ?? 0,
       ...value,
@@ -211,40 +245,91 @@ export function DailyEmotionCheckIn({
       const saved = existing
         ? await updateEmotionCheckIn(localDate, existing.revision, value, key)
         : await createEmotionCheckIn({ ...value, localDate, timezone }, key)
+      if (!mounted.current || activeDate.current !== localDate) return
       setPersisted(saved)
-      setDraft({ emotion: saved.emotion, intensity: saved.intensity })
+      setDraft(savedDraft(saved))
       mutation.current = null
       setPhase('saved')
-      onPersisted?.()
       setMessage(
         existing ? 'Đã cập nhật ghi nhận hôm nay.' : 'Đã lưu ghi nhận hôm nay.',
       )
+      onPersisted?.()
+      announceChange()
     } catch (error) {
+      if (!mounted.current || activeDate.current !== localDate) return
       if (
         error instanceof ApiError &&
         (error.status === 409 || error.status === 412)
       ) {
         try {
           const latest = await getEmotionCheckIn(localDate)
+          if (!mounted.current || activeDate.current !== localDate) return
           setPersisted(latest)
           setMessage(
             'Ghi nhận đã thay đổi ở nơi khác. Bản mới nhất đã được tải; lựa chọn của bạn chưa được lưu.',
           )
         } catch {
+          if (!mounted.current || activeDate.current !== localDate) return
           setMessage(
             'Ghi nhận đã thay đổi ở nơi khác và chưa thể tải bản mới nhất. Lựa chọn của bạn chưa được lưu.',
           )
         }
-      } else {
-        setMessage(messageFor(error, true))
-      }
+      } else setMessage(messageFor(error, true))
       setPhase('error')
       setRetryKind('save')
     }
   }
 
+  const remove = async (ask = true) => {
+    if (checkDay() || !persisted || loadBlocked || isSubmitting) return
+    if (
+      ask &&
+      !(await confirm({
+        title: 'Xóa ghi nhận hôm nay?',
+        description:
+          'Cảm xúc đã lưu sẽ bị xóa khỏi lịch sử và các thống kê liên quan.',
+        confirmLabel: 'Xóa ghi nhận',
+        cancelLabel: 'Giữ lại',
+        tone: 'danger',
+      }))
+    )
+      return
+    if (!mounted.current || activeDate.current !== localDate || checkDay())
+      return
+    const fingerprint = JSON.stringify({ action: 'delete', localDate })
+    if (mutation.current?.fingerprint !== fingerprint)
+      mutation.current = { fingerprint, key: commandKey() }
+    const key = mutation.current.key
+    setPhase('deleting')
+    setMessage('Đang xóa ghi nhận…')
+    try {
+      await deleteEmotionCheckIn(localDate, key)
+      if (!mounted.current || activeDate.current !== localDate) return
+      setPersisted(null)
+      setDraft(emptyDraft)
+      mutation.current = null
+      setPhase('empty')
+      setMessage('Đã xóa ghi nhận cảm xúc hôm nay.')
+      onPersisted?.()
+      announceChange()
+    } catch (error) {
+      if (!mounted.current || activeDate.current !== localDate) return
+      setPhase('error')
+      if (error instanceof ApiError && error.status === 404) {
+        setRetryKind('load')
+        setMessage(
+          'Ghi nhận không còn tồn tại. Hãy tải lại trạng thái mới nhất.',
+        )
+      } else {
+        setRetryKind('delete')
+        setMessage('Chưa thể xóa ghi nhận. Trạng thái đã lưu vẫn được giữ.')
+      }
+    }
+  }
+
   const retry = () => {
     if (retryKind === 'save') void save()
+    else if (retryKind === 'delete') void remove(false)
     else {
       setPhase('loading')
       setMessage('Đang tải ghi nhận hôm nay…')
@@ -254,9 +339,46 @@ export function DailyEmotionCheckIn({
 
   return (
     <div
+      id="emotion-check-in"
       className={styles.card}
-      aria-busy={phase === 'loading' || phase === 'saving'}
+      aria-busy={phase === 'loading' || isSubmitting}
     >
+      {planOrigin && (
+        <aside
+          className={styles.planContext}
+          aria-label="Hoạt động từ kế hoạch hỗ trợ"
+        >
+          <p ref={planHeading} tabIndex={-1}>
+            <strong>{planOrigin.title}</strong> · {planOrigin.localDate}
+          </p>
+          <p>
+            Lưu cảm xúc không tự đánh dấu hoàn thành kế hoạch. Quay lại đúng
+            hoạt động và chọn “Kiểm tra ghi nhận”.
+          </p>
+          {originDayChanged && (
+            <p role="alert">
+              Ngày đã thay đổi. Hãy quay lại kế hoạch để mở hoạt động của hôm
+              nay; ghi nhận mới không thay cho hoạt động của ngày trước.
+            </p>
+          )}
+          {persisted &&
+            (persisted.timezone !== timezone ||
+              Date.parse(persisted.createdAt) <
+                Date.parse(planOrigin.activatedAt)) && (
+              <p>
+                Ghi nhận đã có dùng múi giờ khác hoặc được tạo trước khi hoạt
+                động bắt đầu, nên có thể không được tính cho lần thực hiện này.
+                Nội dung đã lưu vẫn được giữ nguyên.
+              </p>
+            )}
+          <Link
+            className={styles.planReturn}
+            href={emotionPlanHref(planOrigin, '/support-plan')}
+          >
+            Quay lại hoạt động trong kế hoạch
+          </Link>
+        </aside>
+      )}
       <header className={styles.header}>
         <h2 className={styles.title}>Cảm xúc hôm nay</h2>
         <p className={styles.subtitle}>Tự chọn cảm xúc phù hợp nhất với bạn</p>
@@ -274,73 +396,139 @@ export function DailyEmotionCheckIn({
             void save()
           }}
         >
-          <fieldset className={styles.emotions} disabled={loadBlocked}>
+          <fieldset
+            className={styles.emotions}
+            disabled={loadBlocked || isSubmitting}
+          >
             <legend className={styles.srOnly}>Cảm xúc hôm nay</legend>
-            {emotions.map((item) => {
-              const isSelected = draft.emotion === item.value
-              return (
-                <label
-                  key={item.value}
-                  className={`${styles.emotionLabel} ${isSelected ? styles.selected : ''}`}
-                >
-                  <input
-                    type="radio"
-                    name="emotion"
-                    value={item.value}
-                    checked={isSelected}
-                    onChange={() =>
-                      setDraft((current) => ({
-                        ...current,
-                        emotion: item.value,
-                      }))
-                    }
-                  />
-                  <span className={styles.emojiIcon} aria-hidden="true">
-                    {item.emoji}
-                  </span>
-                  <small className={styles.emotionText}>{item.label}</small>
-                </label>
-              )
-            })}
+            {emotionOptions.map((item) => (
+              <label
+                key={item.value}
+                className={`${styles.emotionLabel} ${draft.emotion === item.value ? styles.selected : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="emotion"
+                  value={item.value}
+                  checked={draft.emotion === item.value}
+                  onChange={() =>
+                    setDraft((current) => ({ ...current, emotion: item.value }))
+                  }
+                />
+                <span className={styles.emotionIcon} aria-hidden="true">
+                  {item.emoji}
+                </span>
+                <small className={styles.emotionText}>{item.label}</small>
+              </label>
+            ))}
           </fieldset>
-
-          <fieldset className={styles.intensity} disabled={loadBlocked}>
+          <fieldset
+            className={styles.intensity}
+            disabled={loadBlocked || isSubmitting}
+          >
             <legend>Mức độ cảm nhận</legend>
             <p className={styles.intensityNote}>
               1 là nhẹ, 5 là mạnh — không phải điểm sức khỏe.
             </p>
             <div className={styles.intensityRow}>
-              {[1, 2, 3, 4, 5].map((value) => {
-                const isChecked = draft.intensity === value
-                return (
-                  <label
-                    key={value}
-                    className={`${styles.intensityBtn} ${isChecked ? styles.intensitySelected : ''}`}
-                  >
-                    <input
-                      type="radio"
-                      name="intensity"
-                      value={value}
-                      checked={isChecked}
-                      onChange={() =>
-                        setDraft((current) => ({
-                          ...current,
-                          intensity: value,
-                        }))
-                      }
-                    />
-                    <span>{value}</span>
-                  </label>
-                )
-              })}
+              {[1, 2, 3, 4, 5].map((value) => (
+                <label
+                  key={value}
+                  className={`${styles.intensityBtn} ${draft.intensity === value ? styles.intensitySelected : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="intensity"
+                    value={value}
+                    checked={draft.intensity === value}
+                    onChange={() =>
+                      setDraft((current) => ({ ...current, intensity: value }))
+                    }
+                  />
+                  <span>{value}</span>
+                </label>
+              ))}
             </div>
           </fieldset>
-
+          <details className={styles.contextDisclosure}>
+            <summary>Thêm bối cảnh riêng tư (không bắt buộc)</summary>
+            <div className={styles.contextBody}>
+              <p className={styles.contextPrivacy}>
+                Chỉ lưu khi bạn chọn “Lưu ghi nhận”. Nội dung này giúp bạn xem
+                lại và không tự động gửi cho AI, kế hoạch hỗ trợ hay phân tích.
+              </p>
+              <fieldset
+                className={styles.factorFieldset}
+                disabled={loadBlocked || isSubmitting}
+              >
+                <legend>Điều gì có thể ảnh hưởng đến cảm xúc này?</legend>
+                <p className={styles.factorHint}>Có thể chọn tối đa 3 mục.</p>
+                <div className={styles.factorGrid}>
+                  {emotionInfluenceOptions.map((factor) => {
+                    const selected = draft.factors.includes(factor.value)
+                    const disabled = !selected && draft.factors.length >= 3
+                    return (
+                      <label
+                        key={factor.value}
+                        className={`${styles.factorChip} ${selected ? styles.factorSelected : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          disabled={disabled}
+                          onChange={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              factors: selected
+                                ? current.factors.filter(
+                                    (value) => value !== factor.value,
+                                  )
+                                : emotionInfluenceOptions
+                                    .filter(
+                                      ({ value }) =>
+                                        current.factors.includes(value) ||
+                                        value === factor.value,
+                                    )
+                                    .map(({ value }) => value),
+                            }))
+                          }
+                        />
+                        <span>{factor.label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </fieldset>
+              <label className={styles.noteField}>
+                <span>Ghi chú riêng (không bắt buộc)</span>
+                <textarea
+                  aria-label="Ghi chú riêng (không bắt buộc)"
+                  value={draft.note}
+                  maxLength={500}
+                  rows={3}
+                  disabled={loadBlocked || isSubmitting}
+                  placeholder="Bạn có thể để trống"
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      note: event.target.value,
+                    }))
+                  }
+                />
+                <small>{draft.note.length}/500</small>
+              </label>
+            </div>
+          </details>
+          {draftChanged && isComplete ? (
+            <p className={styles.unsaved} role="status">
+              Lựa chọn này chưa được lưu.
+            </p>
+          ) : null}
           <div className={styles.actions}>
             <button
               type="submit"
               className={styles.saveBtn}
-              disabled={isDisabled}
+              disabled={!isComplete || isSubmitting || loadBlocked}
             >
               {phase === 'saving'
                 ? 'Đang lưu…'
@@ -348,6 +536,16 @@ export function DailyEmotionCheckIn({
                   ? 'Cập nhật ghi nhận'
                   : 'Lưu ghi nhận'}
             </button>
+            {persisted ? (
+              <button
+                type="button"
+                className={styles.deleteBtn}
+                disabled={isSubmitting || loadBlocked}
+                onClick={() => void remove()}
+              >
+                {phase === 'deleting' ? 'Đang xóa…' : 'Xóa ghi nhận'}
+              </button>
+            ) : null}
             <Link href="/journal" className={styles.journalLink}>
               Viết thêm →
             </Link>
@@ -363,26 +561,7 @@ export function DailyEmotionCheckIn({
             role={phase === 'error' ? 'alert' : 'status'}
             aria-live="polite"
           >
-            <div className={styles.statusRow}>
-              {(phase === 'saved' || persisted) && phase !== 'error' ? (
-                <svg
-                  className={styles.checkIcon}
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="m9 12 2 2 4-4" />
-                </svg>
-              ) : null}
-              <span>{message}</span>
-            </div>
+            <span>{message}</span>
             {phase === 'error' ? (
               <button type="button" className={styles.retryBtn} onClick={retry}>
                 Thử lại
@@ -392,121 +571,54 @@ export function DailyEmotionCheckIn({
         </>
       ) : null}
 
-      {/* 6. MỚI: Điều gì đang ảnh hưởng đến bạn? (tùy chọn) */}
-      <div className={styles.influenceSection}>
-        <h3 className={styles.influenceTitle}>
-          Điều gì đang ảnh hưởng đến bạn?{' '}
-          <span className={styles.optionalTag}>(tùy chọn)</span>
-        </h3>
-        <div
-          className={styles.chipList}
-          role="group"
-          aria-label="Các yếu tố ảnh hưởng"
-        >
-          {INFLUENCE_FACTORS.map((factor) => {
-            const isSelected = selectedFactors.includes(factor)
-            return (
-              <button
-                key={factor}
-                type="button"
-                className={`${styles.chip} ${isSelected ? styles.chipSelected : ''}`}
-                aria-pressed={isSelected}
-                onClick={() =>
-                  setSelectedFactors((prev) =>
-                    prev.includes(factor)
-                      ? prev.filter((f) => f !== factor)
-                      : [...prev, factor],
-                  )
-                }
-              >
-                {factor}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* 7. MỚI: Hôm qua và hôm nay */}
       <div className={styles.comparisonSection}>
         <h3 className={styles.comparisonTitle}>Hôm qua và hôm nay</h3>
         <div className={styles.comparisonBoxes}>
-          {/* Ô trái: Hôm qua */}
           <div className={styles.boxYesterday}>
-            <span className={styles.boxDate}>
-              {yesterdayCheckIn
-                ? (() => {
-                    const parts = yesterdayCheckIn.localDate.split('-')
-                    return `${parts[2]}/${parts[1]}`
-                  })()
-                : 'Hôm qua'}
-            </span>
+            <span className={styles.boxDate}>Hôm qua</span>
             {yesterdayCheckIn ? (
               <>
                 <span className={styles.boxMood}>
                   <span aria-hidden="true">
-                    {
-                      emotions.find((e) => e.value === yesterdayCheckIn.emotion)
-                        ?.emoji
-                    }
+                    {emotionPresentation[yesterdayCheckIn.emotion].emoji}
                   </span>
                   <strong>
-                    {
-                      emotions.find((e) => e.value === yesterdayCheckIn.emotion)
-                        ?.label
-                    }
+                    {emotionPresentation[yesterdayCheckIn.emotion].label}
                   </strong>
                 </span>
                 <span className={styles.boxIntensity}>
-                  Cường độ {yesterdayCheckIn.intensity}/5
+                  Mức cảm nhận {yesterdayCheckIn.intensity}/5
                 </span>
               </>
             ) : (
-              <div className={styles.boxEmptyState}>
-                <span className={styles.boxEmptyText}>Chưa có ghi nhận</span>
-              </div>
+              <span className={styles.boxEmptyText}>Chưa có ghi nhận</span>
             )}
           </div>
-
           <span className={styles.boxArrow} aria-hidden="true">
             →
           </span>
-
-          {/* Ô phải: Hôm nay */}
           <div className={styles.boxToday}>
-            <span className={styles.boxTodayDate}>Hôm nay</span>
-            {draft.emotion || persisted?.emotion ? (
+            <span className={styles.boxTodayDate}>Hôm nay · đã lưu</span>
+            {persisted ? (
               <>
                 <span className={styles.boxTodayMood}>
                   <span aria-hidden="true">
-                    {
-                      emotions.find(
-                        (e) =>
-                          e.value === (draft.emotion ?? persisted?.emotion),
-                      )?.emoji
-                    }
+                    {emotionPresentation[persisted.emotion].emoji}
                   </span>
                   <strong>
-                    {
-                      emotions.find(
-                        (e) =>
-                          e.value === (draft.emotion ?? persisted?.emotion),
-                      )?.label
-                    }
+                    {emotionPresentation[persisted.emotion].label}
                   </strong>
                 </span>
                 <span className={styles.boxTodayIntensity}>
-                  Cường độ {draft.intensity ?? persisted?.intensity ?? 3}/5
+                  Mức cảm nhận {persisted.intensity}/5
                 </span>
               </>
             ) : (
-              <div className={styles.boxEmptyState}>
-                <span className={styles.boxEmptyText}>Chưa có ghi nhận</span>
-              </div>
+              <span className={styles.boxEmptyText}>Chưa có ghi nhận</span>
             )}
           </div>
         </div>
       </div>
-
       <p className={styles.disclaimer}>
         Đây là ghi nhận do bạn tự chọn, không phải chẩn đoán hay đánh giá an
         toàn.

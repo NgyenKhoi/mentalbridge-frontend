@@ -229,7 +229,7 @@ export default function ResourcesExperience() {
       (format === 'ALL' || meta.format === format)
     )
   })
-  const streak = journeys[today]?.progress.practiceStreakDays ?? 0
+  const streak = journeys[today]?.progress.practiceStreakDays
   const completedRecent = progress
     .filter((entry) => entry.status === 'COMPLETED')
     .sort((left, right) =>
@@ -822,8 +822,8 @@ export default function ResourcesExperience() {
             </strong>
             <small>
               {reward === 'day'
-                ? 'Streak của bạn vừa có thêm một nhịp.'
-                : 'Cảm ơn bạn đã dành thời gian cho chính mình.'}
+                ? 'Các hoạt động hôm nay đã được lưu.'
+                : 'Tiến độ của hoạt động đã được lưu.'}
             </small>
           </div>
           <button

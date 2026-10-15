@@ -196,7 +196,6 @@ export default function SupportPlanFeaturedActivity({
   onRemove,
   renderForm,
 }: Props) {
-  const showTechnicalDetails = process.env.NODE_ENV !== 'production'
   const href = resourceHref(occurrence)
   const canEdit = authoritativePlanStatus === 'ACTIVE'
   const isScheduled = occurrence.state === 'SCHEDULED'
@@ -232,26 +231,24 @@ export default function SupportPlanFeaturedActivity({
           {occurrence.reflection ? (
             <p className="support-plan-reflection">{occurrence.reflection}</p>
           ) : null}
-          {showTechnicalDetails ? (
-            <Disclosure
-              className="support-plan-featured-disclosure"
-              summary="Chi tiết hoạt động"
-            >
+          <Disclosure
+            className="support-plan-featured-disclosure"
+            summary="Chi tiết hoạt động"
+          >
+            <p>
+              {technicalSourceLabels[occurrence.source.type]} trong kế hoạch ·
+              lịch {occurrence.scheduleVersion} · SupportPlan{' '}
+              {occurrence.source.supportPlanVersion}
+            </p>
+            {occurrence.source.contentVersion ? (
               <p>
-                {technicalSourceLabels[occurrence.source.type]} trong kế hoạch ·
-                lịch {occurrence.scheduleVersion} · SupportPlan{' '}
-                {occurrence.source.supportPlanVersion}
+                Phiên bản tài nguyên {occurrence.source.contentVersion}
+                {occurrence.source.slotId
+                  ? ` · slot ${occurrence.source.slotId}`
+                  : ''}
               </p>
-              {occurrence.source.contentVersion ? (
-                <p>
-                  Phiên bản tài nguyên {occurrence.source.contentVersion}
-                  {occurrence.source.slotId
-                    ? ` · slot ${occurrence.source.slotId}`
-                    : ''}
-                </p>
-              ) : null}
-            </Disclosure>
-          ) : null}
+            ) : null}
+          </Disclosure>
         </div>
       </div>
       {isEditing ? renderForm() : null}

@@ -3,10 +3,12 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { Clock3, RefreshCw, ShieldCheck } from 'lucide-react'
 
 import { ApiError } from '@/lib/api/api-error'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
+import { getMessagesPreview, type MessagesPreviewConversation } from '../mocks/messages-preview'
 import AppointmentChatPanel from './AppointmentChatPanel'
 import chatStyles from './AppointmentChatPanel.module.css'
 import styles from './AppointmentMessagesWorkspace.module.css'
@@ -14,6 +16,17 @@ import styles from './AppointmentMessagesWorkspace.module.css'
 type ViewerRole = 'USER' | 'SPECIALIST'
 
 type ConversationState = 'active' | 'waiting' | 'ended'
+type InboxFilter = 'today' | 'upcoming' | 'completed'
+
+function localDay(value: string) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value))
+}
+
+function matchesInboxFilter(appointment: Appointment, filter: InboxFilter, today: string, now: number) {
+  if (filter === 'today') return localDay(appointment.scheduledStartAt) === today
+  if (filter === 'upcoming') return localDay(appointment.scheduledStartAt) !== today && conversationState(appointment, now) !== 'ended'
+  return conversationState(appointment, now) === 'ended'
+}
 
 function hasConversation(appointment: Appointment) {
   return (
@@ -93,11 +106,21 @@ export default function AppointmentMessagesWorkspace({
   const [generatedAt, setGeneratedAt] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [filter, setFilter] = useState<InboxFilter>('today')
+  const [previewEnabled, setPreviewEnabled] = useState(false)
+  const [previewData, setPreviewData] = useState<ReturnType<typeof getMessagesPreview> | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
+      if (previewEnabled && viewerRole === 'SPECIALIST') {
+        const sample = getMessagesPreview()
+        setPreviewData(sample)
+        setAppointments(sample.conversations.map((item) => item.appointment))
+        setGeneratedAt(sample.generatedAt)
+        return
+      }
       const result =
         viewerRole === 'SPECIALIST'
           ? await appointmentBrowserClient.assigned()
@@ -109,10 +132,29 @@ export default function AppointmentMessagesWorkspace({
     } finally {
       setLoading(false)
     }
-  }, [viewerRole])
+  }, [previewEnabled, viewerRole])
 
   useEffect(() => {
     let active = true
+    if (previewEnabled && viewerRole === 'SPECIALIST') {
+      const sample = getMessagesPreview()
+      setPreviewData(sample)
+      setAppointments(sample.conversations.map((item) => item.appointment))
+      setGeneratedAt(sample.generatedAt)
+      const initialConversation = sample.conversations.find((item) => item.appointment.id === initialAppointmentId)
+      setSelectedId(initialConversation?.appointment.id ?? sample.conversations[0]?.appointment.id ?? '')
+      setFilter(initialConversation
+        ? matchesInboxFilter(initialConversation.appointment, 'today', localDay(sample.generatedAt), Date.parse(sample.generatedAt)) ? 'today'
+          : matchesInboxFilter(initialConversation.appointment, 'upcoming', localDay(sample.generatedAt), Date.parse(sample.generatedAt)) ? 'upcoming' : 'completed'
+        : 'today')
+      setError('')
+      setLoading(false)
+      return () => { active = false }
+    }
+    setPreviewData(null)
+    setLoading(true)
+    setError('')
+    setSelectedId(initialAppointmentId ?? '')
     const request =
       viewerRole === 'SPECIALIST'
         ? appointmentBrowserClient.assigned()
@@ -120,8 +162,17 @@ export default function AppointmentMessagesWorkspace({
     request
       .then((result) => {
         if (!active) return
-        setAppointments(result.items.filter(hasConversation))
+        const available = result.items.filter(hasConversation)
+        setAppointments(available)
         setGeneratedAt(result.generatedAt)
+        if (viewerRole === 'SPECIALIST') {
+          const currentDay = localDay(result.generatedAt)
+          const serverNow = Date.parse(result.generatedAt)
+          const selected = available.find((item) => item.id === initialAppointmentId)
+          setFilter(selected
+            ? localDay(selected.scheduledStartAt) === currentDay ? 'today' : conversationState(selected, serverNow) === 'ended' ? 'completed' : 'upcoming'
+            : available.some((item) => matchesInboxFilter(item, 'today', currentDay, serverNow)) ? 'today' : available.some((item) => matchesInboxFilter(item, 'upcoming', currentDay, serverNow)) ? 'upcoming' : 'completed')
+        }
       })
       .catch((caught: unknown) => {
         if (active) setError(friendlyError(caught))
@@ -132,7 +183,7 @@ export default function AppointmentMessagesWorkspace({
     return () => {
       active = false
     }
-  }, [viewerRole])
+  }, [initialAppointmentId, previewEnabled, viewerRole])
 
   const now = generatedAt ? Date.parse(generatedAt) : 0
   const conversations = useMemo(
@@ -152,42 +203,74 @@ export default function AppointmentMessagesWorkspace({
       }),
     [appointments, now],
   )
+  const today = localDay(generatedAt || new Date().toISOString())
+  const inboxCounts = {
+    today: conversations.filter((item) => matchesInboxFilter(item, 'today', today, now)).length,
+    upcoming: conversations.filter((item) => matchesInboxFilter(item, 'upcoming', today, now)).length,
+    completed: conversations.filter((item) => matchesInboxFilter(item, 'completed', today, now)).length,
+  }
+  const visibleConversations = viewerRole === 'SPECIALIST' ? conversations.filter((item) => matchesInboxFilter(item, filter, today, now)) : conversations
 
-  const effectiveSelectedId = conversations.some(
+  const effectiveSelectedId = visibleConversations.some(
     (item) => item.id === selectedId,
   )
     ? selectedId
-    : (conversations[0]?.id ?? '')
+    : (visibleConversations[0]?.id ?? '')
   const appointmentsHref = viewerRole === 'SPECIALIST' ? '/specialist/appointments' : '/appointments'
+  const selectedPreview: MessagesPreviewConversation | undefined = previewEnabled
+    ? previewData?.conversations.find((item) => item.appointment.id === effectiveSelectedId)
+    : undefined
 
   const selectConversation = (appointmentId: string) => {
     setSelectedId(appointmentId)
+    if (previewEnabled) return
     const params = new URLSearchParams({ appointmentId })
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
+  const togglePreview = () => {
+    setAppointments([])
+    setPreviewData(null)
+    setSelectedId('')
+    setLoading(true)
+    setPreviewEnabled((value) => !value)
+  }
+
   return (
-    <main className={styles.page}>
+    <main className={styles.page} data-messages-workspace>
       <section className={styles.workspace} aria-label="Tin nhắn lịch hẹn">
         <aside className={styles.inbox} aria-label="Danh sách cuộc trò chuyện">
           <header>
             <div>
-              <span>HỘP THƯ</span>
               <h2>Lịch hẹn chat</h2>
             </div>
             <div className={styles.inboxActions}>
               <strong>{conversations.length}</strong>
               <button
+                data-messages-ui
                 type="button"
                 onClick={() => void load()}
                 disabled={loading}
                 aria-label="Tải lại danh sách cuộc trò chuyện"
                 title="Tải lại"
               >
-                ↻
+                <RefreshCw size={16} />
               </button>
             </div>
           </header>
+
+          {viewerRole === 'SPECIALIST' && <div className={styles.filters} aria-label="Lọc lịch hẹn chat">
+            {([['today', 'Hôm nay'], ['upcoming', 'Sắp tới'], ['completed', 'Đã hoàn thành']] as const).map(([key, label]) => (
+              <button data-messages-ui type="button" key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}<span>{inboxCounts[key]}</span></button>
+            ))}
+          </div>}
+
+          {viewerRole === 'SPECIALIST' && process.env.NODE_ENV === 'development' && (
+            <div className={styles.previewBar} data-active={previewEnabled}>
+              <span><i /> {previewEnabled ? 'Đang xem dữ liệu mẫu để duyệt giao diện' : 'Đang xem dữ liệu thật'}</span>
+              <button data-messages-ui type="button" onClick={togglePreview}>{previewEnabled ? 'Xem dữ liệu thật' : 'Xem dữ liệu mẫu'}</button>
+            </div>
+          )}
 
           {error && (
             <p className={styles.error} role="alert">
@@ -206,15 +289,17 @@ export default function AppointmentMessagesWorkspace({
             </div>
           ) : (
             <ul>
-              {conversations.map((appointment) => {
+              {visibleConversations.length === 0 && <li className={styles.emptyFilter}>Chưa có lịch hẹn trong mục này.</li>}
+              {visibleConversations.map((appointment) => {
                 const state = conversationState(appointment, now)
-                const counterpart =
-                  viewerRole === 'SPECIALIST'
-                    ? 'Khách hàng'
-                    : appointment.specialistDisplayName
+                const sample = previewData?.conversations.find((item) => item.appointment.id === appointment.id)
+                const counterpart = viewerRole === 'SPECIALIST'
+                  ? sample?.clientName ?? 'Khách hàng'
+                  : appointment.specialistDisplayName
                 return (
                   <li key={appointment.id}>
                     <button
+                      data-messages-ui
                       type="button"
                       className={
                         effectiveSelectedId === appointment.id
@@ -229,14 +314,12 @@ export default function AppointmentMessagesWorkspace({
                       onClick={() => selectConversation(appointment.id)}
                     >
                       <span className={styles.avatar} aria-hidden="true">
-                        {counterpart.trim().slice(0, 1).toLocaleUpperCase('vi')}
+                        {counterpart.trim().split(/\s+/).slice(-2).map((part) => part[0]).join('').toLocaleUpperCase('vi')}
                       </span>
                       <span className={styles.conversationCopy}>
-                        <strong>{counterpart}</strong>
-                        <small>{formatAppointment(appointment)}</small>
-                        <em data-state={state}>
-                          <i /> {stateCopy[state]}
-                        </em>
+                        <span className={styles.listTop}><strong>{counterpart}</strong><em data-state={state}><i /> {stateCopy[state]}</em></span>
+                        <small>Phiên #{sample?.reference ?? appointment.id.slice(-6).toUpperCase()}</small>
+                        <span className={styles.listTime}><Clock3 size={14} /> {formatAppointment(appointment)}</span>
                       </span>
                     </button>
                   </li>
@@ -244,15 +327,17 @@ export default function AppointmentMessagesWorkspace({
               })}
             </ul>
           )}
+          {viewerRole === 'SPECIALIST' && <footer className={styles.inboxFooter}><ShieldCheck size={15} /> Tin nhắn chỉ mở theo lịch hẹn được cấp quyền.</footer>}
         </aside>
 
         <section className={styles.conversation} aria-live="polite">
           {effectiveSelectedId ? (
             <AppointmentChatPanel
-              key={effectiveSelectedId}
+              key={`${previewEnabled ? 'preview' : 'live'}-${effectiveSelectedId}`}
               appointmentId={effectiveSelectedId}
               viewerRole={viewerRole}
               embedded
+              preview={selectedPreview}
             />
           ) : (
             <div className={`${chatStyles.page} ${chatStyles.embedded}`}>
@@ -297,7 +382,7 @@ export default function AppointmentMessagesWorkspace({
                             : 'Tin nhắn sẽ hiển thị khi lịch hẹn chat được xác nhận. Bạn có thể xem lại lịch sử sau khi phiên chat kết thúc.'}
                       </p>
                       {!loading && (error ? (
-                        <button type="button" className={styles.emptyAction} onClick={() => void load()}>
+                        <button data-messages-ui type="button" className={styles.emptyAction} onClick={() => void load()}>
                           Thử tải lại
                         </button>
                       ) : (

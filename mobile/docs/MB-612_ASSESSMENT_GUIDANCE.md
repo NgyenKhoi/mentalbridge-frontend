@@ -106,6 +106,6 @@ Passing evidence is the real signed-in flow reaching the server-returned result
 and `Gợi ý hỗ trợ sau sàng lọc` screen after all nine PHQ-9 and seven GAD-7
 answers, returning to the assessment list, and reopening the persisted immutable
 SupportGuide detail. CI retains the final screenshot and a sanitized manifest in
-`android-native-and-assessment-<commit>`. The artifact contains the commit, run
+`android-native-and-real-contract-<commit>`. The artifact contains the commit, run
 URL, and proved journey classification; it excludes credentials and raw answer
 payloads.

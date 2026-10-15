@@ -243,6 +243,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/community/profile/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Explicitly select a READY IMAGE uploaded by this profile, or remove the current photo with null. Post-attached, foreign, expired, deleted and unverified media are rejected. This never reads or copies Identity/Care avatars. Unchanged retries return the current profile even with the preceding ETag; a different selection requires the current ETag. Removed images re-enter the existing unattached-media retention policy. */
+        put: operations["replaceCommunityAvatar"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/community/profile": {
         parameters: {
             query?: never;
@@ -335,6 +352,7 @@ export interface components {
             description: string;
         };
         CommunityAuthor: {
+            avatarImage?: components["schemas"]["CommunityAvatarImage"];
             /**
              * Format: uuid
              * @description Null for an anonymous post so public responses cannot link it to the author's Community profile.
@@ -527,12 +545,29 @@ export interface components {
             displayName: string;
             avatarPreset: components["schemas"]["CommunityAvatarPreset"] | null;
         };
+        PutCommunityAvatarRequest: {
+            /**
+             * Format: uuid
+             * @description Exact owned, unattached READY IMAGE, or null to remove the photo. Arbitrary URLs are never accepted.
+             */
+            mediaId: string | null;
+        };
+        /** @description Optional current Community-only image. Omitted for absent/unavailable photos, anonymous posts and deleted identities. URL is the metadata-stripped signed Community derivative, not the original. */
+        CommunityAvatarImage: {
+            /** Format: uuid */
+            mediaId: string;
+            /** Format: uri */
+            url: string;
+            width: number;
+            height: number;
+        };
         /**
          * @description Closed, Community-owned visual preset. Arbitrary image URLs and account-profile avatars are never accepted.
          * @enum {string}
          */
         CommunityAvatarPreset: "LEAF" | "SUNRISE" | "WAVE" | "LOTUS" | "CLOUD" | "SPROUT";
         CommunityProfile: {
+            avatarImage?: components["schemas"]["CommunityAvatarImage"];
             /** Format: uuid */
             communityProfileId: string;
             displayName: string;
@@ -1232,6 +1267,39 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    replaceCommunityAvatar: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutCommunityAvatarRequest"];
+            };
+        };
+        responses: {
+            /** @description Current Community profile with the selected photo or preset fallback. */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityProfile"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            412: components["responses"]["Problem"];
         };
     };
     getOwnCommunityProfile: {

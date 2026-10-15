@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: MentalBridge Journal AI Service API
-  version: 1.7.0
-  description: Private journal CRUD, daily self-reported emotion check-ins with factual progress and a service-authorized note-free notification activity projection, consent-gated analysis, bounded Support Guide phrasing, and quota-governed AI Companion conversations.
+  version: 1.12.0
+  description: Private journal CRUD, daily self-reported emotion check-ins with optional encrypted context and factual progress, a service-authorized content-free notification activity projection, consent-gated analysis, bounded Support Guide phrasing, bounded SupportPlan Companion orchestration, and quota-governed AI Companion conversations.
 servers:
   - url: http://localhost:3000
 security:
@@ -13,7 +13,7 @@ tags:
   - name: Journals
     description: Private journal entries owned by the authenticated account.
   - name: Notification activity
-    description: Owner-scoped, note-free factual Journal and emotion activity used by Content/Notification policy.
+    description: Owner-scoped, optional-context-free factual Journal and emotion activity used by Content/Notification policy.
   - name: Analysis jobs
     description: Owner-scoped asynchronous analysis of one exact current revision.
   - name: Longitudinal analysis
@@ -22,6 +22,8 @@ tags:
     description: Owner-scoped encrypted conversations with consent, entitlement, and server-side quota enforcement.
   - name: Support Guide phrasing
     description: Consent-gated rephrasing of exact Care-approved Support Guide copy without decision authority.
+  - name: SupportPlan Companion
+    description: User-initiated phrasing for one deterministic intent and one exact minimized Care-approved context, with local fallback and no mutation authority.
   - name: Operations
     description: Service health and metrics endpoints.
 paths:
@@ -186,6 +188,38 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /api/v1/emotion-check-ins/{localDate}/completion-evidence:
+    x-mentalbridge-status: implemented
+    get:
+      tags: [Emotion check-ins]
+      summary: Resolve the authenticated owner's content-free daily check-in fact.
+      description: |
+        MB-641 provider boundary for Care reconciliation. Requires the owner's
+        bearer context; no caller-supplied account, action, occurrence or fact ID
+        is accepted. Returns RECORDED, MISSING or DELETED from the owner store.
+        Deleted becomes MISSING after the existing tombstone retention expires.
+        A recorded fact references the creation revision (1) and createdAt;
+        same-day edits never create a second completion fact. No emotion,
+        intensity, factors, note, encrypted payload, score or AI result is read
+        or returned. This read does not mutate or complete a SupportPlan.
+        Dependency uncertainty is 503, never MISSING. Responses are no-store.
+      operationId: getEmotionCheckInCompletionEvidence
+      parameters:
+        - name: localDate
+          in: path
+          required: true
+          schema: { type: string, format: date }
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Minimized authoritative existence or absence evidence.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmotionCheckInCompletionEvidence"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /api/v1/emotion-check-in-progress:
     x-mentalbridge-status: implemented
     get:
@@ -214,7 +248,7 @@ paths:
     x-mentalbridge-status: implemented
     get:
       tags: [Emotion check-ins]
-      summary: Return a note-free minimized projection for consented AI reflection.
+      summary: Return a factor- and note-free minimized projection for consented AI reflection.
       description: Reminder composition is deliberately unavailable until a separate reminder consent contract is accepted.
       operationId: getEmotionCheckInConsumerContext
       parameters:
@@ -269,7 +303,7 @@ paths:
       security:
         - reminderServiceToken: []
       summary: Resolve one owner's minimized activity for the Content reminder scheduler.
-      description: Requires the configured Content/Notification service credential. The response is note-free and reuses the authoritative emotion progress calculation.
+      description: Requires the configured Content/Notification service credential. The response excludes optional factors and notes and reuses the authoritative emotion progress calculation.
       operationId: resolveNotificationActivityForScheduler
       parameters:
         - $ref: "#/components/parameters/CorrelationId"
@@ -426,6 +460,43 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/journals/{journalId}/completion-evidence:
+    x-mentalbridge-status: implemented
+    get:
+      tags: [Journals]
+      summary: Resolve an owned Journal creation fact without private content.
+      operationId: getJournalEntryCompletionEvidence
+      description: >
+        Resolves the authenticated owner's exact entry, not a browser-asserted
+        completion. Missing and other-owner identifiers are indistinguishable.
+        An owned tombstone returns DELETED. The stable creation fact uses server
+        createdAt as occurredAt, never the user-selected Journal occurredAt or
+        mutable revision timestamp. Revising text does not create another fact.
+        No text, preview, tags, mood, encrypted payload, analysis or AI-processing
+        consent crosses this boundary. This factual read does not authorize
+        analysis, sharing or reuse of private reflection. Owner failures are
+        unavailable, never false absence; responses are not cached. Care must
+        independently validate the originating action, occurrence date in its
+        schedule timezone, activation boundary and fact uniqueness. Deletion
+        blocks new completion but never rewrites previously accepted history.
+      parameters:
+        - $ref: "#/components/parameters/JournalId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Minimized, owner-attributed current source state.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+            x-correlation-id:
+              $ref: "#/components/headers/CorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryCompletionEvidence"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /api/v1/journals/{journalId}/revisions/{revision}/analysis-jobs:
     x-mentalbridge-status: implemented
     post:
@@ -582,6 +653,30 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /api/v1/ai-companion/conversations/{conversationId}/context:
+    x-mentalbridge-status: implemented
+    put:
+      tags: [AI Companion]
+      operationId: replaceAiCompanionConversationContext
+      summary: Replace the owner-scoped sources used by one conversation.
+      description: Message sends read this persisted configuration; client-supplied source lists are never authoritative.
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AiConversationContextInput" }
+      responses:
+        "200":
+          description: Conversation context replaced.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiConversation" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/longitudinal-analysis-jobs:
     x-mentalbridge-status: implemented
     post:
@@ -685,6 +780,57 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /internal/v1/support-plan-companion/messages:
+    x-mentalbridge-status: implemented
+    post:
+      tags: [SupportPlan Companion]
+      summary: Phrase one policy-selected SupportPlan Companion intent.
+      description: Care authenticates with its dedicated service credential and forwards the verified end-user bearer plus one exact v1 intent envelope containing only the approved minimized context. Journal/AI validates both caller boundaries, surface, intent and context before checking current AI consent or calling one configured provider. Missing consent, provider rate/quota limit, timeout, provider failure, malformed output and policy rejection return deterministic template copy. The operation cannot create or mutate a plan, action, schedule, review, consent, booking or source-domain record.
+      operationId: createSupportPlanCompanionMessage
+      security:
+        - bearerAuth: []
+          supportPlanCareServiceToken: []
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../proposals/support-plan-companion-intent-v1.schema.json"
+      responses:
+        "201":
+          description: Bounded generated phrasing or deterministic template copy was returned without mutation authority.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportPlanCompanionMessage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /internal/v1/consultation-brief-drafts:
+    x-mentalbridge-status: implemented
+    post:
+      tags: [Consultation brief draft]
+      summary: Generate an editable suggestion from one exact minimized Care-owned draft source
+      description: Requires the forwarded verified end-user bearer and current AI_PROCESSING consent. It may rewrite only currentSituation and userGoals. It cannot change the screening source, save or approve a brief, grant specialist access, or consume Journal, chat, raw assessment answers, or private specialist notes.
+      operationId: generateConsultationBriefDraftSuggestion
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConsultationBriefAiDraftProviderRequest" }
+      responses:
+        "200":
+          description: Bounded editable suggestion with provider and source provenance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConsultationBriefAiDraftProviderResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
 components:
   securitySchemes:
     bearerAuth:
@@ -695,6 +841,11 @@ components:
       type: apiKey
       in: header
       name: x-mentalbridge-service-token
+    supportPlanCareServiceToken:
+      type: apiKey
+      in: header
+      name: x-mentalbridge-service-token
+      description: Dedicated Care-to-Journal/AI credential required together with the forwarded end-user bearer.
   parameters:
     LocalDate:
       name: localDate
@@ -848,6 +999,66 @@ components:
           schema:
             $ref: "#/components/schemas/Problem"
   schemas:
+    ConsultationBriefAiDraftScreeningContext:
+      type: object
+      additionalProperties: false
+      required: [instrument, domain, screeningLevel, questionnaireVersion, scoringVersion, evaluatedAt, policyVersion]
+      properties:
+        instrument: { type: string, enum: [PHQ9, GAD7] }
+        domain: { type: string, enum: [DEPRESSIVE_SYMPTOMS, ANXIETY_SYMPTOMS] }
+        screeningLevel: { type: string, enum: [MINIMAL, MILD, MODERATE, MODERATELY_SEVERE, SEVERE] }
+        questionnaireVersion: { type: string, minLength: 1, maxLength: 32 }
+        scoringVersion: { type: string, minLength: 1, maxLength: 32 }
+        evaluatedAt: { type: string, format: date-time }
+        policyVersion: { type: string, minLength: 1, maxLength: 64 }
+    ConsultationBriefAiDraftProviderRequest:
+      type: object
+      additionalProperties: false
+      required: [appointmentId, consultationBriefId, consultationBriefVersion, supportEvaluationId, currentSituation, userGoals, screeningContext, sourceSetVersion]
+      properties:
+        appointmentId: { type: string, format: uuid }
+        consultationBriefId: { type: string, format: uuid }
+        consultationBriefVersion: { type: integer, format: int64, minimum: 0 }
+        supportEvaluationId: { type: string, format: uuid }
+        currentSituation: { type: string, minLength: 1, maxLength: 1000 }
+        userGoals:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: { type: string, minLength: 1, maxLength: 200 }
+        screeningContext:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items: { $ref: "#/components/schemas/ConsultationBriefAiDraftScreeningContext" }
+        sourceSetVersion: { type: string, const: consultation-brief-ai-source-v1 }
+    ConsultationBriefAiDraftProviderResponse:
+      type: object
+      additionalProperties: false
+      required: [currentSituation, userGoals, sourceSetVersion, consentPolicyVersion, servicePlan, entitlementSource, entitlementPolicyVersion, entitlementVersion, routingPolicyVersion, providerApprovalVersion, provider, model, promptVersion, schemaVersion, latencyMs, inputTokens, outputTokens, estimatedCostMicroUsd]
+      properties:
+        currentSituation: { type: string, minLength: 1, maxLength: 1000 }
+        userGoals:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: { type: string, minLength: 1, maxLength: 200 }
+        sourceSetVersion: { type: string, const: consultation-brief-ai-source-v1 }
+        consentPolicyVersion: { type: string, minLength: 1, maxLength: 64 }
+        servicePlan: { type: string, enum: [FREE, PLUS, PREMIUM] }
+        entitlementSource: { type: string, enum: [DEFAULT_FREE, DEMO, PAID] }
+        entitlementPolicyVersion: { type: string, minLength: 1, maxLength: 96 }
+        entitlementVersion: { type: integer, format: int64, minimum: 0 }
+        routingPolicyVersion: { type: string, minLength: 1, maxLength: 96 }
+        providerApprovalVersion: { type: string, minLength: 1, maxLength: 96 }
+        provider: { type: string, enum: [DETERMINISTIC_FAKE, GEMINI, OPENAI, BEDROCK] }
+        model: { type: string, minLength: 1, maxLength: 128 }
+        promptVersion: { type: string, const: consultation-brief-draft-v1 }
+        schemaVersion: { type: integer, const: 1 }
+        latencyMs: { type: integer, format: int64, minimum: 0 }
+        inputTokens: { type: [integer, "null"], format: int64, minimum: 0 }
+        outputTokens: { type: [integer, "null"], format: int64, minimum: 0 }
+        estimatedCostMicroUsd: { type: [integer, "null"], format: int64, minimum: 0 }
     SupportGuidePhrasingRequest:
       type: object
       additionalProperties: false
@@ -861,31 +1072,76 @@ components:
       required: [text, provider, model, promptVersion, schemaVersion]
       properties:
         text: { type: string, minLength: 1, maxLength: 1600 }
-        provider: { type: string, enum: [DETERMINISTIC_FAKE, GEMINI, OPENAI] }
+        provider: { type: string, enum: [DETERMINISTIC_FAKE, GEMINI, OPENAI, BEDROCK] }
         model: { type: string, minLength: 1, maxLength: 128 }
         promptVersion: { type: string, const: support-guide-phrasing-v1 }
         schemaVersion: { type: integer, const: 1 }
+    SupportPlanCompanionNavigation:
+      type: object
+      additionalProperties: false
+      required: [destination, label]
+      properties:
+        destination:
+          type: string
+          enum: [TODAY, PLAN, PROGRESS, ADJUST, ACTION_DETAIL, RESOURCE, JOURNAL, EMOTION_CHECK_IN, SPECIALIST_DISCOVERY, REASSESSMENT]
+        label: { type: string, minLength: 1, maxLength: 160 }
+    SupportPlanCompanionMessage:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, intent, surface, text, delivery, navigation, policyVersion, promptVersion, templateVersion, provider, model, fallbackReason]
+      properties:
+        schemaVersion: { type: string, const: support-plan-companion-message-v1 }
+        intent:
+          type: string
+          enum: [EXPLAIN_ACTION, EXPLAIN_FOCUS, SUGGEST_NEXT_STEP, ENCOURAGE, SUMMARIZE_PROGRESS, EXPLAIN_REVIEW_OPTION, NAVIGATE]
+        surface: { type: string, enum: [TODAY, PLAN, PROGRESS, ADJUST] }
+        text: { type: string, minLength: 1, maxLength: 480 }
+        delivery: { type: string, enum: [GENERATED, TEMPLATE] }
+        navigation:
+          oneOf:
+            - $ref: "#/components/schemas/SupportPlanCompanionNavigation"
+            - type: "null"
+        policyVersion: { type: string, const: support-plan-companion-policy-v1 }
+        promptVersion: { type: string, const: support-plan-companion-prompt-v1 }
+        templateVersion: { type: string, const: support-plan-companion-template-v1 }
+        provider:
+          type: [string, "null"]
+          enum: [DETERMINISTIC_FAKE, GEMINI, OPENAI, BEDROCK, null]
+        model: { type: [string, "null"], minLength: 1, maxLength: 2048 }
+        fallbackReason:
+          type: [string, "null"]
+          enum: [CONSENT_REQUIRED, CONSENT_UNAVAILABLE, PROVIDER_DISABLED, PROVIDER_TIMEOUT, PROVIDER_QUOTA_LIMITED, PROVIDER_UNAVAILABLE, MALFORMED_OUTPUT, POLICY_REJECTED, null]
     CreateAiConversationRequest:
       type: object
       additionalProperties: false
       properties:
         title: { type: string, minLength: 1, maxLength: 80 }
-    AiContextSelection:
+    AiContextSources:
       type: object
       additionalProperties: false
+      required: [plan, diary, screening, resourceIds]
       properties:
-        journalIds:
+        plan: { type: boolean }
+        diary: { type: boolean }
+        screening: { type: boolean }
+        resourceIds:
           type: array
-          maxItems: 3
+          maxItems: 20
           uniqueItems: true
-          default: []
           items: { type: string, format: uuid }
-        longitudinalAnalysisId: { type: string, format: uuid }
-        includeCurrentSupportPlan: { type: boolean, default: true }
-        includeReminderContext:
-          type: boolean
-          default: false
-          description: Fails closed until Content/Notification publishes an approved reminder-context owner contract.
+    AiConversationContextInput:
+      type: object
+      additionalProperties: false
+      required: [sources]
+      properties:
+        sources: { $ref: "#/components/schemas/AiContextSources" }
+    AiConversationContext:
+      type: object
+      additionalProperties: false
+      required: [sources, updatedAt]
+      properties:
+        sources: { $ref: "#/components/schemas/AiContextSources" }
+        updatedAt: { type: string, format: date-time }
     SendAiMessageRequest:
       type: object
       additionalProperties: false
@@ -896,10 +1152,9 @@ components:
           minLength: 1
           maxLength: 2000
           pattern: '.*\S.*'
-        context: { $ref: "#/components/schemas/AiContextSelection" }
     AiContextKind:
       type: string
-      enum: [JOURNAL, SUPPORT_PLAN, REASSESSMENT]
+      enum: [JOURNAL, SUPPORT_PLAN, REASSESSMENT, RESOURCE]
     AiMessage:
       type: object
       additionalProperties: false
@@ -911,16 +1166,17 @@ components:
         createdAt: { type: string, format: date-time }
         contextKinds:
           type: array
-          maxItems: 3
+          maxItems: 4
           uniqueItems: true
           items: { $ref: "#/components/schemas/AiContextKind" }
     AiConversation:
       type: object
       additionalProperties: false
-      required: [conversationId, title, messages, createdAt, updatedAt, expiresAt]
+      required: [conversationId, title, context, messages, createdAt, updatedAt, expiresAt]
       properties:
         conversationId: { type: string, format: uuid }
         title: { type: string, minLength: 1, maxLength: 80 }
+        context: { $ref: "#/components/schemas/AiConversationContext" }
         messages:
           type: array
           maxItems: 400
@@ -959,6 +1215,7 @@ components:
           assistantMessageId,
           assistant,
           createdAt,
+          contextKinds,
           quota,
         ]
       properties:
@@ -967,11 +1224,20 @@ components:
         assistantMessageId: { type: string, format: uuid }
         assistant: { type: string, minLength: 1, maxLength: 500 }
         createdAt: { type: string, format: date-time }
+        contextKinds:
+          type: array
+          maxItems: 4
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/AiContextKind" }
         quota: { $ref: "#/components/schemas/AiQuota" }
     Emotion:
       type: string
       description: Self-selected, non-clinical label shared with Journal authoring.
       enum: [GREAT, GOOD, OKAY, LOW, VERY_LOW]
+    EmotionInfluenceFactor:
+      type: string
+      description: Optional self-selected context retained only in the owner record; it is not a diagnosis or downstream inference input.
+      enum: [sleep, work, study, family, friends, health, other]
     EmotionCheckInValue:
       type: object
       additionalProperties: false
@@ -984,6 +1250,13 @@ components:
           minimum: 1
           maximum: 5
           description: Strength of the selected feeling, not wellness, severity, diagnosis, or recovery.
+        factors:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          default: []
+          description: Optional self-selected context; encrypted at rest and excluded from consumer projections, logs, events, analytics, SupportPlan, and automated AI use.
+          items: { $ref: "#/components/schemas/EmotionInfluenceFactor" }
         note:
           type: [string, "null"]
           minLength: 1
@@ -1013,6 +1286,7 @@ components:
           timezone,
           emotion,
           intensity,
+          factors,
           note,
           sourceLabel,
           clinicalUse,
@@ -1027,6 +1301,11 @@ components:
         timezone: { type: string, minLength: 1, maxLength: 64 }
         emotion: { $ref: "#/components/schemas/Emotion" }
         intensity: { type: integer, minimum: 1, maximum: 5 }
+        factors:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/EmotionInfluenceFactor" }
         note: { type: [string, "null"], maxLength: 500 }
         sourceLabel: { type: string, const: SELF_REPORTED_EMOTION }
         clinicalUse:
@@ -1035,6 +1314,72 @@ components:
         recordedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    JournalEntryCompletionEvidence:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, subjectUserId, journalId, state, fact, verifiedAt]
+      properties:
+        schemaVersion: { type: string, const: journal-entry-completion-evidence-v1 }
+        subjectUserId: { type: string, format: uuid }
+        journalId: { type: string, format: uuid }
+        state: { type: string, enum: [RECORDED, MISSING, DELETED] }
+        verifiedAt: { type: string, format: date-time }
+        fact:
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/JournalEntryCompletionFact"
+      allOf:
+        - if: { properties: { state: { const: RECORDED } }, required: [state] }
+          then: { properties: { fact: { $ref: "#/components/schemas/JournalEntryCompletionFact" } } }
+          else: { properties: { fact: { type: "null" } } }
+    JournalEntryCompletionFact:
+      type: object
+      additionalProperties: false
+      required: [ownerDomain, kind, factId, factRevision, occurredAt]
+      properties:
+        ownerDomain: { type: string, const: JOURNAL_AI }
+        kind: { type: string, const: JOURNAL_ENTRY }
+        factId: { type: string, format: uuid }
+        factRevision:
+          type: string
+          const: "1"
+          description: Immutable creation-fact revision, not the private content revision.
+        occurredAt:
+          type: string
+          format: date-time
+          description: Owner-generated entry createdAt; user-supplied Journal occurredAt is excluded.
+    EmotionCheckInCompletionEvidence:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, subjectUserId, localDate, state, fact, verifiedAt]
+      properties:
+        schemaVersion: { type: string, const: emotion-check-in-completion-evidence-v1 }
+        subjectUserId: { type: string, format: uuid }
+        localDate: { type: string, format: date }
+        state: { type: string, enum: [RECORDED, MISSING, DELETED] }
+        verifiedAt: { type: string, format: date-time }
+        fact:
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/EmotionCheckInCompletionFact"
+      allOf:
+        - if: { properties: { state: { const: RECORDED } }, required: [state] }
+          then: { properties: { fact: { $ref: "#/components/schemas/EmotionCheckInCompletionFact" } } }
+          else: { properties: { fact: { type: "null" } } }
+    EmotionCheckInCompletionFact:
+      type: object
+      additionalProperties: false
+      required: [ownerDomain, kind, factId, factRevision, occurredAt, timezone]
+      properties:
+        ownerDomain: { type: string, const: JOURNAL_AI }
+        kind: { type: string, const: EMOTION_CHECK_IN }
+        factId: { type: string, format: uuid }
+        factRevision:
+          type: string
+          const: "1"
+          description: Creation-fact revision, not the mutable emotion payload revision.
+        occurredAt: { type: string, format: date-time }
+        timezone: { type: string, minLength: 1, maxLength: 64 }
     EmotionCheckInList:
       type: object
       additionalProperties: false
@@ -1129,17 +1474,56 @@ components:
       properties:
         ownerAccountId: { type: string, format: uuid }
         timezone: { type: string, minLength: 1, maxLength: 64 }
+    NotificationActivityAchievementMilestone:
+      type: object
+      additionalProperties: false
+      required: [days, reachedAt]
+      properties:
+        days: { type: integer, enum: [3, 7] }
+        reachedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+    NotificationActivityAchievementFact:
+      type: object
+      additionalProperties: false
+      required: [distinctDays, longestStreak, firstOccurredAt, streakMilestones]
+      properties:
+        distinctDays: { type: integer, minimum: 0 }
+        longestStreak: { type: integer, minimum: 0 }
+        firstOccurredAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+        streakMilestones:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: "#/components/schemas/NotificationActivityAchievementMilestone"
+    NotificationActivityAchievementFacts:
+      type: object
+      additionalProperties: false
+      required: [ownerAccountId, journal, emotionCheckIn]
+      properties:
+        ownerAccountId: { type: string, format: uuid }
+        journal:
+          $ref: "#/components/schemas/NotificationActivityAchievementFact"
+        emotionCheckIn:
+          $ref: "#/components/schemas/NotificationActivityAchievementFact"
     NotificationActivity:
       type: object
       additionalProperties: false
       required:
-        [asOfLocalDate, timezone, journal, emotionCheckIn, interpretation]
+        [asOfLocalDate, timezone, journal, emotionCheckIn, achievementFacts, interpretation]
       properties:
         asOfLocalDate: { type: string, format: date }
         timezone: { type: string, minLength: 1, maxLength: 64 }
         journal: { $ref: "#/components/schemas/NotificationActivityStreak" }
         emotionCheckIn:
           { $ref: "#/components/schemas/NotificationActivityStreak" }
+        achievementFacts:
+          { $ref: "#/components/schemas/NotificationActivityAchievementFacts" }
         interpretation:
           { type: string, const: FACTUAL_ACTIVITY_NOT_ADHERENCE_OR_RECOVERY }
     EmotionCheckInTombstone:
@@ -1512,7 +1896,7 @@ components:
         providerApprovalVersion: { type: string, minLength: 1, maxLength: 96 }
         provider:
           type: string
-          enum: [DETERMINISTIC_FAKE, GEMINI, OPENAI]
+          enum: [DETERMINISTIC_FAKE, GEMINI, OPENAI, BEDROCK]
         model: { type: string, minLength: 1, maxLength: 128 }
         promptVersion: { type: string, minLength: 1, maxLength: 96 }
         schemaVersion: { type: integer, const: 1 }
@@ -1651,7 +2035,7 @@ components:
         dataCoverage: { $ref: "#/components/schemas/LongitudinalDataCoverage" }
         provider:
           type: string
-          enum: [DETERMINISTIC_FAKE, GEMINI, OPENAI]
+          enum: [DETERMINISTIC_FAKE, GEMINI, OPENAI, BEDROCK]
         model: { type: string, minLength: 1, maxLength: 128 }
         promptVersion: { type: string, const: longitudinal-v1 }
         schemaVersion: { type: integer, const: 1 }

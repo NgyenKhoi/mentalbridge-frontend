@@ -1,8 +1,211 @@
-import { expect } from '@playwright/test'
+import { writeFile } from 'node:fs/promises'
+import { expect, type CDPSession, type Page } from '@playwright/test'
+import type { SupportPlanV3 } from '@/features/support-plan/api/support-plan-contract'
 
 import { test } from './test-fixtures'
 
 const accessCookie = 'mentalbridge_access'
+
+type CompanionIdleSample = Readonly<{
+  windowMs: number
+  taskDurationMs: number
+  scriptDurationMs: number
+  layoutDurationMs: number
+  recalcStyleDurationMs: number
+  frames: number
+  p95FrameIntervalMs: number
+  worstFrameIntervalMs: number
+  droppedFrameIntervals: number
+}>
+
+async function performanceMetrics(session: CDPSession) {
+  const result = await session.send('Performance.getMetrics')
+  return new Map(
+    result.metrics.map((metric) => [metric.name, metric.value] as const),
+  )
+}
+
+async function measureCompanionIdle(
+  page: Page,
+  session: CDPSession,
+  windowMs = 1_200,
+): Promise<CompanionIdleSample> {
+  const before = await performanceMetrics(session)
+  const framePacing = await page.evaluate(async (duration) => {
+    const intervals: number[] = []
+    const startedAt = performance.now()
+    let previous = startedAt
+
+    await new Promise<void>((resolve) => {
+      const sample = (now: number) => {
+        intervals.push(now - previous)
+        previous = now
+        if (now - startedAt >= duration) {
+          resolve()
+          return
+        }
+        requestAnimationFrame(sample)
+      }
+      requestAnimationFrame(sample)
+    })
+
+    const ordered = [...intervals].sort((left, right) => left - right)
+    return {
+      frames: intervals.length,
+      p95FrameIntervalMs:
+        ordered[
+          Math.min(ordered.length - 1, Math.floor(ordered.length * 0.95))
+        ] ?? 0,
+      worstFrameIntervalMs: ordered.at(-1) ?? 0,
+      droppedFrameIntervals: intervals.filter((interval) => interval > 34)
+        .length,
+    }
+  }, windowMs)
+  const after = await performanceMetrics(session)
+  const deltaMilliseconds = (name: string) =>
+    Number(
+      (((after.get(name) ?? 0) - (before.get(name) ?? 0)) * 1_000).toFixed(3),
+    )
+
+  return {
+    windowMs,
+    taskDurationMs: deltaMilliseconds('TaskDuration'),
+    scriptDurationMs: deltaMilliseconds('ScriptDuration'),
+    layoutDurationMs: deltaMilliseconds('LayoutDuration'),
+    recalcStyleDurationMs: deltaMilliseconds('RecalcStyleDuration'),
+    frames: framePacing.frames,
+    p95FrameIntervalMs: Number(framePacing.p95FrameIntervalMs.toFixed(3)),
+    worstFrameIntervalMs: Number(framePacing.worstFrameIntervalMs.toFixed(3)),
+    droppedFrameIntervals: framePacing.droppedFrameIntervals,
+  }
+}
+
+async function measureTransition(action: () => Promise<void>) {
+  const startedAt = performance.now()
+  await action()
+  return Number((performance.now() - startedAt).toFixed(3))
+}
+
+// The entry read identifies the actual legacy resource model. This projection
+// does not manufacture native actions, Emotion evidence, or a converted plan.
+function adapterProjection(value: ReturnType<typeof plan>): SupportPlanV3 {
+  const state = value.status as SupportPlanV3['status']
+  const professional = value.templateFamilies.some((family) =>
+    family.family.endsWith('PROFESSIONAL_ADJUNCT'),
+  )
+  return {
+    supportPlanId: value.supportPlanId,
+    modelVersion: 3,
+    planPolicyVersion: value.source.selectionPolicyVersion,
+    representationMode: 'V2_RESOURCE_ADAPTER',
+    status: state,
+    version: value.version,
+    safety: value.safety as SupportPlanV3['safety'],
+    focuses: [
+      {
+        focusId: 'resource-support',
+        title: 'Nội dung hỗ trợ đã chọn',
+        rationale: value.rationale.text,
+        ordinal: 1,
+        personalizationProvenance: null,
+        actions: value.slots.map((slot, index) => ({
+          actionId: slot.selectedResource.resourceId,
+          actionType: 'RESOURCE',
+          actionVersion: 0,
+          representationMode: 'V2_RESOURCE_ADAPTER',
+          status:
+            state === 'DRAFT'
+              ? 'DRAFT'
+              : ['ACTIVE', 'PAUSED'].includes(state)
+                ? 'ACTIVE'
+                : 'ENDED',
+          pathRole: professional ? 'ADJUNCT' : 'PRIMARY',
+          purposeCode: slot.purposeCode,
+          rationale: null,
+          ordinal: index + 1,
+          source: {
+            ownerDomain: 'CONTENT',
+            sourceKind: 'RESOURCE_VERSION',
+            sourceId: slot.selectedResource.resourceId,
+            sourceRevision: slot.selectedResource.contentVersion,
+            sourcePolicyVersion: null,
+            publicationId: slot.selectedResource.publicationId,
+            eligibilityPolicyVersion:
+              value.source.resourceEligibilityPolicyVersion,
+            verifiedAt: value.source.resourcesResolvedAt,
+          },
+          provenance: {
+            category: 'SYSTEM_POLICY',
+            referenceId: value.source.supportEvaluationId,
+            referenceVersion: '2',
+            acceptedAt: value.createdAt,
+          },
+          presentation: {
+            title: slot.selectedResource.title,
+            summary: slot.selectedResource.summary,
+            instructions: null,
+            externalUrl: slot.selectedResource.externalUrl,
+          },
+          schedules: [],
+          createdAt: value.createdAt,
+          updatedAt: value.updatedAt,
+          activatedAt: value.activatedAt,
+          endedAt: null,
+        })),
+      },
+    ],
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    activatedAt: value.activatedAt,
+    completedAt: value.completedAt,
+    completionReason: value.completionReason,
+    supersededAt: value.supersededAt,
+    discardedAt: value.discardedAt,
+    disclaimerCode: 'WELLBEING_SUPPORT_NOT_TREATMENT',
+    disclaimer: value.disclaimer,
+  }
+}
+
+async function mockEntry(
+  page: Page,
+  current: () => ReturnType<typeof plan> | undefined,
+  draft: () => ReturnType<typeof plan> | undefined,
+  history: () => ReturnType<typeof plan>[] = () => [],
+) {
+  for (const [path, read] of [
+    ['current', current],
+    ['current-draft', draft],
+  ] as const)
+    await page.route(`**/api/care/v2/support-plans/${path}`, (route) => {
+      const value = read()
+      return route.fulfill(
+        value
+          ? { status: 200, json: adapterProjection(value) }
+          : {
+              status: 404,
+              json: {
+                type: '/problems/support-plan-not-found',
+                title: 'Not found',
+                status: 404,
+                code:
+                  path === 'current'
+                    ? 'SUPPORT_PLAN_CURRENT_NOT_FOUND'
+                    : 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+              },
+            },
+      )
+    })
+  await page.route('**/api/care/v2/support-plans/history?*', (route) =>
+    route.fulfill({
+      status: 200,
+      json: {
+        items: history().map(adapterProjection),
+        hasMore: false,
+        nextCursor: null,
+      },
+    }),
+  )
+}
 
 function plan() {
   return {
@@ -100,9 +303,260 @@ test.beforeEach(async ({ context }) => {
   ])
 })
 
-test('MB-373 saves an admitted alternative and reloads the activated current plan', async ({
+test('MB-643 keeps professional support primary and reflects an explicitly requested appointment', async ({
   page,
 }) => {
+  const current = {
+    ...plan(),
+    status: 'ACTIVE',
+    version: 2,
+    activatedAt: '2026-10-11T08:00:00Z',
+    templateFamilies: [
+      {
+        family: 'DEPRESSIVE_PROFESSIONAL_ADJUNCT',
+        templateVersion: 1,
+        targetDomain: 'DEPRESSIVE_SYMPTOMS',
+      },
+    ],
+    slots: plan().slots.map((slot) => ({
+      ...slot,
+      selectedResource: { ...slot.selectedResource, role: 'ADJUNCT' },
+    })),
+  }
+  const actionId = '20000000-0000-4000-8000-000000000643'
+  const specialistId = '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8'
+  const slotId = '43b7dbb4-021e-4c75-ae48-bfa7126c7256'
+  const specialist = {
+    specialistAccountId: specialistId,
+    displayName: 'Chuyên gia An',
+    bio: 'Đồng hành trực tuyến bằng phương pháp hỗ trợ phi lâm sàng.',
+    supportAreas: ['DEPRESSIVE_SYMPTOMS'],
+    languages: ['vi'],
+    yearsOfExperience: 6,
+    timezone: 'Asia/Ho_Chi_Minh',
+    ratingAggregate: null,
+    explanation: {
+      compatibility: 'MATCHED',
+      languageMatched: true,
+      hasSelectableSlot: true,
+      earliestSelectableStartAt: '2099-01-02T02:00:00Z',
+      timezoneMatch: 'EXACT',
+      timezoneOffsetDistanceMinutes: 0,
+      ratingTieBreakerApplied: false,
+      codes: ['SCREENED_SUPPORT_AREA_MATCH', 'SELECTABLE_SLOT_AVAILABLE'],
+    },
+    selectableSlots: [
+      {
+        id: slotId,
+        specialistAccountId: specialistId,
+        startAt: '2099-01-02T02:00:00Z',
+        endAt: '2099-01-02T03:00:00Z',
+        timezone: 'Asia/Ho_Chi_Minh',
+        modality: 'IN_APP_CHAT',
+        version: 2,
+      },
+    ],
+  }
+  let bookingCommands = 0
+  let appointment: Record<string, unknown> | null = null
+  await mockEntry(
+    page,
+    () => current,
+    () => undefined,
+  )
+
+  await page.route('**/api/care/support-plans/current', (route) =>
+    route.fulfill({ status: 200, json: current }),
+  )
+  await page.route('**/api/care/support-plans', (route) =>
+    route.fulfill({
+      status: 404,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        type: '/problems/support-plan-draft-not-found',
+        title: 'Draft not found.',
+        status: 404,
+        code: 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+      }),
+    }),
+  )
+  await page.route('**/api/care/support-plans/history?*', (route) =>
+    route.fulfill({
+      status: 200,
+      json: { items: [], nextCursor: null, hasMore: false },
+    }),
+  )
+  await page.route('**/api/care/support-plan-occurrences?*', (route) =>
+    route.fulfill({
+      status: 200,
+      json: {
+        supportPlanId: current.supportPlanId,
+        supportPlanStatus: current.status,
+        schedulePolicyVersion: 'support-plan-activity-schedule-v1',
+        from: '2026-10-04',
+        through: '2026-10-25',
+        occurrences: [],
+        interpretationCode:
+          'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
+      },
+    }),
+  )
+  await page.route(
+    `**/api/care/support-plans/${current.supportPlanId}/actions`,
+    (route) =>
+      route.fulfill({
+        status: 200,
+        json: {
+          supportPlanId: current.supportPlanId,
+          modelVersion: 3,
+          planPolicyVersion: current.source.selectionPolicyVersion,
+          representationMode: 'V2_RESOURCE_ADAPTER',
+          status: 'ACTIVE',
+          version: 2,
+          safety: current.safety,
+          focuses: [
+            {
+              focusId: 'professional-support',
+              title: 'Hỗ trợ chuyên môn',
+              rationale: 'Kết nối với chuyên gia là hướng hỗ trợ chính.',
+              ordinal: 1,
+              actions: [
+                {
+                  actionId,
+                  actionType: 'PROFESSIONAL_SUPPORT',
+                  actionVersion: 0,
+                  representationMode: 'V2_RESOURCE_ADAPTER',
+                  status: 'ACTIVE',
+                  pathRole: 'PRIMARY',
+                  purposeCode: 'CONNECT_WITH_PROFESSIONAL_SUPPORT',
+                  rationale: 'Kết nối với chuyên gia là hướng hỗ trợ chính.',
+                  ordinal: 1,
+                  source: {
+                    ownerDomain: 'CONSULTATION',
+                    sourceKind: 'PROFESSIONAL_SUPPORT_PATHWAY',
+                    sourceId: 'professional-support-pathway',
+                    sourceRevision: null,
+                    sourcePolicyVersion: current.source.evaluationPolicyVersion,
+                    publicationId: null,
+                    eligibilityPolicyVersion: null,
+                    verifiedAt: current.source.evaluatedAt,
+                  },
+                  provenance: {
+                    category: 'SYSTEM_POLICY',
+                    referenceId: current.source.supportEvaluationId,
+                    referenceVersion: String(current.source.evaluationVersion),
+                    acceptedAt: current.createdAt,
+                  },
+                  presentation: {
+                    title: 'Kết nối với chuyên gia',
+                    summary: 'Hỗ trợ chuyên môn là hướng hỗ trợ chính.',
+                    instructions: null,
+                    externalUrl: null,
+                  },
+                  schedules: [],
+                  createdAt: current.createdAt,
+                  updatedAt: current.updatedAt,
+                  activatedAt: current.activatedAt,
+                  endedAt: null,
+                },
+              ],
+            },
+          ],
+          createdAt: current.createdAt,
+          updatedAt: current.updatedAt,
+          activatedAt: current.activatedAt,
+          completedAt: current.completedAt,
+          completionReason: current.completionReason,
+          supersededAt: current.supersededAt,
+          discardedAt: current.discardedAt,
+          disclaimerCode: current.disclaimerCode,
+          disclaimer: current.disclaimer,
+        },
+      }),
+  )
+  await page.route('**/api/consultation/appointments**', async (route) => {
+    if (route.request().method() === 'POST') {
+      bookingCommands += 1
+      expect(route.request().postDataJSON()).toMatchObject({
+        slotId,
+        modality: 'IN_APP_CHAT',
+        originatingPlanActionId: actionId,
+      })
+      appointment = {
+        id: '30000000-0000-4000-8000-000000000643',
+        originatingPlanActionId: actionId,
+        requestedAt: '2026-10-11T08:30:00Z',
+        status: 'REQUESTED',
+      }
+      await route.fulfill({ status: 201, json: appointment })
+      return
+    }
+    expect(
+      new URL(route.request().url()).searchParams.get(
+        'originatingPlanActionId',
+      ),
+    ).toBe(actionId)
+    await route.fulfill({
+      status: 200,
+      json: {
+        items: appointment ? [appointment] : [],
+        count: appointment ? 1 : 0,
+      },
+    })
+  })
+  await page.route('**/api/consultation/specialists**', (route) => {
+    const detail = new URL(route.request().url()).pathname.endsWith(
+      `/${specialistId}`,
+    )
+    return route.fulfill({
+      status: 200,
+      json: detail
+        ? specialist
+        : {
+            items: [specialist],
+            count: 1,
+            nextCursor: null,
+            rankingPolicyVersion: 'specialist-discovery-v2',
+            generatedAt: '2099-01-01T00:00:00Z',
+            contextState: 'APPLIED',
+            packageCode: 'PLUS',
+            bookingHandoff: 'BOOKING_POLICY_CHECK_REQUIRED',
+            videoEnabled: false,
+          },
+    })
+  })
+
+  await page.goto('/support-plan')
+  await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+  await expect(
+    page.getByText('Hướng hỗ trợ chính', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByText(/không tự đặt lịch hoặc chia sẻ dữ liệu/),
+  ).toBeVisible()
+  expect(bookingCommands).toBe(0)
+
+  await page.getByRole('link', { name: 'Xem chuyên gia và lịch trống' }).click()
+  await expect(page).toHaveURL(new RegExp(`planActionId=${actionId}`))
+  await page.getByRole('button', { name: 'Xem hồ sơ và khung giờ' }).click()
+  await page
+    .getByRole('group', { name: 'Chọn khung giờ 60 phút' })
+    .locator('label')
+    .click()
+  await page.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }).click()
+  await expect(page.getByText('Đã gửi yêu cầu đặt lịch')).toBeVisible()
+  expect(bookingCommands).toBe(1)
+
+  await page.goBack()
+  await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+  await expect(
+    page.getByText(/Yêu cầu đặt lịch đang chờ chuyên gia xác nhận/),
+  ).toBeVisible()
+})
+
+test('MB-373 saves an admitted alternative and reloads the activated current plan', async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 375, height: 667 })
   const draft = plan()
   let persisted = draft
@@ -113,6 +567,11 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   let occurrenceHelpfulness: 'HELPFUL' | null = null
   let occurrenceReflection: string | null = null
   let occurrenceSummaryReuseApproved = false
+  await mockEntry(
+    page,
+    () => (persisted.status === 'ACTIVE' ? persisted : undefined),
+    () => (persisted.status === 'DRAFT' ? persisted : undefined),
+  )
   const today = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
@@ -178,6 +637,20 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     })
   })
   await page.route('**/api/care/support-plans', async (route) => {
+    if (route.request().method() === 'GET' && persisted.status === 'ACTIVE') {
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: '/problems/support-plan-draft-not-found',
+          title: 'Draft not found.',
+          status: 404,
+          code: 'SUPPORT_PLAN_DRAFT_NOT_FOUND',
+          correlationId: '72000000-0000-4000-8000-000000000372',
+        }),
+      })
+      return
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -283,12 +756,295 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     })
   })
 
+  const performanceBudgets = {
+    mobileThrottled: {
+      initialLoadMs: 10_000,
+      transitionMs: 1_500,
+      idleTaskDurationMs: 450,
+      p95FrameIntervalMs: 80,
+      droppedFrameIntervals: 12,
+    },
+    desktop: {
+      initialLoadMs: 5_000,
+      transitionMs: 750,
+      idleTaskDurationMs: 250,
+      p95FrameIntervalMs: 50,
+      droppedFrameIntervals: 8,
+    },
+  } as const
+  const performanceSession = await page.context().newCDPSession(page)
+  await performanceSession.send('Performance.enable')
+  await performanceSession.send('Network.enable')
+  await performanceSession.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+  await performanceSession.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 150,
+    downloadThroughput: 200_000,
+    uploadThroughput: 93_750,
+    connectionType: 'cellular3g',
+  })
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      'mentalbridge_support_plan_companion_muted',
+      'true',
+    )
+  })
+  const mobileLoadStartedAt = performance.now()
   await page.goto('/support-plan')
+  await expect(
+    page.getByRole('heading', {
+      name: 'Hôm nay, mình đi một bước nhỏ',
+      exact: true,
+    }),
+  ).toBeVisible()
+  const mobileInitialLoadMs = Number(
+    (performance.now() - mobileLoadStartedAt).toFixed(3),
+  )
+  const companion = page.getByRole('complementary', {
+    name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+  })
+  await expect(companion).toBeVisible()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Tắt lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'false')
+  expect(await companion.locator('[aria-live]').count()).toBe(0)
+  await companion
+    .getByRole('button', { name: 'Tắt lời nhắc của bạn đồng hành' })
+    .click()
+  await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Bật lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await page.reload()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Bật lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await page.evaluate(() => window.sessionStorage.clear())
+  await page.reload()
+  await expect(
+    companion.getByRole('button', {
+      name: 'Tắt lời nhắc của bạn đồng hành',
+    }),
+  ).toHaveAttribute('aria-pressed', 'false')
+  expect(
+    await page.evaluate(() => {
+      const shell = document.querySelector('.support-plan-companion')
+      const content = document.querySelector('.mb-support-companion-content')
+      return Boolean(
+        shell &&
+        content &&
+        shell.compareDocumentPosition(content) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      )
+    }),
+  ).toBe(true)
+  const companionControls = companion.getByRole('button')
+  expect(await companionControls.count()).toBe(3)
+  expect(
+    await companionControls.evaluateAll((buttons) =>
+      buttons.every((button) => {
+        const rect = button.getBoundingClientRect()
+        return rect.width >= 44 && rect.height >= 44
+      }),
+    ),
+  ).toBe(true)
+  await companion.getByRole('button', { name: 'Thu gọn bạn đồng hành' }).click()
+  await expect(
+    companion.getByRole('button', { name: 'Mở rộng bạn đồng hành' }),
+  ).toHaveAttribute('aria-expanded', 'false')
+  expect(activationCommands).toBe(0)
+  await companion.getByRole('button', { name: 'Mở rộng bạn đồng hành' }).click()
+  await page.evaluate(() => document.fonts.ready)
+  const typography = await page.evaluate(() => ({
+    body: getComputedStyle(
+      document.querySelector<HTMLElement>('.support-plan-page')!,
+    ).fontFamily,
+    heading: getComputedStyle(
+      document.querySelector<HTMLElement>('.support-plan-page h1')!,
+    ).fontFamily,
+  }))
+  expect(typography.body).toContain('Be Vietnam Pro')
+  expect(typography.heading).toContain('Fraunces')
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true)
+  const mobileIdleNormal = await measureCompanionIdle(page, performanceSession)
+  const mobileTransitionMs = await measureTransition(async () => {
+    await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+    await expect(
+      page.getByText('Hướng dẫn an toàn đồng bộ luôn khả dụng.'),
+    ).toBeVisible()
+  })
+  await page.getByRole('tab', { name: 'Hôm nay' }).click()
+  await expect(
+    page.getByRole('heading', {
+      name: 'Hôm nay, mình đi một bước nhỏ',
+      exact: true,
+    }),
+  ).toBeVisible()
+  await page.screenshot({
+    path: 'docs/evidence/mb-648-companion-mobile.png',
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(companion).toHaveAttribute('data-motion', 'reduced')
+  const mobileIdleReduced = await measureCompanionIdle(page, performanceSession)
+  expect(
+    await companion.evaluate(
+      (shell) =>
+        Number.parseFloat(getComputedStyle(shell).transitionDuration) <=
+        0.00001,
+    ),
+  ).toBe(true)
+  await page.screenshot({
+    path: 'docs/evidence/mb-648-companion-reduced-motion.png',
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await performanceSession.send('Emulation.setCPUThrottlingRate', { rate: 1 })
+  await performanceSession.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 0,
+    downloadThroughput: -1,
+    uploadThroughput: -1,
+    connectionType: 'none',
+  })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  const desktopLoadStartedAt = performance.now()
+  await page.reload()
+  await expect(
+    page.getByRole('heading', {
+      name: 'Hôm nay, mình đi một bước nhỏ',
+      exact: true,
+    }),
+  ).toBeVisible()
+  await expect(companion).toBeVisible()
+  const desktopInitialLoadMs = Number(
+    (performance.now() - desktopLoadStartedAt).toFixed(3),
+  )
+  expect(
+    await companion
+      .locator('.support-plan-companion-title')
+      .evaluate((title) => title.scrollWidth <= title.clientWidth),
+  ).toBe(true)
+  const desktopIdleNormal = await measureCompanionIdle(page, performanceSession)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(companion).toHaveAttribute('data-motion', 'reduced')
+  const desktopIdleReduced = await measureCompanionIdle(
+    page,
+    performanceSession,
+  )
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  const desktopTransitionMs = await measureTransition(async () => {
+    await page.getByRole('tab', { name: 'Kế hoạch' }).click()
+    await expect(
+      page.getByText('Hướng dẫn an toàn đồng bộ luôn khả dụng.'),
+    ).toBeVisible()
+  })
+  const performanceEvidence = {
+    evidenceClass: 'fixture-browser',
+    generatedAt: new Date().toISOString(),
+    command:
+      '$env:MB648_WRITE_PERFORMANCE_EVIDENCE="true"; node scripts/run-e2e.mjs tests/e2e/support-plan.spec.ts --workers=1 --reporter=line',
+    measurement: {
+      initialLoad:
+        'wall time from production-route navigation/reload until the primary heading is visible',
+      cpu: 'Chromium Performance.getMetrics duration deltas during a 1200 ms idle window',
+      rendering:
+        'requestAnimationFrame pacing during the same idle window; intervals over 34 ms count as dropped-frame intervals',
+      transition:
+        'wall time from tab activation until destination content is visible',
+    },
+    budgets: performanceBudgets,
+    profiles: {
+      mobileThrottled: {
+        viewport: { width: 375, height: 667 },
+        cpuThrottleRate: 4,
+        network: {
+          latencyMs: 150,
+          downloadKbps: 1_600,
+          uploadKbps: 750,
+        },
+        initialLoadMs: mobileInitialLoadMs,
+        transitionMs: mobileTransitionMs,
+        idleNormal: mobileIdleNormal,
+        idleReducedMotion: mobileIdleReduced,
+      },
+      desktop: {
+        viewport: { width: 1280, height: 900 },
+        cpuThrottleRate: 1,
+        network: 'unthrottled fixture route',
+        initialLoadMs: desktopInitialLoadMs,
+        transitionMs: desktopTransitionMs,
+        idleNormal: desktopIdleNormal,
+        idleReducedMotion: desktopIdleReduced,
+      },
+    },
+  }
+
+  expect(mobileInitialLoadMs).toBeLessThanOrEqual(
+    performanceBudgets.mobileThrottled.initialLoadMs,
+  )
+  expect(mobileTransitionMs).toBeLessThanOrEqual(
+    performanceBudgets.mobileThrottled.transitionMs,
+  )
+  expect(desktopInitialLoadMs).toBeLessThanOrEqual(
+    performanceBudgets.desktop.initialLoadMs,
+  )
+  expect(desktopTransitionMs).toBeLessThanOrEqual(
+    performanceBudgets.desktop.transitionMs,
+  )
+  for (const sample of [mobileIdleNormal, mobileIdleReduced]) {
+    expect(sample.taskDurationMs).toBeLessThanOrEqual(
+      performanceBudgets.mobileThrottled.idleTaskDurationMs,
+    )
+    expect(sample.p95FrameIntervalMs).toBeLessThanOrEqual(
+      performanceBudgets.mobileThrottled.p95FrameIntervalMs,
+    )
+    expect(sample.droppedFrameIntervals).toBeLessThanOrEqual(
+      performanceBudgets.mobileThrottled.droppedFrameIntervals,
+    )
+  }
+  for (const sample of [desktopIdleNormal, desktopIdleReduced]) {
+    expect(sample.taskDurationMs).toBeLessThanOrEqual(
+      performanceBudgets.desktop.idleTaskDurationMs,
+    )
+    expect(sample.p95FrameIntervalMs).toBeLessThanOrEqual(
+      performanceBudgets.desktop.p95FrameIntervalMs,
+    )
+    expect(sample.droppedFrameIntervals).toBeLessThanOrEqual(
+      performanceBudgets.desktop.droppedFrameIntervals,
+    )
+  }
+  await testInfo.attach('mb-648-companion-performance.json', {
+    body: JSON.stringify(performanceEvidence, null, 2),
+    contentType: 'application/json',
+  })
+  if (process.env.MB648_WRITE_PERFORMANCE_EVIDENCE === 'true') {
+    await writeFile(
+      'docs/evidence/mb-648-companion-performance.json',
+      `${JSON.stringify(performanceEvidence, null, 2)}\n`,
+      'utf8',
+    )
+  }
+  await companion.getByRole('button', { name: 'Thu gọn bạn đồng hành' }).click()
+  await expect(companion.locator('.support-plan-companion-mark')).toBeVisible()
+  await companion.getByRole('button', { name: 'Mở rộng bạn đồng hành' }).click()
+  await page.screenshot({
+    path: 'docs/evidence/mb-648-companion-desktop.png',
+    fullPage: true,
+    animations: 'disabled',
+  })
   await expect(
     page.getByText('Hướng dẫn an toàn đồng bộ luôn khả dụng.'),
   ).toBeVisible()
@@ -300,25 +1056,33 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   await expect(page.getByText('Đã lưu lựa chọn của bạn.')).toBeVisible()
   await page.getByRole('button', { name: 'Bắt đầu kế hoạch' }).click()
 
+  await expect(page.getByRole('tab', { name: 'Hôm nay' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  await expect(page.getByText('Hoạt động của tôi')).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: /Hoạt động hôm nay/ }),
+  ).toBeVisible()
+
+  await page.getByRole('tab', { name: 'Kế hoạch' }).click()
   await expect(page.getByText('Kế hoạch đang thực hiện')).toBeVisible()
   await expect(
     page
       .getByRole('region', { name: 'Nội dung kế hoạch hỗ trợ' })
       .getByRole('heading', { name: 'Lựa chọn thay thế đã duyệt' }),
   ).toBeVisible()
-  await expect(page.getByText('Hoạt động của tôi')).toBeVisible()
-  await expect(page.getByText('Asia/Ho_Chi_Minh')).toBeVisible()
-  await page
-    .locator('.support-plan-occurrence')
-    .getByText('Thông tin kỹ thuật')
-    .click()
+  await page.getByRole('tab', { name: 'Hôm nay' }).click()
+  await page.getByText('Chi tiết hoạt động').click()
   await expect(page.getByText(/Phiên bản tài nguyên 2/)).toBeVisible()
   await page.getByRole('button', { name: 'Ghi nhận đã làm' }).click()
   await page.getByLabel(/Hoạt động này hữu ích với bạn/).selectOption('HELPFUL')
   await page
     .getByLabel(/Ghi chú riêng/)
     .fill('Tôi muốn tiếp tục theo nhịp này.')
-  await page.getByRole('checkbox').check()
+  const summaryConsent = page.getByRole('checkbox')
+  await summaryConsent.locator('..').click()
+  await expect(summaryConsent).toBeChecked()
   await page.getByRole('button', { name: 'Lưu tự ghi nhận' }).click()
   await expect(page.getByText('Bạn đã ghi nhận là đã làm')).toBeVisible()
   await expect(page.getByText(/Tôi muốn tiếp tục theo nhịp này/)).toBeVisible()
@@ -330,7 +1094,10 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
 
   await page.setViewportSize({ width: 667, height: 375 })
   await page.reload()
-  await expect(page.getByText('Kế hoạch đang thực hiện')).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Hôm nay' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -344,6 +1111,33 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
 test('MB-373 presents the stable Free entitlement path without a plan', async ({
   page,
 }) => {
+  await mockEntry(
+    page,
+    () => undefined,
+    () => undefined,
+  )
+  await page.route(
+    '**/api/care/v2/support-plans/evaluation-source?*',
+    (route) =>
+      route.fulfill({
+        status: 200,
+        json: {
+          sourceSupportEvaluationId: '20000000-0000-4000-8000-000000000372',
+        },
+      }),
+  )
+  await page.route('**/api/care/v2/support-plans', (route) =>
+    route.fulfill({
+      status: 403,
+      json: {
+        type: '/problems/support-plan-entitlement-required',
+        title: 'Paid entitlement required.',
+        status: 403,
+        code: 'SUPPORT_PLAN_ENTITLEMENT_REQUIRED',
+        correlationId: '70000000-0000-4000-8000-000000000641',
+      },
+    }),
+  )
   await page.route('**/api/care/support-plans/current', async (route) => {
     await route.fulfill({
       status: 404,
@@ -379,7 +1173,10 @@ test('MB-373 presents the stable Free entitlement path without a plan', async ({
   })
 
   await page.goto('/support-plan')
-  await expect(page.getByText(/dành cho gói Plus và Premium/)).toBeVisible()
+  await expect(
+    page.getByText(/Kế hoạch hỗ trợ dài hạn dành cho Plus và Premium/),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Xem kế hoạch được đề xuất' }).click()
   await expect(
     page.getByRole('link', { name: 'Xem gợi ý hỗ trợ' }),
   ).toHaveAttribute('href', '/support-guides')
@@ -398,6 +1195,13 @@ test('MB-374 confirms lifecycle commands and reloads immutable completion histor
   }
   let terminalHistory: ReturnType<typeof plan>[] = []
   const commands: string[] = []
+  await mockEntry(
+    page,
+    () =>
+      ['ACTIVE', 'PAUSED'].includes(persisted.status) ? persisted : undefined,
+    () => undefined,
+    () => terminalHistory,
+  )
 
   await page.route('**/api/care/support-plans/current', async (route) => {
     if (!['ACTIVE', 'PAUSED'].includes(persisted.status)) {
@@ -516,9 +1320,10 @@ test('MB-374 confirms lifecycle commands and reloads immutable completion histor
   ).toBeVisible()
 
   await page.getByRole('button', { name: 'Kết thúc kế hoạch' }).click()
+  await page.getByRole('combobox', { name: 'Lý do (không bắt buộc)' }).click()
   await page
-    .getByLabel('Lý do (không bắt buộc)')
-    .selectOption('PLAN_NO_LONGER_FITS')
+    .getByRole('option', { name: 'Kế hoạch không còn phù hợp', exact: true })
+    .click()
   await page.getByRole('button', { name: 'Xác nhận kết thúc' }).click()
 
   await expect(page.getByText('Đã kết thúc')).toBeVisible()

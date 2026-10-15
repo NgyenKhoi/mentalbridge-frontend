@@ -6,7 +6,14 @@ import type {
   SupportPlanOccurrence,
   SupportPlanOccurrenceList,
   SupportPlanReplacementReview,
+  SupportPlanV3,
+  SupportPlanPersonalization,
+  ReplaceSupportPlanPersonalizationRequest,
 } from '@/features/support-plan/api/support-plan-contract'
+import type {
+  ValidationResult,
+  ValidationViolation,
+} from '@/lib/auth/identity-validation'
 import { isUuid } from './care-validation'
 import { parseReassessmentSummary } from './care-validation'
 
@@ -39,6 +46,155 @@ function localTime(value: unknown): value is string {
   )
 }
 
+const PERSONALIZATION_FOCUSES = [
+  'ANXIETY',
+  'MOOD',
+  'SLEEP',
+  'MOTIVATION',
+  'UNDERSTANDING_EMOTIONS',
+] as const
+const PERSONALIZATION_PACES = ['GENTLE', 'BALANCED', 'ACTIVE'] as const
+const PERSONALIZATION_DAYPARTS = [
+  'MORNING',
+  'AFTERNOON',
+  'EVENING',
+  'FLEXIBLE',
+] as const
+const PERSONALIZATION_MODES = [
+  'READING',
+  'GUIDED_PRACTICE',
+  'JOURNALING',
+  'EMOTION_CHECK_IN',
+  'ROUTINE',
+] as const
+const PERSONALIZATION_BARRIERS = [
+  'LOW_ENERGY',
+  'LIMITED_TIME',
+  'DIFFICULT_TO_START',
+] as const
+
+function isNullableEnum(value: unknown, values: readonly string[]) {
+  return value === undefined || value === null || values.includes(String(value))
+}
+
+function isUniqueEnumArray(
+  value: unknown,
+  values: readonly string[],
+  maxItems: number,
+) {
+  return (
+    Array.isArray(value) &&
+    value.length <= maxItems &&
+    new Set(value).size === value.length &&
+    value.every((item) => typeof item === 'string' && values.includes(item))
+  )
+}
+
+export function validateSupportPlanPersonalizationReplacement(
+  value: unknown,
+): ValidationResult<ReplaceSupportPlanPersonalizationRequest> {
+  if (!object(value)) {
+    return {
+      success: false,
+      violations: [{ field: 'body', code: 'INVALID_TYPE' }],
+    }
+  }
+
+  const violations: ValidationViolation[] = []
+  const allowedKeys = new Set([
+    'preferredFocus',
+    'desiredPace',
+    'dailyTimeBudgetMinutes',
+    'preferredDaypart',
+    'preferredActivityModes',
+    'commonBarriers',
+  ])
+  if (Object.keys(value).some((key) => !allowedKeys.has(key)))
+    violations.push({ field: 'body', code: 'UNKNOWN_FIELD' })
+  if (!isNullableEnum(value.preferredFocus, PERSONALIZATION_FOCUSES))
+    violations.push({ field: 'preferredFocus', code: 'INVALID_VALUE' })
+  if (!isNullableEnum(value.desiredPace, PERSONALIZATION_PACES))
+    violations.push({ field: 'desiredPace', code: 'INVALID_VALUE' })
+  if (
+    value.dailyTimeBudgetMinutes !== undefined &&
+    value.dailyTimeBudgetMinutes !== null &&
+    ![5, 10, 15, 20, 30].includes(Number(value.dailyTimeBudgetMinutes))
+  )
+    violations.push({ field: 'dailyTimeBudgetMinutes', code: 'INVALID_VALUE' })
+  if (!isNullableEnum(value.preferredDaypart, PERSONALIZATION_DAYPARTS))
+    violations.push({ field: 'preferredDaypart', code: 'INVALID_VALUE' })
+  if (
+    !isUniqueEnumArray(value.preferredActivityModes, PERSONALIZATION_MODES, 5)
+  )
+    violations.push({ field: 'preferredActivityModes', code: 'INVALID_VALUE' })
+  if (!isUniqueEnumArray(value.commonBarriers, PERSONALIZATION_BARRIERS, 3))
+    violations.push({ field: 'commonBarriers', code: 'INVALID_VALUE' })
+
+  if (violations.length > 0) return { success: false, violations }
+  return {
+    success: true,
+    value: {
+      preferredFocus: (value.preferredFocus ??
+        null) as ReplaceSupportPlanPersonalizationRequest['preferredFocus'],
+      desiredPace: (value.desiredPace ??
+        null) as ReplaceSupportPlanPersonalizationRequest['desiredPace'],
+      dailyTimeBudgetMinutes: (value.dailyTimeBudgetMinutes ??
+        null) as ReplaceSupportPlanPersonalizationRequest['dailyTimeBudgetMinutes'],
+      preferredDaypart: (value.preferredDaypart ??
+        null) as ReplaceSupportPlanPersonalizationRequest['preferredDaypart'],
+      preferredActivityModes:
+        value.preferredActivityModes as ReplaceSupportPlanPersonalizationRequest['preferredActivityModes'],
+      commonBarriers:
+        value.commonBarriers as ReplaceSupportPlanPersonalizationRequest['commonBarriers'],
+    },
+  }
+}
+
+export function parseSupportPlanPersonalization(
+  value: unknown,
+): SupportPlanPersonalization | null {
+  if (!object(value) || !object(value.planReview)) return null
+  const validId =
+    value.personalizationId === null || isUuid(String(value.personalizationId))
+  const validSubmittedAt =
+    value.submittedAt === null || instant(value.submittedAt)
+  const validPlanId =
+    value.planReview.supportPlanId === null ||
+    isUuid(String(value.planReview.supportPlanId))
+  const validPlanVersion =
+    value.planReview.supportPlanVersion === null ||
+    (Number.isInteger(value.planReview.supportPlanVersion) &&
+      Number(value.planReview.supportPlanVersion) >= 0)
+  const validReviewReason =
+    value.planReview.reasonCode === null ||
+    value.planReview.reasonCode === 'PREFERENCES_CHANGED_AFTER_PLAN_ACTIVATION'
+  if (
+    !validId ||
+    value.schemaVersion !== 'support-plan-personalization-v1' ||
+    !Number.isInteger(value.revision) ||
+    Number(value.revision) < 0 ||
+    !['NOT_PROVIDED', 'PROVIDED', 'SKIPPED'].includes(String(value.status)) ||
+    !isNullableEnum(value.preferredFocus, PERSONALIZATION_FOCUSES) ||
+    !isNullableEnum(value.desiredPace, PERSONALIZATION_PACES) ||
+    (value.dailyTimeBudgetMinutes !== null &&
+      ![5, 10, 15, 20, 30].includes(Number(value.dailyTimeBudgetMinutes))) ||
+    !isNullableEnum(value.preferredDaypart, PERSONALIZATION_DAYPARTS) ||
+    !isUniqueEnumArray(
+      value.preferredActivityModes,
+      PERSONALIZATION_MODES,
+      5,
+    ) ||
+    !isUniqueEnumArray(value.commonBarriers, PERSONALIZATION_BARRIERS, 3) ||
+    !validSubmittedAt ||
+    typeof value.planReview.required !== 'boolean' ||
+    !validPlanId ||
+    !validPlanVersion ||
+    !validReviewReason
+  )
+    return null
+  return value as SupportPlanPersonalization
+}
+
 function resource(value: unknown) {
   if (!object(value)) return false
   return (
@@ -57,6 +213,111 @@ function resource(value: unknown) {
       (typeof value.externalUrl === 'string' &&
         /^https?:\/\//.test(value.externalUrl)))
   )
+}
+
+export function parseSupportPlanV3(value: unknown): SupportPlanV3 | null {
+  if (
+    !object(value) ||
+    !isUuid(String(value.supportPlanId)) ||
+    value.modelVersion !== 3 ||
+    !['V2_RESOURCE_ADAPTER', 'NATIVE_V3'].includes(
+      String(value.representationMode),
+    ) ||
+    ![
+      'DRAFT',
+      'ACTIVE',
+      'PAUSED',
+      'COMPLETED',
+      'SUPERSEDED',
+      'DISCARDED',
+    ].includes(String(value.status)) ||
+    !Number.isInteger(value.version) ||
+    !object(value.safety) ||
+    ![
+      'NEGATIVE_SAFETY_SCREEN',
+      'POSITIVE_SAFETY_SCREEN',
+      'NOT_APPLICABLE',
+    ].includes(String(value.safety.status)) ||
+    !text(value.safety.guidance, 2048) ||
+    !Array.isArray(value.focuses) ||
+    value.focuses.length < 1 ||
+    value.focuses.length > 20
+  )
+    return null
+
+  const validSchedule = (candidate: unknown) => {
+    if (!object(candidate)) return false
+    const days = candidate.daysOfWeek
+    return (
+      isUuid(String(candidate.scheduleId)) &&
+      Number.isInteger(candidate.version) &&
+      Number(candidate.version) >= 1 &&
+      text(candidate.schedulePolicyVersion, 128) &&
+      ['ONCE', 'DAILY', 'WEEKLY'].includes(String(candidate.recurrenceType)) &&
+      (candidate.recurrenceDayOfWeek === null ||
+        (Number.isInteger(candidate.recurrenceDayOfWeek) &&
+          Number(candidate.recurrenceDayOfWeek) >= 1 &&
+          Number(candidate.recurrenceDayOfWeek) <= 7)) &&
+      Array.isArray(days) &&
+      days.length <= 7 &&
+      new Set(days).size === days.length &&
+      days.every(
+        (day) => Number.isInteger(day) && Number(day) >= 1 && Number(day) <= 7,
+      ) &&
+      (candidate.preferredDaypart === null ||
+        ['MORNING', 'AFTERNOON', 'EVENING', 'FLEXIBLE'].includes(
+          String(candidate.preferredDaypart),
+        )) &&
+      (candidate.estimatedDurationMinutes === null ||
+        (Number.isInteger(candidate.estimatedDurationMinutes) &&
+          Number(candidate.estimatedDurationMinutes) >= 5 &&
+          Number(candidate.estimatedDurationMinutes) <= 180 &&
+          Number(candidate.estimatedDurationMinutes) % 5 === 0)) &&
+      typeof candidate.localTime === 'string' &&
+      /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(candidate.localTime) &&
+      text(candidate.timezone, 64) &&
+      typeof candidate.effectiveFrom === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(candidate.effectiveFrom) &&
+      (candidate.effectiveUntil === null ||
+        (typeof candidate.effectiveUntil === 'string' &&
+          /^\d{4}-\d{2}-\d{2}$/.test(candidate.effectiveUntil))) &&
+      typeof candidate.reminderEnabled === 'boolean' &&
+      ['DRAFT', 'ACTIVE', 'PAUSED', 'ENDED'].includes(String(candidate.status))
+    )
+  }
+
+  const validAction = (candidate: unknown) => {
+    if (!object(candidate)) return false
+    return (
+      isUuid(String(candidate.actionId)) &&
+      [
+        'RESOURCE',
+        'JOURNAL',
+        'EMOTION_CHECK_IN',
+        'ROUTINE_SELF_MANAGEMENT',
+        'PROFESSIONAL_SUPPORT',
+        'REASSESSMENT_SCREENING',
+        'SELF_REPORT_REVIEW',
+      ].includes(String(candidate.actionType)) &&
+      ['PRIMARY', 'ADJUNCT'].includes(String(candidate.pathRole)) &&
+      object(candidate.presentation) &&
+      text(candidate.presentation.title, 255) &&
+      Array.isArray(candidate.schedules) &&
+      candidate.schedules.length <= 50 &&
+      candidate.schedules.every(validSchedule)
+    )
+  }
+  const validFocus = (candidate: unknown) => {
+    if (!object(candidate) || !Array.isArray(candidate.actions)) return false
+    return (
+      text(candidate.focusId, 128) &&
+      text(candidate.title, 255) &&
+      candidate.actions.length >= 1 &&
+      candidate.actions.length <= 20 &&
+      candidate.actions.every(validAction)
+    )
+  }
+  return value.focuses.every(validFocus) ? (value as SupportPlanV3) : null
 }
 
 export function parseSupportPlan(value: unknown): SupportPlan | null {

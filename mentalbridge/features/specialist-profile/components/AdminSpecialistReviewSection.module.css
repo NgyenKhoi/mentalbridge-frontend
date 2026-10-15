@@ -24,9 +24,11 @@
 }
 .filters {
   display: flex;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 22px;
+  margin-bottom: 20px;
 }
 .filters button {
   padding: 9px 13px;

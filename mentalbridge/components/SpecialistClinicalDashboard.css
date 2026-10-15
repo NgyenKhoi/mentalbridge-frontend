@@ -1,0 +1,1353 @@
+/* ==========================================================================
+   MentalBridge Specialist Clinical Workspace Dashboard (Design Tokens & CSS)
+   Pixel-perfect match to clinical design specification
+   ========================================================================== */
+
+:root {
+  /* Design Tokens */
+  --clinical-primary: #1F5C3F;
+  --clinical-primary-hover: #184a32;
+  --clinical-mint: #D9F3E4;
+  --clinical-mint-text: #1F5C3F;
+  --clinical-page-bg: #F6F9FC;
+  --clinical-lavender: #EEF2FD;
+  --clinical-lavender-hover: #e2e8f8;
+  --clinical-card-bg: #FFFFFF;
+  
+  --clinical-text-main: #1A1C1E;
+  --clinical-text-sub: #5B6470;
+  --clinical-text-muted: #6B7280;
+  
+  --clinical-badge-peach: #FDE3DF;
+  --clinical-badge-peach-text: #B3402F;
+  --clinical-dot-red: #A8372C;
+  
+  --clinical-radius-xl: 32px;
+  --clinical-radius-lg: 28px;
+  --clinical-radius-md: 24px;
+  --clinical-radius-sm: 20px;
+  --clinical-radius-pill: 999px;
+  
+  --clinical-shadow-soft: 0 4px 24px rgba(20, 40, 60, 0.05);
+  --clinical-shadow-btn: 0 4px 14px rgba(31, 92, 63, 0.25);
+  
+  --clinical-font-serif: var(--font-lora-variable), "Newsreader", "Source Serif 4", Georgia, serif;
+  --clinical-font-sans: var(--font-plus-jakarta), var(--font-be-vietnam-variable), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Page Background & Layout Container */
+.role-specialist {
+  --font-be-vietnam: var(--clinical-font-sans);
+  --font-body: var(--clinical-font-sans);
+  --font-sans: var(--clinical-font-sans);
+  --font-fraunces: var(--clinical-font-serif);
+  --font-heading: var(--clinical-font-serif);
+  --font-display: var(--clinical-font-serif);
+  font-family: var(--clinical-font-sans) !important;
+}
+
+.role-specialist .role-main {
+  background: var(--clinical-page-bg) !important;
+  min-height: 100vh;
+}
+
+.role-specialist .role-content {
+  padding: 28px 28px 60px !important;
+  max-width: 100% !important;
+}
+
+.clinical-dashboard-wrapper {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  font-family: var(--clinical-font-sans);
+  color: var(--clinical-text-main);
+  animation: clinicalFadeIn 0.3s ease-out;
+}
+
+@keyframes clinicalFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   1) TOPBAR (~64px, clean, light)
+   ========================================================================== */
+.role-specialist .role-topbar.role-topbar-specialist {
+  background: #ffffff !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.7) !important;
+  height: 64px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.clinical-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.clinical-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.clinical-breadcrumb-parent {
+  color: var(--clinical-text-muted);
+  font-weight: 500;
+}
+
+.clinical-breadcrumb-sep {
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.clinical-breadcrumb-current {
+  color: var(--clinical-text-main);
+  font-weight: 600;
+}
+
+.clinical-topbar-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  background: var(--clinical-lavender);
+  border-radius: var(--clinical-radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--clinical-primary);
+  white-space: nowrap;
+}
+
+.clinical-topbar-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 0 2.5px rgba(16, 185, 129, 0.25);
+}
+
+.clinical-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.clinical-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.clinical-search-icon {
+  position: absolute;
+  left: 14px;
+  color: #8b96a5;
+  pointer-events: none;
+}
+
+.clinical-search-input {
+  padding: 8px 16px 8px 36px;
+  border-radius: var(--clinical-radius-pill);
+  border: 1px solid transparent;
+  background: var(--clinical-lavender);
+  font-size: 12.5px;
+  color: var(--clinical-text-main);
+  width: 250px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.clinical-search-input::placeholder {
+  color: var(--clinical-text-muted);
+}
+
+.clinical-search-input:focus {
+  background: #ffffff;
+  border-color: rgba(31, 92, 63, 0.4);
+  box-shadow: 0 0 0 3px rgba(31, 92, 63, 0.1);
+  width: 280px;
+}
+
+.clinical-topbar-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: var(--clinical-text-sub);
+  display: grid;
+  place-items: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clinical-topbar-btn:hover {
+  background: var(--clinical-lavender);
+  color: var(--clinical-primary);
+  border-color: #cbd5e1;
+}
+
+.clinical-btn-dot-red {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #EF4444;
+}
+
+.clinical-topbar-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--clinical-primary);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+}
+
+.clinical-topbar-avatar:hover {
+  transform: scale(1.05);
+}
+
+/* ==========================================================================
+   2) HERO BANNER (Gradient #E6EFFA -> #DDF5EA)
+   ========================================================================== */
+.clinical-hero-banner {
+  background: linear-gradient(90deg, #E6EFFA 0%, #DDF5EA 100%);
+  border-radius: var(--clinical-radius-xl);
+  padding: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  box-shadow: 0 2px 14px rgba(20, 40, 60, 0.03);
+}
+
+.clinical-hero-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.clinical-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.clinical-hero-tag-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--clinical-mint);
+  color: var(--clinical-primary);
+  display: grid;
+  place-items: center;
+}
+
+.clinical-hero-tag-text {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--clinical-primary);
+  text-transform: uppercase;
+}
+
+.clinical-hero-title {
+  font-family: var(--clinical-font-serif);
+  font-size: 38px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--clinical-text-main);
+  margin: 0 0 10px 0;
+}
+
+.clinical-hero-desc {
+  font-size: 14px;
+  color: var(--clinical-text-sub);
+  line-height: 1.5;
+  margin: 0;
+  max-width: 580px;
+}
+
+.clinical-hero-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Toggle Pill */
+.clinical-toggle-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border-radius: var(--clinical-radius-pill);
+  padding: 6px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.clinical-toggle-container:hover {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+}
+
+.clinical-toggle-switch {
+  width: 36px;
+  height: 20px;
+  border-radius: var(--clinical-radius-pill);
+  background: var(--clinical-primary);
+  position: relative;
+  transition: background 0.25s ease;
+}
+
+.clinical-toggle-switch.is-off {
+  background: #cbd5e1;
+}
+
+.clinical-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.25s ease;
+}
+
+.clinical-toggle-switch.is-off .clinical-toggle-thumb {
+  transform: translateX(-16px);
+}
+
+.clinical-toggle-text {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--clinical-text-main);
+}
+
+/* Rating & Action Row */
+.clinical-hero-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clinical-rating-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border-radius: var(--clinical-radius-pill);
+  padding: 8px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  font-size: 13px;
+  color: var(--clinical-text-sub);
+}
+
+.clinical-star-red-orange {
+  color: #EA580C;
+  font-size: 14px;
+}
+
+.clinical-rating-score {
+  font-weight: 700;
+  color: var(--clinical-text-main);
+}
+
+.clinical-btn-primary-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: var(--clinical-primary) !important;
+  color: #ffffff !important;
+  border: none;
+  border-radius: var(--clinical-radius-pill);
+  padding: 10px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--clinical-shadow-btn);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clinical-btn-primary-pill *,
+.clinical-btn-primary-pill svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.clinical-btn-primary-pill:hover {
+  background: var(--clinical-primary-hover);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   3) CARD "PHIÊN TIẾP THEO" (Card trắng lớn, thanh nhấn xanh đậm mép phải)
+   ========================================================================== */
+.clinical-session-hero-card {
+  background: var(--clinical-card-bg);
+  border-radius: var(--clinical-radius-xl);
+  padding: 32px;
+  box-shadow: var(--clinical-shadow-soft);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Thanh nhấn dọc xanh đậm bo tròn ở mép phải card */
+.clinical-session-hero-card::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  right: 0;
+  width: 6px;
+  background: var(--clinical-primary);
+  border-radius: 999px 0 0 999px;
+}
+
+.clinical-session-top-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.clinical-session-tags-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.clinical-chip-lavender {
+  background: var(--clinical-lavender);
+  color: var(--clinical-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 6px 14px;
+  border-radius: var(--clinical-radius-pill);
+  text-transform: uppercase;
+}
+
+.clinical-chip-mint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--clinical-mint);
+  color: var(--clinical-primary);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--clinical-radius-pill);
+}
+
+.clinical-countdown-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clinical-text-sub);
+  font-variant-numeric: tabular-nums;
+}
+
+.clinical-session-columns-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(380px, 1.8fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.clinical-session-time-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.clinical-section-kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--clinical-text-muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.clinical-session-clock-display {
+  font-family: var(--clinical-font-serif);
+  font-size: 52px;
+  font-weight: 600;
+  color: var(--clinical-text-main);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 4px 0 8px 0;
+}
+
+.clinical-session-dash {
+  color: #CBD5E1;
+  font-weight: 300;
+  margin: 0 4px;
+}
+
+.clinical-session-subnote {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--clinical-text-sub);
+}
+
+.clinical-session-subnote svg {
+  color: var(--clinical-primary);
+}
+
+/* Panel Thân chủ (Lavender bo 28px) */
+.clinical-client-panel-lavender {
+  background: var(--clinical-lavender);
+  border-radius: var(--clinical-radius-lg);
+  padding: 22px;
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.clinical-client-avatar-round {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.clinical-client-avatar-round-fallback {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #E2E8F0;
+  color: var(--clinical-primary);
+  font-weight: 700;
+  font-size: 22px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.clinical-client-content-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.clinical-client-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.clinical-client-name-bold {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--clinical-text-main);
+}
+
+.clinical-client-round-badge {
+  background: #ffffff;
+  color: var(--clinical-text-sub);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--clinical-radius-pill);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.clinical-client-care-plan {
+  font-size: 12.5px;
+  color: var(--clinical-text-sub);
+  margin: 3px 0 10px 0;
+  line-height: 1.45;
+}
+
+.clinical-client-callout-white {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12px;
+  color: var(--clinical-text-main);
+  line-height: 1.5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+.clinical-client-callout-white svg {
+  flex-shrink: 0;
+  color: var(--clinical-primary);
+  margin-top: 2px;
+}
+
+.clinical-session-bottom-actions {
+  margin-top: 36px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.clinical-btn-video-hero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--clinical-primary) !important;
+  color: #ffffff !important;
+  border: none;
+  border-radius: var(--clinical-radius-pill);
+  height: 50px;
+  padding: 0 24px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--clinical-shadow-btn);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clinical-btn-video-hero *,
+.clinical-btn-video-hero svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.clinical-btn-video-hero:hover {
+  background: var(--clinical-primary-hover);
+  transform: translateY(-1px);
+}
+
+.clinical-btn-secondary-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--clinical-lavender);
+  color: var(--clinical-primary);
+  border: none;
+  border-radius: var(--clinical-radius-pill);
+  height: 50px;
+  padding: 0 22px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.clinical-btn-secondary-pill:hover {
+  background: var(--clinical-lavender-hover);
+}
+
+.clinical-btn-ghost-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: transparent;
+  color: var(--clinical-text-sub);
+  border: none;
+  border-radius: var(--clinical-radius-pill);
+  height: 50px;
+  padding: 0 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clinical-btn-ghost-pill:hover {
+  background: var(--clinical-lavender);
+  color: var(--clinical-text-main);
+}
+
+/* ==========================================================================
+   4) HÀNG 3 CARD (Grid 3 cột, cao bằng nhau ~300px, gap ~24px)
+   ========================================================================== */
+.clinical-grid-three-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.clinical-card-panel {
+  background: var(--clinical-card-bg);
+  border-radius: var(--clinical-radius-md);
+  padding: 24px;
+  min-height: 290px;
+  box-shadow: var(--clinical-shadow-soft);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Card c "Năng lượng chuyên gia" có nền lavender, không viền, không shadow */
+.clinical-card-panel.is-lavender-surface {
+  background: var(--clinical-lavender);
+  box-shadow: none;
+  border: none;
+}
+
+.clinical-card-top-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.clinical-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clinical-card-serif-title {
+  font-family: var(--clinical-font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--clinical-text-main);
+  margin: 0;
+}
+
+.clinical-dot-red-brown {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--clinical-dot-red);
+}
+
+.clinical-badge-pink-peach {
+  background: var(--clinical-badge-peach);
+  color: var(--clinical-badge-peach-text);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--clinical-radius-pill);
+}
+
+.clinical-badge-mint-pill {
+  background: var(--clinical-mint);
+  color: var(--clinical-mint-text);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--clinical-radius-pill);
+}
+
+.clinical-card-sub-metric {
+  font-size: 12px;
+  color: var(--clinical-text-sub);
+  font-weight: 500;
+}
+
+/* Card 1: Hàng chờ */
+.clinical-queue-box-lavender {
+  background: var(--clinical-lavender);
+  border-radius: var(--clinical-radius-sm);
+  padding: 16px;
+  margin: 12px 0 16px 0;
+}
+
+.clinical-queue-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.clinical-queue-client-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--clinical-text-main);
+}
+
+.clinical-queue-timestamp {
+  font-size: 11px;
+  color: var(--clinical-text-muted);
+}
+
+.clinical-queue-quote-text {
+  font-size: 12px;
+  color: var(--clinical-text-sub);
+  line-height: 1.45;
+  font-style: italic;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.clinical-queue-button-row {
+  display: flex;
+  gap: 8px;
+}
+
+.clinical-btn-pill-action-dark {
+  flex: 1;
+  background: var(--clinical-primary) !important;
+  color: #ffffff !important;
+  border: none;
+  border-radius: var(--clinical-radius-pill);
+  padding: 9px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.clinical-btn-pill-action-dark * {
+  color: #ffffff !important;
+}
+
+.clinical-btn-pill-action-dark:hover {
+  background: var(--clinical-primary-hover);
+}
+
+.clinical-btn-pill-action-lavender {
+  background: var(--clinical-lavender);
+  color: var(--clinical-primary);
+  border: none;
+  border-radius: var(--clinical-radius-pill);
+  padding: 9px 18px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.clinical-btn-pill-action-lavender:hover {
+  background: var(--clinical-lavender-hover);
+}
+
+/* Card 2: Lịch trình tuần này */
+.clinical-schedule-tiles-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 14px 0 16px 0;
+}
+
+.clinical-tile-lavender-stat {
+  background: var(--clinical-lavender);
+  border-radius: var(--clinical-radius-sm);
+  padding: 14px 10px;
+  text-align: center;
+}
+
+.clinical-stat-serif-number {
+  font-family: var(--clinical-font-serif);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--clinical-primary);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.clinical-stat-sub-label {
+  font-size: 11px;
+  color: var(--clinical-text-sub);
+  font-weight: 500;
+}
+
+.clinical-bar-track-lavender {
+  height: 8px;
+  background: var(--clinical-lavender);
+  border-radius: var(--clinical-radius-pill);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.clinical-bar-fill-green {
+  height: 100%;
+  background: var(--clinical-primary);
+  border-radius: var(--clinical-radius-pill);
+  transition: width 0.5s ease;
+}
+
+.clinical-card-bottom-footer {
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--clinical-text-muted);
+}
+
+.clinical-link-green-bold {
+  color: var(--clinical-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.clinical-link-green-bold:hover {
+  text-decoration: underline;
+}
+
+/* Card 3: Năng lượng chuyên gia */
+.clinical-energy-narrative {
+  font-size: 12px;
+  color: var(--clinical-text-sub);
+  line-height: 1.55;
+  margin: 10px 0 14px 0;
+}
+
+.clinical-energy-narrative strong {
+  color: var(--clinical-text-main);
+}
+
+.clinical-breath-white-box {
+  background: #ffffff;
+  border-radius: var(--clinical-radius-md);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease;
+}
+
+.clinical-breath-white-box:hover {
+  transform: translateY(-1px);
+}
+
+.clinical-breath-left-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clinical-breath-mint-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--clinical-mint);
+  color: var(--clinical-primary);
+  display: grid;
+  place-items: center;
+}
+
+.clinical-breath-text-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.clinical-breath-main-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--clinical-text-main);
+}
+
+.clinical-breath-sub-status {
+  font-size: 11px;
+  color: var(--clinical-text-muted);
+}
+
+.clinical-play-lavender-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--clinical-lavender);
+  color: var(--clinical-primary);
+  border: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.clinical-play-lavender-btn:hover {
+  background: var(--clinical-lavender-hover);
+}
+
+.clinical-energy-footer-shield {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  font-size: 11.5px;
+  color: var(--clinical-text-sub);
+}
+
+.clinical-energy-footer-shield svg {
+  color: var(--clinical-primary);
+}
+
+/* ==========================================================================
+   5) CARD "LỊCH TRÌNH SẮP TỚI HÔM NAY" (Card trắng lớn)
+   ========================================================================== */
+.clinical-table-card-white {
+  background: var(--clinical-card-bg);
+  border-radius: var(--clinical-radius-xl);
+  padding: 32px;
+  box-shadow: var(--clinical-shadow-soft);
+}
+
+.clinical-table-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.clinical-table-title-serif {
+  font-family: var(--clinical-font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--clinical-text-main);
+  margin: 0 0 4px 0;
+}
+
+.clinical-table-date-subtitle {
+  font-size: 13px;
+  color: var(--clinical-text-sub);
+  margin: 0;
+}
+
+.clinical-sync-status-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clinical-pill-calendar-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--clinical-lavender);
+  padding: 6px 14px;
+  border-radius: var(--clinical-radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--clinical-text-main);
+}
+
+.clinical-dot-calendar-green {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--clinical-primary);
+}
+
+.clinical-btn-icon-refresh {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: var(--clinical-text-sub);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clinical-btn-icon-refresh:hover {
+  color: var(--clinical-primary);
+  border-color: #cbd5e1;
+}
+
+/* Schedule Table */
+.clinical-table-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.clinical-appointments-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.clinical-appointments-table th {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--clinical-text-muted);
+  text-transform: uppercase;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.clinical-appointments-table td {
+  padding: 20px 16px;
+  border-bottom: 1px solid #f8fafc;
+  vertical-align: middle;
+}
+
+.clinical-appointments-table tr:last-child td {
+  border-bottom: none;
+}
+
+.clinical-appointments-table tr:hover td {
+  background: #fafbfc;
+}
+
+.clinical-table-time-text {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--clinical-text-main);
+  white-space: nowrap;
+}
+
+/* Table Channel Chips */
+.clinical-channel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--clinical-radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.clinical-channel-chip.mint {
+  background: var(--clinical-mint);
+  color: var(--clinical-primary);
+}
+
+.clinical-channel-chip.lavender {
+  background: var(--clinical-lavender);
+  color: var(--clinical-text-sub);
+}
+
+/* Table Client Cell */
+.clinical-client-cell-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 190px;
+}
+
+.clinical-client-circle-lavender {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--clinical-lavender);
+  color: var(--clinical-primary);
+  font-weight: 700;
+  font-size: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.clinical-client-meta-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.clinical-client-cell-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--clinical-text-main);
+}
+
+.clinical-client-cell-sub {
+  font-size: 12px;
+  color: var(--clinical-text-sub);
+}
+
+/* Table Status Pill */
+.clinical-status-pill-table {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--clinical-lavender);
+  color: var(--clinical-primary);
+  padding: 5px 12px;
+  border-radius: var(--clinical-radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.clinical-status-pill-table.pending {
+  color: var(--clinical-text-sub);
+}
+
+/* Table Action Buttons */
+.clinical-table-action-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 22px;
+  border-radius: var(--clinical-radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.clinical-table-action-pill.primary {
+  background: var(--clinical-primary) !important;
+  color: #ffffff !important;
+  border: none;
+}
+
+.clinical-table-action-pill.primary * {
+  color: #ffffff !important;
+}
+
+.clinical-table-action-pill.primary:hover {
+  background: var(--clinical-primary-hover);
+}
+
+.clinical-table-action-pill.lavender {
+  background: var(--clinical-lavender);
+  color: var(--clinical-primary);
+  border: none;
+}
+
+.clinical-table-action-pill.lavender:hover {
+  background: var(--clinical-lavender-hover);
+}
+
+/* Table Footer Notice */
+.clinical-table-bottom-notice {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--clinical-text-muted);
+  flex-wrap: wrap;
+}
+
+.clinical-notice-left-hipaa {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN (Desktop ≥ 1024px, Tablet, Mobile)
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .clinical-grid-three-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .clinical-session-columns-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 820px) {
+  .clinical-hero-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 24px;
+  }
+  
+  .clinical-hero-right {
+    align-items: flex-start;
+    width: 100%;
+  }
+  
+  .clinical-hero-controls-row {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .clinical-search-wrapper {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .clinical-grid-three-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .clinical-session-hero-card {
+    padding: 24px 20px;
+  }
+  
+  .clinical-table-card-white {
+    padding: 24px 20px;
+  }
+  
+  .clinical-client-panel-lavender {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .clinical-session-top-strip {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .clinical-session-bottom-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .clinical-session-bottom-actions a {
+    width: 100%;
+    text-align: center;
+  }
+}

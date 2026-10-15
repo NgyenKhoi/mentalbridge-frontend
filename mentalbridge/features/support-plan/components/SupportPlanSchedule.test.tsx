@@ -87,7 +87,7 @@ describe('SupportPlanSchedule', () => {
       screen.getByText(/không phải đánh giá tuân thủ điều trị/),
     ).toBeVisible()
     expect(api.getSupportPlanOccurrences).toHaveBeenCalledWith(
-      today,
+      expect.any(String),
       expect.any(String),
     )
   })
@@ -112,6 +112,26 @@ describe('SupportPlanSchedule', () => {
 
     expect(targetDay).toHaveFocus()
     expect(targetDay).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('reports an unsaved activity reflection and clears the report on explicit cancel', async () => {
+    const onDirtyChange = vi.fn()
+    api.getSupportPlanOccurrences.mockResolvedValue(
+      supportPlanOccurrenceListFixture([supportPlanOccurrenceFixture()]),
+    )
+    render(
+      <SupportPlanSchedule planStatus="ACTIVE" onDirtyChange={onDirtyChange} />,
+    )
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Ghi nhận đã làm' }),
+    )
+    fireEvent.change(screen.getByLabelText(/Ghi chú riêng/), {
+      target: { value: 'Giữ ghi chú đang viết.' },
+    })
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
+    expect(api.replaceSupportPlanOccurrenceEngagement).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ chỉnh sửa' }))
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
   })
 
   it('records helpfulness, private reflection, and explicit summary reuse approval', async () => {

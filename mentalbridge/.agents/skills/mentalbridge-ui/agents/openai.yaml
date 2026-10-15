@@ -1,7 +1,0 @@
-interface:
-  display_name: 'MentalBridge UI delivery'
-  short_description: 'Build and review MentalBridge product UI'
-  default_prompt: 'Use $mentalbridge-ui to implement this frontend experience from repository contracts and local evidence.'
-
-policy:
-  allow_implicit_invocation: true

@@ -1,6 +1,7 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
+import LightSelect from '@/components/LightSelect'
 import {
   blockCommunityProfile,
   hideCommunityContent,
@@ -37,6 +38,7 @@ export default function CommunitySafetyActions({
   communityProfileId: string | null
   onHidden?: () => void
 }>) {
+  const reasonId = useId()
   const [open, setOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [reason, setReason] = useState<ReportReason>('HARASSMENT')
@@ -163,22 +165,22 @@ export default function CommunitySafetyActions({
       </div>
       {open && (
         <div className="community-report-form">
-          <label>
-            Lý do
-            <select
+          <div className="community-report-reason">
+            <label htmlFor={reasonId} id={`${reasonId}-label`}>
+              Lý do
+            </label>
+            <LightSelect
+              id={reasonId}
+              labelledBy={`${reasonId}-label`}
               value={reason}
-              onChange={(event) => {
-                setReason(event.target.value as ReportReason)
+              disabled={busy}
+              onChange={(value) => {
+                setReason(value as ReportReason)
                 command.current = null
               }}
-            >
-              {REASONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              options={[...REASONS]}
+            />
+          </div>
           <label>
             Thông tin thêm (không bắt buộc)
             <textarea

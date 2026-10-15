@@ -230,3 +230,261 @@
 .role-content.role-content-messages{width:100%;height:calc(100dvh - 64px);min-height:0;max-width:none;padding:16px;overflow:hidden}
 @media(max-width:980px){.role-content.role-content-messages{height:calc(100dvh - 64px);padding:12px;overflow:hidden}}
 @media(max-width:640px){.role-content.role-content-messages{padding:0}}
+
+/* ==========================================================================
+   PART 2: SPECIALIST WORKSPACE COLOR HARMONIZATION
+   Applies unified design tokens and styles across Sidebar, Topbar & Shell
+   ========================================================================== */
+.role-specialist {
+  --color-app-bg: #F6F9FC;
+  --color-surface: #FFFFFF;
+  --color-surface-soft: #EEF2FD;
+  --color-primary: #1F5C3F;
+  --color-primary-hover: #184A32;
+  --color-primary-soft: #D9F3E4;
+  --color-border: rgba(26, 28, 30, 0.06);
+  --color-text: #1A1C1E;
+  --color-text-muted: #5B6470;
+  
+  /* Clinical Dashboard (Tổng quan) Typography Tokens */
+  --clinical-font-serif: var(--font-lora-variable), "Newsreader", "Source Serif 4", Georgia, serif;
+  --clinical-font-sans: var(--font-plus-jakarta), var(--font-be-vietnam-variable), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Remap all legacy font variables within the specialist portal */
+  --font-be-vietnam: var(--clinical-font-sans);
+  --font-body: var(--clinical-font-sans);
+  --font-sans: var(--clinical-font-sans);
+  --font-fraunces: var(--clinical-font-serif);
+  --font-heading: var(--clinical-font-serif);
+  --font-display: var(--clinical-font-serif);
+
+  font-family: var(--clinical-font-sans) !important;
+  background: var(--color-app-bg) !important;
+  color: var(--color-text) !important;
+}
+
+.role-specialist,
+.role-specialist .role-sidebar,
+.role-specialist .role-topbar,
+.role-specialist .role-content,
+.role-specialist .role-drawer,
+.role-specialist .role-modal,
+.role-specialist .availability-modal,
+.role-specialist dialog,
+.role-specialist [data-dialog] {
+  font-family: var(--clinical-font-sans) !important;
+}
+
+.role-specialist button,
+.role-specialist input,
+.role-specialist select,
+.role-specialist textarea {
+  font-family: var(--clinical-font-sans) !important;
+}
+
+.role-specialist h1,
+.role-specialist h2,
+.role-specialist h3,
+.role-specialist h4 {
+  font-family: var(--clinical-font-serif);
+}
+
+/* ==========================================================================
+   FORCE WHITE TEXT & ICONS ON ALL PRIMARY / DARK GREEN ELEMENTS
+   ========================================================================== */
+.role-specialist .clinical-btn-video-hero,
+.role-specialist .clinical-btn-video-hero *,
+.role-specialist .clinical-btn-primary-pill,
+.role-specialist .clinical-btn-primary-pill *,
+.role-specialist .clinical-btn-pill-action-dark,
+.role-specialist .clinical-btn-pill-action-dark *,
+.role-specialist .clinical-table-action-pill.primary,
+.role-specialist .clinical-table-action-pill.primary *,
+.role-specialist .role-sidebar nav a.active,
+.role-specialist .role-sidebar nav a.active *,
+.role-specialist .clients-heading-actions a,
+.role-specialist .clients-heading-actions a *,
+.role-specialist .clients-filters button[aria-pressed='true'],
+.role-specialist .clients-filters button[aria-pressed='true'] *,
+.role-specialist .clients-tabs button.is-active,
+.role-specialist .clients-tabs button.is-active *,
+.role-specialist .clients-main-action,
+.role-specialist .clients-main-action *,
+.role-specialist .clients-detail-avatar,
+.role-specialist .clients-detail-avatar *,
+.role-specialist .clients-list > button[aria-pressed='true'] .clients-list-avatar,
+.role-specialist .clients-list > button[aria-pressed='true'] .clients-list-avatar *,
+.role-specialist .clients-banner > span:first-child,
+.role-specialist .clients-banner > span:first-child *,
+.role-specialist .earnings-primary,
+.role-specialist .earnings-primary *,
+.role-specialist .btn-primary,
+.role-specialist .btn-primary *,
+.role-specialist [class*='primaryButton'],
+.role-specialist [class*='primaryButton'] *,
+.role-specialist [class*='btnPrimary'],
+.role-specialist [class*='btnPrimary'] *,
+.role-specialist [class*='btn-primary'],
+.role-specialist [class*='btn-primary'] *,
+.role-specialist [class*='mainAction'],
+.role-specialist [class*='mainAction'] *,
+.role-specialist [class*='dayChipSelected'],
+.role-specialist [class*='dayChipSelected'] *,
+.role-specialist [class*='choiceSelected'],
+.role-specialist [class*='choiceSelected'] *,
+.role-specialist [class*='accept'],
+.role-specialist [class*='accept'] *,
+.role-specialist button[class*='primary'],
+.role-specialist button[class*='primary'] *,
+.role-specialist a[class*='primary'],
+.role-specialist a[class*='primary'] * {
+  color: #ffffff !important;
+}
+
+.role-specialist .clinical-btn-video-hero svg,
+.role-specialist .clinical-btn-video-hero svg *,
+.role-specialist .clinical-btn-primary-pill svg,
+.role-specialist .clinical-btn-primary-pill svg *,
+.role-specialist .clinical-btn-pill-action-dark svg,
+.role-specialist .clinical-btn-pill-action-dark svg *,
+.role-specialist .clinical-table-action-pill.primary svg,
+.role-specialist .clinical-table-action-pill.primary svg *,
+.role-specialist .role-sidebar nav a.active svg,
+.role-specialist .role-sidebar nav a.active svg *,
+.role-specialist .clients-heading-actions a svg,
+.role-specialist .clients-heading-actions a svg *,
+.role-specialist .clients-main-action svg,
+.role-specialist .clients-main-action svg *,
+.role-specialist .btn-primary svg,
+.role-specialist .btn-primary svg *,
+.role-specialist .earnings-primary svg,
+.role-specialist .earnings-primary svg * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Sidebar scoped to specialist */
+.role-specialist .role-sidebar {
+  background: var(--color-app-bg) !important;
+  border-right: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.role-specialist .role-brand {
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+.role-specialist .role-brand-mark {
+  background: var(--color-primary) !important;
+  box-shadow: 0 4px 14px rgba(31, 92, 63, 0.25) !important;
+}
+
+.role-specialist .role-brand strong {
+  color: var(--color-primary) !important;
+}
+
+.role-specialist .role-brand small {
+  color: var(--color-text-muted) !important;
+}
+
+/* Sidebar navigation links */
+.role-specialist .role-sidebar nav {
+  gap: 4px !important;
+}
+
+.role-specialist .role-sidebar nav a {
+  color: var(--color-text-muted) !important;
+  border-radius: 999px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
+.role-specialist .role-sidebar nav a:hover {
+  background: var(--color-surface-soft) !important;
+  color: var(--color-text) !important;
+  transform: none !important;
+}
+
+/* Active navigation link: Solid primary green pill #1F5C3F with white text & icon */
+.role-specialist .role-sidebar nav a.active {
+  background: var(--color-primary) !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  box-shadow: 0 2px 10px rgba(31, 92, 63, 0.22) !important;
+}
+
+.role-specialist .role-sidebar nav a.active .role-nav-icon,
+.role-specialist .role-sidebar nav a.active .role-nav-label {
+  color: #FFFFFF !important;
+}
+
+.role-specialist .role-sidebar nav a.active .role-active-pill {
+  display: none !important;
+}
+
+/* User profile card at bottom of sidebar */
+.role-specialist .role-user {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 20px rgba(20, 40, 60, 0.04) !important;
+}
+
+.role-specialist .role-user>span:first-child {
+  background: var(--color-primary) !important;
+  color: #FFFFFF !important;
+}
+
+.role-specialist .role-user strong {
+  color: var(--color-text) !important;
+}
+
+.role-specialist .role-user small {
+  color: var(--color-text-muted) !important;
+}
+
+/* Collapse button */
+.role-specialist .role-collapse {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-primary) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+.role-specialist .role-collapse:hover {
+  border-color: var(--color-primary) !important;
+}
+
+/* Topbar */
+.role-specialist .role-topbar {
+  background: var(--color-app-bg) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  backdrop-filter: none !important;
+}
+
+/* Sidebar Footer */
+.role-sidebar-foot {
+  margin-top: auto;
+  padding: 8px 12px 14px;
+}
+
+.sidebar-collapsed .role-sidebar-foot {
+  padding: 8px 10px 14px;
+}
+
+.role-specialist .role-sidebar-foot [class*="SessionActions_trigger"] {
+  border-radius: 16px !important;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: 0 3px 14px rgba(20, 40, 60, 0.04) !important;
+  transition: all 0.2s ease !important;
+}
+
+.role-specialist .role-sidebar-foot [class*="SessionActions_trigger"]:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 18px rgba(20, 40, 60, 0.08) !important;
+}
+

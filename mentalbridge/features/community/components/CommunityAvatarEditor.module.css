@@ -1,0 +1,174 @@
+.region {
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--line);
+}
+.region h2 {
+  margin: 0;
+  font-family: var(--font-body), sans-serif;
+  font-size: 1rem;
+  font-weight: 650;
+}
+.region p {
+  margin-top: var(--space-2);
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+.picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+.frame {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  overflow: hidden;
+}
+.frame > div {
+  width: 100%;
+  height: 100%;
+  flex-basis: 100%;
+  font-size: 1.5rem;
+}
+.frame :global(.community-avatar) svg {
+  width: 40px;
+  height: 40px;
+}
+.frame > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.pickerActions {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.region button,
+.actions button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 10px var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+.region button:hover:not(:disabled),
+.actions button:hover:not(:disabled) {
+  background: var(--teal-pale);
+}
+.region button:active:not(:disabled),
+.actions button:active:not(:disabled) {
+  transform: scale(var(--motion-scale-enter));
+}
+.region button:focus-visible,
+.actions button:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 3px;
+}
+.region button:disabled,
+.actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.pickerActions .remove {
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  text-decoration: underline;
+}
+.stage {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+}
+.stage strong {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.region button.primary,
+.actions button.primary {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  color: var(--primary-foreground);
+}
+.region button.primary:hover:not(:disabled),
+.actions button.primary:hover:not(:disabled) {
+  background: var(--teal);
+}
+.region .error,
+.error {
+  margin-top: var(--space-3);
+  color: var(--ink);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+.region .status {
+  min-height: 20px;
+  margin-top: var(--space-3);
+  font-size: 0.8125rem;
+}
+.dialog h2 {
+  font-family: var(--font-body), sans-serif;
+  font-size: 1.25rem;
+  margin-bottom: var(--space-3);
+}
+.dialog > div {
+  padding: var(--space-6);
+}
+.dialog p {
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+@media (max-width: 760px) {
+  .picker {
+    gap: var(--space-4);
+    align-items: flex-start;
+  }
+  .frame {
+    width: 80px;
+    height: 80px;
+  }
+  .pickerActions button {
+    padding-inline: var(--space-3);
+  }
+  .actions button {
+    flex: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .region button,
+  .actions button {
+    transition: none;
+    transform: none !important;
+  }
+}

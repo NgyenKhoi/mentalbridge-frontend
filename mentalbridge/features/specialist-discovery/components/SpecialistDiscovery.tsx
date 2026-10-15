@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BadgeCheck } from 'lucide-react'
 import { Dialog } from '@/components/ui/Dialog'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -13,6 +14,7 @@ import type {
   SpecialistDiscoveryPage,
 } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
+import type { VerifiedCredentialBadge } from '@/features/specialist-profile/api/credential-validation'
 import {
   specialistDiscoveryBrowserClient,
   type DiscoveryFilters,
@@ -23,7 +25,7 @@ const supportAreaLabels = {
   DEPRESSIVE_SYMPTOMS: 'Khí sắc và trầm buồn',
   ANXIETY_SYMPTOMS: 'Lo âu',
 } as const
-const languageLabels = { vi: 'Tiếng Việt', en: 'English' } as const
+const languageLabels = { vi: 'Tiếng Việt', en: 'English', zh: '中文', fr: 'Français' } as const
 const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
 function initials(name: string) {
@@ -146,6 +148,7 @@ function bookingError(error: unknown) {
 
 type DetailDialogProps = Readonly<{
   item: SpecialistDiscoveryItem | null
+  badges: VerifiedCredentialBadge[]
   loading: boolean
   error: string
   open: boolean
@@ -153,10 +156,12 @@ type DetailDialogProps = Readonly<{
   onClose: () => void
   onRetry: () => void
   onBooked: () => void
+  originatingPlanActionId: string | null
 }>
 
 function DetailDialog({
   item,
+  badges,
   loading,
   error,
   open,
@@ -164,6 +169,7 @@ function DetailDialog({
   onClose,
   onRetry,
   onBooked,
+  originatingPlanActionId,
 }: DetailDialogProps) {
   const { showActionToast } = useFeedback()
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
@@ -178,11 +184,23 @@ function DetailDialog({
     setSubmitting(true)
     setBookingMessage('')
     try {
-      await appointmentBrowserClient.request(
-        slot.id,
-        slot.modality,
-        `appointment-${crypto.randomUUID()}`,
-      )
+      const commandKey = `appointment-${crypto.randomUUID()}`
+      if (originatingPlanActionId) {
+        await appointmentBrowserClient.request(
+          slot.id,
+          slot.modality,
+          commandKey,
+          undefined,
+          undefined,
+          originatingPlanActionId,
+        )
+      } else {
+        await appointmentBrowserClient.request(
+          slot.id,
+          slot.modality,
+          commandKey,
+        )
+      }
       showActionToast({
         title: 'Đã gửi yêu cầu đặt lịch',
         description: 'Chuyên gia sẽ xác nhận yêu cầu của bạn.',
@@ -271,6 +289,9 @@ function DetailDialog({
               </div>
             </dl>
           )}
+          {badges.length > 0 && <div className={styles.verifiedBadges} aria-label="Giấy tờ đã xác minh">
+            {badges.map((badge, index) => <span key={`${badge.title}-${index}`}><BadgeCheck aria-hidden="true" /> {badge.title}</span>)}
+          </div>}
           <p className={styles.profileNote}>
             Hỗ trợ phi lâm sàng, không thay thế chẩn đoán hay điều trị y tế.
           </p>
@@ -421,6 +442,26 @@ function DetailDialog({
 }
 
 export default function SpecialistDiscovery() {
+  const [originatingPlanActionId, setOriginatingPlanActionId] = useState<
+    string | null
+  >(null)
+  useEffect(() => {
+    const hydrationTimer = window.setTimeout(() => {
+      const candidate = new URLSearchParams(window.location.search).get(
+        'planActionId',
+      )
+      setOriginatingPlanActionId(
+        candidate &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            candidate,
+          )
+          ? candidate
+          : null,
+      )
+    }, 0)
+
+    return () => window.clearTimeout(hydrationTimer)
+  }, [])
   const [supportArea, setSupportArea] = useState<
     DiscoveryFilters['supportArea'] | ''
   >('')
@@ -438,6 +479,7 @@ export default function SpecialistDiscovery() {
   const [error, setError] = useState('')
   const [detailId, setDetailId] = useState<string | null>(null)
   const [detail, setDetail] = useState<SpecialistDiscoveryItem | null>(null)
+  const [detailBadges, setDetailBadges] = useState<VerifiedCredentialBadge[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
 
@@ -489,14 +531,18 @@ export default function SpecialistDiscovery() {
       setDetailLoading(true)
       setDetailError('')
       setDetail(null)
+      setDetailBadges([])
       try {
-        setDetail(
-          await specialistDiscoveryBrowserClient.detail(id, {
+        const [profile, badges] = await Promise.all([
+          specialistDiscoveryBrowserClient.detail(id, {
             ...(language ? { language } : {}),
             ...(modality ? { modality } : {}),
             timezone,
           }),
-        )
+          specialistDiscoveryBrowserClient.badges(id).catch(() => []),
+        ])
+        setDetail(profile)
+        setDetailBadges(badges)
       } catch (caught) {
         if (caught instanceof ApiError && caught.status === 404)
           setDetailError(
@@ -576,6 +622,8 @@ export default function SpecialistDiscovery() {
             <option value="">Không ưu tiên</option>
             <option value="vi">Tiếng Việt</option>
             <option value="en">English</option>
+            <option value="zh">中文</option>
+            <option value="fr">Français</option>
           </select>
         </label>
         <div className={styles.controlGroup}>
@@ -752,16 +800,19 @@ export default function SpecialistDiscovery() {
         key={detailId ?? 'closed'}
         open={detailId !== null}
         item={detail}
+        badges={detailBadges}
         loading={detailLoading}
         error={detailError}
         packageCode={page?.packageCode ?? null}
         onClose={() => {
           setDetailId(null)
           setDetail(null)
+          setDetailBadges([])
           setDetailError('')
         }}
         onRetry={() => detailId && void loadDetail(detailId)}
         onBooked={() => void booked()}
+        originatingPlanActionId={originatingPlanActionId}
       />
     </main>
   )

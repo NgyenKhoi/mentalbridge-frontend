@@ -1,5 +1,6 @@
 /* ── Container ── */
 .card {
+  scroll-margin-top: 120px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -10,6 +11,40 @@
   font-family: inherit;
   height: 100%;
   box-sizing: border-box;
+}
+
+.planContext {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+.planContext p + p {
+  margin-top: var(--space-2);
+}
+.planContext strong {
+  color: var(--ink);
+}
+.planContext [tabindex]:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+.planReturn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: var(--space-2);
+  color: var(--teal-deep);
+  font-weight: 600;
+  text-decoration: underline;
+}
+.planReturn:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
 }
 
 .header {
@@ -46,6 +81,134 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.contextDisclosure {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.contextDisclosure summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--teal-deep);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.contextDisclosure summary:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+.contextBody {
+  display: grid;
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.contextPrivacy,
+.factorHint {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.factorFieldset {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.factorFieldset legend,
+.noteField > span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.factorHint {
+  margin-top: 3px;
+}
+
+.factorGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.factorChip {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.factorChip:has(input:focus-visible) {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.factorChip:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.factorChip input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+}
+
+.factorSelected {
+  border-color: var(--teal-deep);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.noteField {
+  display: grid;
+  gap: 7px;
+}
+
+.noteField textarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+
+.noteField textarea:focus-visible {
+  border-color: var(--teal-deep);
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.noteField small {
+  color: var(--ink-soft);
+  font-size: 11px;
+  justify-self: end;
 }
 
 /* ── 5 Emoji emotion selector ── */
@@ -146,6 +309,19 @@
   gap: 8px;
 }
 
+.intensityNote,
+.unsaved {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.unsaved {
+  color: #8a5a20;
+  font-weight: 650;
+}
+
 .intensityTitle {
   color: var(--ink);
   font-size: 13.5px;
@@ -226,6 +402,26 @@
   cursor: not-allowed;
 }
 
+.deleteBtn {
+  padding: 8px 12px;
+  border: 1px solid rgba(174, 54, 54, 0.35);
+  border-radius: 9px;
+  background: transparent;
+  color: #9a2f2f;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: rgba(174, 54, 54, 0.08);
+}
+
+.deleteBtn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .journalLink {
   display: inline-flex;
   align-items: center;
@@ -292,56 +488,6 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-}
-
-/* ── Influence section ── */
-.influenceSection {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.influenceTitle {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0;
-}
-
-.optionalTag {
-  color: var(--ink-soft);
-  font-weight: 400;
-  font-size: 12px;
-}
-
-.chipList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.chip {
-  padding: 6px 13px;
-  border: 1px solid rgba(30, 74, 67, 0.12);
-  border-radius: 9px;
-  background: #f4f2ec;
-  color: var(--ink);
-  font-size: 12.5px;
-  font-weight: 550;
-  cursor: pointer;
-  transition: all 0.16s ease;
-  line-height: 1.2;
-}
-
-.chip:hover {
-  border-color: rgba(30, 74, 67, 0.28);
-  background: #e8ecdf;
-}
-
-.chipSelected {
-  background: var(--teal-deep) !important;
-  border-color: var(--teal-deep) !important;
-  color: #ffffff !important;
 }
 
 /* ── Comparison section ── */

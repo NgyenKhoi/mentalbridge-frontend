@@ -526,6 +526,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/consultation-briefs/{appointmentId}/ai-draft-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request an optional AI suggestion for the exact current private draft
+         * @description Care resolves the exact saved draft and minimized screening context. Journal/AI rechecks current AI_PROCESSING consent and the approved provider route. The job cannot save, approve, share, or change the ConsultationBrief.
+         */
+        post: operations["createConsultationBriefAiDraftJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}/ai-draft-jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one owned AI draft job and its editable suggestion */
+        get: operations["getOwnConsultationBriefAiDraftJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/consultation-briefs/{appointmentId}": {
         parameters: {
             query?: never;
@@ -707,6 +744,8 @@ export interface paths {
          * @description Returns the persisted draft snapshot without re-running entitlement or
          *     resource-provider decisions. The response retains the exact rationale,
          *     choices, source versions, and safety copy used when Care created it.
+         *     The bounded system-copy encoding erratum described by SupportPlan
+         *     corrects only the two known malformed Vietnamese display literals.
          */
         get: operations["getOwnCurrentSupportPlanDraft"];
         put?: never;
@@ -821,7 +860,9 @@ export interface paths {
          * @description The authenticated user explicitly activates the owned draft. Care
          *     immediately revalidates current paid entitlement, SupportEvaluation,
          *     template policy, every selected exact resource version and eligibility
-         *     role before opening the local transaction. The normal command also
+         *     role before opening the local transaction. A draft pinned to an older
+         *     personalization revision must be explicitly discarded and regenerated
+         *     before activation; Care never rewrites it silently. The normal command also
          *     applies to safety-positive users and accepts no safety acknowledgement field.
          */
         post: operations["activateOwnSupportPlan"];
@@ -1000,6 +1041,402 @@ export interface paths {
          *     production retention duration is claimed.
          */
         delete: operations["deleteOwnSupportPlanOccurrenceEngagement"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the current SupportPlan through the v3 action model
+         * @description Returns the authenticated user's active or paused plan as Care-owned
+         *     focuses, typed actions, and schedules. Native v3 rows are marked
+         *     NATIVE_V3. Existing v2 resource-slot history is translated at read time
+         *     and marked V2_RESOURCE_ADAPTER; the adapter does not rewrite v2 rows or
+         *     manufacture native action history. Source-domain payloads are never
+         *     copied into this representation.
+         */
+        get: operations["getOwnCurrentSupportPlanV3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/current-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the current draft through the v3 action model
+         * @description Returns the authenticated user's current draft, including reviewable
+         *     schedule defaults. A default is not activated until the user explicitly
+         *     activates the draft. Existing v2 resource slots are projected without
+         *     rewriting their selection history.
+         */
+        get: operations["getOwnCurrentDraftSupportPlanV3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/actions/{actionId}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Explicitly replace or remove one action schedule
+         * @description Replaces one reviewable draft or active action schedule under strong
+         *     plan-version and idempotency checks. A null schedule removes future
+         *     workload. Changes never alter action eligibility and never classify a
+         *     lower cadence, later time, pause, or removal as failure. For an active
+         *     plan, the replacement starts no earlier than tomorrow in its requested
+         *     timezone and deterministically cancels superseded future occurrences.
+         */
+        put: operations["replaceOwnPlanActionSchedule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one owned SupportPlan through the v3 action model
+         * @description Returns one immutable owner-scoped plan snapshot in any lifecycle state.
+         *     V2_RESOURCE_ADAPTER identifies a non-destructive projection of the
+         *     existing resource-slot model. NATIVE_V3 identifies canonical PlanAction
+         *     storage. Neither representation transfers ownership of referenced facts
+         *     from Content, Journal AI, Consultation, or Care screening.
+         */
+        get: operations["getOwnSupportPlanV3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose a new native Care-admitted action plan without converting v2 history
+         * @description Uses the exact owned guided screening evaluation, current paid entitlement,
+         *     approved resource admission and immutable personalization revision. Saved
+         *     EMOTION_CHECK_IN and JOURNALING activity-mode intents admit one optional
+         *     action of each corresponding type under support-plan-journal-actions-v1.
+         *     Actions have bounded purposes and reviewable budget-sharing schedule
+         *     defaults. Private Journal content and Emotion values never select actions.
+         *     Previously saved Emotion-policy plans retain their original action intent.
+         *     Required professional-support paths remain primary.
+         *     No existing v2 plan is converted, backfilled or mutated. An existing current
+         *     plan requires the separate reassessment-backed replacement command; the
+         *     draft alone never changes it. An incompatible existing draft must be
+         *     explicitly discarded before a new native proposal can be created.
+         */
+        post: operations["proposeNativeSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read bounded immutable terminal plan history in the v3 action projection
+         * @description Includes native plans and explicit v2 adapters without rewriting either.
+         *     Same owner-only newest-updated cursor order as legacy plan history.
+         *     Historical source facts are not re-queried or recomposed.
+         */
+        get: operations["listOwnSupportPlanActionHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly activate one native draft after fresh Care admission checks
+         * @description Revalidates paid entitlement, exact screening context, policy, admitted
+         *     resource versions and snapshotted explicit Journal/Emotion intent outside local
+         *     locks. The owner transaction rechecks the draft version and preferences,
+         *     activates the plan/actions and cadence atomically, and records retry
+         *     identity in the existing command ledger. No second current plan is allowed.
+         */
+        post: operations["activateNativeSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Explicitly pause, resume, complete or discard one native plan
+         * @description Same Care-owned lifecycle rules as v2 history. No Journal/Emotion evidence changes
+         *     plan lifecycle. Natural identical-state retries preserve version. Completing
+         *     or pausing cancels only governed future open occurrences, preserving facts.
+         *     DISCARDED is draft-only; ACTIVE resumes a PAUSED plan, not draft activation.
+         */
+        put: operations["changeNativeSupportPlanStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/replacement-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review an explicit native alternative against the current plan and latest reassessment
+         * @description Read-only review with fresh paid entitlement, current screening compatibility
+         *     and exact Content admission. Requires the latest owned canonical reassessment
+         *     with the same PHQ-9/GAD-7 pair as the proposed native draft. Existing current
+         *     v2 state is projected without conversion. A new explicit Journal/Emotion intent is an
+         *     admitted alternative, not a better clinical outcome. Four reassessment
+         *     dimensions remain separate; no automatic plan change occurs.
+         */
+        post: operations["reviewNativeSupportPlanReplacement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Atomically accept an explicitly reviewed native replacement
+         * @description Repeats all replacement-review checks outside local locks then rechecks
+         *     current/draft validators in one owner transaction. Supersedes the old plan,
+         *     cancels only its future open occurrences and activates the NEW native draft,
+         *     its actions and schedules with an immutable command-ledger audit relation.
+         *     Old v2 rows/identities/history are retained, not converted or dual-written.
+         *     An unchanged action intent cannot replace the current valid plan. Identical
+         *     command retries do not create another activation or completion fact.
+         */
+        post: operations["replaceWithNativeSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List v3 action occurrences for a bounded local-date window
+         * @description Returns at most 31 local days from the authenticated user's current plan.
+         *     An occurrence links to its action and schedule without embedding source
+         *     payloads. Care orchestration state is separate from optional bounded
+         *     completion evidence owned by Care, Journal AI, or Consultation. An open
+         *     past occurrence may be displayed as OVERDUE but is never rewritten as a
+         *     failed or skipped outcome.
+         */
+        get: operations["listOwnPlanActionOccurrences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Explicitly acknowledge a manual action or skip/reopen a native occurrence
+         * @description USER-owned native action only, with a strong occurrence version validator.
+         *     COMPLETED is permitted only for RESOURCE or ROUTINE_SELF_MANAGEMENT and
+         *     records a Care USER_ACKNOWLEDGEMENT fact; opening content is never completion.
+         *     EMOTION_CHECK_IN and JOURNAL may be SKIPPED or reopened from a user skip,
+         *     never manually completed. Accepted completion evidence cannot be erased or
+         *     reopened by this command. Cancelled, future local days, inactive plans/actions
+         *     and incompatible types fail closed. Identical desired-state retries preserve
+         *     version/history; no source-owner payload, eligibility or plan lifecycle changes.
+         */
+        put: operations["changeOwnNativeActionOccurrenceState"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/emotion-check-in/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile one native emotion action against its owner's check-in fact
+         * @description Explicit USER command with no request body or caller-supplied fact identity.
+         *     Care resolves the owned native EMOTION_CHECK_IN occurrence's local date,
+         *     timezone and action source, then reads the minimized Journal/AI evidence
+         *     outside any database transaction. Subject, local date, frozen timezone and
+         *     action/source authority must match before locked acceptance. One fact can
+         *     complete only one occurrence. Identical retries preserve accepted evidence,
+         *     completion time and version without another event or idempotency ledger.
+         *     MISSING and DELETED never create completion. A later deletion does not erase
+         *     an already accepted historical fact: sourceState and occurrenceState remain
+         *     separate. Dependency uncertainty returns 503, never false absence or success.
+         *     No emotion value, intensity, factor, note, interpretation or AI output enters
+         *     Care. This command does not create actions or change plan eligibility/lifecycle.
+         */
+        post: operations["reconcileOwnEmotionCheckInOccurrence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/journal/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile a Journal writing action with an exact owned saved entry
+         * @description Explicit USER command. journalId selects a candidate, never asserts completion.
+         *     Care resolves the owned native JOURNAL action and occurrence, closes the
+         *     read transaction, then reads Journal/AI's content-free creation fact with
+         *     the verified owner bearer. Locked acceptance checks subject, exact entry,
+         *     action/source link, occurrence local date in its schedule timezone, and
+         *     creation at or after plan/action activation. Completion uses the server
+         *     creation instant, not the user-selected Journal date or an edit timestamp.
+         *     One entry creation fact may satisfy only one occurrence; repeats preserve
+         *     accepted evidence, completion time, version and the one minimized event.
+         *     MISSING and DELETED never create completion or erase accepted history.
+         *     Once completed, another entry cannot replace the accepted reference.
+         *     Dependency uncertainty returns 503 rather than absence or success.
+         *     No text, preview, tags, mood, AI reflection or analysis enters Care.
+         *     This does not grant AI-processing, specialist sharing or reflection reuse,
+         *     change plan lifecycle, or describe writing as recovery/treatment adherence.
+         */
+        post: operations["reconcileOwnJournalOccurrence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-personalization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the authenticated user's current SupportPlan preferences
+         * @description Returns the latest immutable Care-owned preference revision. Existing
+         *     users without a saved revision receive NOT_PROVIDED at revision zero.
+         *     The fields describe practical preferences only; they are not symptoms,
+         *     diagnoses, screening evidence, or permission to bypass Care policy.
+         */
+        get: operations["getOwnSupportPlanPersonalization"];
+        /**
+         * Replace the authenticated user's bounded SupportPlan preferences
+         * @description Writes a new immutable revision only when the replacement differs from
+         *     the current value. Revision zero creates the first saved value. Empty
+         *     optional fields explicitly record SKIPPED. Saving preferences never
+         *     mutates an active or paused plan; planReview identifies the explicit
+         *     review path when the current plan used another preference revision.
+         */
+        put: operations["replaceOwnSupportPlanPersonalization"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1258,6 +1695,50 @@ export interface components {
         ConsultationBriefScreeningContextList: {
             items: components["schemas"]["ConsultationBriefScreeningContextChoice"][];
             count: number;
+        };
+        ConsultationBriefAiDraftJob: {
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            consultationBriefId: string;
+            /** Format: int64 */
+            consultationBriefVersion: number;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** @constant */
+            sourceSetVersion: "consultation-brief-ai-source-v1";
+            /** @enum {string} */
+            status: "RUNNING" | "SUCCEEDED" | "FAILED";
+            attemptCount: number;
+            /** @enum {string|null} */
+            terminalReason: "CONSENT_REQUIRED" | "AUTHORIZATION_REJECTED" | "SOURCE_CHANGED" | "SOURCE_DELETED" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | null;
+            currentSituation: string | null;
+            userGoals: null | string[];
+            consentPolicyVersion: string | null;
+            /** @enum {string|null} */
+            servicePlan: "FREE" | "PLUS" | "PREMIUM" | null;
+            /** @enum {string|null} */
+            entitlementSource: "DEFAULT_FREE" | "DEMO" | "PAID" | null;
+            entitlementPolicyVersion: string | null;
+            /** Format: int64 */
+            entitlementVersion: number | null;
+            routingPolicyVersion: string | null;
+            providerApprovalVersion: string | null;
+            /** @enum {string|null} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK" | null;
+            model: string | null;
+            /** @enum {string|null} */
+            promptVersion: "consultation-brief-draft-v1" | null;
+            /** @enum {integer|null} */
+            schemaVersion: 1 | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
         };
         SpecialistConsultationBrief: {
             /** Format: uuid */
@@ -1681,7 +2162,7 @@ export interface components {
              */
             consentType: "AI_PROCESSING";
             /** @constant */
-            policyVersion: "ai-processing-capstone-v1";
+            policyVersion: "ai-processing-capstone-v2";
             granted: boolean;
         };
         ConsentDecision: {
@@ -1722,7 +2203,7 @@ export interface components {
             /** @constant */
             consentType: "AI_PROCESSING";
             /** @constant */
-            version: "ai-processing-capstone-v1";
+            version: "ai-processing-capstone-v2";
             /** @constant */
             locale: "vi-VN";
             title: string;
@@ -2086,6 +2567,14 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        /**
+         * @description Persisted owner snapshot. Under mb-support-plan-selection-v1, reads
+         *     present the two exact known malformed system-generated rationale and
+         *     negative-screen STANDARD_SAFETY_REMINDER literals with their original
+         *     Vietnamese characters restored. This encoding erratum changes no stored
+         *     text, identity, version, policy/source provenance, lifecycle, or safety
+         *     decision; all other copy remains unchanged.
+         */
         SupportPlan: {
             /** Format: uuid */
             supportPlanId: string;
@@ -2198,6 +2687,351 @@ export interface components {
             /** Format: uri */
             externalUrl?: string | null;
         };
+        ReplaceSupportPlanPersonalizationRequest: {
+            /**
+             * @description Optional non-diagnostic area the user wants to work on.
+             * @enum {string|null}
+             */
+            preferredFocus?: "ANXIETY" | "MOOD" | "SLEEP" | "MOTIVATION" | "UNDERSTANDING_EMOTIONS" | null;
+            /** @enum {string|null} */
+            desiredPace?: "GENTLE" | "BALANCED" | "ACTIVE" | null;
+            /** @enum {integer|null} */
+            dailyTimeBudgetMinutes?: 5 | 10 | 15 | 20 | 30 | null;
+            /** @enum {string|null} */
+            preferredDaypart?: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            preferredActivityModes: ("READING" | "GUIDED_PRACTICE" | "JOURNALING" | "EMOTION_CHECK_IN" | "ROUTINE")[];
+            commonBarriers: ("LOW_ENERGY" | "LIMITED_TIME" | "DIFFICULT_TO_START")[];
+        };
+        SupportPlanPersonalization: {
+            /** Format: uuid */
+            personalizationId: string | null;
+            /** @constant */
+            schemaVersion: "support-plan-personalization-v1";
+            revision: number;
+            /** @enum {string} */
+            status: "NOT_PROVIDED" | "PROVIDED" | "SKIPPED";
+            /**
+             * @description Optional non-diagnostic area the user wants to work on.
+             * @enum {string|null}
+             */
+            preferredFocus?: "ANXIETY" | "MOOD" | "SLEEP" | "MOTIVATION" | "UNDERSTANDING_EMOTIONS" | null;
+            /** @enum {string|null} */
+            desiredPace?: "GENTLE" | "BALANCED" | "ACTIVE" | null;
+            /** @enum {integer|null} */
+            dailyTimeBudgetMinutes?: 5 | 10 | 15 | 20 | 30 | null;
+            /** @enum {string|null} */
+            preferredDaypart?: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            preferredActivityModes: ("READING" | "GUIDED_PRACTICE" | "JOURNALING" | "EMOTION_CHECK_IN" | "ROUTINE")[];
+            commonBarriers: ("LOW_ENERGY" | "LIMITED_TIME" | "DIFFICULT_TO_START")[];
+            /** Format: date-time */
+            submittedAt: string | null;
+            planReview: components["schemas"]["SupportPlanPersonalizationReview"];
+        };
+        /** @description A true value asks the user to explicitly review/change the current plan; it never mutates it. */
+        SupportPlanPersonalizationReview: {
+            required: boolean;
+            /** Format: uuid */
+            supportPlanId: string | null;
+            supportPlanVersion: number | null;
+            /** @enum {string|null} */
+            reasonCode: "PREFERENCES_CHANGED_AFTER_DRAFT_CREATION" | "PREFERENCES_CHANGED_AFTER_PLAN_ACTIVATION" | null;
+        };
+        FocusPersonalizationProvenance: {
+            /** Format: uuid */
+            personalizationId: string;
+            revision: number;
+            /** @constant */
+            schemaVersion: "support-plan-personalization-v1";
+            /** @constant */
+            reasonCode: "USER_PREFERENCE_AND_CARE_POLICY";
+        };
+        /**
+         * @description Canonical v3 representation. V2_RESOURCE_ADAPTER retains the bounded
+         *     system-copy display encoding erratum described by SupportPlan without
+         *     rewriting the v2 snapshot. Native v3 authored copy is not decoded.
+         */
+        SupportPlanV3: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @constant */
+            modelVersion: 3;
+            /** @description Native v3 policy version or the exact v2 selection policy exposed by the adapter. */
+            planPolicyVersion: string;
+            /**
+             * @description Identifies a non-destructive v2 read projection or canonical v3 storage.
+             * @enum {string}
+             */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED" | "SUPERSEDED" | "DISCARDED";
+            version: number;
+            safety: components["schemas"]["SupportPlanSafety"];
+            focuses: components["schemas"]["PlanFocus"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            activatedAt: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            /**
+             * @description Optional user-selected plan reason; never evidence of recovery.
+             * @enum {string|null}
+             */
+            completionReason: "USER_DECISION" | "PLAN_NO_LONGER_FITS" | "OTHER" | null;
+            /** Format: date-time */
+            supersededAt: string | null;
+            /** Format: date-time */
+            discardedAt: string | null;
+            /** @constant */
+            disclaimerCode: "WELLBEING_SUPPORT_NOT_TREATMENT";
+            disclaimer: string;
+        };
+        PlanFocus: {
+            /** @description Native identity or stable virtual identity when adapted from v2. */
+            focusId: string;
+            title: string;
+            rationale: string | null;
+            /** @description Exact preference revision that shaped this focus; null for deterministic fallback focuses. */
+            personalizationProvenance: components["schemas"]["FocusPersonalizationProvenance"] | null;
+            ordinal: number;
+            actions: components["schemas"]["PlanAction"][];
+        };
+        PlanAction: {
+            /** @description Native identity, existing v2 slot identity, or a stable deterministic virtual identity produced by the read adapter. */
+            actionId: string;
+            /** @enum {string} */
+            actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+            actionVersion: number;
+            /** @enum {string} */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "ENDED";
+            /**
+             * @description PRIMARY is the recommended path; ADJUNCT complements it and never replaces professional support. In a native focus, a non-ended PROFESSIONAL_SUPPORT action is primary and its sibling actions are adjunct; without that context actions are primary. purposeCode is never used to classify this role.
+             * @enum {string}
+             */
+            pathRole: "PRIMARY" | "ADJUNCT";
+            purposeCode: string;
+            rationale: string | null;
+            ordinal: number;
+            /** @description Null only when the Care-owned action has no source-domain object. */
+            source: components["schemas"]["ActionSourceReference"] | null;
+            provenance: components["schemas"]["ActionProvenance"];
+            presentation: components["schemas"]["ActionPresentationMetadata"];
+            /** @description Versioned current and ended rules; occurrence history is read separately. */
+            schedules: components["schemas"]["ActionSchedule"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            activatedAt: string | null;
+            /** Format: date-time */
+            endedAt: string | null;
+        } & (unknown & unknown & unknown & unknown & unknown & unknown);
+        ActionSourceReference: {
+            /** @enum {string} */
+            ownerDomain: "CONTENT" | "JOURNAL_AI" | "CONSULTATION" | "CARE";
+            /** @enum {string} */
+            sourceKind: "RESOURCE_VERSION" | "JOURNAL_TEMPLATE" | "EMOTION_CHECK_IN_CAPABILITY" | "PROFESSIONAL_SUPPORT_PATHWAY" | "APPOINTMENT" | "QUESTIONNAIRE_DEFINITION";
+            /** @description Opaque owner-domain identifier; it does not contain source payload data. */
+            sourceId: string;
+            sourceRevision: string | null;
+            sourcePolicyVersion: string | null;
+            /** Format: uuid */
+            publicationId: string | null;
+            eligibilityPolicyVersion: string | null;
+            /** Format: date-time */
+            verifiedAt: string | null;
+        } & (unknown & unknown & unknown & unknown & unknown);
+        ActionProvenance: {
+            /** @enum {string} */
+            category: "USER_SELECTED" | "SUPPORT_GUIDE" | "SPECIALIST" | "SYSTEM_POLICY";
+            referenceId: string | null;
+            referenceVersion: string | null;
+            /** Format: date-time */
+            acceptedAt: string;
+        } & ({
+            referenceId?: null;
+            referenceVersion?: null;
+        } | {
+            referenceId?: string;
+            referenceVersion?: string;
+        });
+        ActionPresentationMetadata: {
+            title: string;
+            summary: string | null;
+            instructions: string | null;
+            /**
+             * Format: uri
+             * @description Optional reviewed navigation target; visiting it never proves completion.
+             */
+            externalUrl: string | null;
+        };
+        ActionSchedule: {
+            /** Format: uuid */
+            scheduleId: string;
+            version: number;
+            schedulePolicyVersion: string;
+            /** @enum {string} */
+            recurrenceType: "ONCE" | "DAILY" | "WEEKLY";
+            recurrenceDayOfWeek: number | null;
+            daysOfWeek: number[];
+            /** @enum {string|null} */
+            preferredDaypart: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            estimatedDurationMinutes: number | null;
+            /** Format: time */
+            localTime: string;
+            timezone: string;
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveUntil: string | null;
+            reminderEnabled: boolean;
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "PAUSED" | "ENDED";
+        };
+        UpdateActionScheduleRequest: {
+            /** @description Null removes future workload without marking non-completion or failure. */
+            schedule: components["schemas"]["ActionScheduleInput"] | null;
+        };
+        ActionScheduleInput: {
+            /** @enum {string} */
+            recurrenceType: "ONCE" | "DAILY" | "WEEKLY";
+            /** @description Required and non-empty for WEEKLY; empty for ONCE and DAILY. */
+            daysOfWeek: number[];
+            /**
+             * @description Null means the user chose an exact local time instead of a daypart default.
+             * @enum {string|null}
+             */
+            preferredDaypart: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            /** Format: time */
+            localTime: string;
+            estimatedDurationMinutes: number;
+            timezone: string;
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveUntil: string | null;
+            reminderEnabled: boolean;
+        };
+        NativeSupportPlanReplacementReview: {
+            /** @enum {string} */
+            outcome: "CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE" | "CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE" | "CURRENT_PLAN_NOT_ADMISSIBLE";
+            rationaleCodes: string[];
+            currentPlan: components["schemas"]["SupportPlanV3"];
+            proposedPlan: components["schemas"]["SupportPlanV3"];
+            reassessmentSummary: components["schemas"]["ReassessmentSummary"];
+            /** Format: date-time */
+            reviewedAt: string;
+        };
+        EmotionCheckInOccurrenceReconciliation: {
+            /** @constant */
+            schemaVersion: "emotion-check-in-occurrence-reconciliation-v1";
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: uuid */
+            actionId: string;
+            /** Format: date */
+            localDate: string;
+            /** @enum {string} */
+            sourceState: "RECORDED" | "MISSING" | "DELETED";
+            /** @enum {string} */
+            occurrenceState: "SCHEDULED" | "COMPLETED";
+            version: number;
+            /** Format: date-time */
+            completedAt: string | null;
+            completionEvidence: null | (components["schemas"]["CompletionEvidence"] & {
+                /** @constant */
+                kind?: "EMOTION_CHECK_IN";
+                /** @constant */
+                ownerDomain?: "JOURNAL_AI";
+            });
+        } & (unknown & unknown);
+        JournalOccurrenceReconciliation: {
+            /** @constant */
+            schemaVersion: "journal-entry-occurrence-reconciliation-v1";
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: uuid */
+            actionId: string;
+            /** Format: date */
+            localDate: string;
+            /** Format: uuid */
+            journalId: string;
+            /** @enum {string} */
+            sourceState: "RECORDED" | "MISSING" | "DELETED";
+            /** @enum {string} */
+            occurrenceState: "SCHEDULED" | "COMPLETED";
+            version: number;
+            /** Format: date-time */
+            completedAt: string | null;
+            completionEvidence: null | (components["schemas"]["CompletionEvidence"] & {
+                /** @constant */
+                kind?: "JOURNAL_ENTRY";
+                /** @constant */
+                ownerDomain?: "JOURNAL_AI";
+            });
+        } & (unknown & unknown);
+        ActionOccurrenceList: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @enum {string} */
+            supportPlanStatus: "ACTIVE" | "PAUSED";
+            /** @enum {string} */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            through: string;
+            occurrences: components["schemas"]["ActionOccurrence"][];
+            /** @constant */
+            interpretationCode: "SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE";
+        };
+        ActionOccurrence: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** @description Native action identity or existing v2 slot identity from the adapter. */
+            actionId: string;
+            /** @enum {string} */
+            actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+            actionVersion: number;
+            /** Format: uuid */
+            scheduleId: string;
+            scheduleVersion: number;
+            /** @enum {string} */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            version: number;
+            /** Format: date */
+            localDate: string;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            state: "SCHEDULED" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+            /** @enum {string} */
+            displayState: "SCHEDULED" | "OVERDUE" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+            /** @enum {string|null} */
+            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | "ACTION_ENDED" | "SCHEDULE_CHANGED" | null;
+            /** @description Null unless completion is backed by a bounded Care or owner-domain fact. */
+            completionEvidence: components["schemas"]["CompletionEvidence"] | null;
+            /** Format: date-time */
+            outcomeRecordedAt: string | null;
+        } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
+        CompletionEvidence: {
+            /** @enum {string} */
+            kind: "USER_ACKNOWLEDGEMENT" | "JOURNAL_ENTRY" | "EMOTION_CHECK_IN" | "APPOINTMENT_FULFILMENT" | "ASSESSMENT_HISTORY" | "SELF_REPORT_REVIEW";
+            /** @enum {string} */
+            ownerDomain: "CARE" | "JOURNAL_AI" | "CONSULTATION";
+            /** @description Opaque authoritative fact identifier; never a copied source payload. */
+            factId: string;
+            factRevision: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        } & (unknown & unknown & unknown);
         ChangeSupportPlanOccurrenceStateRequest: {
             /** @enum {string} */
             state: "COMPLETED" | "SKIPPED";
@@ -2562,7 +3396,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The activation command reuses a key differently, targets a non-draft, conflicts with another current plan, or fails current policy or eligibility */
+        /** @description The activation command reuses a key differently, targets a non-draft, conflicts with another current plan, uses a stale personalization revision (SUPPORT_PLAN_PERSONALIZATION_REVIEW_REQUIRED), or fails current policy or eligibility */
         SupportPlanActivationConflictProblem: {
             headers: {
                 [name: string]: unknown;
@@ -2580,8 +3414,26 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description If-Match does not equal the current preference revision (SUPPORT_PLAN_PERSONALIZATION_VERSION_MISMATCH) */
+        SupportPlanPersonalizationVersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description The requested lifecycle transition is invalid, reassessment is stale or uses different screening evidence, or replacement is unchanged (SUPPORT_PLAN_TRANSITION_INVALID, REASSESSMENT_SUMMARY_STALE, REASSESSMENT_SCREENING_CONTEXT_MISMATCH, or SUPPORT_PLAN_REPLACEMENT_UNCHANGED) */
         SupportPlanLifecycleConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The command reuses an idempotency key differently, targets a non-mutable plan or action, or requests recurrence for a review-only action (IDEMPOTENCY_KEY_REUSED, SUPPORT_PLAN_SCHEDULE_NOT_MUTABLE, PLAN_ACTION_SCHEDULE_NOT_MUTABLE, or PLAN_ACTION_UNSCHEDULABLE) */
+        SupportPlanScheduleConflictProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2698,6 +3550,7 @@ export interface components {
         AppointmentId: string;
         SupportEvaluationId: string;
         SupportPlanId: string;
+        PlanActionId: string;
         OccurrenceId: string;
         SessionId: string;
         Instrument: components["schemas"]["Instrument"];
@@ -2722,6 +3575,8 @@ export interface components {
     headers: {
         /** @description Strong ETag containing the Care-owned draft version */
         SupportPlanETag: string;
+        /** @description Strong ETag containing the current preference revision; zero means no saved revision */
+        SupportPlanPersonalizationETag: string;
     };
     pathItems: never;
 }
@@ -3583,6 +4438,71 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
         };
     };
+    createConsultationBriefAiDraftJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versioned asynchronous draft job accepted or replayed */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefAiDraftJob"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    getOwnConsultationBriefAiDraftJob: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current private job state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefAiDraftJob"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
     getOwnConsultationBrief: {
         parameters: {
             query?: never;
@@ -4296,6 +5216,586 @@ export interface operations {
             404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
             409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
             412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    getOwnCurrentSupportPlanV3: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current SupportPlan v3 read model */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    getOwnCurrentDraftSupportPlanV3: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current draft SupportPlan v3 read model */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanDraftNotFoundProblem"];
+        };
+    };
+    replaceOwnPlanActionSchedule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+                actionId: components["parameters"]["PlanActionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateActionScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated authoritative SupportPlan v3 read model or identical retry result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanScheduleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
+    getOwnSupportPlanV3: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned SupportPlan v3 read model */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+        };
+    };
+    proposeNativeSupportPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    sourceSupportEvaluationId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description New or replayed native draft with admitted actions and safe cadence */
+            201: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanEligibilityProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    listOwnSupportPlanActionHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned bounded terminal history across both supported models */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["SupportPlanV3"][];
+                        nextCursor: string | null;
+                        hasMore: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    activateNativeSupportPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activated native plan or unchanged command replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanActivationConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    changeNativeSupportPlanStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSupportPlanStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Native plan after explicit lifecycle command or unchanged retry */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanLifecycleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
+    reviewNativeSupportPlanReplacement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceCurrentSupportPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Governed review outcome with current/proposed action models and separate reassessment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeSupportPlanReplacementReview"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanEligibilityProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    replaceWithNativeSupportPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceCurrentSupportPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Activated native replacement or unchanged command replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanEligibilityProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    listOwnPlanActionOccurrences: {
+        parameters: {
+            query: {
+                from: string;
+                through: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded occurrence window for the current SupportPlan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOccurrenceList"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    changeOwnNativeActionOccurrenceState: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    state: "SCHEDULED" | "COMPLETED" | "SKIPPED";
+                };
+            };
+        };
+        responses: {
+            /** @description Authoritative native action occurrence after explicit state command or unchanged retry */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOccurrence"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    reconcileOwnEmotionCheckInOccurrence: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative source state and the persisted occurrence outcome */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckInOccurrenceReconciliation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Unsupported action, inactive plan, non-open occurrence, mismatched local date/timezone or evidence already used */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Emotion evidence owner unavailable or its projection invalid; no completion is recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reconcileOwnJournalOccurrence: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    journalId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Current Journal source state and persisted occurrence outcome */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalOccurrenceReconciliation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Unsupported/inactive action, non-open/future occurrence, writing date/activation mismatch, stale link or conflicting/used evidence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Journal evidence owner unavailable or invalid; no completion recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getOwnSupportPlanPersonalization: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current preference revision or deterministic not-provided fallback */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanPersonalizationETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanPersonalization"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    replaceOwnSupportPlanPersonalization: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceSupportPlanPersonalizationRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted current preference revision */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanPersonalizationETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanPersonalization"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            412: components["responses"]["SupportPlanPersonalizationVersionProblem"];
         };
     };
     createAnonymousAssessmentSession: {

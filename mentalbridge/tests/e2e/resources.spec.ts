@@ -51,9 +51,13 @@ test.describe('Resources journey', () => {
     page,
   }) => {
     const consoleErrors: string[] = []
+    const pageErrors: string[] = []
+    page.on('pageerror', (error) => pageErrors.push(error.message))
     page.on('console', (message) => {
       const sourceUrl = message.location().url
-      const expectedFixtureMiss = sourceUrl.endsWith('/api/care/profile')
+      const expectedFixtureMiss =
+        sourceUrl.endsWith('/api/care/profile') ||
+        sourceUrl.includes('/api/emotion-check-ins/')
       if (message.type() === 'error' && !expectedFixtureMiss)
         consoleErrors.push(`${sourceUrl}: ${message.text()}`)
     })
@@ -67,7 +71,19 @@ test.describe('Resources journey', () => {
         sameSite: 'Lax',
       },
     ])
+    await context.route('**/iframe_api', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript',
+        body: 'window.YT = window.YT || {};',
+      })
+    })
     const resourceId = '00000000-0000-4000-8000-000000000213'
+    const overviewResourceId = '00000000-0000-4000-8000-000000000215'
+    let overviewSaved = false
+    const savedBookmarks = new Set<string>()
+    let bingoSelfConfirmed = false
+    let bingoVersion = 0
     const catalogue = [
       {
         id: resourceId,
@@ -80,9 +96,112 @@ test.describe('Resources journey', () => {
         status: 'PUBLISHED',
         createdAt: '2026-09-23T00:00:00.000Z',
       },
+      {
+        id: '00000000-0000-4000-8000-000000000214',
+        category: 'ARTICLE',
+        locale: 'vi-VN',
+        title: 'Một khoảng nghỉ cho tâm trí',
+        summary: 'Những gợi ý ngắn để chậm lại giữa một ngày nhiều suy nghĩ.',
+        status: 'PUBLISHED',
+        createdAt: '2026-09-23T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000215',
+        category: 'BREATHING',
+        locale: 'vi-VN',
+        title: 'Nhịp thở 4–4–6',
+        summary: 'Một bài thực hành dịu dàng để đưa sự chú ý về hiện tại.',
+        status: 'PUBLISHED',
+        createdAt: '2026-09-23T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000216',
+        category: 'JOURNALING',
+        locale: 'vi-VN',
+        title: 'Ba dòng cho hôm nay',
+        summary: 'Ghi lại điều đang hiện diện bằng một nhịp thật vừa sức.',
+        status: 'PUBLISHED',
+        createdAt: '2026-09-23T00:00:00.000Z',
+      },
     ]
     await context.route('**/api/resources**', async (route) => {
       const requestUrl = new URL(route.request().url())
+      if (requestUrl.pathname === '/api/resources/bookmarks') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            items: [...savedBookmarks].map((savedResourceId) => ({
+              resourceId: savedResourceId,
+              contentVersion: '4',
+              savedAt: '2026-10-11T02:00:00.000Z',
+              version: '0',
+            })),
+          }),
+        })
+        return
+      }
+      if (requestUrl.pathname.startsWith('/api/resources/bookmarks/')) {
+        const savedResourceId = requestUrl.pathname.split('/').at(-1)!
+        if (route.request().method() === 'DELETE') {
+          savedBookmarks.delete(savedResourceId)
+          await route.fulfill({ status: 204 })
+        } else {
+          savedBookmarks.add(savedResourceId)
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              resourceId: savedResourceId,
+              contentVersion: '4',
+              savedAt: '2026-10-11T02:00:00.000Z',
+              version: '0',
+            }),
+          })
+        }
+        return
+      }
+      if (requestUrl.pathname.startsWith('/api/resources/bingo/')) {
+        if (route.request().method() === 'PUT') {
+          const update = route.request().postDataJSON() as {
+            selfConfirmed: boolean
+          }
+          bingoSelfConfirmed = update.selfConfirmed
+          bingoVersion += 1
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { ETag: `"${bingoVersion}"` },
+          body: JSON.stringify({
+            weekStart: '2026-09-28',
+            timeZone: 'Asia/Ho_Chi_Minh',
+            version: String(bingoVersion),
+            updatedAt: '2026-10-11T02:00:00.000Z',
+            items: [
+              {
+                position: 1,
+                resourceId: overviewResourceId,
+                contentVersion: '4',
+                label: catalogue[2].title,
+                evidence: overviewSaved
+                  ? 'CONTENT_VERIFIED'
+                  : bingoSelfConfirmed
+                    ? 'SELF_CONFIRMED'
+                    : 'NONE',
+                selfConfirmedAt: bingoSelfConfirmed
+                  ? '2026-10-11T02:00:00.000Z'
+                  : null,
+                verifiedAt: overviewSaved ? '2026-10-11T02:00:00.000Z' : null,
+                verificationSource: overviewSaved
+                  ? 'RESOURCE_COMPLETION'
+                  : null,
+              },
+            ],
+          }),
+        })
+        return
+      }
       if (requestUrl.pathname === '/api/resources/journey') {
         const date = requestUrl.searchParams.get('date') ?? '2026-09-29'
         await route.fulfill({
@@ -93,29 +212,25 @@ test.describe('Resources journey', () => {
             localDate: date,
             planId: '00000000-0000-4000-8000-000000000302',
             planVersion: 1,
-            items: [
-              {
-                position: 1,
-                resource: catalogue[0],
-                reason: 'PLAN_SELECTED',
-              },
-            ],
+            items: catalogue.map((resource, index) => ({
+              position: index + 1,
+              resource,
+              reason: 'PLAN_SELECTED',
+            })),
             progress: {
-              dailyCompleted: 0,
-              dailyTotal: 1,
+              dailyCompleted: overviewSaved ? 1 : 0,
+              dailyTotal: catalogue.length,
               learningCompleted: 0,
-              learningTotal: 1,
-              practiceStreakDays: 0,
+              learningTotal: catalogue.length,
+              practiceStreakDays: overviewSaved ? 1 : 0,
             },
             weekStart: '2026-09-28',
-            bingo: [
-              {
-                position: 1,
-                resourceId,
-                label: catalogue[0].title,
-                stamped: false,
-              },
-            ],
+            bingo: catalogue.map((resource, index) => ({
+              position: index + 1,
+              resourceId: resource.id,
+              label: resource.title,
+              stamped: overviewSaved && resource.id === overviewResourceId,
+            })),
           }),
         })
         return
@@ -124,27 +239,49 @@ test.describe('Resources journey', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ items: [] }),
+          body: JSON.stringify({
+            items: overviewSaved
+              ? [
+                  {
+                    resourceId: overviewResourceId,
+                    localDate: '2026-10-11',
+                    contentVersion: '4',
+                    status: 'COMPLETED',
+                    completedActionIds: ['overview-complete'],
+                    completedAt: '2026-10-11T02:00:00.000Z',
+                    updatedAt: '2026-10-11T02:00:00.000Z',
+                    version: '1',
+                  },
+                ]
+              : [],
+          }),
         })
         return
       }
       if (requestUrl.pathname.startsWith('/api/resources/progress/')) {
         const parts = requestUrl.pathname.split('/')
+        const savedResourceId = parts.at(-2) ?? resourceId
         const body = route.request().postDataJSON() as {
           status: 'IN_PROGRESS' | 'COMPLETED'
           completedActionIds: string[]
+        }
+        if (
+          savedResourceId === overviewResourceId &&
+          body.status === 'COMPLETED'
+        ) {
+          overviewSaved = true
         }
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            resourceId,
+            resourceId: savedResourceId,
             localDate: parts.at(-1),
             contentVersion: '4',
             ...body,
             completedAt:
-              body.status === 'COMPLETED' ? '2026-09-29T02:00:00.000Z' : null,
-            updatedAt: '2026-09-29T02:00:00.000Z',
+              body.status === 'COMPLETED' ? '2026-10-11T02:00:00.000Z' : null,
+            updatedAt: '2026-10-11T02:00:00.000Z',
             version: '1',
           }),
         })
@@ -174,17 +311,155 @@ test.describe('Resources journey', () => {
       })
     })
 
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/resources')
+    expect(pageErrors).toEqual([])
     await expect(
-      page.getByRole('heading', { name: /một chút bình yên/i }),
+      page.getByRole('heading', { level: 1, name: catalogue[0].title }),
     ).toBeVisible()
+    expect(
+      await page
+        .getByRole('heading', { level: 1, name: catalogue[0].title })
+        .evaluate((element) => getComputedStyle(element).fontFamily),
+    ).toMatch(/Fraunces/i)
+    expect(
+      await page
+        .locator('body')
+        .evaluate((element) => getComputedStyle(element).fontFamily),
+    ).toMatch(/Vietnam/i)
     await expect(
-      page.getByRole('heading', { name: /bingo tuần này/i }),
+      page.getByRole('heading', {
+        name: 'Bingo hoạt động trong kế hoạch',
+      }),
     ).toBeVisible()
-    await page.getByRole('link', { name: /khám phá/i }).click()
+    await expect(page.getByText('Chưa có chuỗi thực hành')).toBeVisible()
+    await expect(page.getByText(/\bXP\b/i)).toHaveCount(0)
+    await expect(page.getByText(/huy hiệu|cấp độ/i)).toHaveCount(0)
+    await expect(
+      page.getByText('Nguồn: NHS Every Mind Matters').first(),
+    ).toBeVisible()
+
+    await page
+      .getByRole('button', { name: `Lưu: ${catalogue[0].title}` })
+      .first()
+      .click()
+    await expect(
+      page
+        .getByRole('button', { name: `Bỏ lưu: ${catalogue[0].title}` })
+        .first(),
+    ).toBeVisible()
+    await page.reload()
+    await expect(
+      page
+        .getByRole('button', { name: `Bỏ lưu: ${catalogue[0].title}` })
+        .first(),
+    ).toBeVisible()
+    await page
+      .getByRole('button', { name: `Bỏ lưu: ${catalogue[0].title}` })
+      .first()
+      .click()
+    await expect(
+      page.getByRole('button', { name: `Lưu: ${catalogue[0].title}` }).first(),
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Tự đánh dấu' }).click()
+    await expect(page.getByText('Bạn tự đánh dấu')).toBeVisible()
+    await page.getByRole('button', { name: 'Bỏ tự đánh dấu' }).click()
+    await expect(page.getByText('Chưa đánh dấu')).toBeVisible()
+
+    await page
+      .getByRole('button', {
+        name: `Ghi nhận hoàn thành và lưu: ${catalogue[2].title}`,
+      })
+      .click()
+    await expect(
+      page.getByText(`✓ Đã lưu hoàn thành “${catalogue[2].title}”.`),
+    ).toBeVisible()
+    await expect(page.getByText('1 ngày đã lưu')).toBeVisible()
+    await expect(
+      page.getByText('Đã xác minh từ hoạt động đã hoàn thành'),
+    ).toBeVisible()
+    for (const viewport of [
+      { width: 1280, height: 800 },
+      { width: 768, height: 1024 },
+      { width: 375, height: 812 },
+      { width: 640, height: 400 },
+    ]) {
+      await page.setViewportSize(viewport)
+      const layout = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        overflow: [...document.querySelectorAll<HTMLElement>('*')]
+          .map((element) => {
+            const rect = element.getBoundingClientRect()
+            return {
+              element: `${element.tagName.toLowerCase()}.${element.className}`,
+              left: Math.round(rect.left),
+              right: Math.round(rect.right),
+              width: Math.round(rect.width),
+            }
+          })
+          .filter(
+            ({ left, right, width }) =>
+              left < -1 ||
+              right > window.innerWidth + 1 ||
+              width > window.innerWidth + 1,
+          )
+          .slice(0, 12),
+      }))
+      expect(layout.scrollWidth, JSON.stringify(layout.overflow)).toBe(
+        viewport.width,
+      )
+    }
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await expect(page.locator('main').first()).toBeVisible()
+    expect(['0s', '0.01ms', '1e-05s']).toContain(
+      await page
+        .locator('[data-resource-surface="dark"]')
+        .first()
+        .evaluate((element) => getComputedStyle(element).animationDuration),
+    )
+    if (process.env.CAPTURE_MB660_EVIDENCE === 'true') {
+      await page.screenshot({
+        path: 'docs/evidence/mb-660-resource-engagement-desktop.png',
+        fullPage: true,
+      })
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.screenshot({
+        path: 'docs/evidence/mb-660-resource-engagement-mobile.png',
+        fullPage: true,
+      })
+      await page.setViewportSize({ width: 1440, height: 900 })
+    }
+    if (process.env.CAPTURE_RESOURCE_EVIDENCE === 'true') {
+      await page.screenshot({
+        path: 'docs/evidence/mb-656-resources-desktop.png',
+        fullPage: true,
+      })
+      await page.setViewportSize({ width: 375, height: 812 })
+      await expect
+        .poll(() =>
+          page
+            .locator('.ref-sidebar')
+            .evaluate((element) => element.getBoundingClientRect().right),
+        )
+        .toBeLessThanOrEqual(0)
+      await expect(
+        page.getByRole('heading', { name: 'Nhịp thực hành' }),
+      ).toBeVisible()
+      await page.screenshot({
+        path: 'docs/evidence/mb-656-resources-mobile.png',
+        fullPage: true,
+      })
+      await page.setViewportSize({ width: 1440, height: 900 })
+    }
+    await page
+      .getByRole('link', { name: `Mở hoạt động: ${catalogue[0].title}` })
+      .click()
+    await page.waitForURL(new RegExp(`/resources/${resourceId}`))
 
     await expect(
-      page.getByRole('heading', { name: catalogue[0].title }),
+      page.getByRole('heading', { level: 1, name: catalogue[0].title }),
     ).toBeVisible()
     const video = page.getByTitle(catalogue[0].title)
     const transcript = page.getByRole('complementary', {
@@ -220,6 +495,11 @@ test.describe('Resources journey', () => {
     await page.getByLabel(/một bước nhỏ, an toàn/i).check()
     await page.getByRole('button', { name: 'Hoàn tất' }).click()
     await expect(page.getByText(/một bước nhỏ đã hoàn thành/i)).toBeVisible()
+    await page.getByRole('link', { name: 'Quay lại Tài nguyên' }).click()
+    await page.waitForURL(/\/resources$/)
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Nhịp thực hành' }),
+    ).toBeVisible()
     expect(consoleErrors).toEqual([])
   })
 

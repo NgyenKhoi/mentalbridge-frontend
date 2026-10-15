@@ -3,34 +3,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import type {
-  Emotion,
   EmotionCheckIn,
   EmotionCheckInProgress,
 } from '@/lib/emotion-check-in/contract'
+import {
+  emotionOrder,
+  emotionPresentation,
+} from '@/lib/emotion-check-in/presentation'
 import {
   getEmotionCheckInProgress,
   listEmotionCheckIns,
 } from './api/browser-emotion-check-in'
 import styles from './EmotionProgress.module.css'
 
-const emotionCopy: Record<
-  Emotion,
-  { emoji: string; label: string; color: string }
-> = {
-  GREAT: { emoji: '😄', label: 'Rất tốt', color: '#1e4a43' },
-  GOOD: { emoji: '😊', label: 'Tốt', color: '#5ca88f' },
-  OKAY: { emoji: '😌', label: 'Bình thường', color: '#a0aba5' },
-  LOW: { emoji: '🥱', label: 'Không tốt', color: '#e5a842' },
-  VERY_LOW: { emoji: '😟', label: 'Rất không tốt', color: '#d9534f' },
-}
+const emotionCopy = emotionPresentation
 
 const weekdayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
 
 type State =
   | { phase: 'loading' }
-  | { phase: 'error' }
+  | { phase: 'error'; requestKey: string }
   | {
       phase: 'ready'
+      requestKey: string
       progress: EmotionCheckInProgress
       history: EmotionCheckIn[]
     }
@@ -97,22 +92,28 @@ export function EmotionProgress({
   const [retry, setRetry] = useState(0)
   const [state, setState] = useState<State>({ phase: 'loading' })
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const requestKey = `${timezone}:${refreshKey}:${retry}`
 
   useEffect(() => {
     let active = true
     Promise.all([getEmotionCheckInProgress(timezone), listEmotionCheckIns(30)])
       .then(([progress, history]) => {
         if (active) {
-          setState({ phase: 'ready', progress, history: history.items })
+          setState({
+            phase: 'ready',
+            requestKey,
+            progress,
+            history: history.items,
+          })
         }
       })
       .catch(() => {
-        if (active) setState({ phase: 'error' })
+        if (active) setState({ phase: 'error', requestKey })
       })
     return () => {
       active = false
     }
-  }, [refreshKey, retry, timezone])
+  }, [requestKey, timezone])
 
   const historyMap = useMemo(() => {
     const map = new Map<string, EmotionCheckIn>()
@@ -140,7 +141,7 @@ export function EmotionProgress({
   const activeCell = calendarCells.find((c) => c.dateStr === activeDate)
   const activeCheckIn = historyMap.get(activeDate)
 
-  if (state.phase === 'loading') {
+  if (state.phase === 'loading' || state.requestKey !== requestKey) {
     return (
       <div className={styles.card} aria-busy="true">
         <header className={styles.heading}>
@@ -277,6 +278,11 @@ export function EmotionProgress({
         </dl>
       </div>
 
+      <p className={styles.sourceMeta}>
+        Tính đến {displayDate(state.progress.asOfLocalDate)} · Múi giờ{' '}
+        {state.progress.timezone}
+      </p>
+
       {/* Middle block: 5-week x 7-column calendar heat grid */}
       <section
         className={styles.calendarSection}
@@ -346,7 +352,7 @@ export function EmotionProgress({
 
         {/* 5-color legend */}
         <div className={styles.legendRow} aria-label="Chú giải các mức cảm xúc">
-          {(Object.keys(emotionCopy) as Emotion[]).map((emotionKey) => (
+          {emotionOrder.map((emotionKey) => (
             <div key={emotionKey} className={styles.legendItem}>
               <span
                 className={styles.legendDot}

@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api/api-error'
 import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
 
-const client = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn() }))
+const client = vi.hoisted(() => ({
+  get: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+}))
 const session = vi.hoisted(() => ({
   resolveSession: vi.fn(),
   ensureRole: vi.fn(),
@@ -18,7 +22,7 @@ vi.mock('@/lib/auth/session-service', () => ({
   ensureRole: session.ensureRole,
 }))
 
-import { GET, PATCH } from './route'
+import { DELETE, GET, PATCH } from './route'
 
 const account = {
   accountId: '10000000-0000-4000-8000-000000000001',
@@ -31,7 +35,7 @@ const context = {
   params: Promise.resolve({ localDate }),
 } as RouteContext<'/api/emotion-check-ins/[localDate]'>
 
-function request(method: 'GET' | 'PATCH', revision = '1') {
+function request(method: 'GET' | 'PATCH' | 'DELETE', revision = '1') {
   const value = { emotion: 'LOW', intensity: 3, note: null }
   return new NextRequest(
     `http://localhost/api/emotion-check-ins/${localDate}`,
@@ -45,7 +49,9 @@ function request(method: 'GET' | 'PATCH', revision = '1') {
               'Idempotency-Key': 'emotion-command-00000001',
               'If-Match-Revision': revision,
             }
-          : {}),
+          : method === 'DELETE'
+            ? { 'Idempotency-Key': 'emotion-command-00000001' }
+            : {}),
       },
       ...(method === 'PATCH' ? { body: JSON.stringify(value) } : {}),
     },
@@ -56,6 +62,7 @@ describe('/api/emotion-check-ins/[localDate] Route Handler', () => {
   beforeEach(() => {
     client.get.mockReset()
     client.update.mockReset()
+    client.delete.mockReset()
     session.resolveSession.mockReset()
     session.ensureRole.mockReset()
     session.resolveSession.mockResolvedValue({ account })
@@ -109,5 +116,23 @@ describe('/api/emotion-check-ins/[localDate] Route Handler', () => {
     expect((await PATCH(request('PATCH', '0'), context)).status).toBe(400)
     expect(client.get).not.toHaveBeenCalled()
     expect(client.update).not.toHaveBeenCalled()
+  })
+
+  it('deletes the exact local day with an idempotency key', async () => {
+    client.delete.mockResolvedValue({
+      localDate,
+      deleted: true,
+      deletedAt: '2026-09-26T03:00:00.000Z',
+    })
+
+    const response = await DELETE(request('DELETE'), context)
+
+    expect(response.status).toBe(200)
+    expect(client.delete).toHaveBeenCalledWith(
+      'access-token',
+      localDate,
+      'emotion-command-00000001',
+      expect.any(String),
+    )
   })
 })

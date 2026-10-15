@@ -264,7 +264,11 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
             <span>
               Đang phản hồi <strong>{replyingTo.author.displayName}</strong>
             </span>
-            <button type="button" onClick={() => setReplyingTo(null)}>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => setReplyingTo(null)}
+            >
               Hủy phản hồi
             </button>
           </div>
@@ -276,6 +280,7 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
           ref={composer}
           id="community-comment-content"
           rows={4}
+          disabled={submitting}
           maxLength={MAX_COMMENT_CONTENT * 2}
           value={content}
           placeholder="Viết bằng sự tôn trọng và đồng cảm…"
@@ -329,57 +334,65 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
                 <CommunityAvatar
                   displayName={comment.author.displayName}
                   avatarPreset={comment.author.avatarPreset}
+                  avatarImage={comment.author.avatarImage}
                   deleted={comment.author.state === 'DELETED'}
                   anonymous={comment.author.state === 'ANONYMOUS'}
                 />
                 <div className="community-comment-body">
-                  <header>
-                    <strong>{comment.author.displayName}</strong>
-                    <time dateTime={comment.createdAt}>
-                      {commentTime(comment.createdAt)}
-                    </time>
-                  </header>
-                  {editing ? (
-                    <div className="community-comment-edit">
-                      <textarea
-                        rows={4}
-                        maxLength={MAX_COMMENT_CONTENT * 2}
-                        value={editContent}
-                        aria-label="Chỉnh sửa bình luận"
-                        onChange={(event) => setEditContent(event.target.value)}
-                      />
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => setEditingId(null)}
-                        >
-                          Hủy
-                        </button>
-                        <button
-                          type="button"
+                  <div className="community-comment-bubble">
+                    <header>
+                      <strong>{comment.author.displayName}</strong>
+                      <time dateTime={comment.createdAt}>
+                        {commentTime(comment.createdAt)}
+                      </time>
+                    </header>
+                    {editing ? (
+                      <div className="community-comment-edit">
+                        <textarea
+                          rows={4}
                           disabled={submitting}
-                          onClick={() => void saveEdit(comment)}
-                        >
-                          Lưu thay đổi
-                        </button>
+                          maxLength={MAX_COMMENT_CONTENT * 2}
+                          value={editContent}
+                          aria-label="Chỉnh sửa bình luận"
+                          onChange={(event) =>
+                            setEditContent(event.target.value)
+                          }
+                        />
+                        <div>
+                          <button
+                            type="button"
+                            disabled={submitting}
+                            onClick={() => setEditingId(null)}
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="button"
+                            disabled={submitting}
+                            onClick={() => void saveEdit(comment)}
+                          >
+                            Lưu thay đổi
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <p
-                      className={
-                        comment.state === 'OWNER_DELETED'
-                          ? 'is-deleted'
-                          : undefined
-                      }
-                    >
-                      {comment.content}
-                    </p>
-                  )}
+                    ) : (
+                      <p
+                        className={
+                          comment.state === 'OWNER_DELETED'
+                            ? 'is-deleted'
+                            : undefined
+                        }
+                      >
+                        {comment.content}
+                      </p>
+                    )}
+                  </div>
                   {!editing && comment.state === 'ACTIVE' && (
                     <div className="community-comment-actions">
                       {!comment.parentCommentId && (
                         <button
                           type="button"
+                          disabled={submitting}
                           onClick={() => beginReply(comment)}
                         >
                           Phản hồi
@@ -389,6 +402,7 @@ export default function CommunityComments({ postId, onCountChange }: Props) {
                         <>
                           <button
                             type="button"
+                            disabled={submitting}
                             onClick={() => {
                               setEditingId(comment.commentId)
                               setEditContent(comment.content)

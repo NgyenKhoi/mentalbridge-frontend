@@ -14,6 +14,7 @@ const communityMocks = vi.hoisted(() => ({
   delete: vi.fn(),
   profile: vi.fn(),
   putProfile: vi.fn(),
+  putAvatar: vi.fn(),
   createMediaIntent: vi.fn(),
   finalizeMedia: vi.fn(),
   deleteMedia: vi.fn(),
@@ -50,6 +51,7 @@ import {
 } from '../posts/[postId]/route'
 import { POST as createPost } from '../posts/route'
 import { GET as getProfile, PUT as putProfile } from '../profile/route'
+import { PUT as putAvatar } from '../profile/avatar/route'
 import { GET as getTopics } from '../topics/route'
 import { POST as createMediaIntent } from '../media/upload-intents/route'
 import { POST as finalizeMedia } from '../media/[mediaId]/finalize/route'
@@ -456,6 +458,97 @@ describe('/api/community read BFF', () => {
       expect((await response.json()).code).toBe('VALIDATION_FAILED')
     }
     expect(communityMocks.putProfile).not.toHaveBeenCalled()
+  })
+
+  it('selects and removes only exact avatar media under USER auth, same origin and ETag', async () => {
+    const mediaId = '30000000-0000-4000-8000-000000000001'
+    communityMocks.putAvatar.mockResolvedValue({
+      data: { version: 3 },
+      etag: '"3"',
+    })
+    for (const selected of [mediaId, null]) {
+      const response = await putAvatar(
+        request('http://localhost/api/community/profile/avatar', {
+          method: 'PUT',
+          headers: {
+            origin: 'http://localhost',
+            'if-match': '"2"',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({ mediaId: selected }),
+        }),
+      )
+      expect(response.status).toBe(200)
+      expect(response.headers.get('etag')).toBe('"3"')
+      expect(await response.text()).not.toContain('identity-access-secret')
+      expect(communityMocks.putAvatar).toHaveBeenCalledWith(
+        'identity-access-secret',
+        expect.any(String),
+        { mediaId: selected },
+        '"2"',
+      )
+    }
+  })
+
+  it('rejects cross-origin, injected fields and missing version before any avatar command', async () => {
+    for (const input of [
+      {
+        origin: 'https://evil.test',
+        etag: '"0"',
+        body: { mediaId: null },
+        status: 403,
+      },
+      {
+        origin: 'http://localhost',
+        etag: '',
+        body: { mediaId: null },
+        status: 400,
+      },
+      {
+        origin: 'http://localhost',
+        etag: '"0"',
+        body: { mediaId: null, url: 'https://external.test' },
+        status: 400,
+      },
+    ]) {
+      const response = await putAvatar(
+        request('http://localhost/api/community/profile/avatar', {
+          method: 'PUT',
+          headers: {
+            origin: input.origin,
+            'if-match': input.etag,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(input.body),
+        }),
+      )
+      expect(response.status).toBe(input.status)
+    }
+    expect(communityMocks.putAvatar).not.toHaveBeenCalled()
+  })
+
+  it('keeps avatar version conflicts explicit and does not retry the owner command', async () => {
+    communityMocks.putAvatar.mockRejectedValue(
+      new CommunityServiceError({
+        type: 'about:blank',
+        status: 412,
+        code: 'COMMUNITY_PROFILE_VERSION_MISMATCH',
+        title: 'Changed',
+      }),
+    )
+    const response = await putAvatar(
+      request('http://localhost/api/community/profile/avatar', {
+        method: 'PUT',
+        headers: {
+          origin: 'http://localhost',
+          'if-match': '"0"',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ mediaId: null }),
+      }),
+    )
+    expect(response.status).toBe(412)
+    expect(communityMocks.putAvatar).toHaveBeenCalledTimes(1)
   })
 
   it('proxies only bounded owner media lifecycle commands', async () => {

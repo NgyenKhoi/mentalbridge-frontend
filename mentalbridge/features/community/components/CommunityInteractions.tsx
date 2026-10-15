@@ -80,7 +80,11 @@ type Props = Readonly<{
   onChange?: (state: CommunityViewerState, reactionCount: number) => void
 }>
 
-export default function CommunityInteractions({
+export default function CommunityInteractions(props: Props) {
+  return <CommunityInteractionState key={props.postId} {...props} />
+}
+
+function CommunityInteractionState({
   postId,
   viewerState,
   reactionCount,
@@ -90,6 +94,34 @@ export default function CommunityInteractions({
   const [count, setCount] = useState(reactionCount)
   const [pending, setPending] = useState<'reaction' | 'bookmark'>()
   const [error, setError] = useState('')
+  const [feedback, setFeedback] = useState<SupportiveReaction>()
+  const [lastInput, setLastInput] = useState({
+    reaction: viewerState.reaction,
+    bookmarked: viewerState.bookmarked,
+    reactionCount,
+  })
+
+  // Reconcile real refreshes, not a new object identity or an onChange echo.
+  if (
+    lastInput.reaction !== viewerState.reaction ||
+    lastInput.bookmarked !== viewerState.bookmarked ||
+    lastInput.reactionCount !== reactionCount
+  ) {
+    setLastInput({
+      reaction: viewerState.reaction,
+      bookmarked: viewerState.bookmarked,
+      reactionCount,
+    })
+    if (
+      state.reaction !== viewerState.reaction ||
+      state.bookmarked !== viewerState.bookmarked ||
+      count !== reactionCount
+    ) {
+      setState(viewerState)
+      setCount(reactionCount)
+      setFeedback(undefined)
+    }
+  }
 
   function commit(next: CommunityViewerState, nextCount: number) {
     setState(next)
@@ -101,6 +133,7 @@ export default function CommunityInteractions({
     if (pending) return
     setPending('reaction')
     setError('')
+    setFeedback(undefined)
     try {
       if (state.reaction === reaction) {
         await deleteCommunityReaction(postId)
@@ -111,6 +144,7 @@ export default function CommunityInteractions({
           { ...state, reaction: result.reaction },
           state.reaction === null ? count + 1 : count,
         )
+        setFeedback(result.reaction)
       }
     } catch {
       setError('Chưa thể gửi lời đồng hành. Bạn có thể thử lại.')
@@ -155,16 +189,32 @@ export default function CommunityInteractions({
             disabled={pending !== undefined}
             onClick={() => void chooseReaction(reaction.value)}
             aria-label={reaction.label}
+            data-reaction-feedback={
+              feedback === reaction.value ? 'committed' : undefined
+            }
           >
-            <InteractionIcon name={reaction.icon} />
+            <span
+              className={`${styles.icon} ${feedback === reaction.value ? styles.celebrating : ''}`}
+              aria-hidden="true"
+              onAnimationEnd={() => setFeedback(undefined)}
+            >
+              <InteractionIcon name={reaction.icon} />
+              {feedback === reaction.value && (
+                <svg className={styles.sparkles} viewBox="0 0 32 32">
+                  <path d="M5 6v4M3 8h4M26 3v4M24 5h4" />
+                  <circle cx="29" cy="18" r="1" />
+                  <circle cx="6" cy="26" r="1" />
+                </svg>
+              )}
+            </span>
             <span className={styles.desktopLabel}>{reaction.label}</span>
             <span className={styles.mobileLabel}>{reaction.mobileLabel}</span>
           </button>
         ))}
-        <span className={styles.count} aria-live="polite">
-          {count} lượt
-        </span>
       </div>
+      <span className={styles.count} aria-live="polite">
+        {count} lượt
+      </span>
       <button
         type="button"
         className={`${styles.bookmark} ${state.bookmarked ? styles.selected : ''}`}
@@ -175,6 +225,13 @@ export default function CommunityInteractions({
         <InteractionIcon name="bookmark" />
         {state.bookmarked ? 'Đã lưu' : 'Lưu bài'}
       </button>
+      {pending && (
+        <p className={styles.status} role="status">
+          {pending === 'reaction'
+            ? 'Đang gửi lời đồng hành…'
+            : 'Đang lưu thay đổi…'}
+        </p>
+      )}
       {error && (
         <p className={styles.error} role="alert">
           {error}

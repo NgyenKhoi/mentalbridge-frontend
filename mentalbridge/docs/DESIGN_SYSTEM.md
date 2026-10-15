@@ -239,6 +239,37 @@ phải đã đọc toàn bộ design system hoặc toàn bộ tài liệu animat
 - Chạy lint, typecheck và targeted test theo phạm vi. Visual review là bằng chứng
   bổ sung, không thay thế kiểm tra hành vi.
 
+### Community: luồng đọc xã hội
+
+Community dùng shell riêng hiện có, không thêm shell dashboard thứ hai. UI là
+không gian chia sẻ đồng đẳng, không tự gắn nhãn chuyên gia, huy hiệu xác minh,
+followers, stories hoặc thống kê mà owner API không cung cấp. Foundation trong
+tài liệu này và tokens `globals.css` vẫn là nguồn chuẩn; HTML/CDN từ Stitch chỉ
+là reference, không đưa trực tiếp vào runtime.
+
+- Reading stream tối đa 680px; desktop dock chủ đề 256px + gap24, tổng960px.
+  Tablet/mobile một cột; saved/detail/profile giữ cùng reading width.
+- Ảnh đơn giữ native ratio và `contain`, giới hạn chiều cao, không crop thành
+  banner. Album preview tối đa4 với +N; viewer vẫn duyệt đủ tối đa10 attachments.
+  Không tự phát video; media lỗi có đường thử lại.
+- Ba reaction hỗ trợ giữ nguyên ý nghĩa. Icon pop/halo chỉ chạy sau server commit;
+  không cộng lượt hoặc phát animation thành công khi request lỗi. Reduced motion
+  giữ màu/pressed/status nhưng bỏ chuyển động. Không hứa GPU/60FPS khi chưa đo.
+- Bản nháp, sensitive gate, ẩn danh, private saved list và owner version commands
+  được bảo toàn. Comment bubbles chỉ thay presentation, không đổi moderation.
+
+| Capability | Canonical owner | Source of truth | Allowed variants | Verification |
+| --- | --- | --- | --- | --- |
+| Select/Listbox | `components/LightSelect` | Shared control + owner options | Resource/report selections; popup bounded by scrolling dialog | Keyboard/Escape/focus, 44px options, popup clipping |
+| Form | Community composer/profile/comments | Feature validation + owner API | Inline errors, preserved draft, disabled pending controls | Validation, retry, pending, authoritative version |
+| Scrollbar | `globals.css` + feature overflow surfaces | Runtime tokens | Dialog body and popup; page stays naturally scrollable | Firefox/WebKit theme, no hidden CTA |
+| Toast | `FeedbackProvider` | Existing action feedback contract | Success toast, local error/status | No false success, accessible live feedback |
+| CRUD | Community owner API/BFF | Owner response/version/viewerState | Existing create/edit/delete/save/react only | Command regression and fixture browser journey |
+
+Evidence/design decisions cho refactor social reading nằm ở
+`.stitch/community-social/brief.md` và prototype QA đi kèm. Browser fixture evidence
+không thay thế kiểm tra session thật hoặc provider integration.
+
 ## 7. Definition of Done
 
 Dùng [`PRODUCT_EXPERIENCE.md`](PRODUCT_EXPERIENCE.md) mục 8 làm Definition of

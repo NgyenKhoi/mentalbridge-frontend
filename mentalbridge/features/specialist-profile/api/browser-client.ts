@@ -1,11 +1,16 @@
 import type {
   PendingProfiles,
+  ProfileAmendment,
+  ProfileAmendmentDetail,
+  ProfileAmendments,
   SpecialistApprovalStatus,
   SpecialistDecisionReason,
   SpecialistProfile,
   SpecialistProfileInput,
   SpecialistSuspensionResult,
 } from '@/lib/consultation/consultation-validation'
+
+import type { CredentialDocument, CredentialDocumentLink } from './credential-validation'
 
 export class BrowserConsultationError extends Error {
   constructor(
@@ -43,6 +48,107 @@ async function call<T>(
 }
 
 export const browserConsultation = {
+  pendingCredentialDocuments() {
+    return call<CredentialDocument[]>('/api/admin/specialist-profiles/documents/pending')
+  },
+  adminCredentialFile(id: string) {
+    return call<CredentialDocumentLink>(`/api/admin/specialist-profiles/documents/${encodeURIComponent(id)}/file`)
+  },
+  reviewCredential(id: string, decision: 'verify' | 'reject', version: number) {
+    return call<CredentialDocument>(`/api/admin/specialist-profiles/documents/${encodeURIComponent(id)}/${decision}`, {
+      method: 'POST', headers: { 'If-Match': `"${version}"` },
+    })
+  },
+  credentialDocuments() {
+    return call<CredentialDocument[]>('/api/consultation/specialist-profile/documents')
+  },
+  uploadCredential(body: FormData) {
+    return call<CredentialDocument>('/api/consultation/specialist-profile/documents', {
+      method: 'POST', body,
+    })
+  },
+  credentialFile(id: string, download = false) {
+    return call<CredentialDocumentLink>(
+      `/api/consultation/specialist-profile/documents/${encodeURIComponent(id)}/file?download=${download}`,
+    )
+  },
+  credentialBadge(id: string, visible: boolean, version: number) {
+    return call<CredentialDocument>(
+      `/api/consultation/specialist-profile/documents/${encodeURIComponent(id)}/badge`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'If-Match': `"${version}"` },
+        body: JSON.stringify({ visible }),
+      },
+    )
+  },
+  ownAmendment(signal?: AbortSignal) {
+    return call<ProfileAmendmentDetail>(
+      '/api/consultation/specialist-profile/amendments/current',
+      { signal },
+    )
+  },
+  startAmendment(etag: string) {
+    return call<ProfileAmendment>(
+      '/api/consultation/specialist-profile/amendments',
+      { method: 'POST', headers: { 'If-Match': etag } },
+    )
+  },
+  saveAmendment(id: string, body: SpecialistProfileInput, etag: string) {
+    return call<ProfileAmendment>(
+      `/api/consultation/specialist-profile/amendments/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        headers: { 'If-Match': etag, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    )
+  },
+  submitAmendment(id: string, action: 'submit' | 'resubmit', etag: string) {
+    return call<ProfileAmendment>(
+      `/api/consultation/specialist-profile/amendments/${encodeURIComponent(id)}/${action}`,
+      { method: 'POST', headers: { 'If-Match': etag } },
+    )
+  },
+  cancelAmendment(id: string, etag: string) {
+    return call<ProfileAmendment>(
+      `/api/consultation/specialist-profile/amendments/${encodeURIComponent(id)}/cancel`,
+      { method: 'POST', headers: { 'If-Match': etag } },
+    )
+  },
+  profileAmendments(page = 0, signal?: AbortSignal) {
+    return call<ProfileAmendments>(
+      `/api/admin/specialist-profiles/amendments?page=${page}`,
+      { signal },
+    )
+  },
+  amendmentDetail(id: string, signal?: AbortSignal) {
+    return call<ProfileAmendmentDetail>(
+      `/api/admin/specialist-profiles/amendments/${encodeURIComponent(id)}`,
+      { signal },
+    )
+  },
+  decideAmendment(
+    id: string,
+    action: 'approve' | 'reject',
+    etag: string,
+    reasonCode?: SpecialistDecisionReason,
+  ) {
+    return call<ProfileAmendment>(
+      `/api/admin/specialist-profiles/amendments/${encodeURIComponent(id)}/${action}`,
+      {
+        method: 'POST',
+        headers: {
+          'If-Match': etag,
+          ...(action === 'reject'
+            ? { 'Content-Type': 'application/json' }
+            : {}),
+        },
+        ...(action === 'reject'
+          ? { body: JSON.stringify({ reasonCode }) }
+          : {}),
+      },
+    )
+  },
   own() {
     return call<SpecialistProfile>('/api/consultation/specialist-profile')
   },

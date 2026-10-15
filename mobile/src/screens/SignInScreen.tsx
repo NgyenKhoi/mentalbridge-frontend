@@ -57,8 +57,8 @@ export function SignInScreen() {
         Tiếp tục hành trình của bạn
       </Text>
       <Text style={styles.description}>
-        Phiên chỉ được mở sau khi MentalBridge xác nhận tài khoản cá nhân đang
-        hoạt động.
+        Đăng nhập bằng tài khoản của bạn. MentalBridge kiểm tra trạng thái tài
+        khoản trước khi mở không gian phù hợp.
       </Text>
       {notice ? (
         <Text accessibilityRole="alert" style={styles.error}>
@@ -71,6 +71,7 @@ export function SignInScreen() {
         </Text>
         <TextInput
           accessibilityLabel="Email"
+          testID="sign-in-email-input"
           accessibilityLabelledBy="sign-in-email-label"
           autoCapitalize="none"
           autoComplete="email"
@@ -87,6 +88,7 @@ export function SignInScreen() {
         </Text>
         <TextInput
           accessibilityLabel="Mật khẩu"
+          testID="sign-in-password-input"
           accessibilityLabelledBy="sign-in-password-label"
           autoComplete="current-password"
           maxLength={128}
@@ -106,6 +108,7 @@ export function SignInScreen() {
           disabled={loading}
           label={loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           onPress={() => void submit()}
+          testID="sign-in-submit"
         />
         <Text
           accessibilityRole="link"

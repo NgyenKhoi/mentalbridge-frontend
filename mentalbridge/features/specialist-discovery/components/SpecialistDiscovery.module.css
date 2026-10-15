@@ -662,6 +662,10 @@
   font-weight: 650;
 }
 
+.verifiedBadges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.verifiedBadges span { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 7px 10px; border-radius: 999px; background: var(--color-mint, #d9f3e4); color: var(--color-primary-dark, #194d37); font-size: 12px; font-weight: 700; line-height: 1.35; }
+.verifiedBadges svg { width: 15px; height: 15px; flex: none; stroke-width: 1.75; }
+
 .profileAside .profileNote {
   position: relative;
   margin: auto 0 0;

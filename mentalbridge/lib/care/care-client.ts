@@ -53,9 +53,13 @@ import type {
   ChangeSupportPlanStatusRequest,
   ReplaceCurrentSupportPlanRequest,
   SupportPlanReplacementReview,
+  SupportPlanV3,
+  SupportPlanPersonalization,
+  ReplaceSupportPlanPersonalizationRequest,
   PlanChangeRequest,
   CreatePlanChangeRequest,
   PlanChangeDecision,
+  UpdateActionScheduleRequest,
 } from '@/features/support-plan/api/support-plan-contract'
 import {
   parseSupportGuide,
@@ -90,6 +94,8 @@ import {
   parseSupportPlanOccurrence,
   parseSupportPlanOccurrenceList,
   parseSupportPlanReplacementReview,
+  parseSupportPlanV3,
+  parseSupportPlanPersonalization,
 } from './support-plan-validation'
 import { parsePlanChangeRequest } from './plan-change-request-validation'
 import type { ActivityDashboard } from '@/features/analytics/api/activity-dashboard-contract'
@@ -97,6 +103,7 @@ import type { AnalyticsRange } from '@/features/analytics/api/activity-dashboard
 import { parseActivityDashboard } from '@/features/analytics/api/activity-dashboard-contract'
 import type {
   ConsultationBrief,
+  ConsultationBriefAiDraftJob,
   ConsultationBriefDraftRequest,
   SpecialistConsultationBrief,
   SpecialistClientContinuityList,
@@ -104,6 +111,7 @@ import type {
 } from '@/features/appointments/api/consultation-brief-contract'
 import {
   parseConsultationBrief,
+  parseConsultationBriefAiDraftJob,
   parseSpecialistConsultationBrief,
   parseConsultationBriefScreeningContexts,
   parseSpecialistClientContinuityList,
@@ -162,7 +170,7 @@ function malformedResponse(cause?: unknown) {
   })
 }
 
-async function careRequest<T>(options: RequestOptions<T>): Promise<T> {
+export async function careRequest<T>(options: RequestOptions<T>): Promise<T> {
   const config = readCareServerConfig()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
@@ -280,6 +288,39 @@ export const careClient = {
       authorization,
       correlationId,
       parseSuccess: parseConsultationBrief,
+    })
+  },
+
+  createConsultationBriefAiDraftJob(
+    authorization: string,
+    appointmentId: string,
+    version: number,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<ConsultationBriefAiDraftJob> {
+    return careRequest({
+      method: 'POST',
+      path: `/api/v1/consultation-briefs/${encodeURIComponent(appointmentId)}/ai-draft-jobs`,
+      authorization,
+      correlationId,
+      ifMatch: version,
+      idempotencyKey,
+      parseSuccess: parseConsultationBriefAiDraftJob,
+    })
+  },
+
+  consultationBriefAiDraftJob(
+    authorization: string,
+    appointmentId: string,
+    jobId: string,
+    correlationId: string,
+  ): Promise<ConsultationBriefAiDraftJob> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/consultation-briefs/${encodeURIComponent(appointmentId)}/ai-draft-jobs/${encodeURIComponent(jobId)}`,
+      authorization,
+      correlationId,
+      parseSuccess: parseConsultationBriefAiDraftJob,
     })
   },
 
@@ -978,6 +1019,36 @@ export const careClient = {
     })
   },
 
+  supportPlanPersonalization(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<SupportPlanPersonalization> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v2/support-plan-personalization',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanPersonalization,
+    })
+  },
+
+  replaceSupportPlanPersonalization(
+    accessToken: string,
+    request: ReplaceSupportPlanPersonalizationRequest,
+    revision: number,
+    correlationId: string,
+  ): Promise<SupportPlanPersonalization> {
+    return careRequest({
+      method: 'PUT',
+      path: '/api/v2/support-plan-personalization',
+      correlationId,
+      authorization: accessToken,
+      ifMatch: revision,
+      body: request,
+      parseSuccess: parseSupportPlanPersonalization,
+    })
+  },
+
   supportPlan(
     accessToken: string,
     supportPlanId: string,
@@ -989,6 +1060,54 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parseSupportPlan,
+    })
+  },
+
+  supportPlanActions(
+    accessToken: string,
+    supportPlanId: string,
+    correlationId: string,
+  ): Promise<SupportPlanV3> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v2/support-plans/${encodeURIComponent(supportPlanId)}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanV3,
+    })
+  },
+
+  currentSupportPlanDraftActions(
+    accessToken: string,
+    correlationId: string,
+  ): Promise<SupportPlanV3> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v2/support-plans/current-draft',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseSupportPlanV3,
+    })
+  },
+
+  replaceSupportPlanActionSchedule(
+    accessToken: string,
+    supportPlanId: string,
+    actionId: string,
+    request: UpdateActionScheduleRequest,
+    version: number,
+    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<SupportPlanV3> {
+    return careRequest({
+      method: 'PUT',
+      path: `/api/v2/support-plans/${encodeURIComponent(supportPlanId)}/actions/${encodeURIComponent(actionId)}/schedule`,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: version,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parseSupportPlanV3,
     })
   },
 

@@ -1,0 +1,29 @@
+appId: com.mentalbridge.mobile
+name: MB-625 persisted SupportPlan activity journey
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD}'
+- tapOn: 'Đăng nhập'
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- assertVisible: 'Kế hoạch hỗ trợ'
+- assertVisible: 'Hoạt động gần đây và sắp tới'
+- tapOn:
+    text: 'Đã hoàn thành'
+    index: 0
+- assertVisible: 'Đã lưu ghi nhận cho hoạt động.'
+- tapOn: '← Quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- assertVisible: 'Đã hoàn thành'
+- tapOn:
+    text: 'Mở lại hoạt động'
+    index: 0
+- assertVisible: 'Đã lưu ghi nhận cho hoạt động.'
+- tapOn: '← Quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- assertVisible: 'Sắp tới'

@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-[#f4f7f4]" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MentalBridge - Specialist Workspace</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,600&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'sans-serif'],
+            serif: ['"Fraunces"', 'serif'],
+          },
+          colors: {
+            sage: {
+              50: '#f5f8f5',
+              100: '#e8efe8',
+              200: '#cfe3d8',
+              300: '#a7cbb7',
+              700: '#2d5a43',
+              800: '#1b3d2b',
+              900: '#153123',
+            },
+            forest: {
+              800: '#1e382b',
+              900: '#16281e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Layout Styles -->
+<style data-purpose="typography-and-custom-styles">
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      color: #1a251e;
+    }
+    .font-fraunces {
+      font-family: 'Fraunces', serif;
+    }
+    /* Focus styles for high accessibility standards */
+    button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid #1e382b;
+      outline-offset: 2px;
+    }
+    /* Subtle pulse animation for audio visualizer preview */
+    @keyframes barWave {
+      0%, 100% { height: 6px; }
+      50% { height: 24px; }
+    }
+    .voice-bar {
+      animation: barWave 1.2s ease-in-out infinite;
+    }
+  </style>
+<!-- END: Custom Layout Styles -->
+</head>
+<body class="h-full bg-[#f4f7f4] flex flex-col text-[#223127] antialiased selection:bg-[#cfe3d8] selection:text-[#16281e]">
+<!-- BEGIN: App Shell Container -->
+<div class="min-h-screen flex flex-col md:flex-row">
+<!-- BEGIN: MainSidebar -->
+<aside aria-label="Điều hướng không gian chuyên gia" class="w-full md:w-[260px] lg:w-[272px] shrink-0 bg-[#eef3ee] border-r border-[#dfe6df] flex flex-col justify-between p-4 relative">
+<!-- Top Brand & Navigation -->
+<div class="space-y-6">
+<!-- Logo -->
+<div class="flex items-center gap-3 px-2 py-1">
+<div class="w-10 h-10 rounded-xl bg-[#1b3d2b] flex items-center justify-center text-white font-serif font-bold text-xl shadow-sm">
+            M
+          </div>
+<div>
+<h1 class="text-base font-bold text-[#1a2e22] leading-tight">MentalBridge</h1>
+<p class="text-[11px] font-medium text-[#5f7566] tracking-wide">Specialist Workspace</p>
+</div>
+</div>
+<!-- Sidebar Navigation List -->
+<nav aria-label="Thực đơn chính" class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#465b4e] hover:bg-[#e4ede4] hover:text-[#1a2e22] transition-colors min-h-[44px]" href="#tong-quan">
+<svg aria-hidden="true" class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24"><path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Tổng quan</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#465b4e] hover:bg-[#e4ede4] hover:text-[#1a2e22] transition-colors min-h-[44px]" href="#phan-tich">
+<svg aria-hidden="true" class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24"><path d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Phân tích vận hành</span>
+</a>
+<!-- Active Menu Item: Lịch hẹn -->
+<a aria-current="page" class="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold text-[#163022] bg-[#cfe3d8] shadow-sm min-h-[44px]" href="#lich-hen">
+<svg aria-hidden="true" class="w-5 h-5 stroke-current" fill="none" stroke-width="2" viewbox="0 0 24 24"><path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Lịch hẹn</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#465b4e] hover:bg-[#e4ede4] hover:text-[#1a2e22] transition-colors min-h-[44px]" href="#lich-kha-dung">
+<svg aria-hidden="true" class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24"><path d="M6.75 3v2.25M17.25 3v2.253M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Lịch khả dụng</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#465b4e] hover:bg-[#e4ede4] hover:text-[#1a2e22] transition-colors min-h-[44px]" href="#khach-hang">
+<svg aria-hidden="true" class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Khách hàng</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#465b4e] hover:bg-[#e4ede4] hover:text-[#1a2e22] transition-colors min-h-[44px]" href="#tin-nhan">
+<svg aria-hidden="true" class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24"><path d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.502c1.153-.086 2.294-.213 3.423-.379 1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Tin nhắn</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#465b4e] hover:bg-[#e4ede4] hover:text-[#1a2e22] transition-colors min-h-[44px]" href="#sau-tu-van">
+<svg aria-hidden="true" class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24"><path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Sau tư vấn</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#465b4e] hover:bg-[#e4ede4] hover:text-[#1a2e22] transition-colors min-h-[44px]" href="#thu-nhap">
+<svg aria-hidden="true" class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24"><path d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15A2.25 2.25 0 002.25 6.75v10.5A2.25 2.25 0 004.5 21z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Thu nhập &amp; thanh toán</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#465b4e] hover:bg-[#e4ede4] hover:text-[#1a2e22] transition-colors min-h-[44px]" href="#ho-so">
+<svg aria-hidden="true" class="w-5 h-5 stroke-current" fill="none" stroke-width="1.8" viewbox="0 0 24 24"><path d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Hồ sơ</span>
+</a>
+</nav>
+</div>
+<!-- Bottom User Card & Role Switcher -->
+<div class="pt-4 border-t border-[#dfe6df]/80 space-y-2">
+<!-- Chuyên gia Profile Badge -->
+<div class="flex items-center gap-3 p-2.5 rounded-2xl bg-[#e4ede4]/80 border border-[#cfe0d3]">
+<div class="w-9 h-9 rounded-full bg-[#1b3d2b] flex items-center justify-center text-white text-xs font-bold tracking-wider">
+            GA
+          </div>
+<div class="flex-1 min-w-0">
+<p class="text-xs font-bold text-[#1a2e22] truncate">Chuyên gia An</p>
+<p class="text-[11px] text-[#4b6654] truncate">Chuyên gia đã được duyệt</p>
+</div>
+</div>
+<!-- Role Switcher -->
+<button aria-label="Đổi tài khoản" class="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#e4ede4] transition-colors text-left min-h-[44px]" type="button">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-[#ddaa72] flex items-center justify-center text-white text-xs font-bold">
+              N
+            </div>
+<div>
+<p class="text-xs font-semibold text-[#1a2e22]">Người dùng</p>
+<p class="text-[11px] text-[#697d6f]">Tài khoản cá nhân</p>
+</div>
+</div>
+<svg class="w-4 h-4 text-[#697d6f]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<!-- Sidebar Toggle Indicator as per original design -->
+<button aria-label="Thu gọn thực đơn" class="hidden md:flex absolute -right-3 top-20 w-6 h-6 bg-white border border-[#dfe6df] rounded-full items-center justify-center shadow-sm text-[#4b6654] hover:text-[#1a2e22]" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg>
+</button>
+</aside>
+<!-- END: MainSidebar -->
+<!-- BEGIN: MainContentArea -->
+<main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+<!-- BEGIN: TopBar -->
+<header class="h-12 px-8 flex items-center justify-end border-b border-[#dfe6df]/60">
+<div class="flex items-center gap-2">
+<span aria-hidden="true" class="w-2 h-2 rounded-full bg-[#528e6c]"></span>
+<span class="text-xs font-medium text-[#465b4e]">Lịch hẹn</span>
+</div>
+</header>
+<!-- END: TopBar -->
+<!-- Content Container -->
+<div class="p-6 md:p-8 lg:p-10 max-w-6xl w-full mx-auto space-y-6">
+<!-- BEGIN: PageHeader -->
+<section aria-labelledby="page-title" class="space-y-2">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<p class="text-xs font-bold tracking-wider text-[#4d6957] uppercase mb-1">KHÔNG GIAN CHUYÊN GIA</p>
+<h2 class="text-3xl md:text-4xl font-serif font-semibold text-[#162a1e] tracking-tight" id="page-title">
+                Phản hồi yêu cầu lịch hẹn
+              </h2>
+<p class="text-sm text-[#465b4e] max-w-2xl mt-1.5 leading-relaxed">
+                Xác nhận khi bạn có thể tham gia, hoặc từ chối trước thời hạn để khung giờ và lượt tư vấn được trả lại kịp thời.
+              </p>
+</div>
+<!-- Metrics Counters -->
+<div class="flex items-center gap-3 shrink-0 self-start md:self-auto">
+<div class="px-4 py-2 rounded-full bg-white border border-[#dfe6df] text-sm text-[#465b4e] flex items-center gap-1.5 shadow-sm">
+<span class="font-bold text-[#162a1e]">0</span>
+<span>chờ phản hồi</span>
+</div>
+<div class="px-4 py-2 rounded-full bg-white border border-[#dfe6df] text-sm text-[#465b4e] flex items-center gap-1.5 shadow-sm">
+<span class="font-bold text-[#162a1e]">1</span>
+<span>đã xác nhận</span>
+</div>
+</div>
+</div>
+</section>
+<!-- END: PageHeader -->
+<!-- BEGIN: NextAppointmentBanner (ẢNH GỐC: NẰM TRƯỚC BỘ LỌC TABS) -->
+<section aria-label="Cuộc hẹn tiếp theo" class="p-5 md:p-6 rounded-2xl bg-white border border-[#cfe0d5] flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+<div>
+<span class="text-[11px] font-bold tracking-wider text-[#577260] uppercase">CUỘC HẸN TIẾP THEO</span>
+<h3 class="text-lg md:text-xl font-bold text-[#162a1e] mt-0.5">
+              10:00 Thứ Sáu, 09/10/2026–11:00
+            </h3>
+<p class="text-sm text-[#577260] mt-0.5">Buổi tư vấn đã được xác nhận</p>
+</div>
+<div class="flex items-center gap-3 self-start md:self-auto">
+<span class="px-3 py-1.5 rounded-full bg-[#e8efe8] text-xs font-semibold text-[#254633]">Đã xác nhận</span>
+<button class="px-5 py-2.5 rounded-xl bg-[#1b3d2b] hover:bg-[#153123] text-white text-sm font-semibold transition shadow-sm min-h-[44px]" type="button">
+              Mở tin nhắn
+            </button>
+</div>
+</section>
+<!-- END: NextAppointmentBanner -->
+<!-- BEGIN: FilterTabs (NẰM DƯỚI PANEL CUỘC HẸN TIẾP THEO NHƯ ẢNH GỐC) -->
+<nav aria-label="Bộ lọc danh sách hẹn" class="flex flex-wrap items-center gap-2 pt-1">
+<button class="px-5 py-2 rounded-full bg-transparent hover:bg-white text-sm font-semibold text-[#465b4e] border border-transparent hover:border-[#dfe6df] transition min-h-[40px]" type="button">
+            Tất cả
+          </button>
+<button class="px-5 py-2 rounded-full bg-transparent hover:bg-white text-sm font-semibold text-[#465b4e] border border-transparent hover:border-[#dfe6df] transition min-h-[40px]" type="button">
+            Chờ xác nhận
+          </button>
+<!-- Active Tab -->
+<button aria-current="page" class="px-5 py-2 rounded-full bg-[#1b3d2b] text-white text-sm font-semibold shadow-sm min-h-[40px]" type="button">
+            Sắp tới
+          </button>
+<button class="px-5 py-2 rounded-full bg-transparent hover:bg-white text-sm font-semibold text-[#465b4e] border border-transparent hover:border-[#dfe6df] transition min-h-[40px]" type="button">
+            Lịch sử
+          </button>
+</nav>
+<!-- END: FilterTabs -->
+<!-- Section Title: Yêu cầu được giao cho bạn -->
+<div class="flex items-center justify-between pt-2">
+<div>
+<h3 class="text-xl font-bold text-[#162a1e]">Yêu cầu được giao cho bạn</h3>
+<p class="text-sm text-[#577260]">Yêu cầu sắp hết hạn được ưu tiên hiển thị trước.</p>
+</div>
+<button class="px-4 py-2 rounded-xl bg-white border border-[#dfe6df] text-xs font-semibold text-[#162a1e] hover:bg-[#f1f6f1] transition shadow-sm min-h-[44px]" type="button">
+            Tải lại
+          </button>
+</div>
+<!-- BEGIN: InteractiveAppointmentCard (MB-384 Interactive Session Room) -->
+<article class="bg-white rounded-3xl border border-[#cfe0d5] p-6 lg:p-7 shadow-sm space-y-6" data-purpose="active-session-card">
+<!-- Card Header & Metadata -->
+<div class="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-[#e9efe9] pb-5">
+<div class="space-y-1">
+<span class="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider uppercase bg-[#e5f1ea] text-[#1b5034]">
+                TƯ VẤN VIDEO TRỰC TUYẾN (1:1)
+              </span>
+<h4 class="text-2xl font-serif font-bold text-[#162a1e]">
+                12:00 Thứ Năm, 08/10/2026 – 13:00
+              </h4>
+<p class="text-sm text-[#577260] flex items-center gap-2">
+<span>Lượt tư vấn vẫn được giữ cho lịch hẹn</span>
+<span class="w-1.5 h-1.5 rounded-full bg-[#577260]"></span>
+<span class="font-medium text-[#162a1e]">Thời lượng chuẩn: 60 phút</span>
+</p>
+</div>
+<div class="flex items-center gap-3">
+<span class="px-3 py-1.5 rounded-full bg-[#e3f2e8] text-xs font-bold text-[#1e5838] flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-[#2da65e]"></span>
+                Đã xác nhận
+              </span>
+</div>
+</div>
+<!-- Pre-Session Brief Block (Tóm tắt trước buổi tư vấn) -->
+<div class="bg-[#f7faf7] border border-[#dce8de] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-lg bg-[#e3ece4] text-[#1e382b] flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h5 class="text-sm font-bold text-[#162a1e]">Tóm tắt trước buổi tư vấn</h5>
+<p class="text-xs text-[#526a5b] mt-0.5">Chỉ đọc bản chụp người dùng đã phê duyệt cho lịch hẹn này (GAD-7: 12 điểm • Mức độ lo âu trung bình).</p>
+</div>
+</div>
+<button class="px-4 py-2 rounded-xl bg-white border border-[#c9dacf] hover:bg-[#edf5ee] text-xs font-bold text-[#162a1e] transition shrink-0 min-h-[44px]" id="open-brief-modal-btn" type="button">
+              Xem tóm tắt
+            </button>
+</div>
+<!-- BEGIN: VideoRoomPrototypeContainer -->
+<div class="relative bg-[#111e16] rounded-2xl overflow-hidden border border-[#233f2e] min-h-[400px] flex flex-col shadow-inner" id="video-room-container">
+<!-- Video Top Status Bar -->
+<div class="px-5 py-3 bg-[#0d1711]/90 border-b border-white/10 flex items-center justify-between text-white text-xs z-10">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full" id="room-status-indicator"></span>
+<span class="font-semibold text-white/90" id="room-status-text">Đang ở phòng chuẩn bị</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="bg-black/40 px-2.5 py-1 rounded-md font-mono text-[11px] text-emerald-400 font-bold" id="session-timer">00:00 / 60:00</span>
+<span class="text-white/60 text-[11px] hidden sm:inline">Phòng tham vấn bảo mật SSL 256-bit</span>
+</div>
+</div>
+<!-- Video Room Dynamic Body (State-Driven) -->
+<div class="flex-1 relative flex items-center justify-center p-6" id="video-stage">
+<!-- STATE 1: Local Device Preview (Default) -->
+<div class="w-full h-full flex flex-col items-center justify-center text-center space-y-4" id="state-preview">
+<div class="w-32 h-32 rounded-full bg-[#1b3d2b] border-4 border-[#2b593f] flex items-center justify-center text-white text-3xl font-bold font-serif shadow-lg">
+                  GA
+                </div>
+<div class="space-y-1 text-white">
+<h5 class="text-base font-bold">Phòng chờ chuẩn bị (Local Device Preview)</h5>
+<p class="text-xs text-white/70 max-w-md">
+                    Chưa kết nối, chưa tính giờ gọi, chưa ghi nhận điểm danh. Hãy kiểm tra camera và micro trước khi bắt đầu.
+                  </p>
+</div>
+<!-- Mic Visualizer Simulation -->
+<div aria-hidden="true" class="flex items-center gap-1 h-6 py-1">
+<span class="w-1 bg-emerald-400 rounded-full voice-bar" style="animation-delay: 0.1s"></span>
+<span class="w-1 bg-emerald-400 rounded-full voice-bar" style="animation-delay: 0.3s"></span>
+<span class="w-1 bg-emerald-400 rounded-full voice-bar" style="animation-delay: 0.2s"></span>
+<span class="w-1 bg-emerald-400 rounded-full voice-bar" style="animation-delay: 0.4s"></span>
+<span class="w-1 bg-emerald-400 rounded-full voice-bar" style="animation-delay: 0.15s"></span>
+</div>
+</div>
+<!-- STATE 2: Waiting for Client -->
+<div class="hidden w-full h-full flex flex-col items-center justify-center text-center space-y-4" id="state-waiting">
+<div class="relative">
+<div class="w-24 h-24 rounded-full bg-[#204230] flex items-center justify-center text-white text-2xl font-bold animate-pulse">
+<svg class="w-10 h-10 text-emerald-300 animate-spin" fill="none" viewbox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path class="opacity-75" d="M4 12a8 8 0 018-8v8H4z" fill="currentColor"></path></svg>
+</div>
+</div>
+<div class="text-white space-y-1">
+<h5 class="text-base font-bold">Bạn đã vào phòng tư vấn</h5>
+<p class="text-xs text-white/70">Đang chờ thân chủ tham gia phòng... Hệ thống đã gửi lời nhắc tự động.</p>
+</div>
+</div>
+<!-- STATE 3: Connected (1:1 Active) -->
+<div class="hidden w-full h-full flex flex-col items-center justify-center" id="state-connected">
+<div class="w-full h-72 md:h-80 bg-[#162b1f] rounded-xl border border-white/10 flex flex-col items-center justify-center text-white relative overflow-hidden">
+<!-- Main client mock video feed -->
+<div class="w-28 h-28 rounded-full bg-[#8b6534] flex items-center justify-center text-white font-serif text-3xl font-bold shadow-xl">
+                    TC
+                  </div>
+<p class="text-sm font-semibold mt-3 text-white/90">Thân chủ tham vấn (Hoàng Minh)</p>
+<span class="text-[11px] text-emerald-400 mt-1 flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    Đang truyền tín hiệu HD 1080p
+                  </span>
+<!-- Doctor PIP (Picture in Picture) -->
+<div class="absolute bottom-3 right-3 w-24 h-20 bg-[#0e1d14] rounded-lg border border-white/20 p-2 flex flex-col items-center justify-center text-center shadow-lg">
+<span class="w-6 h-6 rounded-full bg-[#2d5a43] text-[10px] text-white font-bold flex items-center justify-center">GA</span>
+<span class="text-[9px] text-white/80 mt-1 truncate max-w-full">Bạn (Chuyên gia)</span>
+</div>
+</div>
+</div>
+<!-- STATE 4: Reconnecting -->
+<div class="hidden w-full h-full flex flex-col items-center justify-center text-center space-y-3" id="state-reconnecting">
+<div class="w-16 h-16 rounded-full bg-amber-900/50 border border-amber-500/50 flex items-center justify-center text-amber-300">
+<svg class="w-8 h-8 animate-spin" fill="none" viewbox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor"></path></svg>
+</div>
+<div class="text-white space-y-1">
+<h5 class="text-base font-bold text-amber-300">Mạng gián đoạn — Đang kết nối lại...</h5>
+<p class="text-xs text-white/70 max-w-sm">Hệ thống đang phục hồi kênh âm thanh &amp; video. Lượt tư vấn vẫn được giữ an toàn.</p>
+</div>
+</div>
+<!-- STATE 5: Device Permission Denied -->
+<div class="hidden w-full h-full flex flex-col items-center justify-center text-center space-y-3 p-4" id="state-perm-error">
+<div class="w-16 h-16 rounded-full bg-rose-900/50 border border-rose-500/40 flex items-center justify-center text-rose-300">
+<svg class="w-8 h-8" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="text-white space-y-1">
+<h5 class="text-base font-bold text-rose-300">Không thể truy cập Microphone hoặc Camera</h5>
+<p class="text-xs text-white/70 max-w-md">Vui lòng cấp quyền trong cài đặt trình duyệt để tiếp tục buổi tư vấn bảo mật.</p>
+</div>
+<button class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition min-h-[44px]" onclick="window.prototypeController.setScenario('preview')" type="button">
+                  Thử lại quyền thiết bị
+                </button>
+</div>
+</div>
+<!-- Video Room Interactive Control Bar -->
+<div class="p-3 md:p-4 bg-[#0a140f] border-t border-white/10 flex flex-wrap items-center justify-between gap-3 z-10">
+<!-- Media Toggles -->
+<div class="flex items-center gap-2">
+<!-- Mic Button -->
+<button aria-pressed="true" class="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-2 transition min-h-[44px]" id="toggle-mic-btn" type="button">
+<svg class="w-4 h-4 text-emerald-400" fill="none" id="mic-icon" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span id="mic-btn-label">Micro: Đang bật</span>
+</button>
+<!-- Camera Button -->
+<button aria-pressed="true" class="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-2 transition min-h-[44px]" id="toggle-cam-btn" type="button">
+<svg class="w-4 h-4 text-emerald-400" fill="none" id="cam-icon" stroke="currentColor" viewbox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span id="cam-btn-label">Camera: Đang bật</span>
+</button>
+</div>
+<!-- Main Session Action Buttons -->
+<div class="flex items-center gap-2 ml-auto">
+<!-- Initial Join Button (Only in Preview) -->
+<button class="px-6 py-2.5 rounded-xl bg-[#2e744d] hover:bg-[#256140] text-white text-xs font-bold transition shadow-sm min-h-[44px]" id="join-room-btn" type="button">
+                  Tham gia phiên
+                </button>
+<!-- In-Call Actions (Only when inside room) -->
+<button class="hidden px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold transition min-h-[44px]" id="temporary-leave-btn" type="button">
+                  Tạm rời phòng
+                </button>
+<button class="hidden px-4 py-2.5 rounded-xl bg-[#c24138] hover:bg-[#a8362e] text-white text-xs font-bold transition shadow-sm min-h-[44px]" id="open-end-session-modal-btn" type="button">
+                  Xác nhận kết thúc phiên
+                </button>
+</div>
+</div>
+</div>
+<!-- END: VideoRoomPrototypeContainer -->
+</article>
+<!-- END: InteractiveAppointmentCard -->
+<!-- BEGIN: PrototypeTestController -->
+<details class="bg-[#e7eee8] border border-[#cbdacd] rounded-2xl p-4 text-xs text-[#2b4434] transition">
+<summary class="font-bold cursor-pointer hover:text-[#162a1e] select-none py-1 min-h-[44px] flex items-center">
+            Prototype Only: Bộ chọn kịch bản kiểm thử MB-384 (Nhấn để mở / đóng)
+          </summary>
+<div class="mt-4 pt-3 border-t border-[#cad8cc] space-y-3">
+<p class="text-[#496552]">
+              Dùng để duyệt nhanh qua các trường hợp biên và trạng thái kỹ thuật mà không cần chờ đồng hồ:
+            </p>
+<div class="flex flex-wrap gap-2">
+<button class="px-3 py-2 bg-white rounded-lg border border-[#c1d3c3] hover:bg-[#f3f7f4] font-medium min-h-[36px]" onclick="window.prototypeController.setScenario('preview')" type="button">
+                1. Preview (Trước giờ)
+              </button>
+<button class="px-3 py-2 bg-white rounded-lg border border-[#c1d3c3] hover:bg-[#f3f7f4] font-medium min-h-[36px]" onclick="window.prototypeController.setScenario('waiting')" type="button">
+                2. Đang đợi thân chủ
+              </button>
+<button class="px-3 py-2 bg-white rounded-lg border border-[#c1d3c3] hover:bg-[#f3f7f4] font-medium min-h-[36px]" onclick="window.prototypeController.setScenario('connected')" type="button">
+                3. Đã kết nối 1:1
+              </button>
+<button class="px-3 py-2 bg-white rounded-lg border border-[#c1d3c3] hover:bg-[#f3f7f4] font-medium min-h-[36px]" onclick="window.prototypeController.setScenario('reconnecting')" type="button">
+                4. Kết nối lại (Mạng yếu)
+              </button>
+<button class="px-3 py-2 bg-white rounded-lg border border-[#c1d3c3] hover:bg-[#f3f7f4] font-medium min-h-[36px]" onclick="window.prototypeController.setScenario('permission-error')" type="button">
+                5. Lỗi cấp quyền Mic/Cam
+              </button>
+<button class="px-3 py-2 bg-[#d7e6da] rounded-lg border border-[#afc7b4] hover:bg-[#cbdcca] font-bold min-h-[36px]" onclick="window.prototypeController.triggerEndFlow()" type="button">
+                6. Mở Modal kết thúc phiên
+              </button>
+</div>
+</div>
+</details>
+<!-- END: PrototypeTestController -->
+</div>
+</main>
+<!-- END: MainContentArea -->
+</div>
+<!-- END: App Shell Container -->
+<!-- BEGIN: ModalEndSessionVerification -->
+<div aria-labelledby="end-modal-title" aria-modal="true" class="fixed inset-0 z-50 hidden" id="end-session-modal" role="dialog">
+<!-- Backdrop -->
+<div class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" id="end-modal-backdrop"></div>
+<!-- Modal Window -->
+<div class="fixed inset-0 flex items-center justify-center p-4">
+<div class="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-[#d2ded4] relative space-y-5" id="end-modal-card">
+<div class="w-12 h-12 rounded-2xl bg-[#feebe9] text-[#c24138] flex items-center justify-center">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="space-y-1">
+<h4 class="text-xl font-serif font-bold text-[#162a1e]" id="end-modal-title">
+            Xác nhận kết thúc buổi tư vấn?
+          </h4>
+<p class="text-sm text-[#4d6655] leading-relaxed">
+            Hành động này sẽ đóng phòng video và gửi báo cáo điểm danh về trung tâm tiếp nhận. Lượt tư vấn sẽ được hoàn tất theo thỏa thuận dịch vụ.
+          </p>
+</div>
+<div class="bg-[#f5f8f5] rounded-xl p-3.5 border border-[#dfebdf] text-xs text-[#395342] space-y-1">
+<p class="font-bold flex items-center gap-1.5 text-[#1b3d2b]">
+<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+            Xác minh thời lượng phiên
+          </p>
+<p id="modal-elapsed-time-text">Thời gian thực tế đã hoàn thành: 00:00 / 60:00</p>
+<p class="text-[11px] text-[#63806c]">Đang xác minh phiên. Lượt tư vấn vẫn được giữ an toàn trong suốt quá trình ghi nhận.</p>
+</div>
+<div class="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-2">
+<button class="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-[#cbd8cd] bg-white hover:bg-[#f1f6f2] text-xs font-bold text-[#2e4434] transition min-h-[44px]" id="cancel-end-modal-btn" type="button">
+            Quay lại phòng
+          </button>
+<button class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#c24138] hover:bg-[#a8362e] text-white text-xs font-bold transition shadow-sm min-h-[44px]" id="confirm-finish-btn" type="button">
+            Đồng ý kết thúc
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- END: ModalEndSessionVerification -->
+<!-- BEGIN: ModalPreSessionBrief -->
+<div aria-labelledby="brief-modal-title" aria-modal="true" class="fixed inset-0 z-50 hidden" id="brief-modal" role="dialog">
+<div class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" id="brief-modal-backdrop"></div>
+<div class="fixed inset-0 flex items-center justify-center p-4">
+<div class="bg-white rounded-3xl max-w-xl w-full p-6 md:p-8 shadow-2xl border border-[#d2ded4] relative space-y-4 max-h-[90vh] overflow-y-auto">
+<div class="flex items-start justify-between border-b border-[#e9efe9] pb-4">
+<div>
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#496b55]">HỒ SƠ KHẢO SÁT TIỀN THAM VẤN</span>
+<h4 class="text-xl font-serif font-bold text-[#162a1e]" id="brief-modal-title">
+              Tóm tắt trước buổi tư vấn
+            </h4>
+</div>
+<button aria-label="Đóng cửa sổ tóm tắt" class="p-2 rounded-xl text-[#5a7263] hover:bg-[#edf5ee] transition min-h-[44px] min-w-[44px] flex items-center justify-center" id="close-brief-modal-btn" type="button">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<div class="space-y-4 text-sm text-[#273a2d]">
+<div class="bg-[#f5f8f5] p-4 rounded-2xl border border-[#d9e7da]">
+<p class="font-bold text-xs uppercase tracking-wider text-[#355740] mb-2">Thang đo GAD-7 (Khảo sát lo âu gần nhất):</p>
+<div class="flex items-center gap-4">
+<div class="text-3xl font-serif font-bold text-[#1e4a30]">12 / 21</div>
+<div class="text-xs text-[#526d5a]">
+<span class="font-semibold text-[#1e4a30]">Mức độ: Lo âu trung bình.</span> Thân chủ chia sẻ cảm giác căng thẳng liên quan đến áp lực cân bằng công việc và gia đình.
+              </div>
+</div>
+</div>
+<div>
+<h5 class="text-xs font-bold uppercase tracking-wider text-[#44634f] mb-1">Mục tiêu buổi gặp hôm nay:</h5>
+<p class="text-xs leading-relaxed bg-[#fafcfa] p-3 rounded-xl border border-[#e4ece4]">
+              Nhận diện các tác nhân kích hoạt cảm xúc căng thẳng trong ngày và tiếp cận kỹ thuật điều hòa cảm xúc cơ bản (Grounding 5-4-3-2-1).
+            </p>
+</div>
+<div class="text-[11px] text-[#63806c] italic">
+            * Dữ liệu chỉ đọc được trích xuất từ bản chấp thuận người dùng đã ký điện tử khi đặt lịch.
+          </div>
+</div>
+<div class="pt-3 border-t border-[#e9efe9] flex justify-end">
+<button class="px-5 py-2.5 rounded-xl bg-[#1b3d2b] hover:bg-[#153123] text-white text-xs font-bold transition min-h-[44px]" id="close-brief-bottom-btn" type="button">
+            Đã nắm thông tin
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- END: ModalPreSessionBrief -->
+<!-- BEGIN: InteractivePrototypeScript -->
+<script data-purpose="session-room-prototype-logic">
+    (function () {
+      'use strict';
+
+      // State Management
+      const state = {
+        currentScenario: 'preview', // 'preview' | 'waiting' | 'connected' | 'reconnecting' | 'permission-error'
+        isMicMuted: false,
+        isCamOff: false,
+        timerSeconds: 0,
+        timerInterval: null
+      };
+
+      // DOM Elements
+      const statusIndicator = document.getElementById('room-status-indicator');
+      const statusText = document.getElementById('room-status-text');
+      const sessionTimer = document.getElementById('session-timer');
+
+      const stagePreview = document.getElementById('state-preview');
+      const stageWaiting = document.getElementById('state-waiting');
+      const stageConnected = document.getElementById('state-connected');
+      const stageReconnecting = document.getElementById('state-reconnecting');
+      const stagePermError = document.getElementById('state-perm-error');
+
+      const joinBtn = document.getElementById('join-room-btn');
+      const leaveBtn = document.getElementById('temporary-leave-btn');
+      const openEndModalBtn = document.getElementById('open-end-session-modal-btn');
+      const micBtn = document.getElementById('toggle-mic-btn');
+      const camBtn = document.getElementById('toggle-cam-btn');
+      const micLabel = document.getElementById('mic-btn-label');
+      const camLabel = document.getElementById('cam-btn-label');
+
+      // Modals
+      const endModal = document.getElementById('end-session-modal');
+      const endModalBackdrop = document.getElementById('end-modal-backdrop');
+      const cancelEndModalBtn = document.getElementById('cancel-end-modal-btn');
+      const confirmFinishBtn = document.getElementById('confirm-finish-btn');
+      const modalElapsedText = document.getElementById('modal-elapsed-time-text');
+
+      const briefModal = document.getElementById('brief-modal');
+      const briefBackdrop = document.getElementById('brief-modal-backdrop');
+      const openBriefBtn = document.getElementById('open-brief-modal-btn');
+      const closeBriefBtn = document.getElementById('close-brief-modal-btn');
+      const closeBriefBottomBtn = document.getElementById('close-brief-bottom-btn');
+
+      // Timer Helpers
+      function formatTime(secs) {
+        const m = Math.floor(secs / 60).toString().padStart(2, '0');
+        const s = (secs % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+      }
+
+      function startTimer() {
+        if (state.timerInterval) return;
+        state.timerInterval = setInterval(() => {
+          state.timerSeconds += 1;
+          sessionTimer.textContent = `${formatTime(state.timerSeconds)} / 60:00`;
+        }, 1000);
+      }
+
+      function pauseTimer() {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+
+      function resetTimer() {
+        pauseTimer();
+        state.timerSeconds = 0;
+        sessionTimer.textContent = '00:00 / 60:00';
+      }
+
+      // Hide all dynamic stage subviews
+      function hideAllStages() {
+        [stagePreview, stageWaiting, stageConnected, stageReconnecting, stagePermError].forEach(el => {
+          el.classList.add('hidden');
+        });
+      }
+
+      // Render View Based on Scenario
+      function renderScenario(scenario) {
+        state.currentScenario = scenario;
+        hideAllStages();
+
+        if (scenario === 'preview') {
+          stagePreview.classList.remove('hidden');
+          statusIndicator.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+          statusText.textContent = 'Đang ở phòng chuẩn bị (Local Device Preview)';
+          joinBtn.classList.remove('hidden');
+          leaveBtn.classList.add('hidden');
+          openEndModalBtn.classList.add('hidden');
+          resetTimer();
+        }
+        else if (scenario === 'waiting') {
+          stageWaiting.classList.remove('hidden');
+          statusIndicator.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+          statusText.textContent = 'Đã kết nối • Đang chờ thân chủ tham gia...';
+          joinBtn.classList.add('hidden');
+          leaveBtn.classList.remove('hidden');
+          openEndModalBtn.classList.remove('hidden');
+          startTimer();
+        }
+        else if (scenario === 'connected') {
+          stageConnected.classList.remove('hidden');
+          statusIndicator.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+          statusText.textContent = 'Đang tham vấn 1:1 bảo mật (HD Audio/Video)';
+          joinBtn.classList.add('hidden');
+          leaveBtn.classList.remove('hidden');
+          openEndModalBtn.classList.remove('hidden');
+          startTimer();
+        }
+        else if (scenario === 'reconnecting') {
+          stageReconnecting.classList.remove('hidden');
+          statusIndicator.className = 'w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping';
+          statusText.textContent = 'Mạng yếu — Đang tự động kết nối lại';
+          joinBtn.classList.add('hidden');
+          leaveBtn.classList.remove('hidden');
+          openEndModalBtn.classList.remove('hidden');
+          pauseTimer();
+        }
+        else if (scenario === 'permission-error') {
+          stagePermError.classList.remove('hidden');
+          statusIndicator.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+          statusText.textContent = 'Lỗi cấp quyền thiết bị Microphone / Camera';
+          joinBtn.classList.add('hidden');
+          leaveBtn.classList.add('hidden');
+          openEndModalBtn.classList.add('hidden');
+          pauseTimer();
+        }
+      }
+
+      // Hardware Toggles
+      micBtn.addEventListener('click', () => {
+        state.isMicMuted = !state.isMicMuted;
+        micBtn.setAttribute('aria-pressed', (!state.isMicMuted).toString());
+        if (state.isMicMuted) {
+          micLabel.textContent = 'Micro: Đã tắt';
+          micBtn.classList.add('bg-rose-900/60', 'text-rose-200');
+        } else {
+          micLabel.textContent = 'Micro: Đang bật';
+          micBtn.classList.remove('bg-rose-900/60', 'text-rose-200');
+        }
+      });
+
+      camBtn.addEventListener('click', () => {
+        state.isCamOff = !state.isCamOff;
+        camBtn.setAttribute('aria-pressed', (!state.isCamOff).toString());
+        if (state.isCamOff) {
+          camLabel.textContent = 'Camera: Đã tắt';
+          camBtn.classList.add('bg-rose-900/60', 'text-rose-200');
+        } else {
+          camLabel.textContent = 'Camera: Đang bật';
+          camBtn.classList.remove('bg-rose-900/60', 'text-rose-200');
+        }
+      });
+
+      // Join and Exit Flow
+      joinBtn.addEventListener('click', () => {
+        renderScenario('connected');
+      });
+
+      leaveBtn.addEventListener('click', () => {
+        // Tạm rời trở lại trạng thái preview, không hủy lượt hẹn
+        renderScenario('preview');
+      });
+
+      // Modals Logic & Accessibility (Escape Key & Focus Trap)
+      let previousActiveElement = null;
+
+      function openModal(modalEl) {
+        previousActiveElement = document.activeElement;
+        modalEl.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+      }
+
+      function closeModal(modalEl) {
+        modalEl.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+        if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+          previousActiveElement.focus();
+        }
+      }
+
+      // End Session Modal triggers
+      openEndModalBtn.addEventListener('click', () => {
+        modalElapsedText.textContent = `Thời gian thực tế đã hoàn thành: ${formatTime(state.timerSeconds)} / 60:00`;
+        openModal(endModal);
+        cancelEndModalBtn.focus();
+      });
+
+      cancelEndModalBtn.addEventListener('click', () => closeModal(endModal));
+      endModalBackdrop.addEventListener('click', () => closeModal(endModal));
+
+      confirmFinishBtn.addEventListener('click', () => {
+        closeModal(endModal);
+        alert('Buổi tư vấn đã được đánh dấu hoàn thành thành công. Báo cáo điểm danh đã lưu vào hồ sơ.');
+        renderScenario('preview');
+      });
+
+      // Brief Modal triggers
+      openBriefBtn.addEventListener('click', () => {
+        openModal(briefModal);
+        closeBriefBtn.focus();
+      });
+
+      closeBriefBtn.addEventListener('click', () => closeModal(briefModal));
+      closeBriefBottomBtn.addEventListener('click', () => closeModal(briefModal));
+      briefBackdrop.addEventListener('click', () => closeModal(briefModal));
+
+      // Global Escape handler for modals
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (!endModal.classList.contains('hidden')) closeModal(endModal);
+          if (!briefModal.classList.contains('hidden')) closeModal(briefModal);
+        }
+      });
+
+      // Expose Controller for Prototype Demonstration
+      window.prototypeController = {
+        setScenario: renderScenario,
+        triggerEndFlow: () => {
+          modalElapsedText.textContent = `Thời gian thực tế đã hoàn thành: ${formatTime(state.timerSeconds || 45)} / 60:00`;
+          openModal(endModal);
+        }
+      };
+
+      // Initialize
+      renderScenario('preview');
+    })();
+  </script>
+<!-- END: InteractivePrototypeScript -->
+</body></html>

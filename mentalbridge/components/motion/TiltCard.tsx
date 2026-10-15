@@ -11,15 +11,18 @@ import {
 import {
   motion,
   useMotionValue,
-  useReducedMotion,
   useSpring,
   type HTMLMotionProps,
 } from 'framer-motion'
 import { MOTION_SPRINGS } from '@/lib/animations/config'
+import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
 
 const FINE_POINTER_QUERY = '(hover: hover) and (pointer: fine)'
 
-type TiltWrapperProps = Omit<ComponentPropsWithoutRef<'div'>, 'children' | 'className'>
+type TiltWrapperProps = Omit<
+  ComponentPropsWithoutRef<'div'>,
+  'children' | 'className'
+>
 
 export type TiltCardProps = Omit<HTMLMotionProps<'div'>, 'children'> & {
   children: React.ReactNode
@@ -55,7 +58,7 @@ const TiltCard = forwardRef<HTMLDivElement, TiltCardProps>(function TiltCard(
   },
   forwardedRef,
 ) {
-  const reducedMotion = useReducedMotion()
+  const reducedMotion = useReactiveReducedMotion()
   const finePointerRef = useRef(false)
   const boundsRef = useRef<DOMRect | null>(null)
   const rotateXTarget = useMotionValue(0)
@@ -114,12 +117,11 @@ const TiltCard = forwardRef<HTMLDivElement, TiltCardProps>(function TiltCard(
     ...restWrapperProps
   } = wrapperProps ?? {}
 
-  const canTilt = (event: ReactPointerEvent<HTMLDivElement>) => (
-    !disabled
-    && !reducedMotion
-    && finePointerRef.current
-    && event.pointerType !== 'touch'
-  )
+  const canTilt = (event: ReactPointerEvent<HTMLDivElement>) =>
+    !disabled &&
+    !reducedMotion &&
+    finePointerRef.current &&
+    event.pointerType !== 'touch'
 
   return (
     <div
@@ -138,11 +140,17 @@ const TiltCard = forwardRef<HTMLDivElement, TiltCardProps>(function TiltCard(
       onPointerMove={(event) => {
         onWrapperPointerMove?.(event)
         if (!canTilt(event)) return
-        const bounds = boundsRef.current ?? event.currentTarget.getBoundingClientRect()
+        const bounds =
+          boundsRef.current ?? event.currentTarget.getBoundingClientRect()
         boundsRef.current = bounds
-        const clampUnit = (value: number) => Math.max(-0.5, Math.min(0.5, value))
-        const horizontal = clampUnit((event.clientX - bounds.left) / bounds.width - 0.5)
-        const vertical = clampUnit((event.clientY - bounds.top) / bounds.height - 0.5)
+        const clampUnit = (value: number) =>
+          Math.max(-0.5, Math.min(0.5, value))
+        const horizontal = clampUnit(
+          (event.clientX - bounds.left) / bounds.width - 0.5,
+        )
+        const vertical = clampUnit(
+          (event.clientY - bounds.top) / bounds.height - 0.5,
+        )
         rotateXTarget.set(vertical * maxTilt * -2)
         rotateYTarget.set(horizontal * maxTilt * 2)
       }}

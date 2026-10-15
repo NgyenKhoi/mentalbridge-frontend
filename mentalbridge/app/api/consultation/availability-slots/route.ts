@@ -19,18 +19,37 @@ import {
   validUtcInstant,
 } from '@/lib/consultation/consultation-validation'
 
+import {
+  isSpecialistMockEnabled,
+  MockAvailabilityOverlapError,
+  MockAvailabilityRestDayError,
+  specialistMockService,
+} from '@/lib/mock/specialist-mock-service'
+import { FEATURES } from '@/lib/mock/specialist-availability-preview'
+
 async function authorize(request: NextRequest, correlationId: string) {
   return authenticatedConsultationActor(request, correlationId, ['SPECIALIST'])
 }
 
 export async function GET(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
+  const mockEnabled = isSpecialistMockEnabled(request)
+
   let actor
   try {
     actor = await authorize(request, correlationId)
   } catch (error) {
+    if (mockEnabled) {
+      const includeWithdrawn =
+        request.nextUrl.searchParams.get('includeWithdrawn') ?? 'true'
+      return consultationSuccess(
+        specialistMockService.getSlots(includeWithdrawn === 'true'),
+        correlationId,
+      )
+    }
     return consultationAuthenticationFailure(error, correlationId)
   }
+
   const from = request.nextUrl.searchParams.get('from')
   const to = request.nextUrl.searchParams.get('to')
   const includeWithdrawn =
@@ -50,6 +69,17 @@ export async function GET(request: NextRequest) {
       actor,
     )
   }
+
+  if (mockEnabled) {
+    return carryConsultationSession(
+      consultationSuccess(
+        specialistMockService.getSlots(includeWithdrawn === 'true'),
+        correlationId,
+      ),
+      actor,
+    )
+  }
+
   const query = new URLSearchParams({ includeWithdrawn })
   if (from) query.set('from', from)
   if (to) query.set('to', to)
@@ -73,24 +103,75 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
+  const mockEnabled = isSpecialistMockEnabled(request)
+
+  const idempotencyKey = request.headers.get('Idempotency-Key')
+  if (!validIdempotencyKey(idempotencyKey)) {
+    return localProblem(
+      400,
+      'VALIDATION_FAILED',
+      'Idempotency-Key không hợp lệ.',
+      correlationId,
+    )
+  }
+
+  if (mockEnabled) {
+    try {
+      const payload = await readBoundedJson(request, 4 * 1024)
+      const repeatWeekly = typeof payload === 'object' && payload !== null &&
+        'repeatWeekly' in payload && payload.repeatWeekly === true
+      if (repeatWeekly && !FEATURES.repeatWeekly)
+        return localProblem(422, 'VALIDATION_FAILED', 'Lặp lại tuần tới chưa sẵn sàng.', correlationId)
+      const body = parsePublishAvailabilityInput(
+        repeatWeekly ? Object.fromEntries(Object.entries(payload as object).filter(([key]) => key !== 'repeatWeekly')) : payload,
+      )
+      // TODO(API): Replace mock-only weekly publication with an atomic bulk-publish contract.
+      const created = specialistMockService.publishSlots(body, repeatWeekly)
+      let actor
+      try {
+        actor = await authorize(request, correlationId)
+      } catch {
+        // mock preview allowed without active session
+      }
+      const res = consultationSuccess(
+        repeatWeekly ? created : created[0],
+        correlationId,
+        `"${created[0].version}"`,
+        201,
+      )
+      return actor ? carryConsultationSession(res, actor) : res
+    } catch (error) {
+      if (error instanceof MockAvailabilityOverlapError)
+        return localProblem(409, 'AVAILABILITY_SLOT_OVERLAP', error.message, correlationId)
+      if (error instanceof MockAvailabilityRestDayError)
+        return localProblem(422, 'AVAILABILITY_REST_DAY', error.message, correlationId)
+      if (error instanceof ConsultationInputError)
+        return localProblem(
+          422,
+          'VALIDATION_FAILED',
+          `Trường ${error.field} không hợp lệ.`,
+          correlationId,
+          [{ field: error.field, code: 'INVALID_VALUE' }],
+        )
+      if (error instanceof RequestBodyError)
+        return localProblem(
+          error.status,
+          error.code,
+          error.message,
+          correlationId,
+          error.violations,
+        )
+      return consultationFailure(error, correlationId)
+    }
+  }
+
   let actor
   try {
     actor = await authorize(request, correlationId)
   } catch (error) {
     return consultationAuthenticationFailure(error, correlationId)
   }
-  const idempotencyKey = request.headers.get('Idempotency-Key')
-  if (!validIdempotencyKey(idempotencyKey)) {
-    return carryConsultationSession(
-      localProblem(
-        400,
-        'VALIDATION_FAILED',
-        'Idempotency-Key không hợp lệ.',
-        correlationId,
-      ),
-      actor,
-    )
-  }
+
   try {
     const body = parsePublishAvailabilityInput(
       await readBoundedJson(request, 4 * 1024),

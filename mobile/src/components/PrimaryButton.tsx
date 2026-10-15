@@ -6,13 +6,20 @@ export function PrimaryButton({
   disabled = false,
   label,
   onPress,
-}: Readonly<{ disabled?: boolean; label: string; onPress: () => void }>) {
+  testID,
+}: Readonly<{
+  disabled?: boolean
+  label: string
+  onPress: () => void
+  testID?: string
+}>) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      testID={testID}
       style={({ pressed }) => [
         styles.button,
         disabled && styles.disabled,

@@ -22,6 +22,7 @@ export default async function SpecialistWorkspace({
   }
   const allowedSections = new Set([
     'dashboard',
+    'analytics',
     'appointments',
     'availability',
     'clients',
@@ -40,6 +41,7 @@ export default async function SpecialistWorkspace({
     : requestedAppointmentId
   return (
     <RoleWorkspace
+      key={account.accountId}
       role="specialist"
       sectionKey={requestedSection}
       workspaces={resolveWorkspaces(account.roles) ?? []}

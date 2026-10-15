@@ -1,5 +1,21 @@
 import 'server-only'
 
+import {
+  parseVideoSession,
+  parseVideoAccess,
+  parseVideoCompletion,
+} from './video-validation'
+
+import {
+  parseCredentialDocument,
+  parseCredentialDocuments,
+  parseCredentialLink,
+  parseVerifiedCredentialBadges,
+  type CredentialDocument,
+  type CredentialDocumentLink,
+  type VerifiedCredentialBadge,
+} from '@/features/specialist-profile/api/credential-validation'
+
 import { readConsultationServerConfig } from '@/lib/config/server'
 import {
   parseAvailabilitySlot,
@@ -14,8 +30,12 @@ import {
   parsePendingProfiles,
   parseProblem,
   parseProfile,
+  parseProfileAmendment,
+  parseProfileAmendmentDetail,
+  parseProfileAmendments,
   parseServiceCreditAccount,
   parseSpecialistDashboard,
+  parseSpecialistOperationalAnalytics,
   parseSpecialistEarnings,
   parsePayoutDestination,
   parseAdminPayoutList,
@@ -36,6 +56,7 @@ import {
   type SpecialistDecisionReason,
   type SpecialistSuspensionResult,
   type SpecialistDashboard,
+  type SpecialistOperationalAnalytics,
   type SpecialistEarnings,
   type PayoutDestination,
   type SavePayoutDestinationInput,
@@ -61,6 +82,14 @@ import {
   type SessionSummaryReuseConsentInput,
   type UpdateAgreedNextStepInput,
 } from './session-summary-validation'
+import {
+  parsePlanPayment,
+  parseServicePlanCatalogue,
+  parseAdminPaymentList,
+  parsePlanPaymentHistory,
+  type PlanPayment,
+  type ServicePlanCatalogue,
+} from './billing-validation'
 
 const MAX_RESPONSE_BYTES = 128 * 1024
 
@@ -76,7 +105,7 @@ export class ConsultationServiceError extends Error {
   }
 }
 
-type Result<T> = Readonly<{ data: T; etag: string | null }>
+type Result<T> = Readonly<{ data: T; etag: string | null; status: number }>
 
 async function json(response: Response) {
   const length = Number(response.headers.get('content-length'))
@@ -152,7 +181,11 @@ async function request<T>(options: {
     }
     const parsed = options.parse(value)
     if (!parsed) throw malformed()
-    return { data: parsed, etag: response.headers.get('etag') }
+    return {
+      data: parsed,
+      etag: response.headers.get('etag'),
+      status: response.status,
+    }
   } catch (error) {
     if (error instanceof ConsultationServiceError) throw error
     if (controller.signal.aborted)
@@ -194,6 +227,183 @@ const profileRequest = (
   })
 
 export const consultationClient = {
+  publicCredentialBadges(token: string, correlationId: string, specialistId: string) {
+    return request<VerifiedCredentialBadge[]>({ method: 'GET',
+      path: `/api/v1/specialists/${encodeURIComponent(specialistId)}/credential-badges`,
+      token, correlationId, parse: parseVerifiedCredentialBadges })
+  },
+  videoSession(token: string, correlationId: string, appointmentId: string) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/appointments/${encodeURIComponent(appointmentId)}/video-session`,
+      token,
+      correlationId,
+      parse: parseVideoSession,
+    })
+  },
+  videoAccess(token: string, correlationId: string, appointmentId: string) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/appointments/${encodeURIComponent(appointmentId)}/video-access`,
+      token,
+      correlationId,
+      parse: parseVideoAccess,
+    })
+  },
+  videoCompletion(
+    token: string,
+    correlationId: string,
+    appointmentId: string,
+    ifMatch: string,
+    idempotencyKey: string,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/specialist/appointments/${encodeURIComponent(appointmentId)}/video-completion`,
+      token,
+      correlationId,
+      ifMatch,
+      idempotencyKey,
+      body: { confirmation: 'CONSULTATION_FINISHED' },
+      parse: parseVideoCompletion,
+    })
+  },
+  ownAmendment(token: string, correlationId: string) {
+    return request({
+      method: 'GET',
+      path: '/api/v1/specialist-profile/amendments/current',
+      token,
+      correlationId,
+      parse: parseProfileAmendmentDetail,
+    })
+  },
+  startAmendment(token: string, correlationId: string, etag: string) {
+    return request({
+      method: 'POST',
+      path: '/api/v1/specialist-profile/amendments',
+      token,
+      correlationId,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  saveAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    body: SpecialistProfileInput,
+    etag: string,
+  ) {
+    return request({
+      method: 'PUT',
+      path: `/api/v1/specialist-profile/amendments/${encodeURIComponent(id)}`,
+      token,
+      correlationId,
+      body,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  submitAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    action: 'submit' | 'resubmit',
+    etag: string,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/specialist-profile/amendments/${encodeURIComponent(id)}/${action}`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  cancelAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    etag: string,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/specialist-profile/amendments/${encodeURIComponent(id)}/cancel`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      parse: parseProfileAmendment,
+    })
+  },
+  profileAmendments(token: string, correlationId: string, page: number) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/admin/specialist-profiles/amendments?limit=20&page=${page}`,
+      token,
+      correlationId,
+      parse: parseProfileAmendments,
+    })
+  },
+  amendmentDetail(token: string, correlationId: string, id: string) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/admin/specialist-profiles/amendments/${encodeURIComponent(id)}`,
+      token,
+      correlationId,
+      parse: parseProfileAmendmentDetail,
+    })
+  },
+  decideAmendment(
+    token: string,
+    correlationId: string,
+    id: string,
+    action: 'approve' | 'reject',
+    etag: string,
+    reasonCode?: SpecialistDecisionReason,
+  ) {
+    return request({
+      method: 'POST',
+      path: `/api/v1/admin/specialist-profiles/amendments/${encodeURIComponent(id)}/${action}`,
+      token,
+      correlationId,
+      ifMatch: etag,
+      ...(action === 'reject' ? { body: { reasonCode } } : {}),
+      parse: parseProfileAmendment,
+    })
+  },
+  credentialDocuments(token: string, correlationId: string) {
+    return request<CredentialDocument[]>({ method: 'GET', path: '/api/v1/specialist-profile/documents',
+      token, correlationId, parse: parseCredentialDocuments })
+  },
+  uploadCredential(token: string, correlationId: string, body: FormData) {
+    return request<CredentialDocument>({ method: 'POST', path: '/api/v1/specialist-profile/documents',
+      token, correlationId, body, parse: parseCredentialDocument })
+  },
+  credentialFile(token: string, correlationId: string, id: string, download: boolean) {
+    return request<CredentialDocumentLink>({ method: 'GET',
+      path: `/api/v1/specialist-profile/documents/${encodeURIComponent(id)}/file?download=${download}`,
+      token, correlationId, parse: parseCredentialLink })
+  },
+  credentialBadge(token: string, correlationId: string, id: string, visible: boolean, ifMatch: string) {
+    return request<CredentialDocument>({ method: 'PUT',
+      path: `/api/v1/specialist-profile/documents/${encodeURIComponent(id)}/badge`,
+      token, correlationId, body: { visible }, ifMatch, parse: parseCredentialDocument })
+  },
+  pendingCredentialDocuments(token: string, correlationId: string) {
+    return request<CredentialDocument[]>({ method: 'GET',
+      path: '/api/v1/admin/specialist-profiles/documents/pending',
+      token, correlationId, parse: parseCredentialDocuments })
+  },
+  adminCredentialFile(token: string, correlationId: string, id: string) {
+    return request<CredentialDocumentLink>({ method: 'GET',
+      path: `/api/v1/admin/specialist-profiles/documents/${encodeURIComponent(id)}/file`,
+      token, correlationId, parse: parseCredentialLink })
+  },
+  reviewCredential(token: string, correlationId: string, id: string, decision: 'verify' | 'reject', ifMatch: string) {
+    return request<CredentialDocument>({ method: 'POST',
+      path: `/api/v1/admin/specialist-profiles/documents/${encodeURIComponent(id)}/${decision}`,
+      token, correlationId, ifMatch, parse: parseCredentialDocument })
+  },
   adminAppointments(token: string, correlationId: string, query: string) {
     return request<AdminAppointmentPage>({
       method: 'GET',
@@ -317,6 +527,33 @@ export const consultationClient = {
       parse: parseAdminPayoutList,
     })
   },
+  adminPayments(token: string, correlationId: string) {
+    return request({
+      method: 'GET',
+      path: '/api/v1/admin/payments',
+      token,
+      correlationId,
+      parse: parseAdminPaymentList,
+    })
+  },
+  planPayment(token: string, correlationId: string, paymentId: string) {
+    return request({
+      method: 'GET',
+      path: `/api/v1/payments/${encodeURIComponent(paymentId)}`,
+      token,
+      correlationId,
+      parse: parsePlanPayment,
+    })
+  },
+  planPayments(token: string, correlationId: string) {
+    return request({
+      method: 'GET',
+      path: '/api/v1/payments',
+      token,
+      correlationId,
+      parse: parsePlanPaymentHistory,
+    })
+  },
   appointmentRating(
     token: string,
     correlationId: string,
@@ -354,6 +591,21 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseSpecialistDashboard,
+    })
+  },
+  specialistOperationalAnalytics(
+    token: string,
+    correlationId: string,
+    from: string,
+    to: string,
+  ) {
+    const query = new URLSearchParams({ from, to })
+    return request<SpecialistOperationalAnalytics>({
+      method: 'GET',
+      path: `/api/v1/specialist/analytics?${query.toString()}`,
+      token,
+      correlationId,
+      parse: parseSpecialistOperationalAnalytics,
     })
   },
   userSessionSummaries(
@@ -481,10 +733,17 @@ export const consultationClient = {
       parse: parseBookableSlotList,
     })
   },
-  appointments(token: string, correlationId: string) {
+  appointments(
+    token: string,
+    correlationId: string,
+    originatingPlanActionId?: string,
+  ) {
+    const query = originatingPlanActionId
+      ? `?originatingPlanActionId=${encodeURIComponent(originatingPlanActionId)}`
+      : ''
     return request<AppointmentList>({
       method: 'GET',
-      path: '/api/v1/appointments',
+      path: `/api/v1/appointments${query}`,
       token,
       correlationId,
       parse: parseAppointmentList,
@@ -559,6 +818,31 @@ export const consultationClient = {
       token,
       correlationId,
       parse: parseServiceCreditAccount,
+    })
+  },
+  servicePlans(token: string, correlationId: string) {
+    return request<ServicePlanCatalogue>({
+      method: 'GET',
+      path: '/api/v1/service-plans',
+      token,
+      correlationId,
+      parse: parseServicePlanCatalogue,
+    })
+  },
+  planCheckout(
+    token: string,
+    correlationId: string,
+    planVersionId: string,
+    idempotencyKey: string,
+  ) {
+    return request<PlanPayment>({
+      method: 'POST',
+      path: '/api/v1/subscriptions/checkout',
+      token,
+      correlationId,
+      body: { planVersionId },
+      idempotencyKey,
+      parse: parsePlanPayment,
     })
   },
   own(token: string, correlationId: string) {

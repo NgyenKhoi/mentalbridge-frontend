@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
 import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
@@ -196,8 +197,13 @@ export function CrisisSupportModal({
 }
 
 export default function CrisisSupportWidget() {
+  const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
+
+  if (pathname?.startsWith('/specialist') || pathname?.startsWith('/admin')) {
+    return null
+  }
 
   const handleClose = () => {
     setIsOpen(false)

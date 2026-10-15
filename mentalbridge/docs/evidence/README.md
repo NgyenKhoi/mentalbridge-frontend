@@ -1,5 +1,17 @@
 # Synthetic browser evidence
 
+MB-648 adds the bounded, presentation-only SupportPlan Companion shell. Its
+state-machine, isolation, fallback, accessibility, responsive, performance, and
+Stitch evidence is recorded in
+[`mb-648-support-plan-companion-shell.md`](mb-648-support-plan-companion-shell.md),
+with controlled desktop, mobile, and reduced-motion captures in this directory.
+
+MB-660 persists owner-scoped resource bookmarks and optional weekly Bingo with
+separate self-confirmed and Content-verified evidence. Its contract, conflict,
+reload/delete, typography, responsive, and fixture-browser verification is
+recorded in [`mb-660-persistent-resource-engagement.md`](mb-660-persistent-resource-engagement.md),
+with controlled desktop and mobile captures in this directory.
+
 MB-620 closes the Specialist Portal production surface around owner-backed
 capabilities and truthful deferred states. Unit, route-composition, responsive,
 and fixture-browser coverage is recorded in
@@ -46,6 +58,18 @@ MB-566 integrates the dashboard emotion picker with the persisted MB-510
 daily check-in aggregate. Its contract, BFF, component, local-day and
 fixture-browser coverage is recorded in
 [`mb-566-persisted-dashboard-emotion-picker.md`](mb-566-persisted-dashboard-emotion-picker.md).
+
+MB-657 makes that daily emotion record the source shown by Dashboard,
+Resources, Journal and emotion history, and removes the unused fixed-sample
+modal. Its controlled multi-route, deletion, responsive and legacy-audit
+evidence is recorded in
+[`mb-657-authoritative-daily-emotion.md`](mb-657-authoritative-daily-emotion.md).
+
+MB-658 adds optional, encrypted influence factors and a private note to that
+owner-controlled daily record. Its consent copy, privacy boundaries,
+web/mobile contract coverage and responsive fixture-browser evidence are
+recorded in
+[`mb-658-optional-emotion-context.md`](mb-658-optional-emotion-context.md).
 
 MB-563 delivers the server-backed notification inbox and lifecycle. Its
 contract/BFF/component/fixture coverage is recorded in

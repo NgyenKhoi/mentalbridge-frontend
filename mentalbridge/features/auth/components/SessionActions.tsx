@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
 
 import { terminateSession, type LogoutMode } from '../api/browser-auth'
+import { ApiError } from '@/lib/api/api-error'
 import styles from './SessionActions.module.css'
 
 function Icon({ children }: { children: React.ReactNode }) {
@@ -27,11 +28,28 @@ export default function SessionActions({
   compact = false,
   displayName = 'Người dùng',
   avatar = 'N',
+  accountKind = 'personal',
+  accountLabel,
+  description,
+  profileHref,
+  profileLabel,
+  showSubscription,
 }: {
   compact?: boolean
   displayName?: string
   avatar?: string
+  accountKind?: 'personal' | 'specialist'
+  accountLabel?: string
+  description?: string
+  profileHref?: string
+  profileLabel?: string
+  showSubscription?: boolean
 }) {
+  const specialist = accountKind === 'specialist'
+  const resolvedAccountLabel = description ?? accountLabel ?? (specialist ? 'Tài khoản chuyên gia' : 'Tài khoản cá nhân')
+  const resolvedProfileHref = profileHref ?? (specialist ? '/specialist/profile' : '/profile')
+  const resolvedProfileLabel = profileLabel ?? (specialist ? 'Hồ sơ chuyên gia' : 'Hồ sơ cá nhân')
+  const subscriptionEnabled = showSubscription ?? !specialist
   const router = useRouter()
   const menuId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -39,6 +57,7 @@ export default function SessionActions({
   const actionPending = useRef(false)
   const [open, setOpen] = useState(false)
   const [pendingMode, setPendingMode] = useState<LogoutMode | null>(null)
+  const [actionError, setActionError] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -52,6 +71,7 @@ export default function SessionActions({
     }
     const closeFromKeyboard = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      event.preventDefault()
       setOpen(false)
       triggerRef.current?.focus()
     }
@@ -69,14 +89,21 @@ export default function SessionActions({
 
     actionPending.current = true
     setPendingMode(mode)
+    setActionError('')
 
     try {
       await terminateSession(mode)
-    } catch {
-      // The BFF clears its cookies even when Identity is unavailable.
-    } finally {
       router.replace('/login')
       router.refresh()
+    } catch (error) {
+      if (error instanceof ApiError && error.status !== undefined) {
+        router.replace(mode === 'all' ? '/login?logout=unconfirmed' : '/login')
+        router.refresh()
+        return
+      }
+      setActionError('Không thể kết nối để đăng xuất. Vui lòng thử lại.')
+      actionPending.current = false
+      setPendingMode(null)
     }
   }
 
@@ -85,27 +112,30 @@ export default function SessionActions({
       ref={rootRef}
       className={styles.root}
       data-compact={compact || undefined}
+      data-error={actionError ? true : undefined}
     >
       {open ? (
         <div
           id={menuId}
           className={styles.menu}
           role="menu"
-          aria-label="Tài khoản người dùng"
+          aria-label={
+            specialist ? 'Tài khoản chuyên gia' : 'Tài khoản người dùng'
+          }
         >
           <div className={styles.menuHeader}>
             <span className={styles.headerAvatar}>{avatar}</span>
             <span>
               <strong>{displayName}</strong>
-              <small>Tài khoản cá nhân</small>
+              <small>{resolvedAccountLabel}</small>
             </span>
           </div>
           <Link
-            href="/profile"
+            href={resolvedProfileHref}
             className={styles.menuItem}
             role="menuitem"
             onClick={() => setOpen(false)}
-            title={compact ? 'Hồ sơ cá nhân' : undefined}
+            title={compact ? resolvedProfileLabel : undefined}
           >
             <span className={styles.itemIcon}>
               <Icon>
@@ -113,24 +143,27 @@ export default function SessionActions({
                 <path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6" />
               </Icon>
             </span>
-            <span className={styles.itemLabel}>Hồ sơ cá nhân</span>
+            <span className={styles.itemLabel}>{resolvedProfileLabel}</span>
           </Link>
-          <Link
-            href="/subscription"
-            className={styles.menuItem}
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            title={compact ? 'Gói dịch vụ' : undefined}
-          >
-            <span className={styles.itemIcon}>
-              <Icon>
-                <rect x="3" y="6" width="18" height="12" rx="2.5" />
-                <path d="M3 10h18" />
-              </Icon>
-            </span>
-            <span className={styles.itemLabel}>Gói dịch vụ</span>
-          </Link>
+          {subscriptionEnabled && (
+            <Link
+              href="/subscription"
+              className={styles.menuItem}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              title={compact ? 'Gói dịch vụ' : undefined}
+            >
+              <span className={styles.itemIcon}>
+                <Icon>
+                  <rect x="3" y="6" width="18" height="12" rx="2.5" />
+                  <path d="M3 10h18" />
+                </Icon>
+              </span>
+              <span className={styles.itemLabel}>Gói dịch vụ</span>
+            </Link>
+          )}
           <div className={styles.separator} role="separator" />
+          {actionError && <p className={styles.actionError} role="alert">{actionError}</p>}
           <button
             type="button"
             className={`${styles.menuItem} ${styles.logoutItem}`}
@@ -174,16 +207,19 @@ export default function SessionActions({
         ref={triggerRef}
         type="button"
         className={styles.trigger}
-        aria-label={open ? 'Đóng menu tài khoản' : 'Mở menu tài khoản'}
+        aria-label={`${open ? 'Đóng' : 'Mở'} menu tài khoản${specialist ? ' chuyên gia' : ''}`}
+        title={compact ? `${displayName} · ${resolvedAccountLabel}` : undefined}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className={styles.avatar}>{avatar}</span>
+        <span className={styles.avatar} aria-hidden="true">
+          {avatar}
+        </span>
         <span className={styles.triggerCopy}>
           <strong>{displayName}</strong>
-          <small>Tài khoản cá nhân</small>
+          <small>{resolvedAccountLabel}</small>
         </span>
         <svg
           className={styles.chevron}

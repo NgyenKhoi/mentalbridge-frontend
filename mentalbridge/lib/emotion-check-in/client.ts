@@ -8,16 +8,18 @@ import type {
   EmotionCheckInCreate,
   EmotionCheckInList,
   EmotionCheckInProgress,
+  EmotionCheckInTombstone,
   EmotionCheckInValue,
 } from './contract'
 import {
   parseEmotionCheckIn,
   parseEmotionCheckInList,
   parseEmotionCheckInProgress,
+  parseEmotionCheckInTombstone,
 } from './validation'
 
 type Options = Readonly<{
-  method: 'GET' | 'POST' | 'PATCH'
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   path: string
   accessToken: string
   correlationId: string
@@ -146,7 +148,10 @@ export const emotionCheckInClient = {
         accessToken,
         correlationId,
       },
-      parseEmotionCheckIn,
+      (value) => {
+        const parsed = parseEmotionCheckIn(value)
+        return parsed?.localDate === localDate ? parsed : null
+      },
     )
   },
   list(accessToken: string, limit: number, correlationId: string) {
@@ -186,7 +191,13 @@ export const emotionCheckInClient = {
         idempotencyKey: key,
         body,
       },
-      parseEmotionCheckIn,
+      (value) => {
+        const parsed = parseEmotionCheckIn(value)
+        return parsed?.localDate === body.localDate &&
+          parsed.timezone === body.timezone
+          ? parsed
+          : null
+      },
     )
   },
   update(
@@ -207,7 +218,30 @@ export const emotionCheckInClient = {
         revision,
         body,
       },
-      parseEmotionCheckIn,
+      (value) => {
+        const parsed = parseEmotionCheckIn(value)
+        return parsed?.localDate === localDate ? parsed : null
+      },
+    )
+  },
+  delete(
+    accessToken: string,
+    localDate: string,
+    key: string,
+    correlationId: string,
+  ) {
+    return call<EmotionCheckInTombstone>(
+      {
+        method: 'DELETE',
+        path: `/api/v1/emotion-check-ins/${localDate}`,
+        accessToken,
+        correlationId,
+        idempotencyKey: key,
+      },
+      (value) => {
+        const parsed = parseEmotionCheckInTombstone(value)
+        return parsed?.localDate === localDate ? parsed : null
+      },
     )
   },
 }

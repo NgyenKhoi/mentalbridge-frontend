@@ -1,11 +1,552 @@
 openapi: 3.1.0
 info:
   title: MentalBridge Consultation Service API
-  version: 1.10.0
+  version: 1.17.0
   description: Consultation-owned specialist profile lifecycle, approved online discovery, service-plan entitlement and credit lookup, online availability, appointment requests, appointment-scoped chat eligibility and minimized completion evidence, auditable owner cancellation/reschedule/session outcomes, immutable user-visible session summaries and agreed next steps, evidence-backed specialist earnings, fake local payout reconciliation, credit reservation limits, and suspension outcomes.
 servers:
   - url: http://localhost:8082
 paths:
+  /api/v1/specialist/appointments/{appointmentId}/video-completion:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: confirmVideoConsultationFinished
+      description: Explicit assigned approved Specialist assertion of actual consultation end, accepted immediately without waiting for scheduled end or webhook grace. Stable idempotency and strong Appointment If-Match are required. Provider closure and paired trusted evidence are verified separately. Incomplete verification remains SESSION_ENDED with HELD credit, including after 24h; no timeout release, no-show, refund or earning is authorized. Verified completion reuses the existing immutable completion fact, consumed-credit ledger and MB-516 earning contract.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AppointmentId'
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string, pattern: '^"[0-9]+"$' }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128, pattern: '^[!-~]+$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [confirmation]
+              properties:
+                confirmation: { type: string, enum: [CONSULTATION_FINISHED] }
+      responses:
+        '200':
+          description: Idempotent replay or authoritative verified completion
+          headers:
+            ETag: { description: Current strong Appointment version, schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VideoCompletion' }
+        '202':
+          description: Confirmation persisted; verification pending or requiring review, credit HELD
+          headers:
+            ETag: { description: Current strong Appointment version, schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VideoCompletion' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+        '503': { $ref: '#/components/responses/UnavailableProblem' }
+  /internal/v1/video/livekit/webhook:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: receiveLiveKitParticipationEvent
+      description: Raw provider body authenticated using LiveKit signature, expiry and SHA256 body verification, not an Identity bearer token. Only minimized assigned-participant metadata is retained for 90 days unless a dispute or valid retention hold applies. Duplicate delivery is idempotent; reordered events are paired by room and participant session SID. Unsupported, unknown or privacy-purged rooms are safely ignored. Media events never create completion facts or settle credits on their own.
+      security: [{ liveKitWebhook: [] }]
+      requestBody:
+        required: true
+        content:
+          application/webhook+json:
+            schema: { type: string, maxLength: 65536 }
+      responses:
+        '204': { description: Authenticated event processed or safely ignored }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '503': { $ref: '#/components/responses/UnavailableProblem' }
+  /api/v1/appointments/{appointmentId}/video-session:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: getAppointmentVideoSession
+      description: Assigned USER or SPECIALIST only. Waiting begins five minutes early for local preview, without a provider connection or attendance. Current authorization is authoritative; no media event completes an appointment.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AppointmentId'
+      responses:
+        '200':
+          description: No-store current video eligibility, without credentials or sensitive content
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppointmentVideoSession' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+  /api/v1/appointments/{appointmentId}/video-access:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: issueAppointmentVideoAccess
+      description: No request body. Rechecks exact assigned actor/role, approved specialist, held credit, video modality, CONFIRMED/IN_PROGRESS and [startsAt,endsAt). Uses the owner room mapping, never a client room/actor. Token is room-scoped, in-memory only, 30–300 seconds maximum and expires no later than endsAt. LiveKit SDK refresh does not extend the appointment; server revocation/closure remains required.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AppointmentId'
+      responses:
+        '200':
+          description: Sensitive no-store connection response; never log or persist its token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppointmentVideoAccess' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409':
+          description: VIDEO_JOIN_NOT_ALLOWED for early/late/ended/cancelled/completed/unapproved or otherwise ineligible appointment
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503':
+          description: VIDEO_PROVIDER_UNAVAILABLE or VIDEO_DISABLED. No credentials are issued and no completion/financial fact is created.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /api/v1/specialist-profile/documents:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: listOwnCredentialDocuments
+      description: Only the authenticated specialist reads original credential metadata. No file URL is returned by this list.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Own credential documents, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SpecialistCredentialDocument' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+    post:
+      operationId: uploadOwnCredentialDocument
+      description: Stores a PDF, JPEG or PNG in authenticated private storage, then creates a pending credential. Upload never verifies a credential.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, issuer, issueYear, credentialType, file]
+              properties:
+                title: { type: string, minLength: 1, maxLength: 160 }
+                issuer: { type: string, minLength: 1, maxLength: 160 }
+                issueYear: { type: integer, minimum: 1900, maximum: 2100 }
+                credentialType: { type: string, enum: [DEGREE, LICENSE, CERTIFICATE] }
+                file: { type: string, format: binary, description: PDF, JPEG or PNG; at most 10 MiB. }
+      responses:
+        '201':
+          description: Pending credential
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SpecialistCredentialDocument' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '503': { $ref: '#/components/responses/UnavailableProblem' }
+  /api/v1/specialist-profile/documents/{documentId}/file:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: viewOwnCredentialDocumentFile
+      description: Returns a five-minute signed link after owner authorization; never cache or log the link.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CredentialDocumentId'
+        - { name: download, in: query, schema: { type: boolean, default: false } }
+      responses:
+        '200':
+          description: Expiring original-file link
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CredentialDocumentLink' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '503': { $ref: '#/components/responses/UnavailableProblem' }
+  /api/v1/specialist-profile/documents/{documentId}/badge:
+    x-mentalbridge-status: implemented
+    put:
+      operationId: updateOwnCredentialBadge
+      description: The specialist may display only a previously ADMIN-verified badge.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CredentialDocumentId'
+        - $ref: '#/components/parameters/RequiredIfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CredentialBadgeRequest' }
+      responses:
+        '200':
+          description: Updated credential
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SpecialistCredentialDocument' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/admin/specialist-profiles/documents/pending:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: listPendingCredentialDocumentsForAdmin
+      description: ADMIN review queue; original files require a separate authorized request.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Pending credentials
+          content:
+            application/json:
+              schema: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SpecialistCredentialDocument' } }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+  /api/v1/admin/specialist-profiles/documents/specialists/{specialistId}:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: listSpecialistCredentialDocumentsForAdmin
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: specialistId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Specialist credential review history
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/SpecialistCredentialDocument' } }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+  /api/v1/admin/specialist-profiles/documents/{documentId}/file:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: viewCredentialDocumentFileForAdmin
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CredentialDocumentId'
+        - { name: download, in: query, schema: { type: boolean, default: false } }
+      responses:
+        '200':
+          description: Five-minute signed original-file link
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CredentialDocumentLink' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '503': { $ref: '#/components/responses/UnavailableProblem' }
+  /api/v1/admin/specialist-profiles/documents/{documentId}/{decision}:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: reviewCredentialDocumentForAdmin
+      description: Only ADMIN verifies or rejects a pending credential. Review does not automatically publish a badge.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CredentialDocumentId'
+        - { name: decision, in: path, required: true, schema: { type: string, enum: [verify, reject] } }
+        - $ref: '#/components/parameters/RequiredIfMatch'
+      responses:
+        '200':
+          description: Reviewed credential
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SpecialistCredentialDocument' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/specialist-profile/amendments/current:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: getOwnProfileAmendment
+      description: Returns the live approved profile and latest private amendment (null when absent). Amendment ETag when present; otherwise current profile ETag.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current authoritative result
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileAmendmentDetail' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/specialist-profile/amendments:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: startOwnProfileAmendment
+      description: Requires the approved profile If-Match. Returns the existing open amendment or starts a draft derived from the latest published profile after approval or cancellation. Does not mutate the public profile.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/RequiredIfMatch'
+      responses:
+        '200':
+          description: Current authoritative result
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileAmendment' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/specialist-profile/amendments/{amendmentId}:
+    x-mentalbridge-status: implemented
+    put:
+      operationId: updateOwnProfileAmendment
+      description: Replaces the six proposed fields. Editing PENDING_REVIEW withdraws to DRAFT. REJECTED retains review feedback until explicit resubmission. Approved and cancelled amendments are immutable.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: amendmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/RequiredIfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SpecialistProfileRequest' }
+      responses:
+        '200':
+          description: Current authoritative result
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileAmendment' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/specialist-profile/amendments/{amendmentId}/submit:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: submitOwnProfileAmendment
+      description: Private approved-profile amendment operation; never changes appointments or availability.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: amendmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/RequiredIfMatch'
+      responses:
+        '200':
+          description: Current authoritative result
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileAmendment' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/specialist-profile/amendments/{amendmentId}/resubmit:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: resubmitOwnProfileAmendment
+      description: Private approved-profile amendment operation; never changes appointments or availability.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: amendmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/RequiredIfMatch'
+      responses:
+        '200':
+          description: Current authoritative result
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileAmendment' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/specialist-profile/amendments/{amendmentId}/cancel:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: cancelOwnProfileAmendment
+      description: Only the owning approved specialist may cancel DRAFT, PENDING_REVIEW or REJECTED. Records terminal CANCELLED and an immutable audit revision, removes pending review, and preserves the published profile, appointments and availability. Clears current submission/review metadata; prior revisions retain it. Current resulting ETag replay is a no-op; stale ETag is 412. An approved amendment cannot be cancelled.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: amendmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/RequiredIfMatch'
+      responses:
+        '200':
+          description: Cancelled amendment retained for history
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileAmendment' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/admin/specialist-profiles/amendments:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: listProfileAmendmentsForAdmin
+      description: Lists only pending-review amendments separately from initial submissions. Suspension removes an amendment from the reviewable queue. Stable submission/id ordering; bounded page offset and limit.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 1000, default: 0 }
+      responses:
+        '200':
+          description: Bounded review queue
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileAmendments' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+  /api/v1/admin/specialist-profiles/amendments/{amendmentId}:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: getProfileAmendmentForAdmin
+      description: Private approved-profile amendment operation; never changes appointments or availability.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: amendmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Current authoritative result
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileAmendmentDetail' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/admin/specialist-profiles/amendments/{amendmentId}/approve:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: approveProfileAmendment
+      description: Atomically promotes a pending amendment against its base published version, appends immutable approved history, and leaves all appointments unchanged.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: amendmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/RequiredIfMatch'
+      responses:
+        '200':
+          description: Current authoritative result
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileAmendment' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/admin/specialist-profiles/amendments/{amendmentId}/reject:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: rejectProfileAmendment
+      description: Rejects only the amendment, preserving the live approved profile exactly; reason and review payload are retained for audit.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: amendmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/RequiredIfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RejectSpecialistRequest' }
+      responses:
+        '200':
+          description: Current authoritative result
+          headers:
+            ETag: { $ref: '#/components/headers/ProfileETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileAmendment' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '412': { $ref: '#/components/responses/VersionProblem' }
+        '428': { $ref: '#/components/responses/VersionRequiredProblem' }
   /internal/v1/appointments/{appointmentId}/notification-eligibility:
     x-mentalbridge-status: implemented
     get:
@@ -44,6 +585,98 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedProblem' }
         '403': { $ref: '#/components/responses/EntitlementForbiddenProblem' }
         '409': { $ref: '#/components/responses/CreditConflictProblem' }
+  /api/v1/service-plans:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: listActiveServicePlanVersions
+      description: Returns the authoritative active VND catalogue. Price, credits, concurrent-reservation capacity, credit allocation, AI quota, SupportPlan entitlement, effective date, and allowed upgrades are immutable version facts; clients must not derive them from plan names. MoMo checkout remains gated independently.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Active versioned VND catalogue
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServicePlanCatalogue' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+  /api/v1/subscriptions/checkout:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: createPlanCheckout
+      description: Creates one idempotent MoMo purchase for FREE to PLUS/PREMIUM or upgrade for PLUS to PREMIUM. The server resolves the exact active version and amount. There is no downgrade or user-refund operation.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePlanCheckout' }
+      responses:
+        '201':
+          description: Pending payment and provider-controlled HTTPS checkout destinations
+          headers:
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanPayment' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+        '409': { $ref: '#/components/responses/ConflictProblem' }
+        '503': { $ref: '#/components/responses/UnavailableProblem' }
+  /api/v1/payments:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: listOwnPlanPayments
+      description: Returns up to 50 authenticated-owner payment attempts in stable newest-first order.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Bounded payment history
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanPaymentHistory' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+  /api/v1/payments/{paymentId}:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: getOwnPlanPayment
+      description: Returns one authenticated-owner payment attempt and its stable current state.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Current payment state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanPayment' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
+  /internal/v1/payments/momo/ipn:
+    x-mentalbridge-status: implemented
+    post:
+      operationId: receiveMomoPlanPaymentIpn
+      description: Signature-verifies the complete MoMo One-Time Payment v2 callback, deduplicates the verified tuple, and acknowledges quickly. Only a matching, unexpired resultCode 0 activates the exact plan version. Raw payload, signature, orderInfo, and extraData are never persisted.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MomoPaymentIpn' }
+      responses:
+        '204': { description: 'Verified callback acknowledged, including duplicate or unmatched verified events' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '503': { $ref: '#/components/responses/UnavailableProblem' }
   /internal/v1/entitlements/current:
     x-mentalbridge-status: implemented
     get:
@@ -439,6 +1072,26 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedProblem' }
         '403': { $ref: '#/components/responses/EntitlementForbiddenProblem' }
         '404': { $ref: '#/components/responses/DiscoveryNotFoundProblem' }
+  /api/v1/specialists/{specialistId}/credential-badges:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: getPublicSpecialistCredentialBadges
+      description: Returns only approved, verified credentials that the specialist opted to show. Original files and identifiers are never returned.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: specialistId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Visible credential badges
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/VerifiedCredentialBadge' } }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
+        '404': { $ref: '#/components/responses/NotFoundProblem' }
   /api/v1/admin/appointments:
     x-mentalbridge-status: implemented
     get:
@@ -486,19 +1139,26 @@ paths:
     x-mentalbridge-status: implemented
     get:
       operationId: listOwnAppointments
-      description: Lists the authenticated user's authoritative appointment snapshots, including request deadline and held credit identity.
+      description: Lists at most 100 newest authoritative appointment snapshots owned by the authenticated user. When originatingPlanActionId is supplied, the exact owner-and-action filter is applied before the bound so a caller can recover correlated SupportPlan progress without scanning general history.
       security: [{ bearerAuth: [] }]
+      parameters:
+        - name: originatingPlanActionId
+          in: query
+          required: false
+          description: Optional opaque Care PlanAction reference. Filtering remains owner-scoped and grants no SupportPlan authority.
+          schema: { type: string, format: uuid }
       responses:
         '200':
           description: User-owned appointment history
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AppointmentList' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
         '401': { $ref: '#/components/responses/UnauthorizedProblem' }
         '403': { $ref: '#/components/responses/EntitlementForbiddenProblem' }
     post:
       operationId: requestAppointment
-      description: Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. Exact command replays return the original appointment.
+      description: Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. A replacement inherits an omitted originatingPlanActionId from the owned appointment and rejects a conflicting explicit value. Exact command replays return the original appointment.
       security: [{ bearerAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -699,6 +1359,32 @@ paths:
         '404': { $ref: '#/components/responses/NotFoundProblem' }
         '412': { $ref: '#/components/responses/VersionProblem' }
         '428': { $ref: '#/components/responses/VersionRequiredProblem' }
+  /api/v1/specialist/analytics:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: getSpecialistOperationalAnalytics
+      description: Returns Consultation-owned operational analytics for the authenticated specialist. Lifecycle counts come from immutable transition facts in the half-open requested period; slot utilization is based on slots scheduled in that period and remains true after later appointment changes. Financial metrics sum MB-516 earning facts and successful payouts completed within the same period.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: Inclusive UTC period start. Must be supplied together with to; defaults to 30 days before server time.
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: false
+          description: Exclusive UTC period end. Must be supplied together with from and defaults to server time. A small forward clock skew is clamped to server time; materially future values are rejected.
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Factual specialist operational analytics or explicitly blocked sections
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SpecialistOperationalAnalytics' }
+        '400': { $ref: '#/components/responses/ValidationProblem' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
   /api/v1/specialist/dashboard:
     x-mentalbridge-status: implemented
     get:
@@ -775,6 +1461,20 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenProblem' }
         '404': { $ref: '#/components/responses/NotFoundProblem' }
         '409': { $ref: '#/components/responses/ConflictProblem' }
+  /api/v1/admin/payments:
+    x-mentalbridge-status: implemented
+    get:
+      operationId: listAdminPayments
+      description: ADMIN-only bounded read of canonical purchase/upgrade facts. No customer profile, checkout destination, raw provider payload, or computed revenue is returned.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Recent canonical payment facts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPaymentList' }
+        '401': { $ref: '#/components/responses/UnauthorizedProblem' }
+        '403': { $ref: '#/components/responses/ForbiddenProblem' }
   /api/v1/admin/payouts:
     x-mentalbridge-status: implemented
     get:
@@ -1151,6 +1851,11 @@ paths:
         '428': { $ref: '#/components/responses/VersionRequiredProblem' }
 components:
   securitySchemes:
+    liveKitWebhook:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: LiveKit-signed JWT with raw-body SHA256 binding; no Bearer prefix.
     bearerAuth:
       type: http
       scheme: bearer
@@ -1160,6 +1865,11 @@ components:
       in: header
       name: X-MentalBridge-Service-Token
   parameters:
+    CredentialDocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     SpecialistAccountId:
       name: specialistAccountId
       in: path
@@ -1244,6 +1954,196 @@ components:
       description: Quoted current appointment version for If-Match.
       schema: { type: string, pattern: '^"[0-9]+"$' }
   schemas:
+    VideoCompletion:
+      type: object
+      additionalProperties: false
+      required: [appointmentId, confirmationId, verificationState, appointmentStatus, creditState, completionFactId, acceptedAt, manualReviewAt, version]
+      properties:
+        appointmentId: { type: string, format: uuid }
+        confirmationId: { type: string, format: uuid }
+        verificationState: { type: string, enum: [PENDING_VERIFICATION, VERIFIED, EVIDENCE_REVIEW] }
+        appointmentStatus: { type: string, enum: [SESSION_ENDED, COMPLETED] }
+        creditState: { type: string, enum: [AVAILABLE, HELD, CONSUMED, FORFEITED] }
+        completionFactId: { type: [string, 'null'], format: uuid }
+        acceptedAt: { type: string, format: date-time }
+        manualReviewAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 0 }
+    AppointmentVideoSession:
+      type: object
+      additionalProperties: false
+      required: [appointmentId, phase, previewAllowed, joinAllowed, startsAt, endsAt, serverTime, version, completion]
+      properties:
+        appointmentId: { type: string, format: uuid }
+        phase: { type: string, enum: [TOO_EARLY, WAITING, ACTIVE, ENDED, COMPLETED, NOT_AVAILABLE, UNAVAILABLE] }
+        previewAllowed: { type: boolean }
+        joinAllowed: { type: boolean }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        serverTime: { type: string, format: date-time }
+        version: { type: integer, minimum: 0 }
+        completion:
+          oneOf:
+            - $ref: '#/components/schemas/VideoCompletion'
+            - type: 'null'
+    AppointmentVideoAccess:
+      type: object
+      additionalProperties: false
+      required: [appointmentId, provider, serverUrl, roomName, participantToken, expiresAt, endsAt]
+      properties:
+        appointmentId: { type: string, format: uuid }
+        provider: { type: string, const: LIVEKIT }
+        serverUrl: { type: string, format: uri, pattern: '^wss://[^/]+\.livekit\.cloud/?$' }
+        roomName: { type: string, maxLength: 64 }
+        participantToken: { type: string, description: Sensitive in-memory-only provider JWT; never log or persist }
+        expiresAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+    VerifiedCredentialBadge:
+      type: object
+      additionalProperties: false
+      required: [title, credentialType]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        credentialType: { type: string, enum: [DEGREE, LICENSE, CERTIFICATE] }
+    SpecialistCredentialDocument:
+      type: object
+      additionalProperties: false
+      required: [id, specialistAccountId, title, issuer, issueYear, credentialType, fileName, mediaType, fileBytes, verificationStatus, badgeVisible, reviewedAt, createdAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        specialistAccountId: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        issuer: { type: string, minLength: 1, maxLength: 160 }
+        issueYear: { type: integer, minimum: 1900, maximum: 2100 }
+        credentialType: { type: string, enum: [DEGREE, LICENSE, CERTIFICATE] }
+        fileName: { type: string, minLength: 1, maxLength: 180 }
+        mediaType: { type: string, enum: [application/pdf, image/jpeg, image/png] }
+        fileBytes: { type: integer, format: int64, minimum: 1, maximum: 10485760 }
+        verificationStatus: { type: string, enum: [PENDING, VERIFIED, REJECTED] }
+        badgeVisible: { type: boolean }
+        reviewedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+    CredentialDocumentLink:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url: { type: string, format: uri, description: Signed original-file URL valid for five minutes. }
+    CredentialBadgeRequest:
+      type: object
+      additionalProperties: false
+      required: [visible]
+      properties:
+        visible: { type: boolean }
+    ServicePlanCatalogue:
+      type: object
+      additionalProperties: false
+      required: [plans, checkoutEnabled, paymentProvider, generatedAt]
+      properties:
+        plans:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items: { $ref: '#/components/schemas/ServicePlanVersion' }
+        checkoutEnabled: { type: boolean }
+        paymentProvider: { type: string, const: MOMO }
+        generatedAt: { type: string, format: date-time }
+    ServicePlanVersion:
+      type: object
+      additionalProperties: false
+      required: [planVersionId, planCode, version, displayName, currency, priceVnd, billingPeriodMonths, consultationCredits, maxActiveReservations, creditAllocationVnd, aiQuotaCode, supportPlanEnabled, entitlements, allowedUpgrades, effectiveFrom]
+      properties:
+        planVersionId: { type: string, format: uuid }
+        planCode: { $ref: '#/components/schemas/ServicePackage' }
+        version: { type: string, minLength: 1, maxLength: 64 }
+        displayName: { type: string, minLength: 1, maxLength: 64 }
+        pricingPolicyVersion: { $ref: '#/components/schemas/CommercialPricingPolicy' }
+        currency: { type: string, const: VND }
+        priceVnd: { type: integer, format: int64, minimum: 0 }
+        billingPeriodMonths: { type: integer, const: 1 }
+        consultationCredits: { type: integer, enum: [0, 4, 10] }
+        maxActiveReservations: { type: integer, enum: [0, 2, 4] }
+        creditAllocationVnd: { type: integer, format: int64, minimum: 0 }
+        aiQuotaCode: { type: string, minLength: 1, maxLength: 64 }
+        supportPlanEnabled: { type: boolean }
+        entitlements:
+          type: array
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 64 }
+        allowedUpgrades:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [PLUS, PREMIUM] }
+        effectiveFrom: { type: string, format: date-time }
+    CommercialPricingPolicy:
+      type: string
+      enum: [upgrade-offset-v1, sandbox-full-price-v1]
+      description: Additive owner policy provenance. sandbox-full-price-v1 is synthetic/test pricing only, charging the full target price without an offset; it does not enable production payment or payout. Historical responses may omit this field and retain upgrade-offset-v1 behavior.
+    CreatePlanCheckout:
+      type: object
+      additionalProperties: false
+      required: [planVersionId]
+      properties:
+        planVersionId: { type: string, format: uuid }
+    PlanPayment:
+      type: object
+      additionalProperties: false
+      required: [paymentId, subscriptionId, planVersionId, planCode, planVersion, purpose, provider, status, amountVnd, currency, checkoutUrl, qrCodeUrl, expiresAt, createdAt, paidAt, failedAt]
+      properties:
+        paymentId: { type: string, format: uuid }
+        subscriptionId: { type: string, format: uuid }
+        planVersionId: { type: string, format: uuid }
+        planCode: { type: string, enum: [PLUS, PREMIUM] }
+        planVersion: { type: string, minLength: 1, maxLength: 64 }
+        pricingPolicyVersion: { $ref: '#/components/schemas/CommercialPricingPolicy' }
+        purpose: { type: string, enum: [PURCHASE, UPGRADE] }
+        provider: { type: string, enum: [FAKE, MOMO] }
+        status: { type: string, enum: [PENDING, SUCCEEDED, FAILED, CHARGEBACK] }
+        amountVnd: { type: integer, format: int64, minimum: 1 }
+        currency: { type: string, const: VND }
+        checkoutUrl:
+          type: [string, 'null']
+          format: uri
+          pattern: '^https://'
+          description: Null while provider checkout creation is unconfirmed. The canonical pending payment remains auditable; do not redirect or automatically resend a charge. Verified IPN remains authoritative even when checkout creation times out.
+        qrCodeUrl: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        paidAt: { type: [string, 'null'], format: date-time }
+        failedAt: { type: [string, 'null'], format: date-time }
+    PlanPaymentHistory:
+      type: object
+      additionalProperties: false
+      required: [items, count, generatedAt]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/PlanPayment' }
+        count: { type: integer, minimum: 0, maximum: 50 }
+        generatedAt: { type: string, format: date-time }
+    MomoPaymentIpn:
+      type: object
+      required: [partnerCode, orderId, requestId, amount, orderInfo, orderType, transId, resultCode, message, payType, responseTime, extraData, signature]
+      properties:
+        partnerCode: { type: string, minLength: 1, maxLength: 64 }
+        orderId: { type: string, minLength: 1, maxLength: 128 }
+        requestId: { type: string, minLength: 1, maxLength: 128 }
+        amount: { type: integer, format: int64, minimum: 1 }
+        orderInfo: { type: string, maxLength: 1024 }
+        orderType: { type: string, minLength: 1, maxLength: 64 }
+        transId: { type: integer, format: int64 }
+        resultCode: { type: integer, format: int32 }
+        message: { type: string, maxLength: 256 }
+        payType: { type: string, minLength: 1, maxLength: 32 }
+        responseTime: { type: integer, format: int64, minimum: 1 }
+        extraData: { type: string, maxLength: 8192 }
+        signature: { type: string, pattern: '^[0-9a-fA-F]{64}$' }
+        partnerUserId: { type: string }
+        storeId: { type: string }
+        paymentOption: { type: string }
+        userFee: { type: integer, format: int64 }
+        promotionInfo: {}
     AppointmentNotificationEligibility:
       type: object
       additionalProperties: false
@@ -1366,7 +2266,48 @@ components:
       enum: [POLICY_VIOLATION, QUALITY_REVIEW_REQUIRED, ACCOUNT_REVIEW_REQUIRED]
     LanguageTag:
       type: string
-      enum: [vi, en]
+      enum: [vi, en, zh, fr]
+    ProfileAmendment:
+      type: object
+      additionalProperties: false
+      required: [id, specialistAccountId, basePublishedVersion, status, proposedProfile, submittedAt, reviewedAt, reviewedBy, reasonCode, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        specialistAccountId: { type: string, format: uuid }
+        basePublishedVersion: { type: integer, format: int64, minimum: 1 }
+        status: { type: string, enum: [DRAFT, PENDING_REVIEW, REJECTED, APPROVED, CANCELLED] }
+        proposedProfile: { $ref: '#/components/schemas/SpecialistProfileRequest' }
+        submittedAt: { type: [string, 'null'], format: date-time }
+        reviewedAt: { type: [string, 'null'], format: date-time }
+        reviewedBy: { type: [string, 'null'], format: uuid }
+        reasonCode:
+          oneOf:
+            - $ref: '#/components/schemas/SpecialistRejectionReasonCode'
+            - type: 'null'
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+    ProfileAmendmentDetail:
+      type: object
+      additionalProperties: false
+      required: [approvedProfile, amendment]
+      properties:
+        approvedProfile: { $ref: '#/components/schemas/SpecialistProfile' }
+        amendment:
+          oneOf:
+            - $ref: '#/components/schemas/ProfileAmendment'
+            - type: 'null'
+    ProfileAmendments:
+      type: object
+      additionalProperties: false
+      required: [items, count, hasMore]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/ProfileAmendment' }
+        count: { type: integer, minimum: 0, maximum: 100 }
+        hasMore: { type: boolean }
     SpecialistProfileRequest:
       type: object
       additionalProperties: false
@@ -1383,7 +2324,7 @@ components:
         languages:
           type: array
           minItems: 1
-          maxItems: 2
+          maxItems: 4
           uniqueItems: true
           items: { $ref: '#/components/schemas/LanguageTag' }
         yearsOfExperience: { type: integer, minimum: 0, maximum: 80 }
@@ -1399,6 +2340,7 @@ components:
       properties:
         accountId: { type: string, format: uuid }
         displayName: { type: string, minLength: 1, maxLength: 120 }
+        publishedVersion: { type: integer, format: int64, minimum: 0, description: Monotonic approved-content version; unaffected by draft edits and suspension/restoration. }
         bio: { type: string, minLength: 1, maxLength: 2000 }
         supportAreas:
           type: array
@@ -1409,7 +2351,7 @@ components:
         languages:
           type: array
           minItems: 1
-          maxItems: 2
+          maxItems: 4
           uniqueItems: true
           items: { $ref: '#/components/schemas/LanguageTag' }
         yearsOfExperience: { type: integer, minimum: 0, maximum: 80 }
@@ -1656,6 +2598,81 @@ components:
           type: array
           maxItems: 2
           items: { $ref: '#/components/schemas/SpecialistDashboardActionItem' }
+    SpecialistAnalyticsDataState:
+      type: string
+      enum: [AVAILABLE, EMPTY, BLOCKED, UNAVAILABLE, STALE]
+    SpecialistAnalyticsPeriod:
+      type: object
+      additionalProperties: false
+      required: [from, to, timezone]
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        timezone: { type: string, minLength: 1, maxLength: 64 }
+    SpecialistAvailabilityMetrics:
+      type: object
+      additionalProperties: false
+      required: [source, asOf, state, publishedSlotCount, utilizedSlotCount, unusedSlotCount, utilizationRate]
+      properties:
+        source: { type: string, const: CONSULTATION }
+        asOf: { type: string, format: date-time }
+        state: { $ref: '#/components/schemas/SpecialistAnalyticsDataState' }
+        publishedSlotCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        utilizedSlotCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        unusedSlotCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        utilizationRate: { type: [number, 'null'], format: double, minimum: 0, maximum: 100 }
+    SpecialistAppointmentMetrics:
+      type: object
+      additionalProperties: false
+      required: [source, asOf, state, requestedCount, acceptedCount, rejectedCount, expiredCount, cancelledCount, rescheduledCount, completedCount, userNoShowCount, specialistNoShowCount, bothNoShowCount]
+      properties:
+        source: { type: string, const: CONSULTATION }
+        asOf: { type: string, format: date-time }
+        state: { $ref: '#/components/schemas/SpecialistAnalyticsDataState' }
+        requestedCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        acceptedCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        rejectedCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        expiredCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        cancelledCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        rescheduledCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        completedCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        userNoShowCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        specialistNoShowCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+        bothNoShowCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+    SpecialistRatingMetrics:
+      type: object
+      additionalProperties: false
+      required: [source, asOf, state, averageRating, ratingCount]
+      properties:
+        source: { type: string, const: CONSULTATION }
+        asOf: { type: string, format: date-time }
+        state: { $ref: '#/components/schemas/SpecialistAnalyticsDataState' }
+        averageRating: { type: [number, 'null'], format: double, minimum: 1, maximum: 5 }
+        ratingCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+    SpecialistFinancialMetrics:
+      type: object
+      additionalProperties: false
+      required: [source, asOf, state, currency, earnedAmountMinor, paidAmountMinor]
+      properties:
+        source: { type: string, const: CONSULTATION }
+        asOf: { type: string, format: date-time }
+        state: { $ref: '#/components/schemas/SpecialistAnalyticsDataState' }
+        currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
+        earnedAmountMinor: { type: [integer, 'null'], format: int64, minimum: 0 }
+        paidAmountMinor: { type: [integer, 'null'], format: int64, minimum: 0 }
+    SpecialistOperationalAnalytics:
+      type: object
+      additionalProperties: false
+      required: [source, generatedAt, operationalStatus, period, availability, appointments, rating, financials]
+      properties:
+        source: { type: string, const: CONSULTATION }
+        generatedAt: { type: string, format: date-time }
+        operationalStatus: { $ref: '#/components/schemas/SpecialistOperationalStatus' }
+        period: { $ref: '#/components/schemas/SpecialistAnalyticsPeriod' }
+        availability: { $ref: '#/components/schemas/SpecialistAvailabilityMetrics' }
+        appointments: { $ref: '#/components/schemas/SpecialistAppointmentMetrics' }
+        rating: { $ref: '#/components/schemas/SpecialistRatingMetrics' }
+        financials: { $ref: '#/components/schemas/SpecialistFinancialMetrics' }
     PayoutDestination:
       type: object
       additionalProperties: false
@@ -1727,6 +2744,7 @@ components:
       properties:
         currency: { type: string, const: VND }
         earningPolicyVersion: { type: string, const: specialist-earning-v1 }
+        payoutProvider: { type: string, enum: [FAKE, MOMO], description: Optional additive field identifying the configured withdrawal adapter even before a destination exists. FAKE is synthetic and does not move money. }
         settlementHoldDays: { type: integer, const: 7 }
         minimumWithdrawalVnd: { type: integer, format: int64, const: 100000 }
         generatedAt: { type: string, format: date-time }
@@ -1743,6 +2761,35 @@ components:
           type: array
           maxItems: 100
           items: { $ref: '#/components/schemas/SpecialistPayout' }
+    AdminPaymentList:
+      type: object
+      additionalProperties: false
+      required: [generatedAt, count, items]
+      properties:
+        generatedAt: { type: string, format: date-time }
+        count: { type: integer, minimum: 0, maximum: 200 }
+        items:
+          type: array
+          maxItems: 200
+          items: { $ref: '#/components/schemas/AdminPayment' }
+    AdminPayment:
+      type: object
+      additionalProperties: false
+      required: [paymentId, subscriptionId, planVersionId, planCode, pricingPolicyVersion, purpose, provider, status, amountVnd, currency, createdAt, paidAt, failedAt]
+      properties:
+        paymentId: { type: string, format: uuid }
+        subscriptionId: { type: string, format: uuid }
+        planVersionId: { type: string, format: uuid }
+        planCode: { type: string, enum: [PLUS, PREMIUM] }
+        pricingPolicyVersion: { $ref: '#/components/schemas/CommercialPricingPolicy' }
+        purpose: { type: string, enum: [PURCHASE, UPGRADE] }
+        provider: { type: string, enum: [FAKE, MOMO] }
+        status: { type: string, enum: [PENDING, SUCCEEDED, FAILED, CHARGEBACK] }
+        amountVnd: { type: integer, format: int64, minimum: 1 }
+        currency: { type: string, const: VND }
+        createdAt: { type: string, format: date-time }
+        paidAt: { type: [string, 'null'], format: date-time }
+        failedAt: { type: [string, 'null'], format: date-time }
     AdminPayout:
       type: object
       additionalProperties: false
@@ -1952,6 +2999,10 @@ components:
           type: [string, 'null']
           format: uuid
           description: Active user-owned appointment atomically replaced by this new request; omit for a normal request.
+        originatingPlanActionId:
+          type: [string, 'null']
+          format: uuid
+          description: Optional opaque Care PlanAction reference from an explicit user navigation and booking flow. A replacement inherits the owned prior appointment's value when omitted and must not supply a conflicting value. It never authorizes Consultation to mutate the SupportPlan.
     AppointmentStatus:
       type: string
       enum: [REQUESTED, CONFIRMED, IN_PROGRESS, SESSION_ENDED, COMPLETED, REJECTED, EXPIRED, CANCELLED]
@@ -2019,7 +3070,7 @@ components:
         actorId: { type: [string, 'null'], format: uuid }
         reason:
           type: string
-          enum: [APPOINTMENT_REQUESTED, USER_CANCELLED, USER_RESCHEDULED, SPECIALIST_ACCEPTED, SPECIALIST_REJECTED, DECISION_DEADLINE_EXPIRED, SPECIALIST_SUSPENDED, SESSION_ACTIVITY_OBSERVED, SCHEDULED_WINDOW_ENDED, EVIDENCE_REQUIREMENTS_MET]
+          enum: [APPOINTMENT_REQUESTED, USER_CANCELLED, USER_RESCHEDULED, SPECIALIST_ACCEPTED, SPECIALIST_REJECTED, DECISION_DEADLINE_EXPIRED, SPECIALIST_SUSPENDED, SESSION_ACTIVITY_OBSERVED, SCHEDULED_WINDOW_ENDED, EVIDENCE_REQUIREMENTS_MET, SPECIALIST_VIDEO_END_CONFIRMED, VIDEO_MANUAL_REVIEW_REQUIRED]
         creditOutcome:
           oneOf:
             - { $ref: '#/components/schemas/AppointmentCancellationCreditOutcome' }
@@ -2162,7 +3213,7 @@ components:
         languages:
           type: array
           minItems: 1
-          maxItems: 2
+          maxItems: 4
           uniqueItems: true
           items: { $ref: '#/components/schemas/LanguageTag' }
         yearsOfExperience: { type: integer, minimum: 0, maximum: 80 }
@@ -2222,7 +3273,7 @@ components:
     Appointment:
       type: object
       additionalProperties: false
-      required: [id, slotId, specialistAccountId, specialistDisplayName, status, modality, scheduledStartAt, scheduledEndAt, timezone, requestedAt, decisionDeadlineAt, heldCreditId, replacesAppointmentId, replacedByAppointmentId, decidedAt, decisionReason, cancelledAt, cancellationReason, cancellationActor, cancellationCreditOutcome, sessionOutcome, sessionOutcomeReason, sessionPolicyVersion, sessionEndedAt, sessionSettledAt, completionFactId, creditState, history, version]
+      required: [id, slotId, specialistAccountId, specialistDisplayName, status, modality, scheduledStartAt, scheduledEndAt, timezone, requestedAt, decisionDeadlineAt, heldCreditId, replacesAppointmentId, replacedByAppointmentId, originatingPlanActionId, decidedAt, decisionReason, cancelledAt, cancellationReason, cancellationActor, cancellationCreditOutcome, sessionOutcome, sessionOutcomeReason, sessionPolicyVersion, sessionEndedAt, sessionSettledAt, completionFactId, creditState, history, version]
       properties:
         id: { type: string, format: uuid }
         slotId: { type: string, format: uuid }
@@ -2238,6 +3289,10 @@ components:
         heldCreditId: { type: string, format: uuid }
         replacesAppointmentId: { type: [string, 'null'], format: uuid }
         replacedByAppointmentId: { type: [string, 'null'], format: uuid }
+        originatingPlanActionId:
+          type: [string, 'null']
+          format: uuid
+          description: Opaque Care-owned PlanAction reference used only to present appointment progress in the originating SupportPlan.
         decidedAt: { type: [string, 'null'], format: date-time }
         decisionReason:
           type: [string, 'null']
@@ -2257,7 +3312,7 @@ components:
           type: [string, 'null']
           enum: [COMPLETED, USER_NO_SHOW, SPECIALIST_NO_SHOW, BOTH_NO_SHOW, INSUFFICIENT_EVIDENCE, EVIDENCE_REVIEW, null]
         sessionOutcomeReason: { type: [string, 'null'], maxLength: 64 }
-        sessionPolicyVersion: { type: [string, 'null'], enum: [chat-session-completion-v1, null] }
+        sessionPolicyVersion: { type: [string, 'null'], enum: [chat-session-completion-v1, livekit-video-completion-v1, null] }
         sessionEndedAt: { type: [string, 'null'], format: date-time }
         sessionSettledAt: { type: [string, 'null'], format: date-time }
         completionFactId: { type: [string, 'null'], format: uuid }
@@ -2480,7 +3535,7 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
     VersionProblem:
-      description: If-Match does not equal the current profile version (SPECIALIST_PROFILE_VERSION_MISMATCH).
+      description: If-Match does not equal the current version (SPECIALIST_PROFILE_VERSION_MISMATCH for initial/operational profile commands; PROFILE_AMENDMENT_VERSION_MISMATCH for amendment commands).
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }

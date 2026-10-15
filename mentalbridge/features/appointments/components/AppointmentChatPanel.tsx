@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { CalendarDays, FileText, LockKeyhole, ShieldCheck, X } from 'lucide-react'
 import { ApiError } from '@/lib/api/api-error'
 import type { AppointmentChatEligibility } from '@/lib/consultation/consultation-validation'
 import {
@@ -21,6 +22,7 @@ import {
   type ChatMessage,
 } from '../api/chat-browser-client'
 import styles from './AppointmentChatPanel.module.css'
+import type { MessagesPreviewConversation } from '../mocks/messages-preview'
 
 const phaseText: Record<AppointmentChatEligibility['phase'], string> = {
   NOT_AVAILABLE: 'Lịch hẹn này chưa đủ điều kiện mở chat.',
@@ -105,30 +107,33 @@ export default function AppointmentChatPanel({
   appointmentId,
   viewerRole = 'USER',
   embedded = false,
+  preview,
 }: {
   appointmentId: string
   viewerRole?: 'USER' | 'SPECIALIST'
   embedded?: boolean
+  preview?: MessagesPreviewConversation
 }) {
-  const [eligibility, setEligibility] = useState<AppointmentChatEligibility>()
+  const [eligibility, setEligibility] = useState<AppointmentChatEligibility | undefined>(preview?.eligibility)
   const [connection, setConnection] = useState<ConnectionState>()
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>(preview?.messages ?? [])
   const [content, setContent] = useState('')
   const [error, setError] = useState('')
   const [errorDismissed, setErrorDismissed] = useState(false)
-  const [showSessionDetails, setShowSessionDetails] = useState(true)
+  const [showSessionDetails, setShowSessionDetails] = useState(false)
   const transportRef = useRef<RealtimeTransport | undefined>(undefined)
   const messagesRef = useRef<HTMLElement | null>(null)
+  const initialScrollRef = useRef(true)
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return
     const timer = window.setTimeout(
       () =>
-        setShowSessionDetails(window.matchMedia('(min-width: 1280px)').matches),
+        setShowSessionDetails(window.matchMedia(embedded && viewerRole === 'SPECIALIST' ? '(min-width: 1451px)' : '(min-width: 1280px)').matches),
       0,
     )
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [embedded, viewerRole])
 
   const mergeMessages = useCallback((incoming: readonly ChatMessage[]) => {
     setMessages((current) => {
@@ -143,6 +148,12 @@ export default function AppointmentChatPanel({
   }, [])
 
   const refresh = useCallback(async () => {
+    if (preview) {
+      setEligibility(preview.eligibility)
+      setMessages(preview.messages)
+      setError('')
+      return preview.eligibility
+    }
     let decision: AppointmentChatEligibility
     try {
       decision = await chatEligibility(appointmentId, 'history')
@@ -168,19 +179,20 @@ export default function AppointmentChatPanel({
       }
     }
     return decision
-  }, [appointmentId, mergeMessages])
+  }, [appointmentId, mergeMessages, preview])
 
   useEffect(() => {
+    if (preview) return
     const initial = window.setTimeout(() => void refresh(), 0)
     const timer = window.setInterval(() => void refresh(), 15_000)
     return () => {
       window.clearTimeout(initial)
       window.clearInterval(timer)
     }
-  }, [refresh])
+  }, [preview, refresh])
 
   useEffect(() => {
-    if (!eligibility?.subscribeAllowed || transportRef.current) return
+    if (preview || !eligibility?.subscribeAllowed || transportRef.current) return
     const conversationId = eligibility.conversationId
     let socketEndpoint = window.location.origin
     const transport = new RealtimeTransport({
@@ -265,6 +277,7 @@ export default function AppointmentChatPanel({
       if (transportRef.current === transport) transportRef.current = undefined
     }
   }, [
+    preview,
     eligibility?.conversationId,
     eligibility?.subscribeAllowed,
     mergeMessages,
@@ -280,7 +293,23 @@ export default function AppointmentChatPanel({
 
   async function send() {
     const text = content.trim()
-    if (!text || !eligibility?.sendAllowed || !transportRef.current) return
+    if (!text || !eligibility?.sendAllowed) return
+    if (preview) {
+      const previewMinute = Math.max(1, messages.length - preview.messages.length + 1)
+      setMessages((current) => [...current, {
+        messageId: crypto.randomUUID(),
+        conversationId: eligibility.conversationId,
+        senderId: eligibility.specialistAccountId,
+        clientMessageId: crypto.randomUUID(),
+        type: 'TEXT',
+        content: text,
+        sentAt: new Date(Date.parse(preview.eligibility.serverTime) + previewMinute * 60_000).toISOString(),
+        schemaVersion: 1,
+      }])
+      setContent('')
+      return
+    }
+    if (!transportRef.current) return
     setContent('')
     const result = await transportRef.current.sendMessage(
       eligibility.conversationId,
@@ -293,6 +322,10 @@ export default function AppointmentChatPanel({
   }
 
   async function checkIn() {
+    if (preview) {
+      setEligibility((current) => current ? { ...current, participantCheckedIn: true } : current)
+      return
+    }
     if (
       !eligibility?.checkInAllowed ||
       eligibility.participantCheckedIn ||
@@ -322,8 +355,9 @@ export default function AppointmentChatPanel({
 
   useEffect(() => {
     const container = messagesRef.current
-    if (container) container.scrollTop = container.scrollHeight
-  }, [messages])
+    if (container) container.scrollTop = preview && initialScrollRef.current ? 0 : container.scrollHeight
+    initialScrollRef.current = false
+  }, [messages, preview])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setErrorDismissed(false), 0)
@@ -348,8 +382,7 @@ export default function AppointmentChatPanel({
       ? eligibility.specialistAccountId
       : eligibility.userAccountId
     : null
-  const counterpartLabel =
-    viewerRole === 'SPECIALIST' ? 'Người dùng' : 'Chuyên gia'
+  const counterpartLabel = preview?.clientName ?? (viewerRole === 'SPECIALIST' ? 'Khách hàng' : 'Chuyên gia')
   const quickReplies =
     viewerRole === 'SPECIALIST'
       ? [
@@ -389,6 +422,7 @@ export default function AppointmentChatPanel({
             <div className={styles.chatIdentity}>
               <div className={styles.chatTitleRow}>
                 <strong>{counterpartLabel}</strong>
+                {preview && <span className={styles.mockBadge}>Dữ liệu mẫu</span>}
                 {eligibility && (
                   <span
                     className={styles.phaseBadge}
@@ -420,6 +454,7 @@ export default function AppointmentChatPanel({
                 </div>
               )}
               <button
+                data-messages-ui
                 className={styles.refreshButton}
                 type="button"
                 onClick={() => void refresh()}
@@ -431,6 +466,7 @@ export default function AppointmentChatPanel({
                 </svg>
               </button>
               <button
+                data-messages-ui
                 className={styles.refreshButton}
                 type="button"
                 onClick={() => setShowSessionDetails((visible) => !visible)}
@@ -459,10 +495,11 @@ export default function AppointmentChatPanel({
             <div className={styles.error} role="alert">
               <span>{displayedError}</span>
               <div>
-                <button type="button" onClick={() => void refresh()}>
+                <button data-messages-ui type="button" onClick={() => void refresh()}>
                   Thử lại
                 </button>
                 <button
+                  data-messages-ui
                   type="button"
                   onClick={() => setErrorDismissed(true)}
                   aria-label="Đóng thông báo lỗi"
@@ -497,6 +534,7 @@ export default function AppointmentChatPanel({
                 </p>
               </div>
               <button
+                data-messages-ui
                 type="button"
                 onClick={() => void checkIn()}
                 disabled={eligibility.participantCheckedIn}
@@ -515,6 +553,7 @@ export default function AppointmentChatPanel({
             aria-label="Tin nhắn tư vấn"
             role="log"
           >
+            {preview && messages.length > 0 && <div className={styles.threadIntro}><span><ShieldCheck size={18} /></span><h2>Không gian tư vấn an toàn &amp; thấu cảm</h2><p>Đây là cuộc trò chuyện minh họa. Nội dung chỉ lưu trên màn hình xem trước và không được gửi lên máy chủ.</p><small>Hồ sơ và tin nhắn bên dưới đều là dữ liệu mẫu</small></div>}
             {messages.length === 0 ? (
               <div className={styles.empty}>
                 <svg viewBox="0 0 120 84" aria-hidden="true">
@@ -522,16 +561,20 @@ export default function AppointmentChatPanel({
                   <path d="M20 84V50a40 40 0 0 1 80 0v34" />
                   <path d="M36 84V50a24 24 0 0 1 48 0v34" />
                 </svg>
-                <h2>Chưa có tin nhắn trong lịch hẹn này</h2>
+                <h2>{viewerRole === 'SPECIALIST' ? 'Không gian tư vấn an toàn & thấu cảm' : 'Chưa có tin nhắn trong lịch hẹn này'}</h2>
                 <p>
-                  {eligibility?.sendAllowed
-                    ? 'Gửi lời chào để mở đầu buổi tư vấn.'
-                    : 'Tin nhắn sẽ được mở khi buổi tư vấn bắt đầu.'}
+                  {viewerRole === 'SPECIALIST'
+                    ? 'Nội dung trao đổi được giới hạn trong phiên và chỉ hiển thị cho những người được cấp quyền.'
+                    : eligibility?.sendAllowed
+                      ? 'Gửi lời chào để mở đầu buổi tư vấn.'
+                      : 'Tin nhắn sẽ được mở khi buổi tư vấn bắt đầu.'}
                 </p>
-                {eligibility?.sendAllowed && (
+                {viewerRole === 'SPECIALIST' && <div className={styles.safetyBadges}><span><ShieldCheck size={14} /> Quyền truy cập theo phiên</span><span><LockKeyhole size={14} /> Trao đổi bảo mật</span></div>}
+                {viewerRole !== 'SPECIALIST' && eligibility?.sendAllowed && (
                   <div className={styles.quickReplies}>
                     {quickReplies.map((reply, index) => (
                       <button
+                        data-messages-ui
                         key={reply}
                         type="button"
                         onClick={() => setContent(reply)}
@@ -578,6 +621,7 @@ export default function AppointmentChatPanel({
             }}
           >
             <label htmlFor="appointment-chat-message">Tin nhắn</label>
+            {viewerRole === 'SPECIALIST' && eligibility?.sendAllowed && <div className={styles.composerSuggestions}><span>Mẫu nhanh:</span>{quickReplies.map((reply, index) => <button data-messages-ui type="button" key={reply} onClick={() => setContent(reply)}>{index === 0 ? 'Chào đón ấm áp' : 'Xác nhận sẵn sàng'}</button>)}</div>}
             <div className={styles.composerBox}>
               <textarea
                 id="appointment-chat-message"
@@ -598,11 +642,12 @@ export default function AppointmentChatPanel({
                 disabled={!eligibility?.sendAllowed}
                 placeholder={
                   eligibility?.sendAllowed
-                    ? 'Nhập tin nhắn…'
+                    ? viewerRole === 'SPECIALIST' ? 'Nhập phản hồi cho khách hàng…' : 'Nhập tin nhắn…'
                     : 'Chat hiện ở chế độ chỉ đọc'
                 }
               />
               <button
+                data-messages-ui
                 type="submit"
                 disabled={!eligibility?.sendAllowed || !content.trim()}
                 aria-label="Gửi tin nhắn"
@@ -622,7 +667,20 @@ export default function AppointmentChatPanel({
             className={styles.sessionCard}
             aria-label="Thông tin buổi hẹn"
           >
-            <h2>Thông tin buổi hẹn</h2>
+            <div className={styles.sessionHeading}><h2>{viewerRole === 'SPECIALIST' ? 'Hồ sơ phiên tư vấn' : 'Thông tin buổi hẹn'}</h2>{viewerRole === 'SPECIALIST' && <button data-messages-ui className={styles.sessionClose} type="button" onClick={() => setShowSessionDetails(false)} aria-label="Đóng thông tin phiên"><X size={18} /></button>}</div>
+            {viewerRole === 'SPECIALIST' && <div className={styles.patientCard}><span className={styles.patientAvatar}>{preview ? preview.clientName.split(/\s+/).slice(-2).map((part) => part[0]).join('') : 'KH'}</span><div><strong>{preview?.clientName ?? 'Khách hàng'}</strong><small>{preview ? `${preview.profile.age} tuổi · ${preview.profile.location} · #${preview.reference}` : `Phiên #${appointmentId.slice(-6).toUpperCase()}`}</small><span>{preview ? 'Hồ sơ minh họa · không phải dữ liệu thật' : 'Thông tin cá nhân theo quyền truy cập'}</span></div></div>}
+            {preview && <div className={styles.previewClinical}>
+              <div className={styles.sideLabel}>LÝ DO TÌM KIẾM HỖ TRỢ</div>
+              <p className={styles.previewReason}>{preview.profile.reason}</p>
+              <div className={styles.sideLabel}>KẾT QUẢ SÀNG LỌC MẪU</div>
+              <div className={styles.previewScores}>
+                <div><span>GAD-7</span><strong>{preview.profile.gad7} / 21</strong><i style={{ width: `${Math.round(preview.profile.gad7 / 21 * 100)}%` }} /></div>
+                <div><span>PHQ-9</span><strong>{preview.profile.phq9} / 27</strong><i style={{ width: `${Math.round(preview.profile.phq9 / 27 * 100)}%` }} /></div>
+              </div>
+              <div className={styles.sideLabel}>GHI CHÚ MẪU CỦA CHUYÊN GIA</div>
+              <p className={styles.previewNote}>{preview.profile.note}</p>
+            </div>}
+            {viewerRole === 'SPECIALIST' && <div className={styles.sideLabel}><CalendarDays size={15} /> THỜI GIAN PHIÊN</div>}
             <strong className={styles.sessionTime}>{session.range}</strong>
             <p className={styles.sessionDate}>{session.date}</p>
             <div
@@ -666,6 +724,8 @@ export default function AppointmentChatPanel({
                 <p>{creditText[eligibility.creditState]}</p>
               </div>
             </div>
+            {viewerRole === 'SPECIALIST' && !preview && <div className={styles.clinicalAccess}><div className={styles.sideLabel}><FileText size={15} /> TÓM TẮT TRƯỚC PHIÊN</div><p>Chỉ xem nội dung khách hàng đã phê duyệt trong thời hạn truy cập của lịch hẹn.</p><Link href={`/specialist/clients?appointmentId=${encodeURIComponent(appointmentId)}`}>Xem hồ sơ được chia sẻ <span aria-hidden="true">→</span></Link></div>}
+            {viewerRole === 'SPECIALIST' && <div className={styles.sessionPrivacy}><ShieldCheck size={16} /> Dữ liệu chỉ được sử dụng trong phạm vi phiên tư vấn này.</div>}
           </aside>
         )}
       </div>

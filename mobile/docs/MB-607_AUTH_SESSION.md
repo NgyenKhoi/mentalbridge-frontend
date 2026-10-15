@@ -9,20 +9,26 @@ and are not redefined by this feature.
 
 ## Contract mapping
 
-| Mobile behavior     | Identity endpoint                               | Mobile decision                                                                 |
-| ------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------- |
-| Register USER       | `POST /api/v1/auth/registrations`               | Sends the fixed `USER` actor type and an idempotency key.                       |
-| Verify email        | `POST /api/v1/auth/email-verifications`         | Consumes the existing one-time `challenge` query value.                         |
-| Resend verification | `POST /api/v1/auth/email-verification-requests` | Preserves the contract's non-enumerating accepted response.                     |
-| Login               | `POST /api/v1/auth/login`                       | Persists the returned token pair only through SecureStore.                      |
-| Resolve actor       | `GET /api/v1/account`                           | Opens the USER shell only for an active, verified USER response.                |
-| Refresh             | `POST /api/v1/auth/refresh`                     | Rotates both credentials with an idempotency key before rechecking the account. |
-| Logout              | `POST /api/v1/auth/logout`                      | Attempts server revocation and always clears local credentials.                 |
+| Mobile behavior     | Identity endpoint                               | Mobile decision                                                                                     |
+| ------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Register USER       | `POST /api/v1/auth/registrations`               | Sends the fixed `USER` actor type and an idempotency key.                                           |
+| Verify email        | `POST /api/v1/auth/email-verifications`         | Consumes the existing one-time `challenge` query value.                                             |
+| Resend verification | `POST /api/v1/auth/email-verification-requests` | Preserves the contract's non-enumerating accepted response.                                         |
+| Login               | `POST /api/v1/auth/login`                       | Persists the returned token pair only through SecureStore.                                          |
+| Resolve actor       | `GET /api/v1/account`                           | Opens the matching USER/SPECIALIST shell only for a single active, verified role (MB-384 approval). |
+| Refresh             | `POST /api/v1/auth/refresh`                     | Rotates both credentials with an idempotency key before rechecking the account.                     |
+| Logout              | `POST /api/v1/auth/logout`                      | Attempts server revocation and always clears local credentials.                                     |
 
 The app never decodes a JWT to grant access. A missing, partial, expired,
-revoked, replayed, non-USER, inactive, or unverified session fails closed.
+revoked, replayed, unsupported/multiple-role, inactive, or unverified session fails closed.
 Dependency failures remain distinguishable: personal routes stay closed while
 stored credentials are retained for an explicit retry.
+
+MB-384 adds login/restore/refresh support for existing Identity-approved
+SPECIALIST accounts, as explicitly approved by the project owner. The client
+cannot choose a role, grant profile approval or open ADMIN. Registration remains
+USER-only; Consultation independently checks current Specialist approval and
+appointment assignment before issuing any video access.
 
 ## Credential and restart behavior
 

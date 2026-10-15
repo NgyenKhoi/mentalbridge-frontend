@@ -114,7 +114,35 @@ describe('Appointment change BFF', () => {
     expect(consultationMocks.appointments).toHaveBeenCalledWith(
       'access-token',
       expect.any(String),
+      undefined,
     )
+  })
+
+  it('forwards an exact plan action filter through the authenticated user boundary', async () => {
+    const actionId = '11111111-1111-4111-8111-111111111111'
+    const response = await GET(
+      request(
+        `/api/consultation/appointments?originatingPlanActionId=${actionId}`,
+      ),
+    )
+
+    expect(response.status).toBe(200)
+    expect(consultationMocks.appointments).toHaveBeenCalledWith(
+      'access-token',
+      expect.any(String),
+      actionId,
+    )
+  })
+
+  it('rejects an invalid plan action filter before calling the provider', async () => {
+    const response = await GET(
+      request(
+        '/api/consultation/appointments?originatingPlanActionId=not-a-uuid',
+      ),
+    )
+
+    expect(response.status).toBe(400)
+    expect(consultationMocks.appointments).not.toHaveBeenCalled()
   })
 
   it('forwards a replacement with the exact old appointment version', async () => {

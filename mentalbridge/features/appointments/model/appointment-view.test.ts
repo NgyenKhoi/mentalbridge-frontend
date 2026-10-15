@@ -5,6 +5,7 @@ import {
   appointmentTimingCopy,
   matchesAppointmentFilter,
   nextAppointment,
+  orderAppointmentsForDisplay,
 } from './appointment-view'
 
 const appointment = (overrides: Partial<Appointment> = {}): Appointment => ({
@@ -79,5 +80,37 @@ describe('appointment view', () => {
     expect(appointmentTimingCopy(appointment({ status: 'IN_PROGRESS' }))).toBe(
       'Phiên nhắn tin đang diễn ra',
     )
+  })
+
+  it('orders actionable appointments first and history from newest to oldest', () => {
+    const requested = appointment({
+      id: '55555555-5555-4555-8555-555555555555',
+      status: 'REQUESTED',
+      scheduledStartAt: '2026-10-02T10:00:00Z',
+    })
+    const olderHistory = appointment({
+      id: '66666666-6666-4666-8666-666666666666',
+      status: 'COMPLETED',
+      scheduledStartAt: '2026-09-01T07:00:00Z',
+    })
+    const newerHistory = appointment({
+      id: '77777777-7777-4777-8777-777777777777',
+      status: 'CANCELLED',
+      scheduledStartAt: '2026-09-12T07:00:00Z',
+    })
+
+    expect(
+      orderAppointmentsForDisplay([
+        olderHistory,
+        appointment(),
+        newerHistory,
+        requested,
+      ]).map((item) => item.id),
+    ).toEqual([
+      requested.id,
+      appointment().id,
+      newerHistory.id,
+      olderHistory.id,
+    ])
   })
 })

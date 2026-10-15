@@ -9,7 +9,9 @@ import type {
   SpecialistSuspensionReason,
 } from '@/lib/consultation/consultation-validation'
 import { browserConsultation } from '../api/browser-client'
+import AdminCredentialReviewSection from './AdminCredentialReviewSection'
 import styles from './AdminSpecialistReviewSection.module.css'
+import AdminProfileAmendmentReview from './AdminProfileAmendmentReview'
 
 const supportLabels = {
   DEPRESSIVE_SYMPTOMS: 'Cảm xúc trầm buồn',
@@ -33,6 +35,35 @@ const reasonLabels = {
 } as const
 
 export default function AdminSpecialistReviewSection() {
+  const [mode, setMode] = useState<'initial' | 'amendments'>('initial')
+  return (
+    <>
+      <nav className={styles.filters} aria-label="Loại hồ sơ xét duyệt">
+        <button
+          type="button"
+          aria-pressed={mode === 'initial'}
+          onClick={() => setMode('initial')}
+        >
+          Hồ sơ & trạng thái
+        </button>
+        <button
+          type="button"
+          aria-pressed={mode === 'amendments'}
+          onClick={() => setMode('amendments')}
+        >
+          Cập nhật hồ sơ
+        </button>
+      </nav>
+      {mode === 'initial' ? (
+        <InitialProfileReview />
+      ) : (
+        <AdminProfileAmendmentReview />
+      )}
+    </>
+  )
+}
+
+function InitialProfileReview() {
   const { confirm, showActionToast } = useFeedback()
   const [filter, setFilter] = useState<SpecialistApprovalStatus>('PENDING')
   const [items, setItems] = useState<SpecialistProfile[]>([])
@@ -163,7 +194,7 @@ export default function AdminSpecialistReviewSection() {
         <h1>Vòng đời hồ sơ</h1>
         <p>
           Xét duyệt, từ chối, tạm ngưng và khôi phục bằng lý do vận hành đã được
-          chuẩn hóa. Luồng này không xử lý giấy phép hay tài liệu xác minh.
+          chuẩn hóa. Giấy tờ chuyên gia được xét duyệt riêng trong hàng chờ bên dưới.
         </p>
       </header>
       <nav className={styles.filters} aria-label="Lọc trạng thái hồ sơ">
@@ -351,6 +382,7 @@ export default function AdminSpecialistReviewSection() {
           )}
         </article>
       </div>
+      <AdminCredentialReviewSection />
     </section>
   )
 }

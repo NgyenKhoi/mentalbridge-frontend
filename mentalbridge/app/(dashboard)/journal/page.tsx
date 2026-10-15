@@ -1,12 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Laugh,
-  Smile,
-  Meh,
-  Frown,
-  CloudRain,
   Lock,
   X,
   Clock,
@@ -35,6 +30,15 @@ import {
 import { JournalReflection } from '@/features/journal/reflection/JournalReflection'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
+import { Dialog } from '@/components/ui/Dialog'
+import {
+  JournalPlanOriginObserver,
+  type JournalPlanContext,
+} from '@/features/journal/JournalPlanOriginObserver'
+import {
+  journalPlanHref,
+  type ResolvedJournalPlanOrigin,
+} from '@/features/support-plan/journal-plan-origin'
 import {
   parseJournalEntry,
   parseJournalPage,
@@ -116,6 +120,18 @@ const tagsOf = (value: string) =>
 const focusableSelector =
   'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
 
+function canStartPlanWriting(origin: ResolvedJournalPlanOrigin) {
+  return (
+    origin.canOpenWriting &&
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: origin.timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date()) === origin.localDate
+  )
+}
+
 async function fetchJournalEntry(id: string) {
   const response = await fetch(`/api/journals/${id}`, { cache: 'no-store' })
   const value = await read(response)
@@ -128,14 +144,6 @@ async function fetchJournalEntry(id: string) {
   )
 }
 
-const MOOD_ICONS: Record<JournalMood, typeof Laugh> = {
-  GREAT: Laugh,
-  GOOD: Smile,
-  OKAY: Meh,
-  LOW: Frown,
-  VERY_LOW: CloudRain,
-}
-
 const PRESET_TAGS = [
   { id: 'cong-viec', label: 'Công việc', icon: Briefcase },
   { id: 'gia-dinh', label: 'Gia đình', icon: Users },
@@ -146,7 +154,20 @@ const PRESET_TAGS = [
 ] as const
 
 export default function JournalPage() {
-  const { showActionToast } = useFeedback()
+  const { showActionToast, confirm } = useFeedback()
+  const [planContext, setPlanContext] = useState<JournalPlanContext>({
+    status: 'none',
+    query: '',
+  })
+  const [writingOrigin, setWritingOrigin] =
+    useState<ResolvedJournalPlanOrigin | null>(null)
+  const [savedOrigin, setSavedOrigin] =
+    useState<ResolvedJournalPlanOrigin | null>(null)
+  const openedOrigin = useRef(new Set<string>())
+  const mutationPendingRef = useRef(false)
+  const confirmationPendingRef = useRef(false)
+  const workingRef = useRef(false)
+  const detailEpochRef = useRef(0)
   const [entries, setEntries] = useState<JournalSummary[]>([])
   const [cursor, setCursor] = useState<string>()
   const [hasMore, setHasMore] = useState(false)
@@ -323,6 +344,8 @@ export default function JournalPage() {
   }, [load])
 
   const discardAndClose = useCallback(() => {
+    detailEpochRef.current += 1
+    setWritingOrigin(null)
     setMode('closed')
     setSelected(null)
     setModalError('')
@@ -333,9 +356,28 @@ export default function JournalPage() {
     window.setTimeout(() => triggerRef.current?.focus(), 0)
   }, [])
   const requestClose = useCallback(() => {
+    if (working || confirmationPendingRef.current) return
+    if (dirty && writingOrigin) {
+      confirmationPendingRef.current = true
+      void confirm({
+        title: 'Bạn còn nội dung chưa lưu',
+        description:
+          'Tiếp tục viết để giữ thay đổi. Nếu rời đi, phần chưa lưu sẽ bị bỏ.',
+        confirmLabel: 'Bỏ thay đổi và rời đi',
+        cancelLabel: 'Tiếp tục viết',
+        restoreFocusTo: () => textAreaRef.current,
+      })
+        .then((accepted) => {
+          if (accepted) discardAndClose()
+        })
+        .finally(() => {
+          confirmationPendingRef.current = false
+        })
+      return
+    }
     if (dirty && !window.confirm(DISCARD_MESSAGE)) return
     discardAndClose()
-  }, [dirty, discardAndClose])
+  }, [dirty, discardAndClose, writingOrigin, confirm, working])
   useEffect(() => {
     if (mode === 'closed') return
     const releaseScrollLock = lockBodyScroll()
@@ -345,6 +387,7 @@ export default function JournalPage() {
       background.setAttribute('aria-hidden', 'true')
     }
     const keyboard = (event: KeyboardEvent) => {
+      if (confirmationPendingRef.current) return
       if (event.key === 'Escape' && !working) {
         event.preventDefault()
         requestClose()
@@ -417,6 +460,30 @@ export default function JournalPage() {
         destination.href === window.location.href
       )
         return
+      if (writingOrigin) {
+        event.preventDefault()
+        event.stopPropagation()
+        if (working || confirmationPendingRef.current) return
+        confirmationPendingRef.current = true
+        void confirm({
+          title: 'Bạn còn nội dung chưa lưu',
+          description:
+            'Tiếp tục viết để giữ thay đổi. Nếu rời đi, phần chưa lưu sẽ bị bỏ.',
+          confirmLabel: 'Bỏ thay đổi và rời đi',
+          cancelLabel: 'Tiếp tục viết',
+          restoreFocusTo: () => textAreaRef.current,
+        })
+          .then((accepted) => {
+            if (accepted) {
+              navigationAllowedRef.current = true
+              window.location.assign(destination.href)
+            }
+          })
+          .finally(() => {
+            confirmationPendingRef.current = false
+          })
+        return
+      }
       if (!window.confirm(DISCARD_MESSAGE)) {
         event.preventDefault()
         event.stopPropagation()
@@ -430,7 +497,54 @@ export default function JournalPage() {
       window.removeEventListener('beforeunload', beforeUnload)
       document.removeEventListener('click', protectLinkNavigation, true)
     }
-  }, [dirty])
+  }, [dirty, writingOrigin, confirm, working])
+  useEffect(() => {
+    workingRef.current = working
+  }, [working])
+  useEffect(() => {
+    if (!dirty || !writingOrigin) return
+    const route = window.location.href
+    const previous: unknown = window.history.state
+    const marker = crypto.randomUUID()
+    const state = previous && typeof previous === 'object' ? previous : {}
+    const guardedState = { ...state, mentalbridgeJournalDraftGuard: marker }
+    window.history.pushState(guardedState, '', route)
+    const protectBack = (event: PopStateEvent) => {
+      if (navigationAllowedRef.current) return
+      if (window.history.state?.mentalbridgeJournalDraftGuard === marker) return
+      event.stopImmediatePropagation()
+      window.history.pushState(guardedState, '', route)
+      if (workingRef.current || confirmationPendingRef.current) return
+      confirmationPendingRef.current = true
+      void confirm({
+        title: 'Bạn còn nội dung chưa lưu',
+        description:
+          'Tiếp tục viết để giữ thay đổi. Nếu rời đi, phần chưa lưu sẽ bị bỏ.',
+        confirmLabel: 'Bỏ thay đổi và rời đi',
+        cancelLabel: 'Tiếp tục viết',
+        restoreFocusTo: () => textAreaRef.current,
+      })
+        .then((accepted) => {
+          if (accepted) {
+            navigationAllowedRef.current = true
+            window.history.go(-2)
+          }
+        })
+        .finally(() => {
+          confirmationPendingRef.current = false
+        })
+    }
+    window.addEventListener('popstate', protectBack, true)
+    return () => {
+      window.removeEventListener('popstate', protectBack, true)
+      if (
+        !navigationAllowedRef.current &&
+        window.location.href === route &&
+        window.history.state?.mentalbridgeJournalDraftGuard === marker
+      )
+        window.history.back()
+    }
+  }, [dirty, writingOrigin, confirm])
   useEffect(() => {
     if (mode === 'closed') return
     const frame = window.requestAnimationFrame(() => {
@@ -444,7 +558,16 @@ export default function JournalPage() {
   }, [detailLoading, mode])
   function openCreate(
     event?: React.MouseEvent<HTMLButtonElement> | HTMLElement | null,
+    capturedOrigin: ResolvedJournalPlanOrigin | null = planContext.status ===
+      'ready' && canStartPlanWriting(planContext.origin)
+      ? planContext.origin
+      : null,
   ) {
+    if (working || dirty) return
+    detailEpochRef.current += 1
+    openedOrigin.current.add(planContext.query)
+    setWritingOrigin(capturedOrigin)
+    setSavedOrigin(null)
     if (event) {
       triggerRef.current =
         'currentTarget' in event ? event.currentTarget : event
@@ -466,7 +589,48 @@ export default function JournalPage() {
     })
     setMode('create')
   }
+  useEffect(() => {
+    if (
+      planContext.status !== 'ready' ||
+      mode !== 'closed' ||
+      openedOrigin.current.has(planContext.query)
+    )
+      return
+    openedOrigin.current.add(planContext.query)
+    const origin = planContext.origin
+    const timer = window.setTimeout(() => {
+      if (origin.journalId) {
+        const epoch = ++detailEpochRef.current
+        setWritingOrigin(origin)
+        setSavedOrigin(null)
+        setMode('view')
+        setDetailLoading(true)
+        setModalError('')
+        void fetchJournalEntry(origin.journalId)
+          .then((entry) => {
+            if (detailEpochRef.current === epoch) setSelected(entry)
+          })
+          .catch((error: unknown) => {
+            if (detailEpochRef.current === epoch)
+              setModalError(
+                error instanceof Error
+                  ? error.message
+                  : 'Không thể mở bài đã chọn.',
+              )
+          })
+          .finally(() => {
+            if (detailEpochRef.current === epoch) setDetailLoading(false)
+          })
+      } else if (canStartPlanWriting(origin)) openCreate(null, origin)
+    }, 0)
+    return () => window.clearTimeout(timer)
+    // openCreate captures the resolved origin explicitly; editor fields/query are
+    // deliberately not dependencies that could remount or reset dirty writing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planContext, mode])
   async function openDetail(entry: JournalSummary, target: HTMLElement) {
+    setWritingOrigin(null)
+    setSavedOrigin(null)
     triggerRef.current = target
     setMode('view')
     setDetailLoading(true)
@@ -510,11 +674,11 @@ export default function JournalPage() {
     mutationKeys.current.set(scope, created)
     return created
   }
-  async function mutate(
+  async function mutate<T>(
     scope: string,
     url: string,
     options: RequestInit,
-    parser: (value: unknown) => unknown,
+    parser: (value: unknown) => T | null,
   ) {
     setWorking(true)
     setModalError('')
@@ -575,6 +739,7 @@ export default function JournalPage() {
     return Object.keys(errors).length === 0
   }
   async function create() {
+    if (mutationPendingRef.current || mode !== 'create') return
     const tags = tagsOf(tagText)
     const occurredAtIso = journalLocalDateTimeToIso(occurredAt)
     if (!validateEditor(tags, occurredAtIso) || !occurredAtIso || !mood) return
@@ -585,8 +750,10 @@ export default function JournalPage() {
       mood,
       tags,
     }
+    const capturedOrigin = writingOrigin
+    mutationPendingRef.current = true
     try {
-      await mutate(
+      const created = await mutate(
         `create:${clientEntryId}`,
         '/api/journals',
         {
@@ -598,12 +765,19 @@ export default function JournalPage() {
       )
       setPageNotice('Nhật ký đã được lưu.')
       showActionToast({ title: 'Đã lưu nhật ký' })
-      discardAndClose()
+      if (capturedOrigin) {
+        setSavedOrigin({ ...capturedOrigin, journalId: created.id })
+        setSelected(created)
+        setEditorBaseline(null)
+        setMode('view')
+      } else discardAndClose()
       await load()
     } catch (error) {
       setModalError(
         error instanceof Error ? error.message : 'Không thể tạo nhật ký.',
       )
+    } finally {
+      mutationPendingRef.current = false
     }
   }
   async function revise() {
@@ -612,7 +786,7 @@ export default function JournalPage() {
     if (!validateEditor(tags) || !mood) return
     const scope = `revise:${selected.id}:${selected.currentRevision}:${mood}:${text}:${tagText}`
     try {
-      const updated = (await mutate(
+      const updated = await mutate(
         scope,
         `/api/journals/${selected.id}`,
         {
@@ -624,7 +798,7 @@ export default function JournalPage() {
           body: JSON.stringify({ content: { text }, mood, tags }),
         },
         parseJournalEntry,
-      )) as JournalEntry
+      )
       setSelected(updated)
       updateMood(updated.mood)
       setEditorBaseline(null)
@@ -687,6 +861,49 @@ export default function JournalPage() {
     <div className="journal-live">
       <div ref={backgroundRef} className="journal-page-content">
         <div className="journal-wrap">
+          <div className="journal-plan-context">
+            <Suspense fallback={null}>
+              <JournalPlanOriginObserver onChange={setPlanContext} />
+            </Suspense>
+            {planContext.status === 'loading' && (
+              <p role="status">
+                Đang tải hoạt động từ kế hoạch… Bạn vẫn có thể viết nhật ký
+                riêng.
+              </p>
+            )}
+            {(planContext.status === 'invalid' ||
+              planContext.status === 'error') && (
+              <p role="status">
+                Chưa mở được hoạt động từ kế hoạch. Nhật ký riêng vẫn sử dụng
+                bình thường.
+              </p>
+            )}
+            {planContext.status === 'ready' && mode === 'closed' && (
+              <div className="journal-plan-origin">
+                <strong>Từ kế hoạch · {planContext.origin.title}</strong>
+                <p>
+                  Nội dung nhật ký vẫn riêng tư. Kế hoạch chỉ ghi nhận việc bạn
+                  đã lưu bài.
+                </p>
+                {!canStartPlanWriting(planContext.origin) &&
+                  !planContext.origin.journalId && (
+                    <p>
+                      Bạn vẫn có thể viết nhật ký riêng. Bài mới không ghi nhận
+                      thay cho hoạt động của ngày khác hoặc hoạt động đã hoàn
+                      thành.
+                    </p>
+                  )}
+                <Link
+                  href={journalPlanHref(
+                    savedOrigin ?? planContext.origin,
+                    '/support-plan',
+                  )}
+                >
+                  Quay lại hoạt động
+                </Link>
+              </div>
+            )}
+          </div>
           {pageNotice && (
             <p className="journal-save-notice" role="status">
               {pageNotice}
@@ -754,11 +971,14 @@ export default function JournalPage() {
         </div>
       </div>
       {mode !== 'closed' && (
-        <div
-          className="journal-dialog-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !working) requestClose()
+        <Dialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) requestClose()
           }}
+          labelledBy="journal-dialog-title"
+          className="journal-modal-layer"
+          restoreFocusTo={() => triggerRef.current}
         >
           <section
             ref={dialogRef}
@@ -767,8 +987,6 @@ export default function JournalPage() {
                 ? 'journal-dialog-editor'
                 : ''
             }`}
-            role="dialog"
-            aria-modal="true"
             aria-labelledby="journal-dialog-title"
             aria-busy={working || detailLoading}
             tabIndex={-1}
@@ -792,7 +1010,12 @@ export default function JournalPage() {
                     <span>Chỉ mình bạn xem được</span>
                   </div>
                 </div>
-                <h2 id="journal-dialog-title" className="journal-dialog-title">
+                <h2
+                  id="journal-dialog-title"
+                  className="journal-dialog-title"
+                  tabIndex={-1}
+                  data-dialog-initial-focus={writingOrigin ? true : undefined}
+                >
                   {mode === 'create'
                     ? 'Viết nhật ký'
                     : mode === 'edit'
@@ -812,6 +1035,36 @@ export default function JournalPage() {
                 <X size={18} aria-hidden="true" />
               </button>
             </header>
+            {writingOrigin && (
+              <div className="journal-plan-origin">
+                <strong>Từ kế hoạch · {writingOrigin.title}</strong>
+                <p>
+                  Nội dung nhật ký vẫn riêng tư. Kế hoạch chỉ ghi nhận việc bạn
+                  đã lưu bài.
+                </p>
+                {savedOrigin && (
+                  <p role="status">
+                    Đã lưu nhật ký. Quay lại hoạt động để kiểm tra ghi nhận;
+                    việc lưu bài chưa tự xác nhận hoàn thành.
+                  </p>
+                )}
+                <Link
+                  className={
+                    savedOrigin ? 'btn btn-primary' : 'journal-plan-return'
+                  }
+                  aria-disabled={working}
+                  onClick={(event) => {
+                    if (working) event.preventDefault()
+                  }}
+                  href={journalPlanHref(
+                    savedOrigin ?? writingOrigin,
+                    '/support-plan',
+                  )}
+                >
+                  Quay lại hoạt động
+                </Link>
+              </div>
+            )}
             {detailLoading && (
               <p role="status" className="journal-status">
                 Đang tải nội dung…
@@ -872,7 +1125,6 @@ export default function JournalPage() {
                       <div className="journal-mood-grid">
                         {JOURNAL_MOODS.map((option, index) => {
                           const isSelected = mood === option.value
-                          const MoodIcon = MOOD_ICONS[option.value]
                           return (
                             <label
                               key={option.value}
@@ -899,7 +1151,7 @@ export default function JournalPage() {
                                 className="journal-mood-icon"
                                 aria-hidden="true"
                               >
-                                <MoodIcon size={22} strokeWidth={1.8} />
+                                {option.emoji}
                               </span>
                               <strong className="journal-mood-name">
                                 {option.label}
@@ -1080,7 +1332,7 @@ export default function JournalPage() {
 
                   {/* Cột phải: gợi ý viết, ô nội dung, thanh đếm ký tự */}
                   <div className="journal-col-right">
-                    {/* Banner hỗ trợ nhẹ nhàng khi chọn tâm trạng Không tốt hoặc Rất tệ */}
+                    {/* Banner hỗ trợ nhẹ nhàng khi chọn tâm trạng Không tốt hoặc Rất không tốt */}
                     {(mood === 'LOW' || mood === 'VERY_LOW') && (
                       <div className="journal-support-banner" role="status">
                         <div
@@ -1279,7 +1531,7 @@ export default function JournalPage() {
               </div>
             )}
           </section>
-        </div>
+        </Dialog>
       )}
     </div>
   )

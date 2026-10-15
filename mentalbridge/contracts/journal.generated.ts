@@ -158,6 +158,34 @@ export interface paths {
         patch: operations["updateEmotionCheckIn"];
         trace?: never;
     };
+    "/api/v1/emotion-check-ins/{localDate}/completion-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve the authenticated owner's content-free daily check-in fact.
+         * @description MB-641 provider boundary for Care reconciliation. Requires the owner's
+         *     bearer context; no caller-supplied account, action, occurrence or fact ID
+         *     is accepted. Returns RECORDED, MISSING or DELETED from the owner store.
+         *     Deleted becomes MISSING after the existing tombstone retention expires.
+         *     A recorded fact references the creation revision (1) and createdAt;
+         *     same-day edits never create a second completion fact. No emotion,
+         *     intensity, factors, note, encrypted payload, score or AI result is read
+         *     or returned. This read does not mutate or complete a SupportPlan.
+         *     Dependency uncertainty is 503, never MISSING. Responses are no-store.
+         */
+        get: operations["getEmotionCheckInCompletionEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/emotion-check-in-progress": {
         parameters: {
             query?: never;
@@ -186,7 +214,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Return a note-free minimized projection for consented AI reflection.
+         * Return a factor- and note-free minimized projection for consented AI reflection.
          * @description Reminder composition is deliberately unavailable until a separate reminder consent contract is accepted.
          */
         get: operations["getEmotionCheckInConsumerContext"];
@@ -229,7 +257,7 @@ export interface paths {
         put?: never;
         /**
          * Resolve one owner's minimized activity for the Content reminder scheduler.
-         * @description Requires the configured Content/Notification service credential. The response is note-free and reuses the authoritative emotion progress calculation.
+         * @description Requires the configured Content/Notification service credential. The response excludes optional factors and notes and reuses the authoritative emotion progress calculation.
          */
         post: operations["resolveNotificationActivityForScheduler"];
         delete?: never;
@@ -273,6 +301,26 @@ export interface paths {
         head?: never;
         /** Revise an existing journal entry. */
         patch: operations["reviseJournalEntry"];
+        trace?: never;
+    };
+    "/api/v1/journals/{journalId}/completion-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve an owned Journal creation fact without private content.
+         * @description Resolves the authenticated owner's exact entry, not a browser-asserted completion. Missing and other-owner identifiers are indistinguishable. An owned tombstone returns DELETED. The stable creation fact uses server createdAt as occurredAt, never the user-selected Journal occurredAt or mutable revision timestamp. Revising text does not create another fact. No text, preview, tags, mood, encrypted payload, analysis or AI-processing consent crosses this boundary. This factual read does not authorize analysis, sharing or reuse of private reflection. Owner failures are unavailable, never false absence; responses are not cached. Care must independently validate the originating action, occurrence date in its schedule timezone, activation boundary and fact uniqueness. Deletion blocks new completion but never rewrites previously accepted history.
+         */
+        get: operations["getJournalEntryCompletionEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/journals/{journalId}/revisions/{revision}/analysis-jobs": {
@@ -366,6 +414,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai-companion/conversations/{conversationId}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace the owner-scoped sources used by one conversation.
+         * @description Message sends read this persisted configuration; client-supplied source lists are never authoritative.
+         */
+        put: operations["replaceAiCompanionConversationContext"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/longitudinal-analysis-jobs": {
         parameters: {
             query?: never;
@@ -440,10 +508,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/support-plan-companion/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Phrase one policy-selected SupportPlan Companion intent.
+         * @description Care authenticates with its dedicated service credential and forwards the verified end-user bearer plus one exact v1 intent envelope containing only the approved minimized context. Journal/AI validates both caller boundaries, surface, intent and context before checking current AI consent or calling one configured provider. Missing consent, provider rate/quota limit, timeout, provider failure, malformed output and policy rejection return deterministic template copy. The operation cannot create or mutate a plan, action, schedule, review, consent, booking or source-domain record.
+         */
+        post: operations["createSupportPlanCompanionMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/consultation-brief-drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate an editable suggestion from one exact minimized Care-owned draft source
+         * @description Requires the forwarded verified end-user bearer and current AI_PROCESSING consent. It may rewrite only currentSituation and userGoals. It cannot change the screening source, save or approve a brief, grant specialist access, or consume Journal, chat, raw assessment answers, or private specialist notes.
+         */
+        post: operations["generateConsultationBriefDraftSuggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ConsultationBriefAiDraftScreeningContext: {
+            /** @enum {string} */
+            instrument: "PHQ9" | "GAD7";
+            /** @enum {string} */
+            domain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
+            /** @enum {string} */
+            screeningLevel: "MINIMAL" | "MILD" | "MODERATE" | "MODERATELY_SEVERE" | "SEVERE";
+            questionnaireVersion: string;
+            scoringVersion: string;
+            /** Format: date-time */
+            evaluatedAt: string;
+            policyVersion: string;
+        };
+        ConsultationBriefAiDraftProviderRequest: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            consultationBriefId: string;
+            /** Format: int64 */
+            consultationBriefVersion: number;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            currentSituation: string;
+            userGoals: string[];
+            screeningContext: components["schemas"]["ConsultationBriefAiDraftScreeningContext"][];
+            /** @constant */
+            sourceSetVersion: "consultation-brief-ai-source-v1";
+        };
+        ConsultationBriefAiDraftProviderResponse: {
+            currentSituation: string;
+            userGoals: string[];
+            /** @constant */
+            sourceSetVersion: "consultation-brief-ai-source-v1";
+            consentPolicyVersion: string;
+            /** @enum {string} */
+            servicePlan: "FREE" | "PLUS" | "PREMIUM";
+            /** @enum {string} */
+            entitlementSource: "DEFAULT_FREE" | "DEMO" | "PAID";
+            entitlementPolicyVersion: string;
+            /** Format: int64 */
+            entitlementVersion: number;
+            routingPolicyVersion: string;
+            providerApprovalVersion: string;
+            /** @enum {string} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
+            model: string;
+            /** @constant */
+            promptVersion: "consultation-brief-draft-v1";
+            /** @constant */
+            schemaVersion: 1;
+            /** Format: int64 */
+            latencyMs: number;
+            /** Format: int64 */
+            inputTokens: number | null;
+            /** Format: int64 */
+            outputTokens: number | null;
+            /** Format: int64 */
+            estimatedCostMicroUsd: number | null;
+        };
         SupportGuidePhrasingRequest: {
             approvedText: string;
             /** @constant */
@@ -452,35 +619,63 @@ export interface components {
         SupportGuidePhrasingResponse: {
             text: string;
             /** @enum {string} */
-            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI";
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
             model: string;
             /** @constant */
             promptVersion: "support-guide-phrasing-v1";
             /** @constant */
             schemaVersion: 1;
         };
+        SupportPlanCompanionNavigation: {
+            /** @enum {string} */
+            destination: "TODAY" | "PLAN" | "PROGRESS" | "ADJUST" | "ACTION_DETAIL" | "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "SPECIALIST_DISCOVERY" | "REASSESSMENT";
+            label: string;
+        };
+        SupportPlanCompanionMessage: {
+            /** @constant */
+            schemaVersion: "support-plan-companion-message-v1";
+            /** @enum {string} */
+            intent: "EXPLAIN_ACTION" | "EXPLAIN_FOCUS" | "SUGGEST_NEXT_STEP" | "ENCOURAGE" | "SUMMARIZE_PROGRESS" | "EXPLAIN_REVIEW_OPTION" | "NAVIGATE";
+            /** @enum {string} */
+            surface: "TODAY" | "PLAN" | "PROGRESS" | "ADJUST";
+            text: string;
+            /** @enum {string} */
+            delivery: "GENERATED" | "TEMPLATE";
+            navigation: components["schemas"]["SupportPlanCompanionNavigation"] | null;
+            /** @constant */
+            policyVersion: "support-plan-companion-policy-v1";
+            /** @constant */
+            promptVersion: "support-plan-companion-prompt-v1";
+            /** @constant */
+            templateVersion: "support-plan-companion-template-v1";
+            /** @enum {string|null} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK" | null;
+            model: string | null;
+            /** @enum {string|null} */
+            fallbackReason: "CONSENT_REQUIRED" | "CONSENT_UNAVAILABLE" | "PROVIDER_DISABLED" | "PROVIDER_TIMEOUT" | "PROVIDER_QUOTA_LIMITED" | "PROVIDER_UNAVAILABLE" | "MALFORMED_OUTPUT" | "POLICY_REJECTED" | null;
+        };
         CreateAiConversationRequest: {
             title?: string;
         };
-        AiContextSelection: {
-            /** @default [] */
-            journalIds: string[];
-            /** Format: uuid */
-            longitudinalAnalysisId?: string;
-            /** @default true */
-            includeCurrentSupportPlan: boolean;
-            /**
-             * @description Fails closed until Content/Notification publishes an approved reminder-context owner contract.
-             * @default false
-             */
-            includeReminderContext: boolean;
+        AiContextSources: {
+            plan: boolean;
+            diary: boolean;
+            screening: boolean;
+            resourceIds: string[];
+        };
+        AiConversationContextInput: {
+            sources: components["schemas"]["AiContextSources"];
+        };
+        AiConversationContext: {
+            sources: components["schemas"]["AiContextSources"];
+            /** Format: date-time */
+            updatedAt: string;
         };
         SendAiMessageRequest: {
             message: string;
-            context?: components["schemas"]["AiContextSelection"];
         };
         /** @enum {string} */
-        AiContextKind: "JOURNAL" | "SUPPORT_PLAN" | "REASSESSMENT";
+        AiContextKind: "JOURNAL" | "SUPPORT_PLAN" | "REASSESSMENT" | "RESOURCE";
         AiMessage: {
             /** Format: uuid */
             messageId: string;
@@ -495,6 +690,7 @@ export interface components {
             /** Format: uuid */
             conversationId: string;
             title: string;
+            context: components["schemas"]["AiConversationContext"];
             messages: components["schemas"]["AiMessage"][];
             /** Format: date-time */
             createdAt: string;
@@ -535,6 +731,7 @@ export interface components {
             assistant: string;
             /** Format: date-time */
             createdAt: string;
+            contextKinds: components["schemas"]["AiContextKind"][];
             quota: components["schemas"]["AiQuota"];
         };
         /**
@@ -542,10 +739,20 @@ export interface components {
          * @enum {string}
          */
         Emotion: "GREAT" | "GOOD" | "OKAY" | "LOW" | "VERY_LOW";
+        /**
+         * @description Optional self-selected context retained only in the owner record; it is not a diagnosis or downstream inference input.
+         * @enum {string}
+         */
+        EmotionInfluenceFactor: "sleep" | "work" | "study" | "family" | "friends" | "health" | "other";
         EmotionCheckInValue: {
             emotion: components["schemas"]["Emotion"];
             /** @description Strength of the selected feeling, not wellness, severity, diagnosis, or recovery. */
             intensity: number;
+            /**
+             * @description Optional self-selected context; encrypted at rest and excluded from consumer projections, logs, events, analytics, SupportPlan, and automated AI use.
+             * @default []
+             */
+            factors: components["schemas"]["EmotionInfluenceFactor"][];
             /** @description Optional private free text; encrypted at rest and excluded from consumer projections, logs, and events. */
             note?: string | null;
         };
@@ -563,6 +770,7 @@ export interface components {
             timezone: string;
             emotion: components["schemas"]["Emotion"];
             intensity: number;
+            factors: components["schemas"]["EmotionInfluenceFactor"][];
             note: string | null;
             /** @constant */
             sourceLabel: "SELF_REPORTED_EMOTION";
@@ -575,6 +783,66 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        JournalEntryCompletionEvidence: {
+            /** @constant */
+            schemaVersion: "journal-entry-completion-evidence-v1";
+            /** Format: uuid */
+            subjectUserId: string;
+            /** Format: uuid */
+            journalId: string;
+            /** @enum {string} */
+            state: "RECORDED" | "MISSING" | "DELETED";
+            /** Format: date-time */
+            verifiedAt: string;
+            fact: null | components["schemas"]["JournalEntryCompletionFact"];
+        } & unknown;
+        JournalEntryCompletionFact: {
+            /** @constant */
+            ownerDomain: "JOURNAL_AI";
+            /** @constant */
+            kind: "JOURNAL_ENTRY";
+            /** Format: uuid */
+            factId: string;
+            /**
+             * @description Immutable creation-fact revision, not the private content revision.
+             * @constant
+             */
+            factRevision: "1";
+            /**
+             * Format: date-time
+             * @description Owner-generated entry createdAt; user-supplied Journal occurredAt is excluded.
+             */
+            occurredAt: string;
+        };
+        EmotionCheckInCompletionEvidence: {
+            /** @constant */
+            schemaVersion: "emotion-check-in-completion-evidence-v1";
+            /** Format: uuid */
+            subjectUserId: string;
+            /** Format: date */
+            localDate: string;
+            /** @enum {string} */
+            state: "RECORDED" | "MISSING" | "DELETED";
+            /** Format: date-time */
+            verifiedAt: string;
+            fact: null | components["schemas"]["EmotionCheckInCompletionFact"];
+        } & unknown;
+        EmotionCheckInCompletionFact: {
+            /** @constant */
+            ownerDomain: "JOURNAL_AI";
+            /** @constant */
+            kind: "EMOTION_CHECK_IN";
+            /** Format: uuid */
+            factId: string;
+            /**
+             * @description Creation-fact revision, not the mutable emotion payload revision.
+             * @constant
+             */
+            factRevision: "1";
+            /** Format: date-time */
+            occurredAt: string;
+            timezone: string;
         };
         EmotionCheckInList: {
             items: components["schemas"]["EmotionCheckIn"][];
@@ -631,12 +899,30 @@ export interface components {
             ownerAccountId: string;
             timezone: string;
         };
+        NotificationActivityAchievementMilestone: {
+            /** @enum {integer} */
+            days: 3 | 7;
+            reachedAt: string | null;
+        };
+        NotificationActivityAchievementFact: {
+            distinctDays: number;
+            longestStreak: number;
+            firstOccurredAt: string | null;
+            streakMilestones: components["schemas"]["NotificationActivityAchievementMilestone"][];
+        };
+        NotificationActivityAchievementFacts: {
+            /** Format: uuid */
+            ownerAccountId: string;
+            journal: components["schemas"]["NotificationActivityAchievementFact"];
+            emotionCheckIn: components["schemas"]["NotificationActivityAchievementFact"];
+        };
         NotificationActivity: {
             /** Format: date */
             asOfLocalDate: string;
             timezone: string;
             journal: components["schemas"]["NotificationActivityStreak"];
             emotionCheckIn: components["schemas"]["NotificationActivityStreak"];
+            achievementFacts: components["schemas"]["NotificationActivityAchievementFacts"];
             /** @constant */
             interpretation: "FACTUAL_ACTIVITY_NOT_ADHERENCE_OR_RECOVERY";
         };
@@ -812,7 +1098,7 @@ export interface components {
             routingPolicyVersion?: string;
             providerApprovalVersion?: string;
             /** @enum {string} */
-            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI";
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
             model: string;
             promptVersion: string;
             /** @constant */
@@ -882,7 +1168,7 @@ export interface components {
             helpfulPatterns: string[];
             dataCoverage: components["schemas"]["LongitudinalDataCoverage"];
             /** @enum {string} */
-            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI";
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
             model: string;
             /** @constant */
             promptVersion: "longitudinal-v1";
@@ -923,6 +1209,265 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** @constant */
+        schemaVersion: "support-plan-companion-context-v1";
+        /** @constant */
+        locale: "vi-VN";
+        /** @enum {string} */
+        actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+        boundedTitle: string;
+        boundedRationale: string;
+        /** @enum {string} */
+        dueState: "DUE_TODAY" | "UPCOMING" | "OVERDUE" | "UNSCHEDULED" | "COMPLETED" | "SKIPPED";
+        /** @enum {string} */
+        destination: "TODAY" | "PLAN" | "PROGRESS" | "ADJUST" | "ACTION_DETAIL" | "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "SPECIALIST_DISCOVERY" | "REASSESSMENT";
+        navigation: {
+            destination: components["schemas"]["destination"];
+            label: components["schemas"]["boundedTitle"];
+        };
+        actionContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "ACTION";
+            action: {
+                actionType: components["schemas"]["actionType"];
+                title: components["schemas"]["boundedTitle"];
+                rationale?: components["schemas"]["boundedRationale"];
+                /** @enum {string} */
+                availability: "AVAILABLE" | "UNAVAILABLE" | "SOURCE_UNAVAILABLE";
+                dueState?: components["schemas"]["dueState"];
+                navigation?: components["schemas"]["navigation"];
+            };
+        };
+        focusContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "FOCUS";
+            focus: {
+                title: string;
+                rationale?: components["schemas"]["boundedRationale"];
+                navigation?: components["schemas"]["navigation"];
+            };
+        };
+        nextStepContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "NEXT_STEP";
+            nextStep: {
+                label: components["schemas"]["boundedTitle"];
+                destination: components["schemas"]["destination"];
+                actionType?: components["schemas"]["actionType"];
+                dueState?: components["schemas"]["dueState"];
+            };
+        };
+        acknowledgementContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "ACKNOWLEDGEMENT";
+            acknowledgement: {
+                /** @enum {string} */
+                reason: "ACTION_SAVED" | "EXPLICIT_COMPLETION_SAVED" | "REVIEW_SUBMITTED" | "PREFERENCE_SAVED";
+                title?: components["schemas"]["boundedTitle"];
+            };
+        };
+        progressContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "PROGRESS";
+            progress: {
+                /** @enum {string} */
+                period: "TODAY" | "SEVEN_DAYS" | "PLAN";
+                completedCount: number;
+                availableCount: number;
+                evidenceAsOf: string;
+                partial: boolean;
+                unavailableEvidence?: ("CARE_ACTIONS" | "CONTENT_RESOURCE_PROGRESS" | "JOURNAL_ACTION_EVIDENCE" | "EMOTION_CHECK_IN_EVIDENCE" | "CONSULTATION_EVIDENCE")[];
+            } & (unknown & unknown);
+        };
+        reviewContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "REVIEW";
+            review: {
+                /** @enum {string} */
+                outcome: "KEEP_CURRENT" | "ALTERNATIVES_AVAILABLE" | "CURRENT_NOT_ADMISSIBLE";
+                dimensions: {
+                    /** @enum {string} */
+                    code: "SCREENING_CHANGE" | "JOURNAL_CONTEXT" | "PLAN_ENGAGEMENT" | "SELF_REPORTED_EXPERIENCE";
+                    /** @enum {string} */
+                    availability: "AVAILABLE" | "MISSING" | "UNAVAILABLE" | "NOT_APPLICABLE";
+                    /** @enum {string} */
+                    direction: "INCREASED" | "STABLE" | "DECREASED" | "MIXED" | "UNKNOWN";
+                }[] & (unknown & unknown & unknown & unknown);
+                options: {
+                    /** @enum {string} */
+                    optionCode: "KEEP_CURRENT" | "REDUCE_WORKLOAD" | "MOVE_TIME" | "CHOOSE_ADMITTED_ALTERNATIVE" | "CONSIDER_PROFESSIONAL_SUPPORT";
+                    label: components["schemas"]["boundedTitle"];
+                }[];
+                barrierPatterns?: ("TIME" | "ENERGY" | "ACCESS" | "PREFERENCE" | "OTHER_DECLARED")[];
+                helpfulnessPatterns?: ("HELPFUL" | "NEUTRAL" | "NOT_HELPFUL" | "NOT_REPORTED")[];
+                contradictoryEvidence: boolean;
+            };
+        };
+        navigationContext: {
+            schemaVersion: components["schemas"]["schemaVersion"];
+            locale: components["schemas"]["locale"];
+            /** @constant */
+            contextKind: "NAVIGATION";
+            navigation: {
+                destination: components["schemas"]["destination"];
+                label: components["schemas"]["boundedTitle"];
+                sourceActionTitle?: components["schemas"]["boundedTitle"];
+            };
+        };
+        /**
+         * SupportPlan Companion context v1
+         * @description Closed, minimized, model-facing context variants. Identifiers and raw source-domain payloads stay outside this contract.
+         */
+        "support-plan-companion-context-v1.schema": {
+            $defs: {
+                /** @constant */
+                schemaVersion: "support-plan-companion-context-v1";
+                /** @constant */
+                locale: "vi-VN";
+                boundedTitle: string;
+                boundedRationale: string;
+                /** @enum {string} */
+                actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+                /** @enum {string} */
+                dueState: "DUE_TODAY" | "UPCOMING" | "OVERDUE" | "UNSCHEDULED" | "COMPLETED" | "SKIPPED";
+                /** @enum {string} */
+                destination: "TODAY" | "PLAN" | "PROGRESS" | "ADJUST" | "ACTION_DETAIL" | "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "SPECIALIST_DISCOVERY" | "REASSESSMENT";
+                navigation: {
+                    destination: components["schemas"]["destination"];
+                    label: components["schemas"]["boundedTitle"];
+                };
+                actionContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "ACTION";
+                    action: {
+                        actionType: components["schemas"]["actionType"];
+                        title: components["schemas"]["boundedTitle"];
+                        rationale?: components["schemas"]["boundedRationale"];
+                        /** @enum {string} */
+                        availability: "AVAILABLE" | "UNAVAILABLE" | "SOURCE_UNAVAILABLE";
+                        dueState?: components["schemas"]["dueState"];
+                        navigation?: components["schemas"]["navigation"];
+                    };
+                };
+                focusContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "FOCUS";
+                    focus: {
+                        title: string;
+                        rationale?: components["schemas"]["boundedRationale"];
+                        navigation?: components["schemas"]["navigation"];
+                    };
+                };
+                nextStepContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "NEXT_STEP";
+                    nextStep: {
+                        label: components["schemas"]["boundedTitle"];
+                        destination: components["schemas"]["destination"];
+                        actionType?: components["schemas"]["actionType"];
+                        dueState?: components["schemas"]["dueState"];
+                    };
+                };
+                acknowledgementContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "ACKNOWLEDGEMENT";
+                    acknowledgement: {
+                        /** @enum {string} */
+                        reason: "ACTION_SAVED" | "EXPLICIT_COMPLETION_SAVED" | "REVIEW_SUBMITTED" | "PREFERENCE_SAVED";
+                        title?: components["schemas"]["boundedTitle"];
+                    };
+                };
+                progressContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "PROGRESS";
+                    progress: {
+                        /** @enum {string} */
+                        period: "TODAY" | "SEVEN_DAYS" | "PLAN";
+                        completedCount: number;
+                        availableCount: number;
+                        evidenceAsOf: string;
+                        partial: boolean;
+                        unavailableEvidence?: ("CARE_ACTIONS" | "CONTENT_RESOURCE_PROGRESS" | "JOURNAL_ACTION_EVIDENCE" | "EMOTION_CHECK_IN_EVIDENCE" | "CONSULTATION_EVIDENCE")[];
+                    } & (unknown & unknown);
+                };
+                reviewContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "REVIEW";
+                    review: {
+                        /** @enum {string} */
+                        outcome: "KEEP_CURRENT" | "ALTERNATIVES_AVAILABLE" | "CURRENT_NOT_ADMISSIBLE";
+                        dimensions: {
+                            /** @enum {string} */
+                            code: "SCREENING_CHANGE" | "JOURNAL_CONTEXT" | "PLAN_ENGAGEMENT" | "SELF_REPORTED_EXPERIENCE";
+                            /** @enum {string} */
+                            availability: "AVAILABLE" | "MISSING" | "UNAVAILABLE" | "NOT_APPLICABLE";
+                            /** @enum {string} */
+                            direction: "INCREASED" | "STABLE" | "DECREASED" | "MIXED" | "UNKNOWN";
+                        }[] & (unknown & unknown & unknown & unknown);
+                        options: {
+                            /** @enum {string} */
+                            optionCode: "KEEP_CURRENT" | "REDUCE_WORKLOAD" | "MOVE_TIME" | "CHOOSE_ADMITTED_ALTERNATIVE" | "CONSIDER_PROFESSIONAL_SUPPORT";
+                            label: components["schemas"]["boundedTitle"];
+                        }[];
+                        barrierPatterns?: ("TIME" | "ENERGY" | "ACCESS" | "PREFERENCE" | "OTHER_DECLARED")[];
+                        helpfulnessPatterns?: ("HELPFUL" | "NEUTRAL" | "NOT_HELPFUL" | "NOT_REPORTED")[];
+                        contradictoryEvidence: boolean;
+                    };
+                };
+                navigationContext: {
+                    schemaVersion: components["schemas"]["schemaVersion"];
+                    locale: components["schemas"]["locale"];
+                    /** @constant */
+                    contextKind: "NAVIGATION";
+                    navigation: {
+                        destination: components["schemas"]["destination"];
+                        label: components["schemas"]["boundedTitle"];
+                        sourceActionTitle?: components["schemas"]["boundedTitle"];
+                    };
+                };
+            };
+        } & (components["schemas"]["actionContext"] | components["schemas"]["focusContext"] | components["schemas"]["nextStepContext"] | components["schemas"]["acknowledgementContext"] | components["schemas"]["progressContext"] | components["schemas"]["reviewContext"] | components["schemas"]["navigationContext"]);
+        /**
+         * SupportPlan Companion intent envelope v1
+         * @description Language-neutral proposal for deterministic intent selection and minimized context. This is not a callable API.
+         */
+        "support-plan-companion-intent-v1.schema": {
+            /** @constant */
+            schemaVersion: "support-plan-companion-intent-v1";
+            /** @constant */
+            policyVersion: "support-plan-companion-policy-v1";
+            /** @constant */
+            requestSource: "USER_INITIATED";
+            /** @enum {string} */
+            surface: "TODAY" | "PLAN" | "PROGRESS" | "ADJUST";
+            /** @enum {string} */
+            intent: "EXPLAIN_ACTION" | "EXPLAIN_FOCUS" | "SUGGEST_NEXT_STEP" | "ENCOURAGE" | "SUMMARIZE_PROGRESS" | "EXPLAIN_REVIEW_OPTION" | "NAVIGATE";
+            context: components["schemas"]["support-plan-companion-context-v1.schema"];
+        } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
     };
     responses: {
         /** @description Request failed validation. */
@@ -1178,6 +1723,33 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    getEmotionCheckInCompletionEvidence: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                localDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized authoritative existence or absence evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckInCompletionEvidence"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             503: components["responses"]["DependencyUnavailable"];
         };
     };
@@ -1452,6 +2024,35 @@ export interface operations {
             412: components["responses"]["PreconditionFailed"];
         };
     };
+    getJournalEntryCompletionEvidence: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                journalId: components["parameters"]["JournalId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized, owner-attributed current source state. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    "x-correlation-id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryCompletionEvidence"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
     createExactRevisionAnalysisJob: {
         parameters: {
             query?: never;
@@ -1663,6 +2264,37 @@ export interface operations {
             503: components["responses"]["DependencyUnavailable"];
         };
     };
+    replaceAiCompanionConversationContext: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiConversationContextInput"];
+            };
+        };
+        responses: {
+            /** @description Conversation context replaced. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiConversation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     createLongitudinalAnalysisJob: {
         parameters: {
             query?: never;
@@ -1778,6 +2410,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SupportGuidePhrasingResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["DependencyUnavailable"];
+        };
+    };
+    createSupportPlanCompanionMessage: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["support-plan-companion-intent-v1.schema"];
+            };
+        };
+        responses: {
+            /** @description Bounded generated phrasing or deterministic template copy was returned without mutation authority. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanCompanionMessage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    generateConsultationBriefDraftSuggestion: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsultationBriefAiDraftProviderRequest"];
+            };
+        };
+        responses: {
+            /** @description Bounded editable suggestion with provider and source provenance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefAiDraftProviderResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

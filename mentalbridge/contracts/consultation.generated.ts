@@ -4,6 +4,362 @@
  */
 
 export interface paths {
+    "/api/v1/specialist/appointments/{appointmentId}/video-completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Explicit assigned approved Specialist assertion of actual consultation end, accepted immediately without waiting for scheduled end or webhook grace. Stable idempotency and strong Appointment If-Match are required. Provider closure and paired trusted evidence are verified separately. Incomplete verification remains SESSION_ENDED with HELD credit, including after 24h; no timeout release, no-show, refund or earning is authorized. Verified completion reuses the existing immutable completion fact, consumed-credit ledger and MB-516 earning contract. */
+        post: operations["confirmVideoConsultationFinished"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/video/livekit/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Raw provider body authenticated using LiveKit signature, expiry and SHA256 body verification, not an Identity bearer token. Only minimized assigned-participant metadata is retained for 90 days unless a dispute or valid retention hold applies. Duplicate delivery is idempotent; reordered events are paired by room and participant session SID. Unsupported, unknown or privacy-purged rooms are safely ignored. Media events never create completion facts or settle credits on their own. */
+        post: operations["receiveLiveKitParticipationEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appointments/{appointmentId}/video-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Assigned USER or SPECIALIST only. Waiting begins five minutes early for local preview, without a provider connection or attendance. Current authorization is authoritative; no media event completes an appointment. */
+        get: operations["getAppointmentVideoSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appointments/{appointmentId}/video-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description No request body. Rechecks exact assigned actor/role, approved specialist, held credit, video modality, CONFIRMED/IN_PROGRESS and [startsAt,endsAt). Uses the owner room mapping, never a client room/actor. Token is room-scoped, in-memory only, 30–300 seconds maximum and expires no later than endsAt. LiveKit SDK refresh does not extend the appointment; server revocation/closure remains required. */
+        post: operations["issueAppointmentVideoAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Only the authenticated specialist reads original credential metadata. No file URL is returned by this list. */
+        get: operations["listOwnCredentialDocuments"];
+        put?: never;
+        /** @description Stores a PDF, JPEG or PNG in authenticated private storage, then creates a pending credential. Upload never verifies a credential. */
+        post: operations["uploadOwnCredentialDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/documents/{documentId}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns a five-minute signed link after owner authorization; never cache or log the link. */
+        get: operations["viewOwnCredentialDocumentFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/documents/{documentId}/badge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description The specialist may display only a previously ADMIN-verified badge. */
+        put: operations["updateOwnCredentialBadge"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/documents/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ADMIN review queue; original files require a separate authorized request. */
+        get: operations["listPendingCredentialDocumentsForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/documents/specialists/{specialistId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listSpecialistCredentialDocumentsForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/documents/{documentId}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["viewCredentialDocumentFileForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/documents/{documentId}/{decision}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Only ADMIN verifies or rejects a pending credential. Review does not automatically publish a badge. */
+        post: operations["reviewCredentialDocumentForAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the live approved profile and latest private amendment (null when absent). Amendment ETag when present; otherwise current profile ETag. */
+        get: operations["getOwnProfileAmendment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Requires the approved profile If-Match. Returns the existing open amendment or starts a draft derived from the latest published profile after approval or cancellation. Does not mutate the public profile. */
+        post: operations["startOwnProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments/{amendmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Replaces the six proposed fields. Editing PENDING_REVIEW withdraws to DRAFT. REJECTED retains review feedback until explicit resubmission. Approved and cancelled amendments are immutable. */
+        put: operations["updateOwnProfileAmendment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments/{amendmentId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Private approved-profile amendment operation; never changes appointments or availability. */
+        post: operations["submitOwnProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments/{amendmentId}/resubmit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Private approved-profile amendment operation; never changes appointments or availability. */
+        post: operations["resubmitOwnProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/amendments/{amendmentId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Only the owning approved specialist may cancel DRAFT, PENDING_REVIEW or REJECTED. Records terminal CANCELLED and an immutable audit revision, removes pending review, and preserves the published profile, appointments and availability. Clears current submission/review metadata; prior revisions retain it. Current resulting ETag replay is a no-op; stale ETag is 412. An approved amendment cannot be cancelled. */
+        post: operations["cancelOwnProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/amendments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists only pending-review amendments separately from initial submissions. Suspension removes an amendment from the reviewable queue. Stable submission/id ordering; bounded page offset and limit. */
+        get: operations["listProfileAmendmentsForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/amendments/{amendmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Private approved-profile amendment operation; never changes appointments or availability. */
+        get: operations["getProfileAmendmentForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/amendments/{amendmentId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Atomically promotes a pending amendment against its base published version, appends immutable approved history, and leaves all appointments unchanged. */
+        post: operations["approveProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/amendments/{amendmentId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Rejects only the amendment, preserving the live approved profile exactly; reason and review payload are retained for audit. */
+        post: operations["rejectProfileAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/appointments/{appointmentId}/notification-eligibility": {
         parameters: {
             query?: never;
@@ -32,6 +388,91 @@ export interface paths {
         get: operations["getOwnServiceCredits"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/service-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the authoritative active VND catalogue. Price, credits, concurrent-reservation capacity, credit allocation, AI quota, SupportPlan entitlement, effective date, and allowed upgrades are immutable version facts; clients must not derive them from plan names. MoMo checkout remains gated independently. */
+        get: operations["listActiveServicePlanVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subscriptions/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Creates one idempotent MoMo purchase for FREE to PLUS/PREMIUM or upgrade for PLUS to PREMIUM. The server resolves the exact active version and amount. There is no downgrade or user-refund operation. */
+        post: operations["createPlanCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns up to 50 authenticated-owner payment attempts in stable newest-first order. */
+        get: operations["listOwnPlanPayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{paymentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns one authenticated-owner payment attempt and its stable current state. */
+        get: operations["getOwnPlanPayment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/payments/momo/ipn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Signature-verifies the complete MoMo One-Time Payment v2 callback, deduplicates the verified tuple, and acknowledges quickly. Only a matching, unexpired resultCode 0 activates the exact plan version. Raw payload, signature, orderInfo, and extraData are never persisted. */
+        post: operations["receiveMomoPlanPaymentIpn"];
         delete?: never;
         options?: never;
         head?: never;
@@ -301,6 +742,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialists/{specialistId}/credential-badges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns only approved, verified credentials that the specialist opted to show. Original files and identifiers are never returned. */
+        get: operations["getPublicSpecialistCredentialBadges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/appointments": {
         parameters: {
             query?: never;
@@ -325,10 +783,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Lists the authenticated user's authoritative appointment snapshots, including request deadline and held credit identity. */
+        /** @description Lists at most 100 newest authoritative appointment snapshots owned by the authenticated user. When originatingPlanActionId is supplied, the exact owner-and-action filter is applied before the bound so a caller can recover correlated SupportPlan progress without scanning general history. */
         get: operations["listOwnAppointments"];
         put?: never;
-        /** @description Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. Exact command replays return the original appointment. */
+        /** @description Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. A replacement inherits an omitted originatingPlanActionId from the owned appointment and rejects a conflicting explicit value. Exact command replays return the original appointment. */
         post: operations["requestAppointment"];
         delete?: never;
         options?: never;
@@ -446,6 +904,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialist/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns Consultation-owned operational analytics for the authenticated specialist. Lifecycle counts come from immutable transition facts in the half-open requested period; slot utilization is based on slots scheduled in that period and remains true after later appointment changes. Financial metrics sum MB-516 earning facts and successful payouts completed within the same period. */
+        get: operations["getSpecialistOperationalAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist/dashboard": {
         parameters: {
             query?: never;
@@ -508,6 +983,23 @@ export interface paths {
         put?: never;
         /** @description Idempotently attaches all currently available earnings to at most one payout request per specialist per day. Server-side earnings determine the amount; the client cannot submit an amount. */
         post: operations["requestSpecialistPayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ADMIN-only bounded read of canonical purchase/upgrade facts. No customer profile, checkout destination, raw provider payload, or computed revenue is returned. */
+        get: operations["listAdminPayments"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -790,6 +1282,207 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        VideoCompletion: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            confirmationId: string;
+            /** @enum {string} */
+            verificationState: "PENDING_VERIFICATION" | "VERIFIED" | "EVIDENCE_REVIEW";
+            /** @enum {string} */
+            appointmentStatus: "SESSION_ENDED" | "COMPLETED";
+            /** @enum {string} */
+            creditState: "AVAILABLE" | "HELD" | "CONSUMED" | "FORFEITED";
+            /** Format: uuid */
+            completionFactId: string | null;
+            /** Format: date-time */
+            acceptedAt: string;
+            /** Format: date-time */
+            manualReviewAt: string;
+            version: number;
+        };
+        AppointmentVideoSession: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** @enum {string} */
+            phase: "TOO_EARLY" | "WAITING" | "ACTIVE" | "ENDED" | "COMPLETED" | "NOT_AVAILABLE" | "UNAVAILABLE";
+            previewAllowed: boolean;
+            joinAllowed: boolean;
+            /** Format: date-time */
+            startsAt: string;
+            /** Format: date-time */
+            endsAt: string;
+            /** Format: date-time */
+            serverTime: string;
+            version: number;
+            completion: components["schemas"]["VideoCompletion"] | null;
+        };
+        AppointmentVideoAccess: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** @constant */
+            provider: "LIVEKIT";
+            /** Format: uri */
+            serverUrl: string;
+            roomName: string;
+            /** @description Sensitive in-memory-only provider JWT; never log or persist */
+            participantToken: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            endsAt: string;
+        };
+        VerifiedCredentialBadge: {
+            title: string;
+            /** @enum {string} */
+            credentialType: "DEGREE" | "LICENSE" | "CERTIFICATE";
+        };
+        SpecialistCredentialDocument: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            title: string;
+            issuer: string;
+            issueYear: number;
+            /** @enum {string} */
+            credentialType: "DEGREE" | "LICENSE" | "CERTIFICATE";
+            fileName: string;
+            /** @enum {string} */
+            mediaType: "application/pdf" | "image/jpeg" | "image/png";
+            /** Format: int64 */
+            fileBytes: number;
+            /** @enum {string} */
+            verificationStatus: "PENDING" | "VERIFIED" | "REJECTED";
+            badgeVisible: boolean;
+            /** Format: date-time */
+            reviewedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        CredentialDocumentLink: {
+            /**
+             * Format: uri
+             * @description Signed original-file URL valid for five minutes.
+             */
+            url: string;
+        };
+        CredentialBadgeRequest: {
+            visible: boolean;
+        };
+        ServicePlanCatalogue: {
+            plans: components["schemas"]["ServicePlanVersion"][];
+            checkoutEnabled: boolean;
+            /** @constant */
+            paymentProvider: "MOMO";
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        ServicePlanVersion: {
+            /** Format: uuid */
+            planVersionId: string;
+            planCode: components["schemas"]["ServicePackage"];
+            version: string;
+            displayName: string;
+            pricingPolicyVersion?: components["schemas"]["CommercialPricingPolicy"];
+            /** @constant */
+            currency: "VND";
+            /** Format: int64 */
+            priceVnd: number;
+            /** @constant */
+            billingPeriodMonths: 1;
+            /** @enum {integer} */
+            consultationCredits: 0 | 4 | 10;
+            /** @enum {integer} */
+            maxActiveReservations: 0 | 2 | 4;
+            /** Format: int64 */
+            creditAllocationVnd: number;
+            aiQuotaCode: string;
+            supportPlanEnabled: boolean;
+            entitlements: string[];
+            allowedUpgrades: ("PLUS" | "PREMIUM")[];
+            /** Format: date-time */
+            effectiveFrom: string;
+        };
+        /**
+         * @description Additive owner policy provenance. sandbox-full-price-v1 is synthetic/test pricing only, charging the full target price without an offset; it does not enable production payment or payout. Historical responses may omit this field and retain upgrade-offset-v1 behavior.
+         * @enum {string}
+         */
+        CommercialPricingPolicy: "upgrade-offset-v1" | "sandbox-full-price-v1";
+        CreatePlanCheckout: {
+            /** Format: uuid */
+            planVersionId: string;
+        };
+        PlanPayment: {
+            /** Format: uuid */
+            paymentId: string;
+            /** Format: uuid */
+            subscriptionId: string;
+            /** Format: uuid */
+            planVersionId: string;
+            /** @enum {string} */
+            planCode: "PLUS" | "PREMIUM";
+            planVersion: string;
+            pricingPolicyVersion?: components["schemas"]["CommercialPricingPolicy"];
+            /** @enum {string} */
+            purpose: "PURCHASE" | "UPGRADE";
+            /** @enum {string} */
+            provider: "FAKE" | "MOMO";
+            /** @enum {string} */
+            status: "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
+            /** Format: int64 */
+            amountVnd: number;
+            /** @constant */
+            currency: "VND";
+            /**
+             * Format: uri
+             * @description Null while provider checkout creation is unconfirmed. The canonical pending payment remains auditable; do not redirect or automatically resend a charge. Verified IPN remains authoritative even when checkout creation times out.
+             */
+            checkoutUrl: string | null;
+            /** Format: uri */
+            qrCodeUrl: string | null;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            paidAt: string | null;
+            /** Format: date-time */
+            failedAt: string | null;
+        };
+        PlanPaymentHistory: {
+            items: components["schemas"]["PlanPayment"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        MomoPaymentIpn: {
+            partnerCode: string;
+            orderId: string;
+            requestId: string;
+            /** Format: int64 */
+            amount: number;
+            orderInfo: string;
+            orderType: string;
+            /** Format: int64 */
+            transId: number;
+            /** Format: int32 */
+            resultCode: number;
+            message: string;
+            payType: string;
+            /** Format: int64 */
+            responseTime: number;
+            extraData: string;
+            signature: string;
+            partnerUserId?: string;
+            storeId?: string;
+            paymentOption?: string;
+            /** Format: int64 */
+            userFee?: number;
+            promotionInfo?: unknown;
+        };
         AppointmentNotificationEligibility: {
             /** Format: uuid */
             appointmentId: string;
@@ -890,7 +1583,40 @@ export interface components {
         /** @enum {string} */
         SpecialistSuspensionReasonCode: "POLICY_VIOLATION" | "QUALITY_REVIEW_REQUIRED" | "ACCOUNT_REVIEW_REQUIRED";
         /** @enum {string} */
-        LanguageTag: "vi" | "en";
+        LanguageTag: "vi" | "en" | "zh" | "fr";
+        ProfileAmendment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            /** Format: int64 */
+            basePublishedVersion: number;
+            /** @enum {string} */
+            status: "DRAFT" | "PENDING_REVIEW" | "REJECTED" | "APPROVED" | "CANCELLED";
+            proposedProfile: components["schemas"]["SpecialistProfileRequest"];
+            /** Format: date-time */
+            submittedAt: string | null;
+            /** Format: date-time */
+            reviewedAt: string | null;
+            /** Format: uuid */
+            reviewedBy: string | null;
+            reasonCode: components["schemas"]["SpecialistRejectionReasonCode"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        ProfileAmendmentDetail: {
+            approvedProfile: components["schemas"]["SpecialistProfile"];
+            amendment: components["schemas"]["ProfileAmendment"] | null;
+        };
+        ProfileAmendments: {
+            items: components["schemas"]["ProfileAmendment"][];
+            count: number;
+            hasMore: boolean;
+        };
         SpecialistProfileRequest: {
             displayName: string;
             bio: string;
@@ -904,6 +1630,11 @@ export interface components {
             /** Format: uuid */
             accountId: string;
             displayName: string;
+            /**
+             * Format: int64
+             * @description Monotonic approved-content version; unaffected by draft edits and suspension/restoration.
+             */
+            publishedVersion?: number;
             bio: string;
             supportAreas: components["schemas"]["SupportArea"][];
             languages: components["schemas"]["LanguageTag"][];
@@ -1102,6 +1833,92 @@ export interface components {
             availability: components["schemas"]["SpecialistDashboardAvailabilityCollection"];
             actionRequired: components["schemas"]["SpecialistDashboardActionItem"][];
         };
+        /** @enum {string} */
+        SpecialistAnalyticsDataState: "AVAILABLE" | "EMPTY" | "BLOCKED" | "UNAVAILABLE" | "STALE";
+        SpecialistAnalyticsPeriod: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            timezone: string;
+        };
+        SpecialistAvailabilityMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["SpecialistAnalyticsDataState"];
+            /** Format: int64 */
+            publishedSlotCount: number | null;
+            /** Format: int64 */
+            utilizedSlotCount: number | null;
+            /** Format: int64 */
+            unusedSlotCount: number | null;
+            /** Format: double */
+            utilizationRate: number | null;
+        };
+        SpecialistAppointmentMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["SpecialistAnalyticsDataState"];
+            /** Format: int64 */
+            requestedCount: number | null;
+            /** Format: int64 */
+            acceptedCount: number | null;
+            /** Format: int64 */
+            rejectedCount: number | null;
+            /** Format: int64 */
+            expiredCount: number | null;
+            /** Format: int64 */
+            cancelledCount: number | null;
+            /** Format: int64 */
+            rescheduledCount: number | null;
+            /** Format: int64 */
+            completedCount: number | null;
+            /** Format: int64 */
+            userNoShowCount: number | null;
+            /** Format: int64 */
+            specialistNoShowCount: number | null;
+            /** Format: int64 */
+            bothNoShowCount: number | null;
+        };
+        SpecialistRatingMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["SpecialistAnalyticsDataState"];
+            /** Format: double */
+            averageRating: number | null;
+            /** Format: int64 */
+            ratingCount: number | null;
+        };
+        SpecialistFinancialMetrics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            asOf: string;
+            state: components["schemas"]["SpecialistAnalyticsDataState"];
+            currency: string | null;
+            /** Format: int64 */
+            earnedAmountMinor: number | null;
+            /** Format: int64 */
+            paidAmountMinor: number | null;
+        };
+        SpecialistOperationalAnalytics: {
+            /** @constant */
+            source: "CONSULTATION";
+            /** Format: date-time */
+            generatedAt: string;
+            operationalStatus: components["schemas"]["SpecialistOperationalStatus"];
+            period: components["schemas"]["SpecialistAnalyticsPeriod"];
+            availability: components["schemas"]["SpecialistAvailabilityMetrics"];
+            appointments: components["schemas"]["SpecialistAppointmentMetrics"];
+            rating: components["schemas"]["SpecialistRatingMetrics"];
+            financials: components["schemas"]["SpecialistFinancialMetrics"];
+        };
         PayoutDestination: {
             /** Format: uuid */
             id: string;
@@ -1187,6 +2004,11 @@ export interface components {
             currency: "VND";
             /** @constant */
             earningPolicyVersion: "specialist-earning-v1";
+            /**
+             * @description Optional additive field identifying the configured withdrawal adapter even before a destination exists. FAKE is synthetic and does not move money.
+             * @enum {string}
+             */
+            payoutProvider?: "FAKE" | "MOMO";
             /** @constant */
             settlementHoldDays: 7;
             /**
@@ -1200,6 +2022,39 @@ export interface components {
             destination?: components["schemas"]["PayoutDestination"] | null;
             earnings: components["schemas"]["SpecialistEarning"][];
             payouts: components["schemas"]["SpecialistPayout"][];
+        };
+        AdminPaymentList: {
+            /** Format: date-time */
+            generatedAt: string;
+            count: number;
+            items: components["schemas"]["AdminPayment"][];
+        };
+        AdminPayment: {
+            /** Format: uuid */
+            paymentId: string;
+            /** Format: uuid */
+            subscriptionId: string;
+            /** Format: uuid */
+            planVersionId: string;
+            /** @enum {string} */
+            planCode: "PLUS" | "PREMIUM";
+            pricingPolicyVersion: components["schemas"]["CommercialPricingPolicy"];
+            /** @enum {string} */
+            purpose: "PURCHASE" | "UPGRADE";
+            /** @enum {string} */
+            provider: "FAKE" | "MOMO";
+            /** @enum {string} */
+            status: "PENDING" | "SUCCEEDED" | "FAILED" | "CHARGEBACK";
+            /** Format: int64 */
+            amountVnd: number;
+            /** @constant */
+            currency: "VND";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            paidAt: string | null;
+            /** Format: date-time */
+            failedAt: string | null;
         };
         AdminPayout: {
             /** Format: uuid */
@@ -1373,6 +2228,11 @@ export interface components {
              * @description Active user-owned appointment atomically replaced by this new request; omit for a normal request.
              */
             replacesAppointmentId?: string | null;
+            /**
+             * Format: uuid
+             * @description Optional opaque Care PlanAction reference from an explicit user navigation and booking flow. A replacement inherits the owned prior appointment's value when omitted and must not supply a conflicting value. It never authorizes Consultation to mutate the SupportPlan.
+             */
+            originatingPlanActionId?: string | null;
         };
         /** @enum {string} */
         AppointmentStatus: "REQUESTED" | "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED" | "REJECTED" | "EXPIRED" | "CANCELLED";
@@ -1446,7 +2306,7 @@ export interface components {
             /** Format: uuid */
             actorId: string | null;
             /** @enum {string} */
-            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED" | "SESSION_ACTIVITY_OBSERVED" | "SCHEDULED_WINDOW_ENDED" | "EVIDENCE_REQUIREMENTS_MET";
+            reason: "APPOINTMENT_REQUESTED" | "USER_CANCELLED" | "USER_RESCHEDULED" | "SPECIALIST_ACCEPTED" | "SPECIALIST_REJECTED" | "DECISION_DEADLINE_EXPIRED" | "SPECIALIST_SUSPENDED" | "SESSION_ACTIVITY_OBSERVED" | "SCHEDULED_WINDOW_ENDED" | "EVIDENCE_REQUIREMENTS_MET" | "SPECIALIST_VIDEO_END_CONFIRMED" | "VIDEO_MANUAL_REVIEW_REQUIRED";
             creditOutcome: components["schemas"]["AppointmentCancellationCreditOutcome"] | null;
             /** Format: date-time */
             occurredAt: string;
@@ -1634,6 +2494,11 @@ export interface components {
             replacesAppointmentId: string | null;
             /** Format: uuid */
             replacedByAppointmentId: string | null;
+            /**
+             * Format: uuid
+             * @description Opaque Care-owned PlanAction reference used only to present appointment progress in the originating SupportPlan.
+             */
+            originatingPlanActionId: string | null;
             /** Format: date-time */
             decidedAt: string | null;
             /** @enum {string|null} */
@@ -1649,7 +2514,7 @@ export interface components {
             sessionOutcome: "COMPLETED" | "USER_NO_SHOW" | "SPECIALIST_NO_SHOW" | "BOTH_NO_SHOW" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_REVIEW" | null;
             sessionOutcomeReason: string | null;
             /** @enum {string|null} */
-            sessionPolicyVersion: "chat-session-completion-v1" | null;
+            sessionPolicyVersion: "chat-session-completion-v1" | "livekit-video-completion-v1" | null;
             /** Format: date-time */
             sessionEndedAt: string | null;
             /** Format: date-time */
@@ -1938,7 +2803,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description If-Match does not equal the current profile version (SPECIALIST_PROFILE_VERSION_MISMATCH). */
+        /** @description If-Match does not equal the current version (SPECIALIST_PROFILE_VERSION_MISMATCH for initial/operational profile commands; PROFILE_AMENDMENT_VERSION_MISMATCH for amendment commands). */
         VersionProblem: {
             headers: {
                 [name: string]: unknown;
@@ -2003,6 +2868,7 @@ export interface components {
         };
     };
     parameters: {
+        CredentialDocumentId: string;
         SpecialistAccountId: string;
         /** @description Omit only when creating the first profile; otherwise quote the current non-negative version. */
         OptionalIfMatch: string;
@@ -2038,6 +2904,711 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    confirmVideoConsultationFinished: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+                "Idempotency-Key": string;
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    confirmation: "CONSULTATION_FINISHED";
+                };
+            };
+        };
+        responses: {
+            /** @description Idempotent replay or authoritative verified completion */
+            200: {
+                headers: {
+                    /** @description Current strong Appointment version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoCompletion"];
+                };
+            };
+            /** @description Confirmation persisted; verification pending or requiring review, credit HELD */
+            202: {
+                headers: {
+                    /** @description Current strong Appointment version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoCompletion"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    receiveLiveKitParticipationEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/webhook+json": string;
+            };
+        };
+        responses: {
+            /** @description Authenticated event processed or safely ignored */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            409: components["responses"]["ConflictProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    getAppointmentVideoSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No-store current video eligibility, without credentials or sensitive content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentVideoSession"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    issueAppointmentVideoAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sensitive no-store connection response; never log or persist its token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentVideoAccess"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description VIDEO_JOIN_NOT_ALLOWED for early/late/ended/cancelled/completed/unapproved or otherwise ineligible appointment */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description VIDEO_PROVIDER_UNAVAILABLE or VIDEO_DISABLED. No credentials are issued and no completion/financial fact is created. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listOwnCredentialDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Own credential documents, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    uploadOwnCredentialDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    title: string;
+                    issuer: string;
+                    issueYear: number;
+                    /** @enum {string} */
+                    credentialType: "DEGREE" | "LICENSE" | "CERTIFICATE";
+                    /**
+                     * Format: binary
+                     * @description PDF
+                     */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Pending credential */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    viewOwnCredentialDocumentFile: {
+        parameters: {
+            query?: {
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                documentId: components["parameters"]["CredentialDocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Expiring original-file link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialDocumentLink"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    updateOwnCredentialBadge: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                documentId: components["parameters"]["CredentialDocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialBadgeRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated credential */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    listPendingCredentialDocumentsForAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending credentials */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    listSpecialistCredentialDocumentsForAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                specialistId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Specialist credential review history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    viewCredentialDocumentFileForAdmin: {
+        parameters: {
+            query?: {
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                documentId: components["parameters"]["CredentialDocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Five-minute signed original-file link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialDocumentLink"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    reviewCredentialDocumentForAdmin: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                documentId: components["parameters"]["CredentialDocumentId"];
+                decision: "verify" | "reject";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reviewed credential */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    getOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendmentDetail"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    startOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    updateOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpecialistProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    submitOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    resubmitOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    cancelOwnProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled amendment retained for history */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    listProfileAmendmentsForAdmin: {
+        parameters: {
+            query?: {
+                limit?: number;
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded review queue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendments"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getProfileAmendmentForAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendmentDetail"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    approveProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    rejectProfileAmendment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                amendmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectSpecialistRequest"];
+            };
+        };
+        responses: {
+            /** @description Current authoritative result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAmendment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
     getAppointmentNotificationEligibility: {
         parameters: {
             query: {
@@ -2085,6 +3656,134 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
             409: components["responses"]["CreditConflictProblem"];
+        };
+    };
+    listActiveServicePlanVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active versioned VND catalogue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePlanCatalogue"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    createPlanCheckout: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Printable caller key scoped to the authenticated actor and retained with the command outcome. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlanCheckout"];
+            };
+        };
+        responses: {
+            /** @description Pending payment and provider-controlled HTTPS checkout destinations */
+            201: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanPayment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    listOwnPlanPayments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded payment history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanPaymentHistory"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getOwnPlanPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current payment state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanPayment"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    receiveMomoPlanPaymentIpn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MomoPaymentIpn"];
+            };
+        };
+        responses: {
+            /** @description Verified callback acknowledged, including duplicate or unmatched verified events */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            503: components["responses"]["UnavailableProblem"];
         };
     };
     getCurrentServiceEntitlement: {
@@ -2586,6 +4285,31 @@ export interface operations {
             404: components["responses"]["DiscoveryNotFoundProblem"];
         };
     };
+    getPublicSpecialistCredentialBadges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                specialistId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Visible credential badges */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifiedCredentialBadge"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
     searchAdminAppointments: {
         parameters: {
             query: {
@@ -2621,7 +4345,10 @@ export interface operations {
     };
     listOwnAppointments: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Optional opaque Care PlanAction reference. Filtering remains owner-scoped and grants no SupportPlan authority. */
+                originatingPlanActionId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2637,6 +4364,7 @@ export interface operations {
                     "application/json": components["schemas"]["AppointmentList"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
         };
@@ -2924,6 +4652,34 @@ export interface operations {
             428: components["responses"]["VersionRequiredProblem"];
         };
     };
+    getSpecialistOperationalAnalytics: {
+        parameters: {
+            query?: {
+                /** @description Inclusive UTC period start. Must be supplied together with to; defaults to 30 days before server time. */
+                from?: string;
+                /** @description Exclusive UTC period end. Must be supplied together with from and defaults to server time. A small forward clock skew is clamped to server time; materially future values are rejected. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Factual specialist operational analytics or explicitly blocked sections */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistOperationalAnalytics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     getSpecialistOperationalDashboard: {
         parameters: {
             query?: never;
@@ -3025,6 +4781,28 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["ConflictProblem"];
+        };
+    };
+    listAdminPayments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent canonical payment facts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPaymentList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     listAdminPayouts: {
