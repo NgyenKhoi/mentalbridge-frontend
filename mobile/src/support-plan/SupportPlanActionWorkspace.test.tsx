@@ -12,6 +12,8 @@ import { ApiError } from '@/api/api-error'
 import type { EmotionApi } from '@/emotion/emotion-api'
 import type { SupportPlanApi } from './support-plan-api'
 import type { SupportPlanActionApi } from './support-plan-action-api'
+import type { JournalReconciliation } from './support-plan-action-contract'
+import type { JournalOriginInput } from './journal-plan-context'
 import {
   NativeProposalEntry,
   NativeSupportPlanScreen,
@@ -95,6 +97,7 @@ function api(): jest.Mocked<SupportPlanActionApi> {
     }),
     changeOccurrenceState: jest.fn(),
     reconcileEmotion: jest.fn().mockResolvedValue(reconciliation()),
+    reconcileJournal: jest.fn(),
   }
 }
 const legacy = {} as SupportPlanApi
@@ -110,7 +113,7 @@ async function mount(element: ReactElement) {
         new QueryClient({
           defaultOptions: {
             queries: { retry: false, gcTime: Infinity },
-            mutations: { retry: false },
+            mutations: { retry: false, gcTime: Infinity },
           },
         })
       }
@@ -134,6 +137,249 @@ function native(owner = api()) {
   )
 }
 beforeEach(() => jest.clearAllMocks())
+
+const journalId = '60000000-0000-4000-8000-000000000642'
+const journalOriginValue = {
+  source: 'journal' as const,
+  occurrenceId: nativeIds.occurrence,
+  actionId: nativeIds.action,
+  localDate: '2026-10-13',
+  journalId,
+}
+function journalFixture() {
+  const owner = api()
+  const plan = nativePlan()
+  const action = plan.focuses[0]!.actions[0]!
+  action.actionType = 'JOURNAL'
+  action.presentation.title = 'Viết vài dòng nhật ký'
+  action.source = {
+    ...action.source!,
+    sourceKind: 'JOURNAL_TEMPLATE',
+    sourceId: 'short-reflection',
+    sourcePolicyVersion: 'journal-writing-intent-v1',
+  }
+  const occurrence = nativeOccurrence({ actionType: 'JOURNAL' })
+  const list = {
+    supportPlanId: plan.supportPlanId,
+    supportPlanStatus: 'ACTIVE' as const,
+    representationMode: 'NATIVE_V3' as const,
+    from: journalOriginValue.localDate,
+    through: journalOriginValue.localDate,
+    occurrences: [occurrence],
+    interpretationCode:
+      'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE' as const,
+  }
+  owner.getCurrent.mockResolvedValue(plan)
+  owner.getOccurrences.mockResolvedValue(list)
+  const response: JournalReconciliation = {
+    schemaVersion: 'journal-entry-occurrence-reconciliation-v1',
+    occurrenceId: occurrence.occurrenceId,
+    actionId: occurrence.actionId,
+    localDate: occurrence.localDate,
+    journalId,
+    sourceState: 'RECORDED',
+    occurrenceState: 'COMPLETED',
+    version: 1,
+    completedAt: '2026-10-13T12:02:00Z',
+    completionEvidence: {
+      ownerDomain: 'JOURNAL_AI',
+      kind: 'JOURNAL_ENTRY',
+      factId: journalId,
+      factRevision: '1',
+      occurredAt: '2026-10-13T12:01:00Z',
+      verifiedAt: '2026-10-13T12:02:00Z',
+    },
+  }
+  owner.reconcileJournal.mockResolvedValue(response)
+  return { owner, plan, action, occurrence, response }
+}
+function journalNative(
+  f: ReturnType<typeof journalFixture>,
+  journalOrigin: JournalOriginInput = {
+    state: 'valid',
+    value: journalOriginValue,
+  },
+  clock = now,
+) {
+  return (
+    <NativeSupportPlanScreen
+      api={f.owner}
+      legacyApi={legacy}
+      emotionApi={emotion}
+      current={f.plan}
+      draft={null}
+      onChanged={jest.fn().mockResolvedValue(undefined)}
+      origin={{ state: 'none' }}
+      journalOrigin={journalOrigin}
+      now={clock}
+    />
+  )
+}
+it('opens the canonical Journal with closed metadata only, without automatic completion', async () => {
+  const f = journalFixture()
+  await mount(journalNative(f, { state: 'none' }))
+  await fireEvent.press(
+    await screen.findByTestId(`journal-write-${nativeIds.occurrence}`),
+  )
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(user)/journal',
+    params: {
+      source: 'journal',
+      occurrenceId: nativeIds.occurrence,
+      actionId: nativeIds.action,
+      localDate: '2026-10-13',
+    },
+  })
+  expect(f.owner.reconcileJournal).not.toHaveBeenCalled()
+  expect(f.owner.changeOccurrenceState).not.toHaveBeenCalled()
+})
+it('returns to the exact date without checking on load; an explicit double click sends one ID-only command', async () => {
+  const f = journalFixture()
+  let finish!: (response: JournalReconciliation) => void
+  f.owner.reconcileJournal.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+  )
+  await mount(journalNative(f))
+  await screen.findByText('Bạn vừa quay lại từ nhật ký')
+  expect(f.owner.getOccurrences).toHaveBeenCalledWith(
+    '2026-10-13',
+    '2026-10-13',
+  )
+  expect(f.owner.reconcileJournal).not.toHaveBeenCalled()
+  expect(screen.getByText('Chưa ghi nhận hoàn thành')).toBeTruthy()
+  const check = screen.getByTestId(`reconcile-journal-${nativeIds.occurrence}`)
+  await fireEvent.press(check)
+  await fireEvent.press(check)
+  expect(f.owner.reconcileJournal).toHaveBeenCalledTimes(1)
+  expect(f.owner.reconcileJournal).toHaveBeenCalledWith(
+    nativeIds.occurrence,
+    journalId,
+  )
+  await act(async () => finish(f.response))
+  await screen.findByText('Đã ghi nhận hoàn thành')
+  expect(f.owner.reconcileEmotion).not.toHaveBeenCalled()
+})
+it.each(['MISSING', 'DELETED'] as const)(
+  'does not complete a %s candidate and permits explicit retry',
+  async (sourceState) => {
+    const f = journalFixture()
+    f.owner.reconcileJournal.mockResolvedValueOnce({
+      ...f.response,
+      sourceState,
+      occurrenceState: 'SCHEDULED',
+      version: 0,
+      completedAt: null,
+      completionEvidence: null,
+    })
+    await mount(journalNative(f))
+    await fireEvent.press(
+      await screen.findByTestId(`reconcile-journal-${nativeIds.occurrence}`),
+    )
+    await screen.findByText(
+      sourceState === 'MISSING'
+        ? /Chưa tìm thấy bài nhật ký/
+        : /Bài nhật ký đã được xóa. Chưa ghi nhận/,
+    )
+    expect(screen.getByText('Chưa ghi nhận hoàn thành')).toBeTruthy()
+    await fireEvent.press(
+      screen.getByTestId(`reconcile-journal-${nativeIds.occurrence}`),
+    )
+    await screen.findByText('Đã ghi nhận hoàn thành')
+  },
+)
+it('retains accepted history after deletion/outage and never replaces it with a different query candidate', async () => {
+  const f = journalFixture()
+  Object.assign(f.occurrence, {
+    state: 'COMPLETED',
+    displayState: 'COMPLETED',
+    completionEvidence: f.response.completionEvidence,
+    outcomeRecordedAt: f.response.completedAt,
+  })
+  f.owner.reconcileJournal
+    .mockResolvedValueOnce({ ...f.response, sourceState: 'DELETED' })
+    .mockRejectedValueOnce(
+      new ApiError({
+        status: 503,
+        code: 'JOURNAL_ENTRY_EVIDENCE_UNAVAILABLE',
+        message: 'private',
+      }),
+    )
+  await mount(
+    journalNative(f, {
+      state: 'valid',
+      value: {
+        ...journalOriginValue,
+        journalId: '70000000-0000-4000-8000-000000000642',
+      },
+    }),
+  )
+  const check = await screen.findByTestId(
+    `reconcile-journal-${nativeIds.occurrence}`,
+  )
+  await fireEvent.press(check)
+  await screen.findByText(
+    /Lịch sử hoạt động đã ghi nhận trước khi xóa vẫn giữ nguyên/,
+  )
+  expect(f.owner.reconcileJournal).toHaveBeenCalledWith(
+    nativeIds.occurrence,
+    journalId,
+  )
+  await fireEvent.press(check)
+  await screen.findByText(/Chưa thể kiểm tra ghi nhận/)
+  expect(screen.getByText('Đã ghi nhận hoàn thành')).toBeTruthy()
+})
+it('rejects a mismatched entry response, without altering the occurrence', async () => {
+  const f = journalFixture()
+  f.owner.reconcileJournal.mockResolvedValueOnce({
+    ...f.response,
+    journalId: '70000000-0000-4000-8000-000000000642',
+  })
+  await mount(journalNative(f))
+  await fireEvent.press(
+    await screen.findByTestId(`reconcile-journal-${nativeIds.occurrence}`),
+  )
+  await screen.findByText(/Chưa thể thực hiện thao tác/)
+  expect(screen.getByText('Chưa ghi nhận hoàn thành')).toBeTruthy()
+})
+it('fails closed for unsupported source/action/schedule while leaving the row visible', async () => {
+  const f = journalFixture()
+  f.action.source!.sourceId = 'unrecognized'
+  await mount(journalNative(f))
+  await screen.findByText(/Hoạt động đã thay đổi hoặc chưa hỗ trợ mở nhật ký/)
+  expect(
+    screen.getByTestId(`reconcile-journal-${nativeIds.occurrence}`),
+  ).toBeDisabled()
+  expect(
+    screen.queryByTestId(`journal-write-${nativeIds.occurrence}`),
+  ).toBeNull()
+  expect(f.owner.reconcileJournal).not.toHaveBeenCalled()
+})
+it('a past returned date stays exact and does not offer backdated Journal creation', async () => {
+  const f = journalFixture()
+  await mount(
+    journalNative(
+      f,
+      {
+        state: 'valid',
+        value: { ...journalOriginValue, journalId: undefined },
+      },
+      () => new Date('2026-11-13T12:00:00Z'),
+    ),
+  )
+  await screen.findByText(
+    /Không thể viết bài mới để hoàn thành hoạt động ở ngày khác/,
+  )
+  expect(f.owner.getOccurrences).toHaveBeenCalledWith(
+    '2026-10-13',
+    '2026-10-13',
+  )
+  expect(
+    screen.queryByTestId(`journal-write-${nativeIds.occurrence}`),
+  ).toBeNull()
+})
 
 it('returns to exact owned activity, never checks automatically, and canonical entry carries only typed origin', async () => {
   const owner = api()

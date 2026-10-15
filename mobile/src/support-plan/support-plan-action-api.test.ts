@@ -8,6 +8,7 @@ import {
   actionOccurrenceSchema,
   canonicalSupportPlanSchema,
   emotionReconciliationSchema,
+  journalReconciliationSchema,
   type CanonicalSupportPlan,
 } from './support-plan-action-contract'
 import { makePlan, makeReassessmentSummary } from './support-plan-test-fixtures'
@@ -15,6 +16,7 @@ import { makePlan, makeReassessmentSummary } from './support-plan-test-fixtures'
 const planId = '10000000-0000-4000-8000-000000000641'
 const actionId = '20000000-0000-4000-8000-000000000641'
 const occurrenceId = '30000000-0000-4000-8000-000000000641'
+const journalId = '40000000-0000-4000-8000-000000000642'
 const instant = '2026-10-13T05:00:00Z'
 function planFixture(): CanonicalSupportPlan {
   return {
@@ -125,6 +127,24 @@ function occurrenceFixture() {
     stateReason: null,
     completionEvidence: null,
     outcomeRecordedAt: null,
+  } as const
+}
+function journalReconciliationFixture() {
+  return {
+    schemaVersion: 'journal-entry-occurrence-reconciliation-v1',
+    occurrenceId,
+    actionId,
+    localDate: '2026-10-13',
+    journalId,
+    sourceState: 'RECORDED',
+    occurrenceState: 'COMPLETED',
+    version: 1,
+    completedAt: instant,
+    completionEvidence: {
+      ...evidenceFixture(),
+      kind: 'JOURNAL_ENTRY',
+      factId: journalId,
+    },
   } as const
 }
 function apiFixture(responses: unknown[]) {
@@ -304,6 +324,117 @@ describe('Native SupportPlan mobile transport', () => {
         occurrenceId,
       ),
     ).rejects.toThrow('Evidence unavailable')
+    expect(calls).toBe(1)
+  })
+  it('sends only an exact Journal candidate ID, not private content or a client completion assertion', async () => {
+    const result = journalReconciliationFixture()
+    const { api, requests } = apiFixture([result])
+    expect(await api.reconcileJournal(occurrenceId, journalId)).toEqual(result)
+    expect(requests[0]?.url).toBe(
+      `/api/v2/support-plan-occurrences/${occurrenceId}/journal/reconcile`,
+    )
+    expect(JSON.parse(requests[0]?.data)).toEqual({ journalId })
+    expect(requests[0]?.headers.get('If-Match')).toBeUndefined()
+    expect(requests[0]?.headers.get('Idempotency-Key')).toBeUndefined()
+  })
+  it.each(['occurrenceId', 'journalId'] as const)(
+    'rejects a Journal response with a different %s',
+    async (field) => {
+      const result = {
+        ...journalReconciliationFixture(),
+        [field]: actionId,
+        completionEvidence: {
+          ...journalReconciliationFixture().completionEvidence,
+          factId: field === 'journalId' ? actionId : journalId,
+        },
+      }
+      const { api } = apiFixture([result])
+      await expect(
+        api.reconcileJournal(occurrenceId, journalId),
+      ).rejects.toThrow('identity mismatch')
+    },
+  )
+  it.each(['RECORDED', 'MISSING', 'DELETED'] as const)(
+    'retains accepted Journal evidence separately from %s source state',
+    (sourceState) => {
+      expect(
+        journalReconciliationSchema.safeParse({
+          ...journalReconciliationFixture(),
+          sourceState,
+        }).success,
+      ).toBe(true)
+    },
+  )
+  it.each(['MISSING', 'DELETED'] as const)(
+    'does not manufacture Journal completion when the source is %s',
+    (sourceState) => {
+      expect(
+        journalReconciliationSchema.safeParse({
+          ...journalReconciliationFixture(),
+          sourceState,
+          occurrenceState: 'SCHEDULED',
+          completedAt: null,
+          completionEvidence: null,
+        }).success,
+      ).toBe(true)
+    },
+  )
+  it('rejects private fields, revision-based evidence and malformed Journal outcomes', () => {
+    const result = journalReconciliationFixture()
+    const invalid = [
+      {
+        ...result,
+        schemaVersion: 'journal-entry-occurrence-reconciliation-v2',
+      },
+      { ...result, journalId: 'not-an-id' },
+      { ...result, sourceState: 'UNAVAILABLE' },
+      { ...result, content: { text: 'private' } },
+      { ...result, mood: 'GOOD' },
+      { ...result, tags: ['private'] },
+      { ...result, completedAt: null },
+      { ...result, completionEvidence: null },
+      {
+        ...result,
+        occurrenceState: 'SCHEDULED',
+        completedAt: null,
+        completionEvidence: null,
+      },
+      ...[
+        { kind: 'EMOTION_CHECK_IN' },
+        { ownerDomain: 'CARE' },
+        { factId: actionId },
+        { factRevision: '2' },
+        { text: 'private' },
+      ].map((change) => ({
+        ...result,
+        completionEvidence: { ...result.completionEvidence, ...change },
+      })),
+    ]
+    for (const value of invalid)
+      expect(journalReconciliationSchema.safeParse(value).success).toBe(false)
+  })
+  it('validates both Journal candidate and occurrence before issuing a request', async () => {
+    const { api, requests } = apiFixture([])
+    await expect(
+      api.reconcileJournal(occurrenceId, 'not-an-id'),
+    ).rejects.toThrow()
+    await expect(
+      api.reconcileJournal('https://outside.test', journalId),
+    ).rejects.toThrow()
+    expect(requests).toHaveLength(0)
+  })
+  it('does not retry an uncertain Journal reconciliation automatically', async () => {
+    let calls = 0
+    const adapter: AxiosAdapter = async () => {
+      calls += 1
+      throw new Error('Journal evidence unavailable')
+    }
+    await expect(
+      createSupportPlanActionApi(create({ adapter })).reconcileJournal(
+        occurrenceId,
+        journalId,
+      ),
+    ).rejects.toThrow('Journal evidence unavailable')
     expect(calls).toBe(1)
   })
 })

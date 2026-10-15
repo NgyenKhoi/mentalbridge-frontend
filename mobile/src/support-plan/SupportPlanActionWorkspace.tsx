@@ -21,6 +21,7 @@ import { colors, radii, spacing, typography } from '@/theme/tokens'
 
 import {
   emotionReconciliationMessage,
+  localPlanDate,
   occurrenceWindow,
   type EmotionPlanOrigin,
   type OriginInput,
@@ -31,11 +32,19 @@ import type {
   ActionOccurrence,
   CanonicalSupportPlan,
   EmotionReconciliation,
+  JournalReconciliation,
   NativeReplacementReview,
 } from './support-plan-action-contract'
 import { SupportPlanPersonalizationCard } from './SupportPlanPersonalizationCard'
 import { SupportPlanScheduleEditor } from './SupportPlanScheduleEditor'
 import { SupportPlanScreen } from './SupportPlanScreen'
+import {
+  isSupportedJournalAction,
+  journalReconciliationMessage,
+  noJournalOrigin,
+  type JournalOriginInput,
+  type JournalPlanOrigin,
+} from './journal-plan-context'
 
 const statusLabels: Record<CanonicalSupportPlan['status'], string> = {
   DRAFT: 'Bản đề xuất',
@@ -64,10 +73,18 @@ function message(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 401)
       return 'Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục.'
-    if (error.code === 'EMOTION_CHECK_IN_EVIDENCE_UNAVAILABLE')
+    if (
+      error.code === 'EMOTION_CHECK_IN_EVIDENCE_UNAVAILABLE' ||
+      error.code === 'JOURNAL_ENTRY_EVIDENCE_UNAVAILABLE'
+    )
       return 'Chưa thể kiểm tra ghi nhận. Trạng thái trước đó vẫn được giữ. Bạn có thể thử lại.'
     if (error.code === 'EMOTION_CHECK_IN_EVIDENCE_MISMATCH')
       return 'Ghi nhận không cùng ngày, múi giờ hoặc được lưu trước khi kế hoạch bắt đầu. Hoạt động vẫn chưa nhận thêm cập nhật.'
+    if (
+      error.code === 'JOURNAL_ENTRY_EVIDENCE_MISMATCH' ||
+      error.code === 'COMPLETION_EVIDENCE_ALREADY_USED'
+    )
+      return 'Bài nhật ký chưa phù hợp với lần viết này hoặc đã được ghi nhận cho hoạt động khác. Ngày tạo bài mới phải phù hợp với hoạt động; sửa ngày hay nội dung bài cũ không tạo một lần viết mới.'
     if (error.code === 'EMOTION_CHECK_IN_NOT_DUE')
       return 'Chưa đến ngày của hoạt động này. Bạn có thể quay lại đúng ngày để ghi nhận.'
     if (error.status === 409 || error.status === 412)
@@ -115,6 +132,7 @@ type Props = Readonly<{
   legacyApi: SupportPlanApi
   emotionApi: Pick<EmotionApi, 'getProgress'>
   origin: OriginInput
+  journalOrigin?: JournalOriginInput
   proposalId?: string
   now?: () => Date
 }>
@@ -125,6 +143,7 @@ export function SupportPlanActionWorkspace({
   legacyApi,
   emotionApi,
   origin,
+  journalOrigin = noJournalOrigin,
   proposalId,
   now = () => new Date(),
 }: Props) {
@@ -236,6 +255,7 @@ export function SupportPlanActionWorkspace({
     )
   return (
     <NativeSupportPlanScreen
+      key={subject}
       api={api}
       legacyApi={legacyApi}
       emotionApi={emotionApi}
@@ -243,6 +263,7 @@ export function SupportPlanActionWorkspace({
       draft={draft.data ?? null}
       onChanged={refresh}
       origin={origin}
+      journalOrigin={journalOrigin}
       now={now}
     />
   )
@@ -328,6 +349,7 @@ type NativeProps = Readonly<{
   draft: CanonicalSupportPlan | null
   onChanged: () => Promise<void>
   origin: OriginInput
+  journalOrigin?: JournalOriginInput
   now: () => Date
 }>
 
@@ -339,6 +361,7 @@ export function NativeSupportPlanScreen({
   draft,
   onChanged,
   origin,
+  journalOrigin = noJournalOrigin,
   now,
 }: NativeProps) {
   const { session } = useSession()
@@ -372,7 +395,13 @@ export function NativeSupportPlanScreen({
       .flatMap((x) => x.actions)
       .flatMap((x) => x.schedules)
       .find((x) => x.status === 'ACTIVE')?.timezone ?? 'Asia/Ho_Chi_Minh'
-  const window = occurrenceWindow(now(), timezone)
+  const window =
+    journalOrigin.state === 'valid'
+      ? {
+          from: journalOrigin.value.localDate,
+          through: journalOrigin.value.localDate,
+        }
+      : occurrenceWindow(now(), timezone)
   const occurrences = useQuery({
     queryKey: [
       'support-plan-v3',
@@ -409,14 +438,22 @@ export function NativeSupportPlanScreen({
     occurrences.data?.representationMode === 'NATIVE_V3'
   const items = matching ? (occurrences.data?.occurrences ?? []) : []
   const returned =
-    origin.state === 'valid'
+    journalOrigin.state === 'valid'
       ? items.find(
           (x) =>
-            x.occurrenceId === origin.value.occurrenceId &&
-            x.actionId === origin.value.actionId &&
-            x.actionType === 'EMOTION_CHECK_IN',
+            x.occurrenceId === journalOrigin.value.occurrenceId &&
+            x.actionId === journalOrigin.value.actionId &&
+            x.localDate === journalOrigin.value.localDate &&
+            x.actionType === 'JOURNAL',
         )
-      : undefined
+      : origin.state === 'valid'
+        ? items.find(
+            (x) =>
+              x.occurrenceId === origin.value.occurrenceId &&
+              x.actionId === origin.value.actionId &&
+              x.actionType === 'EMOTION_CHECK_IN',
+          )
+        : undefined
   const ordered = returned
     ? [
         returned,
@@ -597,7 +634,10 @@ export function NativeSupportPlanScreen({
             Hoạt động gần đây và sắp tới
           </Text>
           {origin.state === 'invalid' ||
-          (origin.state === 'valid' && !occurrences.isPending && !returned) ? (
+          journalOrigin.state === 'invalid' ||
+          ((origin.state === 'valid' || journalOrigin.state === 'valid') &&
+            !occurrences.isPending &&
+            !returned) ? (
             <Text accessibilityLiveRegion="polite" style={styles.body}>
               Không xác định được hoạt động vừa mở. Các hoạt động hiện tại vẫn ở
               bên dưới; không có mục nào được cập nhật thay.
@@ -637,7 +677,27 @@ export function NativeSupportPlanScreen({
                 title={action.presentation.title}
                 summary={action.presentation.summary}
                 source={action.source}
+                journalEligible={
+                  isSupportedJournalAction(action) &&
+                  action.schedules.some(
+                    (schedule) =>
+                      schedule.scheduleId === item.scheduleId &&
+                      schedule.version === item.scheduleVersion,
+                  ) &&
+                  (item.state === 'COMPLETED' ||
+                    (action.status === 'ACTIVE' &&
+                      Boolean(action.activatedAt) &&
+                      Boolean(current.activatedAt) &&
+                      action.actionVersion === item.actionVersion))
+                }
                 returned={returned?.occurrenceId === item.occurrenceId}
+                journalOrigin={
+                  journalOrigin.state === 'valid' &&
+                  returned?.occurrenceId === item.occurrenceId
+                    ? journalOrigin.value
+                    : undefined
+                }
+                navigationBlocked={dirty || busy}
                 onReturnLayout={focusReturnedActivity}
                 onRefresh={() => occurrences.refetch().then(() => undefined)}
                 now={now}
@@ -958,7 +1018,10 @@ function NativeActivity({
   title,
   summary,
   source,
+  journalEligible,
   returned,
+  journalOrigin,
+  navigationBlocked,
   onReturnLayout,
   onRefresh,
   now,
@@ -969,12 +1032,17 @@ function NativeActivity({
   title: string
   summary: string | null
   source: CanonicalSupportPlan['focuses'][number]['actions'][number]['source']
+  journalEligible: boolean
   returned: boolean
+  journalOrigin?: JournalPlanOrigin | undefined
+  navigationBlocked: boolean
   onReturnLayout: (target: View, heading: Text) => void
   onRefresh: () => Promise<void>
   now: () => Date
 }>) {
-  const [result, setResult] = useState<EmotionReconciliation | null>(null),
+  const [result, setResult] = useState<
+      EmotionReconciliation | JournalReconciliation | null
+    >(null),
     [notice, setNotice] = useState(''),
     [busy, setBusy] = useState(false)
   const running = useRef(false)
@@ -1000,27 +1068,40 @@ function NativeActivity({
     }, [focusReturn]),
   )
   const emotion = occurrence.actionType === 'EMOTION_CHECK_IN'
+  const journal = occurrence.actionType === 'JOURNAL'
   const completed =
     result?.occurrenceState === 'COMPLETED' || occurrence.state === 'COMPLETED'
   const eligible =
-    plan.status === 'ACTIVE' &&
+    (!journal || journalEligible) &&
+    (plan.status === 'ACTIVE' || (journal && completed)) &&
     ['SCHEDULED', 'COMPLETED'].includes(occurrence.state)
+  const acceptedJournalId =
+    result?.completionEvidence?.kind === 'JOURNAL_ENTRY'
+      ? result.completionEvidence.factId
+      : occurrence.completionEvidence?.kind === 'JOURNAL_ENTRY'
+        ? occurrence.completionEvidence.factId
+        : undefined
+  const candidate = acceptedJournalId ?? journalOrigin?.journalId
   const check = async () => {
-    if (running.current || !eligible) return
+    if (running.current || !eligible || (journal && !candidate)) return
     running.current = true
     setBusy(true)
     setNotice('Đang kiểm tra ghi nhận…')
     try {
-      const updated = await api.reconcileEmotion(occurrence.occurrenceId)
+      const updated = journal
+        ? await api.reconcileJournal(occurrence.occurrenceId, candidate!)
+        : await api.reconcileEmotion(occurrence.occurrenceId)
       if (
         updated.occurrenceId !== occurrence.occurrenceId ||
         updated.actionId !== occurrence.actionId ||
-        updated.localDate !== occurrence.localDate
+        updated.localDate !== occurrence.localDate ||
+        (journal &&
+          (!('journalId' in updated) || updated.journalId !== candidate))
       )
         throw new Error('Origin mismatch')
       setResult(updated)
       setNotice(
-        emotionReconciliationMessage(
+        (journal ? journalReconciliationMessage : emotionReconciliationMessage)(
           updated.sourceState,
           updated.occurrenceState === 'COMPLETED',
         ),
@@ -1064,12 +1145,7 @@ function NativeActivity({
         x.version === occurrence.scheduleVersion,
     )
   const today = schedule
-    ? new Intl.DateTimeFormat('en-CA', {
-        timeZone: schedule.timezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(now()) === occurrence.localDate
+    ? localPlanDate(now(), schedule.timezone) === occurrence.localDate
     : false
   const origin: EmotionPlanOrigin = {
     occurrenceId: occurrence.occurrenceId,
@@ -1084,7 +1160,9 @@ function NativeActivity({
     >
       {returned ? (
         <Text accessibilityLiveRegion="polite" style={styles.eyebrow}>
-          Bạn vừa quay lại từ ghi nhận cảm xúc
+          {journal
+            ? 'Bạn vừa quay lại từ nhật ký'
+            : 'Bạn vừa quay lại từ ghi nhận cảm xúc'}
         </Text>
       ) : null}
       <Text style={styles.supporting}>
@@ -1146,6 +1224,100 @@ function NativeActivity({
             đúng mục này.
           </Text>
         </>
+      ) : journal ? (
+        <>
+          <Text style={styles.body}>
+            Nội dung nhật ký vẫn riêng tư. Kế hoạch chỉ ghi nhận việc bạn đã lưu
+            bài.
+          </Text>
+          {!journalEligible ? (
+            <Text style={styles.body}>
+              Hoạt động đã thay đổi hoặc chưa hỗ trợ mở nhật ký. Tải lại hoạt
+              động để xem trạng thái mới nhất; bài viết đã lưu vẫn được giữ.
+            </Text>
+          ) : null}
+          {candidate && !completed ? (
+            <Text accessibilityLiveRegion="polite" style={styles.body}>
+              Đã có bài nhật ký để kiểm tra. Việc lưu bài chưa tự hoàn thành
+              hoạt động.
+            </Text>
+          ) : null}
+          {!completed && today && eligible && !candidate ? (
+            <PrimaryButton
+              testID={`journal-write-${occurrence.occurrenceId}`}
+              label={`Viết nhật ký: ${title}`}
+              disabled={busy || navigationBlocked}
+              onPress={() =>
+                router.push({
+                  pathname: '/(user)/journal',
+                  params: {
+                    source: 'journal',
+                    occurrenceId: occurrence.occurrenceId,
+                    actionId: occurrence.actionId,
+                    localDate: occurrence.localDate,
+                  },
+                })
+              }
+            />
+          ) : null}
+          {!today && !completed ? (
+            <Text style={styles.body}>
+              Bài mới chỉ được ghi nhận cho ngày tạo bài. Không thể viết bài mới
+              để hoàn thành hoạt động ở ngày khác.
+            </Text>
+          ) : null}
+          {candidate ? (
+            <PrimaryButton
+              label={
+                busy ? 'Đang kiểm tra ghi nhận…' : 'Kiểm tra ghi nhận nhật ký'
+              }
+              testID={`reconcile-journal-${occurrence.occurrenceId}`}
+              disabled={busy || !eligible || navigationBlocked}
+              onPress={() => void check()}
+            />
+          ) : null}
+          {acceptedJournalId ? (
+            <Secondary
+              label="Xem nhật ký đã ghi nhận"
+              disabled={busy || navigationBlocked}
+              onPress={() =>
+                router.push({
+                  pathname: '/(user)/journal',
+                  params: {
+                    source: 'journal',
+                    occurrenceId: occurrence.occurrenceId,
+                    actionId: occurrence.actionId,
+                    localDate: occurrence.localDate,
+                    journalId: acceptedJournalId,
+                  },
+                })
+              }
+            />
+          ) : null}
+          {notice ? (
+            <Secondary
+              label="Tải lại hoạt động nhật ký"
+              disabled={busy || navigationBlocked}
+              onPress={() =>
+                void onRefresh().catch(() =>
+                  setNotice(
+                    'Chưa tải lại được hoạt động. Bài nhật ký đã lưu và ghi nhận trước đó vẫn được giữ.',
+                  ),
+                )
+              }
+            />
+          ) : null}
+          {plan.status === 'ACTIVE' &&
+          journalEligible &&
+          occurrence.state === 'SCHEDULED' &&
+          !completed ? (
+            <Secondary
+              label="Bỏ qua lần viết này"
+              disabled={busy || navigationBlocked}
+              onPress={() => void change('SKIPPED')}
+            />
+          ) : null}
+        </>
       ) : (
         <>
           {occurrence.actionType === 'RESOURCE' && source ? (
@@ -1177,12 +1349,6 @@ function NativeActivity({
                 onPress={() => void change('SKIPPED')}
               />
             </>
-          ) : null}
-          {occurrence.actionType === 'JOURNAL' ? (
-            <Secondary
-              label="Mở nhật ký"
-              onPress={() => router.push('/(user)/journal')}
-            />
           ) : null}
           {occurrence.actionType === 'PROFESSIONAL_SUPPORT' ? (
             <Secondary

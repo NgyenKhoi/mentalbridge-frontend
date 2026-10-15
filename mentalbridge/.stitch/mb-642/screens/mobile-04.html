@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>MentalBridge - Nhật ký cá nhân (Đã lưu)</title>
+<!-- Google Fonts: Fraunces & Be Vietnam Pro -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: "#1b2a22",
+            rootBg: "#e9efe3",
+            accent: "#2a685d",
+            primaryDark: "#01332d",
+            pinkBox: "#fdeeed",
+            pinkBorder: "rgba(220,100,100,0.15)"
+          },
+          fontFamily: {
+            serif: ["Fraunces", "serif"],
+            sans: ["Be Vietnam Pro", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+    }
+    h1, h2, h3, .font-serif {
+      font-family: 'Fraunces', serif;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .touch-target {
+      min-width: 44px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Ref Brand in Drawer */
+    .ref-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+    .ref-brand > a {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #3d7a6e, #1e4a43);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .ref-brand > a svg {
+      width: 24px;
+      height: 24px;
+    }
+    .ref-brand > div {
+      flex: 1;
+      min-width: 0;
+    }
+    .ref-brand > div b {
+      font-family: 'Fraunces', serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #01332d;
+      display: block;
+      line-height: 1.2;
+    }
+    .ref-brand > div span {
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      display: block;
+    }
+    .ref-brand > button {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 20px;
+      border-radius: 8px;
+    }
+
+    /* Support Plan Side Card (Điều chỉnh nhịp) */
+    .support-plan-side-card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 16px;
+      border: 1px solid rgba(27, 42, 34, 0.1);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .support-plan-side-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .support-plan-side-card-icon-tile {
+      width: 40px;
+      height: 40px;
+      background: #e7ede1;
+      color: #1e4a43;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .support-plan-side-card-title {
+      font-family: 'Fraunces', serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: #1b2a22;
+      line-height: 1.25;
+      margin: 0;
+    }
+    .support-plan-side-card-subtitle {
+      font-size: 12px;
+      color: rgba(27, 42, 34, 0.7);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+    .support-plan-quick-actions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .support-plan-quick-action-btn {
+      min-height: 44px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #f7faf5;
+      border: 1px solid rgba(27, 42, 34, 0.08);
+      border-radius: 10px;
+      color: #1b2a22;
+      font-size: 13px;
+      font-weight: 500;
+      text-align: left;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+    .support-plan-quick-action-btn:hover {
+      background: #edf3ea;
+    }
+    .support-plan-quick-action-btn:active {
+      transform: scale(0.99);
+    }
+    .support-plan-quick-action-icon {
+      color: #2a685d;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+    .support-plan-quick-action-label {
+      flex: 1;
+      min-width: 0;
+    }
+    .support-plan-quick-action-chevron {
+      color: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    /* Exact Safety Floating Button */
+    .CrisisSupportWidget-module__hPn7zq__fab {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 999px;
+      background: #b98231;
+      color: #fff;
+      z-index: 120;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(185,130,49,.35);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    .CrisisSupportWidget-module__hPn7zq__fab:active {
+      transform: scale(0.95);
+    }
+    .CrisisSupportWidget-module__hPn7zq__fabIcon svg {
+      width: 24px;
+      height: 24px;
+      display: block;
+    }
+    .CrisisSupportWidget-module__hPn7zq__fabLabel {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+  </style>
+</head>
+<body class="bg-[#e9efe3] text-[#1b2a22] font-sans antialiased min-h-screen selection:bg-[#b0efe0] selection:text-[#01332d]">
+<!-- Mobile Viewport Container: 375px native, resilient 320-430px -->
+<div class="w-full max-w-[430px] mx-auto min-h-screen bg-[#e9efe3] flex flex-col relative overflow-x-hidden border-x border-[#1b2a22]/10">
+<!-- Slide-in Navigation Drawer & Backdrop -->
+<div class="fixed inset-0 bg-black/40 z-50 transition-opacity duration-300 opacity-0 pointer-events-none" id="drawer-backdrop" onclick="toggleDrawer(false)"></div>
+<aside class="fixed top-0 left-0 bottom-0 w-[290px] bg-white z-50 transform -translate-x-full transition-transform duration-300 flex flex-col shadow-2xl p-5" id="nav-drawer">
+<div class="pb-4 border-b border-gray-100">
+<div class="ref-brand">
+<a aria-label="MentalBridge" href="/">
+<svg aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewbox="0 0 24 24">
+<path d="M12 2C7 2 3 5 3 9.5c0 3 2 5 4 6.2V21l3-1.6c.7.1 1.3.2 2 .2 5 0 9-3 9-7.6S17 2 12 2Z"></path>
+</svg>
+</a>
+<div title="MentalBridge Health Tech">
+<b>MentalBridge</b>
+<span>Health Tech</span>
+</div>
+<button aria-label="Thu gọn sidebar" onclick="toggleDrawer(false)">‹</button>
+</div>
+</div>
+<nav class="mt-4 space-y-1 flex-1" id="user-main-navigation"><div class="overflow-y-auto no-scrollbar py-2 space-y-4"><section class="space-y-1"><p class="text-xs font-semibold uppercase text-gray-400 tracking-wider px-3 py-1">Tổng quan</p><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#tong-quan"><span class="material-symbols-outlined text-[20px]">dashboard</span><span>Tổng quan</span></a><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#01332d] shadow-xs" href="#nhat-ky"><span class="material-symbols-outlined text-[20px]">book</span><span>Nhật ký</span></a><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#sang-loc"><span class="material-symbols-outlined text-[20px]">quiz</span><span>Bài sàng lọc</span></a><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#goi-y"><span class="material-symbols-outlined text-[20px]">lightbulb</span><span>Gợi ý hỗ trợ</span></a><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#ke-hoach"><span class="material-symbols-outlined text-[20px]">event_note</span><span>Kế hoạch hỗ trợ</span></a></section><section class="space-y-1 border-t border-gray-100 pt-3"><p class="text-xs font-semibold uppercase text-gray-400 tracking-wider px-3 py-1">Chăm sóc</p><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#chuyen-gia"><span class="material-symbols-outlined text-[20px]">support_agent</span><span>Chuyên gia</span></a><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#lich-hen"><span class="material-symbols-outlined text-[20px]">calendar_month</span><span>Lịch hẹn</span></a><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#tin-nhan"><span class="material-symbols-outlined text-[20px]">chat</span><span>Tin nhắn</span></a></section><section class="space-y-1 border-t border-gray-100 pt-3"><p class="text-xs font-semibold uppercase text-gray-400 tracking-wider px-3 py-1">Thông tin</p><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="/community"><span class="material-symbols-outlined text-[20px]">group</span><span>Cộng đồng</span></a><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#tai-nguyen"><span class="material-symbols-outlined text-[20px]">folder_open</span><span>Tài nguyên</span></a><a class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#phan-tich"><span class="material-symbols-outlined text-[20px]">insights</span><span>Phân tích</span></a></section></div></nav>
+<div class="pt-4 border-t border-gray-100 flex items-center space-x-3">
+<div class="w-9 h-9 rounded-full bg-[#01332d] text-white flex items-center justify-center font-bold text-xs">DM</div>
+<div>
+<p class="text-sm font-semibold text-[#1b2a22]">Người dùng mẫu</p>
+<p class="text-xs text-gray-500">Tài khoản cá nhân</p>
+</div>
+</div>
+</aside>
+<!-- 2. TOPBAR AT 0 (Height 65px) -->
+<header class="w-full bg-[#f5f8f2] sticky top-0 z-40 px-3 h-[65px] flex items-center justify-between border-b border-[#1b2a22]/12 shadow-xs">
+<button aria-controls="user-main-navigation" aria-label="Mở menu" class="touch-target w-11 h-11 rounded-xl text-[#1b2a22] hover:bg-gray-100 flex items-center justify-center transition-colors" onclick="toggleDrawer(true)" type="button">
+<span class="material-symbols-outlined text-[24px]">menu</span>
+</button>
+<div class="flex-1 min-w-0 mx-2">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2.5 text-gray-400 text-[18px]">search</span>
+<input class="w-full h-9 pl-8 pr-2.5 bg-white border border-[#1b2a22]/10 rounded-full text-xs text-[#1b2a22] placeholder:text-gray-400 focus:ring-1 focus:ring-[#01332d]" placeholder="Tìm..." type="text"/>
+</div>
+</div>
+<a class="ref-community-link flex items-center gap-1.5 text-sm font-medium text-[#1b2a22] hover:bg-white/60 px-2.5 py-1.5 rounded-lg transition-colors shrink-0" href="/community">
+<svg class="w-5 h-5 text-[#1b2a22] shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" viewbox="0 0 24 24">
+<path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"></path>
+<path d="M8 11h8M8 15h4"></path>
+</svg>
+<span class="whitespace-nowrap">Cộng đồng</span>
+</a>
+<a aria-label="Hồ sơ Người dùng mẫu" class="w-9 h-9 rounded-full bg-[#01332d] text-white flex items-center justify-center text-xs font-bold ml-1.5 shrink-0 ring-1 ring-black/5 hover:opacity-90 transition-opacity" href="/profile">DM</a>
+</header>
+<!-- Main Content Flow -->
+<main class="flex-1 px-4 pt-3.5 pb-24 space-y-4"><div class="p-3.5 bg-[#e6f8eb] border border-[#a3cfbb] rounded-2xl shadow-xs space-y-3"><div class="flex items-start gap-3"><div class="w-9 h-9 rounded-full bg-[#1e4a43] text-white flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[20px]">check</span></div><div class="flex-1 min-w-0"><h2 class="text-sm font-bold text-[#1b2a22] leading-tight">Nhật ký đã được lưu.</h2><p class="text-xs text-[#52604f] mt-0.5 leading-snug">Quay lại hoạt động để kiểm tra ghi nhận và tiếp tục kế hoạch ngày hôm nay.</p></div></div><div class="flex items-center gap-2 pt-0.5"><a class="touch-target flex-1 rounded-xl bg-[#1e4a43] text-white text-xs font-semibold flex items-center justify-center gap-1.5 min-h-[44px] hover:bg-[#163732] active:scale-98 transition-all shadow-xs" href="#hoat-dong-ke-hoach"><span class="material-symbols-outlined text-[18px]">arrow_back</span><span>Quay lại hoạt động</span></a><button class="touch-target px-3 rounded-xl border border-[#1b2a22]/20 bg-white text-xs font-medium text-[#1b2a22] hover:bg-gray-50 min-h-[44px]" type="button">Đóng</button></div></div><section class="space-y-2 pt-1"><div class="text-[11px] font-bold tracking-wide text-[#2a685d] flex items-center gap-1.5"><span class="text-[8px]">●</span><span>KHÔNG GIAN RIÊNG TƯ</span></div><h1 class="font-serif text-[28px] leading-[34px] text-[#1b2a22] font-normal">Nhật ký cá nhân</h1><p class="text-[14px] leading-relaxed text-[#1b2a22]/80">Kho lưu trữ cảm xúc và suy nghĩ riêng tư của bạn. Bạn có toàn quyền ghi lại, xem lại hoặc xóa bất kỳ lúc nào.</p><div class="flex items-center gap-2 pt-1"><button class="touch-target flex-1 bg-white rounded-full py-2 px-3 text-xs font-semibold text-[#1b2a22] border border-[#1b2a22]/15 shadow-2xs flex items-center justify-center gap-1.5 hover:bg-gray-50" type="button"><span class="material-symbols-outlined text-[16px] text-[#2a685d]">filter_alt</span><span>Lọc theo cảm xúc</span></button><button class="touch-target flex-1 bg-[#1e4a43] rounded-full py-2 px-3 text-xs font-semibold text-white shadow-2xs flex items-center justify-center gap-1.5 hover:bg-[#163732] active:scale-98 transition-all" type="button"><span class="material-symbols-outlined text-[18px]">add</span><span>+ Viết nhật ký mới</span></button></div></section><section class="space-y-3 pt-2"><div class="flex items-baseline justify-between"><h2 class="font-serif text-[20px] text-[#1b2a22] font-medium">Dòng thời gian</h2><span class="text-xs text-[#1b2a22]/70 font-medium">12 bài viết</span></div><article class="bg-white rounded-2xl p-4 border-2 border-[#2a685d] shadow-sm space-y-3 relative ring-2 ring-[#2a685d]/10"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-[#2a685d]"></span><span class="text-xs font-bold text-[#01332d]">Tâm trạng: Tốt</span><span class="text-xs text-gray-400">•</span><span class="text-xs text-gray-500">14/10/2026 · 19:05</span></div><span class="bg-[#e6f8eb] text-[#1e4a43] text-[11px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">check_circle</span>Vừa lưu xong</span></div><div class="flex flex-wrap gap-1.5 pt-0.5"><span class="text-[11px] font-medium bg-[#f5f8f2] text-[#2a685d] px-2.5 py-0.5 rounded-md">Chăm sóc bản thân</span><span class="text-[11px] font-medium bg-[#f5f8f2] text-[#1b2a22]/70 px-2.5 py-0.5 rounded-md flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">lock</span>Riêng tư</span></div><blockquote class="p-3 rounded-xl bg-[#f5f8f2] border-l-4 border-[#2a685d] text-xs text-[#1b2a22] italic leading-relaxed">“Nhịp thở đã dịu hơn sau buổi chiều bận rộn. Mình nhận thấy khi dừng lại khoảng vài phút để thở đều, cảm giác áp lực ở lồng ngực tự nhiên nhẹ bớt.”</blockquote><p class="text-xs text-[#1b2a22]/85 leading-relaxed">Dành vài phút ghi lại suy nghĩ giúp tâm trí không bị cuốn theo công việc còn dang dở. Buổi tối cảm thấy dễ chịu hơn dự tính.</p><div class="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px]">timer</span><span>5 phút suy ngẫm</span></div><div class="flex items-center gap-3"><button class="text-[#2a685d] font-semibold hover:underline flex items-center gap-0.5" type="button"><span class="material-symbols-outlined text-[15px]">edit</span>Sửa</button><button class="text-red-600 font-medium hover:underline flex items-center gap-0.5" type="button"><span class="material-symbols-outlined text-[15px]">delete</span>Xóa</button></div></div></article><article class="bg-white rounded-2xl p-4 border border-[#1b2a22]/15 shadow-sm space-y-3 opacity-90"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-gray-400"></span><span class="text-xs font-bold text-[#1b2a22]">Tâm trạng: Bình thường</span><span class="text-xs text-gray-400">•</span><span class="text-xs text-gray-500">12/10/2026 · 21:15</span></div><span class="text-[11px] text-gray-400 font-medium">2 ngày trước</span></div><div class="flex flex-wrap gap-1.5 pt-0.5"><span class="text-[11px] font-medium bg-[#f5f8f2] text-[#2a685d] px-2.5 py-0.5 rounded-md">Suy ngẫm tối</span><span class="text-[11px] font-medium bg-[#f5f8f2] text-[#1b2a22]/70 px-2.5 py-0.5 rounded-md flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">lock</span>Riêng tư</span></div><p class="text-xs text-[#1b2a22]/80 leading-relaxed">Hôm nay công việc trôi qua khá đều đặn, không có nhiều xáo trộn nhưng đến tối hơi mỏi mắt. Cần đi ngủ sớm hơn thường lệ.</p><div class="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px]">timer</span><span>3 phút suy ngẫm</span></div><div class="flex items-center gap-3"><button class="text-[#2a685d] font-semibold hover:underline flex items-center gap-0.5" type="button"><span class="material-symbols-outlined text-[15px]">edit</span>Sửa</button><button class="text-red-600 font-medium hover:underline flex items-center gap-0.5" type="button"><span class="material-symbols-outlined text-[15px]">delete</span>Xóa</button></div></div></article></section><div class="space-y-3 pt-2"><section class="bg-white rounded-2xl p-4 border border-[#1b2a22]/10 space-y-2"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded-lg bg-[#e7ede1] text-[#1e4a43] flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[18px]">local_fire_department</span></div><h3 class="font-serif text-[16px] text-[#1b2a22] font-semibold">Nhịp ghi chép</h3></div><p class="text-xs text-[#1b2a22]/80 leading-relaxed">Bạn đã ghi chép 3 ngày liên tiếp trong tuần này. Mỗi dòng chữ là một khoảng dừng ý nghĩa cho sức khỏe tinh thần của bạn.</p></section><section class="bg-[#f5f8f2] rounded-2xl p-4 border border-[#1b2a22]/10 space-y-2"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-[#2a685d]">shield_lock</span><h3 class="font-serif text-[16px] text-[#1b2a22] font-semibold">Không gian an toàn tuyệt đối</h3></div><p class="text-xs text-[#1b2a22]/80 leading-relaxed">Tất cả dòng nhật ký cá nhân chỉ thuộc về bạn và được mã hóa an toàn. Đội ngũ chuyên gia hoặc người khác không thể xem khi chưa có sự đồng ý của bạn.</p></section></div></main>
+<!-- EXACT SAFETY FLOATING BUTTON -->
+<button aria-controls="crisis-support-panel" aria-expanded="false" aria-haspopup="dialog" aria-label="Mở hỗ trợ khẩn cấp" class="CrisisSupportWidget-module__hPn7zq__fab" type="button">
+<span class="CrisisSupportWidget-module__hPn7zq__fabIcon">
+<svg aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M12 11.3 8.9 8.4a2.35 2.35 0 0 1 3.1-3.52 2.35 2.35 0 0 1 3.1 3.52L12 11.3Z"></path>
+<path d="M3.5 14.2h2.35l2.1 3.05h5.8c1.2 0 2.35-.48 3.2-1.33l3.55-3.56a1.48 1.48 0 0 0-2.06-.08l-2.53 2.06"></path>
+<path d="M9.1 14.15h4.1a1.5 1.5 0 0 1 0 3H9.6"></path>
+<path d="M3.5 12.85v6.3"></path>
+</svg>
+</span>
+<span class="CrisisSupportWidget-module__hPn7zq__fabLabel">Cần hỗ trợ ngay</span>
+</button>
+<script>
+  function verifyEmotionStatus() {
+    const icon = document.getElementById('qa-status-icon');
+    const text = document.getElementById('qa-status-text');
+    if (!text || !icon) return;
+    icon.textContent = 'check_circle';
+    icon.className = 'material-symbols-outlined text-[18px] text-[#01332d]';
+    text.textContent = 'Đã ghi nhận hoàn thành';
+    text.className = 'text-[#01332d] font-semibold';
+  }
+
+  function setQaState(state) {
+    const icon = document.getElementById('qa-status-icon');
+    const text = document.getElementById('qa-status-text');
+    if (!text || !icon) return;
+    if (state === 'completed') {
+      icon.textContent = 'check_circle';
+      icon.className = 'material-symbols-outlined text-[18px] text-[#01332d]';
+      text.textContent = 'Đã ghi nhận hoàn thành';
+      text.className = 'text-[#01332d] font-semibold';
+    } else if (state === 'absent') {
+      icon.textContent = 'help_outline';
+      icon.className = 'material-symbols-outlined text-[18px] text-gray-500';
+      text.textContent = 'Chưa có ghi nhận cảm xúc cho ngày này';
+      text.className = 'text-[#1b2a22] font-medium';
+    } else if (state === 'deleted') {
+      icon.textContent = 'delete';
+      icon.className = 'material-symbols-outlined text-[18px] text-red-600';
+      text.textContent = 'Ghi nhận của ngày này đã được xóa';
+      text.className = 'text-red-800 font-medium';
+    } else if (state === 'accepted') {
+      icon.textContent = 'history';
+      icon.className = 'material-symbols-outlined text-[18px] text-[#2a685d]';
+      text.textContent = 'Hoạt động đã được ghi nhận trước khi xóa.';
+      text.className = 'text-[#1b2a22] font-medium';
+    } else if (state === 'unavailable') {
+      icon.textContent = 'error_outline';
+      icon.className = 'material-symbols-outlined text-[18px] text-amber-600';
+      text.innerHTML = 'Chưa thể kiểm tra ghi nhận. Trạng thái trước đó vẫn được giữ. <button class="underline font-semibold ml-1" onclick="verifyEmotionStatus()">Thử lại</button>';
+      text.className = 'text-[#1b2a22] font-medium';
+    }
+  }
+
+  function toggleDrawer(open) {
+    const drawer = document.getElementById('nav-drawer');
+    const backdrop = document.getElementById('drawer-backdrop');
+    if (!drawer || !backdrop) return;
+
+    if (open) {
+      drawer.classList.remove('-translate-x-full');
+      backdrop.classList.remove('opacity-0', 'pointer-events-none');
+    } else {
+      drawer.classList.add('-translate-x-full');
+      backdrop.classList.add('opacity-0', 'pointer-events-none');
+    }
+  }
+</script>
+</div>
+</body></html>

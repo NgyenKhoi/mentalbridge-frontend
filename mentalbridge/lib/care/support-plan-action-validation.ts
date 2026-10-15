@@ -3,6 +3,7 @@ import type {
   ActionOccurrenceList,
   CompletionEvidence,
   EmotionCheckInOccurrenceReconciliation,
+  JournalOccurrenceReconciliation,
   NativeSupportPlanReplacementReview,
   SupportPlanActionHistory,
   SupportPlanContextualCompanionMessage,
@@ -561,6 +562,51 @@ export function parseEmotionCheckInReconciliation(
     evidence?.kind === 'EMOTION_CHECK_IN' &&
     evidence.ownerDomain === 'JOURNAL_AI'
     ? (value as EmotionCheckInOccurrenceReconciliation)
+    : null
+}
+
+export function parseJournalReconciliation(
+  value: unknown,
+): JournalOccurrenceReconciliation | null {
+  if (
+    !exact(value, [
+      'schemaVersion',
+      'occurrenceId',
+      'actionId',
+      'localDate',
+      'journalId',
+      'sourceState',
+      'occurrenceState',
+      'version',
+      'completedAt',
+      'completionEvidence',
+    ]) ||
+    value.schemaVersion !== 'journal-entry-occurrence-reconciliation-v1' ||
+    typeof value.occurrenceId !== 'string' ||
+    !isUuid(value.occurrenceId) ||
+    typeof value.actionId !== 'string' ||
+    !isUuid(value.actionId) ||
+    typeof value.journalId !== 'string' ||
+    !isUuid(value.journalId) ||
+    !isSupportPlanLocalDate(value.localDate) ||
+    !['RECORDED', 'MISSING', 'DELETED'].includes(String(value.sourceState)) ||
+    !integer(value.version)
+  )
+    return null
+  if (value.occurrenceState === 'SCHEDULED')
+    return value.sourceState !== 'RECORDED' &&
+      value.completedAt === null &&
+      value.completionEvidence === null
+      ? (value as JournalOccurrenceReconciliation)
+      : null
+  const evidence = parseCompletionEvidence(value.completionEvidence)
+  return value.occurrenceState === 'COMPLETED' &&
+    instant(value.completedAt) &&
+    evidence?.kind === 'JOURNAL_ENTRY' &&
+    evidence.ownerDomain === 'JOURNAL_AI' &&
+    evidence.factId === value.journalId &&
+    evidence.factRevision === '1'
+    ? (value as JournalOccurrenceReconciliation)
     : null
 }
 

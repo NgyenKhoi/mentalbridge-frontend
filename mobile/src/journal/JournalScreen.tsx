@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -12,9 +12,16 @@ import {
 import { useSession } from '@/auth/session-context'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { Screen } from '@/components/Screen'
+import type { SupportPlanActionApi } from '@/support-plan/support-plan-action-api'
+import {
+  noJournalOrigin,
+  resolveJournalPlanOrigin,
+  type JournalOriginInput,
+  type JournalPlanOrigin,
+} from '@/support-plan/journal-plan-context'
 
 import { JournalAnalysisPanel } from './JournalAnalysisPanel'
-import { JournalEditor } from './JournalEditor'
+import { JournalEditor, type JournalNavigationState } from './JournalEditor'
 import type { JournalApi } from './journal-api'
 import type { TrendRequest } from './journal-contract'
 import {
@@ -48,14 +55,85 @@ function JournalContent({
   subject,
   onBack,
   now,
+  planOrigin,
+  planApi,
+  onReturnToPlan,
+  onNavigationStateChange,
 }: Readonly<{
   api: JournalApi
   subject: string
   onBack: () => void
   now: () => Date
+  planOrigin: JournalOriginInput
+  planApi?: Pick<SupportPlanActionApi, 'getCurrent' | 'getOccurrences'>
+  onReturnToPlan?: (origin: JournalPlanOrigin) => void
+  onNavigationStateChange?: (state: JournalNavigationState) => void
 }>) {
   const [selected, setSelected] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [navigationState, setNavigationState] =
+    useState<JournalNavigationState>({
+      dirty: false,
+      busy: false,
+      uncertain: false,
+    })
+  const navigationRef = useRef(navigationState)
+  const [requestedOrigin] = useState(planOrigin)
+  const [writingOrigin, setWritingOrigin] = useState<JournalPlanOrigin | null>(
+    null,
+  )
+  const [candidate, setCandidate] = useState<string | null>(null)
+  const [returning, setReturning] = useState(false)
+  const [returnNotice, setReturnNotice] = useState('')
+  const [openedOrigin, setOpenedOrigin] = useState(false)
+  const returnRunning = useRef(false)
+  const contextChanged =
+    JSON.stringify(requestedOrigin) !== JSON.stringify(planOrigin)
+  const originContext = useQuery({
+    queryKey: ['journal', subject, 'plan-origin', requestedOrigin],
+    enabled: requestedOrigin.state === 'valid' && Boolean(planApi),
+    queryFn: () =>
+      requestedOrigin.state === 'valid' && planApi
+        ? resolveJournalPlanOrigin(planApi, requestedOrigin.value, now())
+        : null,
+    retry: false,
+    refetchOnMount: 'always',
+    gcTime: 0,
+  })
+  // Open once after the owned read becomes available. Guarded render adjustment
+  // avoids an effect that could mount a second editor over an existing draft.
+  if (!openedOrigin && originContext.data) {
+    setOpenedOrigin(true)
+    const resolved = originContext.data
+    if (
+      resolved.origin.journalId &&
+      resolved.occurrence.completionEvidence?.factId ===
+        resolved.origin.journalId
+    ) {
+      setSelected(resolved.origin.journalId)
+    } else if (resolved.canWrite) {
+      setWritingOrigin(resolved.origin)
+      setSelected('new')
+    }
+  }
+  useEffect(() => {
+    onNavigationStateChange?.({
+      ...navigationState,
+      busy: navigationState.busy || returning,
+    })
+  }, [navigationState, returning, onNavigationStateChange])
+  const editorNavigation = useCallback((state: JournalNavigationState) => {
+    navigationRef.current = state
+    setNavigationState(state)
+  }, [])
+  const created = (journalId: string) => {
+    if (writingOrigin) {
+      setCandidate(journalId)
+      setReturnNotice(
+        'Đã lưu bài nhật ký. Quay lại hoạt động để kiểm tra ghi nhận; việc lưu chưa tự hoàn thành hoạt động.',
+      )
+    }
+  }
   const [comparison, setComparison] = useState(false)
   const [days, setDays] = useState<7 | 14 | 30>(7)
   // The periods are frozen while viewing a request so midnight cannot change
@@ -82,8 +160,75 @@ function JournalContent({
   const closeEditor = () => {
     setDirty(false)
     setSelected(null)
+    setWritingOrigin(null)
+  }
+  const returnToPlan = () => {
+    if (
+      returnRunning.current ||
+      navigationRef.current.busy ||
+      navigationRef.current.uncertain ||
+      requestedOrigin.state !== 'valid' ||
+      !planApi ||
+      !onReturnToPlan
+    )
+      return
+    const perform = async () => {
+      returnRunning.current = true
+      setReturning(true)
+      setReturnNotice('Đang kiểm tra hoạt động để quay lại…')
+      try {
+        const fresh = await resolveJournalPlanOrigin(
+          planApi,
+          requestedOrigin.value,
+          now(),
+        )
+        if (!fresh) {
+          setReturnNotice(
+            'Hoạt động đã thay đổi hoặc không còn mở. Bài nhật ký đã lưu vẫn riêng tư; không có hoạt động nào được cập nhật thay.',
+          )
+          return
+        }
+        const acceptedId =
+          fresh.occurrence.completionEvidence?.kind === 'JOURNAL_ENTRY'
+            ? fresh.occurrence.completionEvidence.factId
+            : null
+        onReturnToPlan({
+          source: 'journal',
+          occurrenceId: fresh.origin.occurrenceId,
+          actionId: fresh.origin.actionId,
+          localDate: fresh.origin.localDate,
+          ...(acceptedId || candidate
+            ? { journalId: acceptedId ?? candidate! }
+            : {}),
+        })
+      } catch {
+        setReturnNotice(
+          'Chưa kiểm tra được hoạt động để quay lại. Bài viết và phần đang viết vẫn được giữ. Bạn có thể thử quay lại lần nữa.',
+        )
+      } finally {
+        returnRunning.current = false
+        setReturning(false)
+      }
+    }
+    if (!dirty) {
+      void perform()
+      return
+    }
+    Alert.alert(
+      'Rời bài viết?',
+      'Phần chỉnh sửa chưa lưu sẽ mất. Bài đã lưu vẫn được giữ; hoạt động chỉ thay đổi khi bạn kiểm tra ghi nhận.',
+      [
+        { text: 'Tiếp tục viết', style: 'cancel' },
+        {
+          text: 'Bỏ phần chưa lưu, quay lại',
+          style: 'destructive',
+          onPress: () => void perform(),
+        },
+      ],
+    )
   }
   const back = () => {
+    if (navigationRef.current.busy || returning) return
     const leave = selected ? closeEditor : onBack
     if (!dirty) return leave()
     Alert.alert(
@@ -116,12 +261,73 @@ function JournalContent({
       <Text accessibilityRole="header" style={s.title}>
         Nhật ký riêng tư
       </Text>
+      {requestedOrigin.state !== 'none' ? (
+        <View style={s.panel}>
+          <Text accessibilityRole="header" style={s.heading}>
+            Hoạt động trong kế hoạch
+          </Text>
+          {originContext.isPending && requestedOrigin.state === 'valid' ? (
+            <ActivityIndicator accessibilityLabel="Đang kiểm tra hoạt động nhật ký" />
+          ) : null}
+          {originContext.data ? (
+            <>
+              <Text style={s.label}>{originContext.data.title}</Text>
+              <Text style={s.source}>
+                {originContext.data.occurrence.localDate}
+              </Text>
+              <Text style={s.body}>
+                Nội dung nhật ký vẫn riêng tư. Kế hoạch chỉ ghi nhận việc bạn đã
+                lưu bài.
+              </Text>
+              {!originContext.data.canWrite &&
+              originContext.data.occurrence.state !== 'COMPLETED' ? (
+                <Notice>
+                  Bài mới chỉ được ghi nhận cho ngày tạo bài. Bạn có thể viết
+                  nhật ký riêng, nhưng không thể tạo bài cho một hoạt động ở
+                  ngày khác.
+                </Notice>
+              ) : null}
+            </>
+          ) : !originContext.isPending ||
+            requestedOrigin.state === 'invalid' ? (
+            <Notice error>
+              Không xác định được hoạt động này. Bạn vẫn có thể dùng nhật ký
+              riêng; không có hoạt động nào được ghi nhận thay.
+            </Notice>
+          ) : null}
+          {originContext.isError ? (
+            <TextAction
+              label="Thử kiểm tra lại hoạt động"
+              onPress={() => void originContext.refetch()}
+            />
+          ) : null}
+          {contextChanged ? (
+            <Notice>
+              Liên kết vừa thay đổi. Phần đang viết vẫn giữ liên kết ban đầu;
+              không tự chuyển sang hoạt động khác.
+            </Notice>
+          ) : null}
+          {returnNotice ? <Notice>{returnNotice}</Notice> : null}
+          {originContext.data && onReturnToPlan ? (
+            <TextAction
+              testID="journal-return-to-plan"
+              label={returning ? 'Đang quay lại…' : 'Quay lại hoạt động'}
+              disabled={
+                returning || navigationState.busy || navigationState.uncertain
+              }
+              onPress={returnToPlan}
+            />
+          ) : null}
+        </View>
+      ) : null}
       {selected === 'new' ? (
         <JournalEditor
           api={api}
           subject={subject}
           onClose={closeEditor}
           onDirtyChange={setDirty}
+          onCreated={created}
+          onNavigationStateChange={editorNavigation}
         />
       ) : selected ? (
         <>
@@ -151,6 +357,7 @@ function JournalContent({
                   initialEntry={detail.data}
                   onClose={closeEditor}
                   onDirtyChange={setDirty}
+                  onNavigationStateChange={editorNavigation}
                 />
               </>
             )
@@ -165,7 +372,17 @@ function JournalContent({
             <PrimaryButton
               testID="journal-new"
               label="Viết bài mới"
-              onPress={() => setSelected('new')}
+              onPress={() => {
+                // Starting ordinary writing while the origin read is pending
+                // must not let its late response retarget this draft.
+                setOpenedOrigin(true)
+                setWritingOrigin(
+                  originContext.data?.canWrite
+                    ? originContext.data.origin
+                    : null,
+                )
+                setSelected('new')
+              }}
             />
           </View>
           <View style={s.panel}>
@@ -277,7 +494,19 @@ export function JournalScreen({
   api,
   onBack,
   now = () => new Date(),
-}: Readonly<{ api: JournalApi; onBack: () => void; now?: () => Date }>) {
+  planOrigin = noJournalOrigin,
+  planApi,
+  onReturnToPlan,
+  onNavigationStateChange,
+}: Readonly<{
+  api: JournalApi
+  onBack: () => void
+  now?: () => Date
+  planOrigin?: JournalOriginInput
+  planApi?: Pick<SupportPlanActionApi, 'getCurrent' | 'getOccurrences'>
+  onReturnToPlan?: (origin: JournalPlanOrigin) => void
+  onNavigationStateChange?: (state: JournalNavigationState) => void
+}>) {
   const { session } = useSession()
   if (!session || session.role !== 'USER')
     return (
@@ -296,6 +525,10 @@ export function JournalScreen({
       subject={session.subject}
       onBack={onBack}
       now={now}
+      planOrigin={planOrigin}
+      {...(planApi ? { planApi } : {})}
+      {...(onReturnToPlan ? { onReturnToPlan } : {})}
+      {...(onNavigationStateChange ? { onNavigationStateChange } : {})}
     />
   )
 }

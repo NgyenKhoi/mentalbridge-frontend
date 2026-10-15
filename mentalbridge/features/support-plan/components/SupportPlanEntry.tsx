@@ -13,6 +13,8 @@ import type {
   SupportPlanV3,
 } from '../api/support-plan-contract'
 import type { EmotionPlanOrigin } from '../emotion-plan-origin'
+import type { JournalPlanOrigin } from '../journal-plan-origin'
+import Link from 'next/link'
 import SupportPlanJourney from './SupportPlanJourney'
 import NativeSupportPlanJourney from './NativeSupportPlanJourney'
 import './support-plan.css'
@@ -40,7 +42,13 @@ const loadError =
 
 export default function SupportPlanEntry({
   origin,
-}: Readonly<{ origin?: EmotionPlanOrigin }>) {
+  journalOrigin,
+  invalidJournalOrigin,
+}: Readonly<{
+  origin?: EmotionPlanOrigin
+  journalOrigin?: JournalPlanOrigin
+  invalidJournalOrigin?: boolean
+}>) {
   const { confirm } = useFeedback()
   const [state, setState] = useState<{
     current?: SupportPlanV3
@@ -133,6 +141,8 @@ export default function SupportPlanEntry({
           initialDraft={state.draft}
           initialHistory={state.history}
           origin={origin}
+          journalOrigin={journalOrigin}
+          invalidJournalOrigin={invalidJournalOrigin}
           onBackToLegacy={
             state.current?.representationMode === 'V2_RESOURCE_ADAPTER'
               ? () => {
@@ -147,6 +157,15 @@ export default function SupportPlanEntry({
     )
   return (
     <>
+      {(journalOrigin || invalidJournalOrigin) && (
+        <p className="support-plan-state" role="status">
+          Không tìm thấy hoạt động nhật ký đã mở trong kế hoạch hiện tại. Nhật
+          ký của bạn không bị thay đổi.{' '}
+          <Link className="btn btn-secondary" href="/journal">
+            Về nhật ký
+          </Link>
+        </p>
+      )}
       <SupportPlanJourney onDirtyChange={setLegacyDirty} />
       <section
         className="support-plan-state"

@@ -303,6 +303,26 @@ export interface paths {
         patch: operations["reviseJournalEntry"];
         trace?: never;
     };
+    "/api/v1/journals/{journalId}/completion-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve an owned Journal creation fact without private content.
+         * @description Resolves the authenticated owner's exact entry, not a browser-asserted completion. Missing and other-owner identifiers are indistinguishable. An owned tombstone returns DELETED. The stable creation fact uses server createdAt as occurredAt, never the user-selected Journal occurredAt or mutable revision timestamp. Revising text does not create another fact. No text, preview, tags, mood, encrypted payload, analysis or AI-processing consent crosses this boundary. This factual read does not authorize analysis, sharing or reuse of private reflection. Owner failures are unavailable, never false absence; responses are not cached. Care must independently validate the originating action, occurrence date in its schedule timezone, activation boundary and fact uniqueness. Deletion blocks new completion but never rewrites previously accepted history.
+         */
+        get: operations["getJournalEntryCompletionEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/journals/{journalId}/revisions/{revision}/analysis-jobs": {
         parameters: {
             query?: never;
@@ -763,6 +783,37 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        JournalEntryCompletionEvidence: {
+            /** @constant */
+            schemaVersion: "journal-entry-completion-evidence-v1";
+            /** Format: uuid */
+            subjectUserId: string;
+            /** Format: uuid */
+            journalId: string;
+            /** @enum {string} */
+            state: "RECORDED" | "MISSING" | "DELETED";
+            /** Format: date-time */
+            verifiedAt: string;
+            fact: null | components["schemas"]["JournalEntryCompletionFact"];
+        } & unknown;
+        JournalEntryCompletionFact: {
+            /** @constant */
+            ownerDomain: "JOURNAL_AI";
+            /** @constant */
+            kind: "JOURNAL_ENTRY";
+            /** Format: uuid */
+            factId: string;
+            /**
+             * @description Immutable creation-fact revision, not the private content revision.
+             * @constant
+             */
+            factRevision: "1";
+            /**
+             * Format: date-time
+             * @description Owner-generated entry createdAt; user-supplied Journal occurredAt is excluded.
+             */
+            occurredAt: string;
         };
         EmotionCheckInCompletionEvidence: {
             /** @constant */
@@ -1971,6 +2022,35 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+        };
+    };
+    getJournalEntryCompletionEvidence: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-correlation-id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                journalId: components["parameters"]["JournalId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized, owner-attributed current source state. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    "x-correlation-id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryCompletionEvidence"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["DependencyUnavailable"];
         };
     };
     createExactRevisionAnalysisJob: {

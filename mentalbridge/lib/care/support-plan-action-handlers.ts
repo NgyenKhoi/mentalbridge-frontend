@@ -31,6 +31,7 @@ type Operation =
   | 'occurrenceState'
   | 'reconcile'
   | 'companionExplanation'
+  | 'reconcileJournal'
 const READS: readonly Operation[] = [
   'current',
   'draft',
@@ -113,6 +114,7 @@ export async function supportPlanActionHandler(
         'occurrenceState',
         'reconcile',
         'companionExplanation',
+        'reconcileJournal',
       ].includes(operation) &&
       (!id || !isUuid(id))
     )
@@ -324,6 +326,22 @@ export async function supportPlanActionHandler(
           ownerId,
           secondaryId ?? '',
           body.surface as 'TODAY' | 'PLAN',
+          correlationId,
+        )
+        break
+      }
+      case 'reconcileJournal': {
+        const body = await readBoundedJson(request, 1024)
+        if (
+          !exact(body, ['journalId']) ||
+          typeof body.journalId !== 'string' ||
+          !isUuid(body.journalId)
+        )
+          invalid()
+        result = await supportPlanActionClient.reconcileJournal(
+          token,
+          ownerId,
+          body.journalId,
           correlationId,
         )
         break

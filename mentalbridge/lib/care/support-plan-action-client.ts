@@ -12,6 +12,7 @@ import {
   parseActionOccurrenceList,
   parseCanonicalSupportPlan,
   parseEmotionCheckInReconciliation,
+  parseJournalReconciliation,
   parseNativeSupportPlanReplacementReview,
   parseSupportPlanActionHistory,
   parseSupportPlanContextualCompanionMessage,
@@ -258,5 +259,25 @@ export const supportPlanActionClient = {
         status: 502,
       })
     return result
+  },
+  reconcileJournal(
+    authorization: string,
+    id: string,
+    journalId: string,
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'POST',
+      path: `${occurrencePath(id)}/journal/reconcile`,
+      body: { journalId },
+      authorization,
+      correlationId,
+      parseSuccess(value) {
+        const parsed = parseJournalReconciliation(value)
+        return parsed?.occurrenceId === id && parsed.journalId === journalId
+          ? parsed
+          : null
+      },
+    })
   },
 }
