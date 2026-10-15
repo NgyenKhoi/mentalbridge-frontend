@@ -510,7 +510,11 @@ describe('SupportPlanJourney', () => {
     fireEvent.keyDown(planTab, { key: 'End' })
     await waitFor(() => expect(adjustTab).toHaveFocus())
     expect(adjustTab).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getAllByText('Xem lại nhẹ nhàng').length).toBeGreaterThan(0)
+    await waitFor(() =>
+      expect(screen.getAllByText('Xem lại nhẹ nhàng').length).toBeGreaterThan(
+        0,
+      ),
+    )
 
     fireEvent.keyDown(adjustTab, { key: 'Home' })
     await waitFor(() => expect(todayTab).toHaveFocus())
