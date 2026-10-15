@@ -30,6 +30,7 @@ type Operation =
   | 'occurrences'
   | 'occurrenceState'
   | 'reconcile'
+  | 'companionExplanation'
   | 'reconcileJournal'
 const READS: readonly Operation[] = [
   'current',
@@ -83,6 +84,7 @@ export async function supportPlanActionHandler(
   request: NextRequest,
   operation: Operation,
   id?: string,
+  secondaryId?: string,
 ) {
   const correlationId = correlationIdFrom(request)
   let user: Awaited<ReturnType<typeof authenticatedCareUser>>
@@ -111,9 +113,15 @@ export async function supportPlanActionHandler(
         'replace',
         'occurrenceState',
         'reconcile',
+        'companionExplanation',
         'reconcileJournal',
       ].includes(operation) &&
       (!id || !isUuid(id))
+    )
+      invalid()
+    if (
+      operation === 'companionExplanation' &&
+      (!secondaryId || !isUuid(secondaryId))
     )
       invalid()
     const ownerId = id ?? ''
@@ -306,6 +314,22 @@ export async function supportPlanActionHandler(
           correlationId,
         )
         break
+      case 'companionExplanation': {
+        const body = await readBoundedJson(request, 256)
+        if (
+          !exact(body, ['surface']) ||
+          !['TODAY', 'PLAN'].includes(String(body.surface))
+        )
+          invalid()
+        result = await supportPlanActionClient.companionExplanation(
+          token,
+          ownerId,
+          secondaryId ?? '',
+          body.surface as 'TODAY' | 'PLAN',
+          correlationId,
+        )
+        break
+      }
       case 'reconcileJournal': {
         const body = await readBoundedJson(request, 1024)
         if (

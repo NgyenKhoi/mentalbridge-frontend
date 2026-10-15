@@ -4,11 +4,14 @@ import {
   Component,
   type ComponentType,
   type ReactNode,
+  useCallback,
   useId,
+  useRef,
   useState,
   useSyncExternalStore,
 } from 'react'
 import {
+  ArrowRight,
   ChevronDown,
   ChevronUp,
   Leaf,
@@ -16,6 +19,7 @@ import {
   Volume2,
   VolumeX,
   Waves,
+  X,
 } from 'lucide-react'
 
 import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
@@ -25,12 +29,21 @@ import {
   type SupportPlanCompanionState,
   type SupportPlanCompanionSurface,
 } from './support-plan-companion-state'
+import type {
+  ContextualCompanionRequest,
+  ContextualCompanionSnapshot,
+} from './support-plan-contextual-companion'
+import SupportPlanCompanionPanel, {
+  type SupportPlanGuidedContext,
+  type SupportPlanGuidedNavigationTarget,
+} from './SupportPlanCompanionPanel'
 
 import './support-plan-companion.css'
 
 const MOTION_STORAGE_KEY = 'mentalbridge_support_plan_companion_motion'
 const MUTED_STORAGE_KEY = 'mentalbridge_support_plan_companion_session_muted'
 const PREFERENCE_EVENT = 'mentalbridge:companion-preference'
+const MOBILE_SHEET_QUERY = '(max-width: 1099px)'
 // Mute is session-only by policy. The same legacy key in localStorage is
 // deliberately ignored; reduced motion remains an explicit durable preference.
 const memoryPreferences = new Map<string, string>()
@@ -108,7 +121,39 @@ type Props = Readonly<{
   surface: SupportPlanCompanionSurface
   defaultExpanded?: boolean
   CharacterRenderer?: ComponentType<SupportPlanCompanionCharacterProps>
+  contextual?: ContextualCompanionSnapshot
+  onContextualDismiss?: () => void
+  guidedContext?: SupportPlanGuidedContext
+  companionRequestPending?: boolean
+  onGuidedRequest?: (request: ContextualCompanionRequest) => void
+  onGuidedDismiss?: (targetId: string) => void
+  onGuidedNavigate?: (target: SupportPlanGuidedNavigationTarget) => void
 }>
+
+function subscribeMobileSheet(onChange: () => void) {
+  if (typeof window.matchMedia !== 'function') return () => undefined
+  const query = window.matchMedia(MOBILE_SHEET_QUERY)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
+function useMobileSheet() {
+  return useSyncExternalStore(
+    subscribeMobileSheet,
+    () =>
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia(MOBILE_SHEET_QUERY).matches,
+    () => false,
+  )
+}
+
+export function useSupportPlanCompanionMuted() {
+  return useSyncExternalStore(
+    subscribePreferences,
+    () => storedPreference(MUTED_STORAGE_KEY, 'true', 'session'),
+    () => false,
+  )
+}
 
 function StaticCharacter() {
   return (
@@ -172,15 +217,22 @@ export default function SupportPlanCompanionShell({
   surface,
   defaultExpanded = true,
   CharacterRenderer = DefaultCharacter,
+  contextual,
+  onContextualDismiss,
+  guidedContext,
+  companionRequestPending,
+  onGuidedRequest,
+  onGuidedDismiss,
+  onGuidedNavigate,
 }: Props) {
   const bodyId = useId()
   const systemReducedMotion = useReactiveReducedMotion()
   const [expanded, setExpanded] = useState(defaultExpanded)
-  const muted = useSyncExternalStore(
-    subscribePreferences,
-    () => storedPreference(MUTED_STORAGE_KEY, 'true', 'session'),
-    () => false,
-  )
+  const [panelOpen, setPanelOpen] = useState(false)
+  const panelTrigger = useRef<HTMLButtonElement>(null)
+  const panelRequestTarget = useRef<string | undefined>(undefined)
+  const mobileSheet = useMobileSheet()
+  const muted = useSupportPlanCompanionMuted()
   const userReducedMotion = useSyncExternalStore(
     subscribePreferences,
     () => storedPreference(MOTION_STORAGE_KEY, 'reduced', 'local'),
@@ -189,6 +241,19 @@ export default function SupportPlanCompanionShell({
 
   const reducedMotion = systemReducedMotion || userReducedMotion
   const copy = companionStateCopy[state]
+  const displayedExpanded = expanded || panelOpen || Boolean(contextual)
+
+  const dismissPanelExplanation = useCallback(() => {
+    const targetId = panelRequestTarget.current
+    panelRequestTarget.current = undefined
+    if (targetId) onGuidedDismiss?.(targetId)
+  }, [onGuidedDismiss])
+
+  const closePanel = useCallback(() => {
+    dismissPanelExplanation()
+    setPanelOpen(false)
+    window.setTimeout(() => panelTrigger.current?.focus(), 0)
+  }, [dismissPanelExplanation])
 
   const toggleMuted = () => {
     writePreference(MUTED_STORAGE_KEY, String(!muted), 'session')
@@ -204,7 +269,7 @@ export default function SupportPlanCompanionShell({
 
   return (
     <aside
-      className={`support-plan-companion ${expanded ? 'is-expanded' : 'is-collapsed'}`}
+      className={`support-plan-companion ${displayedExpanded ? 'is-expanded' : 'is-collapsed'} ${panelOpen ? 'is-panel-open' : ''}`}
       aria-label="Bạn đồng hành trong kế hoạch hỗ trợ"
       data-motion={reducedMotion ? 'reduced' : 'full'}
       data-muted={muted}
@@ -221,7 +286,7 @@ export default function SupportPlanCompanionShell({
         </div>
 
         <div className="support-plan-companion-controls">
-          {expanded && (
+          {displayedExpanded && (
             <>
               <button
                 type="button"
@@ -256,13 +321,26 @@ export default function SupportPlanCompanionShell({
           <button
             type="button"
             aria-controls={bodyId}
-            aria-expanded={expanded}
+            aria-expanded={displayedExpanded}
             aria-label={
-              expanded ? 'Thu gọn bạn đồng hành' : 'Mở rộng bạn đồng hành'
+              displayedExpanded
+                ? 'Thu gọn bạn đồng hành'
+                : 'Mở rộng bạn đồng hành'
             }
-            onClick={() => setExpanded((current) => !current)}
+            onClick={() => {
+              if (panelOpen) {
+                closePanel()
+                return
+              }
+              if (contextual) onContextualDismiss?.()
+              setExpanded(!displayedExpanded)
+            }}
           >
-            {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            {displayedExpanded ? (
+              <ChevronUp size={20} />
+            ) : (
+              <ChevronDown size={20} />
+            )}
           </button>
         </div>
       </div>
@@ -270,24 +348,98 @@ export default function SupportPlanCompanionShell({
       <div
         id={bodyId}
         className="support-plan-companion-body"
-        hidden={!expanded}
+        hidden={!displayedExpanded}
       >
-        <CharacterBoundary
-          resetKey={`${CharacterRenderer.name}:${state}`}
-          fallback={<StaticCharacter />}
-        >
-          <CharacterRenderer state={state} reducedMotion={reducedMotion} />
-        </CharacterBoundary>
+        {panelOpen && guidedContext && onGuidedNavigate ? (
+          <SupportPlanCompanionPanel
+            key={`${surface}:${guidedContext.supportPlanId}:${guidedContext.action?.actionId ?? 'no-action'}:${guidedContext.reviewAvailable ? 'review' : 'no-review'}`}
+            surface={surface}
+            context={guidedContext}
+            snapshot={contextual}
+            muted={muted}
+            modal={mobileSheet}
+            requestPending={companionRequestPending}
+            onRequest={(request) => {
+              panelRequestTarget.current = request.targetId
+              onGuidedRequest?.(request)
+            }}
+            onNavigate={(target) => {
+              dismissPanelExplanation()
+              setPanelOpen(false)
+              onGuidedNavigate(target)
+            }}
+            onClose={closePanel}
+          />
+        ) : (
+          <>
+            <CharacterBoundary
+              resetKey={`${CharacterRenderer.name}:${state}`}
+              fallback={<StaticCharacter />}
+            >
+              <CharacterRenderer state={state} reducedMotion={reducedMotion} />
+            </CharacterBoundary>
 
-        <div className="support-plan-companion-copy">
-          <span>{copy.label}</span>
-          <p>{copy.description}</p>
-          <small>{companionSurfaceCopy[surface]}</small>
-        </div>
+            <div className="support-plan-companion-copy">
+              <span>{copy.label}</span>
+              <p>{copy.description}</p>
+              <small>{companionSurfaceCopy[surface]}</small>
+            </div>
 
-        <p className="support-plan-companion-authority">
-          Bạn luôn là người quyết định thay đổi trong kế hoạch.
-        </p>
+            {contextual && (
+              <div
+                className="support-plan-companion-contextual-tray"
+                data-status={contextual.status}
+                {...(contextual.status === 'loading' || muted
+                  ? {}
+                  : { role: 'status', 'aria-live': 'polite' })}
+              >
+                <div>
+                  <strong>
+                    {contextual.status === 'loading'
+                      ? 'Đang chuẩn bị lời giải thích…'
+                      : 'Giải thích theo hoạt động'}
+                  </strong>
+                  <button
+                    type="button"
+                    aria-label="Đóng lời giải thích"
+                    onClick={onContextualDismiss}
+                  >
+                    <X size={17} aria-hidden="true" />
+                  </button>
+                </div>
+                <small>{contextual.actionTitle}</small>
+                {contextual.status !== 'loading' && <p>{contextual.message}</p>}
+                {contextual.status !== 'loading' && (
+                  <small>
+                    {contextual.status === 'ready'
+                      ? 'Nội dung do AI diễn đạt từ thông tin kế hoạch đã duyệt.'
+                      : 'Phản hồi dự phòng; hoạt động gốc vẫn giữ nguyên.'}
+                  </small>
+                )}
+              </div>
+            )}
+
+            <p className="support-plan-companion-authority">
+              Bạn luôn là người quyết định thay đổi trong kế hoạch.
+            </p>
+            {guidedContext && onGuidedNavigate && (
+              <button
+                ref={panelTrigger}
+                type="button"
+                className="support-plan-companion-open-guidance"
+                aria-haspopup="dialog"
+                aria-expanded={panelOpen}
+                onClick={() => {
+                  panelRequestTarget.current = undefined
+                  setPanelOpen(true)
+                }}
+              >
+                Mở hướng dẫn có giới hạn
+                <ArrowRight size={18} aria-hidden="true" />
+              </button>
+            )}
+          </>
+        )}
       </div>
     </aside>
   )

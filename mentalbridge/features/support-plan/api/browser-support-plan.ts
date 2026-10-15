@@ -13,6 +13,7 @@ import type {
   SupportPlanPersonalization,
   ReplaceSupportPlanPersonalizationRequest,
   UpdateActionScheduleRequest,
+  SupportPlanContextualCompanionMessage,
 } from './support-plan-contract'
 
 export type SupportPlanPersonalizationAuthority = Readonly<{
@@ -150,6 +151,19 @@ export async function getSupportPlanActions(supportPlanId: string) {
   return (
     await browserApiClient.get<SupportPlanV3>(
       `/care/support-plans/${encodeURIComponent(supportPlanId)}/actions`,
+    )
+  ).data
+}
+
+export async function requestSupportPlanActionCompanionExplanation(
+  supportPlanId: string,
+  actionId: string,
+  surface: 'TODAY' | 'PLAN',
+) {
+  return (
+    await browserApiClient.post<SupportPlanContextualCompanionMessage>(
+      `/care/v2/support-plans/${encodeURIComponent(supportPlanId)}/actions/${encodeURIComponent(actionId)}/companion-explanation`,
+      { surface },
     )
   ).data
 }
