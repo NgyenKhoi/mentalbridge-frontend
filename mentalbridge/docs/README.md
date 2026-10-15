@@ -71,6 +71,7 @@ Story-specific delivery evidence:
 - [MB-618 Community end-to-end closure evidence](mb-618-community-closure-evidence.md)
 - [MB-619 appointment dispute UI evidence](mb-619-appointment-disputes-evidence.md)
 - [MB-656 truthful Resources progress evidence](MB-656-resources-truthful-progress.md)
+- [MB-653 SupportPlan Companion hardening evidence](evidence/mb-653-support-plan-companion-hardening.md)
 - [MB-549 appointment reminder consumer evidence](evidence/mb-549-appointment-reminder-consumer.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 

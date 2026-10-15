@@ -15,6 +15,7 @@ export default function SupportPlanContextualCompanion({
   actionTitle,
   surface,
   disabled = false,
+  interruptionActive = false,
   requestPending = false,
   snapshot,
   onRequest,
@@ -25,6 +26,7 @@ export default function SupportPlanContextualCompanion({
   actionTitle: string
   surface: 'TODAY' | 'PLAN'
   disabled?: boolean
+  interruptionActive?: boolean
   requestPending?: boolean
   snapshot?: ContextualCompanionSnapshot
   onRequest: (request: ContextualCompanionRequest) => void
@@ -34,6 +36,7 @@ export default function SupportPlanContextualCompanion({
   const targetId = `companion-trigger-${generatedId.replace(/:/g, '')}`
   const active = snapshot?.targetId === targetId
   const muted = useSupportPlanCompanionMuted()
+  const interrupted = interruptionActive
 
   return (
     <span className="support-plan-contextual-anchor">
@@ -42,9 +45,9 @@ export default function SupportPlanContextualCompanion({
         type="button"
         className="support-plan-contextual-trigger"
         aria-label={`Nhờ bạn đồng hành giải thích: ${actionTitle}`}
-        aria-expanded={active}
-        aria-busy={active && snapshot.status === 'loading'}
-        disabled={disabled || requestPending}
+        aria-expanded={active && !interrupted}
+        aria-busy={active && !interrupted && snapshot.status === 'loading'}
+        disabled={disabled || requestPending || interrupted}
         onClick={() =>
           onRequest({
             targetId,
@@ -62,11 +65,11 @@ export default function SupportPlanContextualCompanion({
         )}
         <span>Giải thích</span>
       </button>
-      {active && (
+      {active && !interrupted && (
         <span
           className="support-plan-contextual-bubble"
           data-status={snapshot.status}
-          {...(snapshot.status === 'loading' || muted
+          {...(snapshot.status === 'loading' || muted || interrupted
             ? {}
             : { role: 'status', 'aria-live': 'polite' })}
         >

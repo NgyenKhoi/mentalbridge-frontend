@@ -57,6 +57,7 @@ import ProfessionalSupportPath from './ProfessionalSupportPath'
 import type { SupportPlanGuidedNavigationTarget } from './SupportPlanCompanionPanel'
 import SupportPlanCompanionShell from './SupportPlanCompanionShell'
 import SupportPlanContextualCompanion from './SupportPlanContextualCompanion'
+import { useSupportPlanCompanionInterruption } from './support-plan-companion-interruption'
 import type {
   ContextualCompanionRequest,
   ContextualCompanionSnapshot,
@@ -187,6 +188,7 @@ export default function NativeSupportPlanJourney({
   const companionInFlight = useRef(false)
   const [companionRequestPending, setCompanionRequestPending] = useState(false)
   const dirty = scheduleDirty || personalizationDirty
+  const companionInterrupted = useSupportPlanCompanionInterruption(dirty)
   const [history, setHistory] = useState<SupportPlanActionHistory | undefined>(
     initialHistory,
   )
@@ -243,7 +245,7 @@ export default function NativeSupportPlanJourney({
   const requestCompanionExplanation = useCallback(
     async (request: ContextualCompanionRequest) => {
       if (
-        dirty ||
+        companionInterrupted ||
         companionInFlight.current ||
         !['TODAY', 'PLAN'].includes(request.surface)
       )
@@ -279,7 +281,7 @@ export default function NativeSupportPlanJourney({
         setCompanionRequestPending(false)
       }
     },
-    [dirty],
+    [companionInterrupted],
   )
 
   const clearCompanionExplanation = useCallback(() => {
@@ -305,10 +307,10 @@ export default function NativeSupportPlanJourney({
   )
 
   useEffect(() => {
-    if (!dirty || !contextualCompanion) return
+    if (!companionInterrupted || !contextualCompanion) return
     const frame = window.requestAnimationFrame(clearCompanionExplanation)
     return () => window.cancelAnimationFrame(frame)
-  }, [clearCompanionExplanation, dirty, contextualCompanion])
+  }, [clearCompanionExplanation, companionInterrupted, contextualCompanion])
 
   const reloadPlans = useCallback(async () => {
     const [nextCurrent, nextDraft] = await Promise.all([
@@ -861,6 +863,7 @@ export default function NativeSupportPlanJourney({
         onContextualDismiss={dismissCompanionExplanation}
         guidedContext={guidedContext}
         companionRequestPending={companionRequestPending}
+        interruptionActive={companionInterrupted}
         onGuidedRequest={(request) => void requestCompanionExplanation(request)}
         onGuidedDismiss={dismissGuidedExplanation}
         onGuidedNavigate={navigateFromCompanion}
@@ -1150,7 +1153,8 @@ export default function NativeSupportPlanJourney({
                             actionId={action.actionId}
                             actionTitle={action.presentation.title}
                             surface="TODAY"
-                            disabled={dirty}
+                            disabled={companionInterrupted}
+                            interruptionActive={companionInterrupted}
                             requestPending={companionRequestPending}
                             snapshot={contextualCompanion}
                             onRequest={(request) =>
@@ -1506,7 +1510,8 @@ export default function NativeSupportPlanJourney({
                               actionId={action.actionId}
                               actionTitle={action.presentation.title}
                               surface="PLAN"
-                              disabled={dirty}
+                              disabled={companionInterrupted}
+                              interruptionActive={companionInterrupted}
                               requestPending={companionRequestPending}
                               snapshot={contextualCompanion}
                               onRequest={(request) =>
