@@ -58,7 +58,7 @@ describe('CombinedMeaningCard', () => {
       screen.getByRole('link', { name: /Xem gợi ý an toàn đã lưu/ }),
     ).toHaveAttribute(
       'href',
-      '/support-guides/90000000-0000-4000-8000-000000000101?from=screening-history',
+      '/support-guides/90000000-0000-4000-8000-000000000101?from=screening-history&resultEvaluationId=20000000-0000-4000-8000-000000000101',
     )
   })
 
@@ -74,7 +74,7 @@ describe('CombinedMeaningCard', () => {
       screen.getByRole('link', { name: /Xem gợi ý đã lưu/ }),
     ).toHaveAttribute(
       'href',
-      '/support-guides/90000000-0000-4000-8000-000000000101?from=screening-history',
+      '/support-guides/90000000-0000-4000-8000-000000000101?from=screening-history&resultEvaluationId=20000000-0000-4000-8000-000000000101',
     )
     expect(
       screen.getAllByRole('link', {

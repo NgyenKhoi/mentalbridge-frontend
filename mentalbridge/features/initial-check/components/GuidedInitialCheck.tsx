@@ -371,7 +371,9 @@ export default function GuidedInitialCheck({
 
   return (
     <div className="initial-check-flow">
-      <JourneyProgress phase={state.phase} />
+      {state.phase !== 'EVALUATION_PENDING' && (
+        <JourneyProgress phase={state.phase} />
+      )}
       {(state.phase === 'PROFILE_REQUIRED' ||
         state.phase === 'CONSENT_REQUIRED') && (
         <ReadinessStep phase={state.phase} purpose={purpose} />

@@ -1,7 +1,8 @@
 .page {
-  width: min(100%, 980px);
+  width: min(100%, 1120px);
   margin: 0 auto;
-  padding: 20px 0 40px;
+  padding: var(--space-6) clamp(var(--space-4), 3vw, var(--space-10))
+    var(--space-10);
 }
 
 .error {

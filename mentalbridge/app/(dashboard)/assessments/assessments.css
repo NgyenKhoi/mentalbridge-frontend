@@ -1,23 +1,23 @@
 /* ==========================================================================
    MentalBridge Assessments Page Styles
-   Max-width: 920px, Centered, Clean Bento Layout
+   MB-667 owner prototype: history first, full desktop content width
    ========================================================================== */
 
 .assessment-page {
   width: 100%;
-  max-width: 920px;
+  max-width: 1152px;
   margin: 0 auto;
-  padding: 0 16px 36px;
+  padding: 28px 32px 36px;
   animation: assessment-enter var(--motion-slow) var(--ease-standard);
 }
 
 /* 1. Header & Emergency Trigger */
 .assessment-page-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin: 0 0 22px;
+  margin: 0 0 24px;
   padding-top: 4px;
 }
 
@@ -35,10 +35,57 @@
   line-height: 1.5;
 }
 
+.assessment-mobile-label {
+  display: none;
+}
+
+.assessment-page-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assessment-start-pair {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--teal-deep);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.assessment-start-pair svg {
+  width: 15px;
+  height: 15px;
+}
+
+.assessment-start-pair:hover {
+  border-color: var(--teal);
+  background: var(--teal-pale);
+}
+
+.assessment-start-pair:focus-visible,
+.assessment-standalone-starts a:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 3px;
+}
+
 .crisis-pill-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 44px;
   padding: 6px 14px;
   border: 1px solid rgba(239, 68, 68, 0.25);
   border-radius: var(--radius-pill);
@@ -428,20 +475,25 @@
 
 .assessment-tablist {
   display: flex;
-  background: #eef2ee;
-  padding: 4px;
-  border-radius: 12px;
+  width: 100%;
+  max-width: 576px;
+  background: #e4ece4;
+  padding: 6px;
+  border: 1px solid #d5e0d6;
+  border-radius: 16px;
   gap: 4px;
-  margin-bottom: 16px;
+  margin-bottom: 28px;
 }
 
 .assessment-tab-btn {
   flex: 1;
+  min-width: 0;
+  min-height: 44px;
   padding: 8px 14px;
   border: none;
   background: transparent;
-  border-radius: 8px;
-  font-size: 13.5px;
+  border-radius: 12px;
+  font-size: 12px;
   font-weight: 650;
   color: var(--ink-soft);
   cursor: pointer;
@@ -467,7 +519,7 @@
   display: block;
 }
 
-.assessment-tabpanel:not(.active) {
+.assessment-tabpanel[hidden] {
   display: none;
 }
 
@@ -475,6 +527,66 @@
 .assessment-history-sections {
   display: grid;
   gap: var(--space-8);
+}
+
+.assessment-standalone-disclosure {
+  padding: 0 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.assessment-standalone-content {
+  padding-bottom: 20px;
+}
+
+.assessment-standalone-starts {
+  display: grid;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.assessment-standalone-starts p {
+  max-width: 72ch;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.assessment-standalone-starts > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.assessment-standalone-starts a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--teal-deep);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.assessment-standalone-starts a:hover {
+  background: var(--teal-pale);
+  border-color: var(--teal);
+}
+
+.assessment-standalone-starts a svg {
+  width: 16px;
+  height: 16px;
+}
+
+.assessment-standalone-disclosure .individual-assessment-history {
+  margin-top: 20px;
+  padding-top: 20px;
 }
 
 .individual-assessment-history {
@@ -1655,13 +1767,49 @@
 /* Responsive Breakpoints */
 @media (max-width: 720px) {
   .assessment-page {
-    padding: 0 12px 24px;
+    padding: 20px 16px 24px;
   }
 
   .assessment-page-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  .assessment-desktop-label {
+    display: none;
+  }
+
+  .assessment-mobile-label {
+    display: inline;
+  }
+
+  .assessment-page-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .assessment-page-title h1 {
+    font-size: 28px;
+  }
+
+  .assessment-page-title p {
+    font-size: 13.5px;
+  }
+
+  .assessment-tablist {
+    gap: 4px;
+    padding: 4px;
+    margin-bottom: 20px;
+  }
+
+  .assessment-tab-btn {
+    padding: 8px;
+  }
+
+  .assessment-standalone-disclosure {
+    padding-right: 14px;
+    padding-left: 14px;
   }
 
   .crisis-pill-btn {

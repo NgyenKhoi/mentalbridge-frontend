@@ -97,6 +97,47 @@ function reviewedMeaning() {
   }
 }
 
+function completedInitialCheck(
+  meaning: ReturnType<typeof combinedMeaningFixture>,
+) {
+  const assessments = meaning.evidence.map((item) => ({
+    assessmentId: item.assessmentId,
+    questionnaireDefinitionId: '30000000-0000-4000-8000-000000000101',
+    instrument: item.instrument,
+    questionnaireVersion: item.questionnaireVersion,
+    privacyPolicyVersion: 'privacy-capstone-v3',
+    submittedAt: meaning.evaluatedAt,
+    voidedAt: null,
+    result: {
+      totalScore: item.totalScore,
+      screeningLevel: item.screeningLevel,
+      scoringVersion: item.scoringVersion,
+      safetyStatus: item.safetyStatus,
+      safetyPolicyVersion:
+        item.instrument === 'PHQ9' ? 'MB-SAFETY-PHQ9-001-v1' : null,
+      disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
+    },
+  }))
+  return {
+    phase: 'COMPLETED',
+    phq9: assessments[0],
+    gad7: assessments[1],
+    evaluation: {
+      supportEvaluationId: meaning.supportEvaluationId,
+      policyVersion: meaning.sourcePolicyVersion,
+      evaluatedAt: meaning.evaluatedAt,
+      supportTier: meaning.supportTier,
+      reasonCodes: ['ALL_SCREENING_LEVELS_MINIMAL_OR_MILD'],
+      evidence: meaning.evidence,
+      nextStep: meaning.nextStep,
+      safetyGuidance: meaning.safetyGuidance,
+      disclaimerCode: meaning.disclaimerCode,
+      disclaimer: meaning.disclaimer,
+    },
+    combinedMeaning: meaning,
+  }
+}
+
 async function mockAssessmentPageDependencies(page: Page) {
   await page.route('**/api/care/assessments/history**', (route) =>
     route.fulfill({
@@ -115,6 +156,17 @@ async function mockAssessmentPageDependencies(page: Page) {
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
+  if ((page.viewportSize()?.width ?? 1440) <= 760) {
+    // Resizing a desktop fixture triggers the preserved sidebar's exit motion.
+    // Capture the settled responsive state, not an intermediate animation frame.
+    await expect
+      .poll(() =>
+        page.locator('.ref-sidebar').evaluate((element) => {
+          return element.getBoundingClientRect().right <= 0
+        }),
+      )
+      .toBe(true)
+  }
   await expect
     .poll(() =>
       page.evaluate(
@@ -135,6 +187,115 @@ test.beforeEach(async ({ context, page }) => {
     },
   ])
   await mockAssessmentPageDependencies(page)
+  const completed = completedInitialCheck(reviewedMeaning())
+  for (const assessment of [completed.phq9, completed.gad7]) {
+    await page.route(
+      `**/api/care/assessments/by-id/${assessment.assessmentId}`,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(assessment),
+        }),
+    )
+  }
+})
+
+test('MB-667 current desktop uses the full content grid and the Mầm An loading composition', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const meaning = reviewedMeaning()
+  let releaseCurrent!: () => void
+  const currentGate = new Promise<void>((resolve) => {
+    releaseCurrent = resolve
+  })
+  await page.route('**/api/care/initial-check?**', async (route) => {
+    await currentGate
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(completedInitialCheck(meaning)),
+    })
+  })
+  await page.goto('/initial-check')
+  const loading = page.getByRole('status', {
+    name: 'Đang chuẩn bị hành trình của bạn',
+  })
+  await expect(loading).toBeVisible()
+  await expect(
+    loading.locator('[data-skeleton-region="stepper"]'),
+  ).toBeVisible()
+  await expect(
+    loading.locator('[data-skeleton-part="score-card"]'),
+  ).toHaveCount(2)
+  await expect(
+    loading.locator('[data-skeleton-part="meaning-card"]'),
+  ).toBeVisible()
+  const mascot = loading.locator('svg[viewBox="0 0 120 120"]:visible')
+  await expect
+    .poll(async () => (await mascot.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(80)
+  await page.screenshot({
+    path: testInfo.outputPath('mb-667-current-loading-desktop.png'),
+    fullPage: true,
+  })
+  await loading.getByRole('button', { name: 'Ẩn gợi ý nhịp thở' }).click()
+  await expect(
+    loading.getByRole('button', { name: 'Ẩn gợi ý nhịp thở' }),
+  ).toHaveCount(0)
+  releaseCurrent()
+  await expect(
+    page.getByRole('heading', { name: meaning.baseMeaning.text }),
+  ).toBeVisible()
+  const result = page.locator('.initial-check-result')
+  const composition = page.locator('.combined-meaning-card')
+  const cards = composition.locator('.combined-meaning-score')
+  const summary = composition.locator('.combined-meaning-summary')
+  for (const width of [1440, 1280]) {
+    await page.setViewportSize({ width, height: 900 })
+    const parentBox = (await result.boundingBox())!
+    const compositionBox = (await composition.boundingBox())!
+    const first = (await cards.nth(0).boundingBox())!
+    const second = (await cards.nth(1).boundingBox())!
+    const summaryBox = (await summary.boundingBox())!
+    expect(compositionBox.width / parentBox.width).toBeGreaterThan(0.98)
+    expect(Math.abs(first.y - second.y)).toBeLessThan(2)
+    expect(summaryBox.y).toBeGreaterThan(first.y + first.height)
+    expect(summaryBox.width / compositionBox.width).toBeGreaterThan(0.98)
+    const appearance = await composition.evaluate((element) => ({
+      background: getComputedStyle(element).backgroundColor,
+      headingSize: Number.parseFloat(
+        getComputedStyle(element.querySelector('h1')!).fontSize,
+      ),
+    }))
+    expect(appearance.background).toBe('rgba(0, 0, 0, 0)')
+    expect(appearance.headingSize).toBeLessThanOrEqual(32)
+    await expect(
+      page.locator(
+        '.initial-check-progress li.active .initial-check-step-marker',
+      ),
+    ).toHaveCSS('color', 'rgb(255, 255, 255)')
+    await expectNoHorizontalOverflow(page)
+    await page.screenshot({
+      path: testInfo.outputPath(`mb-667-current-${width}.png`),
+      fullPage: true,
+    })
+  }
+  await page.setViewportSize({ width: 375, height: 812 })
+  const firstMobile = (await cards.nth(0).boundingBox())!
+  const secondMobile = (await cards.nth(1).boundingBox())!
+  expect(secondMobile.y).toBeGreaterThan(firstMobile.y + firstMobile.height)
+  await expectNoHorizontalOverflow(page)
+  await page.screenshot({
+    path: testInfo.outputPath('mb-667-current-mobile.png'),
+    fullPage: true,
+  })
+  await page
+    .getByRole('button', { name: 'Xem chi tiết điểm số và giới hạn công cụ' })
+    .click()
+  await expect(page.locator('.combined-meaning-detail-scores')).toBeVisible()
 })
 
 test('MB-667 opens the exact saved pair and its persisted Guide', async ({
@@ -220,16 +381,21 @@ test('MB-667 opens the exact saved pair and its persisted Guide', async ({
 
   await page.getByRole('link', { name: /Xem gợi ý đã lưu/ }).click()
   await expect(page).toHaveURL(
-    `/support-guides/${guideId}?from=screening-history`,
+    `/support-guides/${guideId}?from=screening-history&resultEvaluationId=${evaluationId}`,
   )
   await expect(
-    page.getByRole('heading', { name: 'Gợi ý của lần đánh giá này' }),
+    page.getByRole('heading', {
+      name: 'Với kết quả của lần đánh giá này, gợi ý được lưu là bắt đầu từ những bước nhỏ',
+    }),
   ).toBeVisible()
   await expect(
-    page.getByText('Bản ghi lịch sử · chỉ đọc').first(),
+    page.getByText(/Bản ghi lịch sử · Chỉ đọc/i).first(),
   ).toBeVisible()
   await expect(page.getByRole('button', { name: /Tạo gợi ý/ })).toHaveCount(0)
   await expect(page.getByText('Bắt đầu từ một hoạt động nhỏ')).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: /Quay lại Kết quả trước đây/ }),
+  ).toHaveAttribute('href', `/assessments/results/${evaluationId}`)
 
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto(`/assessments/results/${evaluationId}`)
@@ -242,6 +408,78 @@ test('MB-667 opens the exact saved pair and its persisted Guide', async ({
   await testInfo.attach('MB-667 historical meaning mobile', {
     path: mobile,
     contentType: 'image/png',
+  })
+})
+
+test('MB-667 Guide distributes three saved resources across the desktop row', async ({
+  page,
+}, testInfo) => {
+  const guide = historicalGuide()
+  guide.resources = [
+    ...guide.resources,
+    {
+      ...guide.resources[0],
+      resourceId: '30000000-0000-4000-8000-000000000102',
+      title: 'Nhận biết cảm xúc của mình',
+    },
+    {
+      ...guide.resources[0],
+      resourceId: '30000000-0000-4000-8000-000000000103',
+      title: 'Dành một khoảng nghỉ ngắn',
+    },
+  ]
+  const meaning = reviewedMeaning()
+  meaning.domainSupportEvaluationId = guide.supportEvaluationId
+  await page.route('**/api/care/initial-check?**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(completedInitialCheck(meaning)),
+    }),
+  )
+  await page.route('**/api/care/support-guides?**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [guide],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    }),
+  )
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/support-guides')
+  await expect(page.locator('.support-guide-answer')).toBeVisible()
+  await expect(page.locator('.support-guide-card')).toHaveCSS(
+    'background-color',
+    'rgba(0, 0, 0, 0)',
+  )
+  const resourceList = page.locator('.support-guide-resources > ol')
+  const cards = resourceList.locator(':scope > li')
+  await expect(cards).toHaveCount(3)
+  const first = (await cards.nth(0).boundingBox())!
+  const second = (await cards.nth(1).boundingBox())!
+  const third = (await cards.nth(2).boundingBox())!
+  const row = (await resourceList.boundingBox())!
+  expect(Math.abs(first.y - third.y)).toBeLessThan(2)
+  expect(Math.abs(first.width - second.width)).toBeLessThan(2)
+  expect(Math.abs(third.x + third.width - row.x - row.width)).toBeLessThan(2)
+  await expect(page.locator('a[href^="tel:"]')).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Tạo gợi ý từ kiểm tra ban đầu' }),
+  ).toHaveCount(0)
+  await page.screenshot({
+    path: testInfo.outputPath('mb-667-guide-three-resources-desktop.png'),
+    fullPage: true,
+  })
+  await page.setViewportSize({ width: 375, height: 812 })
+  await expectNoHorizontalOverflow(page)
+  await page.getByRole('link', { name: /Khám phá bài tập phù hợp/ }).click()
+  await expect(resourceList).toBeInViewport()
+  await page.screenshot({
+    path: testInfo.outputPath('mb-667-guide-three-resources-mobile.png'),
+    fullPage: true,
   })
 })
 
@@ -303,7 +541,9 @@ test('MB-667 shows Mầm An while loading and preserves an incomplete exact pair
   await expect(
     page.getByRole('status', { name: 'Đang chuẩn bị lịch sử sàng lọc' }),
   ).toBeVisible()
-  await expect(page.getByText('Mầm An đang đồng hành')).toBeVisible()
+  await expect(
+    page.locator('[data-skeleton-part="history-card"]').first(),
+  ).toBeVisible()
   const loadingScreenshot = testInfo.outputPath('mb-667-mam-an-loading.png')
   await page.screenshot({ path: loadingScreenshot, fullPage: true })
   await testInfo.attach('MB-667 Mầm An loading', {
@@ -322,7 +562,7 @@ test('MB-667 shows Mầm An while loading and preserves an incomplete exact pair
   await expect(incompleteEpisode.getByText('/27 điểm')).toBeVisible()
   await expect(incompleteEpisode.getByText('Chưa làm GAD-7')).toBeVisible()
   await expect(
-    incompleteEpisode.getByLabel('GAD-7 · Lo âu: chưa có điểm'),
+    incompleteEpisode.getByLabel('GAD-7 · Dấu hiệu lo âu: chưa có điểm'),
   ).toBeVisible()
   await expect(
     incompleteEpisode.getByText('Có thông tin an toàn cần xem'),
@@ -404,7 +644,10 @@ test('MB-667 keeps safety authoritative and renders severe professional support 
   ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
   await expect(
     page.getByRole('link', { name: /Xem gợi ý an toàn đã lưu/ }),
-  ).toHaveAttribute('href', `/support-guides/${guideId}?from=screening-history`)
+  ).toHaveAttribute(
+    'href',
+    `/support-guides/${guideId}?from=screening-history&resultEvaluationId=${safetyEvaluationId}`,
+  )
   const safetyScreenshot = testInfo.outputPath('mb-667-safety-desktop.png')
   await page.screenshot({ path: safetyScreenshot, fullPage: true })
   await testInfo.attach('MB-667 safety desktop', {

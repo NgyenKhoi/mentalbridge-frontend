@@ -92,35 +92,37 @@ describe('Assessment history page', () => {
     )
     render(<AssessmentsPage />)
     expect(
-      await screen.findByRole('heading', {
-        name: 'Hiểu những thay đổi của bạn qua bốn góc nhìn',
-      }),
+      screen.getByRole('heading', { name: 'Bài sàng lọc', level: 1 }),
     ).toBeVisible()
     expect(
-      screen.getByText(
-        'Đặt kết quả sàng lọc, nhật ký, việc thực hiện kế hoạch và cảm nhận của bạn cạnh nhau để nhận ra thay đổi và chọn bước hỗ trợ phù hợp.',
-      ),
-    ).toBeVisible()
-    expect(
-      screen.queryByText(/Care chọn kết quả|Journal cung cấp/),
-    ).not.toBeInTheDocument()
+      screen.getByRole('tab', { name: 'Lịch sử sàng lọc' }),
+    ).toHaveAttribute('aria-selected', 'true')
     expect(
       screen.getByRole('heading', {
-        name: 'Nhìn lại tâm trạng và lo âu trong cùng một lượt',
+        name: 'Lịch sử theo từng lượt sàng lọc',
       }),
-    ).toBeVisible()
-    expect(
-      screen.getByText(
-        'Mỗi bài vẫn có kết quả riêng, không gộp thành một điểm chung. Các bài làm riêng bên dưới sẽ không tự ghép thành lượt này.',
-      ),
     ).toBeVisible()
     expect(
       screen.getByRole('link', { name: 'Bắt đầu PHQ-9 và GAD-7' }),
     ).toHaveAttribute('href', '/initial-check')
-    expect(await screen.findByText('8 điểm')).toBeVisible()
     expect(
-      screen.getByRole('link', { name: 'Bắt đầu lượt đánh giá lại' }),
-    ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
+      screen.queryByRole('region', { name: 'Chọn bài sàng lọc' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('region', { name: 'Kết quả sàng lọc gần nhất' }),
+    ).not.toBeInTheDocument()
+    const standaloneDisclosure = screen.getByRole('button', {
+      name: 'Bài sàng lọc riêng lẻ và kết quả từng bài',
+    })
+    expect(standaloneDisclosure.closest('details')).not.toHaveAttribute('open')
+    await userEvent.click(standaloneDisclosure)
+    expect(
+      screen.getByRole('link', { name: 'Làm riêng PHQ-9' }),
+    ).toHaveAttribute('href', '/assessment/phq9')
+    expect(
+      screen.getByRole('link', { name: 'Làm riêng GAD-7' }),
+    ).toHaveAttribute('href', '/assessment/gad7')
+    expect(await screen.findByText('8 điểm')).toBeVisible()
     expect(screen.getByText('Nhẹ')).toBeVisible()
     expect(screen.getByRole('link', { name: 'Xem lại' })).toHaveAttribute(
       'href',
@@ -140,6 +142,31 @@ describe('Assessment history page', () => {
         name: 'Thay đổi giữa các lần sàng lọc',
       }),
     ).not.toBeInTheDocument()
+
+    const historyTab = screen.getByRole('tab', { name: 'Lịch sử sàng lọc' })
+    historyTab.focus()
+    await userEvent.keyboard('{End}')
+    expect(screen.getByRole('tab', { name: 'Đánh giá lại' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'Đánh giá lại' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(
+      screen.getByRole('heading', {
+        name: 'Hiểu những thay đổi của bạn qua bốn góc nhìn',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Bắt đầu lượt đánh giá lại' }),
+    ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
+    await userEvent.keyboard('{Home}')
+    expect(historyTab).toHaveFocus()
+    expect(historyTab).toHaveAttribute('aria-selected', 'true')
+    await userEvent.keyboard('{ArrowRight}')
+    expect(
+      screen.getByRole('tab', { name: 'Gợi ý sau sàng lọc' }),
+    ).toHaveFocus()
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'panel-support')
   })
 
   it('does not misreport a history failure as no previous assessment', async () => {
@@ -182,9 +209,14 @@ describe('Assessment history page', () => {
 
     render(<AssessmentsPage />)
 
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: 'Bài sàng lọc riêng lẻ và kết quả từng bài',
+      }),
+    )
     expect(
-      (await screen.findAllByText('Chưa tải được')).length,
-    ).toBeGreaterThan(0)
+      await screen.findByText('Không thể tải lịch sử từng bài'),
+    ).toBeVisible()
     expect(screen.queryByText('Chưa thực hiện')).not.toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Không thể tải lịch sử từng bài',

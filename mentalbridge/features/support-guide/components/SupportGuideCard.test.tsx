@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import type { SupportGuide } from '../api/support-guide-contract'
@@ -73,15 +73,16 @@ function fixture(
 }
 
 describe('SupportGuideCard', () => {
-  it('keeps safety, one-time scope, exact resource provenance, and AI fallback visible', () => {
+  it('keeps authoritative safety, exact resource provenance, and fallback visible', () => {
     const { container } = render(
       <SupportGuideCard guide={fixture('AVAILABLE')} />,
     )
 
     expect(screen.getByText('Safety guidance is available now.')).toBeVisible()
     expect(screen.getByText('Reviewed resource')).toBeVisible()
-    expect(screen.getByText('Bạn chủ động lựa chọn')).toBeVisible()
-    expect(screen.getByRole('status')).toHaveTextContent(/AI/)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Nội dung chuẩn bị sẵn',
+    )
     expect(
       screen.getByRole('link', { name: 'Mở lại hướng dẫn này' }),
     ).toHaveAttribute(
@@ -89,8 +90,8 @@ describe('SupportGuideCard', () => {
       '/support-guides/10000000-0000-4000-8000-000000000511',
     )
     expect(
-      screen.getByRole('link', { name: 'Xem chuyên gia tâm lý' }),
-    ).toHaveAttribute('href', '/specialists')
+      screen.getByRole('link', { name: 'Xem hỗ trợ trong khu vực' }),
+    ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
     expect(screen.getByRole('link', { name: 'Xem bài tập' })).toHaveAttribute(
       'href',
       '/resources/30000000-0000-4000-8000-000000000511?contentVersion=0',
@@ -114,10 +115,10 @@ describe('SupportGuideCard', () => {
   it('labels an exact historical Guide as read-only and returns to screening history', () => {
     render(<SupportGuideCard guide={fixture('AVAILABLE')} historical />)
 
-    expect(screen.getByText('Bản ghi lịch sử · chỉ đọc')).toBeVisible()
+    expect(screen.getByText('Bản ghi lịch sử · Chỉ đọc')).toBeVisible()
     expect(
       screen.getByRole('heading', {
-        name: 'Với kết quả này, bạn có thể làm gì?',
+        name: 'Với kết quả của lần đánh giá này, thông tin an toàn được ưu tiên trước',
       }),
     ).toBeVisible()
     expect(
@@ -126,5 +127,96 @@ describe('SupportGuideCard', () => {
     expect(
       screen.queryByRole('link', { name: 'Mở lại hướng dẫn này' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('renders every actual resource and no invented hotline or counter', () => {
+    const guide = fixture('AVAILABLE')
+    const source = guide.resources[0]
+    guide.resources = [
+      source,
+      { ...source, resourceId: 'resource-2', title: 'Resource two' },
+      { ...source, resourceId: 'resource-3', title: 'Resource three' },
+    ]
+    const { container } = render(<SupportGuideCard guide={guide} />)
+    const resources = screen.getByRole('region', {
+      name: 'Bài tập hỗ trợ bạn có thể mở',
+    })
+    expect(
+      within(resources).getAllByRole('link', { name: 'Xem bài tập' }),
+    ).toHaveLength(3)
+    expect(
+      container.querySelectorAll('.support-guide-resources > ol > li'),
+    ).toHaveLength(3)
+    expect(container.querySelector('a[href^="tel:"]')).toBeNull()
+    expect(
+      container.querySelectorAll(
+        'a[href="/safety-directory?trigger=positive-item-9"]',
+      ),
+    ).toHaveLength(1)
+    expect(container.textContent).not.toMatch(/1900|24\/7|đã tự động kết nối/i)
+  })
+
+  it('shows saved exact scores and professional action without inventing a safety signal', () => {
+    const guide = fixture('AVAILABLE')
+    guide.safety = {
+      ...guide.safety,
+      status: 'NEGATIVE_SAFETY_SCREEN',
+      reasonCode: 'PHQ9_ITEM9_NEGATIVE',
+    }
+    guide.provenance.assessmentResults[0].screeningLevel = 'MODERATE'
+    const { container } = render(
+      <SupportGuideCard
+        guide={guide}
+        historical
+        resultEvaluationId="presentation-evaluation"
+        scorePair={{
+          phq9: { totalScore: 12, screeningLevel: 'MODERATE' },
+          gad7: { totalScore: 3, screeningLevel: 'MINIMAL' },
+        }}
+      />,
+    )
+    expect(screen.getByText('12/27')).toBeVisible()
+    expect(screen.getByText('3/21')).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Tìm chuyên gia phù hợp' }),
+    ).toHaveAttribute('href', '/specialists')
+    expect(
+      screen.getByRole('link', { name: 'Quay lại Kết quả trước đây' }),
+    ).toHaveAttribute('href', '/assessments/results/presentation-evaluation')
+    expect(container.querySelector('.support-guide-safety-priority')).toBeNull()
+    expect(
+      screen.queryByRole('link', { name: 'Xem hỗ trợ an toàn' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps missing numeric evidence as missing rather than treating it as zero', () => {
+    render(<SupportGuideCard guide={fixture('AVAILABLE')} />)
+    expect(screen.getAllByText('—')).toHaveLength(2)
+    expect(screen.queryByText('0/27')).not.toBeInTheDocument()
+    expect(screen.queryByText('0/21')).not.toBeInTheDocument()
+  })
+
+  it('uses a page heading and omits the self-link on a direct saved Guide page', () => {
+    render(
+      <SupportGuideCard
+        guide={fixture('EMPTY')}
+        headingLevel="h1"
+        showOpenLink={false}
+      />,
+    )
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Với kết quả này, ưu tiên hàng đầu là kết nối hỗ trợ an toàn ngay',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('link', { name: 'Mở lại hướng dẫn này' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getAllByText(
+        'Lần đánh giá này không có tài nguyên đã lưu kèm theo.',
+      ).length,
+    ).toBeGreaterThan(0)
   })
 })

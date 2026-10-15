@@ -1,8 +1,12 @@
 import SupportGuideJourney from '@/features/support-guide/components/SupportGuideJourney'
+import { isUuid } from '@/lib/care/care-validation'
 
 type Props = Readonly<{
   params: Promise<{ supportGuideId: string }>
-  searchParams: Promise<{ from?: string | string[] }>
+  searchParams: Promise<{
+    from?: string | string[]
+    resultEvaluationId?: string | string[]
+  }>
 }>
 
 export default async function SupportGuidePage({
@@ -14,6 +18,9 @@ export default async function SupportGuidePage({
     <SupportGuideJourney
       supportGuideId={supportGuideId}
       historical={query.from === 'screening-history'}
+      resultEvaluationId={
+        isUuid(query.resultEvaluationId) ? query.resultEvaluationId : undefined
+      }
     />
   )
 }

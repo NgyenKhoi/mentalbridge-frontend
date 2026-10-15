@@ -58,21 +58,26 @@ function ScoreCard({
 }>) {
   const phq9 = evidence.instrument === 'PHQ9'
   const maximum = phq9 ? 27 : 21
-  const label = phq9 ? 'PHQ-9 · Tâm trạng' : 'GAD-7 · Lo âu'
+  const instrumentLabel = phq9 ? 'PHQ-9' : 'GAD-7'
+  const subjectLabel = phq9 ? 'Dấu hiệu trầm cảm' : 'Dấu hiệu lo âu'
+  const accessibleLabel = `${instrumentLabel} · ${subjectLabel}`
 
   if (evidence.state !== 'AVAILABLE') {
     const missing = evidence.state === 'MISSING'
     return (
       <div className={`${styles.scoreCard} ${styles.scoreUnavailable}`}>
         <div className={styles.scoreHeader}>
-          <span>{label}</span>
+          <span className={styles.scoreIdentity}>
+            <strong>{instrumentLabel}</strong>
+            <span>{subjectLabel}</span>
+          </span>
           <span className={styles.missingLevel}>
             {missing ? 'Chưa hoàn tất' : 'Không khả dụng'}
           </span>
         </div>
         <div
           className={styles.missingScore}
-          aria-label={`${label}: chưa có điểm`}
+          aria-label={`${accessibleLabel}: chưa có điểm`}
         >
           <strong>—</strong>
           <span>
@@ -88,12 +93,27 @@ function ScoreCard({
   const level = evidence.screeningLevel!
   const positiveSafety =
     phq9 && evidence.safetyStatus === 'POSITIVE_SAFETY_SCREEN'
+  const activeBandCount =
+    level === 'MINIMAL'
+      ? 1
+      : level === 'MILD'
+        ? 2
+        : level === 'MODERATE'
+          ? 3
+          : 4
 
   return (
-    <div className={`${styles.scoreCard} ${levelStyles[level]}`}>
+    <div
+      className={`${styles.scoreCard} ${levelStyles[level]} ${
+        phq9 ? '' : styles.gadScore
+      }`}
+    >
       <div className={styles.scoreHeader}>
-        <span>{label}</span>
-        <span className={styles.level}>{levelLabels[level]}</span>
+        <span className={styles.scoreIdentity}>
+          <strong>{instrumentLabel}</strong>
+          <span>{subjectLabel}</span>
+        </span>
+        <span className={styles.level}>Mức {levelLabels[level]}</span>
       </div>
       <div className={styles.scoreValue}>
         <strong>{evidence.totalScore}</strong>
@@ -104,11 +124,23 @@ function ScoreCard({
           <ShieldAlert aria-hidden="true" /> Có thông tin an toàn cần xem
         </span>
       )}
-      <progress
-        value={evidence.totalScore!}
-        max={maximum}
-        aria-label={`${evidence.instrument}: ${evidence.totalScore} trên ${maximum} điểm, mức ${levelLabels[level]}`}
-      />
+      <div
+        className={styles.scoreScale}
+        role="meter"
+        aria-valuemin={0}
+        aria-valuemax={maximum}
+        aria-valuenow={evidence.totalScore!}
+        aria-valuetext={`Mức ${levelLabels[level]}`}
+        aria-label={`${instrumentLabel}: ${evidence.totalScore} trên ${maximum} điểm, mức ${levelLabels[level]}`}
+      >
+        {[0, 1, 2, 3].map((index) => (
+          <span
+            aria-hidden="true"
+            data-active={index < activeBandCount ? 'true' : 'false'}
+            key={`${evidence.instrument}-range-${index}`}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -146,10 +178,20 @@ function EpisodeCard({
       </h3>
       <header className={styles.cardHeader}>
         <div className={styles.date}>
+          <span
+            className={`${styles.statusMarker} ${
+              safety
+                ? styles.statusSafety
+                : incomplete || item.meaningState === 'UNAVAILABLE'
+                  ? styles.statusIncomplete
+                  : styles.statusComplete
+            }`}
+            aria-hidden="true"
+          />
           <CalendarDays aria-hidden="true" />
           <time dateTime={displayAt}>
             <strong>{occurredAt.toLocaleDateString('vi-VN')}</strong>
-            <span>
+            <span aria-label="Thời gian ghi nhận">
               {occurredAt.toLocaleTimeString('vi-VN', {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -204,7 +246,7 @@ function EpisodeCard({
               {meaning.supportGuideId && (
                 <Link
                   className={styles.secondaryAction}
-                  href={`/support-guides/${meaning.supportGuideId}?from=screening-history`}
+                  href={`/support-guides/${meaning.supportGuideId}?from=screening-history&resultEvaluationId=${meaning.supportEvaluationId}`}
                 >
                   <BookOpen aria-hidden="true" /> Gợi ý đã lưu
                 </Link>
@@ -333,7 +375,7 @@ export function ScreeningEpisodeHistory() {
   return (
     <section className={styles.history} aria-labelledby="episode-history-title">
       <div className={styles.intro}>
-        <div>
+        <div className="sr-only">
           <h2 id="episode-history-title">Lịch sử theo từng lượt sàng lọc</h2>
           <p>
             Mỗi mục giữ đúng dữ liệu PHQ-9 và GAD-7 của cùng một lượt, kể cả khi

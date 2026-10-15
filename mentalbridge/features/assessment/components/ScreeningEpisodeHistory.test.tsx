@@ -83,14 +83,16 @@ describe('ScreeningEpisodeHistory', () => {
       `/assessments/results/${initial.supportEvaluationId}`,
     )
     expect(screen.getByText('5')).toBeVisible()
-    expect(
-      screen.getAllByRole('progressbar', {
-        name: 'GAD7: 4 trên 21 điểm, mức Tối thiểu',
-      }),
-    ).toHaveLength(2)
+    const gad7Scales = screen.getAllByRole('meter', {
+      name: 'GAD-7: 4 trên 21 điểm, mức Tối thiểu',
+    })
+    expect(gad7Scales).toHaveLength(2)
+    expect(gad7Scales[0].querySelectorAll('[data-active="true"]')).toHaveLength(
+      1,
+    )
     expect(screen.getByRole('link', { name: /Gợi ý đã lưu/ })).toHaveAttribute(
       'href',
-      `/support-guides/${initial.supportGuideId}?from=screening-history`,
+      `/support-guides/${initial.supportGuideId}?from=screening-history&resultEvaluationId=${initial.supportEvaluationId}`,
     )
 
     await userEvent.click(screen.getByRole('button', { name: 'Đánh giá lại' }))
@@ -178,6 +180,46 @@ describe('ScreeningEpisodeHistory', () => {
       `/assessments/results/${safety.supportEvaluationId}`,
     )
     expect(screen.queryByText(safety.baseMeaning.text)).not.toBeInTheDocument()
+  })
+
+  it('uses the four-range visual while preserving the exact higher PHQ-9 level', async () => {
+    const highSeverity = combinedMeaningFixture({
+      priority: 'PROFESSIONAL_SUPPORT',
+    })
+    highSeverity.evidence[0] = {
+      ...highSeverity.evidence[0],
+      totalScore: 18,
+      screeningLevel: 'MODERATELY_SEVERE',
+    }
+    highSeverity.evidence[1] = {
+      ...highSeverity.evidence[1],
+      totalScore: 16,
+      screeningLevel: 'SEVERE',
+    }
+
+    mockServer.use(
+      http.get('http://localhost/api/care/screening-episodes/history', () =>
+        HttpResponse.json({
+          items: [completedScreeningEpisodeFixture(highSeverity)],
+          nextCursor: null,
+          hasMore: false,
+        }),
+      ),
+    )
+
+    render(<ScreeningEpisodeHistory />)
+
+    expect(await screen.findByText('Mức Khá nặng')).toBeVisible()
+    expect(screen.getByText('Mức Nặng')).toBeVisible()
+
+    const phqScale = screen.getByRole('meter', {
+      name: 'PHQ-9: 18 trên 27 điểm, mức Khá nặng',
+    })
+    const gadScale = screen.getByRole('meter', {
+      name: 'GAD-7: 16 trên 21 điểm, mức Nặng',
+    })
+    expect(phqScale.querySelectorAll('[data-active="true"]')).toHaveLength(4)
+    expect(gadScale.querySelectorAll('[data-active="true"]')).toHaveLength(4)
   })
 
   it('loads an opaque older page and does not treat unloaded filtered history as empty', async () => {
