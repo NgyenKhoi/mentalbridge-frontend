@@ -742,6 +742,39 @@ export default function NativeSupportPlanJourney({
         action.source.sourceRevision === '1' &&
         action.source.sourcePolicyVersion === 'journal-writing-intent-v1',
     )
+  const guidedAction =
+    tab === 'today'
+      ? joined.find(({ action }) => action.status !== 'ENDED')?.action
+      : plan?.focuses
+          .flatMap((focus) => focus.actions)
+          .find((action) => action.status !== 'ENDED')
+  const guidedContext = plan
+    ? {
+        supportPlanId: plan.supportPlanId,
+        action: guidedAction
+          ? {
+              actionId: guidedAction.actionId,
+              title: guidedAction.presentation.title,
+              requestSurface:
+                tab === 'today'
+                  ? ('TODAY' as const)
+                  : tab === 'plan'
+                    ? ('PLAN' as const)
+                    : undefined,
+            }
+          : undefined,
+        reviewAvailable: tab === 'adjust' && Boolean(review),
+      }
+    : undefined
+
+  const navigateFromCompanion = (next: Tab) => {
+    void changeTab(next).then((changed) => {
+      if (!changed) return
+      window.requestAnimationFrame(() => {
+        document.getElementById(`tab-${next}`)?.focus()
+      })
+    })
+  }
 
   return (
     <div className="support-plan-page mb-support-companion-page-layout">
@@ -808,6 +841,10 @@ export default function NativeSupportPlanJourney({
         surface={tab}
         contextual={contextualCompanion}
         onContextualDismiss={dismissCompanionExplanation}
+        guidedContext={guidedContext}
+        companionRequestPending={companionRequestPending}
+        onGuidedRequest={(request) => void requestCompanionExplanation(request)}
+        onGuidedNavigate={navigateFromCompanion}
       />
       {(invalidJournalOrigin ||
         (!journalOriginMatched && !loadingOccurrences)) && (

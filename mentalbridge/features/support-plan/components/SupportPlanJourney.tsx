@@ -890,6 +890,33 @@ export default function SupportPlanJourney({
         )
       : journeyTabs
   const companionState = transitionSupportPlanCompanion('idle', companionEvent)
+  const companionProjection = plan
+    ? focusProjections[plan.supportPlanId]?.value
+    : undefined
+  const guidedAction = companionProjection?.focuses
+    .flatMap((focus) => focus.actions)
+    .find((action) => action.status !== 'ENDED')
+  const guidedContext = plan
+    ? {
+        supportPlanId: plan.supportPlanId,
+        action: guidedAction
+          ? {
+              actionId: guidedAction.actionId,
+              title: guidedAction.presentation.title,
+              requestSurface:
+                activeTab === 'plan' ? ('PLAN' as const) : undefined,
+            }
+          : undefined,
+        reviewAvailable: activeTab === 'adjust' && Boolean(replacementReview),
+      }
+    : undefined
+
+  const navigateFromCompanion = (nextTab: JourneyTab) => {
+    setActiveTab(nextTab)
+    window.requestAnimationFrame(() => {
+      document.getElementById(`tab-${nextTab}`)?.focus()
+    })
+  }
 
   const handleTabKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,
@@ -984,6 +1011,12 @@ export default function SupportPlanJourney({
           surface={activeTab}
           contextual={contextualCompanion}
           onContextualDismiss={dismissCompanionExplanation}
+          guidedContext={guidedContext}
+          companionRequestPending={companionRequestPending}
+          onGuidedRequest={(request) =>
+            void requestCompanionExplanation(request)
+          }
+          onGuidedNavigate={navigateFromCompanion}
         />
 
         <div className="mb-support-companion-content">

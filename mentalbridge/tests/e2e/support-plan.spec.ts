@@ -845,7 +845,10 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     }),
   ).toBe(true)
   const companionControls = companion.getByRole('button')
-  expect(await companionControls.count()).toBe(3)
+  await expect(
+    companion.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+  ).toBeVisible()
+  expect(await companionControls.count()).toBe(4)
   expect(
     await companionControls.evaluateAll((buttons) =>
       buttons.every((button) => {

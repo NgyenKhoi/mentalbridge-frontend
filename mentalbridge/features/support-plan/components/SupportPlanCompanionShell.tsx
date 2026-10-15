@@ -5,10 +5,12 @@ import {
   type ComponentType,
   type ReactNode,
   useId,
+  useRef,
   useState,
   useSyncExternalStore,
 } from 'react'
 import {
+  ArrowRight,
   ChevronDown,
   ChevronUp,
   Leaf,
@@ -26,7 +28,13 @@ import {
   type SupportPlanCompanionState,
   type SupportPlanCompanionSurface,
 } from './support-plan-companion-state'
-import type { ContextualCompanionSnapshot } from './support-plan-contextual-companion'
+import type {
+  ContextualCompanionRequest,
+  ContextualCompanionSnapshot,
+} from './support-plan-contextual-companion'
+import SupportPlanCompanionPanel, {
+  type SupportPlanGuidedContext,
+} from './SupportPlanCompanionPanel'
 
 import './support-plan-companion.css'
 
@@ -112,6 +120,10 @@ type Props = Readonly<{
   CharacterRenderer?: ComponentType<SupportPlanCompanionCharacterProps>
   contextual?: ContextualCompanionSnapshot
   onContextualDismiss?: () => void
+  guidedContext?: SupportPlanGuidedContext
+  companionRequestPending?: boolean
+  onGuidedRequest?: (request: ContextualCompanionRequest) => void
+  onGuidedNavigate?: (surface: SupportPlanCompanionSurface) => void
 }>
 
 export function useSupportPlanCompanionMuted() {
@@ -186,10 +198,16 @@ export default function SupportPlanCompanionShell({
   CharacterRenderer = DefaultCharacter,
   contextual,
   onContextualDismiss,
+  guidedContext,
+  companionRequestPending,
+  onGuidedRequest,
+  onGuidedNavigate,
 }: Props) {
   const bodyId = useId()
   const systemReducedMotion = useReactiveReducedMotion()
   const [expanded, setExpanded] = useState(defaultExpanded)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const panelTrigger = useRef<HTMLButtonElement>(null)
   const muted = useSupportPlanCompanionMuted()
   const userReducedMotion = useSyncExternalStore(
     subscribePreferences,
@@ -199,7 +217,12 @@ export default function SupportPlanCompanionShell({
 
   const reducedMotion = systemReducedMotion || userReducedMotion
   const copy = companionStateCopy[state]
-  const displayedExpanded = expanded || Boolean(contextual)
+  const displayedExpanded = expanded || panelOpen || Boolean(contextual)
+
+  const closePanel = () => {
+    setPanelOpen(false)
+    window.setTimeout(() => panelTrigger.current?.focus(), 0)
+  }
 
   const toggleMuted = () => {
     writePreference(MUTED_STORAGE_KEY, String(!muted), 'session')
@@ -215,7 +238,7 @@ export default function SupportPlanCompanionShell({
 
   return (
     <aside
-      className={`support-plan-companion ${displayedExpanded ? 'is-expanded' : 'is-collapsed'}`}
+      className={`support-plan-companion ${displayedExpanded ? 'is-expanded' : 'is-collapsed'} ${panelOpen ? 'is-panel-open' : ''}`}
       aria-label="Bạn đồng hành trong kế hoạch hỗ trợ"
       data-motion={reducedMotion ? 'reduced' : 'full'}
       data-muted={muted}
@@ -274,6 +297,10 @@ export default function SupportPlanCompanionShell({
                 : 'Mở rộng bạn đồng hành'
             }
             onClick={() => {
+              if (panelOpen) {
+                closePanel()
+                return
+              }
               if (contextual) onContextualDismiss?.()
               setExpanded(!displayedExpanded)
             }}
@@ -292,56 +319,88 @@ export default function SupportPlanCompanionShell({
         className="support-plan-companion-body"
         hidden={!displayedExpanded}
       >
-        <CharacterBoundary
-          resetKey={`${CharacterRenderer.name}:${state}`}
-          fallback={<StaticCharacter />}
-        >
-          <CharacterRenderer state={state} reducedMotion={reducedMotion} />
-        </CharacterBoundary>
+        {panelOpen && guidedContext && onGuidedNavigate ? (
+          <SupportPlanCompanionPanel
+            key={`${surface}:${guidedContext.supportPlanId}:${guidedContext.action?.actionId ?? 'no-action'}:${guidedContext.reviewAvailable ? 'review' : 'no-review'}`}
+            surface={surface}
+            context={guidedContext}
+            snapshot={contextual}
+            muted={muted}
+            requestPending={companionRequestPending}
+            onRequest={onGuidedRequest}
+            onNavigate={(nextSurface) => {
+              setPanelOpen(false)
+              onGuidedNavigate(nextSurface)
+            }}
+            onClose={closePanel}
+          />
+        ) : (
+          <>
+            <CharacterBoundary
+              resetKey={`${CharacterRenderer.name}:${state}`}
+              fallback={<StaticCharacter />}
+            >
+              <CharacterRenderer state={state} reducedMotion={reducedMotion} />
+            </CharacterBoundary>
 
-        <div className="support-plan-companion-copy">
-          <span>{copy.label}</span>
-          <p>{copy.description}</p>
-          <small>{companionSurfaceCopy[surface]}</small>
-        </div>
-
-        {contextual && (
-          <div
-            className="support-plan-companion-contextual-tray"
-            data-status={contextual.status}
-            {...(contextual.status === 'loading' || muted
-              ? {}
-              : { role: 'status', 'aria-live': 'polite' })}
-          >
-            <div>
-              <strong>
-                {contextual.status === 'loading'
-                  ? 'Đang chuẩn bị lời giải thích…'
-                  : 'Giải thích theo hoạt động'}
-              </strong>
-              <button
-                type="button"
-                aria-label="Đóng lời giải thích"
-                onClick={onContextualDismiss}
-              >
-                <X size={17} aria-hidden="true" />
-              </button>
+            <div className="support-plan-companion-copy">
+              <span>{copy.label}</span>
+              <p>{copy.description}</p>
+              <small>{companionSurfaceCopy[surface]}</small>
             </div>
-            <small>{contextual.actionTitle}</small>
-            {contextual.status !== 'loading' && <p>{contextual.message}</p>}
-            {contextual.status !== 'loading' && (
-              <small>
-                {contextual.status === 'ready'
-                  ? 'Nội dung do AI diễn đạt từ thông tin kế hoạch đã duyệt.'
-                  : 'Phản hồi dự phòng; hoạt động gốc vẫn giữ nguyên.'}
-              </small>
-            )}
-          </div>
-        )}
 
-        <p className="support-plan-companion-authority">
-          Bạn luôn là người quyết định thay đổi trong kế hoạch.
-        </p>
+            {contextual && (
+              <div
+                className="support-plan-companion-contextual-tray"
+                data-status={contextual.status}
+                {...(contextual.status === 'loading' || muted
+                  ? {}
+                  : { role: 'status', 'aria-live': 'polite' })}
+              >
+                <div>
+                  <strong>
+                    {contextual.status === 'loading'
+                      ? 'Đang chuẩn bị lời giải thích…'
+                      : 'Giải thích theo hoạt động'}
+                  </strong>
+                  <button
+                    type="button"
+                    aria-label="Đóng lời giải thích"
+                    onClick={onContextualDismiss}
+                  >
+                    <X size={17} aria-hidden="true" />
+                  </button>
+                </div>
+                <small>{contextual.actionTitle}</small>
+                {contextual.status !== 'loading' && <p>{contextual.message}</p>}
+                {contextual.status !== 'loading' && (
+                  <small>
+                    {contextual.status === 'ready'
+                      ? 'Nội dung do AI diễn đạt từ thông tin kế hoạch đã duyệt.'
+                      : 'Phản hồi dự phòng; hoạt động gốc vẫn giữ nguyên.'}
+                  </small>
+                )}
+              </div>
+            )}
+
+            <p className="support-plan-companion-authority">
+              Bạn luôn là người quyết định thay đổi trong kế hoạch.
+            </p>
+            {guidedContext && onGuidedNavigate && (
+              <button
+                ref={panelTrigger}
+                type="button"
+                className="support-plan-companion-open-guidance"
+                aria-haspopup="dialog"
+                aria-expanded={panelOpen}
+                onClick={() => setPanelOpen(true)}
+              >
+                Mở hướng dẫn có giới hạn
+                <ArrowRight size={18} aria-hidden="true" />
+              </button>
+            )}
+          </>
+        )}
       </div>
     </aside>
   )

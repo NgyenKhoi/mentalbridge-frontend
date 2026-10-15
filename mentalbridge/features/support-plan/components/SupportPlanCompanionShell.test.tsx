@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SupportPlanCompanionShell from './SupportPlanCompanionShell'
@@ -345,5 +345,51 @@ describe('SupportPlanCompanionShell', () => {
       ),
     ).toBeVisible()
     error.mockRestore()
+  })
+
+  it('opens and closes guided conversation without invoking plan actions and restores focus', async () => {
+    const planAction = vi.fn()
+    render(
+      <>
+        <SupportPlanCompanionShell
+          state="idle"
+          surface="today"
+          guidedContext={{
+            supportPlanId: '10000000-0000-4000-8000-000000000651',
+            action: {
+              actionId: '20000000-0000-4000-8000-000000000651',
+              title: 'Đi bộ 10 phút',
+              requestSurface: 'TODAY',
+            },
+          }}
+          onGuidedNavigate={vi.fn()}
+        />
+        <button type="button" onClick={planAction}>
+          Lưu lịch hoạt động
+        </button>
+      </>,
+    )
+
+    const open = screen.getByRole('button', {
+      name: 'Mở hướng dẫn có giới hạn',
+    })
+    fireEvent.click(open)
+    expect(screen.getByRole('dialog', { name: 'Bạn đồng hành' })).toBeVisible()
+    expect(planAction).not.toHaveBeenCalled()
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Đóng hướng dẫn Bạn đồng hành',
+      }),
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', {
+          name: 'Mở hướng dẫn có giới hạn',
+        }),
+      ).toHaveFocus(),
+    )
+    expect(planAction).not.toHaveBeenCalled()
   })
 })
