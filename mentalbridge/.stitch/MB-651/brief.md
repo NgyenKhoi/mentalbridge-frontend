@@ -37,7 +37,10 @@
 - Desktop keeps the panel in the Companion column at 390px so authoritative
   content and top-level navigation remain visible.
 - Below 1100px the same panel becomes a scrollable bottom/full-height sheet.
-  It is non-modal, does not trap focus, and closes before navigation.
+  It uses modal sheet semantics: background content is inert, body scrolling is
+  locked, Tab/Shift+Tab stay inside, Escape closes, and focus returns to the
+  opener. It closes before navigation and then focuses the exact action when it
+  is still present.
 - Controls use native buttons, visible focus rings, and at least 44px targets.
   There is no textbox, send control, microphone, or unsolicited prompt.
 - Production typography uses the existing Be Vietnam Pro body/control tokens

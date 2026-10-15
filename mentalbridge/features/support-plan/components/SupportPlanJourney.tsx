@@ -37,6 +37,7 @@ import type {
   UpdateActionScheduleRequest,
 } from '../api/support-plan-contract'
 import SupportPlanCard from './SupportPlanCard'
+import type { SupportPlanGuidedNavigationTarget } from './SupportPlanCompanionPanel'
 import SupportPlanCompanionShell from './SupportPlanCompanionShell'
 import type {
   ContextualCompanionRequest,
@@ -347,6 +348,15 @@ export default function SupportPlanJourney({
         document.getElementById(targetId)?.focus(),
       )
   }, [clearCompanionExplanation, contextualCompanion?.targetId])
+
+  const dismissGuidedExplanation = useCallback(
+    (targetId: string) => {
+      if (contextualCompanion?.targetId !== targetId) return
+      clearCompanionExplanation()
+      setCompanionEvent('CONTENT_READY')
+    },
+    [clearCompanionExplanation, contextualCompanion?.targetId],
+  )
   useEffect(() => {
     onDirtyChange?.(dirty)
   }, [dirty, onDirtyChange])
@@ -911,10 +921,19 @@ export default function SupportPlanJourney({
       }
     : undefined
 
-  const navigateFromCompanion = (nextTab: JourneyTab) => {
+  const navigateFromCompanion = ({
+    surface: nextTab,
+    actionId,
+  }: SupportPlanGuidedNavigationTarget) => {
     setActiveTab(nextTab)
     window.requestAnimationFrame(() => {
-      document.getElementById(`tab-${nextTab}`)?.focus()
+      const actionTarget = actionId
+        ? document.getElementById(`support-plan-action-${actionId}`)
+        : null
+      const focusTarget =
+        actionTarget ?? document.getElementById(`tab-${nextTab}`)
+      actionTarget?.scrollIntoView?.({ block: 'center' })
+      focusTarget?.focus()
     })
   }
 
@@ -1016,6 +1035,7 @@ export default function SupportPlanJourney({
           onGuidedRequest={(request) =>
             void requestCompanionExplanation(request)
           }
+          onGuidedDismiss={dismissGuidedExplanation}
           onGuidedNavigate={navigateFromCompanion}
         />
 

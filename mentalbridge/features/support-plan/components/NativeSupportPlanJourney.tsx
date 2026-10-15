@@ -54,6 +54,7 @@ import type {
 import { emotionPlanHref, type EmotionPlanOrigin } from '../emotion-plan-origin'
 import { journalPlanHref, type JournalPlanOrigin } from '../journal-plan-origin'
 import ProfessionalSupportPath from './ProfessionalSupportPath'
+import type { SupportPlanGuidedNavigationTarget } from './SupportPlanCompanionPanel'
 import SupportPlanCompanionShell from './SupportPlanCompanionShell'
 import SupportPlanContextualCompanion from './SupportPlanContextualCompanion'
 import type {
@@ -294,6 +295,14 @@ export default function NativeSupportPlanJourney({
         document.getElementById(targetId)?.focus(),
       )
   }, [clearCompanionExplanation, contextualCompanion?.targetId])
+
+  const dismissGuidedExplanation = useCallback(
+    (targetId: string) => {
+      if (contextualCompanion?.targetId !== targetId) return
+      clearCompanionExplanation()
+    },
+    [clearCompanionExplanation, contextualCompanion?.targetId],
+  )
 
   useEffect(() => {
     if (!dirty || !contextualCompanion) return
@@ -767,11 +776,20 @@ export default function NativeSupportPlanJourney({
       }
     : undefined
 
-  const navigateFromCompanion = (next: Tab) => {
+  const navigateFromCompanion = ({
+    surface: next,
+    actionId,
+  }: SupportPlanGuidedNavigationTarget) => {
     void changeTab(next).then((changed) => {
       if (!changed) return
       window.requestAnimationFrame(() => {
-        document.getElementById(`tab-${next}`)?.focus()
+        const actionTarget = actionId
+          ? document.getElementById(`support-plan-action-${actionId}`)
+          : null
+        const focusTarget =
+          actionTarget ?? document.getElementById(`tab-${next}`)
+        actionTarget?.scrollIntoView?.({ block: 'center' })
+        focusTarget?.focus()
       })
     })
   }
@@ -844,6 +862,7 @@ export default function NativeSupportPlanJourney({
         guidedContext={guidedContext}
         companionRequestPending={companionRequestPending}
         onGuidedRequest={(request) => void requestCompanionExplanation(request)}
+        onGuidedDismiss={dismissGuidedExplanation}
         onGuidedNavigate={navigateFromCompanion}
       />
       {(invalidJournalOrigin ||
@@ -1038,6 +1057,9 @@ export default function NativeSupportPlanJourney({
                   return (
                     <article
                       key={item.occurrenceId}
+                      id={`support-plan-action-${action.actionId}`}
+                      data-support-plan-action-id={action.actionId}
+                      tabIndex={-1}
                       className={`${styles.activity} ${emotion || journal ? styles.emotion : ''}`}
                       aria-labelledby={`activity-${item.occurrenceId}`}
                     >
@@ -1449,7 +1471,12 @@ export default function NativeSupportPlanJourney({
                     )}
                     <ul className={styles.actionList}>
                       {focus.actions.map((action) => (
-                        <li key={action.actionId}>
+                        <li
+                          key={action.actionId}
+                          id={`support-plan-action-${action.actionId}`}
+                          data-support-plan-action-id={action.actionId}
+                          tabIndex={-1}
+                        >
                           <h4>{action.presentation.title}</h4>
                           <p className={styles.meta}>
                             {cadence(action)}

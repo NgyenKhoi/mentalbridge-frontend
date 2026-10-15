@@ -4,6 +4,7 @@ import {
   Component,
   type ComponentType,
   type ReactNode,
+  useCallback,
   useId,
   useRef,
   useState,
@@ -34,6 +35,7 @@ import type {
 } from './support-plan-contextual-companion'
 import SupportPlanCompanionPanel, {
   type SupportPlanGuidedContext,
+  type SupportPlanGuidedNavigationTarget,
 } from './SupportPlanCompanionPanel'
 
 import './support-plan-companion.css'
@@ -41,6 +43,7 @@ import './support-plan-companion.css'
 const MOTION_STORAGE_KEY = 'mentalbridge_support_plan_companion_motion'
 const MUTED_STORAGE_KEY = 'mentalbridge_support_plan_companion_session_muted'
 const PREFERENCE_EVENT = 'mentalbridge:companion-preference'
+const MOBILE_SHEET_QUERY = '(max-width: 1099px)'
 // Mute is session-only by policy. The same legacy key in localStorage is
 // deliberately ignored; reduced motion remains an explicit durable preference.
 const memoryPreferences = new Map<string, string>()
@@ -123,8 +126,26 @@ type Props = Readonly<{
   guidedContext?: SupportPlanGuidedContext
   companionRequestPending?: boolean
   onGuidedRequest?: (request: ContextualCompanionRequest) => void
-  onGuidedNavigate?: (surface: SupportPlanCompanionSurface) => void
+  onGuidedDismiss?: (targetId: string) => void
+  onGuidedNavigate?: (target: SupportPlanGuidedNavigationTarget) => void
 }>
+
+function subscribeMobileSheet(onChange: () => void) {
+  if (typeof window.matchMedia !== 'function') return () => undefined
+  const query = window.matchMedia(MOBILE_SHEET_QUERY)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
+function useMobileSheet() {
+  return useSyncExternalStore(
+    subscribeMobileSheet,
+    () =>
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia(MOBILE_SHEET_QUERY).matches,
+    () => false,
+  )
+}
 
 export function useSupportPlanCompanionMuted() {
   return useSyncExternalStore(
@@ -201,6 +222,7 @@ export default function SupportPlanCompanionShell({
   guidedContext,
   companionRequestPending,
   onGuidedRequest,
+  onGuidedDismiss,
   onGuidedNavigate,
 }: Props) {
   const bodyId = useId()
@@ -208,6 +230,8 @@ export default function SupportPlanCompanionShell({
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [panelOpen, setPanelOpen] = useState(false)
   const panelTrigger = useRef<HTMLButtonElement>(null)
+  const panelRequestTarget = useRef<string | undefined>(undefined)
+  const mobileSheet = useMobileSheet()
   const muted = useSupportPlanCompanionMuted()
   const userReducedMotion = useSyncExternalStore(
     subscribePreferences,
@@ -219,10 +243,17 @@ export default function SupportPlanCompanionShell({
   const copy = companionStateCopy[state]
   const displayedExpanded = expanded || panelOpen || Boolean(contextual)
 
-  const closePanel = () => {
+  const dismissPanelExplanation = useCallback(() => {
+    const targetId = panelRequestTarget.current
+    panelRequestTarget.current = undefined
+    if (targetId) onGuidedDismiss?.(targetId)
+  }, [onGuidedDismiss])
+
+  const closePanel = useCallback(() => {
+    dismissPanelExplanation()
     setPanelOpen(false)
     window.setTimeout(() => panelTrigger.current?.focus(), 0)
-  }
+  }, [dismissPanelExplanation])
 
   const toggleMuted = () => {
     writePreference(MUTED_STORAGE_KEY, String(!muted), 'session')
@@ -326,11 +357,16 @@ export default function SupportPlanCompanionShell({
             context={guidedContext}
             snapshot={contextual}
             muted={muted}
+            modal={mobileSheet}
             requestPending={companionRequestPending}
-            onRequest={onGuidedRequest}
-            onNavigate={(nextSurface) => {
+            onRequest={(request) => {
+              panelRequestTarget.current = request.targetId
+              onGuidedRequest?.(request)
+            }}
+            onNavigate={(target) => {
+              dismissPanelExplanation()
               setPanelOpen(false)
-              onGuidedNavigate(nextSurface)
+              onGuidedNavigate(target)
             }}
             onClose={closePanel}
           />
@@ -393,7 +429,10 @@ export default function SupportPlanCompanionShell({
                 className="support-plan-companion-open-guidance"
                 aria-haspopup="dialog"
                 aria-expanded={panelOpen}
-                onClick={() => setPanelOpen(true)}
+                onClick={() => {
+                  panelRequestTarget.current = undefined
+                  setPanelOpen(true)
+                }}
               >
                 Mở hướng dẫn có giới hạn
                 <ArrowRight size={18} aria-hidden="true" />

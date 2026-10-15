@@ -18,6 +18,7 @@ const baseProps = {
   surface: 'today' as const,
   context,
   muted: false,
+  modal: false,
   onRequest: vi.fn(),
   onNavigate: vi.fn(),
   onClose: vi.fn(),
@@ -156,7 +157,10 @@ describe('SupportPlanCompanionPanel', () => {
     expect(screen.getByText('Thông tin từ kế hoạch hiện tại')).toBeVisible()
 
     fireEvent.click(screen.getByRole('button', { name: 'Mở hoạt động này' }))
-    expect(onNavigate).toHaveBeenCalledWith('today')
+    expect(onNavigate).toHaveBeenCalledWith({
+      surface: 'today',
+      actionId: context.action?.actionId,
+    })
     expect(planMutation).not.toHaveBeenCalled()
   })
 

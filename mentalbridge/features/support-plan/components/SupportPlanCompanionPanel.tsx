@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import {
   ArrowRight,
   CircleHelp,
@@ -12,11 +12,15 @@ import {
   X,
 } from 'lucide-react'
 
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import type {
   ContextualCompanionRequest,
   ContextualCompanionSnapshot,
 } from './support-plan-contextual-companion'
 import type { SupportPlanCompanionSurface } from './support-plan-companion-state'
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 
 export type SupportPlanGuidedContext = Readonly<{
   supportPlanId: string
@@ -26,6 +30,11 @@ export type SupportPlanGuidedContext = Readonly<{
     requestSurface?: 'TODAY' | 'PLAN'
   }>
   reviewAvailable?: boolean
+}>
+
+export type SupportPlanGuidedNavigationTarget = Readonly<{
+  surface: SupportPlanCompanionSurface
+  actionId?: string
 }>
 
 type GuidedTurn = Readonly<{
@@ -61,6 +70,7 @@ export default function SupportPlanCompanionPanel({
   context,
   snapshot,
   muted,
+  modal,
   requestPending,
   onRequest,
   onNavigate,
@@ -70,15 +80,85 @@ export default function SupportPlanCompanionPanel({
   context: SupportPlanGuidedContext
   snapshot?: ContextualCompanionSnapshot
   muted: boolean
+  modal: boolean
   requestPending?: boolean
   onRequest?: (request: ContextualCompanionRequest) => void
-  onNavigate: (surface: SupportPlanCompanionSurface) => void
+  onNavigate: (target: SupportPlanGuidedNavigationTarget) => void
   onClose: () => void
 }>) {
   const generatedId = useId().replace(/:/g, '')
+  const panelRef = useRef<HTMLElement>(null)
   const explanationTargetId = `companion-panel-explain-${generatedId}`
   const [turn, setTurn] = useState<GuidedTurn>()
   const [requestedExplanation, setRequestedExplanation] = useState(false)
+
+  useEffect(() => {
+    if (!modal || !panelRef.current) return
+
+    const panel = panelRef.current
+    const releaseScrollLock = lockBodyScroll(panel.ownerDocument)
+    const addedInert: HTMLElement[] = []
+    const page = panel.closest<HTMLElement>('.support-plan-page')
+    let branch: HTMLElement | null = panel.closest<HTMLElement>(
+      '.support-plan-companion',
+    )
+
+    while (branch?.parentElement && page?.contains(branch)) {
+      const parent: HTMLElement = branch.parentElement
+      for (const sibling of Array.from(parent.children)) {
+        if (
+          sibling !== branch &&
+          sibling instanceof HTMLElement &&
+          !sibling.hasAttribute('inert')
+        ) {
+          sibling.setAttribute('inert', '')
+          addedInert.push(sibling)
+        }
+      }
+      if (parent === page) break
+      branch = parent
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+
+      const controls = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter((element) => element.tabIndex >= 0)
+      const first = controls[0]
+      const last = controls.at(-1)
+      if (!first || !last) {
+        event.preventDefault()
+        panel.focus()
+      } else if (
+        event.shiftKey &&
+        (document.activeElement === first ||
+          !panel.contains(document.activeElement))
+      ) {
+        event.preventDefault()
+        last.focus()
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last ||
+          !panel.contains(document.activeElement))
+      ) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      releaseScrollLock()
+      addedInert.forEach((element) => element.removeAttribute('inert'))
+    }
+  }, [modal, onClose])
 
   const explanation =
     requestedExplanation && snapshot?.targetId === explanationTargetId
@@ -149,10 +229,12 @@ export default function SupportPlanCompanionPanel({
 
   return (
     <section
+      ref={panelRef}
       className="support-plan-guided-panel"
       role="dialog"
-      aria-modal="false"
+      aria-modal={modal}
       aria-labelledby={`companion-panel-title-${generatedId}`}
+      tabIndex={-1}
     >
       <div className="support-plan-guided-handle" aria-hidden="true" />
       <header className="support-plan-guided-header">
@@ -244,17 +326,22 @@ export default function SupportPlanCompanionPanel({
                 type="button"
                 className="is-primary"
                 onClick={() =>
-                  onNavigate(
-                    context.action?.requestSurface === 'PLAN'
-                      ? 'plan'
-                      : 'today',
-                  )
+                  onNavigate({
+                    surface:
+                      context.action?.requestSurface === 'PLAN'
+                        ? 'plan'
+                        : 'today',
+                    actionId: context.action?.actionId,
+                  })
                 }
               >
                 Mở hoạt động này
               </button>
             )}
-            <button type="button" onClick={() => onNavigate('adjust')}>
+            <button
+              type="button"
+              onClick={() => onNavigate({ surface: 'adjust' })}
+            >
               Đến mục Điều chỉnh
             </button>
           </div>

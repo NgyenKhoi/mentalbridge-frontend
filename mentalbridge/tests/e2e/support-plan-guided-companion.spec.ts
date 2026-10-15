@@ -26,8 +26,41 @@ test.describe('MB-651 guided SupportPlan Companion', () => {
         sameSite: 'Lax',
       },
     ])
-    const plan = nativeSupportPlanFixture()
+    const basePlan = nativeSupportPlanFixture()
     const occurrence = emotionOccurrenceFixture()
+    const secondActionId = '20000000-0000-4000-8000-000000000652'
+    const secondOccurrenceId = '30000000-0000-4000-8000-000000000652'
+    const secondScheduleId = '40000000-0000-4000-8000-000000000652'
+    const firstAction = basePlan.focuses[0].actions[0]
+    const secondAction = {
+      ...firstAction,
+      actionId: secondActionId,
+      ordinal: 2,
+      presentation: {
+        ...firstAction.presentation,
+        title: 'Thở chậm 3 phút',
+      },
+      schedules: firstAction.schedules.map((schedule) => ({
+        ...schedule,
+        scheduleId: secondScheduleId,
+        localTime: '20:00',
+      })),
+    }
+    const plan = {
+      ...basePlan,
+      focuses: basePlan.focuses.map((focus, index) =>
+        index === 0
+          ? { ...focus, actions: [...focus.actions, secondAction] }
+          : focus,
+      ),
+    }
+    const secondOccurrence = {
+      ...occurrence,
+      occurrenceId: secondOccurrenceId,
+      actionId: secondActionId,
+      scheduleId: secondScheduleId,
+      scheduledAt: '2026-10-13T13:00:00Z',
+    }
     const responseText =
       'Hoạt động này thuộc kế hoạch hiện tại và được giải thích trong phạm vi đã duyệt.'
     let companionRequests = 0
@@ -58,7 +91,7 @@ test.describe('MB-651 guided SupportPlan Companion', () => {
           representationMode: plan.representationMode,
           from: '2026-10-13',
           through: '2026-10-13',
-          occurrences: [occurrence],
+          occurrences: [occurrence, secondOccurrence],
           interpretationCode:
             'SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE',
         })
@@ -105,6 +138,20 @@ test.describe('MB-651 guided SupportPlan Companion', () => {
     await expect(panel.getByText(responseText)).toBeVisible()
     expect(companionRequests).toBe(1)
 
+    const targetAction = page.locator(
+      `[data-support-plan-action-id="${occurrence.actionId}"]`,
+    )
+    const otherAction = page.locator(
+      `[data-support-plan-action-id="${secondActionId}"]`,
+    )
+    await expect(otherAction).toContainText('Thở chậm 3 phút')
+    await panel.getByRole('button', { name: 'Mở hoạt động này' }).click()
+    await expect(panel).toBeHidden()
+    await expect(targetAction).toBeFocused()
+    await expect(otherAction).not.toBeFocused()
+
+    await open.click()
+
     await panel
       .getByRole('button', { name: 'Chỉ tôi nơi có thể điều chỉnh' })
       .click()
@@ -123,8 +170,29 @@ test.describe('MB-651 guided SupportPlan Companion', () => {
     await open.click()
     await expect(panel).toBeVisible()
     await expect(panel).toHaveCSS('position', 'static')
+    await expect(panel).toHaveAttribute('aria-modal', 'true')
     const shell = page.locator('.support-plan-companion.is-panel-open')
     await expect(shell).toHaveCSS('position', 'fixed')
+    const pageHeader = page.locator('.support-plan-page > header')
+    await expect(pageHeader).toHaveAttribute('inert', '')
+    const close = panel.getByRole('button', {
+      name: 'Đóng hướng dẫn Bạn đồng hành',
+    })
+    const lastStarter = panel.getByRole('button', {
+      name: 'Chỉ tôi nơi có thể điều chỉnh',
+    })
+    await expect(close).toBeFocused()
+    await page.keyboard.press('Shift+Tab')
+    await expect(lastStarter).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(close).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(panel).toBeHidden()
+    await expect(open).toBeFocused()
+    await expect(pageHeader).not.toHaveAttribute('inert', '')
+
+    await open.click()
+    await expect(panel).toBeVisible()
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,

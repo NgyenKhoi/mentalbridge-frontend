@@ -8,12 +8,12 @@ import {
   type SupportPlanCompanionEvent,
 } from './support-plan-companion-state'
 
-function installMotionPreference(matches = false) {
+function installMotionPreference(reducedMotion = false, mobileSheet = false) {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
-    value: vi.fn().mockImplementation(() => ({
-      matches,
-      media: '(prefers-reduced-motion: reduce)',
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes('max-width') ? mobileSheet : reducedMotion,
+      media: query,
       onchange: null,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -391,5 +391,61 @@ describe('SupportPlanCompanionShell', () => {
       ).toHaveFocus(),
     )
     expect(planAction).not.toHaveBeenCalled()
+  })
+
+  it('makes the mobile sheet modal, traps focus, closes on Escape, and restores the opener', async () => {
+    installMotionPreference(false, true)
+    const { container } = render(
+      <div className="support-plan-page">
+        <SupportPlanCompanionShell
+          state="idle"
+          surface="today"
+          guidedContext={{
+            supportPlanId: '10000000-0000-4000-8000-000000000651',
+            action: {
+              actionId: '20000000-0000-4000-8000-000000000651',
+              title: 'Đi bộ 10 phút',
+              requestSurface: 'TODAY',
+            },
+          }}
+          onGuidedNavigate={vi.fn()}
+        />
+        <button type="button">Nội dung nền</button>
+      </div>,
+    )
+
+    const open = screen.getByRole('button', {
+      name: 'Mở hướng dẫn có giới hạn',
+    })
+    const background = screen.getByRole('button', { name: 'Nội dung nền' })
+    fireEvent.click(open)
+    const dialog = screen.getByRole('dialog', { name: 'Bạn đồng hành' })
+    const close = screen.getByRole('button', {
+      name: 'Đóng hướng dẫn Bạn đồng hành',
+    })
+    const last = screen.getByRole('button', {
+      name: 'Chỉ tôi nơi có thể điều chỉnh',
+    })
+
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(background).toHaveAttribute('inert')
+    expect(close).toHaveFocus()
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(last).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(close).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', {
+          name: 'Mở hướng dẫn có giới hạn',
+        }),
+      ).toHaveFocus(),
+    )
+    expect(container.querySelector('[inert]')).toBeNull()
+    expect(document.body).not.toHaveStyle({ overflow: 'hidden' })
   })
 })
