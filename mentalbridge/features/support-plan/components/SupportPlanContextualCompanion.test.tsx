@@ -136,4 +136,40 @@ describe('SupportPlanContextualCompanion', () => {
     fireEvent.click(trigger)
     expect(onRequest).not.toHaveBeenCalled()
   })
+
+  it('hides and de-announces a response while Companion is interrupted', () => {
+    const common = {
+      supportPlanId: planId,
+      actionId,
+      actionTitle: 'Bài thở 4–6',
+      surface: 'PLAN' as const,
+      onRequest: vi.fn(),
+      onDismiss: vi.fn(),
+    }
+    const { container, rerender } = render(
+      <SupportPlanContextualCompanion {...common} />,
+    )
+    const trigger = screen.getByRole('button', { name: /Bài thở 4–6/ })
+    const snapshot = {
+      ...common,
+      targetId: trigger.id,
+      requestId: 1,
+      status: 'ready' as const,
+      message: 'Nội dung chỉ hiện khi không bị gián đoạn.',
+    }
+
+    rerender(
+      <SupportPlanContextualCompanion
+        {...common}
+        interruptionActive
+        snapshot={snapshot}
+      />,
+    )
+
+    expect(trigger).toBeDisabled()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText(snapshot.message)).toBeNull()
+    expect(container.querySelector('[role="status"]')).toBeNull()
+    expect(container.querySelector('[aria-live]')).toBeNull()
+  })
 })

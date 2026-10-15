@@ -355,6 +355,94 @@ describe('SupportPlanJourney', () => {
     ).toHaveBeenCalledTimes(2)
   })
 
+  it('invalidates a pending card response during an external dialog and allows retry after settlement', async () => {
+    const user = userEvent.setup()
+    const plan = activePlan()
+    const projection = scheduleProjection(1)
+    const action = projection.focuses[0].actions[0]
+    action.actionType = 'RESOURCE'
+    action.presentation.title = 'Hoạt động cần giải thích'
+    api.getCurrentSupportPlan.mockResolvedValue(plan)
+    api.getSupportPlanActions.mockResolvedValue({
+      ...projection,
+      supportPlanId: plan.supportPlanId,
+      status: 'ACTIVE',
+    })
+    let release: (() => void) | undefined
+    api.requestSupportPlanActionCompanionExplanation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              schemaVersion: 'support-plan-companion-message-v1',
+              supportPlanId: plan.supportPlanId,
+              actionId: action.actionId,
+              intent: 'EXPLAIN_ACTION',
+              surface: 'PLAN',
+              text: 'Late legacy response must stay hidden.',
+              delivery: 'GENERATED',
+              policyVersion: 'support-plan-companion-policy-v1',
+              promptVersion: 'support-plan-companion-prompt-v1',
+              templateVersion: 'support-plan-companion-template-v1',
+              provider: 'OPENAI',
+              model: 'test-model',
+              fallbackReason: null,
+            })
+        }),
+    )
+
+    render(<SupportPlanJourney />)
+    await user.click(await screen.findByRole('tab', { name: /Kế hoạch/ }))
+    const trigger = await screen.findByRole('button', {
+      name: /Hoạt động cần giải thích/,
+    })
+    fireEvent.click(trigger)
+
+    const dialog = document.createElement('section')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('aria-modal', 'true')
+    dialog.setAttribute('aria-label', 'Xác nhận bên ngoài')
+    const confirm = document.createElement('button')
+    confirm.textContent = 'Tiếp tục xác nhận'
+    dialog.append(confirm)
+    document.body.append(dialog)
+    confirm.focus()
+
+    await waitFor(() =>
+      expect(document.querySelector('.support-plan-companion')).toHaveAttribute(
+        'data-interrupted',
+        'true',
+      ),
+    )
+    expect(confirm).toHaveFocus()
+    expect(
+      screen.getByRole('button', { name: 'Tiếp tục xác nhận' }),
+    ).toBeEnabled()
+
+    release?.()
+    await waitFor(() => expect(trigger).toBeDisabled())
+    expect(
+      screen.queryByText('Late legacy response must stay hidden.'),
+    ).toBeNull()
+    expect(
+      document.querySelector(
+        '.support-plan-contextual-bubble[role="status"], .support-plan-contextual-bubble[aria-live], .support-plan-companion-contextual-tray',
+      ),
+    ).toBeNull()
+
+    dialog.remove()
+    await waitFor(() => expect(trigger).toBeEnabled())
+    await user.click(trigger)
+    await waitFor(() =>
+      expect(
+        api.requestSupportPlanActionCompanionExplanation,
+      ).toHaveBeenCalledTimes(2),
+    )
+    expect(
+      document.querySelector('.support-plan-contextual-bubble'),
+    ).not.toBeNull()
+  })
+
   it('dismisses a pending guided request, ignores its late answer, and allows retry after settlement', async () => {
     const user = userEvent.setup()
     const plan = activePlan()
@@ -546,6 +634,80 @@ describe('SupportPlanJourney', () => {
       screen.getByRole('radio', { name: /Reviewed primary resource/ }),
     )
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
+  })
+
+  it('invalidates a pending response when its plan card becomes dirty', async () => {
+    const draft = supportPlanFixture()
+    const projection = scheduleProjection(draft.version)
+    const action = projection.focuses[0].actions[0]
+    action.actionType = 'RESOURCE'
+    action.presentation.title = 'Giải thích trước khi chỉnh sửa'
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.getCurrentSupportPlanDraftActions.mockResolvedValue({
+      ...projection,
+      supportPlanId: draft.supportPlanId,
+    })
+    let release: (() => void) | undefined
+    api.requestSupportPlanActionCompanionExplanation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              schemaVersion: 'support-plan-companion-message-v1',
+              supportPlanId: draft.supportPlanId,
+              actionId: action.actionId,
+              intent: 'EXPLAIN_ACTION',
+              surface: 'PLAN',
+              text: 'Late dirty response must stay hidden.',
+              delivery: 'GENERATED',
+              policyVersion: 'support-plan-companion-policy-v1',
+              promptVersion: 'support-plan-companion-prompt-v1',
+              templateVersion: 'support-plan-companion-template-v1',
+              provider: 'OPENAI',
+              model: 'test-model',
+              fallbackReason: null,
+            })
+        }),
+    )
+
+    render(<SupportPlanJourney />)
+    const trigger = await screen.findByRole('button', {
+      name: /Giải thích trước khi chỉnh sửa/,
+    })
+    fireEvent.click(trigger)
+    fireEvent.click(
+      await screen.findByRole('radio', { name: /Reviewed alternative/ }),
+    )
+
+    await waitFor(() =>
+      expect(document.querySelector('.support-plan-companion')).toHaveAttribute(
+        'data-interrupted',
+        'true',
+      ),
+    )
+    expect(trigger).toBeDisabled()
+    release?.()
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Late dirty response must stay hidden.'),
+      ).toBeNull(),
+    )
+    expect(
+      document.querySelector(
+        '.support-plan-contextual-bubble[role="status"], .support-plan-contextual-bubble[aria-live], .support-plan-companion-contextual-tray',
+      ),
+    ).toBeNull()
+
+    fireEvent.click(
+      screen.getByRole('radio', { name: /Reviewed primary resource/ }),
+    )
+    await waitFor(() => expect(trigger).toBeEnabled())
+    fireEvent.click(trigger)
+    await waitFor(() =>
+      expect(
+        api.requestSupportPlanActionCompanionExplanation,
+      ).toHaveBeenCalledTimes(2),
+    )
   })
 
   it('combines schedule and personalization drafts without clearing the guard when only one is undone', async () => {

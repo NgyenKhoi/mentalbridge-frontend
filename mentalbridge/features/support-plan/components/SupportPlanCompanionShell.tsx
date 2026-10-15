@@ -38,6 +38,7 @@ import SupportPlanCompanionPanel, {
   type SupportPlanGuidedContext,
   type SupportPlanGuidedNavigationTarget,
 } from './SupportPlanCompanionPanel'
+import { useSupportPlanCompanionInterruption } from './support-plan-companion-interruption'
 
 import './support-plan-companion.css'
 
@@ -138,25 +139,6 @@ function subscribeMobileSheet(onChange: () => void) {
   const query = window.matchMedia(MOBILE_SHEET_QUERY)
   query.addEventListener('change', onChange)
   return () => query.removeEventListener('change', onChange)
-}
-
-function subscribeExternalDialogs(onChange: () => void) {
-  const observer = new MutationObserver(onChange)
-  observer.observe(document.body, {
-    subtree: true,
-    childList: true,
-    attributes: true,
-    attributeFilter: ['aria-modal', 'open', 'role'],
-  })
-  return () => observer.disconnect()
-}
-
-function hasExternalDialog(shell: HTMLElement | null) {
-  return [
-    ...document.querySelectorAll<HTMLElement>(
-      '[role="dialog"][aria-modal="true"], dialog[open]',
-    ),
-  ].some((dialog) => !shell?.contains(dialog))
 }
 
 function useMobileSheet() {
@@ -261,7 +243,6 @@ export default function SupportPlanCompanionShell({
 }: Props) {
   const bodyId = useId()
   const interruptionId = useId()
-  const shell = useRef<HTMLElement>(null)
   const systemReducedMotion = useReactiveReducedMotion()
   const [panelOpen, setPanelOpen] = useState(false)
   const panelTrigger = useRef<HTMLButtonElement>(null)
@@ -269,11 +250,6 @@ export default function SupportPlanCompanionShell({
   const mobileSheet = useMobileSheet()
   const muted = useSupportPlanCompanionMuted()
   const hidden = useSupportPlanCompanionHidden(defaultExpanded)
-  const externalDialogActive = useSyncExternalStore(
-    subscribeExternalDialogs,
-    () => hasExternalDialog(shell.current),
-    () => false,
-  )
   const userReducedMotion = useSyncExternalStore(
     subscribePreferences,
     () => storedPreference(MOTION_STORAGE_KEY, 'reduced', 'local'),
@@ -281,7 +257,7 @@ export default function SupportPlanCompanionShell({
   )
 
   const reducedMotion = systemReducedMotion || userReducedMotion
-  const interrupted = interruptionActive || externalDialogActive
+  const interrupted = useSupportPlanCompanionInterruption(interruptionActive)
   const copy = companionStateCopy[state]
   const displayedExpanded = !hidden || panelOpen || Boolean(contextual)
 
@@ -320,7 +296,6 @@ export default function SupportPlanCompanionShell({
 
   return (
     <aside
-      ref={shell}
       className={`support-plan-companion ${displayedExpanded ? 'is-expanded' : 'is-collapsed'} ${panelOpen ? 'is-panel-open' : ''}`}
       aria-label="Bạn đồng hành trong kế hoạch hỗ trợ"
       data-motion={reducedMotion ? 'reduced' : 'full'}
@@ -445,11 +420,11 @@ export default function SupportPlanCompanionShell({
               <small>{companionSurfaceCopy[surface]}</small>
             </div>
 
-            {contextual && (
+            {contextual && !interrupted && (
               <div
                 className="support-plan-companion-contextual-tray"
                 data-status={contextual.status}
-                {...(contextual.status === 'loading' || muted
+                {...(contextual.status === 'loading' || muted || interrupted
                   ? {}
                   : { role: 'status', 'aria-live': 'polite' })}
               >

@@ -109,6 +109,7 @@ type Props = Readonly<{
   supportPlanId?: string
   companionSnapshot?: ContextualCompanionSnapshot
   companionRequestPending?: boolean
+  companionInterruptionActive?: boolean
   onCompanionRequest?: (request: ContextualCompanionRequest) => void
   onCompanionDismiss?: () => void
 }>
@@ -123,6 +124,7 @@ export default function SupportPlanSchedule({
   supportPlanId,
   companionSnapshot,
   companionRequestPending = false,
+  companionInterruptionActive = false,
   onCompanionRequest,
   onCompanionDismiss,
 }: Props) {
@@ -163,6 +165,7 @@ export default function SupportPlanSchedule({
         surface="TODAY"
         disabled={dirty}
         requestPending={companionRequestPending}
+        interruptionActive={companionInterruptionActive}
         snapshot={companionSnapshot}
         onRequest={onCompanionRequest}
         onDismiss={onCompanionDismiss}

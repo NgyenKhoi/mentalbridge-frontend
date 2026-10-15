@@ -39,6 +39,7 @@ import type {
 import SupportPlanCard from './SupportPlanCard'
 import type { SupportPlanGuidedNavigationTarget } from './SupportPlanCompanionPanel'
 import SupportPlanCompanionShell from './SupportPlanCompanionShell'
+import { useSupportPlanCompanionInterruption } from './support-plan-companion-interruption'
 import type {
   ContextualCompanionRequest,
   ContextualCompanionSnapshot,
@@ -293,10 +294,11 @@ export default function SupportPlanJourney({
   const previousCompanionSurface = useRef<JourneyTab>('today')
   const preserveCompanionEventAcrossSurface = useRef(false)
   const dirty = cardDirty || replacementDirty || personalizationDirty
+  const companionInterrupted = useSupportPlanCompanionInterruption(dirty)
 
   const requestCompanionExplanation = useCallback(
     async (request: ContextualCompanionRequest) => {
-      if (dirty || companionInFlight.current) return
+      if (companionInterrupted || companionInFlight.current) return
       companionInFlight.current = true
       setCompanionRequestPending(true)
       const requestId = ++companionSequence.current
@@ -331,7 +333,7 @@ export default function SupportPlanJourney({
         setCompanionRequestPending(false)
       }
     },
-    [dirty],
+    [companionInterrupted],
   )
 
   const clearCompanionExplanation = useCallback(() => {
@@ -362,13 +364,13 @@ export default function SupportPlanJourney({
   }, [dirty, onDirtyChange])
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
   useEffect(() => {
-    if (!dirty || !contextualCompanion) return
+    if (!companionInterrupted || !contextualCompanion) return
     const frame = window.requestAnimationFrame(() => {
       clearCompanionExplanation()
       setCompanionEvent('CONTENT_READY')
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [clearCompanionExplanation, dirty, contextualCompanion])
+  }, [clearCompanionExplanation, companionInterrupted, contextualCompanion])
   useEffect(() => {
     if (previousCompanionSurface.current === activeTab) return
     previousCompanionSurface.current = activeTab
@@ -1032,7 +1034,7 @@ export default function SupportPlanJourney({
           onContextualDismiss={dismissCompanionExplanation}
           guidedContext={guidedContext}
           companionRequestPending={companionRequestPending}
-          interruptionActive={dirty}
+          interruptionActive={companionInterrupted}
           onGuidedRequest={(request) =>
             void requestCompanionExplanation(request)
           }
@@ -1097,6 +1099,7 @@ export default function SupportPlanJourney({
                   }
                   companionSnapshot={contextualCompanion}
                   companionRequestPending={companionRequestPending}
+                  companionInterruptionActive={companionInterrupted}
                   onCompanionRequest={(request) =>
                     void requestCompanionExplanation(request)
                   }
@@ -1222,6 +1225,7 @@ export default function SupportPlanJourney({
                       }
                       companionSnapshot={contextualCompanion}
                       companionRequestPending={companionRequestPending}
+                      companionInterruptionActive={companionInterrupted}
                       onCompanionRequest={(request) =>
                         void requestCompanionExplanation(request)
                       }
