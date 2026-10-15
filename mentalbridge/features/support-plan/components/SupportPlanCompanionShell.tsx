@@ -5,6 +5,7 @@ import {
   type ComponentType,
   type ReactNode,
   useCallback,
+  useEffect,
   useId,
   useRef,
   useState,
@@ -37,11 +38,13 @@ import SupportPlanCompanionPanel, {
   type SupportPlanGuidedContext,
   type SupportPlanGuidedNavigationTarget,
 } from './SupportPlanCompanionPanel'
+import { useSupportPlanCompanionInterruption } from './support-plan-companion-interruption'
 
 import './support-plan-companion.css'
 
 const MOTION_STORAGE_KEY = 'mentalbridge_support_plan_companion_motion'
 const MUTED_STORAGE_KEY = 'mentalbridge_support_plan_companion_session_muted'
+const HIDDEN_STORAGE_KEY = 'mentalbridge_support_plan_companion_session_hidden'
 const PREFERENCE_EVENT = 'mentalbridge:companion-preference'
 const MOBILE_SHEET_QUERY = '(max-width: 1099px)'
 // Mute is session-only by policy. The same legacy key in localStorage is
@@ -125,6 +128,7 @@ type Props = Readonly<{
   onContextualDismiss?: () => void
   guidedContext?: SupportPlanGuidedContext
   companionRequestPending?: boolean
+  interruptionActive?: boolean
   onGuidedRequest?: (request: ContextualCompanionRequest) => void
   onGuidedDismiss?: (targetId: string) => void
   onGuidedNavigate?: (target: SupportPlanGuidedNavigationTarget) => void
@@ -152,6 +156,17 @@ export function useSupportPlanCompanionMuted() {
     subscribePreferences,
     () => storedPreference(MUTED_STORAGE_KEY, 'true', 'session'),
     () => false,
+  )
+}
+
+function useSupportPlanCompanionHidden(defaultExpanded: boolean) {
+  return useSyncExternalStore(
+    subscribePreferences,
+    () => {
+      const value = readPreference(HIDDEN_STORAGE_KEY, 'session')
+      return value === null ? !defaultExpanded : value === 'true'
+    },
+    () => !defaultExpanded,
   )
 }
 
@@ -221,18 +236,20 @@ export default function SupportPlanCompanionShell({
   onContextualDismiss,
   guidedContext,
   companionRequestPending,
+  interruptionActive = false,
   onGuidedRequest,
   onGuidedDismiss,
   onGuidedNavigate,
 }: Props) {
   const bodyId = useId()
+  const interruptionId = useId()
   const systemReducedMotion = useReactiveReducedMotion()
-  const [expanded, setExpanded] = useState(defaultExpanded)
   const [panelOpen, setPanelOpen] = useState(false)
   const panelTrigger = useRef<HTMLButtonElement>(null)
   const panelRequestTarget = useRef<string | undefined>(undefined)
   const mobileSheet = useMobileSheet()
   const muted = useSupportPlanCompanionMuted()
+  const hidden = useSupportPlanCompanionHidden(defaultExpanded)
   const userReducedMotion = useSyncExternalStore(
     subscribePreferences,
     () => storedPreference(MOTION_STORAGE_KEY, 'reduced', 'local'),
@@ -240,8 +257,9 @@ export default function SupportPlanCompanionShell({
   )
 
   const reducedMotion = systemReducedMotion || userReducedMotion
+  const interrupted = useSupportPlanCompanionInterruption(interruptionActive)
   const copy = companionStateCopy[state]
-  const displayedExpanded = expanded || panelOpen || Boolean(contextual)
+  const displayedExpanded = !hidden || panelOpen || Boolean(contextual)
 
   const dismissPanelExplanation = useCallback(() => {
     const targetId = panelRequestTarget.current
@@ -254,6 +272,15 @@ export default function SupportPlanCompanionShell({
     setPanelOpen(false)
     window.setTimeout(() => panelTrigger.current?.focus(), 0)
   }, [dismissPanelExplanation])
+
+  useEffect(() => {
+    if (!interrupted || !panelOpen) return
+    const frame = window.requestAnimationFrame(() => {
+      dismissPanelExplanation()
+      setPanelOpen(false)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [dismissPanelExplanation, interrupted, panelOpen])
 
   const toggleMuted = () => {
     writePreference(MUTED_STORAGE_KEY, String(!muted), 'session')
@@ -273,6 +300,7 @@ export default function SupportPlanCompanionShell({
       aria-label="Bạn đồng hành trong kế hoạch hỗ trợ"
       data-motion={reducedMotion ? 'reduced' : 'full'}
       data-muted={muted}
+      data-interrupted={interrupted}
     >
       <div className="support-plan-companion-header">
         <div className="support-plan-companion-identity">
@@ -333,7 +361,11 @@ export default function SupportPlanCompanionShell({
                 return
               }
               if (contextual) onContextualDismiss?.()
-              setExpanded(!displayedExpanded)
+              writePreference(
+                HIDDEN_STORAGE_KEY,
+                String(displayedExpanded),
+                'session',
+              )
             }}
           >
             {displayedExpanded ? (
@@ -376,7 +408,10 @@ export default function SupportPlanCompanionShell({
               resetKey={`${CharacterRenderer.name}:${state}`}
               fallback={<StaticCharacter />}
             >
-              <CharacterRenderer state={state} reducedMotion={reducedMotion} />
+              <CharacterRenderer
+                state={state}
+                reducedMotion={reducedMotion || interrupted || muted}
+              />
             </CharacterBoundary>
 
             <div className="support-plan-companion-copy">
@@ -385,11 +420,11 @@ export default function SupportPlanCompanionShell({
               <small>{companionSurfaceCopy[surface]}</small>
             </div>
 
-            {contextual && (
+            {contextual && !interrupted && (
               <div
                 className="support-plan-companion-contextual-tray"
                 data-status={contextual.status}
-                {...(contextual.status === 'loading' || muted
+                {...(contextual.status === 'loading' || muted || interrupted
                   ? {}
                   : { role: 'status', 'aria-live': 'polite' })}
               >
@@ -422,6 +457,15 @@ export default function SupportPlanCompanionShell({
             <p className="support-plan-companion-authority">
               Bạn luôn là người quyết định thay đổi trong kế hoạch.
             </p>
+            {interrupted && (
+              <p
+                id={interruptionId}
+                className="support-plan-companion-interruption"
+              >
+                Bạn đồng hành đang tạm lắng trong khi bạn chỉnh sửa hoặc xác
+                nhận.
+              </p>
+            )}
             {guidedContext && onGuidedNavigate && (
               <button
                 ref={panelTrigger}
@@ -429,6 +473,8 @@ export default function SupportPlanCompanionShell({
                 className="support-plan-companion-open-guidance"
                 aria-haspopup="dialog"
                 aria-expanded={panelOpen}
+                aria-describedby={interrupted ? interruptionId : undefined}
+                disabled={interrupted}
                 onClick={() => {
                   panelRequestTarget.current = undefined
                   setPanelOpen(true)

@@ -157,7 +157,6 @@
   width: 104px;
   height: 104px;
   background: color-mix(in srgb, var(--teal-pale) 72%, transparent);
-  animation: support-plan-companion-breathe 5s ease-in-out infinite;
 }
 
 .support-plan-companion-orbit {
@@ -183,7 +182,6 @@
   background: var(--surface);
   box-shadow: 0 12px 30px -18px rgba(15, 51, 41, 0.62);
   color: var(--teal-deep);
-  animation: support-plan-companion-float 4s ease-in-out infinite;
 }
 
 .support-plan-companion-character[data-state='greeting']
@@ -196,7 +194,7 @@
   .support-plan-companion-orbit,
 .support-plan-companion-character[data-state='waiting']
   .support-plan-companion-orbit {
-  animation: support-plan-companion-orbit 4.5s linear infinite;
+  animation: support-plan-companion-orbit 4.5s linear 2;
 }
 
 .support-plan-companion-character[data-state='encouraging']
@@ -213,7 +211,24 @@
 
 .support-plan-companion-character[data-state='calm-empathetic']
   .support-plan-companion-halo {
+  animation-name: support-plan-companion-breathe;
   animation-duration: 7s;
+  animation-iteration-count: 1;
+}
+
+.support-plan-companion-interruption {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.support-plan-companion[data-muted='true'] .support-plan-companion-character *,
+.support-plan-companion[data-interrupted='true']
+  .support-plan-companion-character
+  * {
+  animation: none !important;
+  transform: none !important;
 }
 
 .support-plan-companion-copy {

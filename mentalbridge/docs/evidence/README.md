@@ -83,6 +83,13 @@ and responsive sheet behavior. Its contract, privacy, Stitch, accessibility,
 and regression evidence is recorded in
 [`mb-651-expanded-guided-companion.md`](mb-651-expanded-guided-companion.md).
 
+MB-653 hardens the SupportPlan Companion release gate with tab-session mute and
+hide semantics, interruption controls, zero passive prompting, reduced-motion
+equivalence, explicit source/runtime budgets, dependency-failure coverage, and
+desktop/mobile accessibility evidence. Its compliance matrix and release
+checklist are recorded in
+[`mb-653-support-plan-companion-hardening.md`](mb-653-support-plan-companion-hardening.md).
+
 MB-563 delivers the server-backed notification inbox and lifecycle. Its
 contract/BFF/component/fixture coverage is recorded in
 [`mb-563-notification-inbox.md`](mb-563-notification-inbox.md).

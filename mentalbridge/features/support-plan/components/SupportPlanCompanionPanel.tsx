@@ -230,6 +230,7 @@ export default function SupportPlanCompanionPanel({
   return (
     <section
       ref={panelRef}
+      data-support-plan-companion-dialog
       className="support-plan-guided-panel"
       role="dialog"
       aria-modal={modal}

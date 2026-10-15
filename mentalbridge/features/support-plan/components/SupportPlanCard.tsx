@@ -90,6 +90,7 @@ type Props = Readonly<{
   onDirtyChange?: (dirty: boolean) => void
   companionSnapshot?: ContextualCompanionSnapshot
   companionRequestPending?: boolean
+  companionInterruptionActive?: boolean
   onCompanionRequest?: (request: ContextualCompanionRequest) => void
   onCompanionDismiss?: () => void
 }>
@@ -141,6 +142,7 @@ export default function SupportPlanCard({
   onDirtyChange,
   companionSnapshot,
   companionRequestPending = false,
+  companionInterruptionActive = false,
   onCompanionRequest,
   onCompanionDismiss,
 }: Props) {
@@ -311,6 +313,7 @@ export default function SupportPlanCard({
           supportPlanId={plan.supportPlanId}
           companionSnapshot={companionSnapshot}
           companionRequestPending={companionRequestPending}
+          companionInterruptionActive={companionInterruptionActive}
           onCompanionRequest={onCompanionRequest}
           onCompanionDismiss={onCompanionDismiss}
           companionDisabled={dirty || scheduleDirty || engagementDirty}
@@ -366,6 +369,7 @@ export default function SupportPlanCard({
                           surface="PLAN"
                           disabled={dirty || scheduleDirty || engagementDirty}
                           requestPending={companionRequestPending}
+                          interruptionActive={companionInterruptionActive}
                           snapshot={companionSnapshot}
                           onRequest={onCompanionRequest}
                           onDismiss={onCompanionDismiss}
@@ -707,6 +711,7 @@ export default function SupportPlanCard({
             supportPlanId={plan.supportPlanId}
             companionSnapshot={companionSnapshot}
             companionRequestPending={companionRequestPending}
+            companionInterruptionActive={companionInterruptionActive}
             onCompanionRequest={onCompanionRequest}
             onCompanionDismiss={onCompanionDismiss}
             onToggleStatus={() =>
