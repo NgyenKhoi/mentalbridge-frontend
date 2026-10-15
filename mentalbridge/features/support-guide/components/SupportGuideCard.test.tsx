@@ -139,7 +139,7 @@ describe('SupportGuideCard', () => {
     ]
     const { container } = render(<SupportGuideCard guide={guide} />)
     const resources = screen.getByRole('region', {
-      name: 'Bài tập hỗ trợ bạn có thể mở',
+      name: 'Bài tập hỗ trợ có thể giúp bạn cải thiện tình trạng này',
     })
     expect(
       within(resources).getAllByRole('link', { name: 'Xem bài tập' }),

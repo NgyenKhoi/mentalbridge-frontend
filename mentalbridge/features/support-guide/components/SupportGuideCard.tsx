@@ -145,11 +145,8 @@ export default function SupportGuideCard({
       : historical
         ? 'Với kết quả của lần đánh giá này, gợi ý được lưu là bắt đầu từ những bước nhỏ'
         : 'Với kết quả này, bạn có thể bắt đầu từ những bước nhỏ'
-  const resourcesTitle = safetyPositive
-    ? 'Bài tập hỗ trợ bạn có thể mở'
-    : professional
-      ? 'Bài tập hỗ trợ trong lúc chờ chuyên gia'
-      : 'Bài tập bạn có thể thử'
+  const resourcesTitle =
+    'Bài tập hỗ trợ có thể giúp bạn cải thiện tình trạng này'
 
   return (
     <article
