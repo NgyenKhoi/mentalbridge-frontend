@@ -352,7 +352,12 @@ export default function SupportPlanCard({
                       ].includes(action.actionType),
                     )
                     .map((action) => (
-                      <li key={action.actionId}>
+                      <li
+                        key={action.actionId}
+                        id={`support-plan-action-${action.actionId}`}
+                        data-support-plan-action-id={action.actionId}
+                        tabIndex={-1}
+                      >
                         <span>{action.presentation.title}</span>
                         <SupportPlanContextualCompanion
                           supportPlanId={plan.supportPlanId}
