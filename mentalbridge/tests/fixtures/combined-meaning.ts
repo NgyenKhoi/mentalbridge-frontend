@@ -1,6 +1,7 @@
 import type {
   CombinedScreeningMeaning,
   ScreeningEpisodeHistoryItem,
+  SupportEvaluation,
 } from '@/features/assessment/api/care-contract'
 
 const disclaimer =
@@ -126,5 +127,42 @@ export function completedScreeningEpisodeFixture(
       },
     ],
     meaning,
+  }
+}
+
+export function supportEvaluationFixture(
+  meaning: CombinedScreeningMeaning = combinedMeaningFixture(),
+): SupportEvaluation {
+  return {
+    supportEvaluationId: meaning.supportEvaluationId,
+    policyVersion: meaning.sourcePolicyVersion,
+    evaluatedAt: meaning.evaluatedAt,
+    supportTier: meaning.supportTier,
+    reasonCodes: [
+      meaning.presentationPriority === 'SAFETY'
+        ? 'PHQ9_SAFETY_SCREEN_POSITIVE'
+        : meaning.presentationPriority === 'PROFESSIONAL_SUPPORT'
+          ? 'PHQ9_MODERATE_OR_HIGHER'
+          : 'ALL_SCREENING_LEVELS_MINIMAL_OR_MILD',
+    ],
+    evidence: meaning.evidence.map((item) => ({
+      assessmentId: item.assessmentId,
+      instrument: item.instrument,
+      questionnaireVersion: item.questionnaireVersion,
+      scoringVersion: item.scoringVersion,
+      screeningLevel: item.screeningLevel,
+      safetyStatus: item.safetyStatus,
+      meaning: {
+        meaningCode: `${item.instrument}_${item.screeningLevel}_14D`,
+        contentVersion: 'mb-screening-meaning-vi-vn-v2',
+        referencePeriodDays: 14,
+        text: `Diễn giải riêng của ${item.instrument}.`,
+        limitation: 'Kết quả sàng lọc không phải chẩn đoán.',
+      },
+    })),
+    nextStep: meaning.nextStep,
+    safetyGuidance: meaning.safetyGuidance,
+    disclaimerCode: meaning.disclaimerCode,
+    disclaimer: meaning.disclaimer,
   }
 }

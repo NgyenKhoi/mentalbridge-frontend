@@ -30,7 +30,11 @@ function message(error: unknown) {
 
 export function HistoricalCombinedMeaning({
   supportEvaluationId,
-}: Readonly<{ supportEvaluationId: string }>) {
+  embedded = false,
+}: Readonly<{ supportEvaluationId: string; embedded?: boolean }>) {
+  const Container = embedded ? 'div' : 'main'
+  const Heading = embedded ? 'h2' : 'h1'
+  const className = embedded ? styles.embedded : styles.page
   const [meaning, setMeaning] = useState<CombinedScreeningMeaning>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>()
@@ -69,40 +73,47 @@ export function HistoricalCombinedMeaning({
 
   if (loading) {
     return (
-      <main className={styles.page}>
+      <Container className={className}>
         <MamAnLoadingState
           title="Đang mở đúng kết quả đã lưu"
           description="Mầm An đang đối chiếu cặp PHQ-9 và GAD-7 của lượt này."
-          headingLevel="h1"
+          headingLevel={Heading}
           preview="meaning"
         />
-      </main>
+      </Container>
     )
   }
 
   if (error || !meaning) {
     return (
-      <main className={styles.page}>
+      <Container className={className}>
         <section className={styles.error} role="alert">
           <FileWarning aria-hidden="true" />
-          <h1>Chưa thể mở kết quả này</h1>
+          <Heading>Chưa thể mở kết quả này</Heading>
           <p>{error}</p>
           <div>
             <button type="button" onClick={() => void load()}>
               Thử lại
             </button>
-            <Link href="/assessments">
-              <ArrowLeft aria-hidden="true" /> Quay lại lịch sử
-            </Link>
+            {!embedded && (
+              <Link href="/assessments">
+                <ArrowLeft aria-hidden="true" /> Quay lại lịch sử
+              </Link>
+            )}
           </div>
         </section>
-      </main>
+      </Container>
     )
   }
 
   return (
-    <main className={styles.page}>
-      <CombinedMeaningCard meaning={meaning} historical />
-    </main>
+    <Container className={className}>
+      <CombinedMeaningCard
+        meaning={meaning}
+        historical
+        headingLevel={Heading}
+        showHistoryNavigation={!embedded}
+      />
+    </Container>
   )
 }

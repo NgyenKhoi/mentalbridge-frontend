@@ -120,14 +120,19 @@ function EvidenceCard({
 export function CombinedMeaningCard({
   meaning,
   historical = false,
+  headingLevel = 'h1',
+  showHistoryNavigation = true,
   onRestart,
   restarting = false,
 }: Readonly<{
   meaning: CombinedScreeningMeaning
   historical?: boolean
+  headingLevel?: 'h1' | 'h2'
+  showHistoryNavigation?: boolean
   onRestart?: () => void
   restarting?: boolean
 }>) {
+  const Heading = headingLevel
   const occurredAt = meaning.episodeCompletedAt ?? meaning.evaluatedAt
   const isSafety = meaning.presentationPriority === 'SAFETY'
   const professional = meaning.presentationPriority === 'PROFESSIONAL_SUPPORT'
@@ -146,7 +151,7 @@ export function CombinedMeaningCard({
       className={`combined-meaning-card priority-${meaning.presentationPriority.toLowerCase()}`}
       aria-labelledby="combined-meaning-title"
     >
-      {historical && (
+      {historical && showHistoryNavigation && (
         <div className="combined-meaning-history-bar">
           <Link href="/assessments">
             <ArrowLeft aria-hidden="true" />
@@ -168,9 +173,9 @@ export function CombinedMeaningCard({
             <span className="combined-meaning-kicker">
               Ưu tiên an toàn ngay lúc này
             </span>
-            <h1 id="combined-safety-title">
+            <Heading id="combined-safety-title">
               Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp
-            </h1>
+            </Heading>
             <p>{meaning.safetyGuidance}</p>
             <Link
               className="combined-meaning-primary"
@@ -228,7 +233,9 @@ export function CombinedMeaningCard({
               Kết quả đã lưu của lần sàng lọc này
             </h2>
           ) : (
-            <h1 id="combined-meaning-title">{meaning.baseMeaning.text}</h1>
+            <Heading id="combined-meaning-title">
+              {meaning.baseMeaning.text}
+            </Heading>
           )}
           {!isSafety && <p>{meaning.nextStep.text}</p>}
           <p className="combined-meaning-disclaimer">

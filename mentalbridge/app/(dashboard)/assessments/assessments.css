@@ -387,32 +387,32 @@
   font-weight: 700;
 }
 
-.level-minimal {
+.screening-level-pill.level-minimal {
   background: #e6f4ea;
   color: #137333;
 }
 
-.level-mild {
+.screening-level-pill.level-mild {
   background: #e3f3ea;
   color: #1e5a44;
 }
 
-.level-moderate {
+.screening-level-pill.level-moderate {
   background: #fef7e0;
   color: #b06000;
 }
 
-.level-moderately-severe {
+.screening-level-pill.level-moderately-severe {
   background: #feefe3;
   color: #c2410c;
 }
 
-.level-severe {
+.screening-level-pill.level-severe {
   background: #fce8e6;
   color: #c5221f;
 }
 
-.level-empty {
+.screening-level-pill.level-empty {
   background: #f1f5f3;
   color: #64748b;
 }

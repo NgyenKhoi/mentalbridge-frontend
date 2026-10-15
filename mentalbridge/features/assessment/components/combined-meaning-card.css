@@ -396,7 +396,7 @@
   border-color: var(--amber);
   background: var(--amber-soft);
 }
-.combined-meaning-safety h1 {
+.combined-meaning-safety :is(h1, h2) {
   margin: var(--space-2) 0;
   font:
     650 1.6rem/1.4 var(--font-fraunces),
@@ -471,7 +471,7 @@
     padding: var(--space-5);
     gap: var(--space-3);
   }
-  .combined-meaning-safety h1 {
+  .combined-meaning-safety :is(h1, h2) {
     font-size: 1.3rem;
   }
   .combined-meaning-safety-icon {

@@ -71,3 +71,35 @@ authentication and Care-owned contracts.
   explicit Care/content-owner approval. Design approval does not approve health
   copy for production. Invented prototype hotline numbers and unsupported
   safety-plan actions are intentionally replaced by the real safety directory.
+
+## Unified post-screening tab follow-up
+
+The owner requested `/assessments` → “Gợi ý sau sàng lọc” to use the same UI/UX
+as `/assessments/results/[supportEvaluationId]`. It now renders the same
+`HistoricalCombinedMeaning` and `CombinedMeaningCard`, not a separate legacy
+interpretation accordion. The latest saved evaluation is selected initially;
+the existing Disclosure selects another exact saved evaluation. Selection is
+retained across tab switches, pagination failure does not clear it, and each
+selection has a canonical result link. No Guide or result is generated.
+
+Embedded presentation only changes the wrapper, heading level and redundant
+back navigation. Scores, Meaning, Safety, resource/Guide actions, disclosures,
+Mầm An loading and unavailable/retry handling use the canonical composition.
+Legacy `.level-*` color selectors are scoped to `.screening-level-pill` so they
+cannot tint whole score cards or leak when navigating between these routes.
+
+- Brief/state map: `unified-meaning-tab.md`.
+- Final screenshots: `qa-parity/mb-667-unified-meaning-tab-1440.png` and
+  `qa-parity/mb-667-unified-meaning-tab-375.png` (synthetic browser fixtures).
+- `npm run quality`: passed 245 files / 1,430 tests, lint, TypeScript, contracts
+  and production build. Final narrow CSS scope fix additionally passed five
+  affected component files / twenty-four tests, format/lint, a fresh build and
+  all six MB-667 Playwright journeys.
+- Browser checks compare score markup and Meaning content across the tab and
+  canonical route, assert the actual white score-card surface, cover record
+  selection/return continuity and responsive 1440/1280/768/640/375 CSS px.
+- No backend, SQL, health-copy catalogue or scoring/routing change.
+- Final frontend-only Docker rebuild/recreate is healthy. Image:
+  `sha256:fc689167f3def554af7252fc877adc9ca178c85d02a1f7189e6147f90da39f6f`;
+  build ID `Xb8N23aBlJDalZbLWcWQQ`. Login HTTP 200, unauthenticated assessments
+  HTTP 307. No shared database/volume or other service was changed.

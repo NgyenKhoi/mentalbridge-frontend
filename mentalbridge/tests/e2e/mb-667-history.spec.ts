@@ -3,6 +3,7 @@ import { expect, type Page } from '@playwright/test'
 import {
   combinedMeaningFixture,
   completedScreeningEpisodeFixture,
+  supportEvaluationFixture,
 } from '../fixtures/combined-meaning'
 import { test } from './test-fixtures'
 
@@ -199,6 +200,124 @@ test.beforeEach(async ({ context, page }) => {
         }),
     )
   }
+})
+
+test('MB-667 post-screening tab and Results share the exact saved Meaning UI', async ({
+  page,
+}, testInfo) => {
+  const meaning = reviewedMeaning()
+  const older = {
+    ...combinedMeaningFixture({
+      supportEvaluationId: severeEvaluationId,
+      priority: 'PROFESSIONAL_SUPPORT',
+    }),
+    evaluatedAt: '2026-09-01T08:00:00Z',
+    episodeCompletedAt: '2026-09-01T08:00:00Z',
+  }
+  let historyRequests = 0
+  await page.route('**/api/care/support-evaluations/history**', (route) => {
+    historyRequests++
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          supportEvaluationFixture(meaning),
+          supportEvaluationFixture(older),
+        ],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    })
+  })
+  await page.route(
+    '**/api/care/support-evaluations/*/combined-meaning',
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          route.request().url().includes(severeEvaluationId) ? older : meaning,
+        ),
+      }),
+  )
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/assessments')
+  expect(historyRequests).toBe(0)
+  await page.getByRole('tab', { name: 'Gợi ý sau sàng lọc' }).click()
+  const panel = page.getByRole('tabpanel', { name: 'Gợi ý sau sàng lọc' })
+  await expect(
+    panel.getByRole('heading', { name: meaning.baseMeaning.text }),
+  ).toBeVisible()
+  const cards = panel.locator('.combined-meaning-score')
+  const summary = panel.locator('.combined-meaning-summary')
+  const scoresMarkup = await panel
+    .locator('.combined-meaning-scores')
+    .innerHTML()
+  const summaryContent = await summary.textContent()
+  for (const width of [1440, 1280, 768, 640, 375]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expectNoHorizontalOverflow(page)
+    await expect(cards.nth(0)).toHaveCSS(
+      'background-color',
+      'rgb(255, 255, 255)',
+    )
+    await expect(cards.nth(1)).toHaveCSS(
+      'background-color',
+      'rgb(255, 255, 255)',
+    )
+    const first = (await cards.nth(0).boundingBox())!
+    const second = (await cards.nth(1).boundingBox())!
+    if (width > 700) expect(Math.abs(first.y - second.y)).toBeLessThan(2)
+    else expect(second.y).toBeGreaterThan(first.y + first.height)
+    const compositionBox = (await panel
+      .locator('.combined-meaning-card')
+      .boundingBox())!
+    const summaryBox = (await summary.boundingBox())!
+    expect(summaryBox.width / compositionBox.width).toBeGreaterThan(0.98)
+    if (width === 1440 || width === 375) {
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await page.screenshot({
+        path: testInfo.outputPath(`mb-667-unified-meaning-tab-${width}.png`),
+        fullPage: true,
+      })
+    }
+  }
+  await panel.getByRole('link', { name: 'Mở trang kết quả' }).click()
+  await expect(page).toHaveURL(`/assessments/results/${evaluationId}`)
+  await expect(
+    page.getByRole('heading', { name: meaning.baseMeaning.text }),
+  ).toBeVisible()
+  expect(await page.locator('.combined-meaning-scores').innerHTML()).toBe(
+    scoresMarkup,
+  )
+  expect(await page.locator('.combined-meaning-summary').textContent()).toBe(
+    summaryContent,
+  )
+  await page.getByRole('link', { name: /Quay lại lịch sử sàng lọc/ }).click()
+  await page.getByRole('tab', { name: 'Gợi ý sau sàng lọc' }).click()
+  await expect(
+    panel.getByRole('heading', { name: meaning.baseMeaning.text }),
+  ).toBeVisible()
+  await panel
+    .getByRole('button', { name: 'Chọn lần sàng lọc để xem kết quả' })
+    .click()
+  await panel.getByRole('button', { name: /Hỗ trợ chuyên môn/ }).click()
+  await expect(
+    panel.getByRole('heading', { name: older.baseMeaning.text }),
+  ).toBeVisible()
+  await expect(
+    panel.getByRole('progressbar', { name: /PHQ-9: 12 trên 27 điểm/ }),
+  ).toHaveCount(1)
+  await expect(
+    panel.getByRole('link', { name: 'Mở trang kết quả' }),
+  ).toHaveAttribute('href', `/assessments/results/${severeEvaluationId}`)
+  await page.getByRole('tab', { name: 'Lịch sử sàng lọc' }).click()
+  await page.getByRole('tab', { name: 'Gợi ý sau sàng lọc' }).click()
+  await expect(
+    panel.getByRole('heading', { name: older.baseMeaning.text }),
+  ).toBeVisible()
+  await expectNoHorizontalOverflow(page)
 })
 
 test('MB-667 current desktop uses the full content grid and the Mầm An loading composition', async ({

@@ -98,12 +98,16 @@ export async function getAssessmentHistory(cursor?: string) {
   ).data
 }
 
-export async function getSupportEvaluationHistory(cursor?: string) {
+export async function getSupportEvaluationHistory(
+  cursor?: string,
+  signal?: AbortSignal,
+) {
   return (
     await browserApiClient.get<SupportEvaluationHistoryPage>(
       '/care/support-evaluations/history',
       {
         params: { limit: 10, ...(cursor ? { cursor } : {}) },
+        signal,
       },
     )
   ).data

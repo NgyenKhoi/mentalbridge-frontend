@@ -210,7 +210,7 @@ export default function AssessmentsPage() {
           hidden={activeTab !== 'support'}
           className="assessment-tabpanel"
         >
-          <SupportEvaluationHistory />
+          <SupportEvaluationHistory active={activeTab === 'support'} />
         </section>
 
         <section
