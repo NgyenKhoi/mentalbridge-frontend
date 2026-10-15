@@ -484,6 +484,10 @@ describe('SupportPlanJourney', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Hôm nay' }))
     expect(screen.queryByText('Chào bạn')).not.toBeInTheDocument()
     expect(screen.getAllByText('Nghỉ nhẹ').length).toBeGreaterThan(0)
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).not.toHaveBeenCalled()
+    expect(document.querySelector('[aria-live]')).toBeNull()
   })
 
   it('exposes the four journey tabs and supports roving keyboard navigation', async () => {

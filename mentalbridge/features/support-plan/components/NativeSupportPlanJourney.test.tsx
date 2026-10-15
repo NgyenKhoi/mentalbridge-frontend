@@ -202,22 +202,21 @@ describe('Native SupportPlan Emotion journey', () => {
     ).not.toHaveLength(0)
     expect(screen.getByRole('link', { name: 'Ghi nhận cảm xúc' })).toBeVisible()
   })
-  it('keeps an unsaved schedule intact while the guided panel opens and closes', async () => {
+  it('keeps an unsaved schedule intact while guided prompting stays quiet', async () => {
     const user = userEvent.setup()
     mount()
     await user.click(await screen.findByRole('tab', { name: 'Điều chỉnh' }))
     const note = screen.getByRole('textbox', { name: 'Ghi chú chỉnh sửa' })
     await user.type(note, 'giữ thay đổi của tôi')
 
-    await user.click(
-      screen.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    const open = screen.getByRole('button', {
+      name: 'Mở hướng dẫn có giới hạn',
+    })
+    expect(open).toBeDisabled()
+    expect(open).toHaveAccessibleDescription(
+      'Bạn đồng hành đang tạm lắng trong khi bạn chỉnh sửa hoặc xác nhận.',
     )
-    expect(screen.getByRole('dialog', { name: 'Bạn đồng hành' })).toBeVisible()
-    await user.click(
-      screen.getByRole('button', {
-        name: 'Đóng hướng dẫn Bạn đồng hành',
-      }),
-    )
+    expect(screen.queryByRole('dialog')).toBeNull()
 
     expect(note).toHaveValue('giữ thay đổi của tôi')
     expect(api.replaceSupportPlanActionSchedule).not.toHaveBeenCalled()

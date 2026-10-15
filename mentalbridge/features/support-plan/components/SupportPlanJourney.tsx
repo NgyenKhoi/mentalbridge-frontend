@@ -1032,6 +1032,7 @@ export default function SupportPlanJourney({
           onContextualDismiss={dismissCompanionExplanation}
           guidedContext={guidedContext}
           companionRequestPending={companionRequestPending}
+          interruptionActive={dirty}
           onGuidedRequest={(request) =>
             void requestCompanionExplanation(request)
           }
