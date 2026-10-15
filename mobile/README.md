@@ -167,6 +167,15 @@ fails closed during stale recovery. See
 [`docs/MB-633_SPECIALIST_PROFILE_AVAILABILITY.md`](docs/MB-633_SPECIALIST_PROFILE_AVAILABILITY.md)
 for the contract, state, test and Android real-contract evidence.
 
+MB-628 through MB-632 add the governed Community, approved specialist
+discovery, appointment request/management, appointment-scoped chat, and
+notification inbox/preferences journeys. MB-634 completes the SPECIALIST
+appointment-to-summary continuity path. Their owner boundaries, exact failure
+states, focused tests and protected evidence commands are linked from
+[`docs/MB-624_MOBILE_JOURNEY_CLOSURE.md`](docs/MB-624_MOBILE_JOURNEY_CLOSURE.md).
+The closure matrix is an integration index; each backend service remains the
+authority for its own state and commands.
+
 ## Quality commands
 
 ```powershell
