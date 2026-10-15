@@ -19,6 +19,7 @@ type Props = Readonly<{
   onToggleVisibility: () => void
   onRemove: () => void
   renderForm: () => ReactNode
+  companion?: ReactNode
 }>
 
 const sourceLabels: Record<SupportPlanOccurrence['source']['type'], string> = {
@@ -52,6 +53,7 @@ export default function SupportPlanActivityRow({
   onToggleVisibility,
   onRemove,
   renderForm,
+  companion,
 }: Props) {
   const href = resourceHref(occurrence)
   const canEdit = authoritativePlanStatus === 'ACTIVE'
@@ -104,6 +106,7 @@ export default function SupportPlanActivityRow({
           renderForm()
         ) : (
           <div className="support-plan-row-actions">
+            {companion}
             {href ? (
               <a href={href} className="support-plan-row-start-btn">
                 Bắt đầu hoạt động

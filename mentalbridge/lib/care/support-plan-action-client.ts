@@ -15,6 +15,7 @@ import {
   parseJournalReconciliation,
   parseNativeSupportPlanReplacementReview,
   parseSupportPlanActionHistory,
+  parseSupportPlanContextualCompanionMessage,
 } from './support-plan-action-validation'
 
 const planPath = (id: string) =>
@@ -58,6 +59,29 @@ export const supportPlanActionClient = {
       authorization,
       correlationId,
       parseSuccess: identity(parseCanonicalSupportPlan, id),
+    })
+  },
+  companionExplanation(
+    authorization: string,
+    supportPlanId: string,
+    actionId: string,
+    surface: 'TODAY' | 'PLAN',
+    correlationId: string,
+  ) {
+    return careRequest({
+      method: 'POST',
+      path: `${planPath(supportPlanId)}/actions/${encodeURIComponent(actionId)}/companion-explanation`,
+      body: { surface },
+      authorization,
+      correlationId,
+      parseSuccess(value) {
+        const parsed = parseSupportPlanContextualCompanionMessage(value)
+        return parsed?.supportPlanId === supportPlanId &&
+          parsed.actionId === actionId &&
+          parsed.surface === surface
+          ? parsed
+          : null
+      },
     })
   },
   history(

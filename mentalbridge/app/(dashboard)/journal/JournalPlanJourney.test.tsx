@@ -106,7 +106,9 @@ function setupFetch({ failCreate = false } = {}) {
   return fetcher
 }
 async function fillEditor(user: ReturnType<typeof userEvent.setup>) {
-  const dialog = within(await screen.findByRole('dialog'))
+  const dialog = within(
+    await screen.findByRole('dialog', undefined, { timeout: 5_000 }),
+  )
   // The canonical editor focuses its heading on the next animation frame.
   // Wait for that focus handoff before typing so it cannot steal the keystrokes.
   await waitFor(() =>

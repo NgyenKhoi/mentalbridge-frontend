@@ -73,7 +73,7 @@
   margin-block: var(--space-4);
 }
 .actions > :is(button, a) {
-  min-height: 44px;
+  min-height: 46px;
 }
 .day {
   display: grid;

@@ -1119,6 +1119,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/support-plans/{supportPlanId}/actions/{actionId}/companion-explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly request a contextual Companion explanation for one owned action
+         * @description Care resolves the exact owned plan action and builds the minimized MB-647
+         *     ACTION context. The client supplies only the Today or Plan surface. The
+         *     request never mutates the SupportPlan, invokes no provider on focus or
+         *     hover, and returns a deterministic template when optional Journal/AI
+         *     phrasing is unavailable. A versioned Redis admission policy allows one
+         *     in-flight provider request per user and at most six admitted requests
+         *     per one-minute window across Care instances. Pending duplicates, bursts
+         *     beyond the cap, disabled admission and Redis failure return a bounded
+         *     deterministic template without invoking the provider.
+         */
+        post: operations["requestOwnSupportPlanActionCompanionExplanation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/support-plans/{supportPlanId}": {
         parameters: {
             query?: never;
@@ -2745,6 +2773,36 @@ export interface components {
             /** @constant */
             reasonCode: "USER_PREFERENCE_AND_CARE_POLICY";
         };
+        SupportPlanCompanionExplanationRequest: {
+            /** @enum {string} */
+            surface: "TODAY" | "PLAN";
+        };
+        SupportPlanContextualCompanionMessage: {
+            /** @constant */
+            schemaVersion: "support-plan-companion-message-v1";
+            /** Format: uuid */
+            supportPlanId: string;
+            /** Format: uuid */
+            actionId: string;
+            /** @constant */
+            intent: "EXPLAIN_ACTION";
+            /** @enum {string} */
+            surface: "TODAY" | "PLAN";
+            text: string;
+            /** @enum {string} */
+            delivery: "GENERATED" | "TEMPLATE";
+            /** @constant */
+            policyVersion: "support-plan-companion-policy-v1";
+            /** @constant */
+            promptVersion: "support-plan-companion-prompt-v1";
+            /** @constant */
+            templateVersion: "support-plan-companion-template-v1";
+            /** @enum {string|null} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK" | null;
+            model: string | null;
+            /** @enum {string|null} */
+            fallbackReason: "CONSENT_REQUIRED" | "CONSENT_UNAVAILABLE" | "PROVIDER_DISABLED" | "PROVIDER_TIMEOUT" | "PROVIDER_QUOTA_LIMITED" | "PROVIDER_UNAVAILABLE" | "MALFORMED_OUTPUT" | "POLICY_REJECTED" | null;
+        } & (unknown & unknown);
         /**
          * @description Canonical v3 representation. V2_RESOURCE_ADAPTER retains the bounded
          *     system-copy display encoding erratum described by SupportPlan without
@@ -5311,6 +5369,41 @@ export interface operations {
             404: components["responses"]["SupportPlanNotFoundProblem"];
             409: components["responses"]["SupportPlanScheduleConflictProblem"];
             412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
+    requestOwnSupportPlanActionCompanionExplanation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+                actionId: components["parameters"]["PlanActionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportPlanCompanionExplanationRequest"];
+            };
+        };
+        responses: {
+            /** @description Generated or deterministic owner-scoped explanation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanContextualCompanionMessage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
         };
     };
     getOwnSupportPlanV3: {

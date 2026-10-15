@@ -32,6 +32,7 @@ type Props = Readonly<{
   isEditing: boolean
   renderForm: () => ReactNode
   onOpen: () => void
+  companion?: ReactNode
 }>
 
 export default function SupportPlanUpcomingCard({
@@ -43,6 +44,7 @@ export default function SupportPlanUpcomingCard({
   isEditing,
   renderForm,
   onOpen,
+  companion,
 }: Props) {
   const [resource, setResource] = useState<PublicResourceDetail | null>(null)
   const [resourceUnavailable, setResourceUnavailable] = useState(false)
@@ -122,15 +124,20 @@ export default function SupportPlanUpcomingCard({
         {isEditing ? renderForm() : null}
       </div>
       {!isEditing ? (
-        <button
-          type="button"
-          className={canStart ? 'mb-sp-primary-btn' : 'mb-sp-card-detail-btn'}
-          aria-label={`${actionLabel}: ${occurrence.source.title}`}
-          onClick={onOpen}
-        >
-          {actionLabel}
-          {canStart ? <SupportPlanIcon name="arrow_forward" size={16} /> : null}
-        </button>
+        <div className="support-plan-upcoming-actions">
+          {companion}
+          <button
+            type="button"
+            className={canStart ? 'mb-sp-primary-btn' : 'mb-sp-card-detail-btn'}
+            aria-label={`${actionLabel}: ${occurrence.source.title}`}
+            onClick={onOpen}
+          >
+            {actionLabel}
+            {canStart ? (
+              <SupportPlanIcon name="arrow_forward" size={16} />
+            ) : null}
+          </button>
+        </div>
       ) : null}
     </article>
   )
