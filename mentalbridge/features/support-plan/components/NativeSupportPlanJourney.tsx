@@ -54,6 +54,7 @@ import type {
 import { emotionPlanHref, type EmotionPlanOrigin } from '../emotion-plan-origin'
 import { journalPlanHref, type JournalPlanOrigin } from '../journal-plan-origin'
 import ProfessionalSupportPath from './ProfessionalSupportPath'
+import type { SupportPlanGuidedNavigationTarget } from './SupportPlanCompanionPanel'
 import SupportPlanCompanionShell from './SupportPlanCompanionShell'
 import SupportPlanContextualCompanion from './SupportPlanContextualCompanion'
 import type {
@@ -294,6 +295,14 @@ export default function NativeSupportPlanJourney({
         document.getElementById(targetId)?.focus(),
       )
   }, [clearCompanionExplanation, contextualCompanion?.targetId])
+
+  const dismissGuidedExplanation = useCallback(
+    (targetId: string) => {
+      if (contextualCompanion?.targetId !== targetId) return
+      clearCompanionExplanation()
+    },
+    [clearCompanionExplanation, contextualCompanion?.targetId],
+  )
 
   useEffect(() => {
     if (!dirty || !contextualCompanion) return
@@ -742,6 +751,48 @@ export default function NativeSupportPlanJourney({
         action.source.sourceRevision === '1' &&
         action.source.sourcePolicyVersion === 'journal-writing-intent-v1',
     )
+  const guidedAction =
+    tab === 'today'
+      ? joined.find(({ action }) => action.status !== 'ENDED')?.action
+      : plan?.focuses
+          .flatMap((focus) => focus.actions)
+          .find((action) => action.status !== 'ENDED')
+  const guidedContext = plan
+    ? {
+        supportPlanId: plan.supportPlanId,
+        action: guidedAction
+          ? {
+              actionId: guidedAction.actionId,
+              title: guidedAction.presentation.title,
+              requestSurface:
+                tab === 'today'
+                  ? ('TODAY' as const)
+                  : tab === 'plan'
+                    ? ('PLAN' as const)
+                    : undefined,
+            }
+          : undefined,
+        reviewAvailable: tab === 'adjust' && Boolean(review),
+      }
+    : undefined
+
+  const navigateFromCompanion = ({
+    surface: next,
+    actionId,
+  }: SupportPlanGuidedNavigationTarget) => {
+    void changeTab(next).then((changed) => {
+      if (!changed) return
+      window.requestAnimationFrame(() => {
+        const actionTarget = actionId
+          ? document.getElementById(`support-plan-action-${actionId}`)
+          : null
+        const focusTarget =
+          actionTarget ?? document.getElementById(`tab-${next}`)
+        actionTarget?.scrollIntoView?.({ block: 'center' })
+        focusTarget?.focus()
+      })
+    })
+  }
 
   return (
     <div className="support-plan-page mb-support-companion-page-layout">
@@ -808,6 +859,11 @@ export default function NativeSupportPlanJourney({
         surface={tab}
         contextual={contextualCompanion}
         onContextualDismiss={dismissCompanionExplanation}
+        guidedContext={guidedContext}
+        companionRequestPending={companionRequestPending}
+        onGuidedRequest={(request) => void requestCompanionExplanation(request)}
+        onGuidedDismiss={dismissGuidedExplanation}
+        onGuidedNavigate={navigateFromCompanion}
       />
       {(invalidJournalOrigin ||
         (!journalOriginMatched && !loadingOccurrences)) && (
@@ -1001,6 +1057,9 @@ export default function NativeSupportPlanJourney({
                   return (
                     <article
                       key={item.occurrenceId}
+                      id={`support-plan-action-${action.actionId}`}
+                      data-support-plan-action-id={action.actionId}
+                      tabIndex={-1}
                       className={`${styles.activity} ${emotion || journal ? styles.emotion : ''}`}
                       aria-labelledby={`activity-${item.occurrenceId}`}
                     >
@@ -1412,7 +1471,12 @@ export default function NativeSupportPlanJourney({
                     )}
                     <ul className={styles.actionList}>
                       {focus.actions.map((action) => (
-                        <li key={action.actionId}>
+                        <li
+                          key={action.actionId}
+                          id={`support-plan-action-${action.actionId}`}
+                          data-support-plan-action-id={action.actionId}
+                          tabIndex={-1}
+                        >
                           <h4>{action.presentation.title}</h4>
                           <p className={styles.meta}>
                             {cadence(action)}

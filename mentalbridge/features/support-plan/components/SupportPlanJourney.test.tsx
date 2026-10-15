@@ -355,6 +355,96 @@ describe('SupportPlanJourney', () => {
     ).toHaveBeenCalledTimes(2)
   })
 
+  it('dismisses a pending guided request, ignores its late answer, and allows retry after settlement', async () => {
+    const user = userEvent.setup()
+    const plan = activePlan()
+    const projection = scheduleProjection(1)
+    const actionId = projection.focuses[0].actions[0].actionId
+    api.getCurrentSupportPlan.mockResolvedValue(plan)
+    api.getSupportPlanActions.mockResolvedValue({
+      ...projection,
+      supportPlanId: plan.supportPlanId,
+      status: 'ACTIVE',
+    })
+    let release: (() => void) | undefined
+    api.requestSupportPlanActionCompanionExplanation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              schemaVersion: 'support-plan-companion-message-v1',
+              supportPlanId: plan.supportPlanId,
+              actionId,
+              intent: 'EXPLAIN_ACTION',
+              surface: 'PLAN',
+              text: 'Phản hồi cũ không còn thuộc panel đang mở.',
+              delivery: 'GENERATED',
+              policyVersion: 'support-plan-companion-policy-v1',
+              promptVersion: 'support-plan-companion-prompt-v1',
+              templateVersion: 'support-plan-companion-template-v1',
+              provider: 'OPENAI',
+              model: 'test-model',
+              fallbackReason: null,
+            })
+        }),
+    )
+
+    render(<SupportPlanJourney />)
+    await user.click(await screen.findByRole('tab', { name: 'Kế hoạch' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Vì sao hoạt động này có trong kế hoạch?',
+      }),
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Đóng hướng dẫn Bạn đồng hành',
+      }),
+    )
+
+    release?.()
+    expect(
+      screen.queryByText('Phản hồi cũ không còn thuộc panel đang mở.'),
+    ).toBeNull()
+    expect(
+      document.querySelector('.support-plan-companion-contextual-tray'),
+    ).toBeNull()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    let retry = screen.getByRole('button', {
+      name: 'Vì sao hoạt động này có trong kế hoạch?',
+    })
+    await waitFor(() => expect(retry).toBeEnabled())
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Đóng hướng dẫn Bạn đồng hành',
+      }),
+    )
+    expect(
+      screen.queryByText('Phản hồi cũ không còn thuộc panel đang mở.'),
+    ).toBeNull()
+    expect(
+      document.querySelector('.support-plan-companion-contextual-tray'),
+    ).toBeNull()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    retry = screen.getByRole('button', {
+      name: 'Vì sao hoạt động này có trong kế hoạch?',
+    })
+    await user.click(retry)
+    expect(await screen.findByText('Phản hồi đã kiểm duyệt.')).toBeVisible()
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledTimes(2)
+  })
+
   it('keeps generic loading neutral instead of pretending to wait for a user choice', async () => {
     api.getCurrentSupportPlan.mockImplementationOnce(
       () => new Promise(() => undefined),
