@@ -82,8 +82,18 @@ describe('SupportGuideCard', () => {
     expect(screen.getByText('Reviewed resource')).toBeVisible()
     expect(screen.getByText('Bạn chủ động lựa chọn')).toBeVisible()
     expect(screen.getByRole('status')).toHaveTextContent(/AI/)
-    expect(screen.getByRole('link').getAttribute('href')).toBe(
+    expect(
+      screen.getByRole('link', { name: 'Mở lại hướng dẫn này' }),
+    ).toHaveAttribute(
+      'href',
       '/support-guides/10000000-0000-4000-8000-000000000511',
+    )
+    expect(
+      screen.getByRole('link', { name: 'Xem chuyên gia tâm lý' }),
+    ).toHaveAttribute('href', '/specialists')
+    expect(screen.getByRole('link', { name: 'Xem bài tập' })).toHaveAttribute(
+      'href',
+      '/resources/30000000-0000-4000-8000-000000000511?contentVersion=0',
     )
     expect(container.textContent).not.toMatch(
       /diagnosis|treatment|totalScore|answers/i,
@@ -100,4 +110,21 @@ describe('SupportGuideCard', () => {
       expect(screen.queryByText('Reviewed resource')).not.toBeInTheDocument()
     },
   )
+
+  it('labels an exact historical Guide as read-only and returns to screening history', () => {
+    render(<SupportGuideCard guide={fixture('AVAILABLE')} historical />)
+
+    expect(screen.getByText('Bản ghi lịch sử · chỉ đọc')).toBeVisible()
+    expect(
+      screen.getByRole('heading', {
+        name: 'Với kết quả này, bạn có thể làm gì?',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Quay lại lịch sử sàng lọc' }),
+    ).toHaveAttribute('href', '/assessments')
+    expect(
+      screen.queryByRole('link', { name: 'Mở lại hướng dẫn này' }),
+    ).not.toBeInTheDocument()
+  })
 })

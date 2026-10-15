@@ -1,17 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { Skeleton } from '@/components/ui/Skeleton'
 import { CrisisSupportModal } from '@/components/crisis-support/CrisisSupportWidget'
 import type {
   AssessmentSummary,
   ScreeningLevel,
 } from '@/features/assessment/api/care-contract'
 import { getAssessmentHistory } from '@/features/assessment/api/browser-care'
-import AssessmentProgressPanel from '@/features/assessment/components/AssessmentProgressPanel'
-import AssessmentDetailModal from '@/features/assessment/components/AssessmentDetailModal'
+import { IndividualAssessmentHistory } from '@/features/assessment/components/IndividualAssessmentHistory'
+import { ScreeningEpisodeHistory } from '@/features/assessment/components/ScreeningEpisodeHistory'
 import { SupportEvaluationHistory } from '@/features/assessment/components/SupportEvaluationHistory'
 import { ReassessmentJourney } from '@/features/assessment/components/ReassessmentJourney'
 
@@ -68,30 +67,19 @@ function AssessmentIcon() {
 
 export default function AssessmentsPage() {
   const [items, setItems] = useState<AssessmentSummary[]>([])
-  const [cursor, setCursor] = useState<string | undefined>()
+  const [cursor, setCursor] = useState<string>()
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [progressAssessmentId, setProgressAssessmentId] = useState<string>()
-  const [reviewItem, setReviewItem] = useState<AssessmentSummary | null>(null)
   const [isCrisisOpen, setIsCrisisOpen] = useState(false)
 
   // Tabs: 'history' | 'support' | 'reassessment'
   const [activeTab, setActiveTab] = useState<
     'history' | 'support' | 'reassessment'
   >('history')
-  // History filter: 'ALL' | 'PHQ9' | 'GAD7'
-  const [instrumentFilter, setInstrumentFilter] = useState<
-    'ALL' | 'PHQ9' | 'GAD7'
-  >('ALL')
-  // History pagination: show 5 rows first
-  const [showAllHistory, setShowAllHistory] = useState(false)
-
-  const progressTriggerRef = useRef<HTMLButtonElement | null>(null)
-  const reviewTriggerRef = useRef<HTMLElement | null>(null)
   const tabListRef = useRef<HTMLDivElement | null>(null)
 
-  const load = async (next?: string) => {
+  const load = useCallback(async (next?: string) => {
     setLoading(true)
     setError(false)
     try {
@@ -104,12 +92,12 @@ export default function AssessmentsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0)
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [load])
 
   // Find latest & previous PHQ-9
   const phq9Items = items.filter((item) => item.instrument === 'PHQ9')
@@ -120,14 +108,16 @@ export default function AssessmentsPage() {
   const gad7Items = items.filter((item) => item.instrument === 'GAD7')
   const latestGad7 = gad7Items[0]
   const prevGad7 = gad7Items[1]
-
-  // Filtered history items
-  const filteredItems = items.filter((item) =>
-    instrumentFilter === 'ALL' ? true : item.instrument === instrumentFilter,
-  )
-  const displayedItems = showAllHistory
-    ? filteredItems
-    : filteredItems.slice(0, 5)
+  const emptyResultLabel = loading
+    ? 'Đang tải…'
+    : error
+      ? 'Chưa tải được'
+      : 'Chưa thực hiện'
+  const emptyComparisonLabel = loading
+    ? 'Đang tải lịch sử…'
+    : error
+      ? 'Chưa tải được lịch sử'
+      : 'Chưa có lần so sánh'
 
   // Keyboard navigation for tab list
   const handleTabKeyDown = (
@@ -318,7 +308,7 @@ export default function AssessmentsPage() {
             >
               {latestPhq9
                 ? `Mức ${levelLabels[latestPhq9.result.screeningLevel].toLowerCase()}`
-                : 'Chưa thực hiện'}
+                : emptyResultLabel}
             </span>
           </div>
 
@@ -374,7 +364,7 @@ export default function AssessmentsPage() {
                   : ' · chưa có lần so sánh'}
               </>
             ) : (
-              'Chưa có lần so sánh'
+              emptyComparisonLabel
             )}
           </p>
         </article>
@@ -388,7 +378,7 @@ export default function AssessmentsPage() {
             >
               {latestGad7
                 ? `Mức ${levelLabels[latestGad7.result.screeningLevel].toLowerCase()}`
-                : 'Chưa thực hiện'}
+                : emptyResultLabel}
             </span>
           </div>
 
@@ -445,7 +435,7 @@ export default function AssessmentsPage() {
                   : ' · chưa có lần so sánh'}
               </>
             ) : (
-              'Chưa có lần so sánh'
+              emptyComparisonLabel
             )}
           </p>
         </article>
@@ -508,187 +498,17 @@ export default function AssessmentsPage() {
           tabIndex={0}
           className={`assessment-tabpanel ${activeTab === 'history' ? 'active' : ''}`}
         >
-          <div className="history-filter-chips" aria-label="Bộ lọc bộ câu hỏi">
-            <button
-              type="button"
-              className="history-filter-chip"
-              aria-pressed={instrumentFilter === 'ALL'}
-              onClick={() => setInstrumentFilter('ALL')}
-            >
-              Tất cả
-            </button>
-            <button
-              type="button"
-              className="history-filter-chip"
-              aria-pressed={instrumentFilter === 'PHQ9'}
-              onClick={() => setInstrumentFilter('PHQ9')}
-            >
-              PHQ-9
-            </button>
-            <button
-              type="button"
-              className="history-filter-chip"
-              aria-pressed={instrumentFilter === 'GAD7'}
-              onClick={() => setInstrumentFilter('GAD7')}
-            >
-              GAD-7
-            </button>
+          <div className="assessment-history-sections">
+            <ScreeningEpisodeHistory />
+            <IndividualAssessmentHistory
+              items={items}
+              loading={loading}
+              error={error}
+              hasMore={hasMore}
+              onRetry={() => void load()}
+              onLoadMore={() => void load(cursor)}
+            />
           </div>
-
-          {error ? (
-            <div className="assessment-history-unavailable" role="alert">
-              <strong>Không thể tải lịch sử</strong>
-              <p>Thông tin của bạn chưa tải được. Vui lòng thử lại.</p>
-              <button
-                type="button"
-                className="select-card-btn"
-                onClick={() => void load()}
-              >
-                Thử lại
-              </button>
-            </div>
-          ) : items.length === 0 && loading ? (
-            <div
-              className="assessment-history-skeleton"
-              role="status"
-              aria-live="polite"
-            >
-              <span className="sr-only">Đang tải lịch sử sàng lọc…</span>
-              <Skeleton width="32%" height={16} />
-              <Skeleton width="100%" height={48} />
-              <Skeleton width="100%" height={48} />
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="assessment-history-unavailable">
-              <strong>Chưa có lịch sử sàng lọc</strong>
-              <p>
-                Mỗi lần làm lại sẽ tạo một kết quả mới, không ghi đè kết quả cũ.
-              </p>
-            </div>
-          ) : (
-            <div className="history-rows-list">
-              {displayedItems.map((item) => {
-                const dateObj = new Date(item.submittedAt)
-                const dateStr = dateObj.toLocaleDateString('vi-VN')
-                const timeStr = dateObj.toLocaleTimeString('vi-VN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-                const isSingleFilter = instrumentFilter !== 'ALL'
-
-                return (
-                  <article key={item.assessmentId} className="history-row-card">
-                    <div className="history-row-main">
-                      <div className="history-row-date">
-                        <strong>{dateStr}</strong>
-                        <small>{timeStr}</small>
-                      </div>
-
-                      {!isSingleFilter && (
-                        <span className="history-row-instrument">
-                          {item.instrument}
-                        </span>
-                      )}
-
-                      <span
-                        className={`screening-level-pill ${getLevelClass(item.result.screeningLevel)}`}
-                      >
-                        {levelLabels[item.result.screeningLevel]}
-                      </span>
-
-                      <span className="history-row-score">
-                        {item.result.totalScore} điểm
-                      </span>
-                    </div>
-
-                    <div className="history-row-actions">
-                      <Link
-                        className="btn-row-action"
-                        href={`/assessment/${item.instrument.toLowerCase()}?assessmentId=${encodeURIComponent(item.assessmentId)}`}
-                        onClick={(event) => {
-                          event.preventDefault()
-                          reviewTriggerRef.current = event.currentTarget
-                          setReviewItem(item)
-                        }}
-                      >
-                        Xem lại
-                      </Link>
-                      <button
-                        type="button"
-                        className="btn-row-action"
-                        aria-expanded={
-                          progressAssessmentId === item.assessmentId
-                        }
-                        aria-controls="assessment-progress-panel"
-                        onClick={(event) => {
-                          progressTriggerRef.current = event.currentTarget
-                          setProgressAssessmentId(item.assessmentId)
-                        }}
-                      >
-                        So sánh
-                      </button>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Nút Xem thêm khi có nhiều hơn 5 mục trong danh sách */}
-          {!showAllHistory && filteredItems.length > 5 && (
-            <div className="history-show-more-wrap">
-              <button
-                type="button"
-                className="btn-show-more"
-                onClick={() => setShowAllHistory(true)}
-              >
-                Xem thêm ({filteredItems.length - 5} mục khác) ↓
-              </button>
-            </div>
-          )}
-
-          {/* Nút Tải thêm trang từ API nếu còn */}
-          {hasMore && !loading && (
-            <div className="history-show-more-wrap">
-              <button
-                type="button"
-                className="btn-show-more"
-                onClick={() => void load(cursor)}
-              >
-                Tải thêm lịch sử
-              </button>
-            </div>
-          )}
-
-          {loading && items.length > 0 && (
-            <p className="assessment-history-loading" aria-live="polite">
-              Đang tải thêm lịch sử…
-            </p>
-          )}
-
-          {/* Modal So sánh */}
-          {progressAssessmentId && (
-            <AssessmentProgressPanel
-              key={progressAssessmentId}
-              assessmentId={progressAssessmentId}
-              onClose={() => {
-                progressTriggerRef.current?.focus()
-                setProgressAssessmentId(undefined)
-              }}
-            />
-          )}
-
-          {/* Modal Xem lại chi tiết */}
-          {reviewItem && (
-            <AssessmentDetailModal
-              key={reviewItem.assessmentId}
-              item={reviewItem}
-              onClose={() => {
-                reviewTriggerRef.current?.focus()
-                setReviewItem(null)
-              }}
-            />
-          )}
         </section>
 
         {/* 6. Tab Panel: Gợi ý sau sàng lọc */}

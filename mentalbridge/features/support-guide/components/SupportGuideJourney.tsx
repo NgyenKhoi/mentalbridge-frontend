@@ -29,8 +29,10 @@ function message(error: unknown) {
 
 export default function SupportGuideJourney({
   supportGuideId,
+  historical = false,
 }: {
   supportGuideId?: string
+  historical?: boolean
 }) {
   const { showActionToast } = useFeedback()
   const [items, setItems] = useState<SupportGuide[]>([])
@@ -99,11 +101,12 @@ export default function SupportGuideJourney({
   return (
     <div className="support-guide-page">
       <header className="support-guide-page-header">
-        <span>Sau sàng lọc</span>
-        <h1>Gợi ý hỗ trợ</h1>
+        <span>{historical ? 'Bản ghi lịch sử · chỉ đọc' : 'Sau sàng lọc'}</span>
+        <h1>{historical ? 'Gợi ý của lần đánh giá này' : 'Gợi ý hỗ trợ'}</h1>
         <p>
-          Xem các bước hỗ trợ dựa trên cặp kết quả PHQ-9 và GAD-7 trong Kiểm tra
-          ban đầu, rồi chủ động chọn điều phù hợp với bạn.
+          {historical
+            ? 'Nội dung này được mở lại đúng như đã lưu cùng lần sàng lọc trước đây; trang không tạo lại hoặc thay đổi gợi ý lịch sử.'
+            : 'Xem các bước hỗ trợ dựa trên cặp kết quả PHQ-9 và GAD-7 trong Kiểm tra ban đầu, rồi chủ động chọn điều phù hợp với bạn.'}
         </p>
         {!supportGuideId && (
           <button
@@ -144,7 +147,10 @@ export default function SupportGuideJourney({
           </Link>
         </div>
       )}
-      <section className="support-guide-list" aria-label="Lịch sử gợi ý hỗ trợ">
+      <section
+        className="support-guide-list"
+        aria-label={historical ? 'Gợi ý hỗ trợ đã lưu' : 'Lịch sử gợi ý hỗ trợ'}
+      >
         {items.map((guide, index) => (
           <div
             className="support-guide-entry"
@@ -155,7 +161,7 @@ export default function SupportGuideJourney({
               } as React.CSSProperties
             }
           >
-            <SupportGuideCard guide={guide} />
+            <SupportGuideCard guide={guide} historical={historical} />
           </div>
         ))}
       </section>
@@ -163,11 +169,6 @@ export default function SupportGuideJourney({
         <button className="btn btn-ghost" onClick={() => void load(cursor)}>
           Tải thêm lịch sử
         </button>
-      )}
-      {supportGuideId && (
-        <Link className="btn btn-ghost" href="/support-guides">
-          Quay lại lịch sử gợi ý hỗ trợ
-        </Link>
       )}
     </div>
   )

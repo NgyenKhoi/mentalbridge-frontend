@@ -16,7 +16,13 @@ const resourceStateCopy: Record<
     'Không thể kiểm tra tài nguyên lúc này. Hướng dẫn an toàn vẫn luôn khả dụng.',
 }
 
-export default function SupportGuideCard({ guide }: { guide: SupportGuide }) {
+export default function SupportGuideCard({
+  guide,
+  historical = false,
+}: {
+  guide: SupportGuide
+  historical?: boolean
+}) {
   const safetyPositive = guide.safety.status === 'POSITIVE_SAFETY_SCREEN'
   return (
     <article
@@ -26,9 +32,15 @@ export default function SupportGuideCard({ guide }: { guide: SupportGuide }) {
       <header>
         <div>
           <span className="support-guide-kicker">
-            Dựa trên kết quả gần nhất
+            {historical
+              ? 'Bản ghi lịch sử · chỉ đọc'
+              : 'Dựa trên kết quả gần nhất'}
           </span>
-          <h2 id={`guide-${guide.supportGuideId}`}>Gợi ý sau sàng lọc</h2>
+          <h2 id={`guide-${guide.supportGuideId}`}>
+            {historical
+              ? 'Với kết quả này, bạn có thể làm gì?'
+              : 'Gợi ý sau sàng lọc'}
+          </h2>
         </div>
         <span className="support-guide-kind">Bạn chủ động lựa chọn</span>
       </header>
@@ -39,17 +51,23 @@ export default function SupportGuideCard({ guide }: { guide: SupportGuide }) {
         className={`support-guide-safety ${safetyPositive ? 'positive' : ''}`}
       >
         <strong>
-          {safetyPositive ? 'Ưu tiên thông tin an toàn' : 'Thông tin an toàn'}
+          {safetyPositive
+            ? 'Ưu tiên tìm hỗ trợ trực tiếp'
+            : 'Nếu bạn vẫn thấy không yên tâm'}
         </strong>
         <p>{guide.safety.guidance}</p>
-        <small>An toàn không phụ thuộc gói dịch vụ hoặc AI.</small>
+        <small>
+          Bạn luôn có thể chủ động trao đổi với chuyên gia; MentalBridge không
+          tự đặt lịch hoặc chia sẻ dữ liệu của bạn.
+        </small>
+        <Link href="/specialists">Xem chuyên gia tâm lý</Link>
       </section>
 
       <section
         className="support-guide-resources"
         aria-label="Tài nguyên được gợi ý"
       >
-        <h3>Tài nguyên đã rà soát</h3>
+        <h3>Việc bạn có thể làm tiếp theo</h3>
         <p>{resourceStateCopy[guide.resourceResolution.status]}</p>
         {guide.resources.length > 0 && (
           <ul>
@@ -70,6 +88,13 @@ export default function SupportGuideCard({ guide }: { guide: SupportGuide }) {
                   >
                     Mở tài nguyên
                   </a>
+                )}
+                {!resource.externalUrl && (
+                  <Link
+                    href={`/resources/${resource.resourceId}?contentVersion=${encodeURIComponent(resource.contentVersion)}`}
+                  >
+                    Xem bài tập
+                  </Link>
                 )}
               </li>
             ))}
@@ -114,9 +139,13 @@ export default function SupportGuideCard({ guide }: { guide: SupportGuide }) {
         <time dateTime={guide.generatedAt}>
           Tạo lúc {new Date(guide.generatedAt).toLocaleString('vi-VN')}
         </time>
-        <Link href={`/support-guides/${guide.supportGuideId}`}>
-          Mở lại hướng dẫn này
-        </Link>
+        {historical ? (
+          <Link href="/assessments">Quay lại lịch sử sàng lọc</Link>
+        ) : (
+          <Link href={`/support-guides/${guide.supportGuideId}`}>
+            Mở lại hướng dẫn này
+          </Link>
+        )}
       </footer>
     </article>
   )

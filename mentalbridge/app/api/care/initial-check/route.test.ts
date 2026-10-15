@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api/api-error'
 import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
+import { combinedMeaningFixture } from '@/tests/fixtures/combined-meaning'
 
 const careMocks = vi.hoisted(() => ({
   getProfile: vi.fn(),
@@ -10,6 +11,7 @@ const careMocks = vi.hoisted(() => ({
   getConsents: vi.fn(),
   getAuthenticated: vi.fn(),
   getSupportEvaluation: vi.fn(),
+  getCombinedScreeningMeaning: vi.fn(),
   currentScreeningEpisode: vi.fn(),
 }))
 const sessionMocks = vi.hoisted(() => ({
@@ -179,6 +181,9 @@ describe('GET /api/care/initial-check', () => {
         },
       ],
     })
+    careMocks.getCombinedScreeningMeaning.mockResolvedValue(
+      combinedMeaningFixture(),
+    )
 
     const response = await GET(request())
 
@@ -187,6 +192,12 @@ describe('GET /api/care/initial-check', () => {
       phq9: { assessmentId: phq9AssessmentId },
       gad7: { assessmentId: gad7AssessmentId },
       evaluation: { supportEvaluationId },
+      combinedMeaning: { supportEvaluationId },
     })
+    expect(careMocks.getCombinedScreeningMeaning).toHaveBeenCalledWith(
+      'identity-access-secret',
+      supportEvaluationId,
+      expect.any(String),
+    )
   })
 })

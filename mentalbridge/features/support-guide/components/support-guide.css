@@ -182,6 +182,14 @@
 .support-guide-safety small {
   color: var(--ink-soft);
 }
+.support-guide-safety > a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: var(--space-2);
+  color: var(--teal-deep);
+  font-weight: 800;
+}
 .support-guide-resources {
   display: grid;
   gap: var(--space-3);

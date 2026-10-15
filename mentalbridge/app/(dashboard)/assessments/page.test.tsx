@@ -37,6 +37,9 @@ describe('Assessment history page', () => {
       http.get('http://localhost/api/care/support-evaluations/history', () =>
         HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
       ),
+      http.get('http://localhost/api/care/screening-episodes/history', () =>
+        HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
+      ),
       http.get('http://localhost/api/care/reassessment-self-reports', () =>
         HttpResponse.json(
           { code: 'REASSESSMENT_SELF_REPORT_NOT_FOUND' },
@@ -115,7 +118,6 @@ describe('Assessment history page', () => {
       screen.getByRole('link', { name: 'Bắt đầu PHQ-9 và GAD-7' }),
     ).toHaveAttribute('href', '/initial-check')
     expect(await screen.findByText('8 điểm')).toBeVisible()
-    expect(screen.getAllByRole('link', { name: /bắt đầu/i })).toHaveLength(4)
     expect(
       screen.getByRole('link', { name: 'Bắt đầu lượt đánh giá lại' }),
     ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
@@ -138,5 +140,55 @@ describe('Assessment history page', () => {
         name: 'Thay đổi giữa các lần sàng lọc',
       }),
     ).not.toBeInTheDocument()
+  })
+
+  it('does not misreport a history failure as no previous assessment', async () => {
+    mockServer.use(
+      http.get('http://localhost/api/care/assessments/history', () =>
+        HttpResponse.json(
+          {
+            type: 'about:blank',
+            title: 'Service unavailable',
+            status: 503,
+            code: 'CARE_UNAVAILABLE',
+          },
+          { status: 503 },
+        ),
+      ),
+      http.get('http://localhost/api/care/screening-episodes/history', () =>
+        HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
+      ),
+      http.get('http://localhost/api/care/support-evaluations/history', () =>
+        HttpResponse.json({ items: [], nextCursor: null, hasMore: false }),
+      ),
+      http.get('http://localhost/api/care/reassessment-self-reports', () =>
+        HttpResponse.json(
+          { code: 'REASSESSMENT_SELF_REPORT_NOT_FOUND' },
+          { status: 404 },
+        ),
+      ),
+      http.get('http://localhost/api/care/reassessment-summaries', () =>
+        HttpResponse.json({
+          policyVersion: 'reassessment-comparison-v1',
+          state: 'INCOMPLETE',
+          missingInstruments: ['PHQ9', 'GAD7'],
+          phq9AssessmentId: null,
+          gad7AssessmentId: null,
+          previousPeriod: null,
+          currentPeriod: null,
+        }),
+      ),
+    )
+
+    render(<AssessmentsPage />)
+
+    expect(
+      (await screen.findAllByText('Chưa tải được')).length,
+    ).toBeGreaterThan(0)
+    expect(screen.queryByText('Chưa thực hiện')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Không thể tải lịch sử từng bài',
+    )
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeVisible()
   })
 })

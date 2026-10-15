@@ -1,0 +1,382 @@
+.loading {
+  display: grid;
+  gap: 20px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--line));
+  border-radius: var(--radius-panel);
+  padding: clamp(20px, 4vw, 32px);
+  background:
+    radial-gradient(
+      circle at 12% 18%,
+      color-mix(in srgb, var(--teal-pale) 62%, transparent),
+      transparent 15rem
+    ),
+    linear-gradient(120deg, var(--surface), var(--surface-soft));
+  box-shadow: var(--elevation-1);
+}
+
+.companion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 4vw, 34px);
+}
+
+.mascotStage {
+  position: relative;
+  width: clamp(104px, 15vw, 136px);
+  height: clamp(104px, 15vw, 136px);
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.aura {
+  position: absolute;
+  inset: 9%;
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--teal-pale) 65%, transparent);
+  animation: mam-an-breathe 3.4s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.mascot {
+  position: relative;
+  z-index: 1;
+  width: 88%;
+  height: 88%;
+  animation: mam-an-float 3.4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.leaves {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: mam-an-leaf 2.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+.orbitDot {
+  position: absolute;
+  z-index: 2;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--teal);
+  animation: mam-an-orbit 3s ease-in-out infinite;
+  opacity: 0.62;
+  will-change: transform, opacity;
+}
+
+.orbitDotOne {
+  top: 18%;
+  left: 7%;
+}
+
+.orbitDotTwo {
+  top: 24%;
+  right: 4%;
+  background: var(--amber);
+  animation-delay: -1s;
+}
+
+.orbitDotThree {
+  bottom: 13%;
+  left: 17%;
+  width: 5px;
+  height: 5px;
+  animation-delay: -2s;
+}
+
+.copy {
+  max-width: 610px;
+}
+
+.statusBadge,
+.breathingCue {
+  display: inline-flex;
+  align-items: center;
+  color: var(--teal-deep);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.statusBadge {
+  min-height: 28px;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--teal) 28%, var(--line));
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.statusBadge > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--teal);
+  animation: mam-an-status 1.7s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.copy h1,
+.copy h2,
+.copy h3 {
+  margin: 10px 0 0;
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(1.35rem, 3vw, 1.85rem);
+  line-height: 1.24;
+  text-wrap: balance;
+}
+
+.copy p {
+  max-width: 62ch;
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.breathingCue {
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.breathingCue > span {
+  width: 12px;
+  height: 12px;
+  border: 3px solid color-mix(in srgb, var(--teal) 28%, transparent);
+  border-radius: 50%;
+  background: var(--teal);
+  animation: mam-an-breathe 3.4s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.historyPreview,
+.meaningPreview {
+  display: grid;
+  gap: 12px;
+  opacity: 0.58;
+}
+
+.historyCard,
+.meaningCards > div,
+.progressPreview {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+.historyCard {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+}
+
+.previewHeader,
+.previewScores,
+.progressPreview {
+  display: flex;
+  align-items: center;
+}
+
+.previewHeader {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.previewScores,
+.meaningCards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.previewScores > span {
+  height: 52px;
+  border-radius: 10px;
+  background: var(--surface-soft);
+  animation: mam-an-skeleton 1.8s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.lineShort,
+.lineMedium,
+.lineLong,
+.pill,
+.scoreBlock {
+  display: block;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--teal-pale) 72%, var(--surface));
+  animation: mam-an-skeleton 1.8s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.lineShort {
+  width: 34%;
+  height: 10px;
+}
+
+.lineMedium {
+  width: 42%;
+  height: 12px;
+}
+
+.lineLong {
+  width: 72%;
+  height: 9px;
+}
+
+.pill {
+  width: 88px;
+  height: 24px;
+}
+
+.scoreBlock {
+  width: 72px;
+  height: 32px;
+  border-radius: 9px;
+}
+
+.progressPreview {
+  justify-content: space-between;
+  padding: 12px clamp(14px, 4vw, 28px);
+}
+
+.progressPreview > span {
+  width: 24px;
+  height: 24px;
+  border: 6px solid var(--surface-soft);
+  border-radius: 50%;
+  background: var(--teal-pale);
+  animation: mam-an-skeleton 1.8s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.meaningCards > div {
+  display: grid;
+  gap: 13px;
+  padding: 16px;
+}
+
+.historyCard:nth-child(2),
+.meaningCards > div:nth-child(2),
+.previewScores > span:nth-child(2) {
+  animation-delay: -0.7s;
+}
+
+@keyframes mam-an-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes mam-an-breathe {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.9;
+  }
+}
+
+@keyframes mam-an-leaf {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes mam-an-orbit {
+  0%,
+  100% {
+    transform: translateY(2px) scale(0.85);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-5px) scale(1.08);
+    opacity: 0.78;
+  }
+}
+
+@keyframes mam-an-status {
+  0%,
+  100% {
+    opacity: 0.38;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes mam-an-skeleton {
+  0%,
+  100% {
+    opacity: 0.46;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@media (max-width: 640px) {
+  .loading {
+    gap: 16px;
+    padding: 20px 16px;
+  }
+
+  .companion {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .copy {
+    display: grid;
+    justify-items: center;
+  }
+
+  .breathingCue {
+    justify-content: center;
+  }
+
+  .previewScores,
+  .meaningCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aura,
+  .mascot,
+  .leaves,
+  .orbitDot,
+  .statusBadge > span,
+  .breathingCue > span,
+  .previewScores > span,
+  .lineShort,
+  .lineMedium,
+  .lineLong,
+  .pill,
+  .scoreBlock,
+  .progressPreview > span {
+    animation: none;
+  }
+
+  .aura,
+  .statusBadge > span,
+  .breathingCue > span {
+    opacity: 0.78;
+  }
+}

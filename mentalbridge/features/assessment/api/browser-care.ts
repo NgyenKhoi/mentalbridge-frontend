@@ -16,6 +16,8 @@ import type {
   Instrument,
   SupportEvaluation,
   SupportEvaluationHistoryPage,
+  ScreeningEpisodeHistoryPage,
+  CombinedScreeningMeaning,
   ReassessmentSelfReport,
   ReassessmentSelfReportCreateRequest,
   ReassessmentSelfReportReplaceRequest,
@@ -103,6 +105,33 @@ export async function getSupportEvaluationHistory(cursor?: string) {
       {
         params: { limit: 10, ...(cursor ? { cursor } : {}) },
       },
+    )
+  ).data
+}
+
+export async function getScreeningEpisodeHistory(
+  cursor?: string,
+  signal?: AbortSignal,
+) {
+  return (
+    await browserApiClient.get<ScreeningEpisodeHistoryPage>(
+      '/care/screening-episodes/history',
+      {
+        params: { limit: 10, ...(cursor ? { cursor } : {}) },
+        signal,
+      },
+    )
+  ).data
+}
+
+export async function getCombinedScreeningMeaning(
+  supportEvaluationId: string,
+  signal?: AbortSignal,
+) {
+  return (
+    await browserApiClient.get<CombinedScreeningMeaning>(
+      `/care/support-evaluations/${encodeURIComponent(supportEvaluationId)}/combined-meaning`,
+      { signal },
     )
   ).data
 }

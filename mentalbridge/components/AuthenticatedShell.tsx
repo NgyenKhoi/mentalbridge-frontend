@@ -170,6 +170,14 @@ const labels: Record<string, string> = {
   '/profile': 'Hồ sơ và quyền riêng tư',
 }
 
+function resolveContextLabel(pathname: string) {
+  if (pathname.startsWith('/assessments/results/')) {
+    return 'Kết quả sàng lọc'
+  }
+
+  return labels[pathname] ?? 'MentalBridge'
+}
+
 export default function AuthenticatedShell({
   children,
   workspaces,
@@ -307,7 +315,7 @@ export default function AuthenticatedShell({
           ) : (
             <div className="ref-context">
               <span>Không gian của bạn</span>
-              <strong>{labels[pathname] ?? 'MentalBridge'}</strong>
+              <strong>{resolveContextLabel(pathname)}</strong>
             </div>
           )}
           <label>
