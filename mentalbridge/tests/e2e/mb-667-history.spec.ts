@@ -782,7 +782,7 @@ test('MB-667 keeps safety authoritative and renders severe professional support 
   ).toBeVisible()
   await expect(
     page.getByRole('heading', {
-      name: 'Trao đổi với chuyên gia khi bạn sẵn sàng',
+      name: 'Nên sớm trao đổi với chuyên gia',
     }),
   ).toBeVisible()
   await expect(

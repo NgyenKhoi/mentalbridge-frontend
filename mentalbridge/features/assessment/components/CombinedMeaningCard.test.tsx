@@ -99,6 +99,20 @@ describe('CombinedMeaningCard', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('keeps the unhurried professional heading for a moderate highest band', () => {
+    render(
+      <CombinedMeaningCard
+        meaning={combinedMeaningFixture({ priority: 'PROFESSIONAL_SUPPORT' })}
+      />,
+    )
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Trao đổi với chuyên gia khi bạn sẵn sàng',
+      }),
+    ).toBeVisible()
+  })
+
   it('renders a severe band as professional support without inferring a safety override', () => {
     const meaning = combinedMeaningFixture({ priority: 'PROFESSIONAL_SUPPORT' })
     meaning.evidence[0].totalScore = 24
@@ -114,7 +128,7 @@ describe('CombinedMeaningCard', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByRole('heading', {
-        name: 'Trao đổi với chuyên gia khi bạn sẵn sàng',
+        name: 'Nên sớm trao đổi với chuyên gia',
       }),
     ).toBeVisible()
     expect(

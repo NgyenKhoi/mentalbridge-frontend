@@ -136,6 +136,11 @@ export function CombinedMeaningCard({
   const occurredAt = meaning.episodeCompletedAt ?? meaning.evaluatedAt
   const isSafety = meaning.presentationPriority === 'SAFETY'
   const professional = meaning.presentationPriority === 'PROFESSIONAL_SUPPORT'
+  const urgentProfessional = meaning.evidence.some(
+    (item) =>
+      item.screeningLevel === 'MODERATELY_SEVERE' ||
+      item.screeningLevel === 'SEVERE',
+  )
   const purposeLabel =
     meaning.episodePurpose === 'REASSESSMENT'
       ? 'Đánh giá lại'
@@ -247,7 +252,9 @@ export function CombinedMeaningCard({
         </header>
         {!isSafety && professional && (
           <h2 className="combined-meaning-next-title">
-            Trao đổi với chuyên gia khi bạn sẵn sàng
+            {urgentProfessional
+              ? 'Nên sớm trao đổi với chuyên gia'
+              : 'Trao đổi với chuyên gia khi bạn sẵn sàng'}
           </h2>
         )}
         <div className="combined-meaning-actions">
