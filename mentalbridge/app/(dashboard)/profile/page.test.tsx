@@ -194,6 +194,47 @@ describe('Care profile page', () => {
     expect(name).toHaveValue('Nguyễn An')
   })
 
+  it('saves the edited profile and renders the authoritative returned version', async () => {
+    const update = vi.fn()
+    const updated = {
+      ...profile,
+      displayName: 'Nguyễn An cập nhật',
+      updatedAt: '2026-09-02T00:02:00Z',
+      version: 1,
+    }
+    mockServer.use(
+      http.get('http://localhost/api/care/profile', () =>
+        HttpResponse.json(profile),
+      ),
+      http.get('http://localhost/api/care/privacy-disclosure', () =>
+        HttpResponse.json(disclosure),
+      ),
+      http.get('http://localhost/api/care/consents', () =>
+        HttpResponse.json({ decisions: [] }),
+      ),
+      http.put('http://localhost/api/care/profile', async ({ request }) => {
+        update(await request.json())
+        return HttpResponse.json(updated)
+      }),
+    )
+    const user = userEvent.setup()
+    renderProfile()
+    const name = await screen.findByLabelText('Tên hiển thị')
+
+    await user.clear(name)
+    await user.type(name, updated.displayName)
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+
+    expect(update).toHaveBeenCalledWith({
+      displayName: updated.displayName,
+      dateOfBirth: profile.dateOfBirth,
+      gender: profile.gender,
+    })
+    expect(
+      await screen.findByRole('heading', { name: updated.displayName }),
+    ).toBeVisible()
+  })
+
   it('shows an adult-rule violation next to the birth-date field without submitting', async () => {
     const update = vi.fn()
     mockServer.use(
