@@ -15,6 +15,7 @@ import type {
   SupportEvaluation,
 } from '@/features/assessment/api/care-contract'
 import type { SupportGuide } from '../api/support-guide-contract'
+import { guideReturnQuery, type GuideContinuation } from './guided-continuation'
 
 const resourceStateCopy: Record<
   SupportGuide['resourceResolution']['status'],
@@ -108,6 +109,7 @@ export default function SupportGuideCard({
   resultEvaluationId,
   headingLevel = 'h2',
   showOpenLink = true,
+  continuation,
 }: {
   guide: SupportGuide
   historical?: boolean
@@ -116,6 +118,7 @@ export default function SupportGuideCard({
   resultEvaluationId?: string
   headingLevel?: 'h1' | 'h2'
   showOpenLink?: boolean
+  continuation?: GuideContinuation | null
 }) {
   const safetyPositive = guide.safety.status === 'POSITIVE_SAFETY_SCREEN'
   const SafetyHeading = headingLevel
@@ -126,13 +129,15 @@ export default function SupportGuideCard({
     : headingLevel
   const professional =
     !safetyPositive &&
-    (supportTier === 'PROFESSIONAL_SUPPORT_RECOMMENDED' ||
-      (!supportTier &&
-        guide.provenance.assessmentResults.some((result) =>
-          ['MODERATE', 'MODERATELY_SEVERE', 'SEVERE'].includes(
-            result.screeningLevel,
-          ),
-        )))
+    (continuation
+      ? continuation.professional === true
+      : supportTier === 'PROFESSIONAL_SUPPORT_RECOMMENDED' ||
+        (!supportTier &&
+          guide.provenance.assessmentResults.some((result) =>
+            ['MODERATE', 'MODERATELY_SEVERE', 'SEVERE'].includes(
+              result.screeningLevel,
+            ),
+          )))
   const phq9Evidence = guide.provenance.assessmentResults.find(
     (result) => result.instrument === 'PHQ9',
   )
@@ -151,6 +156,9 @@ export default function SupportGuideCard({
         ? 'Gợi ý đã lưu: bắt đầu từ những bước nhỏ'
         : 'Bắt đầu từ những bước nhỏ, vừa sức với bạn'
   const resourcesTitle = 'Bài tập bạn có thể thử'
+  const specialistsHref = historical
+    ? '/specialists'
+    : `/specialists?${guideReturnQuery(guide)}`
 
   return (
     <article
@@ -259,23 +267,40 @@ export default function SupportGuideCard({
             </div>
           )}
           <div className="support-guide-answer-actions">
-            {!safetyPositive &&
-              (professional ? (
-                <Link className="support-guide-primary" href="/specialists">
-                  <HeartHandshake aria-hidden="true" /> Tìm chuyên gia phù hợp
-                </Link>
-              ) : guide.resources.length > 0 ? (
-                <a
-                  className="support-guide-primary"
-                  href="#support-guide-resources"
-                >
-                  <BookOpen aria-hidden="true" /> Khám phá bài tập phù hợp
-                </a>
-              ) : (
-                <Link className="support-guide-primary" href="/resources">
-                  Khám phá thư viện tài nguyên
-                </Link>
-              ))}
+            {continuation !== undefined
+              ? continuation &&
+                (continuation.href.startsWith('#') ? (
+                  <a className="support-guide-primary" href={continuation.href}>
+                    {continuation.label} <ArrowRight aria-hidden="true" />
+                  </a>
+                ) : (
+                  <Link
+                    className="support-guide-primary"
+                    href={continuation.href}
+                  >
+                    {continuation.label} <ArrowRight aria-hidden="true" />
+                  </Link>
+                ))
+              : !safetyPositive &&
+                (professional ? (
+                  <Link
+                    className="support-guide-primary"
+                    href={specialistsHref}
+                  >
+                    <HeartHandshake aria-hidden="true" /> Tìm chuyên gia phù hợp
+                  </Link>
+                ) : guide.resources.length > 0 ? (
+                  <a
+                    className="support-guide-primary"
+                    href="#support-guide-resources"
+                  >
+                    <BookOpen aria-hidden="true" /> Khám phá bài tập phù hợp
+                  </a>
+                ) : (
+                  <Link className="support-guide-primary" href="/resources">
+                    Khám phá thư viện tài nguyên
+                  </Link>
+                ))}
             {(safetyPositive || professional) && guide.resources.length > 0 && (
               <a
                 className="support-guide-secondary"
@@ -370,7 +395,7 @@ export default function SupportGuideCard({
                 <a
                   href={
                     resource.externalUrl ??
-                    `/resources/${resource.resourceId}?contentVersion=${encodeURIComponent(resource.contentVersion)}`
+                    `/resources/${resource.resourceId}?contentVersion=${encodeURIComponent(resource.contentVersion)}${historical ? '' : `&${guideReturnQuery(guide)}`}`
                   }
                   target={resource.externalUrl ? '_blank' : undefined}
                   rel={resource.externalUrl ? 'noreferrer' : undefined}
@@ -403,7 +428,7 @@ export default function SupportGuideCard({
                 với chuyên gia tâm lý.
               </p>
             </div>
-            <Link href="/specialists">
+            <Link href={specialistsHref}>
               Trao đổi với chuyên gia <ArrowRight aria-hidden="true" />
             </Link>
           </aside>

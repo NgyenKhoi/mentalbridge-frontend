@@ -570,6 +570,23 @@ describe('ResourceDetail', () => {
     )
   })
 
+  it('returns to the originating Support Guide when opened from it', async () => {
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        fromSupportPlan={false}
+        returnSupportGuideId="30000000-0000-4000-8000-000000000668"
+      />,
+    )
+
+    expect(
+      await screen.findByRole('link', { name: /quay lại gợi ý hỗ trợ/i }),
+    ).toHaveAttribute(
+      'href',
+      '/support-guides/30000000-0000-4000-8000-000000000668',
+    )
+  })
+
   it('shows a bounded not-found state', async () => {
     api.getResourceDetail.mockRejectedValue(new ResourceBrowserError(404))
     render(<ResourceDetail resourceId={resource.id} fromSupportPlan={false} />)

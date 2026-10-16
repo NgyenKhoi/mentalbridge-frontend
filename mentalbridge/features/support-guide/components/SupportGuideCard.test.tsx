@@ -94,7 +94,7 @@ describe('SupportGuideCard', () => {
     ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
     expect(screen.getByRole('link', { name: 'Xem bài tập' })).toHaveAttribute(
       'href',
-      '/resources/30000000-0000-4000-8000-000000000511?contentVersion=0',
+      '/resources/30000000-0000-4000-8000-000000000511?contentVersion=0&from=support-guide&supportGuideId=10000000-0000-4000-8000-000000000511',
     )
     expect(container.textContent).not.toMatch(
       /diagnosis|treatment|totalScore|answers/i,
@@ -194,6 +194,76 @@ describe('SupportGuideCard', () => {
     expect(screen.getAllByText('—')).toHaveLength(2)
     expect(screen.queryByText('0/27')).not.toBeInTheDocument()
     expect(screen.queryByText('0/21')).not.toBeInTheDocument()
+  })
+
+  it('renders only the Care-decided continuation as the primary action', () => {
+    const guide = {
+      ...fixture('AVAILABLE'),
+      safety: {
+        ...fixture('AVAILABLE').safety,
+        status: 'NEGATIVE_SAFETY_SCREEN' as const,
+        reasonCode: 'PHQ9_ITEM9_NEGATIVE' as const,
+      },
+    }
+    const { container } = render(
+      <SupportGuideCard
+        guide={guide}
+        continuation={{
+          href: '/support-plan',
+          label: 'Tiếp tục kế hoạch hiện tại',
+        }}
+      />,
+    )
+
+    expect(
+      screen.getByRole('link', { name: /Tiếp tục kế hoạch hiện tại/ }),
+    ).toHaveAttribute('href', '/support-plan')
+    expect(container.querySelectorAll('.support-guide-primary')).toHaveLength(1)
+    expect(
+      screen.queryByRole('link', { name: /Khám phá bài tập phù hợp/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('uses the Care professional decision for copy instead of guessing from levels', () => {
+    const guide = {
+      ...fixture('AVAILABLE'),
+      safety: {
+        ...fixture('AVAILABLE').safety,
+        status: 'NEGATIVE_SAFETY_SCREEN' as const,
+        reasonCode: 'PHQ9_ITEM9_NEGATIVE' as const,
+      },
+    }
+    render(
+      <SupportGuideCard
+        guide={guide}
+        continuation={{
+          href: '/specialists?from=support-guide&supportGuideId=x',
+          label: 'Tìm chuyên gia phù hợp',
+          professional: true,
+        }}
+      />,
+    )
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Bạn nên trao đổi với chuyên gia tâm lý',
+      }),
+    ).toBeVisible()
+    expect(screen.getAllByRole('link', { name: /chuyên gia/i })).toHaveLength(1)
+    expect(
+      screen.queryByText(/Miễn phí cho mọi tài khoản/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps safety guidance as the only primary step when Care routes to safety', () => {
+    const { container } = render(
+      <SupportGuideCard guide={fixture('AVAILABLE')} continuation={null} />,
+    )
+
+    expect(container.querySelectorAll('.support-guide-primary')).toHaveLength(0)
+    expect(
+      screen.getByRole('link', { name: 'Xem hỗ trợ trong khu vực' }),
+    ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
   })
 
   it('uses a page heading and omits the self-link on a direct saved Guide page', () => {

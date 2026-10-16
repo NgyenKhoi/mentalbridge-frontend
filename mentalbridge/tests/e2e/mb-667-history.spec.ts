@@ -351,12 +351,12 @@ test('MB-667 current Meaning never substitutes an older Guide for its exact scre
 
   await page.goto('/initial-check')
   await expect(
-    page.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
-  ).toBeVisible()
+    page.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+  ).toHaveAttribute('href', '/support-guides')
   await expect(page.locator('a[href^="/support-guides/"]')).toHaveCount(0)
   await expect(
-    page.getByRole('link', { name: /Xem tài nguyên hiện tại/ }),
-  ).toHaveAttribute('href', '/resources')
+    page.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
+  ).toHaveCount(0)
   await page.screenshot({
     path: testInfo.outputPath('mb-667-current-no-matching-guide.png'),
     fullPage: true,
@@ -365,11 +365,8 @@ test('MB-667 current Meaning never substitutes an older Guide for its exact scre
   matchedGuideId = guideId
   await page.reload()
   await expect(
-    page.getByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
-  ).toHaveAttribute(
-    'href',
-    `/support-guides/${guideId}?from=screening-history&resultEvaluationId=${evaluationId}`,
-  )
+    page.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+  ).toHaveAttribute('href', `/support-guides/${guideId}`)
   expect(unrelatedGuideReads).toBe(0)
   expect(guideGenerations).toBe(0)
 })
@@ -634,6 +631,24 @@ test('MB-667 Guide distributes three saved resources across the desktop row', as
         items: [guide],
         nextCursor: null,
         hasMore: false,
+      }),
+    }),
+  )
+  await page.route('**/api/care/guided-journey', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        journeyPolicyVersion: 'mb-guided-journey-v1',
+        stage: 'GUIDE_READY',
+        assessmentInProgress: false,
+        episodeId: '70000000-0000-4000-8000-000000000101',
+        episodeCompletedAt: '2026-09-10T08:00:00Z',
+        presentationEvaluationId: evaluationId,
+        supportGuideId: guide.supportGuideId,
+        nextAction: 'EXPLORE_GUIDE_RESOURCES',
+        currentSupportPlanId: null,
+        entitlementStatus: 'VERIFIED',
       }),
     }),
   )

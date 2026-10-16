@@ -19,10 +19,10 @@ describe('CombinedMeaningCard', () => {
     expect(screen.getByText('5')).toBeVisible()
     expect(screen.getByText('4')).toBeVisible()
     expect(
-      screen.getByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
+      screen.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
     ).toHaveAttribute(
       'href',
-      '/support-guides/90000000-0000-4000-8000-000000000101?from=screening-history&resultEvaluationId=20000000-0000-4000-8000-000000000101',
+      '/support-guides/90000000-0000-4000-8000-000000000101',
     )
     expect(
       screen.queryByRole('button', { name: /Lưu bản tóm tắt/ }),
@@ -30,10 +30,31 @@ describe('CombinedMeaningCard', () => {
   })
 
   it.each(['SELF_GUIDED', 'PROFESSIONAL_SUPPORT', 'SAFETY'] as const)(
-    'never substitutes a generic Guide for a current %s result without a saved Guide',
+    'continues a current %s initial check to the Guide Care prepares for this exact episode',
     (priority) => {
       render(
         <CombinedMeaningCard meaning={combinedMeaningFixture({ priority })} />,
+      )
+
+      expect(
+        screen.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+      ).toHaveAttribute('href', '/support-guides')
+      expect(
+        screen.queryByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
+      ).not.toBeInTheDocument()
+    },
+  )
+
+  it.each(['SELF_GUIDED', 'PROFESSIONAL_SUPPORT', 'SAFETY'] as const)(
+    'never substitutes the initial-check Guide for a current %s reassessment without a saved Guide',
+    (priority) => {
+      render(
+        <CombinedMeaningCard
+          meaning={combinedMeaningFixture({
+            priority,
+            purpose: 'REASSESSMENT',
+          })}
+        />,
       )
 
       expect(
@@ -65,8 +86,26 @@ describe('CombinedMeaningCard', () => {
       screen.getByRole('link', { name: /Xem hỗ trợ trong khu vực/ }),
     ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
     expect(
+      screen.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+    ).toHaveClass('combined-meaning-secondary')
+    expect(
       screen.queryByText(/Nếu bạn không yên tâm về tình trạng của mình/),
     ).not.toBeInTheDocument()
+  })
+
+  it('continues a current professional result to the Guide before specialist discovery', () => {
+    render(
+      <CombinedMeaningCard
+        meaning={combinedMeaningFixture({ priority: 'PROFESSIONAL_SUPPORT' })}
+      />,
+    )
+
+    expect(
+      screen.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+    ).toHaveClass('combined-meaning-primary')
+    expect(screen.getByRole('link', { name: /Xem chuyên gia/ })).toHaveClass(
+      'combined-meaning-secondary',
+    )
   })
 
   it('keeps an exact saved Guide reachable after historical safety guidance', () => {

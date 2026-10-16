@@ -300,6 +300,56 @@ export const supportGuideHistorySchema = z
   })
   .strict()
 
+export const guidedJourneySchema = z
+  .object({
+    journeyPolicyVersion: z.literal('mb-guided-journey-v1'),
+    stage: z.enum(['ASSESSMENT_REQUIRED', 'GUIDE_REQUIRED', 'GUIDE_READY']),
+    assessmentInProgress: z.boolean(),
+    episodeId: z.uuid().nullable(),
+    episodeCompletedAt: z.iso.datetime().nullable(),
+    presentationEvaluationId: z.uuid().nullable(),
+    supportGuideId: z.uuid().nullable(),
+    nextAction: z
+      .enum([
+        'REVIEW_SAFETY_SUPPORT',
+        'FIND_SPECIALIST',
+        'OPEN_CURRENT_PLAN',
+        'REVIEW_PLAN_DRAFT',
+        'START_PLAN_PROPOSAL',
+        'EXPLORE_GUIDE_RESOURCES',
+      ])
+      .nullable(),
+    currentSupportPlanId: z.uuid().nullable(),
+    entitlementStatus: z.enum(['NOT_REQUIRED', 'VERIFIED', 'UNAVAILABLE']),
+  })
+  .strict()
+  .superRefine((journey, context) => {
+    const completed = journey.stage !== 'ASSESSMENT_REQUIRED'
+    const planAction =
+      journey.nextAction === 'OPEN_CURRENT_PLAN' ||
+      journey.nextAction === 'REVIEW_PLAN_DRAFT'
+    if (
+      completed !== (journey.episodeId !== null) ||
+      completed !== (journey.episodeCompletedAt !== null) ||
+      completed !== (journey.nextAction !== null) ||
+      (journey.stage === 'GUIDE_READY') !== (journey.supportGuideId !== null) ||
+      (planAction && journey.currentSupportPlanId === null) ||
+      (journey.nextAction === 'START_PLAN_PROPOSAL' &&
+        (journey.entitlementStatus !== 'VERIFIED' ||
+          journey.currentSupportPlanId !== null)) ||
+      (journey.entitlementStatus === 'UNAVAILABLE' &&
+        journey.nextAction !== 'EXPLORE_GUIDE_RESOURCES') ||
+      (journey.entitlementStatus === 'VERIFIED' &&
+        journey.nextAction !== 'START_PLAN_PROPOSAL' &&
+        journey.nextAction !== 'EXPLORE_GUIDE_RESOURCES')
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Guided journey stage is inconsistent',
+      })
+    }
+  })
+
 const safetyDirectoryEntrySchema = z
   .object({
     directoryEntryId: z.uuid(),
@@ -337,6 +387,7 @@ export type ScreeningEpisode = z.infer<typeof screeningEpisodeSchema>
 export type SupportEvaluation = z.infer<typeof supportEvaluationSchema>
 export type SupportGuide = z.infer<typeof supportGuideSchema>
 export type SupportGuideHistory = z.infer<typeof supportGuideHistorySchema>
+export type GuidedJourney = z.infer<typeof guidedJourneySchema>
 export type SafetyDirectoryResponse = z.infer<
   typeof safetyDirectoryResponseSchema
 >
