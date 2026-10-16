@@ -287,11 +287,8 @@ function EpisodeCard({
           </div>
           <div className={styles.actions}>
             {safety && (
-              <Link
-                className={styles.secondaryAction}
-                href="/safety-directory?trigger=positive-item-9"
-              >
-                <ShieldAlert aria-hidden="true" /> Xem hướng dẫn an toàn
+              <Link className={styles.secondaryAction} href="/safety-directory">
+                <ShieldAlert aria-hidden="true" /> Nếu bạn cần hỗ trợ ngay
               </Link>
             )}
             <Link className={styles.primaryAction} href={resumeHref}>

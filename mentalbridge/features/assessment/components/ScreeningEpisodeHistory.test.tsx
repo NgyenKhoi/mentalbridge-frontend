@@ -182,6 +182,51 @@ describe('ScreeningEpisodeHistory', () => {
     expect(screen.queryByText(safety.baseMeaning.text)).not.toBeInTheDocument()
   })
 
+  it('does not turn an unfinished historical safety answer into a new positive trigger', async () => {
+    const episode = completedScreeningEpisodeFixture(
+      combinedMeaningFixture({ priority: 'SAFETY' }),
+    )
+    mockServer.use(
+      http.get('http://localhost/api/care/screening-episodes/history', () =>
+        HttpResponse.json({
+          items: [
+            {
+              ...episode,
+              status: 'IN_PROGRESS',
+              completedAt: null,
+              presentationEvaluationId: null,
+              meaningState: 'INCOMPLETE',
+              meaning: null,
+              evidence: [
+                episode.evidence[0],
+                {
+                  instrument: 'GAD7',
+                  state: 'MISSING',
+                  assessmentId: null,
+                  totalScore: null,
+                  screeningLevel: null,
+                  safetyStatus: null,
+                },
+              ],
+            },
+          ],
+          nextCursor: null,
+          hasMore: false,
+        }),
+      ),
+    )
+
+    render(<ScreeningEpisodeHistory />)
+
+    expect(
+      await screen.findByRole('link', { name: 'Nếu bạn cần hỗ trợ ngay' }),
+    ).toHaveAttribute('href', '/safety-directory')
+    expect(screen.getByText(/PHQ-9 đã ghi nhận một câu trả lời/)).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: /Làm tiếp bài còn thiếu/ }),
+    ).toBeVisible()
+  })
+
   it('uses the four-range visual while preserving the exact higher PHQ-9 level', async () => {
     const highSeverity = combinedMeaningFixture({
       priority: 'PROFESSIONAL_SUPPORT',

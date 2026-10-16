@@ -879,7 +879,7 @@ test('MB-667 keeps safety authoritative and renders severe professional support 
   await page.goto(`/assessments/results/${safetyEvaluationId}`)
   await expect(
     page.getByRole('heading', {
-      name: 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp',
+      name: 'Thông tin an toàn của lần sàng lọc này',
     }),
   ).toBeVisible()
   await expectNoHorizontalOverflow(page)
