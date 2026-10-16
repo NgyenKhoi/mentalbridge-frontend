@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { mockServer } from '@/tests/mocks/server'
+import { combinedMeaningFixture } from '@/tests/fixtures/combined-meaning'
 
 import GuidedInitialCheck from './GuidedInitialCheck'
 
@@ -96,6 +97,7 @@ function completedState() {
       disclaimer:
         'Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.',
     },
+    combinedMeaning: combinedMeaningFixture(),
   }
 }
 
@@ -129,51 +131,52 @@ describe('GuidedInitialCheck', () => {
     expect(screen.getByText(/không yêu cầu nhật ký/i)).toBeVisible()
   })
 
-  it('keeps safety and every result block visible when optional resources fail', async () => {
+  it('preserves reassessment purpose through profile readiness', async () => {
+    mockServer.use(
+      http.get('http://localhost/api/care/initial-check', () =>
+        HttpResponse.json({ phase: 'CONSENT_REQUIRED' }),
+      ),
+    )
+
+    render(<GuidedInitialCheck purpose="REASSESSMENT" />)
+
+    expect(
+      await screen.findByRole('link', {
+        name: 'Xem quyền riêng tư và tiếp tục',
+      }),
+    ).toHaveAttribute(
+      'href',
+      '/profile?returnTo=%2Finitial-check%3Fpurpose%3Dreassessment',
+    )
+  })
+
+  it('shows the shared combined meaning and preserves the explicit restart confirmation', async () => {
     mockServer.use(
       http.get('http://localhost/api/care/initial-check', () =>
         HttpResponse.json(completedState()),
-      ),
-      http.get('http://localhost/api/resources', () =>
-        problem(503, 'CONTENT_UNAVAILABLE'),
       ),
     )
 
     const { container } = render(<GuidedInitialCheck />)
 
-    await screen.findByRole('heading', { name: 'Kết quả kiểm tra ban đầu' })
+    await screen.findByRole('heading', {
+      name: 'Dấu hiệu trầm cảm ở mức nhẹ, lo âu rất ít.',
+    })
+    expect(screen.getByRole('heading', { name: 'PHQ-9' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'GAD-7' })).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: 'PHQ-9 — triệu chứng trầm cảm' }),
+      screen.getByText(/Nếu bạn không yên tâm về tình trạng của mình/),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: 'GAD-7 — triệu chứng lo âu' }),
+      screen.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', {
-        name: 'Không có câu trả lời cần thêm hướng dẫn an toàn',
-      }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('link', { name: 'Tôi cần hỗ trợ ngay' }),
-    ).toHaveAttribute('href', '/safety-directory')
-    expect(
-      screen.getByRole('heading', { name: 'Tự hỗ trợ có hướng dẫn' }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('heading', { name: 'Hiểu kết quả trong đúng phạm vi' }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('heading', { name: 'Một lựa chọn bạn có thể cân nhắc' }),
-    ).toBeVisible()
-    expect(
-      await screen.findByText(
-        /Dịch vụ tạm thời không khả dụng|Không thể kết nối đến dịch vụ|Tài nguyên tạm thời không khả dụng/,
-      ),
-    ).toBeVisible()
+      screen.queryByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
+    ).not.toBeInTheDocument()
     expect(container.textContent).not.toMatch(/sprint|backend|demo|test/i)
 
     await userEvent.click(
-      screen.getByRole('button', { name: 'Bắt đầu lượt kiểm tra mới' }),
+      screen.getByRole('button', { name: 'Làm lại bài sàng lọc' }),
     )
     const confirmation = screen.getByRole('group', {
       name: 'Xác nhận bắt đầu lượt mới',
@@ -189,6 +192,39 @@ describe('GuidedInitialCheck', () => {
     expect(
       screen.queryByRole('group', { name: 'Xác nhận bắt đầu lượt mới' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('opens only the Guide matched to the newly completed screening pair', async () => {
+    const state = completedState()
+    const matchedGuideId = '90000000-0000-4000-8000-000000000101'
+    state.combinedMeaning.supportGuideId = matchedGuideId
+    const unrelatedCurrentGuide = vi.fn(() =>
+      HttpResponse.json({
+        supportGuideId: '90000000-0000-4000-8000-000000000202',
+      }),
+    )
+    const generateGuide = vi.fn(() => HttpResponse.json({}, { status: 201 }))
+    mockServer.use(
+      http.get('http://localhost/api/care/initial-check', () =>
+        HttpResponse.json(state),
+      ),
+      http.get(
+        'http://localhost/api/care/support-guides/current',
+        unrelatedCurrentGuide,
+      ),
+      http.post('http://localhost/api/care/support-guides', generateGuide),
+    )
+
+    render(<GuidedInitialCheck />)
+
+    expect(
+      await screen.findByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
+    ).toHaveAttribute(
+      'href',
+      `/support-guides/${matchedGuideId}?from=screening-history&resultEvaluationId=${state.combinedMeaning.supportEvaluationId}`,
+    )
+    expect(unrelatedCurrentGuide).not.toHaveBeenCalled()
+    expect(generateGuide).not.toHaveBeenCalled()
   })
 
   it('offers a retry without discarding completed assessments when evaluation is unavailable', async () => {

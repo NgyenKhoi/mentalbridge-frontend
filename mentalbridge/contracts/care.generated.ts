@@ -293,6 +293,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/screening-episodes/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List exact saved PHQ-9/GAD-7 screening episodes
+         * @description Returns one newest-first row per authoritative guided screening episode,
+         *     ordered by completion time descending, falling back to immutable start time
+         *     for unfinished episodes, with episode ID descending as the unique tie-breaker.
+         *     Resumable IN_PROGRESS and READY rows
+         *     expose only the exact evidence already attached to that episode and use
+         *     meaningState INCOMPLETE; missing instruments never borrow a standalone result.
+         *     Each available row contains the combined meaning for that episode's exact
+         *     persisted presentation evaluation and an optional already-persisted matching
+         *     Support Guide identifier. The read never pairs standalone latest assessments,
+         *     generates a Guide, or mutates current journey state. Older incompatible rows
+         *     remain visible with meaningState UNAVAILABLE.
+         */
+        get: operations["listOwnScreeningEpisodeHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/screening-episodes/{episodeId}/assessments/{instrument}": {
         parameters: {
             query?: never;
@@ -699,6 +729,36 @@ export interface paths {
         };
         /** Reopen one immutable owned support evaluation */
         get: operations["getOwnScreeningSupportEvaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-evaluations/{supportEvaluationId}/combined-meaning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a versioned presentation of one exact saved screening pair
+         * @description MB-667 worktree draft for content review; not approved for deployment.
+         *     Care uses only this owned v1 evaluation's exact compatible PHQ-9/GAD-7
+         *     pair, source policy and stored support tier. It does not select newer
+         *     assessments or mutate evaluation, Guide, plan, history or events.
+         *     The twenty base meanings are neutral draft presentation copy, not
+         *     diagnoses, combined severity or new routing decisions. A positive
+         *     independent PHQ-9 safety result takes presentation precedence while
+         *     both instrument levels remain unchanged. Historical source facts are
+         *     labelled with their original evaluation time and source policy; the
+         *     draft presentation version is separate, never claimed as original copy.
+         *     Existing v1 and v2 response shapes remain unchanged for older clients.
+         */
+        get: operations["getOwnCombinedScreeningMeaning"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2315,6 +2375,51 @@ export interface components {
             episode: components["schemas"]["ScreeningEpisode"];
             presentationEvaluation: components["schemas"]["SupportEvaluation"];
         };
+        ScreeningEpisodeHistoryEvidence: {
+            instrument: components["schemas"]["Instrument"];
+            /**
+             * @description AVAILABLE is exact saved evidence; MISSING means the instrument was not attached; UNAVAILABLE means the attached historical record cannot be read safely.
+             * @enum {string}
+             */
+            state: "AVAILABLE" | "MISSING" | "UNAVAILABLE";
+            /** Format: uuid */
+            assessmentId: string | null;
+            totalScore: number | null;
+            screeningLevel: components["schemas"]["ScreeningLevel"] | null;
+            safetyStatus: components["schemas"]["SafetyStatus"] | null;
+        };
+        ScreeningEpisodeHistoryItem: {
+            /** Format: uuid */
+            episodeId: string;
+            purpose: components["schemas"]["ScreeningEpisodePurpose"];
+            status: components["schemas"]["ScreeningEpisodeStatus"];
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: uuid */
+            presentationEvaluationId: string | null;
+            /** @enum {string} */
+            meaningState: "AVAILABLE" | "INCOMPLETE" | "UNAVAILABLE";
+            evidence: [
+                components["schemas"]["ScreeningEpisodeHistoryEvidence"] & {
+                    /** @constant */
+                    instrument?: "PHQ9";
+                },
+                components["schemas"]["ScreeningEpisodeHistoryEvidence"] & {
+                    /** @constant */
+                    instrument?: "GAD7";
+                }
+            ];
+            meaning: components["schemas"]["CombinedScreeningMeaning"] | null;
+        };
+        ScreeningEpisodeHistoryPage: {
+            items: components["schemas"]["ScreeningEpisodeHistoryItem"][];
+            nextCursor: string | null;
+            hasMore: boolean;
+        };
         AssessmentAnswer: {
             /** Format: uuid */
             questionId: string;
@@ -2441,6 +2546,69 @@ export interface components {
             disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
             /** @constant */
             disclaimer: "Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
+        };
+        /** @description Versioned draft presentation of saved facts, not an original evaluation snapshot or a global health classification. */
+        CombinedScreeningMeaning: {
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** @constant */
+            sourcePolicyVersion: "mb-support-routing-capstone-v1";
+            /** Format: date-time */
+            evaluatedAt: string;
+            /** @constant */
+            presentationPolicyVersion: "mb-combined-screening-meaning-v1";
+            /** @constant */
+            contentVersion: "mb-combined-screening-meaning-vi-vn-v1-draft.3";
+            /** @constant */
+            referencePeriodDays: 14;
+            /** Format: uuid */
+            episodeId: string | null;
+            episodePurpose: components["schemas"]["ScreeningEpisodePurpose"] | null;
+            /** Format: date-time */
+            episodeCompletedAt: string | null;
+            /** Format: uuid */
+            domainSupportEvaluationId: string | null;
+            /**
+             * Format: uuid
+             * @description Existing immutable Guide for this exact episode, if already persisted; this read never creates one.
+             */
+            supportGuideId: string | null;
+            /** @description PHQ9 then GAD7; exact original pair, never current standalone history. */
+            evidence: components["schemas"]["CombinedScreeningMeaningEvidence"][];
+            supportTier: components["schemas"]["SupportTier"];
+            baseMeaning: components["schemas"]["CombinedScreeningBaseMeaning"];
+            /**
+             * @description Safety precedes ordinary meaning and CTA; this never changes an instrument level.
+             * @enum {string}
+             */
+            presentationPriority: "SAFETY" | "PROFESSIONAL_SUPPORT" | "SELF_GUIDED";
+            nextStep: components["schemas"]["SupportNextStep"];
+            /** @description Existing reviewed safety guidance for the stored safety tier; null otherwise. */
+            safetyGuidance: string | null;
+            /** @constant */
+            disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
+            /** @constant */
+            disclaimer: "Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
+        };
+        CombinedScreeningMeaningEvidence: {
+            /** Format: uuid */
+            assessmentId: string;
+            instrument: components["schemas"]["Instrument"];
+            questionnaireVersion: string;
+            scoringVersion: string;
+            totalScore: number;
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+            safetyStatus: components["schemas"]["SafetyStatus"];
+        };
+        CombinedScreeningBaseMeaning: {
+            code: string;
+            text: string;
+            rationale: string;
+            /**
+             * @description Existing routing for this pair before the separate safety override; never a global severity.
+             * @enum {string}
+             */
+            supportTier: "SELF_GUIDED_SUPPORT" | "PROFESSIONAL_SUPPORT_RECOMMENDED";
         };
         SupportEvaluationHistoryPage: {
             items: components["schemas"]["SupportEvaluation"][];
@@ -3382,6 +3550,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description COMBINED_SCREENING_MEANING_UNAVAILABLE; the owned source policy, exact pair, stored tier or bounded presentation copy could not be trusted. No latest-pair substitution, false absence or history mutation occurs. */
+        CombinedScreeningMeaningUnavailableProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Current authoritative package is FREE (SUPPORT_PLAN_ENTITLEMENT_REQUIRED); no draft was created */
         SupportPlanEntitlementProblem: {
             headers: {
@@ -4094,6 +4271,36 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    listOwnScreeningEpisodeHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped saved screening episode history */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreeningEpisodeHistoryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     submitScreeningEpisodeAssessment: {
@@ -4840,6 +5047,37 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getOwnCombinedScreeningMeaning: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportEvaluationId: components["parameters"]["SupportEvaluationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Draft combined meaning with exact saved provenance and existing next step */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombinedScreeningMeaning"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            503: components["responses"]["CombinedScreeningMeaningUnavailableProblem"];
         };
     };
     proposeOwnSupportPlanDraft: {

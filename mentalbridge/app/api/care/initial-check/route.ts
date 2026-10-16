@@ -173,8 +173,19 @@ export async function GET(request: NextRequest) {
           'Support evaluation evidence does not match assessments.',
         )
       }
+      const combinedMeaning = await careClient.getCombinedScreeningMeaning(
+        user.accessToken,
+        episode.presentationEvaluationId,
+        correlationId,
+      )
       return stateResponse(
-        { phase: 'COMPLETED', phq9, gad7, evaluation },
+        {
+          phase: 'COMPLETED',
+          phq9,
+          gad7,
+          evaluation,
+          combinedMeaning,
+        },
         correlationId,
         user,
       )

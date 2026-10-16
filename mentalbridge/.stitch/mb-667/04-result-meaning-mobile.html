@@ -1,0 +1,766 @@
+<!DOCTYPE html><html lang="vi" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>02 — Hợp nhất Result &amp; Meaning / Mobile 375×812</title>
+<!-- Google Fonts: Fraunces & Be Vietnam Pro -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              teal: '#1C4D43',
+              'teal-dark': '#13362F',
+              'teal-light': '#E8F1EC',
+              camel: '#B57D3E',
+              bg: '#F0F4F1',
+              sage: '#E3EDE6'
+            }
+          },
+          fontFamily: {
+            serif: ['Fraunces', 'serif'],
+            sans: ['"Be Vietnam Pro"', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="base-styling">
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      background-color: #F0F4F1;
+    }
+    .font-fraunces {
+      font-family: 'Fraunces', serif;
+    }
+    /* Hide scrollbar for clean app shell feel */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Shimmer Skeleton animation */
+    @keyframes shimmerWave {
+      0% {
+        background-position: -200% 0;
+      }
+      100% {
+        background-position: 200% 0;
+      }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, #E2ECE5 25%, #F4FAF6 50%, #E2ECE5 75%);
+      background-size: 200% 100%;
+      animation: shimmerWave 1.8s infinite linear;
+    }
+
+    /* Mầm An Mascot Keyframes & Animations */
+    @keyframes floatMascot {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-6px) rotate(1.5deg);
+      }
+    }
+
+    @keyframes breathAura {
+      0%, 100% {
+        transform: scale(0.92);
+        opacity: 0.35;
+      }
+      50% {
+        transform: scale(1.14);
+        opacity: 0.75;
+      }
+    }
+
+    @keyframes leafSway {
+      0%, 100% {
+        transform: rotate(-3deg);
+      }
+      50% {
+        transform: rotate(4deg);
+      }
+    }
+
+    .animate-float-mascot {
+      animation: floatMascot 4s ease-in-out infinite;
+    }
+
+    .animate-breath-aura {
+      animation: breathAura 4s ease-in-out infinite;
+    }
+
+    .animate-leaf-sway {
+      transform-origin: bottom center;
+      animation: leafSway 3s ease-in-out infinite;
+    }
+
+    /* Smooth appearance transition for cards */
+    .fade-slide-in {
+      animation: fadeSlideIn 0.35s ease-out forwards;
+    }
+
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Accessibility: Respect prefers-reduced-motion */
+    @media (prefers-reduced-motion: reduce) {
+      .animate-float-mascot,
+      .animate-breath-aura,
+      .animate-leaf-sway,
+      .skeleton-shimmer,
+      .fade-slide-in {
+        animation: none !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-brand-bg text-slate-800 antialiased min-h-screen flex flex-col justify-between selection:bg-brand-teal selection:text-white">
+<!-- BEGIN: AppContainer -->
+<div class="w-full max-w-[375px] mx-auto min-h-screen flex flex-col relative pb-20 shadow-xl bg-brand-bg" data-purpose="mobile-viewport">
+<!-- BEGIN: TopNavigation -->
+<header class="sticky top-0 z-30 bg-[#F0F4F1]/95 backdrop-blur-md px-3.5 py-2.5 flex items-center justify-between gap-2 border-b border-black/5" data-purpose="mobile-header">
+<!-- Menu Button -->
+<button aria-label="Menu" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200/80 text-slate-700 shadow-sm active:scale-95 transition-transform shrink-0" type="button">
+<svg class="w-4 h-4 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Search Bar -->
+<div class="relative flex-1" data-purpose="search-box">
+<div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<input class="w-full pl-8 pr-2.5 py-1.5 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-teal focus:border-brand-teal transition-all shadow-sm" placeholder="Tìm kiếm" type="text">
+</div>
+<!-- Community Button -->
+<button class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-700 text-[11px] font-medium shadow-sm active:scale-95 transition-transform shrink-0" type="button">
+<svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span class="">Cộng đồng</span>
+</button>
+<!-- User Avatar Profile -->
+<div class="w-8 h-8 rounded-xl bg-[#CADED3] text-brand-teal font-bold text-[11px] flex items-center justify-center shrink-0 border border-brand-teal/20" title="Tài khoản cá nhân">
+        MA
+      </div>
+</header>
+<!-- END: TopNavigation -->
+<main class="px-3.5 py-3 space-y-3.5 flex-1">
+<!-- Prototype Switcher Bar: [Hiện tại] [Lịch sử] [Thiếu điểm] [Khủng hoảng] [Loading Mầm An] -->
+<div class="bg-white/90 backdrop-blur-md p-1 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between text-[10.5px] font-semibold text-slate-600 gap-1 overflow-x-auto scrollbar-none" id="context-mode-bar">
+<button class="flex-1 py-1 px-1 rounded-lg bg-brand-teal text-white transition-all text-center min-h-[34px] flex items-center justify-center whitespace-nowrap shadow-xs" id="btn-mode-current" onclick="setContextMode('current')" type="button">Hiện tại</button>
+<button class="flex-1 py-1 px-1 rounded-lg hover:bg-slate-100 text-slate-700 transition-all text-center min-h-[34px] flex items-center justify-center whitespace-nowrap" id="btn-mode-historical" onclick="setContextMode('historical')" type="button">Lịch sử</button>
+<button class="flex-1 py-1 px-1 rounded-lg hover:bg-slate-100 text-slate-700 transition-all text-center min-h-[34px] flex items-center justify-center whitespace-nowrap" id="btn-mode-missing" onclick="setContextMode('missing')" type="button">Thiếu điểm</button>
+<button class="flex-1 py-1 px-1 rounded-lg hover:bg-rose-50 text-rose-700 transition-all text-center min-h-[34px] flex items-center justify-center whitespace-nowrap" id="btn-mode-safety" onclick="setContextMode('safety')" type="button">Khủng hoảng</button>
+<button class="flex-1 py-1 px-1.5 rounded-lg bg-brand-teal-light text-brand-teal hover:bg-brand-sage transition-all text-center min-h-[34px] flex items-center justify-center gap-1 font-bold whitespace-nowrap shrink-0 border border-brand-teal/20" id="btn-mode-loading" onclick="setContextMode('loading')" title="Xem trải nghiệm tải Mầm An" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-teal animate-pulse"></span>
+<span class="">Loading Mầm An</span>
+</button>
+</div>
+<!-- BEGIN: MẦM AN LOADING SKELETON STATE (Toggled via mode 'loading') -->
+<div class="hidden space-y-3.5 fade-slide-in" id="loading-state-container">
+<!-- Mascot Friendly Loading Banner -->
+<section class="bg-gradient-to-b from-[#E8F1EC] via-white to-white rounded-2xl p-4 shadow-sm border border-brand-teal/20 text-center relative overflow-hidden">
+<div class="absolute -top-10 -right-10 w-28 h-28 rounded-full bg-brand-sage/40 blur-xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-teal/10 border border-brand-teal/15 text-brand-teal text-[10px] font-semibold uppercase tracking-wider mb-2">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-teal animate-ping"></span>
+<span class="">Đang xử lý kết quả</span>
+</div>
+<!-- Mascot SVG Animation -->
+<div class="relative w-24 h-24 flex items-center justify-center my-1">
+<div class="absolute inset-0 rounded-full bg-brand-teal/10 animate-breath-aura"></div>
+<div class="absolute inset-2 rounded-full bg-[#CADED3]/40 animate-breath-aura" style="animation-delay: 1s;"></div>
+<div class="relative z-10 animate-float-mascot w-18 h-18">
+<svg aria-label="Linh vật Mầm An đang hướng dẫn nhịp thở thư giãn" class="w-16 h-16 drop-shadow-md mx-auto" fill="none" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img">
+<g class="animate-leaf-sway">
+<path d="M50 28 C 49 18, 43 14, 38 15 C 33 16, 36 24, 48 27 Z" fill="#4E8C78"></path>
+<path d="M50 28 C 53 19, 61 16, 65 18 C 69 20, 64 27, 51 28 Z" fill="#68A793"></path>
+<path d="M50 28 Q 50 34 50 36" stroke="#3D7564" stroke-linecap="round" stroke-width="2.5"></path>
+</g>
+<ellipse cx="50" cy="58" fill="#CADED3" rx="27" ry="25" stroke="#A7C7B7" stroke-width="1.5"></ellipse>
+<ellipse cx="44" cy="52" fill="#E8F1EC" rx="19" ry="17"></ellipse>
+<circle cx="36" cy="62" fill="#F4A261" fill-opacity="0.38" r="4.5"></circle>
+<circle cx="64" cy="62" fill="#F4A261" fill-opacity="0.38" r="4.5"></circle>
+<path d="M36 55 Q 40 51 44 55" stroke="#1C4D43" stroke-linecap="round" stroke-width="2"></path>
+<path d="M56 55 Q 60 51 64 55" stroke="#1C4D43" stroke-linecap="round" stroke-width="2"></path>
+<path d="M46 64 Q 50 67 54 64" stroke="#1C4D43" stroke-linecap="round" stroke-width="1.8"></path>
+<path d="M43 69 Q 50 73 57 69" fill="none" stroke="#3D7564" stroke-linecap="round" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<!-- Calming message -->
+<h3 class="font-semibold text-slate-800 text-xs mt-1">Đang tải và tổng hợp kết quả...</h3>
+<p class="text-[11px] text-slate-600 mt-1 max-w-[260px] leading-relaxed">
+          Hít thở nhẹ nhàng cùng Mầm An nhé. Từng khoảnh khắc thảnh thơi đều nuôi dưỡng tâm an lành.
+        </p>
+<button class="mt-3.5 px-3.5 py-1.5 rounded-xl bg-brand-teal text-white text-[11px] font-medium shadow-xs hover:bg-brand-teal-dark active:scale-95 transition-all inline-flex items-center gap-1.5" onclick="setContextMode('current')" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="">Đóng trạng thái tải / Xem kết quả</span>
+</button>
+</div>
+</section>
+<!-- Skeleton Stepper Placeholder -->
+<div class="bg-white rounded-2xl p-3 shadow-xs border border-slate-200/60 flex items-center justify-between px-4">
+<div class="w-7 h-7 rounded-full skeleton-shimmer"></div>
+<div class="h-1 flex-1 mx-2 skeleton-shimmer rounded"></div>
+<div class="w-7 h-7 rounded-full skeleton-shimmer"></div>
+<div class="h-1 flex-1 mx-2 skeleton-shimmer rounded"></div>
+<div class="w-7 h-7 rounded-full skeleton-shimmer"></div>
+<div class="h-1 flex-1 mx-2 skeleton-shimmer rounded"></div>
+<div class="w-7 h-7 rounded-full skeleton-shimmer"></div>
+</div>
+<!-- Skeleton Result Cards Placeholders -->
+<div class="space-y-3">
+<div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-xs space-y-2.5">
+<div class="flex justify-between items-center">
+<div class="w-24 h-4 skeleton-shimmer rounded-md"></div>
+<div class="w-16 h-4 skeleton-shimmer rounded-full"></div>
+</div>
+<div class="w-32 h-7 skeleton-shimmer rounded-md"></div>
+<div class="grid grid-cols-4 gap-1.5 pt-1">
+<div class="h-1.5 skeleton-shimmer rounded-full"></div>
+<div class="h-1.5 skeleton-shimmer rounded-full"></div>
+<div class="h-1.5 skeleton-shimmer rounded-full"></div>
+<div class="h-1.5 skeleton-shimmer rounded-full"></div>
+</div>
+</div>
+<div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-xs space-y-2.5">
+<div class="flex justify-between items-center">
+<div class="w-24 h-4 skeleton-shimmer rounded-md"></div>
+<div class="w-16 h-4 skeleton-shimmer rounded-full"></div>
+</div>
+<div class="w-32 h-7 skeleton-shimmer rounded-md"></div>
+<div class="grid grid-cols-4 gap-1.5 pt-1">
+<div class="h-1.5 skeleton-shimmer rounded-full"></div>
+<div class="h-1.5 skeleton-shimmer rounded-full"></div>
+<div class="h-1.5 skeleton-shimmer rounded-full"></div>
+<div class="h-1.5 skeleton-shimmer rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Skeleton Meaning Card Placeholder -->
+<div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-xs space-y-3">
+<div class="w-3/4 h-5 skeleton-shimmer rounded-md"></div>
+<div class="w-full h-3.5 skeleton-shimmer rounded-md"></div>
+<div class="w-5/6 h-3.5 skeleton-shimmer rounded-md"></div>
+<div class="w-full h-11 skeleton-shimmer rounded-xl mt-3"></div>
+</div>
+</div>
+<!-- END: MẦM AN LOADING SKELETON STATE -->
+<!-- BEGIN: Regular Results Content Container -->
+<div class="space-y-3.5" id="results-content-container">
+<!-- BEGIN: CompactProgressStepper (Hiển thị ở mode Hiện tại) -->
+<div class="hidden items-center justify-between bg-white rounded-xl p-2.5 border border-slate-200/70 shadow-xs" id="historical-nav-bar">
+<button class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-teal hover:underline min-h-[36px]" onclick="setContextMode('current')" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="">Quay lại Kết quả hiện tại</span>
+</button>
+<span class="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full" id="history-context-pill">Hồ sơ lịch sử</span>
+</div>
+<!-- Safety Notice Banner -->
+<div class="hidden bg-rose-50 border border-rose-200 rounded-2xl p-3.5 text-rose-900 shadow-sm" id="safety-banner">
+<div class="flex items-start gap-2.5">
+<div class="w-7 h-7 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 mt-0.5 font-bold">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="flex-1">
+<h4 class="text-xs font-bold text-rose-900 uppercase tracking-tight">Khu vực cần hỗ trợ khẩn cấp</h4>
+<p class="text-[11px] text-rose-700 mt-1 leading-relaxed">Nếu bạn hoặc ai đó đang trải qua khủng hoảng tâm lý nghiêm trọng, hãy liên hệ ngay:</p>
+<div class="mt-2 flex flex-col gap-1.5">
+<a class="flex items-center justify-between bg-white text-rose-700 px-3 py-2 rounded-xl border border-rose-200 font-bold text-xs shadow-xs min-h-[44px]" href="tel:19001234">
+<span class="">Đường dây nóng can thiệp khủng hoảng</span>
+<span class="text-rose-600 underline">1900 1234</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+<!-- 4-Step Stepper -->
+<section class="bg-white rounded-2xl p-3 shadow-xs border border-slate-200/60" data-purpose="stepper-widget" id="stepper-section">
+<div class="flex items-center justify-between relative px-2">
+<div class="absolute left-6 right-6 top-3 h-[2px] bg-brand-teal/30 -z-0"></div>
+<div class="flex flex-col items-center relative z-10">
+<div class="w-6 h-6 rounded-full bg-brand-teal text-white flex items-center justify-center shadow-xs">
+<svg class="w-3 h-3 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<span class="text-[10px] mt-1 font-medium text-slate-600">Sẵn sàng</span>
+</div>
+<div class="flex flex-col items-center relative z-10">
+<div class="w-6 h-6 rounded-full bg-brand-teal text-white flex items-center justify-center shadow-xs">
+<svg class="w-3 h-3 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<span class="text-[10px] mt-1 font-medium text-slate-600">PHQ-9</span>
+</div>
+<div class="flex flex-col items-center relative z-10">
+<div class="w-6 h-6 rounded-full bg-brand-teal text-white flex items-center justify-center shadow-xs">
+<svg class="w-3 h-3 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<span class="text-[10px] mt-1 font-medium text-slate-600">GAD-7</span>
+</div>
+<div class="flex flex-col items-center relative z-10">
+<div class="w-6 h-6 rounded-full bg-brand-teal text-white flex items-center justify-center ring-2 ring-brand-teal/20 shadow-xs font-semibold text-[11px]">
+4
+</div>
+<span class="text-[10px] mt-1 font-semibold text-brand-teal">Kết quả</span>
+</div>
+</div>
+</section>
+<!-- END: CompactProgressStepper -->
+<!-- Notice banner for missing historical scores -->
+<div class="hidden p-3 rounded-2xl bg-amber-50 border border-amber-200/90 text-amber-900 text-xs shadow-xs" id="history-no-guide-notice">
+<div class="flex items-center gap-2 font-bold text-amber-900">
+<svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="">Hồ sơ lịch sử chưa hoàn tất</span>
+</div>
+<p class="text-[11px] text-amber-800 mt-1 leading-relaxed">
+Lần đánh giá này bị gián đoạn trước khi hoàn thành đủ các câu hỏi. Hệ thống chỉ ghi nhận dữ liệu thực tế, không tự suy đoán điểm số.
+</p>
+</div>
+<!-- BEGIN: 2 Compact Result Cards (PHQ-9 & GAD-7) -->
+<section class="space-y-3" data-purpose="clinical-result-cards" id="result-cards-group">
+<!-- Card PHQ-9 (Trầm cảm) -->
+<article class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 transition-all fade-slide-in relative overflow-hidden" id="card-phq9">
+<div class="flex items-start justify-between gap-2">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="text-xs font-bold text-brand-teal uppercase tracking-wide">PHQ-9</span>
+<span class="text-[10px] text-slate-500 font-normal">| 9 câu hỏi</span>
+</div>
+<p class="text-[11px] text-slate-600 mt-0.5 font-medium">Dấu hiệu trầm cảm</p>
+</div>
+<!-- Severity Badge -->
+<span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 inline-flex items-center gap-1 shrink-0" id="phq9-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600" id="phq9-dot"></span>
+<span id="phq9-level-text" class="">Mức tối thiểu</span>
+</span>
+</div>
+<!-- Highlighted Score -->
+<div class="mt-3 flex items-baseline gap-1" id="phq9-score-container">
+<span class="text-[28px] font-bold text-brand-teal leading-none tracking-tight font-serif" id="phq9-score-val">2</span>
+<span class="text-xs font-semibold text-slate-600" id="phq9-score-scale">/27 điểm</span>
+</div>
+<!-- Missing Data State container for PHQ9 (hidden by default) -->
+<div class="hidden mt-2.5 py-1.5 px-2.5 bg-slate-50 rounded-xl border border-slate-200 text-slate-600 text-xs font-medium" id="phq9-missing-view">
+<span class="text-rose-700 font-semibold">Chưa hoàn tất</span> — Không đủ dữ liệu điểm
+</div>
+<!-- 4-Segment Visual Severity Bar -->
+<div class="mt-3 pt-1" id="phq9-bar-container">
+<div class="grid grid-cols-4 gap-1.5" id="phq9-segments">
+<div class="h-1.5 rounded-full bg-emerald-600" id="phq9-seg-1" title="Tối thiểu (0-4)"></div>
+<div class="h-1.5 rounded-full bg-slate-200" id="phq9-seg-2" title="Nhẹ (5-9)"></div>
+<div class="h-1.5 rounded-full bg-slate-200" id="phq9-seg-3" title="Vừa (10-14)"></div>
+<div class="h-1.5 rounded-full bg-slate-200" id="phq9-seg-4" title="Nặng (15-27)"></div>
+</div>
+<div class="flex justify-between items-center text-[10px] text-slate-700 mt-1.5 font-medium px-0.5">
+<span class="text-brand-teal font-semibold" id="phq9-legend-1">Tối thiểu</span>
+<span id="phq9-legend-2" class="">Nhẹ</span>
+<span id="phq9-legend-3" class="">Vừa</span>
+<span id="phq9-legend-4" class="">Nặng</span>
+</div>
+</div>
+</article>
+<!-- Card GAD-7 (Lo âu) -->
+<article class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 transition-all fade-slide-in relative overflow-hidden" id="card-gad7">
+<div class="flex items-start justify-between gap-2">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="text-xs font-bold text-brand-teal uppercase tracking-wide">GAD-7</span>
+<span class="text-[10px] text-slate-500 font-normal">| 7 câu hỏi</span>
+</div>
+<p class="text-[11px] text-slate-600 mt-0.5 font-medium">Dấu hiệu lo âu</p>
+</div>
+<!-- Severity Badge -->
+<span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 inline-flex items-center gap-1 shrink-0" id="gad7-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600" id="gad7-dot"></span>
+<span id="gad7-level-text" class="">Mức tối thiểu</span>
+</span>
+</div>
+<!-- Highlighted Score -->
+<div class="mt-3 flex items-baseline gap-1" id="gad7-score-container">
+<span class="text-[28px] font-bold text-brand-teal leading-none tracking-tight font-serif" id="gad7-score-val">1</span>
+<span class="text-xs font-semibold text-slate-600" id="gad7-score-scale">/21 điểm</span>
+</div>
+<!-- Missing Data State container for GAD7 (hidden by default) -->
+<div class="hidden mt-2.5 py-1.5 px-2.5 bg-slate-50 rounded-xl border border-slate-200 text-slate-600 text-xs font-medium" id="gad7-missing-view">
+<span class="text-rose-700 font-semibold">Chưa hoàn tất</span> — Không đủ dữ liệu điểm
+</div>
+<!-- 4-Segment Visual Severity Bar -->
+<div class="mt-3 pt-1" id="gad7-bar-container">
+<div class="grid grid-cols-4 gap-1.5" id="gad7-segments">
+<div class="h-1.5 rounded-full bg-emerald-600" id="gad7-seg-1" title="Tối thiểu (0-4)"></div>
+<div class="h-1.5 rounded-full bg-slate-200" id="gad7-seg-2" title="Nhẹ (5-9)"></div>
+<div class="h-1.5 rounded-full bg-slate-200" id="gad7-seg-3" title="Vừa (10-14)"></div>
+<div class="h-1.5 rounded-full bg-slate-200" id="gad7-seg-4" title="Nặng (15-21)"></div>
+</div>
+<div class="flex justify-between items-center text-[10px] text-slate-700 mt-1.5 font-medium px-0.5">
+<span class="text-brand-teal font-semibold" id="gad7-legend-1">Tối thiểu</span>
+<span id="gad7-legend-2" class="">Nhẹ</span>
+<span id="gad7-legend-3" class="">Vừa</span>
+<span id="gad7-legend-4" class="">Nặng</span>
+</div>
+</div>
+</article>
+</section>
+<!-- END: 2 Compact Result Cards -->
+<!-- BEGIN: MainMeaningSection (Synthesized Meaning & Action Callouts) -->
+<section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/70 relative" data-purpose="combined-meaning-card" id="main-meaning-card">
+<!-- Sub-header Label -->
+<div class="flex items-center justify-between mb-2">
+<span class="text-[11px] font-semibold tracking-wider uppercase text-brand-teal/90 bg-brand-teal-light px-2.5 py-0.5 rounded-full" id="result-badge">Tổng hợp ý nghĩa</span>
+<span class="text-[10px] text-slate-700 font-medium" id="result-date">14 ngày gần đây</span>
+</div>
+<!-- Headline: Concise Combined Meaning (10-18 words) -->
+<h1 class="font-fraunces text-[19px] leading-[1.35] text-slate-900 mt-2.5 font-semibold" id="result-headline">
+Hai nhóm dấu hiệu được ghi nhận rất ít trong lần sàng lọc này.
+</h1>
+<!-- Directional Supportive Sentence -->
+<p class="text-xs text-slate-600 mt-2 leading-relaxed" id="result-description">
+Bạn có thể bắt đầu với những gợi ý tự hỗ trợ nhằm duy trì trạng thái tích cực hiện tại.
+</p>
+<!-- Clinical Disclaimer -->
+<div class="mt-3 flex items-start gap-1.5 text-[11px] text-slate-700 leading-tight">
+<svg class="w-3.5 h-3.5 shrink-0 text-slate-700 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="font-medium">Dựa trên câu trả lời tự khai trong 14 ngày qua, không phải chẩn đoán y khoa.</span>
+</div>
+<!-- Primary Thumb-friendly CTA -->
+<div class="mt-4 pt-1">
+<a class="w-full min-h-[48px] bg-brand-teal hover:bg-brand-teal-dark active:scale-[0.99] text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2" href="#support-recommendations" id="primary-cta-button">
+<span class="">Xem gợi ý hỗ trợ</span>
+<svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</a>
+<div class="grid grid-cols-2 gap-2 mt-2.5">
+<button class="w-full min-h-[44px] px-2.5 py-2 rounded-xl border border-brand-teal/20 bg-white hover:bg-[#F6FAF8] text-brand-teal text-xs font-medium flex items-center justify-center gap-1.5 transition-colors shadow-xs active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2" onclick="setContextMode('historical')" type="button">
+<svg class="w-3.5 h-3.5 text-brand-teal/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span class="">Lịch sử sàng lọc</span>
+</button>
+<button class="w-full min-h-[44px] px-2.5 py-2 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 text-slate-800 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors shadow-xs active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2" onclick="setContextMode('current')" type="button">
+<svg class="w-3.5 h-3.5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span class="">Làm lại bài</span>
+</button>
+</div>
+</div>
+</section>
+<!-- END: MainMeaningSection -->
+<!-- BEGIN: DisclosureAccordions -->
+<section class="space-y-2.5" data-purpose="accordion-section">
+<!-- Accordion Item 1: Rationale -->
+<div class="bg-white rounded-xl border border-slate-200/70 overflow-hidden shadow-xs">
+<button aria-expanded="false" class="w-full min-h-[44px] px-3.5 py-3 flex items-center justify-between text-left text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2 transition-colors" data-purpose="accordion-trigger" data-target="panel-rationale" type="button" aria-controls="panel-rationale">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-md bg-brand-teal-light text-brand-teal flex items-center justify-center text-[10px] font-bold">?</span>
+<span class="">Vì sao có gợi ý này?</span>
+</div>
+<svg class="w-4 h-4 text-slate-600 transform transition-transform duration-200 ease-out" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+<div class="hidden px-3.5 pb-3 text-xs text-slate-600 border-t border-slate-100 pt-2.5 leading-relaxed bg-slate-50/50" id="panel-rationale">
+Gợi ý được tổng hợp dựa trên thuật toán so chiếu các thang đo lâm sàng tiêu chuẩn PHQ-9 và GAD-7. Do mức độ ảnh hưởng của cả hai nhóm triệu chứng đều ở mức tối thiểu, các chiến lược tự chăm sóc (Self-care), tập thở chánh niệm và duy trì nhịp sinh học là các khuyến nghị tối ưu nhất.
+</div>
+</div>
+<!-- Accordion Item 2: Detailed Breakdown -->
+<div class="bg-white rounded-xl border border-slate-200/70 overflow-hidden shadow-xs">
+<button aria-expanded="false" class="w-full min-h-[44px] px-3.5 py-3 flex items-center justify-between text-left text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2 transition-colors" data-purpose="accordion-trigger" data-target="panel-details" type="button" aria-controls="panel-details">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-md bg-brand-teal-light text-brand-teal flex items-center justify-center text-[10px] font-bold">#</span>
+<span class="">Xem chi tiết điểm số</span>
+</div>
+<svg class="w-4 h-4 text-slate-600 transform transition-transform duration-200 ease-out" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+<div class="hidden px-3.5 pb-3 text-xs text-slate-600 border-t border-slate-100 pt-2.5 leading-relaxed bg-slate-50/50 space-y-2" id="panel-details">
+<div class="flex justify-between items-center py-1 border-b border-slate-200/50">
+<span class="text-slate-600">Thang đo PHQ-9 (Trầm cảm)</span>
+<span class="font-semibold text-slate-900" id="detail-phq9-score">2 / 27 điểm</span>
+</div>
+<div class="flex justify-between items-center py-1 border-b border-slate-200/50">
+<span class="text-slate-600">Thang đo GAD-7 (Lo âu)</span>
+<span class="font-semibold text-slate-900" id="detail-gad7-score">1 / 21 điểm</span>
+</div>
+<div class="flex justify-between items-center py-1 text-[11px] text-slate-500">
+<span class="">Thời gian hoàn tất</span>
+<span id="detail-timestamp" class="">Hôm nay, 14:20</span>
+</div>
+</div>
+</div>
+</section>
+<!-- END: DisclosureAccordions -->
+<!-- BEGIN: EmergencySafetySupport -->
+<footer class="pt-2 text-center" data-purpose="safety-fallback">
+<a class="inline-flex items-center gap-1.5 text-xs text-slate-800 hover:text-brand-teal transition-colors underline underline-offset-4 decoration-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2 rounded-md p-1" href="#safety-guide" onclick="setContextMode('safety'); return false;">
+<svg class="w-3.5 h-3.5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="">Cần trợ giúp khẩn cấp? Xem hướng dẫn an toàn</span>
+</a>
+</footer>
+<!-- END: EmergencySafetySupport -->
+</div>
+<!-- END: Regular Results Content Container -->
+</main>
+<!-- BEGIN: FloatingSupportButton -->
+<div class="fixed bottom-4 right-4 z-40 max-w-[375px]" data-purpose="floating-support-action">
+<button aria-label="Trung tâm hỗ trợ tinh thần" class="w-12 h-12 rounded-full bg-brand-camel hover:bg-[#A36D33] active:scale-95 text-white flex items-center justify-center shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-brand-camel focus:ring-offset-2" onclick="setContextMode('loading')" title="Xem loading Mầm An" type="button">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</button>
+</div>
+<!-- END: FloatingSupportButton -->
+</div>
+<!-- END: AppContainer -->
+<!-- BEGIN: InteractiveScripts -->
+<script data-purpose="result-and-mode-interactions">
+    document.addEventListener('DOMContentLoaded', () => {
+      const triggers = document.querySelectorAll('[data-purpose="accordion-trigger"]');
+      triggers.forEach(trigger => {
+        trigger.addEventListener('click', () => {
+          const targetId = trigger.getAttribute('data-target');
+          const panel = document.getElementById(targetId);
+          const icon = trigger.querySelector('svg');
+          const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+
+          if (panel) {
+            if (isExpanded) {
+              panel.classList.add('hidden');
+              trigger.setAttribute('aria-expanded', 'false');
+              if (icon) icon.classList.remove('rotate-180');
+            } else {
+              panel.classList.remove('hidden');
+              trigger.setAttribute('aria-expanded', 'true');
+              if (icon) icon.classList.add('rotate-180');
+            }
+          }
+        });
+      });
+    });
+
+    // Helper to update segment bars visually without count-up
+    function updateSegments(prefix, activeIndex, activeColorClass) {
+      for (let i = 1; i <= 4; i++) {
+        const seg = document.getElementById(`${prefix}-seg-${i}`);
+        const legend = document.getElementById(`${prefix}-legend-${i}`);
+        if (!seg || !legend) continue;
+
+        if (i === activeIndex) {
+          seg.className = `h-1.5 rounded-full ${activeColorClass}`;
+          legend.className = "text-brand-teal font-semibold";
+        } else {
+          seg.className = "h-1.5 rounded-full bg-slate-200";
+          legend.className = "text-slate-500 font-normal";
+        }
+      }
+    }
+
+    // Set Context Mode function (Current, Historical, Missing, Safety, Loading)
+    function setContextMode(mode) {
+      const btnCurrent = document.getElementById('btn-mode-current');
+      const btnHist = document.getElementById('btn-mode-historical');
+      const btnMissing = document.getElementById('btn-mode-missing');
+      const btnSafe = document.getElementById('btn-mode-safety');
+      const btnLoad = document.getElementById('btn-mode-loading');
+
+      const loadingContainer = document.getElementById('loading-state-container');
+      const resultsContainer = document.getElementById('results-content-container');
+      const histNav = document.getElementById('historical-nav-bar');
+      const safetyBanner = document.getElementById('safety-banner');
+      const stepper = document.getElementById('stepper-section');
+      const missingNotice = document.getElementById('history-no-guide-notice');
+
+      // Elements of 2 result cards
+      const phq9Val = document.getElementById('phq9-score-val');
+      const phq9Scale = document.getElementById('phq9-score-scale');
+      const phq9ScoreContainer = document.getElementById('phq9-score-container');
+      const phq9Badge = document.getElementById('phq9-badge');
+      const phq9Dot = document.getElementById('phq9-dot');
+      const phq9LevelText = document.getElementById('phq9-level-text');
+      const phq9BarContainer = document.getElementById('phq9-bar-container');
+      const phq9MissingView = document.getElementById('phq9-missing-view');
+
+      const gad7Val = document.getElementById('gad7-score-val');
+      const gad7Scale = document.getElementById('gad7-score-scale');
+      const gad7ScoreContainer = document.getElementById('gad7-score-container');
+      const gad7Badge = document.getElementById('gad7-badge');
+      const gad7Dot = document.getElementById('gad7-dot');
+      const gad7LevelText = document.getElementById('gad7-level-text');
+      const gad7BarContainer = document.getElementById('gad7-bar-container');
+      const gad7MissingView = document.getElementById('gad7-missing-view');
+
+      // Headline and description
+      const headline = document.getElementById('result-headline');
+      const description = document.getElementById('result-description');
+      const resultBadge = document.getElementById('result-badge');
+      const resultDate = document.getElementById('result-date');
+      const primaryCta = document.getElementById('primary-cta-button');
+      const detailPhq9 = document.getElementById('detail-phq9-score');
+      const detailGad7 = document.getElementById('detail-gad7-score');
+      const detailTimestamp = document.getElementById('detail-timestamp');
+
+      // Reset button classes
+      [btnCurrent, btnHist, btnMissing, btnSafe].forEach(btn => {
+        if (btn) btn.className = "flex-1 py-1 px-1 rounded-lg hover:bg-slate-100 text-slate-700 transition-all text-center min-h-[34px] flex items-center justify-center whitespace-nowrap text-[10.5px] font-semibold";
+      });
+      if (btnLoad) {
+        btnLoad.className = "flex-1 py-1 px-1.5 rounded-lg bg-brand-teal-light text-brand-teal hover:bg-brand-sage transition-all text-center min-h-[34px] flex items-center justify-center gap-1 font-bold whitespace-nowrap shrink-0 border border-brand-teal/20 text-[10.5px]";
+      }
+
+      // Hide all contextual banners first
+      if (safetyBanner) safetyBanner.classList.add('hidden');
+      if (missingNotice) missingNotice.classList.add('hidden');
+      if (histNav) histNav.classList.add('hidden');
+
+      if (mode === 'loading') {
+        if (btnLoad) {
+          btnLoad.className = "flex-1 py-1 px-1.5 rounded-lg bg-brand-teal text-white transition-all text-center min-h-[34px] flex items-center justify-center gap-1 font-bold whitespace-nowrap shrink-0 shadow-xs text-[10.5px]";
+        }
+        if (loadingContainer) loadingContainer.classList.remove('hidden');
+        if (resultsContainer) resultsContainer.classList.add('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      // Normal display modes
+      if (loadingContainer) loadingContainer.classList.add('hidden');
+      if (resultsContainer) resultsContainer.classList.remove('hidden');
+
+      // Ensure normal score views visible
+      if (phq9ScoreContainer) phq9ScoreContainer.classList.remove('hidden');
+      if (phq9BarContainer) phq9BarContainer.classList.remove('hidden');
+      if (phq9MissingView) phq9MissingView.classList.add('hidden');
+      if (phq9Badge) phq9Badge.classList.remove('hidden');
+
+      if (gad7ScoreContainer) gad7ScoreContainer.classList.remove('hidden');
+      if (gad7BarContainer) gad7BarContainer.classList.remove('hidden');
+      if (gad7MissingView) gad7MissingView.classList.add('hidden');
+      if (gad7Badge) gad7Badge.classList.remove('hidden');
+
+      if (mode === 'current') {
+        if (btnCurrent) btnCurrent.className = "flex-1 py-1 px-1 rounded-lg bg-brand-teal text-white transition-all text-center min-h-[34px] flex items-center justify-center whitespace-nowrap shadow-xs text-[10.5px] font-semibold";
+        if (stepper) stepper.classList.remove('hidden');
+
+        // PHQ-9 Minimal
+        if (phq9Val) phq9Val.textContent = "2";
+        if (phq9Scale) phq9Scale.textContent = "/27 điểm";
+        if (phq9Badge) phq9Badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 inline-flex items-center gap-1 shrink-0";
+        if (phq9Dot) phq9Dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-600";
+        if (phq9LevelText) phq9LevelText.textContent = "Mức tối thiểu";
+        updateSegments('phq9', 1, 'bg-emerald-600');
+
+        // GAD-7 Minimal
+        if (gad7Val) gad7Val.textContent = "1";
+        if (gad7Scale) gad7Scale.textContent = "/21 điểm";
+        if (gad7Badge) gad7Badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 inline-flex items-center gap-1 shrink-0";
+        if (gad7Dot) gad7Dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-600";
+        if (gad7LevelText) gad7LevelText.textContent = "Mức tối thiểu";
+        updateSegments('gad7', 1, 'bg-emerald-600');
+
+        if (resultBadge) resultBadge.textContent = "Kết quả sàng lọc";
+        if (resultDate) resultDate.textContent = "14 ngày gần đây";
+        if (headline) headline.textContent = "Hai nhóm dấu hiệu được ghi nhận rất ít trong lần sàng lọc này.";
+        if (description) description.textContent = "Bạn có thể bắt đầu với những gợi ý tự hỗ trợ nhằm duy trì trạng thái tích cực hiện tại.";
+        if (primaryCta) primaryCta.innerHTML = '<span>Xem gợi ý hỗ trợ</span><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>';
+
+        if (detailPhq9) detailPhq9.textContent = "2 / 27 điểm";
+        if (detailGad7) detailGad7.textContent = "1 / 21 điểm";
+        if (detailTimestamp) detailTimestamp.textContent = "Hôm nay, 14:20";
+      }
+      else if (mode === 'historical') {
+        if (btnHist) btnHist.className = "flex-1 py-1 px-1 rounded-lg bg-brand-teal text-white transition-all text-center min-h-[34px] flex items-center justify-center whitespace-nowrap shadow-xs text-[10.5px] font-semibold";
+        if (histNav) histNav.classList.remove('hidden');
+        if (stepper) stepper.classList.add('hidden');
+
+        // PHQ-9 Mild (8/27)
+        if (phq9Val) phq9Val.textContent = "8";
+        if (phq9Scale) phq9Scale.textContent = "/27 điểm";
+        if (phq9Badge) phq9Badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 inline-flex items-center gap-1 shrink-0";
+        if (phq9Dot) phq9Dot.className = "w-1.5 h-1.5 rounded-full bg-amber-500";
+        if (phq9LevelText) phq9LevelText.textContent = "Mức nhẹ";
+        updateSegments('phq9', 2, 'bg-amber-500');
+
+        // GAD-7 Mild (7/21)
+        if (gad7Val) gad7Val.textContent = "7";
+        if (gad7Scale) gad7Scale.textContent = "/21 điểm";
+        if (gad7Badge) gad7Badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 inline-flex items-center gap-1 shrink-0";
+        if (gad7Dot) gad7Dot.className = "w-1.5 h-1.5 rounded-full bg-amber-500";
+        if (gad7LevelText) gad7LevelText.textContent = "Mức nhẹ";
+        updateSegments('gad7', 2, 'bg-amber-500');
+
+        if (resultBadge) resultBadge.textContent = "Bản ghi lịch sử (Chỉ đọc)";
+        if (resultDate) resultDate.textContent = "Ngày 12/03/2025";
+        if (headline) headline.textContent = "Ghi nhận dấu hiệu trầm cảm và lo âu ở mức độ nhẹ.";
+        if (description) description.textContent = "Hồ sơ lịch sử phản ánh trạng thái của bạn trong giai đoạn trước. Bạn có thể đối chiếu với kết quả hiện tại để nhận biết tiến trình.";
+        if (primaryCta) primaryCta.innerHTML = '<span>Đối chiếu với lần sàng lọc này</span><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>';
+
+        if (detailPhq9) detailPhq9.textContent = "8 / 27 điểm (Mức nhẹ)";
+        if (detailGad7) detailGad7.textContent = "7 / 21 điểm (Mức nhẹ)";
+        if (detailTimestamp) detailTimestamp.textContent = "12/03/2025, 09:15";
+      }
+      else if (mode === 'missing') {
+        if (btnMissing) btnMissing.className = "flex-1 py-1 px-1 rounded-lg bg-brand-teal text-white transition-all text-center min-h-[34px] flex items-center justify-center whitespace-nowrap shadow-xs text-[10.5px] font-semibold";
+        if (histNav) histNav.classList.remove('hidden');
+        if (stepper) stepper.classList.add('hidden');
+        if (missingNotice) missingNotice.classList.remove('hidden');
+
+        // Missing Data State Presentation
+        if (phq9ScoreContainer) phq9ScoreContainer.classList.add('hidden');
+        if (phq9BarContainer) phq9BarContainer.classList.add('hidden');
+        if (phq9MissingView) phq9MissingView.classList.remove('hidden');
+        if (phq9Badge) phq9Badge.classList.add('hidden');
+
+        if (gad7ScoreContainer) gad7ScoreContainer.classList.add('hidden');
+        if (gad7BarContainer) gad7BarContainer.classList.add('hidden');
+        if (gad7MissingView) gad7MissingView.classList.remove('hidden');
+        if (gad7Badge) gad7Badge.classList.add('hidden');
+
+        if (resultBadge) resultBadge.textContent = "Bản ghi lịch sử gián đoạn";
+        if (resultDate) resultDate.textContent = "Ngày 20/02/2025";
+        if (headline) headline.textContent = "Hồ sơ chưa có đủ dữ liệu điểm để đưa ra phân loại.";
+        if (description) description.textContent = "Hệ thống bảo đảm tính toàn vẹn dữ liệu: không tự ước tính điểm số khi người dùng chưa hoàn thành đủ bộ câu hỏi.";
+        if (primaryCta) primaryCta.innerHTML = '<span>Làm lại bản sàng lọc hoàn chỉnh</span><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>';
+
+        if (detailPhq9) detailPhq9.textContent = "Chưa hoàn tất (Không đủ câu trả lời)";
+        if (detailGad7) detailGad7.textContent = "Chưa hoàn tất (Không đủ câu trả lời)";
+        if (detailTimestamp) detailTimestamp.textContent = "20/02/2025, 16:40 (Bị gián đoạn)";
+      }
+      else if (mode === 'safety') {
+        if (btnSafe) btnSafe.className = "flex-1 py-1 px-1 rounded-lg bg-rose-600 text-white transition-all text-center min-h-[34px] flex items-center justify-center whitespace-nowrap shadow-xs text-[10.5px] font-semibold";
+        if (safetyBanner) {
+          safetyBanner.classList.remove('hidden');
+          safetyBanner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    }
+  </script>
+<!-- END: InteractiveScripts -->
+
+
+</body></html>

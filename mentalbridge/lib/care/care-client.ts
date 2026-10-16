@@ -30,6 +30,7 @@ import type {
   ReassessmentSummaryCreateRequest,
   ScreeningEpisode,
   ScreeningEpisodeEvaluationOutcome,
+  ScreeningEpisodeHistoryPage,
   ScreeningEpisodePurpose,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
@@ -65,6 +66,11 @@ import {
   parseSupportGuide,
   parseSupportGuideHistory,
 } from './support-guide-validation'
+import {
+  parseCombinedScreeningMeaning,
+  parseScreeningEpisodeHistory,
+  type CombinedScreeningMeaning,
+} from './combined-meaning-validation'
 
 import {
   parseAnonymousAssessment,
@@ -629,6 +635,23 @@ export const careClient = {
     })
   },
 
+  screeningEpisodeHistory(
+    accessToken: string,
+    cursor: string | undefined,
+    limit: number,
+    correlationId: string,
+  ): Promise<ScreeningEpisodeHistoryPage> {
+    const query = new URLSearchParams({ limit: String(limit) })
+    if (cursor) query.set('cursor', cursor)
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/screening-episodes/history?${query}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseScreeningEpisodeHistory,
+    })
+  },
+
   submitScreeningEpisodeAssessment(
     accessToken: string,
     episodeId: string,
@@ -736,6 +759,21 @@ export const careClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parseSupportEvaluationHistory,
+    })
+  },
+
+  getCombinedScreeningMeaning(
+    accessToken: string,
+    supportEvaluationId: string,
+    correlationId: string,
+  ): Promise<CombinedScreeningMeaning> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-evaluations/${encodeURIComponent(supportEvaluationId)}/combined-meaning`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: (value) =>
+        parseCombinedScreeningMeaning(value, supportEvaluationId),
     })
   },
 
