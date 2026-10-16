@@ -1,19 +1,18 @@
 import { browserApiClient } from '@/lib/api/browser-client'
+import type { GuidedJourney } from '@/features/assessment/api/care-contract'
 import type {
   SupportGuide,
   SupportGuideHistory,
 } from './support-guide-contract'
 
-export async function generateSupportGuide(idempotencyKey: string) {
-  return (
-    await browserApiClient.post<SupportGuide>(
-      '/care/support-guides',
-      undefined,
-      {
-        headers: { 'Idempotency-Key': idempotencyKey },
-      },
-    )
-  ).data
+export async function ensureCurrentSupportGuide() {
+  return (await browserApiClient.post<SupportGuide>('/care/support-guides'))
+    .data
+}
+
+export async function getGuidedJourney() {
+  return (await browserApiClient.get<GuidedJourney>('/care/guided-journey'))
+    .data
 }
 
 export async function getSupportGuideHistory(cursor?: string) {

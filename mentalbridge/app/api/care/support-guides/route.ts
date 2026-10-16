@@ -13,8 +13,6 @@ import {
 } from '@/lib/care/bff-response'
 import { careClient } from '@/lib/care/care-client'
 
-const IDEMPOTENCY_KEY = /^[!-~]{16,128}$/
-
 export async function POST(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
   let user: Awaited<ReturnType<typeof authenticatedCareUser>>
@@ -23,29 +21,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return careAuthenticationFailure(error, correlationId)
   }
-  const key = request.headers.get('idempotency-key') ?? ''
-  if (!IDEMPOTENCY_KEY.test(key)) {
-    return carryCareSession(
-      localProblem(
-        400,
-        'VALIDATION_FAILED',
-        'A valid Idempotency-Key is required.',
-        correlationId,
-      ),
-      user,
-    )
-  }
   try {
-    const episode = await careClient.currentScreeningEpisode(
+    const journey = await careClient.currentGuidedJourney(
       user.accessToken,
-      'INITIAL_CHECK',
       correlationId,
     )
-    if (
-      episode.status !== 'COMPLETED' ||
-      !episode.phq9AssessmentId ||
-      !episode.gad7AssessmentId
-    ) {
+    if (!journey.episodeId) {
       return carryCareSession(
         localProblem(
           409,
@@ -56,19 +37,12 @@ export async function POST(request: NextRequest) {
         user,
       )
     }
-    const guide = await careClient.generateSupportGuide(
+    const guide = await careClient.ensureScreeningEpisodeSupportGuide(
       user.accessToken,
-      {
-        phq9AssessmentId: episode.phq9AssessmentId,
-        gad7AssessmentId: episode.gad7AssessmentId,
-      },
-      key,
+      journey.episodeId,
       correlationId,
     )
-    return carryCareSession(
-      careSuccessResponse(guide, correlationId, 201),
-      user,
-    )
+    return carryCareSession(careSuccessResponse(guide, correlationId), user)
   } catch (error) {
     return carryCareSession(careErrorResponse(error, correlationId), user)
   }
