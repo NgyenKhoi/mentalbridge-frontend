@@ -87,7 +87,6 @@
   font-size: 11px;
 }
 
-.privacy,
 .disclosure {
   display: grid;
   max-width: 1160px;
@@ -101,7 +100,6 @@
   background: #eaf2e9;
 }
 
-.privacyIcon,
 .domain > header > span {
   display: grid;
   width: 44px;
@@ -112,16 +110,13 @@
   color: #236052;
 }
 
-.privacyIcon svg,
 .domain > header svg {
   width: 21px;
   height: 21px;
 }
 
-.privacy h2,
 .domain h2,
 .disclosure h2,
-.hiddenState h2,
 .fullState h1 {
   margin: 0;
   color: #183b33;
@@ -130,44 +125,13 @@
     serif;
 }
 
-.privacy p,
 .domain header p,
 .disclosure p,
-.hiddenState p,
 .fullState p {
   margin: 5px 0 0;
   color: #52645c;
   font-size: 13px;
   line-height: 1.65;
-}
-
-.switch {
-  position: relative;
-  width: 58px;
-  height: 44px;
-  padding: 5px;
-  border: 0;
-  border-radius: 999px;
-  background: #879790;
-  transition: background 160ms ease;
-}
-
-.switch span {
-  display: block;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 3px 9px rgba(20, 55, 47, 0.25);
-  transition: transform 160ms ease;
-}
-
-.switch[aria-checked='true'] {
-  background: #226354;
-}
-
-.switch[aria-checked='true'] span {
-  transform: translateX(22px);
 }
 
 .domains {
@@ -291,7 +255,6 @@
 }
 
 .retry,
-.hiddenState button,
 .fullState button {
   display: inline-flex;
   min-height: 44px;
@@ -307,7 +270,6 @@
 }
 
 .retry svg,
-.hiddenState button svg,
 .fullState button svg {
   width: 17px;
   height: 17px;
@@ -333,7 +295,6 @@
   line-height: 1.6;
 }
 
-.hiddenState,
 .fullState,
 .loading {
   display: grid;
@@ -349,7 +310,6 @@
   text-align: center;
 }
 
-.hiddenState > svg,
 .fullState > svg,
 .loading > svg {
   width: 34px;
@@ -363,21 +323,7 @@
   line-height: 1.65;
 }
 
-.inlineError {
-  max-width: 1160px;
-  margin: 14px auto 0;
-  padding: 12px 15px;
-  border: 1px solid #dfc79e;
-  border-radius: 12px;
-  background: #fff8ea;
-  color: #704b1f;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.switch:focus-visible,
 .retry:focus-visible,
-.hiddenState button:focus-visible,
 .fullState button:focus-visible {
   outline: 3px solid rgba(34, 99, 84, 0.35);
   outline-offset: 3px;
@@ -403,28 +349,11 @@
     min-width: 0;
   }
 
-  .privacy {
-    grid-template-columns: auto minmax(0, 1fr);
-    padding: 18px;
-  }
-
-  .switch {
-    grid-column: 1 / -1;
-    justify-self: end;
-  }
-
   .cards {
     grid-template-columns: 1fr;
   }
 
   .card {
     min-height: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .switch,
-  .switch span {
-    transition: none;
   }
 }
