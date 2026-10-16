@@ -168,11 +168,8 @@ describe('GuidedInitialCheck', () => {
       screen.getByText(/Nếu bạn không yên tâm về tình trạng của mình/),
     ).toBeVisible()
     expect(
-      screen.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
-    ).toBeVisible()
-    expect(
-      screen.queryByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+    ).toHaveAttribute('href', '/support-guides')
     expect(container.textContent).not.toMatch(/sprint|backend|demo|test/i)
 
     await userEvent.click(
@@ -218,11 +215,8 @@ describe('GuidedInitialCheck', () => {
     render(<GuidedInitialCheck />)
 
     expect(
-      await screen.findByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
-    ).toHaveAttribute(
-      'href',
-      `/support-guides/${matchedGuideId}?from=screening-history&resultEvaluationId=${state.combinedMeaning.supportEvaluationId}`,
-    )
+      await screen.findByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
+    ).toHaveAttribute('href', `/support-guides/${matchedGuideId}`)
     expect(unrelatedCurrentGuide).not.toHaveBeenCalled()
     expect(generateGuide).not.toHaveBeenCalled()
   })

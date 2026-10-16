@@ -1,28 +1,28 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
+import type { GuidedJourney } from '@/features/assessment/api/care-contract'
 import { ApiError } from '@/lib/api/api-error'
-import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { MamAnLoadingState } from '@/features/assessment/components/MamAnLoadingState'
 import {
-  generateSupportGuide,
+  getGuidedJourney,
   getSupportGuide,
   getSupportGuideHistory,
 } from '../api/browser-support-guide'
 import type { SupportGuide } from '../api/support-guide-contract'
+import GuidedJourneySteps from './GuidedJourneySteps'
 import SupportGuideCard, {
   type SupportGuideScorePair,
 } from './SupportGuideCard'
+import { guideContinuation, isCurrentJourneyGuide } from './guided-continuation'
 import { loadGuideScores } from './load-guide-scores'
 
 import './support-guide.css'
 
 function message(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.code === 'INITIAL_CHECK_INCOMPLETE')
-      return 'Lịch sử sàng lọc của bạn vẫn được giữ nguyên. Để tạo gợi ý hỗ trợ, hãy hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu.'
     if (error.status === 401)
       return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
     if (error.status === 404)
@@ -40,7 +40,6 @@ export default function SupportGuideJourney({
   historical?: boolean
   resultEvaluationId?: string
 }) {
-  const { showActionToast } = useFeedback()
   const [items, setItems] = useState<SupportGuide[]>([])
   const [scores, setScores] = useState<
     Record<string, SupportGuideScorePair | null>
@@ -48,9 +47,20 @@ export default function SupportGuideJourney({
   const [cursor, setCursor] = useState<string>()
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string>()
-  const generationKey = useRef<string | undefined>(undefined)
+  const [journey, setJourney] = useState<GuidedJourney | null>(null)
+  const [journeyFailed, setJourneyFailed] = useState(false)
+
+  const loadJourney = useCallback(async () => {
+    if (historical || !supportGuideId) return
+    setJourneyFailed(false)
+    try {
+      setJourney(await getGuidedJourney())
+    } catch {
+      setJourney(null)
+      setJourneyFailed(true)
+    }
+  }, [historical, supportGuideId])
 
   const load = useCallback(
     async (next?: string) => {
@@ -58,7 +68,10 @@ export default function SupportGuideJourney({
       setError(undefined)
       try {
         if (supportGuideId) {
-          const guide = await getSupportGuide(supportGuideId)
+          const [guide] = await Promise.all([
+            getSupportGuide(supportGuideId),
+            loadJourney(),
+          ])
           setItems([guide])
           setScores({ [guide.supportGuideId]: await loadGuideScores(guide) })
           setHasMore(false)
@@ -83,7 +96,7 @@ export default function SupportGuideJourney({
         setLoading(false)
       }
     },
-    [supportGuideId],
+    [loadJourney, supportGuideId],
   )
 
   useEffect(() => {
@@ -91,32 +104,13 @@ export default function SupportGuideJourney({
     return () => window.clearTimeout(timer)
   }, [load])
 
-  const create = async () => {
-    setGenerating(true)
-    setError(undefined)
-    generationKey.current ??= crypto.randomUUID()
-    const key = generationKey.current
-    try {
-      const guide = await generateSupportGuide(key)
-      const pair = await loadGuideScores(guide)
-      setScores((current) => ({ ...current, [guide.supportGuideId]: pair }))
-      setItems((current) => [
-        guide,
-        ...current.filter(
-          (item) => item.supportGuideId !== guide.supportGuideId,
-        ),
-      ])
-      generationKey.current = undefined
-      showActionToast({
-        title: 'Đã tạo gợi ý hỗ trợ',
-        description: 'Bạn có thể xem lại nội dung này bất cứ lúc nào.',
-      })
-    } catch (cause) {
-      setError(message(cause))
-    } finally {
-      setGenerating(false)
-    }
-  }
+  const currentGuide =
+    !historical &&
+    items.length === 1 &&
+    isCurrentJourneyGuide(journey, items[0])
+      ? items[0]
+      : null
+  const readOnly = historical || (journey !== null && currentGuide === null)
 
   return (
     <div className="support-guide-page">
@@ -131,18 +125,6 @@ export default function SupportGuideJourney({
               ? 'Nội dung này được mở lại đúng như đã lưu cùng lần sàng lọc trước đây; trang không tạo lại hoặc thay đổi gợi ý lịch sử.'
               : 'Xem các bước hỗ trợ dựa trên cặp kết quả PHQ-9 và GAD-7 trong Kiểm tra ban đầu, rồi chủ động chọn điều phù hợp với bạn.'}
           </p>
-          {!supportGuideId && (
-            <button
-              className="btn btn-primary"
-              type="button"
-              disabled={generating}
-              onClick={() => void create()}
-            >
-              {generating
-                ? 'Đang chuẩn bị gợi ý…'
-                : 'Tạo gợi ý từ Kiểm tra ban đầu'}
-            </button>
-          )}
         </header>
       )}
 
@@ -154,11 +136,28 @@ export default function SupportGuideJourney({
           </button>
         </div>
       )}
+      {!loading && journeyFailed && (
+        <div className="support-guide-state" role="status">
+          <p>
+            Chưa tải được bước tiếp theo. Gợi ý bên dưới vẫn được lưu nguyên
+            vẹn.
+          </p>
+          <button className="btn btn-ghost" onClick={() => void loadJourney()}>
+            Thử lại
+          </button>
+        </div>
+      )}
       {loading && (
         <MamAnLoadingState
           title="Đang tải gợi ý hỗ trợ đã lưu..."
           description="Mầm An đang mở lại gợi ý và đúng cặp kết quả của lần đánh giá này."
           preview="meaning"
+        />
+      )}
+      {!loading && currentGuide && journey && (
+        <GuidedJourneySteps
+          journey={journey}
+          onRetry={() => void loadJourney()}
         />
       )}
       {!loading && !error && items.length === 0 && (
@@ -192,11 +191,18 @@ export default function SupportGuideJourney({
             >
               <SupportGuideCard
                 guide={guide}
-                historical={historical}
+                historical={readOnly}
                 scorePair={scores[guide.supportGuideId]}
                 resultEvaluationId={resultEvaluationId}
                 headingLevel={supportGuideId ? 'h1' : 'h2'}
                 showOpenLink={!supportGuideId}
+                continuation={
+                  guide === currentGuide && journey
+                    ? guideContinuation(journey, guide)
+                    : readOnly
+                      ? undefined
+                      : null
+                }
               />
             </div>
           ))}

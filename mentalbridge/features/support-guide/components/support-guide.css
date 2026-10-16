@@ -33,6 +33,100 @@
   display: grid;
   gap: 24px;
 }
+.support-guide-steps {
+  margin-bottom: 24px;
+  padding: 14px 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.support-guide-steps ol {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.support-guide-steps li {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-align: center;
+}
+.support-guide-steps li:not(:last-child)::after {
+  position: absolute;
+  top: 17px;
+  right: calc(-50% + 24px);
+  left: calc(50% + 24px);
+  height: 2px;
+  border-radius: 999px;
+  background: var(--line);
+  content: '';
+}
+.support-guide-steps li.completed:not(:last-child)::after {
+  background: var(--teal);
+}
+.support-guide-steps li.completed,
+.support-guide-steps li.active {
+  color: var(--teal-deep);
+}
+.support-guide-steps a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+.support-guide-steps a:focus-visible,
+.support-guide-steps button:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 3px;
+}
+.support-guide-step-marker {
+  position: relative;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+.support-guide-step-marker svg {
+  width: 17px;
+  height: 17px;
+}
+.support-guide-steps li.completed .support-guide-step-marker,
+.support-guide-steps li.active .support-guide-step-marker {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  color: var(--surface);
+}
+.support-guide-steps li.active .support-guide-step-marker {
+  box-shadow: 0 0 0 5px var(--teal-pale);
+}
+.support-guide-steps-note {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.support-guide-steps-note button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--teal-deep);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .support-guide-card {
   display: grid;
   gap: 24px;

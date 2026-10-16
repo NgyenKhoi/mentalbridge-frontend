@@ -1,22 +1,25 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { RefreshCw, Sparkles } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 
+import type { GuidedJourney } from '@/features/assessment/api/care-contract'
 import { getInitialCheckState } from '@/features/assessment/api/browser-care'
 import { MamAnLoadingState } from '@/features/assessment/components/MamAnLoadingState'
 import type { InitialCheckState } from '@/features/initial-check/api/initial-check-contract'
-import { ApiError } from '@/lib/api/api-error'
 import {
-  generateSupportGuide,
+  ensureCurrentSupportGuide,
+  getGuidedJourney,
+  getSupportGuide,
   getSupportGuideHistory,
 } from '../api/browser-support-guide'
 import type { SupportGuide } from '../api/support-guide-contract'
+import GuidedJourneySteps from './GuidedJourneySteps'
 import SupportGuideCard, {
   type SupportGuideScorePair,
 } from './SupportGuideCard'
+import { guideContinuation, isCurrentJourneyGuide } from './guided-continuation'
 import { loadGuideScores } from './load-guide-scores'
 import styles from './support-guide-overview.module.css'
 import './support-guide.css'
@@ -29,8 +32,20 @@ function guideDate(value: string) {
   }).format(new Date(value))
 }
 
+async function currentGuide(
+  journey: GuidedJourney,
+  history: readonly SupportGuide[],
+) {
+  if (journey.supportGuideId) {
+    return (
+      history.find((item) => item.supportGuideId === journey.supportGuideId) ??
+      (await getSupportGuide(journey.supportGuideId))
+    )
+  }
+  return journey.episodeId ? ensureCurrentSupportGuide() : null
+}
+
 export default function SupportGuideOverview() {
-  const router = useRouter()
   const [guide, setGuide] = useState<SupportGuide | null>(null)
   const [history, setHistory] = useState<SupportGuide[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -40,32 +55,64 @@ export default function SupportGuideOverview() {
   const [initialCheck, setInitialCheck] = useState<InitialCheckState | null>(
     null,
   )
+  const [journey, setJourney] = useState<GuidedJourney | null>(null)
   const [loading, setLoading] = useState(true)
-  const [generating, setGenerating] = useState(false)
+  const [preparing, setPreparing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const generationKey = useRef<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const [historyResult, checkResult] = await Promise.allSettled([
-      getSupportGuideHistory(),
-      getInitialCheckState(),
-    ])
+    const [historyResult, checkResult, journeyResult] =
+      await Promise.allSettled([
+        getSupportGuideHistory(),
+        getInitialCheckState(),
+        getGuidedJourney(),
+      ])
     setInitialCheck(
       checkResult.status === 'fulfilled' ? checkResult.value : null,
     )
-    if (historyResult.status === 'rejected') {
+    if (
+      historyResult.status === 'rejected' ||
+      journeyResult.status === 'rejected'
+    ) {
       setError('Chưa thể tải gợi ý hỗ trợ. Vui lòng thử lại.')
       setLoading(false)
       return
     }
-    const latest = historyResult.value.items[0] ?? null
-    setHistory(historyResult.value.items)
+    let currentJourney = journeyResult.value
+    let current: SupportGuide | null
+    try {
+      setPreparing(currentJourney.stage === 'GUIDE_REQUIRED')
+      current = await currentGuide(currentJourney, historyResult.value.items)
+      if (currentJourney.stage === 'GUIDE_REQUIRED') {
+        currentJourney = await getGuidedJourney()
+      }
+    } catch {
+      setError(
+        'Chưa thể chuẩn bị gợi ý hỗ trợ. Kết quả sàng lọc của bạn vẫn được lưu, hãy thử lại.',
+      )
+      setLoading(false)
+      setPreparing(false)
+      return
+    }
+    const shown = current ?? historyResult.value.items[0] ?? null
+    setJourney(currentJourney)
+    setHistory(
+      shown
+        ? [
+            shown,
+            ...historyResult.value.items.filter(
+              (item) => item.supportGuideId !== shown.supportGuideId,
+            ),
+          ]
+        : historyResult.value.items,
+    )
     setCursor(historyResult.value.nextCursor ?? null)
     setHasMore(historyResult.value.hasMore)
-    setGuide(latest)
-    setScores(latest ? await loadGuideScores(latest) : null)
+    setGuide(shown)
+    setScores(shown ? await loadGuideScores(shown) : null)
+    setPreparing(false)
     setLoading(false)
   }, [])
 
@@ -73,43 +120,6 @@ export default function SupportGuideOverview() {
     const timeout = window.setTimeout(() => void load(), 0)
     return () => window.clearTimeout(timeout)
   }, [load])
-
-  const create = async () => {
-    if (generating) return
-    setGenerating(true)
-    setError(null)
-    try {
-      const currentCheck = await getInitialCheckState()
-      setInitialCheck(currentCheck)
-      if (currentCheck.phase !== 'COMPLETED') {
-        router.push('/assessments')
-        return
-      }
-      generationKey.current ??= crypto.randomUUID()
-      const created = await generateSupportGuide(generationKey.current)
-      const nextScores = await loadGuideScores(created)
-      setGuide(created)
-      setHistory((current) => [
-        created,
-        ...current.filter(
-          (item) => item.supportGuideId !== created.supportGuideId,
-        ),
-      ])
-      setScores(nextScores)
-      generationKey.current = null
-    } catch (cause) {
-      if (
-        cause instanceof ApiError &&
-        cause.code === 'INITIAL_CHECK_INCOMPLETE'
-      ) {
-        router.push('/assessments')
-        return
-      }
-      setError('Chưa thể tạo gợi ý hỗ trợ. Vui lòng thử lại.')
-    } finally {
-      setGenerating(false)
-    }
-  }
 
   const loadMoreHistory = async () => {
     if (!cursor || historyLoading) return
@@ -140,18 +150,17 @@ export default function SupportGuideOverview() {
       initialCheck.combinedMeaning.domainSupportEvaluationId
       ? initialCheck.evaluation
       : null
-  const hasNewCheck =
-    guide &&
-    initialCheck?.phase === 'COMPLETED' &&
-    initialCheck.combinedMeaning.domainSupportEvaluationId !==
-      guide.supportEvaluationId
+  const isCurrent = guide !== null && isCurrentJourneyGuide(journey, guide)
+  const resumeLabel = journey?.assessmentInProgress
+    ? 'Tiếp tục bài sàng lọc đang làm'
+    : 'Cập nhật sàng lọc mới'
 
   return (
     <div className={styles.page}>
-      {loading || generating ? (
+      {loading ? (
         <MamAnLoadingState
           title={
-            generating
+            preparing
               ? 'Đang chuẩn bị gợi ý hỗ trợ của bạn...'
               : 'Đang tải gợi ý hỗ trợ của bạn...'
           }
@@ -170,6 +179,12 @@ export default function SupportGuideOverview() {
           )}
           {guide ? (
             <>
+              {isCurrent && journey && (
+                <GuidedJourneySteps
+                  journey={journey}
+                  onRetry={() => void load()}
+                />
+              )}
               <div className={styles.contextRow}>
                 <Link
                   href={
@@ -182,22 +197,20 @@ export default function SupportGuideOverview() {
                     ? 'Xem kết quả sàng lọc liên kết'
                     : 'Xem lịch sử sàng lọc'}
                 </Link>
-                {hasNewCheck ? (
-                  <button type="button" onClick={() => void create()}>
-                    <Sparkles aria-hidden="true" /> Tạo gợi ý từ kiểm tra ban
-                    đầu
-                  </button>
-                ) : (
-                  <Link href="/initial-check">
-                    <RefreshCw aria-hidden="true" /> Cập nhật sàng lọc mới
-                  </Link>
-                )}
+                <Link href="/initial-check">
+                  <RefreshCw aria-hidden="true" /> {resumeLabel}
+                </Link>
               </div>
               <SupportGuideCard
                 guide={guide}
                 headingLevel="h1"
                 scorePair={scores}
                 supportTier={evaluation?.supportTier}
+                continuation={
+                  isCurrent && journey
+                    ? guideContinuation(journey, guide)
+                    : undefined
+                }
               />
               <details className={styles.history}>
                 <summary>Lịch sử gợi ý hỗ trợ</summary>
@@ -228,12 +241,14 @@ export default function SupportGuideOverview() {
               <section className={styles.empty}>
                 <h1>Với kết quả của mình, bạn nên làm gì tiếp theo?</h1>
                 <p>
-                  Hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu để
-                  xem những bước hỗ trợ phù hợp.
+                  Hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu, gợi
+                  ý hỗ trợ sẽ xuất hiện ngay sau phần kết quả.
                 </p>
-                <button type="button" onClick={() => void create()}>
-                  <Sparkles aria-hidden="true" /> Tạo gợi ý từ kiểm tra ban đầu
-                </button>
+                <Link href="/initial-check">
+                  {journey?.assessmentInProgress
+                    ? 'Tiếp tục kiểm tra ban đầu'
+                    : 'Bắt đầu kiểm tra ban đầu'}
+                </Link>
               </section>
             )
           )}

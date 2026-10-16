@@ -434,7 +434,9 @@ function DetailDialog({
   )
 }
 
-export default function SpecialistDiscovery() {
+export default function SpecialistDiscovery({
+  returnSupportGuideId,
+}: Readonly<{ returnSupportGuideId?: string }> = {}) {
   const [originatingPlanActionId, setOriginatingPlanActionId] = useState<
     string | null
   >(null)
@@ -556,6 +558,14 @@ export default function SpecialistDiscovery() {
 
   return (
     <main className={styles.page}>
+      {returnSupportGuideId && (
+        <Link
+          className="btn btn-ghost"
+          href={`/support-guides/${returnSupportGuideId}`}
+        >
+          Quay lại gợi ý hỗ trợ
+        </Link>
+      )}
       <header className={styles.hero}>
         <span className={styles.heroPill}>
           <i aria-hidden="true" /> Kết nối trực tuyến
