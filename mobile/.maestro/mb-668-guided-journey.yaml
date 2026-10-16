@@ -1,0 +1,53 @@
+appId: com.mentalbridge.mobile
+name: MB-668 completed initial check continues to the Care-decided next action
+---
+# Author-only evidence. NOT_RUN until protected MB-666 native gate is available.
+# Requires an approved disposable FREE fixture with no open initial check, no
+# ACTIVE/PAUSED or DRAFT plan, negative PHQ-9 item 9 and at least one eligible
+# reviewed Guide resource, so Care returns EXPLORE_GUIDE_RESOURCES. Never reset
+# shared dev.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_USER_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_USER_PASSWORD}'
+- tapOn: 'Đăng nhập'
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Bắt đầu sàng lọc'
+- tapOn: 'Bắt đầu hoặc tiếp tục'
+- assertVisible: 'Bài PHQ-9'
+- repeat:
+    times: 8
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Bài GAD-7'
+- repeat:
+    times: 6
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Kết quả → Gợi ý hỗ trợ → Bước tiếp theo'
+- assertVisible: 'Gợi ý hỗ trợ sau sàng lọc'
+- assertNotVisible: 'Tạo gợi ý'
+- scrollUntilVisible:
+    element: 'Tiếp tục hành trình'
+    direction: DOWN
+- tapOn: 'Bắt đầu với bài tập đầu tiên'
+- assertNotVisible: 'Tiếp tục hành trình'
+- back
+- assertVisible: 'Tiếp tục hành trình'
+- tapOn: '← Quay lại'
+- tapOn: 'Bắt đầu hoặc tiếp tục'
+- scrollUntilVisible:
+    element: 'Tiếp tục hành trình'
+    direction: DOWN
+- assertVisible: 'Bắt đầu với bài tập đầu tiên'

@@ -5,6 +5,7 @@ import { ApiError } from '@/api/api-error'
 import type { AssessmentApi } from './assessment-api'
 import type {
   Assessment,
+  GuidedJourney,
   Questionnaire,
   ScreeningEpisode,
   SupportEvaluation,
@@ -14,9 +15,10 @@ import { AssessmentJourneyScreen } from './AssessmentJourneyScreen'
 
 const mockBack = jest.fn()
 const mockSignOut = jest.fn()
+const mockPush = jest.fn()
 
 jest.mock('expo-router', () => ({
-  router: { back: () => mockBack(), push: jest.fn() },
+  router: { back: () => mockBack(), push: (path: string) => mockPush(path) },
 }))
 
 jest.mock('@/auth/session-context', () => ({
@@ -238,6 +240,27 @@ const guide: SupportGuide = {
   phrasing: { source: 'CARE_APPROVED_STANDARD', status: 'STANDARD' },
 }
 
+function guidedJourney(
+  nextAction: NonNullable<GuidedJourney['nextAction']>,
+): GuidedJourney {
+  return {
+    journeyPolicyVersion: 'mb-guided-journey-v1',
+    stage: 'GUIDE_READY',
+    assessmentInProgress: false,
+    episodeId: completedEpisode.episodeId,
+    episodeCompletedAt: '2026-10-06T08:04:00.000Z',
+    presentationEvaluationId: '40000000-0000-4000-8000-000000000101',
+    supportGuideId: guide.supportGuideId,
+    nextAction,
+    currentSupportPlanId: null,
+    entitlementStatus:
+      nextAction === 'START_PLAN_PROPOSAL' ||
+      nextAction === 'EXPLORE_GUIDE_RESOURCES'
+        ? 'VERIFIED'
+        : 'NOT_REQUIRED',
+  }
+}
+
 function missingEpisode() {
   return new ApiError({ code: 'NOT_FOUND', message: 'Missing', status: 404 })
 }
@@ -289,7 +312,10 @@ function assessmentApi(overrides: Partial<AssessmentApi> = {}): AssessmentApi {
       .fn()
       .mockResolvedValue({ items: [], nextCursor: null, hasMore: false }),
     getSupportEvaluation: jest.fn().mockResolvedValue(evaluation),
-    generateSupportGuide: jest.fn().mockResolvedValue(guide),
+    ensureEpisodeSupportGuide: jest.fn().mockResolvedValue(guide),
+    getGuidedJourney: jest
+      .fn()
+      .mockResolvedValue(guidedJourney('REVIEW_SAFETY_SUPPORT')),
     getSupportGuide: jest.fn().mockResolvedValue(guide),
     listSupportGuides: jest
       .fn()
@@ -370,11 +396,12 @@ describe('mobile assessment and support-guide journey', () => {
       ),
     ).toBeOnTheScreen()
     expect(api.completeEpisode).toHaveBeenCalledWith(emptyEpisode.episodeId)
-    expect(api.generateSupportGuide).toHaveBeenCalledWith(
-      assessment('PHQ9', true).assessmentId,
-      assessment('GAD7').assessmentId,
-      expect.any(String),
+    expect(api.ensureEpisodeSupportGuide).toHaveBeenCalledWith(
+      completedEpisode.episodeId,
     )
+    expect(
+      screen.queryByRole('button', { name: /Tìm chuyên gia|Tiếp tục với/ }),
+    ).toBeNull()
 
     await fireEvent.press(
       screen.getByRole('button', { name: 'Tôi cần hỗ trợ ngay' }),
@@ -512,6 +539,192 @@ describe('mobile assessment and support-guide journey', () => {
       ),
     ).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeOnTheScreen()
+  })
+
+  it('resumes a completed episode with the Care-decided next action and no second Guide request', async () => {
+    const api = assessmentApi({
+      getCurrentEpisode: jest.fn().mockResolvedValue(completedEpisode),
+      getGuidedJourney: jest
+        .fn()
+        .mockResolvedValue(guidedJourney('START_PLAN_PROPOSAL')),
+    })
+    await render(<AssessmentJourneyScreen api={api} />)
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+    )
+    await fireEvent.press(
+      await screen.findByRole('button', {
+        name: 'Tiếp tục với kế hoạch hỗ trợ',
+      }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('./support-plan')
+    expect(api.completeEpisode).not.toHaveBeenCalled()
+    expect(api.getSupportEvaluation).toHaveBeenCalledWith(
+      completedEpisode.presentationEvaluationId,
+    )
+    expect(api.ensureEpisodeSupportGuide).toHaveBeenCalledTimes(1)
+  })
+
+  it('explains a missing next action and recovers it on retry without hiding the Guide', async () => {
+    const api = assessmentApi({
+      getCurrentEpisode: jest.fn().mockResolvedValue(completedEpisode),
+      getGuidedJourney: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValueOnce(guidedJourney('FIND_SPECIALIST')),
+    })
+    await render(<AssessmentJourneyScreen api={api} />)
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+    )
+
+    expect(
+      await screen.findByText(
+        'Chưa tải được bước tiếp theo. Kết quả và gợi ý của bạn vẫn được lưu.',
+      ),
+    ).toBeOnTheScreen()
+    expect(screen.getByText('Gợi ý hỗ trợ sau sàng lọc')).toBeOnTheScreen()
+    expect(
+      screen.queryByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
+    ).toBeNull()
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
+    )
+    expect(mockPush).toHaveBeenCalledWith('./specialists')
+    expect(
+      screen.queryByText(
+        'Chưa tải được bước tiếp theo. Kết quả và gợi ý của bạn vẫn được lưu.',
+      ),
+    ).toBeNull()
+  })
+
+  it('keeps the completed result when the Guide cannot be prepared and retries without resubmitting answers', async () => {
+    const api = assessmentApi({
+      getCurrentEpisode: jest.fn().mockResolvedValue(completedEpisode),
+      ensureEpisodeSupportGuide: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('content offline'))
+        .mockResolvedValueOnce(guide),
+    })
+    await render(<AssessmentJourneyScreen api={api} />)
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+    )
+
+    expect(
+      await screen.findByText('Bạn đã hoàn tất lượt sàng lọc'),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByText(
+        'Chưa chuẩn bị được gợi ý hỗ trợ. Kết quả sàng lọc của bạn đã được lưu.',
+      ),
+    ).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Thử lại' }))
+
+    expect(
+      await screen.findByText('Gợi ý hỗ trợ sau sàng lọc'),
+    ).toBeOnTheScreen()
+    expect(api.ensureEpisodeSupportGuide).toHaveBeenCalledTimes(2)
+    expect(api.submitEpisodeAssessment).not.toHaveBeenCalled()
+  })
+
+  it('explains an unverified package before the always-available resource step', async () => {
+    const api = assessmentApi({
+      getCurrentEpisode: jest.fn().mockResolvedValue(completedEpisode),
+      getGuidedJourney: jest.fn().mockResolvedValue({
+        ...guidedJourney('EXPLORE_GUIDE_RESOURCES'),
+        entitlementStatus: 'UNAVAILABLE',
+      }),
+    })
+    await render(<AssessmentJourneyScreen api={api} />)
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+    )
+
+    expect(
+      await screen.findByText(
+        'Chưa kiểm tra được quyền lợi gói của bạn, nên MentalBridge gợi ý bắt đầu với các bài tập miễn phí.',
+      ),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByRole('button', { name: 'Khám phá thư viện tài nguyên' }),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByRole('button', { name: 'Kiểm tra lại' }),
+    ).toBeOnTheScreen()
+  })
+
+  it('offers the current continuation when the current Guide is reopened from history', async () => {
+    const api = assessmentApi({
+      listSupportGuides: jest.fn().mockResolvedValue({
+        items: [guide],
+        nextCursor: null,
+        hasMore: false,
+      }),
+      getGuidedJourney: jest
+        .fn()
+        .mockResolvedValue(guidedJourney('FIND_SPECIALIST')),
+    })
+    await render(<AssessmentJourneyScreen api={api} />)
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: /Gợi ý sau sàng lọc/ }),
+    )
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Tìm chuyên gia phù hợp' }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith('./specialists')
+  })
+
+  it('opens the Guide exact first resource for the free resource step', async () => {
+    const resourceId = '60000000-0000-4000-8000-000000000668'
+    const api = assessmentApi({
+      getCurrentEpisode: jest.fn().mockResolvedValue(completedEpisode),
+      ensureEpisodeSupportGuide: jest.fn().mockResolvedValue({
+        ...guide,
+        resourceResolution: {
+          ...guide.resourceResolution,
+          status: 'AVAILABLE',
+        },
+        resources: [
+          {
+            resourceId,
+            contentVersion: '1',
+            publicationId: '70000000-0000-4000-8000-000000000668',
+            domain: 'DEPRESSIVE_SYMPTOMS',
+            role: 'PRIMARY',
+            category: 'ARTICLE',
+            title: 'Bắt đầu từ một hoạt động nhỏ',
+            summary: 'Chọn một việc dễ thực hiện.',
+            externalUrl: null,
+          },
+        ],
+      }),
+      getGuidedJourney: jest
+        .fn()
+        .mockResolvedValue(guidedJourney('EXPLORE_GUIDE_RESOURCES')),
+    })
+    await render(<AssessmentJourneyScreen api={api} />)
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Bắt đầu hoặc tiếp tục' }),
+    )
+    await fireEvent.press(
+      await screen.findByRole('button', {
+        name: 'Bắt đầu với bài tập đầu tiên',
+      }),
+    )
+
+    expect(mockPush).toHaveBeenCalledWith(`./resources/${resourceId}`)
   })
 
   it('reopens the exact persisted support-guide snapshot', async () => {
