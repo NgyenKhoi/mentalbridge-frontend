@@ -1,190 +1,195 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { ArrowUpRight, CalendarDays, Check } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Disclosure } from '@/components/ui/Disclosure'
-import { Skeleton } from '@/components/ui/Skeleton'
 import type {
-  ScreeningLevel,
   SupportEvaluation,
   SupportTier,
 } from '@/features/assessment/api/care-contract'
 import { getSupportEvaluationHistory } from '@/features/assessment/api/browser-care'
+import { HistoricalCombinedMeaning } from './HistoricalCombinedMeaning'
+import { MamAnLoadingState } from './MamAnLoadingState'
 
 import styles from './SupportEvaluationHistory.module.css'
 
 const tierLabels: Record<SupportTier, string> = {
-  SELF_GUIDED_SUPPORT: 'Có thể bắt đầu với hỗ trợ tự hướng dẫn',
-  PROFESSIONAL_SUPPORT_RECOMMENDED: 'Nên cân nhắc hỗ trợ từ chuyên gia',
-  SAFETY_FOLLOW_UP_RECOMMENDED: 'Ưu tiên hướng dẫn an toàn và hỗ trợ trực tiếp',
+  SELF_GUIDED_SUPPORT: 'Tự hỗ trợ',
+  PROFESSIONAL_SUPPORT_RECOMMENDED: 'Hỗ trợ chuyên môn',
+  SAFETY_FOLLOW_UP_RECOMMENDED: 'Ưu tiên an toàn',
 }
 
-const levelLabels: Record<ScreeningLevel, string> = {
-  MINIMAL: 'Tối thiểu',
-  MILD: 'Nhẹ',
-  MODERATE: 'Trung bình',
-  MODERATELY_SEVERE: 'Khá nặng',
-  SEVERE: 'Nặng',
+function evaluationDate(item: SupportEvaluation) {
+  return new Date(item.evaluatedAt).toLocaleString('vi-VN')
 }
 
-export function SupportEvaluationHistory() {
+export function SupportEvaluationHistory({
+  active = true,
+}: {
+  active?: boolean
+}) {
   const [items, setItems] = useState<SupportEvaluation[]>([])
+  const [selectedId, setSelectedId] = useState<string>()
   const [cursor, setCursor] = useState<string>()
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<{ cursor?: string }>()
+  const requestRef = useRef<AbortController | null>(null)
+  const started = useRef(false)
 
-  const load = async (next?: string) => {
+  const load = useCallback(async (next?: string) => {
+    requestRef.current?.abort()
+    const controller = new AbortController()
+    requestRef.current = controller
     setLoading(true)
-    setError(false)
+    setError(undefined)
     try {
-      const page = await getSupportEvaluationHistory(next)
-      setItems((current) => (next ? [...current, ...page.items] : page.items))
+      const page = await getSupportEvaluationHistory(next, controller.signal)
+      if (controller.signal.aborted) return
+      setItems((current) => {
+        const records = next ? [...current, ...page.items] : page.items
+        return [
+          ...new Map(
+            records.map((item) => [item.supportEvaluationId, item]),
+          ).values(),
+        ]
+      })
       setCursor(page.nextCursor ?? undefined)
       setHasMore(page.hasMore)
     } catch {
-      setError(true)
+      if (!controller.signal.aborted) setError({ cursor: next })
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 0)
-    return () => window.clearTimeout(timer)
   }, [])
 
-  return (
-    <section className={styles.history} aria-labelledby="support-history-title">
-      <header className={styles.heading}>
-        <div>
-          <span>Kết quả tổng hợp</span>
-          <h2 id="support-history-title">Các bài tổng hợp đã lưu</h2>
-        </div>
-        <p>
-          Mở lại hướng hỗ trợ, diễn giải PHQ-9 và GAD-7, cùng bước tiếp theo của
-          từng lần kiểm tra ban đầu.
-        </p>
-      </header>
+  useEffect(() => {
+    if (!active || started.current) return
+    const timer = window.setTimeout(() => {
+      started.current = true
+      void load()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [active, load])
 
-      {error ? (
+  useEffect(() => () => requestRef.current?.abort(), [])
+
+  const selected =
+    items.find((item) => item.supportEvaluationId === selectedId) ?? items[0]
+
+  return (
+    <section className={styles.history} aria-label="Gợi ý sau sàng lọc đã lưu">
+      {selected && (
+        <div className={styles.toolbar}>
+          <Disclosure
+            className={styles.selector}
+            summaryLabel="Chọn lần sàng lọc để xem kết quả"
+            summary={
+              <span className={styles.selectorLabel}>
+                <CalendarDays aria-hidden="true" /> Chọn lần sàng lọc
+              </span>
+            }
+            meta={
+              <time dateTime={selected.evaluatedAt}>
+                {evaluationDate(selected)}
+              </time>
+            }
+          >
+            <ul className={styles.choices} aria-label="Các kết quả đã lưu">
+              {items.map((item) => (
+                <li key={item.supportEvaluationId}>
+                  <button
+                    type="button"
+                    aria-pressed={
+                      item.supportEvaluationId === selected.supportEvaluationId
+                    }
+                    aria-controls="support-meaning-view"
+                    onClick={() => setSelectedId(item.supportEvaluationId)}
+                  >
+                    <span>
+                      <time dateTime={item.evaluatedAt}>
+                        {evaluationDate(item)}
+                      </time>
+                      <span>{tierLabels[item.supportTier]}</span>
+                    </span>
+                    {item.supportEvaluationId ===
+                      selected.supportEvaluationId && (
+                      <Check aria-hidden="true" />
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {loading && (
+              <p className={styles.loadStatus} role="status">
+                Đang tải thêm kết quả…
+              </p>
+            )}
+            {hasMore && !error && (
+              <button
+                className={styles.loadMore}
+                type="button"
+                disabled={loading}
+                onClick={() => void load(cursor)}
+              >
+                Tải thêm kết quả
+              </button>
+            )}
+          </Disclosure>
+          <Link
+            className={styles.openResult}
+            href={`/assessments/results/${selected.supportEvaluationId}`}
+          >
+            Mở trang kết quả <ArrowUpRight aria-hidden="true" />
+          </Link>
+        </div>
+      )}
+
+      {error && (
         <div className={styles.state} role="alert">
-          <strong>Chưa thể tải các bài tổng hợp</strong>
-          <p>Kết quả đã lưu không bị mất. Bạn có thể thử tải lại.</p>
-          <button type="button" onClick={() => void load()}>
+          <strong>
+            {items.length
+              ? 'Chưa thể tải thêm kết quả'
+              : 'Chưa thể tải kết quả đã lưu'}
+          </strong>
+          <p>Kết quả đã lưu không bị thay đổi. Bạn có thể thử tải lại.</p>
+          <button type="button" onClick={() => void load(error.cursor)}>
             Thử lại
           </button>
         </div>
-      ) : items.length === 0 && !loading ? (
+      )}
+
+      {!selected && loading && (
+        <MamAnLoadingState
+          title="Đang mở kết quả sau sàng lọc"
+          description="Mầm An đang tìm đúng cặp PHQ-9 và GAD-7 đã lưu của bạn."
+          headingLevel="h2"
+          preview="meaning"
+        />
+      )}
+
+      {!selected && !loading && !error && (
         <div className={styles.state}>
-          <strong>Chưa có bài tổng hợp</strong>
+          <h2>Chưa có kết quả tổng hợp</h2>
           <p>
-            Hoàn thành kiểm tra ban đầu gồm PHQ-9 và GAD-7 để nhận một hướng hỗ
-            trợ tổng thể.
+            Hoàn thành PHQ-9 và GAD-7 trong cùng một lượt sàng lọc để xem ý
+            nghĩa kết quả và bước tiếp theo.
           </p>
-        </div>
-      ) : (
-        <div className={styles.list}>
-          {items.map((item) => {
-            const evaluatedAt = new Date(item.evaluatedAt).toLocaleString(
-              'vi-VN',
-            )
-            return (
-              <Disclosure
-                className={styles.summary}
-                contentClassName={styles.disclosureContent}
-                key={item.supportEvaluationId}
-                summaryLabel={`Xem bài tổng hợp ngày ${evaluatedAt}`}
-                summary={
-                  <div className={styles.summaryLead}>
-                    <time dateTime={item.evaluatedAt}>{evaluatedAt}</time>
-                    <h3>{tierLabels[item.supportTier]}</h3>
-                    <p>
-                      Được tổng hợp từ PHQ-9 và GAD-7 trong cùng lượt kiểm tra.
-                    </p>
-                  </div>
-                }
-                meta={
-                  <span className={styles.summaryAction} aria-hidden="true">
-                    <span className={styles.openLabel}>Xem bài tổng hợp</span>
-                    <span className={styles.closeLabel}>Thu gọn</span>
-                  </span>
-                }
-              >
-                <EvaluationDetails item={item} />
-              </Disclosure>
-            )
-          })}
+          <Link href="/initial-check">Làm bài sàng lọc</Link>
         </div>
       )}
 
-      {loading && (
-        <div className={styles.loading} role="status" aria-live="polite">
-          <span className="sr-only">Đang tải các bài tổng hợp…</span>
-          <Skeleton width="42%" height={18} />
-          <Skeleton width="100%" height={92} />
+      {selected && (
+        <div id="support-meaning-view">
+          <HistoricalCombinedMeaning
+            key={selected.supportEvaluationId}
+            supportEvaluationId={selected.supportEvaluationId}
+            embedded
+          />
         </div>
-      )}
-      {hasMore && !loading && (
-        <button
-          className={styles.loadMore}
-          type="button"
-          onClick={() => void load(cursor)}
-        >
-          Tải thêm bài tổng hợp
-        </button>
       )}
     </section>
-  )
-}
-
-function EvaluationDetails({ item }: Readonly<{ item: SupportEvaluation }>) {
-  return (
-    <article className={styles.details}>
-      <header>
-        <span>Hướng hỗ trợ tổng thể</span>
-        <h3>{tierLabels[item.supportTier]}</h3>
-        <p>
-          Đây không phải điểm số chung. MentalBridge xem riêng hai bài sàng lọc
-          và thông tin an toàn để gợi ý mức hỗ trợ phù hợp hơn.
-        </p>
-      </header>
-
-      <div className={styles.meanings}>
-        {item.evidence.map((evidence) => (
-          <section key={evidence.instrument}>
-            <header>
-              <h4>
-                {evidence.instrument === 'PHQ9'
-                  ? 'PHQ-9 · Dấu hiệu liên quan tâm trạng'
-                  : 'GAD-7 · Dấu hiệu lo âu'}
-              </h4>
-              <span>{levelLabels[evidence.screeningLevel]}</span>
-            </header>
-            <p>{evidence.meaning.text}</p>
-            <small>{evidence.meaning.limitation}</small>
-          </section>
-        ))}
-      </div>
-
-      {item.safetyGuidance && (
-        <aside className={styles.safety}>
-          <strong>Thông tin an toàn cần ưu tiên</strong>
-          <p>{item.safetyGuidance}</p>
-        </aside>
-      )}
-
-      <section className={styles.nextStep}>
-        <span>Bước tiếp theo</span>
-        <h4>Một lựa chọn bạn có thể cân nhắc</h4>
-        <p>{item.nextStep.text}</p>
-        <small>{item.nextStep.boundary}</small>
-      </section>
-
-      <aside className={styles.disclaimer}>
-        <strong>Sàng lọc không phải chẩn đoán</strong>
-        <p>{item.disclaimer}</p>
-      </aside>
-    </article>
   )
 }

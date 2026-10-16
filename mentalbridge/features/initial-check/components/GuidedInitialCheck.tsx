@@ -3,14 +3,9 @@
 import Link from 'next/link'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
-import ResourcesList from '@/components/ResourcesList'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
-import type {
-  Assessment,
-  ScreeningLevel,
-  SupportEvaluation,
-  SupportTier,
-} from '@/features/assessment/api/care-contract'
+import { CombinedMeaningCard } from '@/features/assessment/components/CombinedMeaningCard'
+import { MamAnLoadingState } from '@/features/assessment/components/MamAnLoadingState'
 import {
   createInitialCheckEvaluation,
   getInitialCheckState,
@@ -21,20 +16,6 @@ import type { InitialCheckState } from '@/features/initial-check/api/initial-che
 import { ApiError } from '@/lib/api/api-error'
 
 import './guided-initial-check.css'
-
-const screeningLabels: Record<ScreeningLevel, string> = {
-  MINIMAL: 'Tối thiểu',
-  MILD: 'Nhẹ',
-  MODERATE: 'Trung bình',
-  MODERATELY_SEVERE: 'Khá nặng',
-  SEVERE: 'Nặng',
-}
-
-const tierLabels: Record<SupportTier, string> = {
-  SELF_GUIDED_SUPPORT: 'Tự hỗ trợ có hướng dẫn',
-  PROFESSIONAL_SUPPORT_RECOMMENDED: 'Nên cân nhắc hỗ trợ chuyên môn',
-  SAFETY_FOLLOW_UP_RECOMMENDED: 'Nên ưu tiên theo dõi an toàn',
-}
 
 type JourneyIconName =
   | 'check'
@@ -184,10 +165,16 @@ function JourneyProgress({ phase }: { phase: InitialCheckState['phase'] }) {
 
 function ReadinessStep({
   phase,
+  purpose,
 }: {
   phase: 'PROFILE_REQUIRED' | 'CONSENT_REQUIRED'
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT'
 }) {
   const needsProfile = phase === 'PROFILE_REQUIRED'
+  const returnTo =
+    purpose === 'REASSESSMENT'
+      ? '/initial-check?purpose=reassessment'
+      : '/initial-check'
   return (
     <section
       className="initial-check-readiness"
@@ -210,108 +197,12 @@ function ReadinessStep({
       </p>
       <Link
         className="btn btn-primary"
-        href="/profile?returnTo=%2Finitial-check"
+        href={`/profile?returnTo=${encodeURIComponent(returnTo)}`}
       >
         {needsProfile
           ? 'Tạo hồ sơ và tiếp tục'
           : 'Xem quyền riêng tư và tiếp tục'}
       </Link>
-    </section>
-  )
-}
-
-function AssessmentEvidence({
-  title,
-  assessment,
-}: {
-  title: string
-  assessment: Assessment
-}) {
-  const maximum = assessment.instrument === 'PHQ9' ? 27 : 21
-  return (
-    <section
-      className="initial-check-evidence"
-      aria-labelledby={`${assessment.instrument}-title`}
-    >
-      <header className="initial-check-section-header">
-        <div className="initial-check-section-title">
-          <span className="initial-check-section-icon">
-            <JourneyIcon name="clipboard" />
-          </span>
-          <div>
-            <span>Kết quả đã lưu</span>
-            <h2 id={`${assessment.instrument}-title`}>{title}</h2>
-          </div>
-        </div>
-        <span className="initial-check-complete-badge">
-          <JourneyIcon name="check" /> Đã hoàn tất
-        </span>
-      </header>
-      <div className="initial-check-score-row">
-        <p>
-          <strong>{assessment.result.totalScore}</strong>
-          <span>/ {maximum} điểm</span>
-        </p>
-        <p>
-          Mức sàng lọc
-          <strong>{screeningLabels[assessment.result.screeningLevel]}</strong>
-        </p>
-      </div>
-      <progress
-        className="initial-check-score-progress"
-        value={assessment.result.totalScore}
-        max={maximum}
-        aria-label={`${title}: ${assessment.result.totalScore} trên ${maximum} điểm`}
-      />
-      <small className="initial-check-score-context">
-        Phản ánh câu trả lời tự khai trong 14 ngày gần đây
-      </small>
-    </section>
-  )
-}
-
-function SafetyBlock({ evaluation }: { evaluation: SupportEvaluation }) {
-  const phq9 = evaluation.evidence.find((item) => item.instrument === 'PHQ9')!
-  const positive = phq9.safetyStatus === 'POSITIVE_SAFETY_SCREEN'
-  return (
-    <section
-      className={`initial-check-safety ${positive ? 'positive' : ''}`}
-      aria-labelledby="initial-check-safety-title"
-    >
-      <header className="initial-check-section-header">
-        <div className="initial-check-section-title">
-          <span className="initial-check-section-icon">
-            <JourneyIcon name="shield" />
-          </span>
-          <div>
-            <span>Thông tin an toàn</span>
-            <h2 id="initial-check-safety-title">
-              {positive
-                ? 'Ưu tiên xem hướng dẫn an toàn'
-                : 'Không có câu trả lời cần thêm hướng dẫn an toàn'}
-            </h2>
-          </div>
-        </div>
-        <span className="initial-check-priority-badge">
-          {positive ? 'Cần ưu tiên' : 'Đã kiểm tra'}
-        </span>
-      </header>
-      <p>
-        {evaluation.safetyGuidance ??
-          'Câu trả lời PHQ-9 không kích hoạt hướng dẫn bổ sung. Điều này không phải là đánh giá toàn diện về nguy cơ hoặc lời khẳng định rằng bạn đang an toàn.'}
-      </p>
-      <p>
-        MentalBridge không cung cấp ứng cứu khẩn cấp, không giám sát 24/7 và
-        không tự động liên hệ người khác.
-      </p>
-      {positive && (
-        <Link
-          className="btn btn-primary"
-          href="/safety-directory?trigger=positive-item-9"
-        >
-          Xem hỗ trợ trong khu vực đã chọn
-        </Link>
-      )}
     </section>
   )
 }
@@ -331,7 +222,6 @@ function UnifiedResult({
   restarting: boolean
   confirmingRestart: boolean
 }) {
-  const { phq9, gad7, evaluation } = state
   const restartConfirmation = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -340,113 +230,13 @@ function UnifiedResult({
 
   return (
     <div className="initial-check-result">
-      <header className="initial-check-result-hero">
-        <div className="initial-check-result-hero-icon">
-          <JourneyIcon name="check" />
-        </div>
-        <div className="initial-check-result-hero-copy">
-          <span className="initial-check-kicker">Đã hoàn thành</span>
-          <h1 tabIndex={-1}>Kết quả kiểm tra ban đầu</h1>
-          <p>
-            Hai bài phản ánh câu trả lời tự khai về 14 ngày gần đây và được
-            trình bày riêng, không cộng thành một điểm chung.
-          </p>
-          <ul aria-label="Phạm vi kết quả">
-            <li>2 bài sàng lọc</li>
-            <li>Khung 14 ngày</li>
-          </ul>
-        </div>
-      </header>
-
-      <AssessmentEvidence
-        title="PHQ-9 — triệu chứng trầm cảm"
-        assessment={phq9}
+      <CombinedMeaningCard
+        meaning={state.combinedMeaning}
+        onRestart={confirmingRestart ? undefined : onRequestRestart}
+        restarting={restarting}
       />
-      <AssessmentEvidence title="GAD-7 — triệu chứng lo âu" assessment={gad7} />
-      <SafetyBlock evaluation={evaluation} />
-
-      <section
-        className="initial-check-tier"
-        aria-labelledby="support-tier-title"
-      >
-        <span className="initial-check-section-icon">
-          <JourneyIcon name="route" />
-        </span>
-        <div>
-          <span>Hướng hỗ trợ tổng thể</span>
-          <h2 id="support-tier-title">{tierLabels[evaluation.supportTier]}</h2>
-          <p>
-            Được xác định từ hai kết quả đã lưu và thông tin an toàn ở trên.
-          </p>
-        </div>
-      </section>
-
-      <section
-        className="initial-check-meaning"
-        aria-labelledby="meaning-title"
-      >
-        <header className="initial-check-section-title">
-          <span className="initial-check-section-icon">
-            <JourneyIcon name="spark" />
-          </span>
-          <div>
-            <span>Ý nghĩa của từng kết quả</span>
-            <h2 id="meaning-title">Hiểu kết quả trong đúng phạm vi</h2>
-          </div>
-        </header>
-        <div className="initial-check-meaning-grid">
-          {evaluation.evidence.map((evidence) => (
-            <article key={evidence.instrument}>
-              <header>
-                <h3>{evidence.instrument === 'PHQ9' ? 'PHQ-9' : 'GAD-7'}</h3>
-                <span>{screeningLabels[evidence.screeningLevel]}</span>
-              </header>
-              <p>{evidence.meaning.text}</p>
-              <small>{evidence.meaning.limitation}</small>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="initial-check-next" aria-labelledby="next-step-title">
-        <span className="initial-check-section-icon">
-          <JourneyIcon name="arrow" />
-        </span>
-        <div>
-          <span>Bước tiếp theo</span>
-          <h2 id="next-step-title">Một lựa chọn bạn có thể cân nhắc</h2>
-          <p>{evaluation.nextStep.text}</p>
-          <small>{evaluation.nextStep.boundary}</small>
-        </div>
-      </section>
-
-      <aside className="initial-check-disclaimer">
-        <span className="initial-check-section-icon">
-          <JourneyIcon name="info" />
-        </span>
-        <div>
-          <strong>Sàng lọc không phải chẩn đoán</strong>
-          <p>{evaluation.disclaimer}</p>
-        </div>
-      </aside>
-
-      <section
-        className="initial-check-resources"
-        aria-label="Tài nguyên hỗ trợ tùy chọn"
-      >
-        <header className="initial-check-resources-intro">
-          <span>Tùy chọn</span>
-          <h2>Tài nguyên bạn có thể xem tiếp</h2>
-          <p>
-            Bạn chủ động chọn xem; không có hành động nào được thực hiện tự
-            động.
-          </p>
-        </header>
-        <ResourcesList limit={3} />
-      </section>
-
-      <div className="initial-check-result-actions">
-        {confirmingRestart ? (
+      {confirmingRestart && (
+        <div className="initial-check-result-actions">
           <div
             ref={restartConfirmation}
             className="initial-check-restart-confirm"
@@ -475,30 +265,8 @@ function UnifiedResult({
               {restarting ? 'Đang chuẩn bị…' : 'Xác nhận lượt mới'}
             </button>
           </div>
-        ) : (
-          <>
-            <Link className="btn btn-outline" href="/safety-directory">
-              Tôi cần hỗ trợ ngay
-            </Link>
-            <button
-              className="btn btn-primary"
-              type="button"
-              onClick={onRequestRestart}
-            >
-              <JourneyIcon name="refresh" />
-              Bắt đầu lượt kiểm tra mới
-            </button>
-            <Link className="btn btn-ghost" href="/assessments">
-              <JourneyIcon name="history" />
-              Xem lịch sử sàng lọc
-            </Link>
-            <Link className="btn btn-primary" href="/support-guides">
-              <JourneyIcon name="spark" />
-              Xem gợi ý hỗ trợ
-            </Link>
-          </>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -511,7 +279,6 @@ export default function GuidedInitialCheck({
   const { showActionToast } = useFeedback()
   const [state, setState] = useState<InitialCheckState | null>(null)
   const [loading, setLoading] = useState(true)
-  const [evaluating, setEvaluating] = useState(false)
   const [restarting, setRestarting] = useState(false)
   const [confirmingRestart, setConfirmingRestart] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -528,21 +295,15 @@ export default function GuidedInitialCheck({
       setLoading(false)
 
       if (nextState.phase === 'EVALUATION_PENDING') {
-        setEvaluating(true)
-        try {
-          await createInitialCheckEvaluation(purpose)
-          nextState = await getInitialCheckState(purpose)
-          if (requestId !== activeRequest.current) return
-          setState(nextState)
-        } finally {
-          if (requestId === activeRequest.current) setEvaluating(false)
-        }
+        await createInitialCheckEvaluation(purpose)
+        nextState = await getInitialCheckState(purpose)
+        if (requestId !== activeRequest.current) return
+        setState(nextState)
       }
     } catch (cause) {
       if (requestId !== activeRequest.current) return
       setError(errorMessage(cause))
       setLoading(false)
-      setEvaluating(false)
     }
   }, [purpose])
 
@@ -573,15 +334,12 @@ export default function GuidedInitialCheck({
 
   if (loading && !state) {
     return (
-      <section
-        className="initial-check-runtime-state"
-        aria-live="polite"
-        aria-busy="true"
-      >
-        <span className="care-loader" aria-hidden="true" />
-        <h1>Đang xác định bước tiếp theo</h1>
-        <p>MentalBridge đang kiểm tra hồ sơ và các bước đã hoàn thành.</p>
-      </section>
+      <MamAnLoadingState
+        title="Đang chuẩn bị hành trình của bạn"
+        description="Mầm An đang kiểm tra các bước bạn đã hoàn thành để mở đúng phần tiếp theo."
+        headingLevel="h1"
+        preview="meaning"
+      />
     )
   }
 
@@ -613,10 +371,12 @@ export default function GuidedInitialCheck({
 
   return (
     <div className="initial-check-flow">
-      <JourneyProgress phase={state.phase} />
+      {state.phase !== 'EVALUATION_PENDING' && (
+        <JourneyProgress phase={state.phase} />
+      )}
       {(state.phase === 'PROFILE_REQUIRED' ||
         state.phase === 'CONSENT_REQUIRED') && (
-        <ReadinessStep phase={state.phase} />
+        <ReadinessStep phase={state.phase} purpose={purpose} />
       )}
       {state.phase === 'PHQ9' && (
         <AssessmentFlow
@@ -647,18 +407,12 @@ export default function GuidedInitialCheck({
         </div>
       )}
       {state.phase === 'EVALUATION_PENDING' && (
-        <section
-          className="initial-check-runtime-state"
-          aria-live="polite"
-          aria-busy={evaluating}
-        >
-          <span className="care-loader" aria-hidden="true" />
-          <h1>Đang tổng hợp kết quả đã lưu</h1>
-          <p>
-            PHQ-9 và GAD-7 đã hoàn thành. Vui lòng giữ trang này mở trong giây
-            lát.
-          </p>
-        </section>
+        <MamAnLoadingState
+          title="Đang tổng hợp kết quả đã lưu"
+          description="PHQ-9 và GAD-7 đã hoàn thành. Mầm An đang đối chiếu đúng cặp kết quả của lượt này."
+          headingLevel="h1"
+          preview="meaning"
+        />
       )}
       {state.phase === 'COMPLETED' && (
         <UnifiedResult

@@ -76,7 +76,7 @@
     [class*='-table-wrap'],
     [class*='-preferences'],
     [class*='-summary']
-  ),
+  ):not(:where(.ref-content-screening *)),
 .role-shell
   :is(
     .role-panel,
@@ -1322,7 +1322,7 @@
     [class*='-table-wrap'],
     [class*='-preferences'],
     [class*='-summary']
-  ),
+  ):not(:where(.ref-content-screening *)),
 .role-shell
   :is(
     .role-panel,
@@ -1354,11 +1354,11 @@
   background: var(--surface-soft) !important;
   border-color: var(--line) !important;
 }
-.ref-shell :is(h1, h2, h3, h4, strong),
+.ref-shell :is(h1, h2, h3, h4, strong):not(:where(.ref-content-screening *)),
 .role-shell :is(h1, h2, h3, h4, strong):not(:where([data-availability-ui] *)) {
   color: var(--ink) !important;
 }
-.ref-shell :is(p, span, small),
+.ref-shell :is(p, span, small):not(:where(.ref-content-screening *)),
 .role-shell :is(p, span, small):not(:where([data-availability-ui] *)) {
   color: var(--ink-soft) !important;
 }

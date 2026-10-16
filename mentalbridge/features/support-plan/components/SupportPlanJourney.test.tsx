@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api/api-error'
@@ -24,6 +25,7 @@ const api = vi.hoisted(() => ({
   replaceSupportPlanActionSchedule: vi.fn(),
   replaceSupportPlanPersonalization: vi.fn(),
   reviewSupportPlanReplacement: vi.fn(),
+  requestSupportPlanActionCompanionExplanation: vi.fn(),
 }))
 
 const assessmentApi = vi.hoisted(() => ({
@@ -202,6 +204,21 @@ describe('SupportPlanJourney', () => {
     api.getCurrentSupportPlanDraftActions.mockImplementation(() =>
       api.getSupportPlanActions(),
     )
+    api.requestSupportPlanActionCompanionExplanation.mockResolvedValue({
+      schemaVersion: 'support-plan-companion-message-v1',
+      supportPlanId: supportPlanFixture().supportPlanId,
+      actionId: '20000000-0000-4000-8000-000000000650',
+      intent: 'EXPLAIN_ACTION',
+      surface: 'PLAN',
+      text: 'Phản hồi đã kiểm duyệt.',
+      delivery: 'GENERATED',
+      policyVersion: 'support-plan-companion-policy-v1',
+      promptVersion: 'support-plan-companion-prompt-v1',
+      templateVersion: 'support-plan-companion-template-v1',
+      provider: 'OPENAI',
+      model: 'test-model',
+      fallbackReason: null,
+    })
     api.getSupportPlanPersonalization.mockResolvedValue({
       value: {
         personalizationId: null,
@@ -237,6 +254,283 @@ describe('SupportPlanJourney', () => {
     expect(await screen.findByText('Kế hoạch đang thực hiện')).toBeVisible()
     expect(api.getCurrentSupportPlan).toHaveBeenCalledTimes(1)
     expect(api.getCurrentSupportPlanDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it('deduplicates rapid and cross-card contextual requests until the admitted request settles', async () => {
+    const user = userEvent.setup()
+    const plan = activePlan()
+    const firstActionId = '20000000-0000-4000-8000-000000000650'
+    const secondActionId = '20000000-0000-4000-8000-000000000651'
+    const action = (actionId: string, title: string) => ({
+      actionId,
+      actionType: 'RESOURCE' as const,
+      actionVersion: 1,
+      representationMode: 'V2_RESOURCE_ADAPTER' as const,
+      status: 'ACTIVE' as const,
+      pathRole: 'PRIMARY' as const,
+      purposeCode: 'UNDERSTAND_CURRENT_PATTERN',
+      rationale: 'Lý do đã duyệt.',
+      ordinal: 1,
+      source: null,
+      provenance: {
+        category: 'SYSTEM_POLICY' as const,
+        referenceId: null,
+        referenceVersion: null,
+        acceptedAt: '2026-10-14T00:00:00Z',
+      },
+      presentation: {
+        title,
+        summary: null,
+        instructions: null,
+        externalUrl: null,
+      },
+      schedules: [],
+      createdAt: '2026-10-14T00:00:00Z',
+      updatedAt: '2026-10-14T00:00:00Z',
+      activatedAt: '2026-10-14T00:00:00Z',
+      endedAt: null,
+    })
+    api.getCurrentSupportPlan.mockResolvedValue(plan)
+    api.getSupportPlanActions.mockResolvedValue({
+      ...scheduleProjection(1),
+      supportPlanId: plan.supportPlanId,
+      status: 'ACTIVE',
+      focuses: [
+        {
+          focusId: 'focus-companion',
+          title: 'Trọng tâm',
+          rationale: null,
+          personalizationProvenance: null,
+          ordinal: 1,
+          actions: [
+            action(firstActionId, 'Hoạt động A'),
+            action(secondActionId, 'Hoạt động B'),
+          ],
+        },
+      ],
+    })
+    let release: (() => void) | undefined
+    api.requestSupportPlanActionCompanionExplanation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              schemaVersion: 'support-plan-companion-message-v1',
+              supportPlanId: plan.supportPlanId,
+              actionId: firstActionId,
+              intent: 'EXPLAIN_ACTION',
+              surface: 'PLAN',
+              text: 'Phản hồi đầu tiên.',
+              delivery: 'GENERATED',
+              policyVersion: 'support-plan-companion-policy-v1',
+              promptVersion: 'support-plan-companion-prompt-v1',
+              templateVersion: 'support-plan-companion-template-v1',
+              provider: 'OPENAI',
+              model: 'test-model',
+              fallbackReason: null,
+            })
+        }),
+    )
+
+    render(<SupportPlanJourney />)
+    await user.click(await screen.findByRole('tab', { name: 'Kế hoạch' }))
+    const first = await screen.findByRole('button', { name: /Hoạt động A/ })
+    const second = screen.getByRole('button', { name: /Hoạt động B/ })
+    fireEvent.click(first)
+    fireEvent.click(first)
+    fireEvent.click(second)
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledTimes(1)
+    expect(second).toBeDisabled()
+
+    release?.()
+    expect(await screen.findAllByText('Phản hồi đầu tiên.')).not.toHaveLength(0)
+    await user.click(
+      screen.getAllByRole('button', { name: 'Đóng lời giải thích' })[0],
+    )
+    await user.click(second)
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledTimes(2)
+  })
+
+  it('invalidates a pending card response during an external dialog and allows retry after settlement', async () => {
+    const user = userEvent.setup()
+    const plan = activePlan()
+    const projection = scheduleProjection(1)
+    const action = projection.focuses[0].actions[0]
+    action.actionType = 'RESOURCE'
+    action.presentation.title = 'Hoạt động cần giải thích'
+    api.getCurrentSupportPlan.mockResolvedValue(plan)
+    api.getSupportPlanActions.mockResolvedValue({
+      ...projection,
+      supportPlanId: plan.supportPlanId,
+      status: 'ACTIVE',
+    })
+    let release: (() => void) | undefined
+    api.requestSupportPlanActionCompanionExplanation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              schemaVersion: 'support-plan-companion-message-v1',
+              supportPlanId: plan.supportPlanId,
+              actionId: action.actionId,
+              intent: 'EXPLAIN_ACTION',
+              surface: 'PLAN',
+              text: 'Late legacy response must stay hidden.',
+              delivery: 'GENERATED',
+              policyVersion: 'support-plan-companion-policy-v1',
+              promptVersion: 'support-plan-companion-prompt-v1',
+              templateVersion: 'support-plan-companion-template-v1',
+              provider: 'OPENAI',
+              model: 'test-model',
+              fallbackReason: null,
+            })
+        }),
+    )
+
+    render(<SupportPlanJourney />)
+    await user.click(await screen.findByRole('tab', { name: /Kế hoạch/ }))
+    const trigger = await screen.findByRole('button', {
+      name: /Hoạt động cần giải thích/,
+    })
+    fireEvent.click(trigger)
+
+    const dialog = document.createElement('section')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('aria-modal', 'true')
+    dialog.setAttribute('aria-label', 'Xác nhận bên ngoài')
+    const confirm = document.createElement('button')
+    confirm.textContent = 'Tiếp tục xác nhận'
+    dialog.append(confirm)
+    document.body.append(dialog)
+    confirm.focus()
+
+    await waitFor(() =>
+      expect(document.querySelector('.support-plan-companion')).toHaveAttribute(
+        'data-interrupted',
+        'true',
+      ),
+    )
+    expect(confirm).toHaveFocus()
+    expect(
+      screen.getByRole('button', { name: 'Tiếp tục xác nhận' }),
+    ).toBeEnabled()
+
+    release?.()
+    await waitFor(() => expect(trigger).toBeDisabled())
+    expect(
+      screen.queryByText('Late legacy response must stay hidden.'),
+    ).toBeNull()
+    expect(
+      document.querySelector(
+        '.support-plan-contextual-bubble[role="status"], .support-plan-contextual-bubble[aria-live], .support-plan-companion-contextual-tray',
+      ),
+    ).toBeNull()
+
+    dialog.remove()
+    await waitFor(() => expect(trigger).toBeEnabled())
+    await user.click(trigger)
+    await waitFor(() =>
+      expect(
+        api.requestSupportPlanActionCompanionExplanation,
+      ).toHaveBeenCalledTimes(2),
+    )
+    expect(
+      document.querySelector('.support-plan-contextual-bubble'),
+    ).not.toBeNull()
+  })
+
+  it('dismisses a pending guided request, ignores its late answer, and allows retry after settlement', async () => {
+    const user = userEvent.setup()
+    const plan = activePlan()
+    const projection = scheduleProjection(1)
+    const actionId = projection.focuses[0].actions[0].actionId
+    api.getCurrentSupportPlan.mockResolvedValue(plan)
+    api.getSupportPlanActions.mockResolvedValue({
+      ...projection,
+      supportPlanId: plan.supportPlanId,
+      status: 'ACTIVE',
+    })
+    let release: (() => void) | undefined
+    api.requestSupportPlanActionCompanionExplanation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              schemaVersion: 'support-plan-companion-message-v1',
+              supportPlanId: plan.supportPlanId,
+              actionId,
+              intent: 'EXPLAIN_ACTION',
+              surface: 'PLAN',
+              text: 'Phản hồi cũ không còn thuộc panel đang mở.',
+              delivery: 'GENERATED',
+              policyVersion: 'support-plan-companion-policy-v1',
+              promptVersion: 'support-plan-companion-prompt-v1',
+              templateVersion: 'support-plan-companion-template-v1',
+              provider: 'OPENAI',
+              model: 'test-model',
+              fallbackReason: null,
+            })
+        }),
+    )
+
+    render(<SupportPlanJourney />)
+    await user.click(await screen.findByRole('tab', { name: 'Kế hoạch' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Vì sao hoạt động này có trong kế hoạch?',
+      }),
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Đóng hướng dẫn Bạn đồng hành',
+      }),
+    )
+
+    release?.()
+    expect(
+      screen.queryByText('Phản hồi cũ không còn thuộc panel đang mở.'),
+    ).toBeNull()
+    expect(
+      document.querySelector('.support-plan-companion-contextual-tray'),
+    ).toBeNull()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    let retry = screen.getByRole('button', {
+      name: 'Vì sao hoạt động này có trong kế hoạch?',
+    })
+    await waitFor(() => expect(retry).toBeEnabled())
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Đóng hướng dẫn Bạn đồng hành',
+      }),
+    )
+    expect(
+      screen.queryByText('Phản hồi cũ không còn thuộc panel đang mở.'),
+    ).toBeNull()
+    expect(
+      document.querySelector('.support-plan-companion-contextual-tray'),
+    ).toBeNull()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    retry = screen.getByRole('button', {
+      name: 'Vì sao hoạt động này có trong kế hoạch?',
+    })
+    await user.click(retry)
+    expect(await screen.findByText('Phản hồi đã kiểm duyệt.')).toBeVisible()
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledTimes(2)
   })
 
   it('keeps generic loading neutral instead of pretending to wait for a user choice', async () => {
@@ -278,6 +572,10 @@ describe('SupportPlanJourney', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Hôm nay' }))
     expect(screen.queryByText('Chào bạn')).not.toBeInTheDocument()
     expect(screen.getAllByText('Nghỉ nhẹ').length).toBeGreaterThan(0)
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).not.toHaveBeenCalled()
+    expect(document.querySelector('[aria-live]')).toBeNull()
   })
 
   it('exposes the four journey tabs and supports roving keyboard navigation', async () => {
@@ -300,7 +598,11 @@ describe('SupportPlanJourney', () => {
     fireEvent.keyDown(planTab, { key: 'End' })
     await waitFor(() => expect(adjustTab).toHaveFocus())
     expect(adjustTab).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getAllByText('Xem lại nhẹ nhàng').length).toBeGreaterThan(0)
+    await waitFor(() =>
+      expect(screen.getAllByText('Xem lại nhẹ nhàng').length).toBeGreaterThan(
+        0,
+      ),
+    )
 
     fireEvent.keyDown(adjustTab, { key: 'Home' })
     await waitFor(() => expect(todayTab).toHaveFocus())
@@ -332,6 +634,80 @@ describe('SupportPlanJourney', () => {
       screen.getByRole('radio', { name: /Reviewed primary resource/ }),
     )
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
+  })
+
+  it('invalidates a pending response when its plan card becomes dirty', async () => {
+    const draft = supportPlanFixture()
+    const projection = scheduleProjection(draft.version)
+    const action = projection.focuses[0].actions[0]
+    action.actionType = 'RESOURCE'
+    action.presentation.title = 'Giải thích trước khi chỉnh sửa'
+    api.getCurrentSupportPlanDraft.mockResolvedValue(draft)
+    api.getCurrentSupportPlanDraftActions.mockResolvedValue({
+      ...projection,
+      supportPlanId: draft.supportPlanId,
+    })
+    let release: (() => void) | undefined
+    api.requestSupportPlanActionCompanionExplanation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              schemaVersion: 'support-plan-companion-message-v1',
+              supportPlanId: draft.supportPlanId,
+              actionId: action.actionId,
+              intent: 'EXPLAIN_ACTION',
+              surface: 'PLAN',
+              text: 'Late dirty response must stay hidden.',
+              delivery: 'GENERATED',
+              policyVersion: 'support-plan-companion-policy-v1',
+              promptVersion: 'support-plan-companion-prompt-v1',
+              templateVersion: 'support-plan-companion-template-v1',
+              provider: 'OPENAI',
+              model: 'test-model',
+              fallbackReason: null,
+            })
+        }),
+    )
+
+    render(<SupportPlanJourney />)
+    const trigger = await screen.findByRole('button', {
+      name: /Giải thích trước khi chỉnh sửa/,
+    })
+    fireEvent.click(trigger)
+    fireEvent.click(
+      await screen.findByRole('radio', { name: /Reviewed alternative/ }),
+    )
+
+    await waitFor(() =>
+      expect(document.querySelector('.support-plan-companion')).toHaveAttribute(
+        'data-interrupted',
+        'true',
+      ),
+    )
+    expect(trigger).toBeDisabled()
+    release?.()
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Late dirty response must stay hidden.'),
+      ).toBeNull(),
+    )
+    expect(
+      document.querySelector(
+        '.support-plan-contextual-bubble[role="status"], .support-plan-contextual-bubble[aria-live], .support-plan-companion-contextual-tray',
+      ),
+    ).toBeNull()
+
+    fireEvent.click(
+      screen.getByRole('radio', { name: /Reviewed primary resource/ }),
+    )
+    await waitFor(() => expect(trigger).toBeEnabled())
+    fireEvent.click(trigger)
+    await waitFor(() =>
+      expect(
+        api.requestSupportPlanActionCompanionExplanation,
+      ).toHaveBeenCalledTimes(2),
+    )
   })
 
   it('combines schedule and personalization drafts without clearing the guard when only one is undone', async () => {
@@ -512,7 +888,11 @@ describe('SupportPlanJourney', () => {
 
       render(<SupportPlanJourney />)
       expect(
-        await screen.findByText('Điều gì giúp kế hoạch dễ thực hiện hơn?'),
+        await screen.findByText(
+          'Điều gì giúp kế hoạch dễ thực hiện hơn?',
+          undefined,
+          { timeout: 5_000 },
+        ),
       ).toBeVisible()
 
       if (action === 'save') {

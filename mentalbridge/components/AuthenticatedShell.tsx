@@ -170,6 +170,14 @@ const labels: Record<string, string> = {
   '/profile': 'Hồ sơ và quyền riêng tư',
 }
 
+function resolveContextLabel(pathname: string) {
+  if (pathname.startsWith('/assessments/results/')) {
+    return 'Kết quả sàng lọc'
+  }
+
+  return labels[pathname] ?? 'MentalBridge'
+}
+
 export default function AuthenticatedShell({
   children,
   workspaces,
@@ -214,6 +222,11 @@ export default function AuthenticatedShell({
   }, [])
 
   const displayName = profile?.displayName || 'Người dùng'
+  const isScreeningJourney = [
+    '/initial-check',
+    '/assessments',
+    '/support-guides',
+  ].some((route) => pathname === route || pathname.startsWith(`${route}/`))
   const isProgressiveRelaxation =
     pathname === '/resources/00000000-0000-4000-8000-000000000215'
   const initials = useMemo(
@@ -231,7 +244,7 @@ export default function AuthenticatedShell({
 
   return (
     <div
-      className={`ref-shell ${collapsed ? 'collapsed' : ''} ${mobile ? 'mobile-open' : ''}`}
+      className={`ref-shell ${isScreeningJourney ? 'ref-screening-journey' : ''} ${collapsed ? 'collapsed' : ''} ${mobile ? 'mobile-open' : ''}`}
     >
       <aside className="ref-sidebar">
         <div className="ref-brand">
@@ -304,10 +317,19 @@ export default function AuthenticatedShell({
               <span aria-hidden="true">›</span>
               <span aria-current="page">Thư giãn cơ tiến triển</span>
             </nav>
+          ) : isScreeningJourney ? (
+            <nav
+              className="ref-screening-crumb"
+              aria-label="Đường dẫn trên cùng"
+            >
+              <Link href="/dashboard">Không gian của bạn</Link>
+              <span aria-hidden="true">/</span>
+              <span aria-current="page">{resolveContextLabel(pathname)}</span>
+            </nav>
           ) : (
             <div className="ref-context">
               <span>Không gian của bạn</span>
-              <strong>{labels[pathname] ?? 'MentalBridge'}</strong>
+              <strong>{resolveContextLabel(pathname)}</strong>
             </div>
           )}
           <label>
@@ -376,7 +398,7 @@ export default function AuthenticatedShell({
           </div>
         </header>
         <main
-          className={`ref-content ${pathname === '/dashboard' ? 'ref-content-dashboard' : 'ref-content-page'}`}
+          className={`ref-content ${pathname === '/dashboard' ? 'ref-content-dashboard' : isScreeningJourney ? 'ref-content-screening' : 'ref-content-page'}`}
         >
           {children}
         </main>

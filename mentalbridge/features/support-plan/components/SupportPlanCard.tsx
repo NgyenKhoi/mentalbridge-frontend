@@ -15,6 +15,11 @@ import type {
 import SupportPlanSchedule from './SupportPlanSchedule'
 import SupportPlanScheduleEditor from './SupportPlanScheduleEditor'
 import ProfessionalSupportPath from './ProfessionalSupportPath'
+import SupportPlanContextualCompanion from './SupportPlanContextualCompanion'
+import type {
+  ContextualCompanionRequest,
+  ContextualCompanionSnapshot,
+} from './support-plan-contextual-companion'
 import SupportPlanDescription from './SupportPlanDescription'
 
 const domainLabel = {
@@ -83,6 +88,11 @@ type Props = Readonly<{
   ) => Promise<void>
   onReloadSchedule?: () => Promise<boolean | void>
   onDirtyChange?: (dirty: boolean) => void
+  companionSnapshot?: ContextualCompanionSnapshot
+  companionRequestPending?: boolean
+  companionInterruptionActive?: boolean
+  onCompanionRequest?: (request: ContextualCompanionRequest) => void
+  onCompanionDismiss?: () => void
 }>
 
 type LifecycleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DISCARDED'
@@ -130,6 +140,11 @@ export default function SupportPlanCard({
   onSaveSchedule,
   onReloadSchedule,
   onDirtyChange,
+  companionSnapshot,
+  companionRequestPending = false,
+  companionInterruptionActive = false,
+  onCompanionRequest,
+  onCompanionDismiss,
 }: Props) {
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     initialChoices(plan),
@@ -296,6 +311,12 @@ export default function SupportPlanCard({
           key={plan.supportPlanId}
           professionalSupportRequired={professionalSupportRequired}
           supportPlanId={plan.supportPlanId}
+          companionSnapshot={companionSnapshot}
+          companionRequestPending={companionRequestPending}
+          companionInterruptionActive={companionInterruptionActive}
+          onCompanionRequest={onCompanionRequest}
+          onCompanionDismiss={onCompanionDismiss}
+          companionDisabled={dirty || scheduleDirty || engagementDirty}
         />
 
         <section
@@ -321,6 +342,41 @@ export default function SupportPlanCard({
               </div>
               {focus.rationale && (
                 <SupportPlanDescription text={focus.rationale} />
+              )}
+              {onCompanionRequest && onCompanionDismiss && (
+                <ul className="support-plan-companion-action-list">
+                  {focus.actions
+                    .filter((action) =>
+                      [
+                        'RESOURCE',
+                        'JOURNAL',
+                        'EMOTION_CHECK_IN',
+                        'PROFESSIONAL_SUPPORT',
+                      ].includes(action.actionType),
+                    )
+                    .map((action) => (
+                      <li
+                        key={action.actionId}
+                        id={`support-plan-action-${action.actionId}`}
+                        data-support-plan-action-id={action.actionId}
+                        tabIndex={-1}
+                      >
+                        <span>{action.presentation.title}</span>
+                        <SupportPlanContextualCompanion
+                          supportPlanId={plan.supportPlanId}
+                          actionId={action.actionId}
+                          actionTitle={action.presentation.title}
+                          surface="PLAN"
+                          disabled={dirty || scheduleDirty || engagementDirty}
+                          requestPending={companionRequestPending}
+                          interruptionActive={companionInterruptionActive}
+                          snapshot={companionSnapshot}
+                          onRequest={onCompanionRequest}
+                          onDismiss={onCompanionDismiss}
+                        />
+                      </li>
+                    ))}
+                </ul>
               )}
             </article>
           ))}
@@ -652,6 +708,12 @@ export default function SupportPlanCard({
             planStatus={plan.status}
             compactToday
             onDirtyChange={setEngagementDirty}
+            supportPlanId={plan.supportPlanId}
+            companionSnapshot={companionSnapshot}
+            companionRequestPending={companionRequestPending}
+            companionInterruptionActive={companionInterruptionActive}
+            onCompanionRequest={onCompanionRequest}
+            onCompanionDismiss={onCompanionDismiss}
             onToggleStatus={() =>
               setPendingStatus(plan.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED')
             }

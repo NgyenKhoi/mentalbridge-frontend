@@ -11,10 +11,42 @@ import {
   parseCanonicalSupportPlan,
   parseCompletionEvidence,
   parseEmotionCheckInReconciliation,
+  parseJournalReconciliation,
   parseSupportPlanActionHistory,
+  parseSupportPlanContextualCompanionMessage,
 } from './support-plan-action-validation'
 
 describe('Canonical native SupportPlan boundaries', () => {
+  it('binds contextual Companion output to a strict bounded response shape', () => {
+    const message = {
+      schemaVersion: 'support-plan-companion-message-v1',
+      supportPlanId: '10000000-0000-4000-8000-000000000650',
+      actionId: '20000000-0000-4000-8000-000000000650',
+      intent: 'EXPLAIN_ACTION',
+      surface: 'PLAN',
+      text: 'Lời giải thích đã được kiểm duyệt.',
+      delivery: 'GENERATED',
+      policyVersion: 'support-plan-companion-policy-v1',
+      promptVersion: 'support-plan-companion-prompt-v1',
+      templateVersion: 'support-plan-companion-template-v1',
+      provider: 'OPENAI',
+      model: 'test-model',
+      fallbackReason: null,
+    }
+    expect(parseSupportPlanContextualCompanionMessage(message)).toEqual(message)
+    expect(
+      parseSupportPlanContextualCompanionMessage({
+        ...message,
+        privateContext: 'must not cross the boundary',
+      }),
+    ).toBeNull()
+    expect(
+      parseSupportPlanContextualCompanionMessage({
+        ...message,
+        delivery: 'TEMPLATE',
+      }),
+    ).toBeNull()
+  })
   it('accepts the source-owned full action shape and rejects unknown payload or wrong source attribution', () => {
     const plan = nativeSupportPlanFixture()
     expect(parseCanonicalSupportPlan(plan)).toEqual(plan)
@@ -166,5 +198,73 @@ describe('Canonical native SupportPlan boundaries', () => {
       parseSupportPlanActionHistory({ ...page, items: [active] }),
     ).toBeNull()
     expect(parseSupportPlanActionHistory({ ...page, hasMore: true })).toBeNull()
+  })
+})
+
+describe('Minimized Journal occurrence reconciliation', () => {
+  const journalId = '50000000-0000-4000-8000-000000000642'
+  const value = {
+    schemaVersion: 'journal-entry-occurrence-reconciliation-v1',
+    occurrenceId: '40000000-0000-4000-8000-000000000642',
+    actionId: '30000000-0000-4000-8000-000000000642',
+    localDate: '2026-10-14',
+    journalId,
+    sourceState: 'RECORDED',
+    occurrenceState: 'COMPLETED',
+    version: 1,
+    completedAt: '2026-10-14T02:01:00Z',
+    completionEvidence: {
+      ownerDomain: 'JOURNAL_AI',
+      kind: 'JOURNAL_ENTRY',
+      factId: journalId,
+      factRevision: '1',
+      occurredAt: '2026-10-14T02:00:00Z',
+      verifiedAt: '2026-10-14T02:01:00Z',
+    },
+  }
+  it('retains accepted creation evidence separately from current deleted or missing source state', () => {
+    for (const sourceState of ['RECORDED', 'MISSING', 'DELETED']) {
+      const result = { ...value, sourceState }
+      expect(parseJournalReconciliation(result)).toEqual(result)
+    }
+  })
+  it('never accepts manual, swapped-entry, mutable-revision or content-bearing evidence', () => {
+    for (const completionEvidence of [
+      null,
+      {
+        ...value.completionEvidence,
+        ownerDomain: 'CARE',
+        kind: 'USER_ACKNOWLEDGEMENT',
+      },
+      { ...value.completionEvidence, factId: value.actionId },
+      { ...value.completionEvidence, factRevision: '2' },
+      { ...value.completionEvidence, journalText: 'private reflection' },
+    ])
+      expect(
+        parseJournalReconciliation({ ...value, completionEvidence }),
+      ).toBeNull()
+    expect(
+      parseJournalReconciliation({ ...value, journalText: 'private' }),
+    ).toBeNull()
+    expect(
+      parseJournalReconciliation({ ...value, journalId: [journalId] }),
+    ).toBeNull()
+  })
+  it('keeps authoritative absence open and rejects false recorded completion', () => {
+    const open = {
+      ...value,
+      sourceState: 'MISSING',
+      occurrenceState: 'SCHEDULED',
+      version: 0,
+      completedAt: null,
+      completionEvidence: null,
+    }
+    expect(parseJournalReconciliation(open)).toEqual(open)
+    expect(
+      parseJournalReconciliation({ ...open, sourceState: 'RECORDED' }),
+    ).toBeNull()
+    expect(
+      parseJournalReconciliation({ ...value, localDate: '2026-02-30' }),
+    ).toBeNull()
   })
 })

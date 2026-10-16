@@ -7,6 +7,11 @@ import { appointmentBrowserClient } from '@/features/appointments/api/browser-cl
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { getSupportPlanActions } from '../api/browser-support-plan'
 import type { PlanAction } from '../api/support-plan-contract'
+import SupportPlanContextualCompanion from './SupportPlanContextualCompanion'
+import type {
+  ContextualCompanionRequest,
+  ContextualCompanionSnapshot,
+} from './support-plan-contextual-companion'
 
 const appointmentStatus: Record<Appointment['status'], string> = {
   REQUESTED: 'Yêu cầu đặt lịch đang chờ chuyên gia xác nhận.',
@@ -31,9 +36,21 @@ function newestAppointment(items: Appointment[], actionId: string) {
 export default function ProfessionalSupportPath({
   professionalSupportRequired,
   supportPlanId,
+  companionSnapshot,
+  companionRequestPending = false,
+  companionInterruptionActive = false,
+  onCompanionRequest,
+  onCompanionDismiss,
+  companionDisabled = false,
 }: Readonly<{
   professionalSupportRequired: boolean
   supportPlanId: string
+  companionSnapshot?: ContextualCompanionSnapshot
+  companionRequestPending?: boolean
+  companionInterruptionActive?: boolean
+  onCompanionRequest?: (request: ContextualCompanionRequest) => void
+  onCompanionDismiss?: () => void
+  companionDisabled?: boolean
 }>) {
   const [action, setAction] = useState<PlanAction | null>(null)
   const [appointment, setAppointment] = useState<Appointment | null>(null)
@@ -163,6 +180,20 @@ export default function ProfessionalSupportPath({
         </p>
       )}
       <div className="support-plan-professional-path-actions">
+        {onCompanionRequest && onCompanionDismiss && (
+          <SupportPlanContextualCompanion
+            supportPlanId={supportPlanId}
+            actionId={action.actionId}
+            actionTitle={action.presentation.title}
+            surface="PLAN"
+            disabled={companionDisabled}
+            requestPending={companionRequestPending}
+            interruptionActive={companionInterruptionActive}
+            snapshot={companionSnapshot}
+            onRequest={onCompanionRequest}
+            onDismiss={onCompanionDismiss}
+          />
+        )}
         <Link
           className="btn btn-primary"
           href={`/specialists?planActionId=${encodeURIComponent(action.actionId)}`}

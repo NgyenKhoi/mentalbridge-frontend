@@ -71,6 +71,25 @@ web/mobile contract coverage and responsive fixture-browser evidence are
 recorded in
 [`mb-658-optional-emotion-context.md`](mb-658-optional-emotion-context.md).
 
+MB-650 adds explicit contextual Companion explanations to eligible SupportPlan
+actions while keeping Care facts and original actions authoritative. Its
+contract, fallback, desktop/mobile, typography and accessibility evidence is
+recorded in
+[`mb-650-contextual-companion.md`](mb-650-contextual-companion.md).
+
+MB-651 adds the explicitly opened, bounded guided Companion panel with fixed
+starters, session-memory retention, source labels, safe follow-up navigation,
+and responsive sheet behavior. Its contract, privacy, Stitch, accessibility,
+and regression evidence is recorded in
+[`mb-651-expanded-guided-companion.md`](mb-651-expanded-guided-companion.md).
+
+MB-653 hardens the SupportPlan Companion release gate with tab-session mute and
+hide semantics, interruption controls, zero passive prompting, reduced-motion
+equivalence, explicit source/runtime budgets, dependency-failure coverage, and
+desktop/mobile accessibility evidence. Its compliance matrix and release
+checklist are recorded in
+[`mb-653-support-plan-companion-hardening.md`](mb-653-support-plan-companion-hardening.md).
+
 MB-563 delivers the server-backed notification inbox and lifecycle. Its
 contract/BFF/component/fixture coverage is recorded in
 [`mb-563-notification-inbox.md`](mb-563-notification-inbox.md).

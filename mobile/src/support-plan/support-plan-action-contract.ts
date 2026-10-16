@@ -368,6 +368,34 @@ export const emotionReconciliationSchema = z
     'Invalid persisted Emotion outcome.',
   )
 
+export const journalReconciliationSchema = z
+  .object({
+    schemaVersion: z.literal('journal-entry-occurrence-reconciliation-v1'),
+    occurrenceId: z.uuid(),
+    actionId: z.uuid(),
+    localDate: z.iso.date(),
+    journalId: z.uuid(),
+    sourceState: z.enum(['RECORDED', 'MISSING', 'DELETED']),
+    occurrenceState: z.enum(['SCHEDULED', 'COMPLETED']),
+    version: z.number().int().nonnegative(),
+    completedAt: instant.nullable(),
+    completionEvidence: completionEvidenceSchema.nullable(),
+  })
+  .strict()
+  .refine(
+    (value) =>
+      value.occurrenceState === 'COMPLETED'
+        ? value.completedAt !== null &&
+          value.completionEvidence?.kind === 'JOURNAL_ENTRY' &&
+          value.completionEvidence.ownerDomain === 'JOURNAL_AI' &&
+          value.completionEvidence.factId === value.journalId &&
+          value.completionEvidence.factRevision === '1'
+        : value.sourceState !== 'RECORDED' &&
+          value.completedAt === null &&
+          value.completionEvidence === null,
+    'Invalid persisted Journal outcome.',
+  )
+
 export const supportPlanActionHistorySchema = z
   .object({
     items: z.array(canonicalSupportPlanSchema).max(20),
@@ -411,6 +439,7 @@ export type CanonicalSupportPlan = z.infer<typeof canonicalSupportPlanSchema>
 export type ActionOccurrence = z.infer<typeof actionOccurrenceSchema>
 export type ActionOccurrenceList = z.infer<typeof actionOccurrenceListSchema>
 export type EmotionReconciliation = z.infer<typeof emotionReconciliationSchema>
+export type JournalReconciliation = z.infer<typeof journalReconciliationSchema>
 export type SupportPlanActionHistory = z.infer<
   typeof supportPlanActionHistorySchema
 >

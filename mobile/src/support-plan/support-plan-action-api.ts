@@ -11,12 +11,14 @@ import {
   actionOccurrenceSchema,
   canonicalSupportPlanSchema,
   emotionReconciliationSchema,
+  journalReconciliationSchema,
   nativeReplacementReviewSchema,
   supportPlanActionHistorySchema,
   type ActionOccurrence,
   type ActionOccurrenceList,
   type CanonicalSupportPlan,
   type EmotionReconciliation,
+  type JournalReconciliation,
   type NativeReplacementReview,
   type SupportPlanActionHistory,
 } from './support-plan-action-contract'
@@ -95,6 +97,10 @@ export interface SupportPlanActionApi {
     state: 'SCHEDULED' | 'COMPLETED' | 'SKIPPED',
   ): Promise<ActionOccurrence>
   reconcileEmotion(id: string): Promise<EmotionReconciliation>
+  reconcileJournal(
+    id: string,
+    journalId: string,
+  ): Promise<JournalReconciliation>
 }
 
 function ownedPlan(value: unknown, id: string) {
@@ -311,6 +317,16 @@ export function createSupportPlanActionApi(
       )
       if (parsed.occurrenceId !== id)
         throw new Error('Emotion reconciliation identity mismatch.')
+      return parsed
+    },
+    async reconcileJournal(id, journalId) {
+      const body = { journalId: idSchema.parse(journalId) }
+      const parsed = journalReconciliationSchema.parse(
+        (await client.post(`${occurrencePath(id)}/journal/reconcile`, body))
+          .data,
+      )
+      if (parsed.occurrenceId !== id || parsed.journalId !== body.journalId)
+        throw new Error('Journal reconciliation identity mismatch.')
       return parsed
     },
   }

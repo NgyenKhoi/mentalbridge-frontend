@@ -48,6 +48,8 @@ không khôi phục chúng như coding standard hiện hành.
 
 Story-specific delivery evidence:
 
+- [MB-623 authoritative consultation journey closure](mb-623-consultation-journey.md)
+- [MB-642 private Journal action in SupportPlan](mb-642-journal-plan-action.md)
 - [MB-637 SupportGuide and SupportPlan v3 product boundary](ADR_SUPPORTPLAN_V3_PRODUCT_BOUNDARY.md)
 - [MB-139 Identity integration and delivery gates](identity-delivery-evidence.md)
 - [MB-177/MB-178/MB-205 Care-backed screening, profile, consent, history, and progress integration](care-assessment-integration.md)
@@ -69,6 +71,7 @@ Story-specific delivery evidence:
 - [MB-618 Community end-to-end closure evidence](mb-618-community-closure-evidence.md)
 - [MB-619 appointment dispute UI evidence](mb-619-appointment-disputes-evidence.md)
 - [MB-656 truthful Resources progress evidence](MB-656-resources-truthful-progress.md)
+- [MB-653 SupportPlan Companion hardening evidence](evidence/mb-653-support-plan-companion-hardening.md)
 - [MB-549 appointment reminder consumer evidence](evidence/mb-549-appointment-reminder-consumer.md)
 - [Sprint 2 backend runbook and traceability](../../../mentalbridge-backend/docs/sprints/sprint-2-runbook-traceability.md)
 

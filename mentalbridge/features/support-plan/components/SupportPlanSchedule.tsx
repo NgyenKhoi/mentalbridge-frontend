@@ -22,6 +22,11 @@ import SupportPlanUpcomingCard from './SupportPlanUpcomingCard'
 import SupportPlanActivityModal from './SupportPlanActivityModal'
 import SupportPlanSidebarCards from './SupportPlanSidebarCards'
 import SupportPlanIcon from './SupportPlanIcon'
+import SupportPlanContextualCompanion from './SupportPlanContextualCompanion'
+import type {
+  ContextualCompanionRequest,
+  ContextualCompanionSnapshot,
+} from './support-plan-contextual-companion'
 import { formatActivityDate } from './support-plan-format'
 
 const DEFAULT_TIMEZONE = 'Asia/Ho_Chi_Minh'
@@ -101,6 +106,12 @@ type Props = Readonly<{
   onEndPlan?: () => void
   onSwitchToManageTab?: () => void
   onDirtyChange?: (dirty: boolean) => void
+  supportPlanId?: string
+  companionSnapshot?: ContextualCompanionSnapshot
+  companionRequestPending?: boolean
+  companionInterruptionActive?: boolean
+  onCompanionRequest?: (request: ContextualCompanionRequest) => void
+  onCompanionDismiss?: () => void
 }>
 
 export default function SupportPlanSchedule({
@@ -110,6 +121,12 @@ export default function SupportPlanSchedule({
   onEndPlan,
   onSwitchToManageTab,
   onDirtyChange,
+  supportPlanId,
+  companionSnapshot,
+  companionRequestPending = false,
+  companionInterruptionActive = false,
+  onCompanionRequest,
+  onCompanionDismiss,
 }: Props) {
   const { showActionToast } = useFeedback()
   const today = useMemo(() => dateInZone(new Date(), DEFAULT_TIMEZONE), [])
@@ -131,6 +148,30 @@ export default function SupportPlanSchedule({
   )
   const [detailOpen, setDetailOpen] = useState(false)
   const [message, setMessage] = useState('')
+  const companionFor = (item: SupportPlanOccurrence) => {
+    const actionId = item.source.slotId
+    if (
+      !supportPlanId ||
+      !actionId ||
+      !onCompanionRequest ||
+      !onCompanionDismiss
+    )
+      return undefined
+    return (
+      <SupportPlanContextualCompanion
+        supportPlanId={supportPlanId}
+        actionId={actionId}
+        actionTitle={item.source.title}
+        surface="TODAY"
+        disabled={dirty}
+        requestPending={companionRequestPending}
+        interruptionActive={companionInterruptionActive}
+        snapshot={companionSnapshot}
+        onRequest={onCompanionRequest}
+        onDismiss={onCompanionDismiss}
+      />
+    )
+  }
   const edited = schedule?.occurrences.find(
     (item) => item.occurrenceId === editingId,
   )
@@ -600,6 +641,7 @@ export default function SupportPlanSchedule({
                           <SupportPlanUpcomingCard
                             key={item.occurrenceId}
                             occurrence={item}
+                            companion={companionFor(item)}
                             position={weekItems.indexOf(item) + 1}
                             isNext={
                               authoritativePlanStatus === 'ACTIVE' &&
@@ -652,6 +694,7 @@ export default function SupportPlanSchedule({
                     <SupportPlanFeaturedActivity
                       key={selectedDateItems[0].occurrenceId}
                       occurrence={selectedDateItems[0]}
+                      companion={companionFor(selectedDateItems[0])}
                       authoritativePlanStatus={authoritativePlanStatus}
                       busy={busyId === selectedDateItems[0].occurrenceId}
                       isEditing={
@@ -690,6 +733,7 @@ export default function SupportPlanSchedule({
                         <SupportPlanActivityRow
                           key={item.occurrenceId}
                           occurrence={item}
+                          companion={companionFor(item)}
                           authoritativePlanStatus={authoritativePlanStatus}
                           busy={busyId === item.occurrenceId}
                           isEditing={editingId === item.occurrenceId}
@@ -745,6 +789,7 @@ export default function SupportPlanSchedule({
                           <SupportPlanUpcomingCard
                             key={item.occurrenceId}
                             occurrence={item}
+                            companion={companionFor(item)}
                             position={index + 1}
                             isNext={
                               authoritativePlanStatus === 'ACTIVE' &&
@@ -790,6 +835,7 @@ export default function SupportPlanSchedule({
                   <SupportPlanActivityRow
                     key={item.occurrenceId}
                     occurrence={item}
+                    companion={companionFor(item)}
                     authoritativePlanStatus={authoritativePlanStatus}
                     busy={busyId === item.occurrenceId}
                     isEditing={editingId === item.occurrenceId}

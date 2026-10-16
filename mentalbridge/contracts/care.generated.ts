@@ -293,6 +293,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/screening-episodes/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List exact saved PHQ-9/GAD-7 screening episodes
+         * @description Returns one newest-first row per authoritative guided screening episode,
+         *     ordered by completion time descending, falling back to immutable start time
+         *     for unfinished episodes, with episode ID descending as the unique tie-breaker.
+         *     Resumable IN_PROGRESS and READY rows
+         *     expose only the exact evidence already attached to that episode and use
+         *     meaningState INCOMPLETE; missing instruments never borrow a standalone result.
+         *     Each available row contains the combined meaning for that episode's exact
+         *     persisted presentation evaluation and an optional already-persisted matching
+         *     Support Guide identifier. The read never pairs standalone latest assessments,
+         *     generates a Guide, or mutates current journey state. Older incompatible rows
+         *     remain visible with meaningState UNAVAILABLE.
+         */
+        get: operations["listOwnScreeningEpisodeHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/screening-episodes/{episodeId}/assessments/{instrument}": {
         parameters: {
             query?: never;
@@ -699,6 +729,36 @@ export interface paths {
         };
         /** Reopen one immutable owned support evaluation */
         get: operations["getOwnScreeningSupportEvaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-evaluations/{supportEvaluationId}/combined-meaning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a versioned presentation of one exact saved screening pair
+         * @description MB-667 worktree draft for content review; not approved for deployment.
+         *     Care uses only this owned v1 evaluation's exact compatible PHQ-9/GAD-7
+         *     pair, source policy and stored support tier. It does not select newer
+         *     assessments or mutate evaluation, Guide, plan, history or events.
+         *     The twenty base meanings are neutral draft presentation copy, not
+         *     diagnoses, combined severity or new routing decisions. A positive
+         *     independent PHQ-9 safety result takes presentation precedence while
+         *     both instrument levels remain unchanged. Historical source facts are
+         *     labelled with their original evaluation time and source policy; the
+         *     draft presentation version is separate, never claimed as original copy.
+         *     Existing v1 and v2 response shapes remain unchanged for older clients.
+         */
+        get: operations["getOwnCombinedScreeningMeaning"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1119,6 +1179,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/support-plans/{supportPlanId}/actions/{actionId}/companion-explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly request a contextual Companion explanation for one owned action
+         * @description Care resolves the exact owned plan action and builds the minimized MB-647
+         *     ACTION context. The client supplies only the Today or Plan surface. The
+         *     request never mutates the SupportPlan, invokes no provider on focus or
+         *     hover, and returns a deterministic template when optional Journal/AI
+         *     phrasing is unavailable. A versioned Redis admission policy allows one
+         *     in-flight provider request per user and at most six admitted requests
+         *     per one-minute window across Care instances. Pending duplicates, bursts
+         *     beyond the cap, disabled admission and Redis failure return a bounded
+         *     deterministic template without invoking the provider.
+         */
+        post: operations["requestOwnSupportPlanActionCompanionExplanation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/support-plans/{supportPlanId}": {
         parameters: {
             query?: never;
@@ -1156,9 +1244,12 @@ export interface paths {
          * Propose a new native Care-admitted action plan without converting v2 history
          * @description Uses the exact owned guided screening evaluation, current paid entitlement,
          *     approved resource admission and immutable personalization revision. Saved
-         *     EMOTION_CHECK_IN activity-mode intent admits one optional native Emotion
-         *     action with a clear purpose and reviewable schedule defaults. Emotion values
-         *     never select actions. Required professional-support paths remain primary.
+         *     EMOTION_CHECK_IN and JOURNALING activity-mode intents admit one optional
+         *     action of each corresponding type under support-plan-journal-actions-v1.
+         *     Actions have bounded purposes and reviewable budget-sharing schedule
+         *     defaults. Private Journal content and Emotion values never select actions.
+         *     Previously saved Emotion-policy plans retain their original action intent.
+         *     Required professional-support paths remain primary.
          *     No existing v2 plan is converted, backfilled or mutated. An existing current
          *     plan requires the separate reassessment-backed replacement command; the
          *     draft alone never changes it. An incompatible existing draft must be
@@ -1205,7 +1296,7 @@ export interface paths {
         /**
          * Explicitly activate one native draft after fresh Care admission checks
          * @description Revalidates paid entitlement, exact screening context, policy, admitted
-         *     resource versions and snapshotted explicit Emotion intent outside local
+         *     resource versions and snapshotted explicit Journal/Emotion intent outside local
          *     locks. The owner transaction rechecks the draft version and preferences,
          *     activates the plan/actions and cadence atomically, and records retry
          *     identity in the existing command ledger. No second current plan is allowed.
@@ -1227,7 +1318,7 @@ export interface paths {
         get?: never;
         /**
          * Explicitly pause, resume, complete or discard one native plan
-         * @description Same Care-owned lifecycle rules as v2 history. No Emotion evidence changes
+         * @description Same Care-owned lifecycle rules as v2 history. No Journal/Emotion evidence changes
          *     plan lifecycle. Natural identical-state retries preserve version. Completing
          *     or pausing cancels only governed future open occurrences, preserving facts.
          *     DISCARDED is draft-only; ACTIVE resumes a PAUSED plan, not draft activation.
@@ -1254,7 +1345,7 @@ export interface paths {
          * @description Read-only review with fresh paid entitlement, current screening compatibility
          *     and exact Content admission. Requires the latest owned canonical reassessment
          *     with the same PHQ-9/GAD-7 pair as the proposed native draft. Existing current
-         *     v2 state is projected without conversion. A new explicit Emotion intent is an
+         *     v2 state is projected without conversion. A new explicit Journal/Emotion intent is an
          *     admitted alternative, not a better clinical outcome. Four reassessment
          *     dimensions remain separate; no automatic plan change occurs.
          */
@@ -1368,6 +1459,40 @@ export interface paths {
          *     Care. This command does not create actions or change plan eligibility/lifecycle.
          */
         post: operations["reconcileOwnEmotionCheckInOccurrence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/journal/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile a Journal writing action with an exact owned saved entry
+         * @description Explicit USER command. journalId selects a candidate, never asserts completion.
+         *     Care resolves the owned native JOURNAL action and occurrence, closes the
+         *     read transaction, then reads Journal/AI's content-free creation fact with
+         *     the verified owner bearer. Locked acceptance checks subject, exact entry,
+         *     action/source link, occurrence local date in its schedule timezone, and
+         *     creation at or after plan/action activation. Completion uses the server
+         *     creation instant, not the user-selected Journal date or an edit timestamp.
+         *     One entry creation fact may satisfy only one occurrence; repeats preserve
+         *     accepted evidence, completion time, version and the one minimized event.
+         *     MISSING and DELETED never create completion or erase accepted history.
+         *     Once completed, another entry cannot replace the accepted reference.
+         *     Dependency uncertainty returns 503 rather than absence or success.
+         *     No text, preview, tags, mood, AI reflection or analysis enters Care.
+         *     This does not grant AI-processing, specialist sharing or reflection reuse,
+         *     change plan lifecycle, or describe writing as recovery/treatment adherence.
+         */
+        post: operations["reconcileOwnJournalOccurrence"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2250,6 +2375,51 @@ export interface components {
             episode: components["schemas"]["ScreeningEpisode"];
             presentationEvaluation: components["schemas"]["SupportEvaluation"];
         };
+        ScreeningEpisodeHistoryEvidence: {
+            instrument: components["schemas"]["Instrument"];
+            /**
+             * @description AVAILABLE is exact saved evidence; MISSING means the instrument was not attached; UNAVAILABLE means the attached historical record cannot be read safely.
+             * @enum {string}
+             */
+            state: "AVAILABLE" | "MISSING" | "UNAVAILABLE";
+            /** Format: uuid */
+            assessmentId: string | null;
+            totalScore: number | null;
+            screeningLevel: components["schemas"]["ScreeningLevel"] | null;
+            safetyStatus: components["schemas"]["SafetyStatus"] | null;
+        };
+        ScreeningEpisodeHistoryItem: {
+            /** Format: uuid */
+            episodeId: string;
+            purpose: components["schemas"]["ScreeningEpisodePurpose"];
+            status: components["schemas"]["ScreeningEpisodeStatus"];
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: uuid */
+            presentationEvaluationId: string | null;
+            /** @enum {string} */
+            meaningState: "AVAILABLE" | "INCOMPLETE" | "UNAVAILABLE";
+            evidence: [
+                components["schemas"]["ScreeningEpisodeHistoryEvidence"] & {
+                    /** @constant */
+                    instrument?: "PHQ9";
+                },
+                components["schemas"]["ScreeningEpisodeHistoryEvidence"] & {
+                    /** @constant */
+                    instrument?: "GAD7";
+                }
+            ];
+            meaning: components["schemas"]["CombinedScreeningMeaning"] | null;
+        };
+        ScreeningEpisodeHistoryPage: {
+            items: components["schemas"]["ScreeningEpisodeHistoryItem"][];
+            nextCursor: string | null;
+            hasMore: boolean;
+        };
         AssessmentAnswer: {
             /** Format: uuid */
             questionId: string;
@@ -2376,6 +2546,69 @@ export interface components {
             disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
             /** @constant */
             disclaimer: "Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
+        };
+        /** @description Versioned draft presentation of saved facts, not an original evaluation snapshot or a global health classification. */
+        CombinedScreeningMeaning: {
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** @constant */
+            sourcePolicyVersion: "mb-support-routing-capstone-v1";
+            /** Format: date-time */
+            evaluatedAt: string;
+            /** @constant */
+            presentationPolicyVersion: "mb-combined-screening-meaning-v1";
+            /** @constant */
+            contentVersion: "mb-combined-screening-meaning-vi-vn-v1-draft.3";
+            /** @constant */
+            referencePeriodDays: 14;
+            /** Format: uuid */
+            episodeId: string | null;
+            episodePurpose: components["schemas"]["ScreeningEpisodePurpose"] | null;
+            /** Format: date-time */
+            episodeCompletedAt: string | null;
+            /** Format: uuid */
+            domainSupportEvaluationId: string | null;
+            /**
+             * Format: uuid
+             * @description Existing immutable Guide for this exact episode, if already persisted; this read never creates one.
+             */
+            supportGuideId: string | null;
+            /** @description PHQ9 then GAD7; exact original pair, never current standalone history. */
+            evidence: components["schemas"]["CombinedScreeningMeaningEvidence"][];
+            supportTier: components["schemas"]["SupportTier"];
+            baseMeaning: components["schemas"]["CombinedScreeningBaseMeaning"];
+            /**
+             * @description Safety precedes ordinary meaning and CTA; this never changes an instrument level.
+             * @enum {string}
+             */
+            presentationPriority: "SAFETY" | "PROFESSIONAL_SUPPORT" | "SELF_GUIDED";
+            nextStep: components["schemas"]["SupportNextStep"];
+            /** @description Existing reviewed safety guidance for the stored safety tier; null otherwise. */
+            safetyGuidance: string | null;
+            /** @constant */
+            disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
+            /** @constant */
+            disclaimer: "Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
+        };
+        CombinedScreeningMeaningEvidence: {
+            /** Format: uuid */
+            assessmentId: string;
+            instrument: components["schemas"]["Instrument"];
+            questionnaireVersion: string;
+            scoringVersion: string;
+            totalScore: number;
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+            safetyStatus: components["schemas"]["SafetyStatus"];
+        };
+        CombinedScreeningBaseMeaning: {
+            code: string;
+            text: string;
+            rationale: string;
+            /**
+             * @description Existing routing for this pair before the separate safety override; never a global severity.
+             * @enum {string}
+             */
+            supportTier: "SELF_GUIDED_SUPPORT" | "PROFESSIONAL_SUPPORT_RECOMMENDED";
         };
         SupportEvaluationHistoryPage: {
             items: components["schemas"]["SupportEvaluation"][];
@@ -2708,6 +2941,36 @@ export interface components {
             /** @constant */
             reasonCode: "USER_PREFERENCE_AND_CARE_POLICY";
         };
+        SupportPlanCompanionExplanationRequest: {
+            /** @enum {string} */
+            surface: "TODAY" | "PLAN";
+        };
+        SupportPlanContextualCompanionMessage: {
+            /** @constant */
+            schemaVersion: "support-plan-companion-message-v1";
+            /** Format: uuid */
+            supportPlanId: string;
+            /** Format: uuid */
+            actionId: string;
+            /** @constant */
+            intent: "EXPLAIN_ACTION";
+            /** @enum {string} */
+            surface: "TODAY" | "PLAN";
+            text: string;
+            /** @enum {string} */
+            delivery: "GENERATED" | "TEMPLATE";
+            /** @constant */
+            policyVersion: "support-plan-companion-policy-v1";
+            /** @constant */
+            promptVersion: "support-plan-companion-prompt-v1";
+            /** @constant */
+            templateVersion: "support-plan-companion-template-v1";
+            /** @enum {string|null} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK" | null;
+            model: string | null;
+            /** @enum {string|null} */
+            fallbackReason: "CONSENT_REQUIRED" | "CONSENT_UNAVAILABLE" | "PROVIDER_DISABLED" | "PROVIDER_TIMEOUT" | "PROVIDER_QUOTA_LIMITED" | "PROVIDER_UNAVAILABLE" | "MALFORMED_OUTPUT" | "POLICY_REJECTED" | null;
+        } & (unknown & unknown);
         /**
          * @description Canonical v3 representation. V2_RESOURCE_ADAPTER retains the bounded
          *     system-copy display encoding erratum described by SupportPlan without
@@ -2909,6 +3172,31 @@ export interface components {
             completionEvidence: null | (components["schemas"]["CompletionEvidence"] & {
                 /** @constant */
                 kind?: "EMOTION_CHECK_IN";
+                /** @constant */
+                ownerDomain?: "JOURNAL_AI";
+            });
+        } & (unknown & unknown);
+        JournalOccurrenceReconciliation: {
+            /** @constant */
+            schemaVersion: "journal-entry-occurrence-reconciliation-v1";
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: uuid */
+            actionId: string;
+            /** Format: date */
+            localDate: string;
+            /** Format: uuid */
+            journalId: string;
+            /** @enum {string} */
+            sourceState: "RECORDED" | "MISSING" | "DELETED";
+            /** @enum {string} */
+            occurrenceState: "SCHEDULED" | "COMPLETED";
+            version: number;
+            /** Format: date-time */
+            completedAt: string | null;
+            completionEvidence: null | (components["schemas"]["CompletionEvidence"] & {
+                /** @constant */
+                kind?: "JOURNAL_ENTRY";
                 /** @constant */
                 ownerDomain?: "JOURNAL_AI";
             });
@@ -3255,6 +3543,15 @@ export interface components {
         };
         /** @description Request conflicts with stored state (IDEMPOTENCY_KEY_REUSED, QUESTIONNAIRE_VERSION_UNAVAILABLE, or SUPPORT_EVIDENCE_INCOMPATIBLE) */
         ConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description COMBINED_SCREENING_MEANING_UNAVAILABLE; the owned source policy, exact pair, stored tier or bounded presentation copy could not be trusted. No latest-pair substitution, false absence or history mutation occurs. */
+        CombinedScreeningMeaningUnavailableProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -3974,6 +4271,36 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    listOwnScreeningEpisodeHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped saved screening episode history */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreeningEpisodeHistoryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     submitScreeningEpisodeAssessment: {
@@ -4722,6 +5049,37 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
         };
     };
+    getOwnCombinedScreeningMeaning: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportEvaluationId: components["parameters"]["SupportEvaluationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Draft combined meaning with exact saved provenance and existing next step */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombinedScreeningMeaning"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            503: components["responses"]["CombinedScreeningMeaningUnavailableProblem"];
+        };
+    };
     proposeOwnSupportPlanDraft: {
         parameters: {
             query?: never;
@@ -5251,6 +5609,41 @@ export interface operations {
             412: components["responses"]["SupportPlanVersionProblem"];
         };
     };
+    requestOwnSupportPlanActionCompanionExplanation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+                actionId: components["parameters"]["PlanActionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportPlanCompanionExplanationRequest"];
+            };
+        };
+        responses: {
+            /** @description Generated or deterministic owner-scoped explanation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanContextualCompanionMessage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
     getOwnSupportPlanV3: {
         parameters: {
             query?: never;
@@ -5609,6 +6002,61 @@ export interface operations {
                 };
             };
             /** @description Emotion evidence owner unavailable or its projection invalid; no completion is recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reconcileOwnJournalOccurrence: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    journalId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Current Journal source state and persisted occurrence outcome */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalOccurrenceReconciliation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Unsupported/inactive action, non-open/future occurrence, writing date/activation mismatch, stale link or conflicting/used evidence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Journal evidence owner unavailable or invalid; no completion recorded */
             503: {
                 headers: {
                     [name: string]: unknown;

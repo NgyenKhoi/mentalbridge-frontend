@@ -16,6 +16,8 @@ type CompanionIdleSample = Readonly<{
   p95FrameIntervalMs: number
   worstFrameIntervalMs: number
   droppedFrameIntervals: number
+  heapUsedBytes: number
+  heapGrowthBytes: number
 }>
 
 async function performanceMetrics(session: CDPSession) {
@@ -77,6 +79,14 @@ async function measureCompanionIdle(
     p95FrameIntervalMs: Number(framePacing.p95FrameIntervalMs.toFixed(3)),
     worstFrameIntervalMs: Number(framePacing.worstFrameIntervalMs.toFixed(3)),
     droppedFrameIntervals: framePacing.droppedFrameIntervals,
+    heapUsedBytes: Math.round(after.get('JSHeapUsedSize') ?? 0),
+    heapGrowthBytes: Math.max(
+      0,
+      Math.round(
+        (after.get('JSHeapUsedSize') ?? 0) -
+          (before.get('JSHeapUsedSize') ?? 0),
+      ),
+    ),
   }
 }
 
@@ -763,6 +773,7 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       idleTaskDurationMs: 450,
       p95FrameIntervalMs: 80,
       droppedFrameIntervals: 12,
+      heapGrowthBytes: 5_000_000,
     },
     desktop: {
       initialLoadMs: 5_000,
@@ -770,6 +781,7 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       idleTaskDurationMs: 250,
       p95FrameIntervalMs: 50,
       droppedFrameIntervals: 8,
+      heapGrowthBytes: 3_000_000,
     },
   } as const
   const performanceSession = await page.context().newCDPSession(page)
@@ -845,7 +857,10 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     }),
   ).toBe(true)
   const companionControls = companion.getByRole('button')
-  expect(await companionControls.count()).toBe(3)
+  await expect(
+    companion.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+  ).toBeVisible()
+  expect(await companionControls.count()).toBe(4)
   expect(
     await companionControls.evaluateAll((buttons) =>
       buttons.every((button) => {
@@ -951,17 +966,23 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
       page.getByText('Hướng dẫn an toàn đồng bộ luôn khả dụng.'),
     ).toBeVisible()
   })
+  const writeMb653Evidence =
+    process.env.MB653_WRITE_PERFORMANCE_EVIDENCE === 'true'
   const performanceEvidence = {
     evidenceClass: 'fixture-browser',
+    story: writeMb653Evidence ? 'MB-653' : 'MB-648',
     generatedAt: new Date().toISOString(),
-    command:
-      '$env:MB648_WRITE_PERFORMANCE_EVIDENCE="true"; node scripts/run-e2e.mjs tests/e2e/support-plan.spec.ts --workers=1 --reporter=line',
+    command: writeMb653Evidence
+      ? '$env:MB653_WRITE_PERFORMANCE_EVIDENCE="true"; node scripts/run-e2e.mjs tests/e2e/support-plan.spec.ts --workers=1 --reporter=line'
+      : '$env:MB648_WRITE_PERFORMANCE_EVIDENCE="true"; node scripts/run-e2e.mjs tests/e2e/support-plan.spec.ts --workers=1 --reporter=line',
     measurement: {
       initialLoad:
         'wall time from production-route navigation/reload until the primary heading is visible',
       cpu: 'Chromium Performance.getMetrics duration deltas during a 1200 ms idle window',
       rendering:
         'requestAnimationFrame pacing during the same idle window; intervals over 34 ms count as dropped-frame intervals',
+      memory:
+        'Chromium JSHeapUsedSize and non-negative heap growth during the same idle window',
       transition:
         'wall time from tab activation until destination content is visible',
     },
@@ -1014,6 +1035,9 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     expect(sample.droppedFrameIntervals).toBeLessThanOrEqual(
       performanceBudgets.mobileThrottled.droppedFrameIntervals,
     )
+    expect(sample.heapGrowthBytes).toBeLessThanOrEqual(
+      performanceBudgets.mobileThrottled.heapGrowthBytes,
+    )
   }
   for (const sample of [desktopIdleNormal, desktopIdleReduced]) {
     expect(sample.taskDurationMs).toBeLessThanOrEqual(
@@ -1025,6 +1049,9 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
     expect(sample.droppedFrameIntervals).toBeLessThanOrEqual(
       performanceBudgets.desktop.droppedFrameIntervals,
     )
+    expect(sample.heapGrowthBytes).toBeLessThanOrEqual(
+      performanceBudgets.desktop.heapGrowthBytes,
+    )
   }
   await testInfo.attach('mb-648-companion-performance.json', {
     body: JSON.stringify(performanceEvidence, null, 2),
@@ -1033,6 +1060,13 @@ test('MB-373 saves an admitted alternative and reloads the activated current pla
   if (process.env.MB648_WRITE_PERFORMANCE_EVIDENCE === 'true') {
     await writeFile(
       'docs/evidence/mb-648-companion-performance.json',
+      `${JSON.stringify(performanceEvidence, null, 2)}\n`,
+      'utf8',
+    )
+  }
+  if (writeMb653Evidence) {
+    await writeFile(
+      'docs/evidence/mb-653-companion-performance.json',
       `${JSON.stringify(performanceEvidence, null, 2)}\n`,
       'utf8',
     )

@@ -31,6 +31,7 @@ const api = vi.hoisted(() => ({
   getCurrentReassessmentSummary: vi.fn(),
   replaceSupportPlanActionSchedule: vi.fn(),
   changeSupportPlanStatus: vi.fn(),
+  requestSupportPlanActionCompanionExplanation: vi.fn(),
 }))
 const feedback = vi.hoisted(() => ({ confirm: vi.fn() }))
 vi.mock('../api/browser-support-plan-actions', () => api)
@@ -156,6 +157,283 @@ describe('Native SupportPlan Emotion journey', () => {
         message: 'Missing',
       }),
     )
+    api.requestSupportPlanActionCompanionExplanation.mockResolvedValue({
+      schemaVersion: 'support-plan-companion-message-v1',
+      supportPlanId: nativeSupportPlanFixture().supportPlanId,
+      actionId: emotionActionId,
+      intent: 'EXPLAIN_ACTION',
+      surface: 'TODAY',
+      text: 'Đây là một hoạt động đã được Care chọn cho kế hoạch của bạn.',
+      delivery: 'GENERATED',
+      policyVersion: 'support-plan-companion-policy-v1',
+      promptVersion: 'support-plan-companion-prompt-v1',
+      templateVersion: 'support-plan-companion-template-v1',
+      provider: 'OPENAI',
+      model: 'test-model',
+      fallbackReason: null,
+    })
+  })
+  it('requests a contextual response only after click and preserves the source action', async () => {
+    const user = userEvent.setup()
+    mount()
+    const trigger = await screen.findByRole(
+      'button',
+      {
+        name: 'Nhờ bạn đồng hành giải thích: Check-in cảm xúc',
+      },
+      { timeout: 5_000 },
+    )
+    trigger.focus()
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).not.toHaveBeenCalled()
+    await user.click(trigger)
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledWith(
+      nativeSupportPlanFixture().supportPlanId,
+      emotionActionId,
+      'TODAY',
+    )
+    expect(
+      await screen.findAllByText(
+        'Đây là một hoạt động đã được Care chọn cho kế hoạch của bạn.',
+      ),
+    ).not.toHaveLength(0)
+    expect(screen.getByRole('link', { name: 'Ghi nhận cảm xúc' })).toBeVisible()
+  })
+  it('keeps an unsaved schedule intact while guided prompting stays quiet', async () => {
+    const user = userEvent.setup()
+    mount()
+    await user.click(await screen.findByRole('tab', { name: 'Điều chỉnh' }))
+    const note = screen.getByRole('textbox', { name: 'Ghi chú chỉnh sửa' })
+    await user.type(note, 'giữ thay đổi của tôi')
+
+    const open = screen.getByRole('button', {
+      name: 'Mở hướng dẫn có giới hạn',
+    })
+    expect(open).toBeDisabled()
+    expect(open).toHaveAccessibleDescription(
+      'Bạn đồng hành đang tạm lắng trong khi bạn chỉnh sửa hoặc xác nhận.',
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    expect(note).toHaveValue('giữ thay đổi của tôi')
+    expect(api.replaceSupportPlanActionSchedule).not.toHaveBeenCalled()
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).not.toHaveBeenCalled()
+  })
+  it('dismisses a pending guided request, ignores its late answer, and allows retry after settlement', async () => {
+    const user = userEvent.setup()
+    let release: (() => void) | undefined
+    api.requestSupportPlanActionCompanionExplanation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              schemaVersion: 'support-plan-companion-message-v1',
+              supportPlanId: nativeSupportPlanFixture().supportPlanId,
+              actionId: emotionActionId,
+              intent: 'EXPLAIN_ACTION',
+              surface: 'TODAY',
+              text: 'Phản hồi đến sau khi panel đã đóng.',
+              delivery: 'GENERATED',
+              policyVersion: 'support-plan-companion-policy-v1',
+              promptVersion: 'support-plan-companion-prompt-v1',
+              templateVersion: 'support-plan-companion-template-v1',
+              provider: 'OPENAI',
+              model: 'test-model',
+              fallbackReason: null,
+            })
+        }),
+    )
+    mount()
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Vì sao hoạt động này có trong kế hoạch?',
+      }),
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Đóng hướng dẫn Bạn đồng hành',
+      }),
+    )
+
+    expect(
+      document.querySelector('.support-plan-companion-contextual-tray'),
+    ).toBeNull()
+    release?.()
+    expect(screen.queryByText('Phản hồi đến sau khi panel đã đóng.')).toBeNull()
+    expect(
+      document.querySelector('.support-plan-companion-contextual-tray'),
+    ).toBeNull()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    let retry = screen.getByRole('button', {
+      name: 'Vì sao hoạt động này có trong kế hoạch?',
+    })
+    await waitFor(() => expect(retry).toBeEnabled())
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Đóng hướng dẫn Bạn đồng hành',
+      }),
+    )
+    expect(screen.queryByText('Phản hồi đến sau khi panel đã đóng.')).toBeNull()
+    expect(
+      document.querySelector('.support-plan-companion-contextual-tray'),
+    ).toBeNull()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    retry = screen.getByRole('button', {
+      name: 'Vì sao hoạt động này có trong kế hoạch?',
+    })
+    await user.click(retry)
+    expect(
+      await screen.findByText(
+        'Đây là một hoạt động đã được Care chọn cho kế hoạch của bạn.',
+      ),
+    ).toBeVisible()
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledTimes(2)
+  })
+  it('admits one journey-wide request across rapid clicks and tab changes, then allows retry after settlement', async () => {
+    const user = userEvent.setup()
+    let release: (() => void) | undefined
+    api.requestSupportPlanActionCompanionExplanation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              schemaVersion: 'support-plan-companion-message-v1',
+              supportPlanId: nativeSupportPlanFixture().supportPlanId,
+              actionId: emotionActionId,
+              intent: 'EXPLAIN_ACTION',
+              surface: 'TODAY',
+              text: 'Phản hồi đầu tiên.',
+              delivery: 'GENERATED',
+              policyVersion: 'support-plan-companion-policy-v1',
+              promptVersion: 'support-plan-companion-prompt-v1',
+              templateVersion: 'support-plan-companion-template-v1',
+              provider: 'OPENAI',
+              model: 'test-model',
+              fallbackReason: null,
+            })
+        }),
+    )
+    mount()
+    const todayTrigger = await screen.findByRole(
+      'button',
+      {
+        name: 'Nhờ bạn đồng hành giải thích: Check-in cảm xúc',
+      },
+      { timeout: 5_000 },
+    )
+    fireEvent.click(todayTrigger)
+    fireEvent.click(todayTrigger)
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole('tab', { name: 'Kế hoạch' }))
+    const planTrigger = await screen.findByRole(
+      'button',
+      {
+        name: 'Nhờ bạn đồng hành giải thích: Check-in cảm xúc',
+      },
+      { timeout: 5_000 },
+    )
+    expect(planTrigger).toBeDisabled()
+    fireEvent.click(planTrigger)
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledTimes(1)
+
+    release?.()
+    await waitFor(() => expect(planTrigger).toBeEnabled())
+    await user.click(planTrigger)
+    expect(
+      api.requestSupportPlanActionCompanionExplanation,
+    ).toHaveBeenCalledTimes(2)
+  })
+  it('invalidates a pending card response when an external dialog opens and allows retry after settlement', async () => {
+    const user = userEvent.setup()
+    let release: (() => void) | undefined
+    api.requestSupportPlanActionCompanionExplanation.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              schemaVersion: 'support-plan-companion-message-v1',
+              supportPlanId: nativeSupportPlanFixture().supportPlanId,
+              actionId: emotionActionId,
+              intent: 'EXPLAIN_ACTION',
+              surface: 'TODAY',
+              text: 'Late native response must stay hidden.',
+              delivery: 'GENERATED',
+              policyVersion: 'support-plan-companion-policy-v1',
+              promptVersion: 'support-plan-companion-prompt-v1',
+              templateVersion: 'support-plan-companion-template-v1',
+              provider: 'OPENAI',
+              model: 'test-model',
+              fallbackReason: null,
+            })
+        }),
+    )
+    mount()
+    const trigger = await screen.findByRole('button', { name: /Check-in/ })
+    fireEvent.click(trigger)
+
+    const dialog = document.createElement('section')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('aria-modal', 'true')
+    dialog.setAttribute('aria-label', 'Xác nhận bên ngoài')
+    const confirm = document.createElement('button')
+    confirm.textContent = 'Tiếp tục xác nhận'
+    dialog.append(confirm)
+    document.body.append(dialog)
+    confirm.focus()
+
+    await waitFor(() =>
+      expect(document.querySelector('.support-plan-companion')).toHaveAttribute(
+        'data-interrupted',
+        'true',
+      ),
+    )
+    expect(confirm).toHaveFocus()
+    expect(screen.getByRole('link', { name: /Ghi nhận cảm xúc/ })).toBeVisible()
+
+    release?.()
+    await waitFor(() => expect(trigger).toBeDisabled())
+    expect(
+      screen.queryByText('Late native response must stay hidden.'),
+    ).toBeNull()
+    expect(
+      document.querySelector(
+        '.support-plan-contextual-bubble[role="status"], .support-plan-contextual-bubble[aria-live], .support-plan-companion-contextual-tray',
+      ),
+    ).toBeNull()
+
+    dialog.remove()
+    await waitFor(() => expect(trigger).toBeEnabled())
+    await user.click(trigger)
+    await waitFor(() =>
+      expect(
+        api.requestSupportPlanActionCompanionExplanation,
+      ).toHaveBeenCalledTimes(2),
+    )
+    expect(
+      document.querySelector('.support-plan-contextual-bubble'),
+    ).not.toBeNull()
   })
   it('opens the canonical form with exact activity identity and focuses return without hidden completion', async () => {
     mount()

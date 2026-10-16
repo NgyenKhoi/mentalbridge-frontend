@@ -20,6 +20,8 @@ const client = vi.hoisted(() => ({
   occurrences: vi.fn(),
   occurrenceState: vi.fn(),
   reconcile: vi.fn(),
+  companionExplanation: vi.fn(),
+  reconcileJournal: vi.fn(),
 }))
 const session = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -63,6 +65,84 @@ describe('Native SupportPlan bounded BFF', () => {
     session.ensureRole.mockImplementation(() => undefined)
     for (const method of Object.values(client))
       method.mockResolvedValue(nativeSupportPlanFixture())
+  })
+  it('forwards exactly one Journal candidate using the authoritative USER session', async () => {
+    client.reconcileJournal.mockResolvedValue({
+      version: 1,
+      sourceState: 'RECORDED',
+      occurrenceState: 'COMPLETED',
+    })
+    const response = await supportPlanActionHandler(
+      request('POST', { journalId: id }),
+      'reconcileJournal',
+      id,
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('etag')).toBe('"1"')
+    expect(await response.text()).not.toContain('server-token-only')
+    expect(client.reconcileJournal).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      id,
+      expect.any(String),
+    )
+  })
+  it('rejects Journal private content, caller facts and malformed candidate IDs before the owner call', async () => {
+    for (const body of [
+      {},
+      { journalId: null },
+      { journalId: 'invalid' },
+      { journalId: [id] },
+      { journalId: id, text: 'private reflection' },
+      { journalId: id, accountId: id },
+      { journalId: id, factId: id },
+    ]) {
+      const response = await supportPlanActionHandler(
+        request('POST', body),
+        'reconcileJournal',
+        id,
+      )
+      expect(response.status).toBe(400)
+    }
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', { journalId: id }),
+          'reconcileJournal',
+          'invalid',
+        )
+      ).status,
+    ).toBe(400)
+    expect(client.reconcileJournal).not.toHaveBeenCalled()
+  })
+  it('blocks foreign-origin and non-USER Journal checks', async () => {
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', { journalId: id }, { origin: 'https://other.test' }),
+          'reconcileJournal',
+          id,
+        )
+      ).status,
+    ).toBe(403)
+    session.ensureRole.mockImplementationOnce(() => {
+      throw new ApiError({
+        code: 'FORBIDDEN',
+        status: 403,
+        message: 'Forbidden',
+      })
+    })
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', { journalId: id }),
+          'reconcileJournal',
+          id,
+        )
+      ).status,
+    ).toBe(403)
+    expect(client.reconcileJournal).not.toHaveBeenCalled()
   })
   it('uses authoritative USER access with no token in data, no-store and strong version', async () => {
     const response = await supportPlanActionHandler(request('GET'), 'current')
@@ -221,6 +301,48 @@ describe('Native SupportPlan bounded BFF', () => {
     ).toBe(400)
     expect(
       (await supportPlanActionHandler(request(), 'reconcile', 'bad-id')).status,
+    ).toBe(400)
+  })
+  it('forwards only exact plan/action identity and an approved contextual surface', async () => {
+    const actionId = '20000000-0000-4000-8000-000000000650'
+    client.companionExplanation.mockResolvedValue({
+      supportPlanId: id,
+      actionId,
+      surface: 'PLAN',
+    })
+    const response = await supportPlanActionHandler(
+      request('POST', { surface: 'PLAN' }),
+      'companionExplanation',
+      id,
+      actionId,
+    )
+    expect(response.status).toBe(200)
+    expect(client.companionExplanation).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      actionId,
+      'PLAN',
+      expect.any(String),
+    )
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', { surface: 'PLAN', context: { private: true } }),
+          'companionExplanation',
+          id,
+          actionId,
+        )
+      ).status,
+    ).toBe(400)
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', { surface: 'PROGRESS' }),
+          'companionExplanation',
+          id,
+          actionId,
+        )
+      ).status,
     ).toBe(400)
   })
   it('rejects a chunked body after its first chunk instead of reading an unbounded command', async () => {

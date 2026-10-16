@@ -20,6 +20,7 @@ type Props = Readonly<{
   onToggleVisibility: () => void
   onRemove: () => void
   renderForm: () => ReactNode
+  companion?: ReactNode
 }>
 
 export const stateLabels: Record<
@@ -94,6 +95,7 @@ type FeaturedActionsProps = Pick<
     canEdit: boolean
     editableState?: EditableState
     href?: string | null
+    companion?: ReactNode
   }>
 
 function FeaturedActions({
@@ -103,6 +105,7 @@ function FeaturedActions({
   canEdit,
   editableState,
   href,
+  companion,
   onStartEditing,
   onReopen,
   onToggleVisibility,
@@ -111,6 +114,7 @@ function FeaturedActions({
   return (
     <div className="support-plan-featured-actions">
       <div className="support-plan-featured-primary-actions">
+        {companion}
         {href ? (
           <a
             className="support-plan-featured-start-btn"
@@ -195,6 +199,7 @@ export default function SupportPlanFeaturedActivity({
   onToggleVisibility,
   onRemove,
   renderForm,
+  companion,
 }: Props) {
   const href = resourceHref(occurrence)
   const canEdit = authoritativePlanStatus === 'ACTIVE'
@@ -260,6 +265,7 @@ export default function SupportPlanFeaturedActivity({
           canEdit={canEdit}
           editableState={canEdit ? editableState : undefined}
           href={href}
+          companion={companion}
           onStartEditing={onStartEditing}
           onReopen={onReopen}
           onToggleVisibility={onToggleVisibility}

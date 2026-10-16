@@ -5,11 +5,19 @@ import type { components as evaluation } from '@/contracts/care-support-evaluati
 export type SupportPlanDraft = care['schemas']['SupportPlanDraft']
 export type SupportPlan = care['schemas']['SupportPlan']
 export type SupportPlanV3 = care['schemas']['SupportPlanV3']
+export type SupportPlanCompanionExplanationRequest =
+  care['schemas']['SupportPlanCompanionExplanationRequest']
+export type SupportPlanContextualCompanionMessage =
+  care['schemas']['SupportPlanContextualCompanionMessage']
 export type ActionOccurrence = care['schemas']['ActionOccurrence']
 export type ActionOccurrenceList = care['schemas']['ActionOccurrenceList']
 export type CompletionEvidence = care['schemas']['CompletionEvidence']
 export type EmotionCheckInOccurrenceReconciliation =
   care['schemas']['EmotionCheckInOccurrenceReconciliation']
+export type JournalOccurrenceReconciliation =
+  care['schemas']['JournalOccurrenceReconciliation']
+export type ReconcileJournalOccurrenceRequest =
+  careOperations['reconcileOwnJournalOccurrence']['requestBody']['content']['application/json']
 export type NativeSupportPlanReplacementReview =
   care['schemas']['NativeSupportPlanReplacementReview']
 export type ProposeNativeSupportPlanRequest =

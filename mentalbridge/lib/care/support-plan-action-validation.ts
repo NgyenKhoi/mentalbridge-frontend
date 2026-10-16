@@ -3,8 +3,10 @@ import type {
   ActionOccurrenceList,
   CompletionEvidence,
   EmotionCheckInOccurrenceReconciliation,
+  JournalOccurrenceReconciliation,
   NativeSupportPlanReplacementReview,
   SupportPlanActionHistory,
+  SupportPlanContextualCompanionMessage,
   SupportPlanV3,
 } from '@/features/support-plan/api/support-plan-contract'
 import { isUuid, parseReassessmentSummary } from './care-validation'
@@ -29,6 +31,62 @@ function text(value: unknown, max: number): value is string {
   return (
     typeof value === 'string' && value.trim().length > 0 && value.length <= max
   )
+}
+
+export function parseSupportPlanContextualCompanionMessage(
+  value: unknown,
+): SupportPlanContextualCompanionMessage | null {
+  const keys = [
+    'schemaVersion',
+    'supportPlanId',
+    'actionId',
+    'intent',
+    'surface',
+    'text',
+    'delivery',
+    'policyVersion',
+    'promptVersion',
+    'templateVersion',
+    'provider',
+    'model',
+    'fallbackReason',
+  ] as const
+  if (
+    !exact(value, keys) ||
+    value.schemaVersion !== 'support-plan-companion-message-v1' ||
+    !isUuid(String(value.supportPlanId)) ||
+    !isUuid(String(value.actionId)) ||
+    value.intent !== 'EXPLAIN_ACTION' ||
+    !['TODAY', 'PLAN'].includes(String(value.surface)) ||
+    !text(value.text, 480) ||
+    !['GENERATED', 'TEMPLATE'].includes(String(value.delivery)) ||
+    value.policyVersion !== 'support-plan-companion-policy-v1' ||
+    value.promptVersion !== 'support-plan-companion-prompt-v1' ||
+    value.templateVersion !== 'support-plan-companion-template-v1' ||
+    (value.provider !== null &&
+      !['DETERMINISTIC_FAKE', 'GEMINI', 'OPENAI', 'BEDROCK'].includes(
+        String(value.provider),
+      )) ||
+    (value.model !== null && !text(value.model, 2048)) ||
+    (value.fallbackReason !== null &&
+      ![
+        'CONSENT_REQUIRED',
+        'CONSENT_UNAVAILABLE',
+        'PROVIDER_DISABLED',
+        'PROVIDER_TIMEOUT',
+        'PROVIDER_QUOTA_LIMITED',
+        'PROVIDER_UNAVAILABLE',
+        'MALFORMED_OUTPUT',
+        'POLICY_REJECTED',
+      ].includes(String(value.fallbackReason))) ||
+    (value.delivery === 'GENERATED' &&
+      (value.provider === null ||
+        value.model === null ||
+        value.fallbackReason !== null)) ||
+    (value.delivery === 'TEMPLATE' && value.fallbackReason === null)
+  )
+    return null
+  return value as SupportPlanContextualCompanionMessage
 }
 
 function instant(value: unknown): value is string {
@@ -504,6 +562,51 @@ export function parseEmotionCheckInReconciliation(
     evidence?.kind === 'EMOTION_CHECK_IN' &&
     evidence.ownerDomain === 'JOURNAL_AI'
     ? (value as EmotionCheckInOccurrenceReconciliation)
+    : null
+}
+
+export function parseJournalReconciliation(
+  value: unknown,
+): JournalOccurrenceReconciliation | null {
+  if (
+    !exact(value, [
+      'schemaVersion',
+      'occurrenceId',
+      'actionId',
+      'localDate',
+      'journalId',
+      'sourceState',
+      'occurrenceState',
+      'version',
+      'completedAt',
+      'completionEvidence',
+    ]) ||
+    value.schemaVersion !== 'journal-entry-occurrence-reconciliation-v1' ||
+    typeof value.occurrenceId !== 'string' ||
+    !isUuid(value.occurrenceId) ||
+    typeof value.actionId !== 'string' ||
+    !isUuid(value.actionId) ||
+    typeof value.journalId !== 'string' ||
+    !isUuid(value.journalId) ||
+    !isSupportPlanLocalDate(value.localDate) ||
+    !['RECORDED', 'MISSING', 'DELETED'].includes(String(value.sourceState)) ||
+    !integer(value.version)
+  )
+    return null
+  if (value.occurrenceState === 'SCHEDULED')
+    return value.sourceState !== 'RECORDED' &&
+      value.completedAt === null &&
+      value.completionEvidence === null
+      ? (value as JournalOccurrenceReconciliation)
+      : null
+  const evidence = parseCompletionEvidence(value.completionEvidence)
+  return value.occurrenceState === 'COMPLETED' &&
+    instant(value.completedAt) &&
+    evidence?.kind === 'JOURNAL_ENTRY' &&
+    evidence.ownerDomain === 'JOURNAL_AI' &&
+    evidence.factId === value.journalId &&
+    evidence.factRevision === '1'
+    ? (value as JournalOccurrenceReconciliation)
     : null
 }
 

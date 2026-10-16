@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SupportPlanCompanionShell from './SupportPlanCompanionShell'
@@ -8,12 +8,12 @@ import {
   type SupportPlanCompanionEvent,
 } from './support-plan-companion-state'
 
-function installMotionPreference(matches = false) {
+function installMotionPreference(reducedMotion = false, mobileSheet = false) {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
-    value: vi.fn().mockImplementation(() => ({
-      matches,
-      media: '(prefers-reduced-motion: reduce)',
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes('max-width') ? mobileSheet : reducedMotion,
+      media: query,
       onchange: null,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -154,6 +154,42 @@ describe('SupportPlanCompanionShell', () => {
     ).toHaveAttribute('data-motion', 'reduced')
   })
 
+  it('keeps a manual hide across navigation and remounts within one session only', () => {
+    const first = render(
+      <SupportPlanCompanionShell state="idle" surface="today" />,
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Thu gọn bạn đồng hành' }),
+    )
+
+    expect(
+      window.sessionStorage.getItem(
+        'mentalbridge_support_plan_companion_session_hidden',
+      ),
+    ).toBe('true')
+    first.rerender(
+      <SupportPlanCompanionShell state="idle" surface="progress" />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'Mở rộng bạn đồng hành' }),
+    ).toHaveAttribute('aria-expanded', 'false')
+    first.unmount()
+
+    const remount = render(
+      <SupportPlanCompanionShell state="idle" surface="adjust" />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'Mở rộng bạn đồng hành' }),
+    ).toHaveAttribute('aria-expanded', 'false')
+    remount.unmount()
+
+    window.sessionStorage.clear()
+    render(<SupportPlanCompanionShell state="idle" surface="today" />)
+    expect(
+      screen.getByRole('button', { name: 'Thu gọn bạn đồng hành' }),
+    ).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('ignores the legacy permanent mute value', () => {
     window.localStorage.setItem(
       'mentalbridge_support_plan_companion_muted',
@@ -234,10 +270,32 @@ describe('SupportPlanCompanionShell', () => {
       },
     ],
     [
+      'sessionStorage.getItem',
+      () => {
+        const spy = vi
+          .spyOn(window.sessionStorage, 'getItem')
+          .mockImplementation(() => {
+            throw new DOMException('Storage denied', 'SecurityError')
+          })
+        return () => spy.mockRestore()
+      },
+    ],
+    [
       'localStorage.setItem',
       () => {
         const spy = vi
           .spyOn(Storage.prototype, 'setItem')
+          .mockImplementation(() => {
+            throw new DOMException('Storage denied', 'SecurityError')
+          })
+        return () => spy.mockRestore()
+      },
+    ],
+    [
+      'sessionStorage.setItem',
+      () => {
+        const spy = vi
+          .spyOn(window.sessionStorage, 'setItem')
           .mockImplementation(() => {
             throw new DOMException('Storage denied', 'SecurityError')
           })
@@ -322,6 +380,134 @@ describe('SupportPlanCompanionShell', () => {
     expect(screen.getByText(companionStateCopy.idle.description)).toBeVisible()
   })
 
+  it('stays static and blocks guided prompting during an interruption zone', async () => {
+    const onRequest = vi.fn()
+    const Character = vi.fn(
+      ({ reducedMotion }: Readonly<{ reducedMotion: boolean }>) => (
+        <span data-testid="character-motion">{String(reducedMotion)}</span>
+      ),
+    )
+    const view = render(
+      <SupportPlanCompanionShell
+        state="idle"
+        surface="today"
+        CharacterRenderer={Character}
+        interruptionActive
+        guidedContext={{
+          supportPlanId: '10000000-0000-4000-8000-000000000653',
+          action: {
+            actionId: '20000000-0000-4000-8000-000000000653',
+            title: 'Đi bộ 10 phút',
+            requestSurface: 'TODAY',
+          },
+        }}
+        onGuidedRequest={onRequest}
+        onGuidedNavigate={vi.fn()}
+      />,
+    )
+
+    const shell = screen.getByRole('complementary', {
+      name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+    })
+    const open = screen.getByRole('button', {
+      name: 'Mở hướng dẫn có giới hạn',
+    })
+    expect(shell).toHaveAttribute('data-interrupted', 'true')
+    expect(screen.getByTestId('character-motion')).toHaveTextContent('true')
+    expect(open).toBeDisabled()
+    expect(open).toHaveAccessibleDescription(
+      'Bạn đồng hành đang tạm lắng trong khi bạn chỉnh sửa hoặc xác nhận.',
+    )
+    fireEvent.click(open)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(onRequest).not.toHaveBeenCalled()
+
+    view.rerender(
+      <SupportPlanCompanionShell
+        state="idle"
+        surface="today"
+        CharacterRenderer={Character}
+        guidedContext={{
+          supportPlanId: '10000000-0000-4000-8000-000000000653',
+          action: {
+            actionId: '20000000-0000-4000-8000-000000000653',
+            title: 'Đi bộ 10 phút',
+            requestSurface: 'TODAY',
+          },
+        }}
+        onGuidedRequest={onRequest}
+        onGuidedNavigate={vi.fn()}
+      />,
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    expect(screen.getByRole('dialog', { name: 'Bạn đồng hành' })).toBeVisible()
+
+    view.rerender(
+      <SupportPlanCompanionShell
+        state="idle"
+        surface="today"
+        CharacterRenderer={Character}
+        interruptionActive
+        guidedContext={{
+          supportPlanId: '10000000-0000-4000-8000-000000000653',
+          action: {
+            actionId: '20000000-0000-4000-8000-000000000653',
+            title: 'Đi bộ 10 phút',
+            requestSurface: 'TODAY',
+          },
+        }}
+        onGuidedRequest={onRequest}
+        onGuidedNavigate={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(onRequest).not.toHaveBeenCalled()
+  })
+
+  it('pauses for an external modal without treating its own mobile sheet as an interruption', async () => {
+    installMotionPreference(false, true)
+    render(
+      <SupportPlanCompanionShell
+        state="idle"
+        surface="today"
+        guidedContext={{ supportPlanId: 'plan-653' }}
+        onGuidedNavigate={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Mở hướng dẫn có giới hạn' }),
+    )
+    expect(
+      screen.getByRole('complementary', {
+        name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+      }),
+    ).toHaveAttribute('data-interrupted', 'false')
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    const external = document.createElement('div')
+    external.setAttribute('role', 'dialog')
+    external.setAttribute('aria-modal', 'true')
+    act(() => document.body.append(external))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('complementary', {
+          name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+        }),
+      ).toHaveAttribute('data-interrupted', 'true'),
+    )
+    act(() => external.remove())
+    await waitFor(() =>
+      expect(
+        screen.getByRole('complementary', {
+          name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+        }),
+      ).toHaveAttribute('data-interrupted', 'false'),
+    )
+  })
+
   it('falls back to a static character if an optional runtime fails', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     function BrokenCharacter(): never {
@@ -345,5 +531,107 @@ describe('SupportPlanCompanionShell', () => {
       ),
     ).toBeVisible()
     error.mockRestore()
+  })
+
+  it('opens and closes guided conversation without invoking plan actions and restores focus', async () => {
+    const planAction = vi.fn()
+    render(
+      <>
+        <SupportPlanCompanionShell
+          state="idle"
+          surface="today"
+          guidedContext={{
+            supportPlanId: '10000000-0000-4000-8000-000000000651',
+            action: {
+              actionId: '20000000-0000-4000-8000-000000000651',
+              title: 'Đi bộ 10 phút',
+              requestSurface: 'TODAY',
+            },
+          }}
+          onGuidedNavigate={vi.fn()}
+        />
+        <button type="button" onClick={planAction}>
+          Lưu lịch hoạt động
+        </button>
+      </>,
+    )
+
+    const open = screen.getByRole('button', {
+      name: 'Mở hướng dẫn có giới hạn',
+    })
+    fireEvent.click(open)
+    expect(screen.getByRole('dialog', { name: 'Bạn đồng hành' })).toBeVisible()
+    expect(planAction).not.toHaveBeenCalled()
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Đóng hướng dẫn Bạn đồng hành',
+      }),
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', {
+          name: 'Mở hướng dẫn có giới hạn',
+        }),
+      ).toHaveFocus(),
+    )
+    expect(planAction).not.toHaveBeenCalled()
+  })
+
+  it('makes the mobile sheet modal, traps focus, closes on Escape, and restores the opener', async () => {
+    installMotionPreference(false, true)
+    const { container } = render(
+      <div className="support-plan-page">
+        <SupportPlanCompanionShell
+          state="idle"
+          surface="today"
+          guidedContext={{
+            supportPlanId: '10000000-0000-4000-8000-000000000651',
+            action: {
+              actionId: '20000000-0000-4000-8000-000000000651',
+              title: 'Đi bộ 10 phút',
+              requestSurface: 'TODAY',
+            },
+          }}
+          onGuidedNavigate={vi.fn()}
+        />
+        <button type="button">Nội dung nền</button>
+      </div>,
+    )
+
+    const open = screen.getByRole('button', {
+      name: 'Mở hướng dẫn có giới hạn',
+    })
+    const background = screen.getByRole('button', { name: 'Nội dung nền' })
+    fireEvent.click(open)
+    const dialog = screen.getByRole('dialog', { name: 'Bạn đồng hành' })
+    const close = screen.getByRole('button', {
+      name: 'Đóng hướng dẫn Bạn đồng hành',
+    })
+    const last = screen.getByRole('button', {
+      name: 'Chỉ tôi nơi có thể điều chỉnh',
+    })
+
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(background).toHaveAttribute('inert')
+    expect(close).toHaveFocus()
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(last).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(close).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', {
+          name: 'Mở hướng dẫn có giới hạn',
+        }),
+      ).toHaveFocus(),
+    )
+    expect(container.querySelector('[inert]')).toBeNull()
+    expect(document.body).not.toHaveStyle({ overflow: 'hidden' })
   })
 })

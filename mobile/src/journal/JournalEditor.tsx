@@ -39,6 +39,11 @@ type SaveAttempt = {
   body: JournalCreate | JournalWrite
   entry: JournalEntry | undefined
 }
+export type JournalNavigationState = Readonly<{
+  dirty: boolean
+  busy: boolean
+  uncertain: boolean
+}>
 
 export function JournalEditor({
   api,
@@ -46,12 +51,16 @@ export function JournalEditor({
   initialEntry,
   onClose,
   onDirtyChange,
+  onCreated,
+  onNavigationStateChange,
 }: Readonly<{
   api: JournalApi
   subject: string
   initialEntry?: JournalEntry
   onClose: () => void
   onDirtyChange: (dirty: boolean) => void
+  onCreated?: (journalId: string) => void
+  onNavigationStateChange?: (state: JournalNavigationState) => void
 }>) {
   const client = useQueryClient()
   const [entry, setEntry] = useState(initialEntry)
@@ -116,12 +125,15 @@ export function JournalEditor({
         : api.create(request.body as JournalCreate, request.key)
     },
     onSuccess: async (saved) => {
+      const created =
+        attempt.current?.entry === undefined && attempt.current !== null
       setEntry(saved)
       setDraft(draftOf(saved))
       attempt.current = null
       setUncertain(false)
       setConflict(false)
       setNotice('Đã lưu nhật ký.')
+      if (created) onCreated?.(saved.id)
       client.setQueryData(['journal', subject, 'detail', saved.id], saved)
       await refresh()
     },
@@ -177,8 +189,14 @@ export function JournalEditor({
     onError: (error) => setNotice(journalError(error)),
   })
   const busy = save.isPending || remove.isPending || reload.isPending
+  useEffect(() => {
+    onNavigationStateChange?.({ dirty, busy, uncertain })
+    return () =>
+      onNavigationStateChange?.({ dirty: false, busy: false, uncertain: false })
+  }, [dirty, busy, uncertain, onNavigationStateChange])
   const locked = busy || uncertain
   const close = () => {
+    if (busy) return
     if (!dirty && !uncertain) return onClose()
     Alert.alert(
       'Rời bài viết?',
@@ -292,7 +310,12 @@ export function JournalEditor({
             !parsed.success ||
             (!dirty && !uncertain)
           }
-          onPress={() => save.mutate()}
+          onPress={() => {
+            // Lock parent/native navigation in the same event as submission,
+            // rather than waiting for mutation state to reach an effect.
+            onNavigationStateChange?.({ dirty, busy: true, uncertain })
+            save.mutate()
+          }}
         />
         <TextAction
           label="Về danh sách nhật ký"
