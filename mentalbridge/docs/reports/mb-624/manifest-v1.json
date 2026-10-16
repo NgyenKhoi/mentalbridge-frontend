@@ -1,0 +1,34 @@
+{
+  "reportVersion": 1,
+  "generatedAt": "2026-10-16",
+  "catalogue": {
+    "repository": "NgyenKhoi/mentalbridge-backend",
+    "path": "Report3_Project Tracking.xlsx",
+    "blob": "3e88f90877d5453b82bef8cbf3e0dcb314c549c1",
+    "sha256": "c3352511cc4d307cc8ed1832d36f3af00faa758d15073003ea1b17fe36d1c6b9",
+    "atomicRows": 162,
+    "aggregateRows": 7
+  },
+  "snapshots": {
+    "backendDev": "a1ddbfc6c33521a06fb277b0782a8205825752e5",
+    "frontendDev": "c4dfb6f88759576611896865c72b6182020ce5b0"
+  },
+  "denominator": 162,
+  "numerator": 101,
+  "closurePercent": 62.35,
+  "counts": {
+    "CLOSED": 101,
+    "PARTIAL": 30,
+    "GAP": 14,
+    "SCOPE_RESOLVED": 17
+  },
+  "evidenceClassifications": [
+    "fixture",
+    "fixture-browser",
+    "service-integration",
+    "sandbox",
+    "live-cross-stack",
+    "none"
+  ],
+  "note": "No live-cross-stack evidence was claimed by this audit; skipped or unavailable protected jobs do not count."
+}
