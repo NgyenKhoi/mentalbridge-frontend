@@ -30,7 +30,7 @@ function result(phq9Level = 'MILD', gad7Level = 'MINIMAL', safety = false) {
     sourcePolicyVersion: 'mb-support-routing-capstone-v1',
     evaluatedAt: '2026-10-14T08:00:00Z',
     presentationPolicyVersion: 'mb-combined-screening-meaning-v1',
-    contentVersion: 'mb-combined-screening-meaning-vi-vn-v1-draft.2',
+    contentVersion: 'mb-combined-screening-meaning-vi-vn-v1-draft.3',
     referencePeriodDays: 14,
     episodeId: '30000000-0000-4000-8000-000000000001',
     episodePurpose: 'INITIAL_CHECK',

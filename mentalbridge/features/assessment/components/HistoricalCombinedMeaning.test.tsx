@@ -21,7 +21,7 @@ describe('HistoricalCombinedMeaning', () => {
 
     expect(
       await screen.findByRole('heading', {
-        name: 'Nhóm dấu hiệu PHQ-9 ở mức nhẹ, còn lo âu được ghi nhận rất ít.',
+        name: 'Dấu hiệu trầm cảm ở mức nhẹ, lo âu rất ít.',
       }),
     ).toBeVisible()
     expect(

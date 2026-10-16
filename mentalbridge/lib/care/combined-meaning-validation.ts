@@ -171,7 +171,7 @@ export function parseCombinedScreeningMeaning(
     value.sourcePolicyVersion !== 'mb-support-routing-capstone-v1' ||
     !dateTime(value.evaluatedAt) ||
     value.presentationPolicyVersion !== 'mb-combined-screening-meaning-v1' ||
-    value.contentVersion !== 'mb-combined-screening-meaning-vi-vn-v1-draft.2' ||
+    value.contentVersion !== 'mb-combined-screening-meaning-vi-vn-v1-draft.3' ||
     value.referencePeriodDays !== 14 ||
     !Array.isArray(value.evidence) ||
     value.evidence.length !== 2 ||

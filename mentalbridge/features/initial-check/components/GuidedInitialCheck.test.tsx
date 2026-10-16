@@ -160,7 +160,7 @@ describe('GuidedInitialCheck', () => {
     const { container } = render(<GuidedInitialCheck />)
 
     await screen.findByRole('heading', {
-      name: 'Nhóm dấu hiệu PHQ-9 ở mức nhẹ, còn lo âu được ghi nhận rất ít.',
+      name: 'Dấu hiệu trầm cảm ở mức nhẹ, lo âu rất ít.',
     })
     expect(screen.getByRole('heading', { name: 'PHQ-9' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'GAD-7' })).toBeVisible()

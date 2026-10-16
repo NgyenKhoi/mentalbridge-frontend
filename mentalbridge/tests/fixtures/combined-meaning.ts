@@ -28,7 +28,7 @@ export function combinedMeaningFixture(
     sourcePolicyVersion: 'mb-support-routing-capstone-v1',
     evaluatedAt: '2026-09-10T08:00:00Z',
     presentationPolicyVersion: 'mb-combined-screening-meaning-v1',
-    contentVersion: 'mb-combined-screening-meaning-vi-vn-v1-draft.2',
+    contentVersion: 'mb-combined-screening-meaning-vi-vn-v1-draft.3',
     referencePeriodDays: 14,
     episodeId: options.episodeId ?? '70000000-0000-4000-8000-000000000101',
     episodePurpose: options.purpose ?? 'INITIAL_CHECK',
@@ -67,10 +67,10 @@ export function combinedMeaningFixture(
         ? 'PHQ9_MODERATE_GAD7_MINIMAL'
         : 'PHQ9_MILD_GAD7_MINIMAL',
       text: professional
-        ? 'Các dấu hiệu PHQ-9 cần được quan tâm, dù lo âu được ghi nhận rất ít.'
-        : 'Nhóm dấu hiệu PHQ-9 ở mức nhẹ, còn lo âu được ghi nhận rất ít.',
+        ? 'Dấu hiệu trầm cảm ở mức trung bình, lo âu rất ít. Bạn nên trao đổi thêm với chuyên gia.'
+        : 'Dấu hiệu trầm cảm ở mức nhẹ, lo âu rất ít.',
       rationale: professional
-        ? 'Kết quả PHQ-9 gợi ý trao đổi với chuyên gia về những thay đổi bạn đang nhận thấy.'
+        ? 'Dấu hiệu trầm cảm từ mức trung bình trở lên là lý do MentalBridge gợi ý trao đổi với chuyên gia, để bạn hiểu rõ hơn những thay đổi về tâm trạng, giấc ngủ hay năng lượng.'
         : 'Bạn có thể bắt đầu bằng nghỉ ngơi, ăn uống đều đặn và một hoạt động nhỏ giúp nâng đỡ tâm trạng.',
       supportTier: professional
         ? 'PROFESSIONAL_SUPPORT_RECOMMENDED'

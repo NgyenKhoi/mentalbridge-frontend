@@ -2556,7 +2556,7 @@ export interface components {
             /** @constant */
             presentationPolicyVersion: "mb-combined-screening-meaning-v1";
             /** @constant */
-            contentVersion: "mb-combined-screening-meaning-vi-vn-v1-draft.2";
+            contentVersion: "mb-combined-screening-meaning-vi-vn-v1-draft.3";
             /** @constant */
             referencePeriodDays: 14;
             /** Format: uuid */

@@ -35,7 +35,7 @@ export const combinedScreeningMeaningSchema = z
     sourcePolicyVersion: z.literal('mb-support-routing-capstone-v1'),
     evaluatedAt: z.iso.datetime({ offset: true }),
     presentationPolicyVersion: z.literal('mb-combined-screening-meaning-v1'),
-    contentVersion: z.literal('mb-combined-screening-meaning-vi-vn-v1-draft.2'),
+    contentVersion: z.literal('mb-combined-screening-meaning-vi-vn-v1-draft.3'),
     referencePeriodDays: z.literal(14),
     evidence: z.tuple([
       z

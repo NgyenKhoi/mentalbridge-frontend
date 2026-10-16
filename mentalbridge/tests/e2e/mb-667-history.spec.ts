@@ -86,7 +86,7 @@ function reviewedMeaning() {
     ...fixture,
     baseMeaning: {
       ...fixture.baseMeaning,
-      text: 'Nhóm dấu hiệu PHQ-9 ở mức nhẹ, còn lo âu được ghi nhận rất ít.',
+      text: 'Dấu hiệu trầm cảm ở mức nhẹ, lo âu rất ít.',
       rationale:
         'Bạn có thể bắt đầu bằng nghỉ ngơi, ăn uống đều đặn và một hoạt động nhỏ giúp nâng đỡ tâm trạng.',
     },
@@ -731,7 +731,7 @@ test('MB-667 keeps safety authoritative and renders severe professional support 
   severe.evidence[0].screeningLevel = 'SEVERE'
   severe.baseMeaning.code = 'PHQ9_SEVERE_GAD7_MINIMAL'
   severe.baseMeaning.text =
-    'PHQ-9 ghi nhận nhiều dấu hiệu về tâm trạng, còn GAD-7 ghi nhận rất ít dấu hiệu lo âu.'
+    'Dấu hiệu trầm cảm ở mức nặng, lo âu rất ít. Bạn nên ưu tiên trao đổi sớm với chuyên gia.'
 
   await page.route(
     `**/api/care/support-evaluations/${safetyEvaluationId}/combined-meaning`,
