@@ -2,6 +2,19 @@
 
 ## Stitch-first UI workflow
 
+### Owner-provided prototype fidelity (MB-667)
+
+For MB-667, the owner's supplied Stitch prototype is the visual, interaction,
+and static-copy specification. Do not invoke frontend-design, frontend-design-premium,
+or another design skill to reinterpret this approved design. Preserve only the
+existing sidebar, font families, and MentalBridge green tone. Rebuild all main
+content, including desktop/mobile composition, score bars, history states,
+Guide content, and Mầm An loading, to match the prototype. Prototype-only demo
+state selectors are review controls, not product navigation. Populate personal
+data, scores, dates, saved Guide links, and safety state from the real contracts;
+do not copy fixture identities, invented phone numbers, or unsupported actions.
+The owner request overrides older evidence that says to lock the entire shell.
+
 For any task that starts UI design or materially changes a user journey,
 screen composition, controls, responsive behavior, or motion, follow
 `../.codex/skills/mentalbridge-stitch-ui/SKILL.md`. Start from a written UX

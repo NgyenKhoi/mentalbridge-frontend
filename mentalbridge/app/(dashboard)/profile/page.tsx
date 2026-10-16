@@ -88,7 +88,9 @@ export default function ProfilePage() {
   const [privacySaving, setPrivacySaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
-  const [returnToInitialCheck, setReturnToInitialCheck] = useState(false)
+  const [initialCheckReturnTo, setInitialCheckReturnTo] = useState<
+    '/initial-check' | '/initial-check?purpose=reassessment' | null
+  >(null)
   const displayNameRef = useRef<HTMLInputElement>(null)
   const dateOfBirthRef = useRef<HTMLInputElement>(null)
 
@@ -108,14 +110,17 @@ export default function ProfilePage() {
   const hasDraftChanges = JSON.stringify(form) !== JSON.stringify(originalForm)
 
   useEffect(() => {
-    const returnTimer = window.setTimeout(
-      () =>
-        setReturnToInitialCheck(
-          new URLSearchParams(window.location.search).get('returnTo') ===
-            '/initial-check',
-        ),
-      0,
-    )
+    const returnTimer = window.setTimeout(() => {
+      const candidate = new URLSearchParams(window.location.search).get(
+        'returnTo',
+      )
+      setInitialCheckReturnTo(
+        candidate === '/initial-check' ||
+          candidate === '/initial-check?purpose=reassessment'
+          ? candidate
+          : null,
+      )
+    }, 0)
     let active = true
     void (async () => {
       try {
@@ -245,9 +250,7 @@ export default function ProfilePage() {
       await recordPrivacyDecision(granted, disclosure.version)
       setPrivacyGranted(granted)
       showActionToast({
-        title: granted
-          ? 'Đã bật xử lý dữ liệu'
-          : 'Đã dừng xử lý dữ liệu',
+        title: granted ? 'Đã bật xử lý dữ liệu' : 'Đã dừng xử lý dữ liệu',
         description: 'Thay đổi áp dụng cho các lần sàng lọc mới.',
       })
     } catch {
@@ -282,7 +285,7 @@ export default function ProfilePage() {
         </p>
       )}
 
-      {returnToInitialCheck && profile && privacyGranted && (
+      {initialCheckReturnTo && profile && privacyGranted && (
         <section
           className="settings-onboarding"
           aria-labelledby="initial-check-ready-title"
@@ -290,11 +293,14 @@ export default function ProfilePage() {
           <div>
             <span>Sẵn sàng</span>
             <h2 id="initial-check-ready-title">
-              Bạn có thể tiếp tục kiểm tra ban đầu
+              Bạn có thể tiếp tục{' '}
+              {initialCheckReturnTo.includes('reassessment')
+                ? 'đánh giá lại'
+                : 'kiểm tra ban đầu'}
             </h2>
             <p>Hồ sơ và lựa chọn quyền riêng tư hiện đã đầy đủ.</p>
           </div>
-          <Link className="btn-primary" href="/initial-check">
+          <Link className="btn-primary" href={initialCheckReturnTo}>
             Tiếp tục bước chưa hoàn tất
           </Link>
         </section>
@@ -562,7 +568,6 @@ export default function ProfilePage() {
           <span className="assessment-unavailable-label">Chưa khả dụng</span>
         </div>
       </section>
-
     </div>
   )
 }

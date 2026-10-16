@@ -5,6 +5,17 @@ description: Design and implement new or materially changed MentalBridge web or 
 
 # MentalBridge Stitch-first UI delivery
 
+## Owner-supplied approved prototype
+
+When the owner supplies an approved Stitch prototype and requests exact fidelity,
+use it as the specification for layout, interactions, responsive states and static
+copy. Do not introduce a new visual direction through another frontend-design
+skill. The owner's explicit preservation boundary overrides the default chrome
+lock below. For MB-667 that boundary is sidebar, fonts and the existing green
+brand tone only; all main content follows the approved prototype. Retain real
+contract data and authorization, and adapt fixture-only controls or unsupported
+medical claims/actions to the existing authoritative behavior.
+
 Use this workflow before production implementation whenever the task starts UI
 design or materially changes a user-facing journey. Stitch is design evidence,
 not production runtime or product authority.

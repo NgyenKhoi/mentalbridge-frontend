@@ -116,4 +116,14 @@ describe('AuthenticatedShell', () => {
       within(topbar).getByRole('navigation', { name: 'Đường dẫn trên cùng' }),
     ).toBeVisible()
   })
+
+  it('names a saved assessment result in the shared shell', () => {
+    navigation.pathname =
+      '/assessments/results/20000000-0000-4000-8000-000000000101'
+    render(<AuthenticatedShell workspaces={[]}>Kết quả</AuthenticatedShell>)
+
+    expect(
+      within(screen.getByRole('banner')).getByText('Kết quả sàng lọc'),
+    ).toBeVisible()
+  })
 })

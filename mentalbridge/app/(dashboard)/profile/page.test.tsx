@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { mockServer } from '@/tests/mocks/server'
@@ -42,6 +42,8 @@ function renderProfile() {
 }
 
 describe('Care profile page', () => {
+  afterEach(() => window.history.replaceState({}, '', '/profile'))
+
   it('renders backend data and appends a privacy decision without fake specialist data', async () => {
     const decision = vi.fn()
     mockServer.use(
@@ -123,6 +125,46 @@ describe('Care profile page', () => {
     expect(await screen.findByText('Bạn chưa có hồ sơ')).toBeVisible()
     expect(screen.getAllByRole('button', { name: 'Tạo hồ sơ' })).toHaveLength(2)
     expect(screen.queryByText(/không thể tải đầy đủ/i)).not.toBeInTheDocument()
+  })
+
+  it('returns only to the allowlisted reassessment journey after readiness', async () => {
+    window.history.pushState(
+      {},
+      '',
+      '/profile?returnTo=%2Finitial-check%3Fpurpose%3Dreassessment',
+    )
+    mockServer.use(
+      http.get('http://localhost/api/care/profile', () =>
+        HttpResponse.json(profile),
+      ),
+      http.get('http://localhost/api/care/privacy-disclosure', () =>
+        HttpResponse.json(disclosure),
+      ),
+      http.get('http://localhost/api/care/consents', () =>
+        HttpResponse.json({
+          decisions: [
+            {
+              decisionId: '10000000-0000-4000-8000-000000000020',
+              consentType: 'PRIVACY_POLICY',
+              policyVersion: 'privacy-capstone-v3',
+              granted: true,
+              decidedAt: '2026-09-02T00:01:00Z',
+            },
+          ],
+        }),
+      ),
+    )
+
+    renderProfile()
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Bạn có thể tiếp tục đánh giá lại',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Tiếp tục bước chưa hoàn tất' }),
+    ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
   })
 
   it('keeps the persisted header separate from an editable draft and can cancel changes', async () => {
