@@ -26,19 +26,3 @@ export async function getAchievements(timezone: string) {
     etag: requiredEtag(response.headers.etag),
   }
 }
-
-export async function setAchievementVisibility(
-  timezone: string,
-  visibilityState: 'VISIBLE' | 'HIDDEN',
-  etag: string,
-) {
-  const response = await browserApiClient.put<AchievementCollection>(
-    `/achievements?timezone=${encodeURIComponent(timezone)}`,
-    { visibilityState },
-    { headers: { 'If-Match': etag } },
-  )
-  return {
-    collection: response.data,
-    etag: requiredEtag(response.headers.etag),
-  }
-}
