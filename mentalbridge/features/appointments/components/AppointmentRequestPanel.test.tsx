@@ -98,6 +98,50 @@ describe('AppointmentRequestPanel', () => {
 
   beforeEach(() => vi.clearAllMocks())
 
+  it.each(['CONFIRMED', 'SESSION_ENDED'] as const)(
+    'opens %s video in its dedicated room without inline media and with the visible action in its accessible name',
+    async (status) => {
+      appointmentClient.slots.mockResolvedValue({
+        items: [],
+        count: 0,
+        generatedAt: '2099-01-01T00:00:00Z',
+        videoEnabled: true,
+      })
+      appointmentClient.list.mockResolvedValue({
+        items: [
+          {
+            ...appointment,
+            modality: 'IN_APP_VIDEO',
+            status,
+            decidedAt: '2099-01-01T01:00:00Z',
+            decisionReason: 'SPECIALIST_ACCEPTED',
+            version: 1,
+          },
+        ],
+        count: 1,
+        generatedAt: '2099-01-01T00:00:00Z',
+      })
+      render(<AppointmentRequestPanel focusAppointmentId={appointment.id} />)
+      expect(
+        await screen.findByRole('link', {
+          name:
+            status === 'CONFIRMED'
+              ? /Mở phòng tư vấn với Appointment specialist/
+              : /Xem phiên tư vấn video với Appointment specialist/,
+        }),
+      ).toHaveAttribute('href', `/appointments/${appointment.id}/video`)
+      expect(
+        screen.queryByRole('region', { name: 'Cuộc gọi tư vấn' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Tham gia phiên tư vấn' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('link', { name: /Mở tin nhắn/ }),
+      ).not.toBeInTheDocument()
+    },
+  )
+
   afterAll(() => {
     if (originalTimezone === undefined) delete process.env.TZ
     else process.env.TZ = originalTimezone

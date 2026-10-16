@@ -1,10 +1,50 @@
-.disclosure {
-  grid-column: 1 / -1;
+.workspace {
   min-width: 0;
   width: 100%;
+  color: var(--ink);
+}
+.workspace[data-role='SPECIALIST'] {
+  padding: var(--space-8);
+}
+.workspaceHeading {
+  margin-bottom: var(--space-5);
+}
+.workspaceHeading h1 {
+  margin: var(--space-3) 0 var(--space-2);
+  font:
+    500 clamp(1.75rem, 3vw, 2.25rem)/1.2 var(--font-fraunces),
+    serif;
+  color: var(--ink);
+}
+.workspaceHeading p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+.backLink,
+.preparation a,
+.resultLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  color: var(--teal-deep);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.backLink:focus-visible,
+.preparation a:focus-visible,
+.resultLink:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+.preparation {
+  margin-top: var(--space-5);
+  min-width: 0;
 }
 .panel {
-  margin-block: var(--space-4);
+  margin: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
   overflow: clip;
@@ -20,9 +60,18 @@
   padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--line);
 }
-.header h3 {
+.header h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font:
+    600 1.125rem/1.5 var(--font-body),
+    sans-serif;
+}
+.header .schedule {
+  margin: var(--space-1) 0 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
 }
 .header span,
 .note {
@@ -48,7 +97,26 @@
   color: var(--surface);
 }
 .preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 20rem;
   text-align: center;
+}
+.standby {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+  min-height: 20rem;
+  background: var(--surface-soft);
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  margin-block: var(--space-4);
+}
+.standby p {
+  margin: 0;
 }
 .panel .body .preview p,
 .panel .body .call p {
@@ -63,8 +131,9 @@
 }
 .videos {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-items: end;
+  gap: var(--space-5);
   margin-block: var(--space-4);
 }
 .videos figure {
@@ -74,10 +143,13 @@
 .videos video {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
   object-fit: contain;
   background: var(--ink);
   border-radius: var(--radius-control);
+}
+.remoteVideo video {
+  max-height: min(20rem, 28vh);
 }
 .videos figcaption {
   padding-block: var(--space-2);
@@ -86,11 +158,34 @@
 .placeholder {
   display: grid;
   place-content: center;
-  min-height: 12rem;
+  justify-items: center;
+  gap: var(--space-4);
+  min-height: 20rem;
   padding: var(--space-5);
   text-align: center;
   border: 1px solid currentColor;
   border-radius: var(--radius-control);
+}
+.localPlaceholder {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  min-height: 10rem;
+  padding: var(--space-4);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-control);
+  text-align: center;
+}
+.localVideo video {
+  transform: scaleX(-1);
+}
+.panel .call figcaption {
+  color: var(--surface) !important;
+}
+.placeholder p,
+.localPlaceholder p {
+  margin: 0;
 }
 .actions {
   display: flex;
@@ -99,6 +194,10 @@
   margin-block: var(--space-4);
 }
 .panel button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   min-height: 44px;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--line);
@@ -106,8 +205,12 @@
   color: var(--teal-deep);
   background: var(--surface);
   font: inherit;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 .panel button:focus-visible {
   outline: 2px solid var(--teal);
@@ -144,6 +247,9 @@
   margin-bottom: 0;
 }
 @media (max-width: 600px) {
+  .workspace[data-role='SPECIALIST'] {
+    padding: var(--space-4);
+  }
   .body,
   .preview,
   .call {
@@ -152,8 +258,23 @@
   .videos {
     grid-template-columns: 1fr;
   }
+  .placeholder {
+    min-height: 15rem;
+  }
+  .localPlaceholder {
+    min-height: 6rem;
+  }
   .actions > button {
     flex: 1 1 100%;
+  }
+  .actions {
+    padding-inline-end: calc(var(--space-12) + var(--space-4));
+  }
+  .preview button,
+  .preparation > a,
+  .preparation > details,
+  .resultLink {
+    max-width: calc(100% - var(--space-12) - var(--space-4));
   }
 }
 @media (prefers-reduced-motion: reduce) {

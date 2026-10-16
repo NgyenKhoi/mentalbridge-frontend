@@ -18,6 +18,7 @@ import {
   setLogLevel,
 } from 'livekit-client'
 import { useEffect, useRef, useState } from 'react'
+import { CameraOff, Mic, MicOff, PhoneOff, Video, VideoOff } from 'lucide-react'
 
 import type { VideoAccess } from '@/lib/consultation/video-validation'
 import styles from './VideoConsultation.module.css'
@@ -134,6 +135,14 @@ function CallControls({ onLeave }: { onLeave: () => void }) {
     useLocalParticipant()
   const remote = useRemoteParticipants()
   const cameras = useTracks([Track.Source.Camera])
+  const localCamera = cameras.find(
+    (track) =>
+      track.participant.isLocal && track.publication?.isMuted === false,
+  )
+  const remoteCamera = cameras.find(
+    (track) =>
+      !track.participant.isLocal && track.publication?.isMuted === false,
+  )
   const { canPlayAudio, mergedProps } = useStartAudio({ props: {} })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -167,21 +176,34 @@ function CallControls({ onLeave }: { onLeave: () => void }) {
               : 'Đang chờ người còn lại tham gia'}
       </p>
       <div className={styles.videos}>
-        {cameras.map((track) => (
-          <figure key={track.participant.identity}>
-            <VideoTrack trackRef={track} />
-            <figcaption>
-              {track.participant.isLocal ? 'Bạn' : 'Người tham gia cùng bạn'}
-            </figcaption>
-          </figure>
-        ))}
-        {!cameras.some((track) => !track.participant.isLocal) && (
-          <div className={styles.placeholder}>
-            {remote.length
-              ? 'Người còn lại đang tắt camera'
-              : 'Chờ người còn lại'}
-          </div>
-        )}
+        <figure className={styles.remoteVideo}>
+          {remoteCamera ? (
+            <VideoTrack trackRef={remoteCamera} />
+          ) : (
+            <div className={styles.placeholder}>
+              <CameraOff size={40} aria-hidden="true" />
+              <p>
+                {remote.some((participant) => participant.isCameraEnabled)
+                  ? 'Đang tải hình ảnh người còn lại…'
+                  : remote.length
+                    ? 'Người còn lại đang tắt camera'
+                    : 'Chờ người còn lại'}
+              </p>
+            </div>
+          )}
+          <figcaption>Người tham gia cùng bạn</figcaption>
+        </figure>
+        <figure className={styles.localVideo}>
+          {localCamera ? (
+            <VideoTrack trackRef={localCamera} />
+          ) : (
+            <div className={styles.localPlaceholder}>
+              <CameraOff size={28} aria-hidden="true" />
+              <p>{isCameraEnabled ? 'Đang mở camera…' : 'Camera đang tắt'}</p>
+            </div>
+          )}
+          <figcaption>Bạn</figcaption>
+        </figure>
       </div>
       <RoomAudioRenderer />
       {!canPlayAudio && (
@@ -197,6 +219,11 @@ function CallControls({ onLeave }: { onLeave: () => void }) {
           aria-pressed={isMicrophoneEnabled}
           onClick={() => void toggle('microphone')}
         >
+          {isMicrophoneEnabled ? (
+            <Mic size={18} aria-hidden="true" />
+          ) : (
+            <MicOff size={18} aria-hidden="true" />
+          )}
           Micro: {isMicrophoneEnabled ? 'Đang bật' : 'Đang tắt'}
         </button>
         <button
@@ -205,9 +232,15 @@ function CallControls({ onLeave }: { onLeave: () => void }) {
           aria-pressed={isCameraEnabled}
           onClick={() => void toggle('camera')}
         >
+          {isCameraEnabled ? (
+            <Video size={18} aria-hidden="true" />
+          ) : (
+            <VideoOff size={18} aria-hidden="true" />
+          )}
           Camera: {isCameraEnabled ? 'Đang bật' : 'Đang tắt'}
         </button>
         <button type="button" className={styles.danger} onClick={onLeave}>
+          <PhoneOff size={18} aria-hidden="true" />
           Rời cuộc gọi
         </button>
       </div>

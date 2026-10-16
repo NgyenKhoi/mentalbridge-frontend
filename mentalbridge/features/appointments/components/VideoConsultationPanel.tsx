@@ -1,9 +1,10 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { VideoOff } from 'lucide-react'
 
-import { Disclosure } from '@/components/ui/Disclosure'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import type {
@@ -13,7 +14,15 @@ import type {
 import { videoBrowserClient } from '../api/video-browser-client'
 import styles from './VideoConsultation.module.css'
 
-const VideoMedia = dynamic(() => import('./VideoMedia'), { ssr: false })
+const VideoMedia = dynamic(() => import('./VideoMedia'), {
+  ssr: false,
+  loading: () => (
+    <div className={styles.standby} aria-busy="true">
+      <VideoOff size={40} aria-hidden="true" />
+      <p>Đang tải khung cuộc gọi…</p>
+    </div>
+  ),
+})
 const phaseCopy: Record<VideoSession['phase'], string> = {
   TOO_EARLY: 'Bạn có thể kiểm tra camera và micro từ 5 phút trước giờ hẹn.',
   WAITING: 'Bạn có thể kiểm tra thiết bị. Đến giờ hẹn, nút tham gia sẽ mở.',
@@ -22,31 +31,6 @@ const phaseCopy: Record<VideoSession['phase'], string> = {
   COMPLETED: 'Buổi tư vấn đã được xác nhận hoàn tất.',
   NOT_AVAILABLE: 'Lịch hẹn này hiện không cho phép vào phiên video.',
   UNAVAILABLE: 'Chưa thể mở phiên video. Bạn có thể thử lại sau.',
-}
-
-/** The keyed boundary prevents draft/token carry-over between appointments. */
-export function VideoConsultationPanel(props: {
-  appointmentId: string
-  role: 'USER' | 'SPECIALIST'
-  onVerified?: () => void
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <Disclosure
-      className={styles.disclosure}
-      summary="Phiên tư vấn video"
-      open={open}
-      expanded={open}
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      {open && (
-        <VideoSessionPanel
-          key={`${props.role}:${props.appointmentId}`}
-          {...props}
-        />
-      )}
-    </Disclosure>
-  )
 }
 
 export function VideoSessionPanel({
@@ -74,6 +58,13 @@ export function VideoSessionPanel({
   const command = useRef<{ key: string; version: number } | null>(null)
   const verified = useRef(false)
   const callback = useRef(onVerified)
+  const stopMedia = useCallback(() => setAccess(null), [])
+  const mediaError = useCallback(() => {
+    setAccess(null)
+    setError(
+      'Cuộc gọi đã ngắt. Bạn có thể kiểm tra thiết bị và thử tham gia lại nếu phiên còn mở.',
+    )
+  }, [])
   useEffect(() => {
     callback.current = onVerified
   }, [onVerified])
@@ -274,9 +265,34 @@ export function VideoSessionPanel({
   }
 
   return (
-    <section className={styles.panel} aria-label="Cuộc gọi tư vấn">
+    <section
+      className={styles.panel}
+      aria-label="Cuộc gọi tư vấn"
+      data-specialist-journey={role === 'SPECIALIST' ? 'video' : undefined}
+    >
       <header className={styles.header}>
-        <h3>Trao đổi trực tiếp</h3>
+        <div>
+          <h2>Trao đổi trực tiếp</h2>
+          {session && (
+            <p className={styles.schedule}>
+              <time dateTime={session.startsAt}>
+                {new Intl.DateTimeFormat('vi-VN', {
+                  timeZone: 'Asia/Ho_Chi_Minh',
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                }).format(new Date(session.startsAt))}
+              </time>
+              {' – '}
+              <time dateTime={session.endsAt}>
+                {new Intl.DateTimeFormat('vi-VN', {
+                  timeZone: 'Asia/Ho_Chi_Minh',
+                  timeStyle: 'short',
+                }).format(new Date(session.endsAt))}
+              </time>
+              {' · Giờ Việt Nam'}
+            </p>
+          )}
+        </div>
         <span>Không ghi âm hoặc ghi hình</span>
       </header>
       <div className={styles.body}>
@@ -310,14 +326,15 @@ export function VideoSessionPanel({
           <VideoMedia
             access={access}
             previewAllowed={Boolean(session?.previewAllowed)}
-            onLeave={() => setAccess(null)}
-            onError={() => {
-              setAccess(null)
-              setError(
-                'Cuộc gọi đã ngắt. Bạn có thể kiểm tra thiết bị và thử tham gia lại nếu phiên còn mở.',
-              )
-            }}
+            onLeave={stopMedia}
+            onError={mediaError}
           />
+        )}
+        {(!foreground || (!access && !session?.previewAllowed)) && (
+          <div className={styles.standby}>
+            <VideoOff size={40} aria-hidden="true" />
+            <p>Camera và micro đang tắt</p>
+          </div>
         )}
         <div className={styles.actions}>
           {!access && (
@@ -364,6 +381,18 @@ export function VideoSessionPanel({
           Kiểm tra thiết bị chỉ diễn ra trên máy của bạn. Rời cuộc gọi không
           đồng nghĩa buổi tư vấn đã hoàn tất.
         </p>
+        {session?.completion?.verificationState === 'VERIFIED' && (
+          <Link
+            className={styles.resultLink}
+            href={
+              role === 'USER'
+                ? `/appointments/${encodeURIComponent(appointmentId)}`
+                : `/specialist/follow-up?appointmentId=${encodeURIComponent(appointmentId)}`
+            }
+          >
+            Xem nội dung sau buổi tư vấn
+          </Link>
+        )}
       </div>
     </section>
   )

@@ -10,6 +10,7 @@ import {
   MessageSquare,
   RefreshCw,
   X,
+  Video,
 } from 'lucide-react'
 
 import { useFeedback } from '@/components/ui/FeedbackProvider'
@@ -27,7 +28,6 @@ import {
 import styles from './SpecialistAppointmentDecisionPanel.module.css'
 import { SpecialistConsultationBrief } from './SpecialistConsultationBrief'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
-import { VideoConsultationPanel } from './VideoConsultationPanel'
 import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 
 type Decision = 'accept' | 'reject'
@@ -349,6 +349,14 @@ export default function SpecialistAppointmentDecisionPanel({
             </div>
           </div>
           <div className={styles.nextActions}>
+            {next.modality === 'IN_APP_VIDEO' && (
+              <Link
+                href={`/specialist/appointments/${encodeURIComponent(next.id)}/video`}
+                aria-label={`Mở phòng tư vấn, buổi ${displayRange(next)}`}
+              >
+                <Video size={18} aria-hidden="true" /> Mở phòng tư vấn
+              </Link>
+            )}
             {next.modality === 'IN_APP_CHAT' && (
               <Link
                 href={`/specialist/messages?appointmentId=${encodeURIComponent(next.id)}`}
@@ -549,13 +557,24 @@ export default function SpecialistAppointmentDecisionPanel({
                 {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) && (
                   <SpecialistConsultationBrief appointmentId={appointment.id} />
                 )}
-                {appointment.modality === 'IN_APP_VIDEO' && (
-                  <VideoConsultationPanel
-                    appointmentId={appointment.id}
-                    role="SPECIALIST"
-                    onVerified={() => void load()}
-                  />
-                )}
+                {appointment.modality === 'IN_APP_VIDEO' &&
+                  [
+                    'CONFIRMED',
+                    'IN_PROGRESS',
+                    'SESSION_ENDED',
+                    'COMPLETED',
+                  ].includes(appointment.status) && (
+                    <Link
+                      className={styles.chatLink}
+                      href={`/specialist/appointments/${encodeURIComponent(appointment.id)}/video`}
+                      aria-label={`${['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) ? 'Mở phòng tư vấn' : 'Xem phiên tư vấn video'}, buổi ${displayRange(appointment)}`}
+                    >
+                      <Video size={18} aria-hidden="true" />{' '}
+                      {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status)
+                        ? 'Mở phòng tư vấn'
+                        : 'Xem phiên tư vấn video'}
+                    </Link>
+                  )}
                 {appointment.status === 'COMPLETED' && (
                   <SessionSummaryPanel
                     appointmentId={appointment.id}

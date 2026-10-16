@@ -10,6 +10,7 @@ import SpecialistProfileWorkspace from '@/features/specialist-profile/components
 import SpecialistAvailabilityManager from '@/features/specialist-availability/components/SpecialistAvailabilityManager'
 import availabilityStyles from '@/features/specialist-availability/components/SpecialistAvailabilityManager.module.css'
 import SpecialistAppointmentDecisionPanel from '@/features/appointments/components/SpecialistAppointmentDecisionPanel'
+import { VideoConsultationWorkspace } from '@/features/appointments/components/VideoConsultationWorkspace'
 import appointmentStyles from '@/features/appointments/components/SpecialistAppointmentDecisionPanel.module.css'
 import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
 import SpecialistContinuityManager from '@/features/appointments/components/SpecialistContinuityManager'
@@ -117,11 +118,13 @@ export default function RoleWorkspace({
   sectionKey,
   workspaces,
   selectedAppointmentId,
+  videoAppointmentId,
 }: {
   role: Role
   sectionKey: string
   workspaces: readonly Workspace[]
   selectedAppointmentId?: string
+  videoAppointmentId?: string
 }) {
   const section = role === 'specialist'
     ? { label: specialistSections[sectionKey as keyof typeof specialistSections] ?? specialistSections.dashboard, description: '', rows: [] }
@@ -191,7 +194,7 @@ export default function RoleWorkspace({
         {role === 'specialist' && sectionKey === 'analytics' && <SpecialistOperationalAnalytics />}
         {role === 'specialist' && sectionKey === 'profile' && <SpecialistProfileWorkspace />}
         {role === 'specialist' && sectionKey === 'availability' && <SpecialistAvailabilityManager />}
-        {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel initialAppointmentId={selectedAppointmentId} />}
+        {role === 'specialist' && sectionKey === 'appointments' && (videoAppointmentId ? <VideoConsultationWorkspace appointmentId={videoAppointmentId} role="SPECIALIST" /> : <SpecialistAppointmentDecisionPanel initialAppointmentId={selectedAppointmentId} />)}
         {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'messages' && <AppointmentMessagesWorkspace viewerRole="SPECIALIST" initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'follow-up' && <SpecialistContinuityManager initialAppointmentId={selectedAppointmentId} />}

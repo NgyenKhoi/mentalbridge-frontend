@@ -202,6 +202,7 @@ function sourceRevision(directory) {
 }
 
 async function verifyVideoDisplay(page) {
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }))
   const region = page.getByRole('region', { name: 'Cuộc gọi tư vấn' })
   await expect(region).toBeVisible()
   const display = await region
@@ -209,6 +210,12 @@ async function verifyVideoDisplay(page) {
     .evaluate(async (element) => {
       await document.fonts.ready
       const style = getComputedStyle(element)
+      // A viewport change can expose a previously unused font subset/weight.
+      // Force that exact Vietnamese face to load before measuring its layout.
+      const font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+      const text = element.textContent ?? ''
+      const faces = await document.fonts.load(font, text)
+      await document.fonts.ready
       const rgb = (color) =>
         (color.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
       const light = (channels) =>
@@ -228,20 +235,30 @@ async function verifyVideoDisplay(page) {
       const back = light(
         rgb(getComputedStyle(element.parentElement).backgroundColor),
       )
+      const controlsVisible =
+        innerWidth < 1280 ||
+        innerHeight < 800 ||
+        [...element.parentElement.querySelectorAll('button')].every(
+          (button) => button.getBoundingClientRect().bottom <= innerHeight,
+        )
       return {
         contrast:
           (Math.max(front, back) + 0.05) / (Math.min(front, back) + 0.05),
-        fontLoaded: document.fonts.check(
-          `${style.fontSize} ${style.fontFamily}`,
-        ),
+        fontLoaded: faces.length > 0 && document.fonts.check(font, text),
+        fontFamily: style.fontFamily,
+        fontWeight: style.fontWeight,
+        controlsVisible,
         width: element.getBoundingClientRect().width,
         overflow: document.documentElement.scrollWidth > innerWidth + 1,
       }
     })
   assert(display.contrast >= 4.5, 'Call status text needs accessible contrast')
   assert(
-    display.fontLoaded && display.width >= 200 && !display.overflow,
-    'Video font or panel layout failed',
+    display.fontLoaded &&
+      display.width >= 200 &&
+      !display.overflow &&
+      display.controlsVisible,
+    `Video font or panel layout failed: ${JSON.stringify(display)}`,
   )
   return display
 }
@@ -366,7 +383,8 @@ try {
   for (const participant of [user, specialist]) {
     step = `actual ${participant === user ? 'USER' : 'SPECIALIST'} appointment UI and join`
     await participant.page
-      .getByRole('button', { name: 'Phiên tư vấn video', exact: true })
+      .getByRole('link', { name: /Mở phòng tư vấn/ })
+      .first()
       .click()
     await expect(
       participant.page.getByRole('button', { name: 'Tham gia phiên tư vấn' }),
@@ -511,9 +529,6 @@ try {
     )
   }
   await user.page.reload()
-  await user.page
-    .getByRole('button', { name: 'Phiên tư vấn video', exact: true })
-    .click()
   await expect(
     user.page.getByText(
       config.requireWebhook

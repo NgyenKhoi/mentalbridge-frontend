@@ -177,6 +177,11 @@ thúc khi API hiện tại thực sự cung cấp hành động đó.
 - Appointment detail tóm tắt lịch, người tham gia, hình thức và hành động hợp lệ.
 - Nút chat điều hướng sang Messages với appointment được chọn; không render một
   chat destination thứ hai bên trong Appointments.
+- Lịch video có nút `Mở phòng tư vấn` dẫn tới trang riêng
+  `/appointments/{id}/video` hoặc `/specialist/appointments/{id}/video` theo vai
+  trò. Danh sách/chi tiết lịch không kết nối media hoặc xin token. Trang video
+  giữ shell hiện có, kiểm tra quyền mới nhất và yêu cầu người dùng chủ động
+  tham gia. Messages vẫn chỉ chứa conversation `IN_APP_CHAT`.
 
 ### J2-02 — Summary hỗ trợ phiên
 
@@ -219,6 +224,22 @@ phải nhất quán giữa Messages, Appointments, dialog và toast.
   chuyển focus tới strip.
 - Lịch sử còn xem được theo quyền hiện hành; hành động tiếp theo là xem summary,
   lịch hẹn hoặc kế hoạch, không mở lại chat bằng mẹo UI.
+
+### J2-05 — Trang tư vấn video riêng
+
+- Đầu trang giữ liên kết về đúng lịch hẹn; khung giờ lấy từ video-session,
+  không dùng đồng hồ client để mở quyền. Vùng video và điều khiển đứng trước
+  nội dung chuẩn bị. Không thêm ghi chú y tế, recording, chia sẻ màn hình hay
+  tuyên bố E2EE chưa được cung cấp.
+- Camera/micro mặc định tắt; kiểm tra thiết bị chỉ local. Camera-off vẫn có
+  vùng riêng cho bản thân và người còn lại; trạng thái chờ/kết nối/reconnect
+  theo SDK. Token chỉ ở memory, không có trong URL hoặc storage.
+- `Rời cuộc gọi` chỉ dừng media. Chuyên gia xác nhận kết thúc bằng command
+  hiện có và dialog an toàn, tách biệt khỏi leave. Pending verification không
+  trở thành completion hay thay đổi credit từ UI. Chỉ kết quả verified mở CTA
+  xem nội dung sau phiên. Rời route/unmount/hết quyền/hết giờ vẫn dừng media.
+- Hiện tại khi tab bị ẩn, media dừng và không tự tham gia lại; đây không phải
+  lý do hoàn tất/hủy lịch. Demo hai trình duyệt cần giữ hai cửa sổ hiển thị.
 
 ## 6. Route convergence backlog
 

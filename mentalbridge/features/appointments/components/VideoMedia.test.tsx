@@ -55,6 +55,67 @@ const access: VideoAccess = {
   endsAt: '2026-10-13T02:00:00Z',
 }
 describe('official Web SDK presentation boundary', () => {
+  it('renders camera-off placeholders for muted publications, then restores both video tracks', () => {
+    sdk.remote = [{ identity: 'opaque-fixture-remote', isCameraEnabled: false }]
+    sdk.tracks = [
+      {
+        participant: { identity: 'local', isLocal: true },
+        publication: { isMuted: true },
+      },
+      {
+        participant: { identity: 'remote', isLocal: false },
+        publication: { isMuted: true },
+      },
+    ]
+    const props = {
+      access,
+      previewAllowed: true,
+      onLeave: vi.fn(),
+      onError: vi.fn(),
+    }
+    const view = render(<VideoMedia {...props} />)
+    expect(screen.queryByText('video track')).not.toBeInTheDocument()
+    expect(
+      screen.getByText('Người còn lại đang tắt camera'),
+    ).toBeInTheDocument()
+    sdk.tracks = [
+      {
+        participant: { identity: 'local', isLocal: true },
+        publication: { isMuted: false },
+      },
+      {
+        participant: { identity: 'remote', isLocal: false },
+        publication: { isMuted: false },
+      },
+    ]
+    sdk.camera = true
+    sdk.remote = [{ identity: 'opaque-fixture-remote', isCameraEnabled: true }]
+    view.rerender(<VideoMedia {...props} />)
+    expect(screen.getAllByText('video track')).toHaveLength(2)
+    expect(
+      screen.queryByText('Người còn lại đang tắt camera'),
+    ).not.toBeInTheDocument()
+  })
+  it('keeps both participant surfaces visible when both cameras are off', () => {
+    sdk.remote = [{ identity: 'opaque-fixture-remote' }]
+    render(
+      <VideoMedia
+        access={access}
+        previewAllowed
+        onLeave={vi.fn()}
+        onError={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Người tham gia cùng bạn')).toBeInTheDocument()
+    expect(screen.getByText('Bạn', { exact: true })).toBeInTheDocument()
+    expect(screen.getByText('Camera đang tắt')).toBeInTheDocument()
+    expect(
+      screen.getByText('Người còn lại đang tắt camera'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Đã kết nối với người còn lại')).toBeInTheDocument()
+    expect(sdk.create).not.toHaveBeenCalled()
+    expect(document.body.innerHTML).not.toContain(access.participantToken)
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     sdk.state = 'connected'
