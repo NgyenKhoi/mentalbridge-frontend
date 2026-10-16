@@ -1,4 +1,4 @@
-# MB-624 UC traceability rebaseline v1
+# MB-624 UC traceability rebaseline v2
 
 This report rebaselines the project use-case catalogue against the backend and
 frontend `dev` branches. It records current executable evidence and does not
@@ -18,27 +18,28 @@ The catalogue workbook is the project source for the 162 WBS functions. The
 accepted ADRs, policies, versioned contracts and code on the pinned revisions
 govern current semantics when the old workbook wording conflicts with them.
 
-## Denominator and result
+## Code-delivery denominator and result
 
 The only denominator is the **162 atomic WBS rows** numbered 1 through 162.
 The seven delivery rows `UC-01` through `UC-07` are aggregates and are reported
 separately below. They are never added to the denominator.
 
-An atomic row is `CLOSED` only when the pinned revisions contain:
+An atomic row is implementation-`CLOSED` only when the pinned revisions
+contain:
 
 1. an accepted authoritative contract or policy for the current semantics;
 2. executable owner behavior evidence, normally service integration coverage;
-3. web and mobile evidence for every applicable delivery channel, or a current
-   explicit reason why that channel is not applicable.
+3. code-ready web and mobile evidence for every applicable delivery channel,
+   or a current explicit reason why that channel is not applicable.
 
 `PARTIAL`, `GAP` and `SCOPE_RESOLVED` do not enter the numerator. Scope removal
 must be supported by an accepted decision; it is not silently relabelled as a
 passing test.
 
 ```text
-closed percentage = count(closure_state == CLOSED) / 162 * 100
-                  = 101 / 162 * 100
-                  = 62.35%
+code-delivery closure = count(implementation_closure_state == CLOSED) / 162 * 100
+                      = 101 / 162 * 100
+                      = 62.35%
 ```
 
 | State            | Count | Meaning                                                                                                                 |
@@ -48,11 +49,40 @@ closed percentage = count(closure_state == CLOSED) / 162 * 100
 | `GAP`            |    14 | No complete authoritative runtime/contract evidence exists on the pinned `dev` revisions.                               |
 | `SCOPE_RESOLVED` |    17 | An accepted decision replaced or removed the old source behavior; these rows are explained but are not counted closed.  |
 
-The row-level source is [`uc-traceability-v1.csv`](uc-traceability-v1.csv). The
-machine-readable revisions, formula inputs and counts are in
+The 62.35% result is pinned **contract and executable code delivery closure**.
+It is not a deployed-staging pass rate. A row can be implementation-`CLOSED`
+while its mobile state remains `E2E_AUTHORED_NOT_RUN`.
+
+The row-level source is [`uc-traceability-v1.csv`](uc-traceability-v1.csv).
+The machine-readable revisions, formula inputs, implementation counts and
+per-channel verification counts are in
 [`manifest-v1.json`](manifest-v1.json). The repository test verifies the row
-set, formula, status counts, evidence vocabulary and channel rules; that test
-protects report integrity and is not product-behavior evidence.
+set, formula, Jira reconciliation, status counts, evidence vocabulary and
+channel rules; that test protects report integrity and is not product-behavior
+evidence.
+
+## Per-channel verification state
+
+Web and Mobile are classified independently for every atomic row. These states
+describe the strongest evidence retained by this audit:
+
+| State                  | Meaning                                                                                                                      |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `CODE_READY`           | Pinned client code plus unit/component/fixture evidence exists; no approved deployed-staging run is claimed.                 |
+| `E2E_AUTHORED_NOT_RUN` | An exact automated journey is versioned, but this audit has no retained successful approved-environment run for it.          |
+| `STAGING_VERIFIED`     | The exact client/backend revisions passed an approved deployed-edge/runtime journey with retained evidence.                  |
+| `NONE`                 | The channel is applicable but lacks qualifying code-ready evidence.                                                          |
+| `NOT_APPLICABLE`       | An accepted scope/contract excludes the channel from that atomic UC; it is excluded from that channel's staging denominator. |
+
+| Channel | Applicable denominator | `CODE_READY` | `E2E_AUTHORED_NOT_RUN` | `STAGING_VERIFIED` | `NONE` | `NOT_APPLICABLE` | Staging coverage |
+| ------- | ---------------------: | -----------: | ---------------------: | -----------------: | -----: | ---------------: | ---------------: |
+| Web     |                    162 |          134 |                      0 |                  0 |     28 |                0 |  0 / 162 = 0.00% |
+| Mobile  |                    108 |            6 |                     81 |                  0 |     21 |               54 |  0 / 108 = 0.00% |
+
+No row claims `STAGING_VERIFIED`. In particular, a skipped protected Android
+job does not count as a successful staging run. Each CSV state has an exact
+code, test, or authored-journey reference, or an explicit reason for
+`NONE`/`NOT_APPLICABLE`.
 
 ## Aggregate catalogue rows
 
@@ -111,30 +141,47 @@ numerator.
 
 ## Open gaps and recommendation order
 
-Issue-ready descriptions are versioned in
-[`jira-gap-issue-drafts-v1.json`](jira-gap-issue-drafts-v1.json). Their proposed
-links are deliberately not presented as real Jira keys. They must be created
-and linked to MB-624 before this audit can be marked complete.
+Every open group was deduplicated against Jira on 2026-10-16. Existing owners
+were reused and only the five unowned groups received new stories. All eight
+owner stories are linked to MB-624. The versioned reconciliation, including
+WBS coverage and the status snapshot, is in
+[`jira-gap-reconciliation-v2.json`](jira-gap-reconciliation-v2.json).
 
-1. **P0 privacy lifecycle:** WBS 14 and 24 need accepted deletion contracts,
-   owner coordination and executable replay/retention evidence. WBS 159–162
-   need bounded audit search/filter and owner-specific retention administration.
-2. **P0 communication safety:** WBS 80, 82 and 145–147 need message tombstone,
-   scoped report and audited moderation contracts plus web/admin coverage.
-3. **P1 commercial consistency:** WBS 49 and 123–124 need cancellation and
-   admin subscription authority; WBS 42–51 need the applicable mobile channel.
-4. **P1 reviewed safety operations:** WBS 135–139 need an authorized admin web
-   workflow over the existing reviewed safety-directory owner API.
-5. **P2 governed evaluation:** WBS 28–29 and 150–156 need licensed dataset
-   governance, admin contracts/UI and an explicitly approved benchmark run.
-6. **P2 specialist/mobile parity:** WBS 98, 102 and 108–110 need the applicable
-   mobile dashboard and financial-history surfaces or an accepted channel-scope
-   amendment.
+1. **P0 privacy lifecycle:** [MB-673](https://vunguyenkhoi47.atlassian.net/browse/MB-673)
+   (`To Do`) owns WBS 14, 24, 161 and 162. It covers deletion execution and
+   owner-specific retention evidence.
+2. **P0 audit operations:** [MB-587](https://vunguyenkhoi47.atlassian.net/browse/MB-587)
+   (`In Review`) owns WBS 159 and 160 for bounded audit browse, filter and
+   export.
+3. **P0 communication safety:** [MB-694](https://vunguyenkhoi47.atlassian.net/browse/MB-694)
+   (`To Do`, created by this reconciliation) owns WBS 80, 82 and 145-147
+   for appointment-message tombstones, reporting and audited moderation.
+4. **P1 commercial consistency:** [MB-695](https://vunguyenkhoi47.atlassian.net/browse/MB-695)
+   (`To Do`, created) owns WBS 49 cancellation.
+   [MB-674](https://vunguyenkhoi47.atlassian.net/browse/MB-674) (`To Do`,
+   existing) owns bounded administrator commercial list/detail facts for WBS
+   123-124.
+5. **P1 reviewed safety operations:** [MB-696](https://vunguyenkhoi47.atlassian.net/browse/MB-696)
+   (`To Do`, created) owns the administrator web workflow for WBS 135-139.
+6. **P2 governed evaluation:** [MB-697](https://vunguyenkhoi47.atlassian.net/browse/MB-697)
+   (`To Do`, created) owns dataset governance and benchmark reporting for
+   WBS 28-29 and 150-156.
+7. **P2 mobile parity:** [MB-698](https://vunguyenkhoi47.atlassian.net/browse/MB-698)
+   (`To Do`, created under MB-605) owns applicable mobile commercial,
+   rating, dashboard and specialist-financial delivery for WBS 42-48, 50-51,
+   83, 86, 98, 102 and 108-110. Its staged Android evidence remains governed by
+   MB-666.
 
 ## Jira handling
 
-Jira links in the matrix are traceability references only. A Jira `Done` state
-never closes a row without current contract and executable evidence. Live Jira
-status was not available to the repository audit, so the matrix explicitly
-marks it for confirmation instead of inventing a state. MB-624 itself was
-reported as `In Progress` by the review on 2026-10-16.
+Jira links remain ownership and delivery-state evidence only. A Jira `Done`
+state never closes a row without current contract and executable evidence.
+The matrix records the actual 2026-10-16 status of every referenced Jira key.
+`MB-902`, retained from the source catalogue's historical mapping, did not
+resolve in the Jira snapshot and is explicitly marked `Not found in Jira
+snapshot` rather than assigned an invented state. MB-624 was `In Progress`.
+
+The repository regression fails if a `GAP-` placeholder returns, if a
+reconciled owner is not mapped to every declared WBS row, if a current status
+is missing, or if a created/existing owner is not recorded as linked to
+MB-624.

@@ -1,5 +1,5 @@
 {
-  "reportVersion": 1,
+  "reportVersion": 2,
   "generatedAt": "2026-10-16",
   "catalogue": {
     "repository": "NgyenKhoi/mentalbridge-backend",
@@ -11,16 +11,8 @@
   },
   "snapshots": {
     "backendDev": "a1ddbfc6c33521a06fb277b0782a8205825752e5",
-    "frontendDev": "c4dfb6f88759576611896865c72b6182020ce5b0"
-  },
-  "denominator": 162,
-  "numerator": 101,
-  "closurePercent": 62.35,
-  "counts": {
-    "CLOSED": 101,
-    "PARTIAL": 30,
-    "GAP": 14,
-    "SCOPE_RESOLVED": 17
+    "frontendDev": "c4dfb6f88759576611896865c72b6182020ce5b0",
+    "jira": "2026-10-16"
   },
   "evidenceClassifications": [
     "fixture",
@@ -30,5 +22,46 @@
     "live-cross-stack",
     "none"
   ],
-  "note": "No live-cross-stack evidence was claimed by this audit; skipped or unavailable protected jobs do not count."
+  "note": "Code delivery closure is separate from channel staging verification. No row claims STAGING_VERIFIED; skipped protected Android jobs do not count.",
+  "codeDelivery": {
+    "denominator": 162,
+    "numerator": 101,
+    "closurePercent": 62.35,
+    "counts": {
+      "CLOSED": 101,
+      "GAP": 14,
+      "PARTIAL": 30,
+      "SCOPE_RESOLVED": 17
+    },
+    "meaning": "Pinned contract and executable code evidence closure; not deployed-staging verification."
+  },
+  "channelVerificationStates": [
+    "NONE",
+    "CODE_READY",
+    "E2E_AUTHORED_NOT_RUN",
+    "STAGING_VERIFIED",
+    "NOT_APPLICABLE"
+  ],
+  "channelVerification": {
+    "web": {
+      "applicableDenominator": 162,
+      "counts": {
+        "CODE_READY": 134,
+        "NONE": 28
+      },
+      "stagingVerifiedNumerator": 0,
+      "stagingVerifiedPercent": 0
+    },
+    "mobile": {
+      "applicableDenominator": 108,
+      "counts": {
+        "CODE_READY": 6,
+        "E2E_AUTHORED_NOT_RUN": 81,
+        "NONE": 21,
+        "NOT_APPLICABLE": 54
+      },
+      "stagingVerifiedNumerator": 0,
+      "stagingVerifiedPercent": 0
+    }
+  }
 }

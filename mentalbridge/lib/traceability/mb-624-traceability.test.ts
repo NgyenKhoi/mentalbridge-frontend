@@ -4,15 +4,41 @@ import { describe, expect, it } from 'vitest'
 
 type Manifest = {
   catalogue: { atomicRows: number; aggregateRows: number }
-  denominator: number
-  numerator: number
-  closurePercent: number
-  counts: Record<string, number>
+  codeDelivery: {
+    denominator: number
+    numerator: number
+    closurePercent: number
+    counts: Record<string, number>
+  }
   evidenceClassifications: string[]
+  channelVerificationStates: string[]
+  channelVerification: {
+    web: {
+      applicableDenominator: number
+      counts: Record<string, number>
+      stagingVerifiedNumerator: number
+      stagingVerifiedPercent: number
+    }
+    mobile: {
+      applicableDenominator: number
+      counts: Record<string, number>
+      stagingVerifiedNumerator: number
+      stagingVerifiedPercent: number
+    }
+  }
   snapshots: { backendDev: string; frontendDev: string }
 }
 
-type GapDrafts = { issues: Array<{ draftId: string; wbs: number[] }> }
+type JiraReconciliation = {
+  snapshotDate: string
+  reconciliations: Array<{
+    jiraKey: string
+    status: string
+    resolution: 'EXISTING_OWNER' | 'CREATED_GAP_OWNER'
+    wbs: number[]
+    linkedToParent: boolean
+  }>
+}
 
 function parseCsv(input: string): Record<string, string>[] {
   const records: string[][] = []
@@ -56,9 +82,9 @@ const reportRoot = resolve(process.cwd(), 'docs/reports/mb-624')
 const manifest = JSON.parse(
   readFileSync(resolve(reportRoot, 'manifest-v1.json'), 'utf8'),
 ) as Manifest
-const gapDrafts = JSON.parse(
-  readFileSync(resolve(reportRoot, 'jira-gap-issue-drafts-v1.json'), 'utf8'),
-) as GapDrafts
+const jiraReconciliation = JSON.parse(
+  readFileSync(resolve(reportRoot, 'jira-gap-reconciliation-v2.json'), 'utf8'),
+) as JiraReconciliation
 const rows = parseCsv(
   readFileSync(resolve(reportRoot, 'uc-traceability-v1.csv'), 'utf8'),
 )
@@ -67,7 +93,7 @@ describe('MB-624 atomic UC traceability report', () => {
   it('uses one complete atomic denominator and keeps aggregate rows separate', () => {
     expect(manifest.catalogue.atomicRows).toBe(162)
     expect(manifest.catalogue.aggregateRows).toBe(7)
-    expect(manifest.denominator).toBe(162)
+    expect(manifest.codeDelivery.denominator).toBe(162)
     expect(rows).toHaveLength(162)
 
     expect(rows.map((row) => row.atomic_uc_id)).toEqual(
@@ -81,20 +107,26 @@ describe('MB-624 atomic UC traceability report', () => {
 
   it('reproduces the declared state counts and closure percentage', () => {
     const actualCounts = rows.reduce<Record<string, number>>((counts, row) => {
-      counts[row.closure_state] = (counts[row.closure_state] ?? 0) + 1
+      counts[row.implementation_closure_state] =
+        (counts[row.implementation_closure_state] ?? 0) + 1
       return counts
     }, {})
 
-    expect(actualCounts).toEqual(manifest.counts)
-    expect(manifest.numerator).toBe(actualCounts.CLOSED)
-    expect(manifest.closurePercent).toBe(
-      Number(((actualCounts.CLOSED / manifest.denominator) * 100).toFixed(2)),
+    expect(actualCounts).toEqual(manifest.codeDelivery.counts)
+    expect(manifest.codeDelivery.numerator).toBe(actualCounts.CLOSED)
+    expect(manifest.codeDelivery.closurePercent).toBe(
+      Number(
+        (
+          (actualCounts.CLOSED / manifest.codeDelivery.denominator) *
+          100
+        ).toFixed(2),
+      ),
     )
   })
 
   it('requires authoritative evidence and applicable channel coverage for closed rows', () => {
     for (const row of rows.filter(
-      (candidate) => candidate.closure_state === 'CLOSED',
+      (candidate) => candidate.implementation_closure_state === 'CLOSED',
     )) {
       expect(row.authoritative_contract, row.atomic_uc_id).not.toMatch(
         /^(NONE|N\/A)/,
@@ -104,12 +136,77 @@ describe('MB-624 atomic UC traceability report', () => {
         'service-integration',
       )
       expect(row.web_coverage, row.atomic_uc_id).not.toMatch(/^(NONE|N\/A)/)
+      expect(row.web_verification_state, row.atomic_uc_id).toMatch(
+        /^(CODE_READY|STAGING_VERIFIED)$/,
+      )
       if (row.mobile_applicability.startsWith('YES')) {
         expect(row.mobile_evidence, row.atomic_uc_id).not.toMatch(
           /^(NONE|N\/A)/,
         )
+        expect(row.mobile_verification_state, row.atomic_uc_id).toMatch(
+          /^(CODE_READY|E2E_AUTHORED_NOT_RUN|STAGING_VERIFIED)$/,
+        )
       }
     }
+  })
+
+  it('keeps Web and Mobile verification stages explicit and fail-closed', () => {
+    const allowed = new Set(manifest.channelVerificationStates)
+    const channelCounts = {
+      web: {} as Record<string, number>,
+      mobile: {} as Record<string, number>,
+    }
+
+    for (const row of rows) {
+      for (const channel of ['web', 'mobile'] as const) {
+        const state = row[`${channel}_verification_state`]
+        const reference = row[`${channel}_verification_reference`]
+        expect(allowed.has(state), `${row.atomic_uc_id} ${channel}`).toBe(true)
+        expect(reference, `${row.atomic_uc_id} ${channel}`).not.toBe('')
+        channelCounts[channel][state] = (channelCounts[channel][state] ?? 0) + 1
+
+        if (state === 'E2E_AUTHORED_NOT_RUN') {
+          expect(reference, `${row.atomic_uc_id} ${channel}`).toContain(
+            'mobile/.maestro/',
+          )
+          expect(reference, `${row.atomic_uc_id} ${channel}`).toContain(
+            'not run',
+          )
+        }
+        if (state === 'NONE') {
+          expect(reference, `${row.atomic_uc_id} ${channel}`).toMatch(
+            /no (?:code-ready )?(?:web )?evidence/i,
+          )
+        }
+      }
+
+      if (row.mobile_applicability.startsWith('YES')) {
+        expect(row.mobile_verification_state, row.atomic_uc_id).not.toBe(
+          'NOT_APPLICABLE',
+        )
+      } else {
+        expect(row.mobile_verification_state, row.atomic_uc_id).toBe(
+          'NOT_APPLICABLE',
+        )
+      }
+    }
+
+    expect(channelCounts.web).toEqual(manifest.channelVerification.web.counts)
+    expect(channelCounts.mobile).toEqual(
+      manifest.channelVerification.mobile.counts,
+    )
+    expect(manifest.channelVerification.web.applicableDenominator).toBe(162)
+    expect(manifest.channelVerification.mobile.applicableDenominator).toBe(108)
+    expect(manifest.channelVerification.web.stagingVerifiedNumerator).toBe(0)
+    expect(manifest.channelVerification.mobile.stagingVerifiedNumerator).toBe(0)
+    expect(manifest.channelVerification.web.stagingVerifiedPercent).toBe(0)
+    expect(manifest.channelVerification.mobile.stagingVerifiedPercent).toBe(0)
+    expect(
+      rows.some((row) => row.web_verification_state === 'STAGING_VERIFIED'),
+    ).toBe(false)
+    expect(
+      rows.some((row) => row.mobile_verification_state === 'STAGING_VERIFIED'),
+    ).toBe(false)
   })
 
   it('uses the approved evidence vocabulary without inventing live proof', () => {
@@ -140,7 +237,12 @@ describe('MB-624 atomic UC traceability report', () => {
         }
       }
 
-      for (const field of ['web_coverage', 'mobile_evidence']) {
+      for (const field of [
+        'web_coverage',
+        'web_verification_reference',
+        'mobile_evidence',
+        'mobile_verification_reference',
+      ]) {
         for (const reference of row[field]
           .split(';')
           .map((item) => item.trim())) {
@@ -154,29 +256,53 @@ describe('MB-624 atomic UC traceability report', () => {
     }
   })
 
-  it('keeps unresolved gaps explicit and issue-ready', () => {
+  it('binds every open gap to a real reconciled Jira owner and status', () => {
+    expect(jiraReconciliation.snapshotDate).toBe('2026-10-16')
+    const reconciledByKey = new Map(
+      jiraReconciliation.reconciliations.map((issue) => [issue.jiraKey, issue]),
+    )
+
+    expect(
+      jiraReconciliation.reconciliations.filter(
+        (issue) => issue.resolution === 'CREATED_GAP_OWNER',
+      ),
+    ).toHaveLength(5)
+
+    for (const issue of jiraReconciliation.reconciliations) {
+      expect(issue.jiraKey).toMatch(/^MB-[0-9]+$/)
+      expect(issue.status).toMatch(/^(To Do|In Review)$/)
+      expect(issue.linkedToParent).toBe(true)
+      for (const wbs of issue.wbs) {
+        const row = rows[wbs - 1]
+        expect(row.atomic_uc_id).toBe(`WBS-${String(wbs).padStart(3, '0')}`)
+        expect(row.jira_issues, row.atomic_uc_id).toContain(issue.jiraKey)
+        expect(row.jira_delivery_state, row.atomic_uc_id).toContain(
+          `${issue.jiraKey}=${issue.status}`,
+        )
+      }
+    }
+
+    for (const row of rows) {
+      expect(row.jira_issues, row.atomic_uc_id).not.toContain('GAP-')
+      expect(row.jira_delivery_state, row.atomic_uc_id).not.toContain(
+        'confirm live status',
+      )
+      for (const key of row.jira_issues.match(/MB-[0-9]+/g) ?? []) {
+        expect(row.jira_delivery_state, row.atomic_uc_id).toContain(`${key}=`)
+      }
+    }
+
     for (const row of rows.filter(
-      (candidate) => candidate.closure_state === 'GAP',
+      (candidate) => candidate.implementation_closure_state === 'GAP',
     )) {
-      expect(row.jira_issues, row.atomic_uc_id).toContain('GAP-')
+      const keys = row.jira_issues.match(/MB-[0-9]+/g) ?? []
+      expect(keys.length, row.atomic_uc_id).toBeGreaterThan(0)
+      expect(
+        keys.some((key) => reconciledByKey.has(key)),
+        row.atomic_uc_id,
+      ).toBe(true)
       expect(row.evidence_classification, row.atomic_uc_id).toBe('none')
       expect(row.stale_na_correction_or_blocker, row.atomic_uc_id).not.toBe('')
     }
-
-    const draftById = new Map(
-      gapDrafts.issues.map((issue) => [issue.draftId, issue.wbs]),
-    )
-    const referencedDraftIds = new Set<string>()
-    for (const row of rows) {
-      const wbs = Number(row.atomic_uc_id.slice(4))
-      for (const draftId of row.jira_issues.match(/GAP-[A-Z-]+/g) ?? []) {
-        referencedDraftIds.add(draftId)
-        expect(
-          draftById.get(draftId),
-          `${row.atomic_uc_id} ${draftId}`,
-        ).toContain(wbs)
-      }
-    }
-    expect(referencedDraftIds).toEqual(new Set(draftById.keys()))
   })
 })
