@@ -10,7 +10,7 @@
       "jiraKey": "MB-673",
       "status": "To Do",
       "resolution": "EXISTING_OWNER",
-      "wbs": [14, 24, 161, 162],
+      "wbs": [14, 24, 116, 161, 162],
       "summary": "[ADMIN] Govern data retention and deletion execution with audit-safe evidence",
       "deduplication": "Existing story owns personal/assessment deletion and owner-specific retention execution.",
       "linkedToParent": true
@@ -28,7 +28,7 @@
       "jiraKey": "MB-674",
       "status": "To Do",
       "resolution": "EXISTING_OWNER",
-      "wbs": [123, 124],
+      "wbs": [123, 124, 127, 128],
       "summary": "[ADMIN] Reconcile commercial transactions and payout exceptions",
       "deduplication": "Existing story owns bounded administrator commercial list/detail and exception facts.",
       "linkedToParent": true
@@ -78,6 +78,15 @@
       ],
       "summary": "[MOBILE] Close commercial, rating, dashboard, and specialist financial parity",
       "deduplication": "MB-605 is the delivery epic and MB-666 is the staging capstone; no child story owned these applicable mobile journeys.",
+      "linkedToParent": true
+    },
+    {
+      "jiraKey": "MB-699",
+      "status": "To Do",
+      "resolution": "CREATED_GAP_OWNER",
+      "wbs": [10, 11, 93, 100],
+      "summary": "[MOBILE] Close consent and reassessment evidence gaps",
+      "deduplication": "The exact-scenario audit rejected neighboring profile, SupportPlan and emotion evidence; no existing mobile story owns all four operations.",
       "linkedToParent": true
     }
   ]

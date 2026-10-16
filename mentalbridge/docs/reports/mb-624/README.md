@@ -1,4 +1,4 @@
-# MB-624 UC traceability rebaseline v2
+# MB-624 UC traceability rebaseline v3
 
 This report rebaselines the project use-case catalogue against the backend and
 frontend `dev` branches. It records current executable evidence and does not
@@ -38,18 +38,18 @@ passing test.
 
 ```text
 code-delivery closure = count(implementation_closure_state == CLOSED) / 162 * 100
-                      = 101 / 162 * 100
-                      = 62.35%
+                      = 80 / 162 * 100
+                      = 49.38%
 ```
 
-| State            | Count | Meaning                                                                                                                 |
-| ---------------- | ----: | ----------------------------------------------------------------------------------------------------------------------- |
-| `CLOSED`         |   101 | Current contract, owner evidence and applicable channel evidence are present.                                           |
-| `PARTIAL`        |    30 | Some authoritative behavior exists, but a required channel, surface, contract or approved environment proof is missing. |
-| `GAP`            |    14 | No complete authoritative runtime/contract evidence exists on the pinned `dev` revisions.                               |
-| `SCOPE_RESOLVED` |    17 | An accepted decision replaced or removed the old source behavior; these rows are explained but are not counted closed.  |
+| State            | Count | Meaning                                                                                                                |
+| ---------------- | ----: | ---------------------------------------------------------------------------------------------------------------------- |
+| `CLOSED`         |    80 | Current contract, owner evidence and exact applicable-channel scenario evidence are present.                           |
+| `PARTIAL`        |    38 | Some authoritative behavior exists, but a required channel, surface, contract or exact executable scenario is missing. |
+| `GAP`            |    15 | No complete authoritative runtime/contract evidence exists on the pinned `dev` revisions.                              |
+| `SCOPE_RESOLVED` |    29 | An accepted decision replaced or removed the old source behavior; these rows are explained but are not counted closed. |
 
-The 62.35% result is pinned **contract and executable code delivery closure**.
+The 49.38% result is pinned **contract and executable code delivery closure**.
 It is not a deployed-staging pass rate. A row can be implementation-`CLOSED`
 while its mobile state remains `E2E_AUTHORED_NOT_RUN`.
 
@@ -60,6 +60,13 @@ per-channel verification counts are in
 set, formula, Jira reconciliation, status counts, evidence vocabulary and
 channel rules; that test protects report integrity and is not product-behavior
 evidence.
+
+[`uc-specific-evidence-v3.json`](uc-specific-evidence-v3.json) binds every
+`CODE_READY` and `E2E_AUTHORED_NOT_RUN` claim to one named source and a literal
+scenario. Authored mobile journeys also list operation-specific assertions
+that must occur in that Maestro file. The regression reads those sources and
+fails when an adjacent feature, generic file path, or unrelated Maestro script
+is used as evidence.
 
 ## Per-channel verification state
 
@@ -76,13 +83,15 @@ describe the strongest evidence retained by this audit:
 
 | Channel | Applicable denominator | `CODE_READY` | `E2E_AUTHORED_NOT_RUN` | `STAGING_VERIFIED` | `NONE` | `NOT_APPLICABLE` | Staging coverage |
 | ------- | ---------------------: | -----------: | ---------------------: | -----------------: | -----: | ---------------: | ---------------: |
-| Web     |                    162 |          134 |                      0 |                  0 |     28 |                0 |  0 / 162 = 0.00% |
-| Mobile  |                    108 |            6 |                     81 |                  0 |     21 |               54 |  0 / 108 = 0.00% |
+| Web     |                    133 |          100 |                      0 |                  0 |     33 |               29 |  0 / 133 = 0.00% |
+| Mobile  |                     83 |           23 |                     36 |                  0 |     24 |               79 |   0 / 83 = 0.00% |
 
 No row claims `STAGING_VERIFIED`. In particular, a skipped protected Android
 job does not count as a successful staging run. Each CSV state has an exact
 code, test, or authored-journey reference, or an explicit reason for
-`NONE`/`NOT_APPLICABLE`.
+`NONE`/`NOT_APPLICABLE`. The denominator excludes only operations removed by
+an accepted scope decision or a channel boundary in the Mobile Delivery
+Contract; a missing client implementation remains applicable and is `NONE`.
 
 ## Aggregate catalogue rows
 
@@ -121,10 +130,19 @@ numerator.
   flag.
 - WBS 31 maps to an all-tier Support Guide and an eligible paid SupportPlan,
   rather than an undefined generated intervention plan.
+- WBS 40-41 are deterministic specialist discovery, not generated or labelled
+  recommendations. Provider order is preserved.
 - WBS 49 remains a gap: the accepted billing ADR defines cancellation, while
   the pinned Consultation OpenAPI has no cancellation command.
 - WBS 54 is removed by the accepted specialist policy. MentalBridge does not
   collect or verify specialist credential files.
+- WBS 59 changes availability through versioned withdrawal plus publication;
+  there is no in-place update command.
+- WBS 69, 71-72 use the accepted appointment actor and lifecycle semantics:
+  no Specialist cancellation, second reschedule confirmation, or manual
+  completion command is exposed.
+- WBS 74, 79 and 81 use appointment-scoped materialization, persistence
+  acknowledgements without read receipts, and owner lifecycle closure.
 - WBS 72 requires authoritative chat/video evidence. A timer-only
   `SESSION_ENDED` state is not completion.
 - WBS 83–88 and 140–144 are narrowed to one editable 1–5 rating. Free-form
@@ -135,6 +153,11 @@ numerator.
   available.
 - WBS 129 is specialist-initiated and provider-settled. Admin observation does
   not grant an arbitrary settlement command.
+- WBS 103-104 are replaced by appointment-assignment continuity; there is no
+  generic consenting-user directory.
+- WBS 116 and 122 do not claim hard-delete UI from suspend/restore tests.
+  Personal deletion execution remains owned by MB-673; specialist lifecycle is
+  suspension/restoration.
 - WBS 135–139 refer to reviewed safety-directory entries, not an ungoverned
   hotline CRUD catalogue. The owner API exists; the required admin web surface
   does not.
@@ -142,13 +165,13 @@ numerator.
 ## Open gaps and recommendation order
 
 Every open group was deduplicated against Jira on 2026-10-16. Existing owners
-were reused and only the five unowned groups received new stories. All eight
+were reused and six unowned groups received new stories. All nine
 owner stories are linked to MB-624. The versioned reconciliation, including
 WBS coverage and the status snapshot, is in
 [`jira-gap-reconciliation-v2.json`](jira-gap-reconciliation-v2.json).
 
 1. **P0 privacy lifecycle:** [MB-673](https://vunguyenkhoi47.atlassian.net/browse/MB-673)
-   (`To Do`) owns WBS 14, 24, 161 and 162. It covers deletion execution and
+   (`To Do`) owns WBS 14, 24, 116, 161 and 162. It covers deletion execution and
    owner-specific retention evidence.
 2. **P0 audit operations:** [MB-587](https://vunguyenkhoi47.atlassian.net/browse/MB-587)
    (`In Review`) owns WBS 159 and 160 for bounded audit browse, filter and
@@ -160,7 +183,7 @@ WBS coverage and the status snapshot, is in
    (`To Do`, created) owns WBS 49 cancellation.
    [MB-674](https://vunguyenkhoi47.atlassian.net/browse/MB-674) (`To Do`,
    existing) owns bounded administrator commercial list/detail facts for WBS
-   123-124.
+   123-124 and 127-128.
 5. **P1 reviewed safety operations:** [MB-696](https://vunguyenkhoi47.atlassian.net/browse/MB-696)
    (`To Do`, created) owns the administrator web workflow for WBS 135-139.
 6. **P2 governed evaluation:** [MB-697](https://vunguyenkhoi47.atlassian.net/browse/MB-697)
@@ -171,6 +194,10 @@ WBS coverage and the status snapshot, is in
    rating, dashboard and specialist-financial delivery for WBS 42-48, 50-51,
    83, 86, 98, 102 and 108-110. Its staged Android evidence remains governed by
    MB-666.
+8. **P2 mobile consent and reassessment:** [MB-699](https://vunguyenkhoi47.atlassian.net/browse/MB-699)
+   (`To Do`, created under MB-605) owns WBS 10-11, 93 and 100 after the exact
+   scenario audit rejected profile, SupportPlan and emotion-progress evidence
+   as substitutes for those operations.
 
 ## Jira handling
 
@@ -181,7 +208,9 @@ The matrix records the actual 2026-10-16 status of every referenced Jira key.
 resolve in the Jira snapshot and is explicitly marked `Not found in Jira
 snapshot` rather than assigned an invented state. MB-624 was `In Progress`.
 
-The repository regression fails if a `GAP-` placeholder returns, if a
+The repository regression fails if a `GAP-` placeholder returns, if an exact
+client scenario or Maestro assertion disappears, if adjacent-feature evidence
+is assigned to WBS 2, 5, 6, 49, 80 or 82, if a
 reconciled owner is not mapped to every declared WBS row, if a current status
 is missing, or if a created/existing owner is not recorded as linked to
 MB-624.

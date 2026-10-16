@@ -40,6 +40,25 @@ type JiraReconciliation = {
   }>
 }
 
+type ExactEvidence = {
+  reportVersion: number
+  entries: Array<{
+    atomicUcId: string
+    sourceTitle: string
+    web: EvidenceBinding
+    mobile: EvidenceBinding
+  }>
+}
+
+type EvidenceBinding = {
+  state: string
+  source?: string
+  scenario?: string
+  assertions?: string[]
+  authority?: string
+  rationale?: string
+}
+
 function parseCsv(input: string): Record<string, string>[] {
   const records: string[][] = []
   let record: string[] = []
@@ -85,6 +104,9 @@ const manifest = JSON.parse(
 const jiraReconciliation = JSON.parse(
   readFileSync(resolve(reportRoot, 'jira-gap-reconciliation-v2.json'), 'utf8'),
 ) as JiraReconciliation
+const exactEvidence = JSON.parse(
+  readFileSync(resolve(reportRoot, 'uc-specific-evidence-v3.json'), 'utf8'),
+) as ExactEvidence
 const rows = parseCsv(
   readFileSync(resolve(reportRoot, 'uc-traceability-v1.csv'), 'utf8'),
 )
@@ -175,7 +197,7 @@ describe('MB-624 atomic UC traceability report', () => {
         }
         if (state === 'NONE') {
           expect(reference, `${row.atomic_uc_id} ${channel}`).toMatch(
-            /no (?:code-ready )?(?:web )?evidence/i,
+            /no (?:exact |code-ready )?(?:code-ready )?(?:web |mobile )?(?:evidence|scenario)/i,
           )
         }
       }
@@ -195,8 +217,14 @@ describe('MB-624 atomic UC traceability report', () => {
     expect(channelCounts.mobile).toEqual(
       manifest.channelVerification.mobile.counts,
     )
-    expect(manifest.channelVerification.web.applicableDenominator).toBe(162)
-    expect(manifest.channelVerification.mobile.applicableDenominator).toBe(108)
+    expect(manifest.channelVerification.web.applicableDenominator).toBe(
+      rows.filter((row) => row.web_verification_state !== 'NOT_APPLICABLE')
+        .length,
+    )
+    expect(manifest.channelVerification.mobile.applicableDenominator).toBe(
+      rows.filter((row) => row.mobile_verification_state !== 'NOT_APPLICABLE')
+        .length,
+    )
     expect(manifest.channelVerification.web.stagingVerifiedNumerator).toBe(0)
     expect(manifest.channelVerification.mobile.stagingVerifiedNumerator).toBe(0)
     expect(manifest.channelVerification.web.stagingVerifiedPercent).toBe(0)
@@ -207,6 +235,82 @@ describe('MB-624 atomic UC traceability report', () => {
     expect(
       rows.some((row) => row.mobile_verification_state === 'STAGING_VERIFIED'),
     ).toBe(false)
+  })
+
+  it('binds every client claim to an exact scenario and rejects adjacent-feature evidence', () => {
+    expect(exactEvidence.reportVersion).toBe(3)
+    expect(exactEvidence.entries).toHaveLength(162)
+
+    const byId = new Map(
+      exactEvidence.entries.map((entry) => [entry.atomicUcId, entry]),
+    )
+    for (const row of rows) {
+      const entry = byId.get(row.atomic_uc_id)
+      expect(entry, row.atomic_uc_id).toBeDefined()
+      expect(entry?.sourceTitle).toBe(row.source_title)
+
+      for (const channel of ['web', 'mobile'] as const) {
+        const binding = entry?.[channel]
+        const state = row[`${channel}_verification_state`]
+        expect(binding?.state, `${row.atomic_uc_id} ${channel}`).toBe(state)
+
+        if (/^(CODE_READY|E2E_AUTHORED_NOT_RUN)$/.test(state)) {
+          expect(binding?.source, `${row.atomic_uc_id} ${channel}`).toMatch(
+            new RegExp(`^${channel === 'web' ? 'mentalbridge' : 'mobile'}/`),
+          )
+          expect(binding?.scenario, `${row.atomic_uc_id} ${channel}`).not.toBe(
+            '',
+          )
+          const source = resolve(process.cwd(), '..', binding!.source!)
+          expect(existsSync(source), binding?.source).toBe(true)
+          const sourceText = readFileSync(source, 'utf8')
+          expect(
+            sourceText,
+            `${row.atomic_uc_id} ${binding?.source}`,
+          ).toContain(binding!.scenario!)
+          for (const assertion of binding?.assertions ?? []) {
+            expect(
+              sourceText,
+              `${row.atomic_uc_id} ${binding?.source} assertion ${assertion}`,
+            ).toContain(assertion)
+          }
+          if (state === 'E2E_AUTHORED_NOT_RUN') {
+            expect(binding?.source, row.atomic_uc_id).toMatch(
+              /^mobile\/\.maestro\/[^/]+\.yaml$/,
+            )
+            expect(
+              binding?.assertions?.length,
+              row.atomic_uc_id,
+            ).toBeGreaterThan(0)
+          }
+        } else {
+          expect(
+            binding?.rationale ?? binding?.authority,
+            `${row.atomic_uc_id} ${channel}`,
+          ).toBeTruthy()
+        }
+      }
+    }
+
+    const mobile = (number: number) =>
+      byId.get(`WBS-${String(number).padStart(3, '0')}`)!.mobile
+    const web = (number: number) =>
+      byId.get(`WBS-${String(number).padStart(3, '0')}`)!.web
+
+    expect(mobile(2).state).toBe('NOT_APPLICABLE')
+    expect(mobile(2).authority).toContain('MB-607_AUTH_SESSION.md')
+    expect(mobile(5).state).toBe('NOT_APPLICABLE')
+    expect(mobile(6).state).toBe('NOT_APPLICABLE')
+    expect(web(49).state).toBe('NONE')
+    expect(web(80).state).toBe('NONE')
+    expect(mobile(80).state).toBe('NONE')
+    expect(web(82).state).toBe('NONE')
+    expect(mobile(82).state).toBe('NONE')
+
+    for (const number of [2, 5, 6, 49, 80, 82]) {
+      const binding = mobile(number)
+      expect(binding.source ?? '').not.toMatch(/mb-612-assessment|mb-631-chat/)
+    }
   })
 
   it('uses the approved evidence vocabulary without inventing live proof', () => {
@@ -229,7 +333,7 @@ describe('MB-624 atomic UC traceability report', () => {
       for (const field of ['authoritative_contract', 'backend_evidence']) {
         for (const reference of row[field]
           .split(';')
-          .map((item) => item.trim())) {
+          .map((item) => item.trim().split(' :: ')[0])) {
           if (!reference.startsWith('https://github.com/')) continue
           expect(reference, row.atomic_uc_id).toContain(
             `/blob/${manifest.snapshots.backendDev}/`,
@@ -245,7 +349,7 @@ describe('MB-624 atomic UC traceability report', () => {
       ]) {
         for (const reference of row[field]
           .split(';')
-          .map((item) => item.trim())) {
+          .map((item) => item.trim().split(' :: ')[0])) {
           if (!/^(mentalbridge|mobile)\//.test(reference)) continue
           expect(
             existsSync(resolve(process.cwd(), '..', reference)),
@@ -266,7 +370,7 @@ describe('MB-624 atomic UC traceability report', () => {
       jiraReconciliation.reconciliations.filter(
         (issue) => issue.resolution === 'CREATED_GAP_OWNER',
       ),
-    ).toHaveLength(5)
+    ).toHaveLength(6)
 
     for (const issue of jiraReconciliation.reconciliations) {
       expect(issue.jiraKey).toMatch(/^MB-[0-9]+$/)
