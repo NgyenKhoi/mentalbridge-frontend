@@ -1,4 +1,4 @@
-# MB-624 UC traceability rebaseline v3
+# MB-624 UC traceability rebaseline v4
 
 This report rebaselines the project use-case catalogue against the backend and
 frontend `dev` branches. It records current executable evidence and does not
@@ -38,18 +38,18 @@ passing test.
 
 ```text
 code-delivery closure = count(implementation_closure_state == CLOSED) / 162 * 100
-                      = 80 / 162 * 100
-                      = 49.38%
+                      = 76 / 162 * 100
+                      = 46.91%
 ```
 
 | State            | Count | Meaning                                                                                                                |
 | ---------------- | ----: | ---------------------------------------------------------------------------------------------------------------------- |
-| `CLOSED`         |    80 | Current contract, owner evidence and exact applicable-channel scenario evidence are present.                           |
-| `PARTIAL`        |    38 | Some authoritative behavior exists, but a required channel, surface, contract or exact executable scenario is missing. |
+| `CLOSED`         |    76 | Current contract, owner evidence and exact applicable-channel scenario evidence are present.                           |
+| `PARTIAL`        |    42 | Some authoritative behavior exists, but a required channel, surface, contract or exact executable scenario is missing. |
 | `GAP`            |    15 | No complete authoritative runtime/contract evidence exists on the pinned `dev` revisions.                              |
 | `SCOPE_RESOLVED` |    29 | An accepted decision replaced or removed the old source behavior; these rows are explained but are not counted closed. |
 
-The 49.38% result is pinned **contract and executable code delivery closure**.
+The 46.91% result is pinned **contract and executable code delivery closure**.
 It is not a deployed-staging pass rate. A row can be implementation-`CLOSED`
 while its mobile state remains `E2E_AUTHORED_NOT_RUN`.
 
@@ -61,12 +61,13 @@ set, formula, Jira reconciliation, status counts, evidence vocabulary and
 channel rules; that test protects report integrity and is not product-behavior
 evidence.
 
-[`uc-specific-evidence-v3.json`](uc-specific-evidence-v3.json) binds every
+[`uc-specific-evidence-v4.json`](uc-specific-evidence-v4.json) binds every
 `CODE_READY` and `E2E_AUTHORED_NOT_RUN` claim to one named source and a literal
-scenario. Authored mobile journeys also list operation-specific assertions
-that must occur in that Maestro file. The regression reads those sources and
-fails when an adjacent feature, generic file path, or unrelated Maestro script
-is used as evidence.
+scenario. Every active claim lists source-verifiable, operation-specific
+observable assertions. When several atomic rows use one scenario, each row
+must carry a distinct assertion signature for its own operation. The regression
+reads those sources and fails when an adjacent feature, generic file path,
+unrelated Maestro script or repeated generic observation is used as evidence.
 
 ## Per-channel verification state
 
@@ -83,8 +84,8 @@ describe the strongest evidence retained by this audit:
 
 | Channel | Applicable denominator | `CODE_READY` | `E2E_AUTHORED_NOT_RUN` | `STAGING_VERIFIED` | `NONE` | `NOT_APPLICABLE` | Staging coverage |
 | ------- | ---------------------: | -----------: | ---------------------: | -----------------: | -----: | ---------------: | ---------------: |
-| Web     |                    133 |          100 |                      0 |                  0 |     33 |               29 |  0 / 133 = 0.00% |
-| Mobile  |                     83 |           23 |                     36 |                  0 |     24 |               79 |   0 / 83 = 0.00% |
+| Web     |                    133 |           95 |                      0 |                  0 |     38 |               29 |  0 / 133 = 0.00% |
+| Mobile  |                     83 |           24 |                     35 |                  0 |     24 |               79 |   0 / 83 = 0.00% |
 
 No row claims `STAGING_VERIFIED`. In particular, a skipped protected Android
 job does not count as a successful staging run. Each CSV state has an exact
@@ -132,17 +133,29 @@ numerator.
   rather than an undefined generated intervention plan.
 - WBS 40-41 are deterministic specialist discovery, not generated or labelled
   recommendations. Provider order is preserved.
+- WBS 37 has no exact web search-term scenario and remains `NONE`; WBS 38 now
+  cites the component regression that applies the selected support-area and
+  language filters to the discovery request.
+- WBS 42-47 bind price, entitlement, subscribe, payment and refresh outcomes to
+  their own observable assertions. WBS 48 remains `NONE` because payment status
+  is not a payment-history surface.
 - WBS 49 remains a gap: the accepted billing ADR defines cancellation, while
   the pinned Consultation OpenAPI has no cancellation command.
 - WBS 54 is removed by the accepted specialist policy. MentalBridge does not
   collect or verify specialist credential files.
 - WBS 59 changes availability through versioned withdrawal plus publication;
   there is no in-place update command.
+- WBS 58 now cites the mobile regression for exact persisted slot time,
+  modality, timezone and booking readiness. WBS 62 cites the web booking
+  request carrying the selected specialist and slot rather than a display-only
+  appointment card.
 - WBS 69, 71-72 use the accepted appointment actor and lifecycle semantics:
   no Specialist cancellation, second reschedule confirmation, or manual
   completion command is exposed.
 - WBS 74, 79 and 81 use appointment-scoped materialization, persistence
   acknowledgements without read receipts, and owner lifecycle closure.
+- WBS 73 now cites a persisted cancelled appointment in mobile history. WBS 78
+  cites an inbound `message.created` event rendered by the web chat surface.
 - WBS 72 requires authoritative chat/video evidence. A timer-only
   `SESSION_ENDED` state is not completion.
 - WBS 83–88 and 140–144 are narrowed to one editable 1–5 rating. Free-form
@@ -153,6 +166,11 @@ numerator.
   available.
 - WBS 129 is specialist-initiated and provider-settled. Admin observation does
   not grant an arbitrary settlement command.
+- WBS 109-110 now distinguish payout history from pending settlement. WBS 111
+  cites authoritative ADMIN login/session routing; WBS 112 remains `NONE`
+  because the current overview is a placeholder rather than dashboard data.
+- WBS 126 and WBS 149 remain `NONE`: the current admin lists do not provide a
+  separate payment-detail or appointment-detail surface.
 - WBS 103-104 are replaced by appointment-assignment continuity; there is no
   generic consenting-user directory.
 - WBS 116 and 122 do not claim hard-delete UI from suspend/restore tests.
@@ -209,8 +227,9 @@ resolve in the Jira snapshot and is explicitly marked `Not found in Jira
 snapshot` rather than assigned an invented state. MB-624 was `In Progress`.
 
 The repository regression fails if a `GAP-` placeholder returns, if an exact
-client scenario or Maestro assertion disappears, if adjacent-feature evidence
-is assigned to WBS 2, 5, 6, 49, 80 or 82, if a
+client scenario or operation assertion disappears, if repeated scenarios reuse
+one generic assertion signature, if adjacent-feature evidence is assigned to
+the audited counterexamples, if a
 reconciled owner is not mapped to every declared WBS row, if a current status
 is missing, or if a created/existing owner is not recorded as linked to
 MB-624.

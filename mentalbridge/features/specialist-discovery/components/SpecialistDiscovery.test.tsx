@@ -117,6 +117,30 @@ describe('SpecialistDiscovery', () => {
     expect(document.body).not.toHaveTextContent('Chứng chỉ')
   })
 
+  it('applies the selected support-area and language filters to discovery', async () => {
+    const user = userEvent.setup()
+    discoveryClient.list.mockResolvedValue(page('FREE'))
+
+    renderDiscovery()
+    await screen.findByText('Chuyên gia An')
+    await user.click(screen.getByRole('button', { name: 'Lo âu' }))
+    await waitFor(() =>
+      expect(discoveryClient.list).toHaveBeenLastCalledWith({
+        supportArea: 'ANXIETY_SYMPTOMS',
+        timezone: 'Asia/Ho_Chi_Minh',
+      }),
+    )
+
+    await user.selectOptions(screen.getByRole('combobox'), 'vi')
+    await waitFor(() =>
+      expect(discoveryClient.list).toHaveBeenLastCalledWith({
+        supportArea: 'ANXIETY_SYMPTOMS',
+        language: 'vi',
+        timezone: 'Asia/Ho_Chi_Minh',
+      }),
+    )
+  })
+
   it('hands the exact selected slot and modality to MB-378 for paid plans', async () => {
     const user = userEvent.setup()
     discoveryClient.list.mockResolvedValue(page('PLUS'))

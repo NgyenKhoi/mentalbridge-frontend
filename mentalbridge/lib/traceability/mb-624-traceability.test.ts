@@ -105,7 +105,7 @@ const jiraReconciliation = JSON.parse(
   readFileSync(resolve(reportRoot, 'jira-gap-reconciliation-v2.json'), 'utf8'),
 ) as JiraReconciliation
 const exactEvidence = JSON.parse(
-  readFileSync(resolve(reportRoot, 'uc-specific-evidence-v3.json'), 'utf8'),
+  readFileSync(resolve(reportRoot, 'uc-specific-evidence-v4.json'), 'utf8'),
 ) as ExactEvidence
 const rows = parseCsv(
   readFileSync(resolve(reportRoot, 'uc-traceability-v1.csv'), 'utf8'),
@@ -191,14 +191,13 @@ describe('MB-624 atomic UC traceability report', () => {
           expect(reference, `${row.atomic_uc_id} ${channel}`).toContain(
             'mobile/.maestro/',
           )
-          expect(reference, `${row.atomic_uc_id} ${channel}`).toContain(
-            'not run',
-          )
         }
         if (state === 'NONE') {
-          expect(reference, `${row.atomic_uc_id} ${channel}`).toMatch(
-            /no (?:exact |code-ready )?(?:code-ready )?(?:web |mobile )?(?:evidence|scenario)/i,
-          )
+          expect(reference, `${row.atomic_uc_id} ${channel}`).toMatch(/\bno\b/i)
+          expect(
+            reference.length,
+            `${row.atomic_uc_id} ${channel}`,
+          ).toBeGreaterThan(20)
         }
       }
 
@@ -238,12 +237,17 @@ describe('MB-624 atomic UC traceability report', () => {
   })
 
   it('binds every client claim to an exact scenario and rejects adjacent-feature evidence', () => {
-    expect(exactEvidence.reportVersion).toBe(3)
+    expect(exactEvidence.reportVersion).toBe(4)
     expect(exactEvidence.entries).toHaveLength(162)
 
     const byId = new Map(
       exactEvidence.entries.map((entry) => [entry.atomicUcId, entry]),
     )
+    const activeBindings = new Map<
+      string,
+      Array<{ atomicUcId: string; assertions: string[] }>
+    >()
+
     for (const row of rows) {
       const entry = byId.get(row.atomic_uc_id)
       expect(entry, row.atomic_uc_id).toBeDefined()
@@ -268,12 +272,31 @@ describe('MB-624 atomic UC traceability report', () => {
             sourceText,
             `${row.atomic_uc_id} ${binding?.source}`,
           ).toContain(binding!.scenario!)
-          for (const assertion of binding?.assertions ?? []) {
+          expect(
+            binding?.assertions?.length,
+            `${row.atomic_uc_id} ${channel} operation assertions`,
+          ).toBeGreaterThan(0)
+          for (const assertion of binding!.assertions!) {
+            expect(
+              assertion.trim().length,
+              `${row.atomic_uc_id} ${channel} assertion`,
+            ).toBeGreaterThanOrEqual(8)
+            expect(assertion, `${row.atomic_uc_id} ${channel}`).not.toBe(
+              binding!.scenario,
+            )
             expect(
               sourceText,
               `${row.atomic_uc_id} ${binding?.source} assertion ${assertion}`,
             ).toContain(assertion)
           }
+          const repeatKey = `${channel}|${binding!.source}|${binding!.scenario}`
+          activeBindings.set(repeatKey, [
+            ...(activeBindings.get(repeatKey) ?? []),
+            {
+              atomicUcId: row.atomic_uc_id,
+              assertions: binding!.assertions!,
+            },
+          ])
           if (state === 'E2E_AUTHORED_NOT_RUN') {
             expect(binding?.source, row.atomic_uc_id).toMatch(
               /^mobile\/\.maestro\/[^/]+\.yaml$/,
@@ -292,6 +315,17 @@ describe('MB-624 atomic UC traceability report', () => {
       }
     }
 
+    for (const [repeatKey, bindings] of activeBindings) {
+      if (bindings.length < 2) continue
+      const signatures = bindings.map(({ assertions }) =>
+        [...assertions].sort().join('\n'),
+      )
+      expect(
+        new Set(signatures).size,
+        `${repeatKey}: ${bindings.map(({ atomicUcId }) => atomicUcId).join(', ')}`,
+      ).toBe(bindings.length)
+    }
+
     const mobile = (number: number) =>
       byId.get(`WBS-${String(number).padStart(3, '0')}`)!.mobile
     const web = (number: number) =>
@@ -302,14 +336,36 @@ describe('MB-624 atomic UC traceability report', () => {
     expect(mobile(5).state).toBe('NOT_APPLICABLE')
     expect(mobile(6).state).toBe('NOT_APPLICABLE')
     expect(web(49).state).toBe('NONE')
+    expect(web(37).state).toBe('NONE')
+    expect(web(38).scenario).toContain('filters')
+    expect(web(48).state).toBe('NONE')
+    expect(mobile(58).scenario).toContain('exact persisted slot')
+    expect(web(62).scenario).toContain('exact selected')
+    expect(mobile(73).state).toBe('CODE_READY')
+    expect(mobile(73).scenario).toContain('persisted cancelled appointment')
+    expect(web(78).scenario).toContain('inbound realtime message')
+    expect(web(109).scenario).toContain('in history')
+    expect(web(110).scenario).toContain('pending settlement')
+    expect(web(111).source).toContain('browser-auth.test.ts')
+    expect(web(112).state).toBe('NONE')
+    expect(web(126).state).toBe('NONE')
+    expect(web(149).state).toBe('NONE')
     expect(web(80).state).toBe('NONE')
     expect(mobile(80).state).toBe('NONE')
     expect(web(82).state).toBe('NONE')
     expect(mobile(82).state).toBe('NONE')
 
-    for (const number of [2, 5, 6, 49, 80, 82]) {
-      const binding = mobile(number)
-      expect(binding.source ?? '').not.toMatch(/mb-612-assessment|mb-631-chat/)
+    expect(
+      new Set([42, 43, 44, 45, 46, 47].map((number) => web(number).scenario))
+        .size,
+    ).toBeGreaterThan(1)
+
+    for (const number of [2, 5, 6, 37, 48, 49, 80, 82, 112, 126, 149]) {
+      for (const binding of [web(number), mobile(number)]) {
+        expect(binding.source ?? '').not.toMatch(
+          /mb-612-assessment|mb-631-chat/,
+        )
+      }
     }
   })
 

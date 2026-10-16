@@ -1,7 +1,7 @@
 {
-  "reportVersion": 3,
+  "reportVersion": 4,
   "generatedAt": "2026-10-16",
-  "exactScenarioRegistry": "uc-specific-evidence-v3.json",
+  "exactScenarioRegistry": "uc-specific-evidence-v4.json",
   "catalogue": {
     "repository": "NgyenKhoi/mentalbridge-backend",
     "path": "Report3_Project Tracking.xlsx",
@@ -23,15 +23,15 @@
     "live-cross-stack",
     "none"
   ],
-  "note": "Code delivery closure is separate from channel staging verification. Every client claim is bound to one exact scenario registry entry; adjacent-feature evidence is rejected. No row claims STAGING_VERIFIED.",
+  "note": "Code delivery closure is separate from channel staging verification. Every client readiness claim carries source-verifiable operation assertions; repeated scenarios require distinct per-UC observations. No row claims STAGING_VERIFIED.",
   "codeDelivery": {
     "denominator": 162,
-    "numerator": 80,
-    "closurePercent": 49.38,
+    "numerator": 76,
+    "closurePercent": 46.91,
     "counts": {
-      "CLOSED": 80,
+      "CLOSED": 76,
       "GAP": 15,
-      "PARTIAL": 38,
+      "PARTIAL": 42,
       "SCOPE_RESOLVED": 29
     },
     "meaning": "Pinned contract and executable code evidence closure; not deployed-staging verification."
@@ -47,9 +47,9 @@
     "web": {
       "applicableDenominator": 133,
       "counts": {
-        "CODE_READY": 100,
+        "CODE_READY": 95,
         "NOT_APPLICABLE": 29,
-        "NONE": 33
+        "NONE": 38
       },
       "stagingVerifiedNumerator": 0,
       "stagingVerifiedPercent": 0
@@ -57,9 +57,9 @@
     "mobile": {
       "applicableDenominator": 83,
       "counts": {
-        "CODE_READY": 23,
+        "CODE_READY": 24,
         "NOT_APPLICABLE": 79,
-        "E2E_AUTHORED_NOT_RUN": 36,
+        "E2E_AUTHORED_NOT_RUN": 35,
         "NONE": 24
       },
       "stagingVerifiedNumerator": 0,

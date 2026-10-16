@@ -78,6 +78,16 @@ describe('SpecialistEarningsManager', () => {
     expect(screen.getByText(/hệ thống tự tính số tiền/i)).toBeInTheDocument()
   })
 
+  it('renders pending settlement separately from the available payout balance', async () => {
+    render(<SpecialistEarningsManager />)
+
+    expect(await screen.findByText(/Chờ đối soát/)).toBeInTheDocument()
+    expect(screen.getAllByText(/210\.000/)).not.toHaveLength(0)
+    expect(
+      screen.getByText('Đủ điều kiện yêu cầu rút tiền'),
+    ).toBeInTheDocument()
+  })
+
   it('shows a recoverable error state when the API is unavailable', async () => {
     api.get.mockRejectedValue(new Error('offline'))
     render(<SpecialistEarningsManager />)
@@ -203,7 +213,7 @@ describe('SpecialistEarningsManager', () => {
     expect(api.createPayout.mock.calls[0][0]).toBe(response.destination.id)
   })
 
-  it('never renders an unknown payout as a successful or failed payment', async () => {
+  it('renders an unknown payout in history without claiming success or failure', async () => {
     api.get.mockResolvedValue({
       ...response,
       balance: { ...response.balance, processingVnd: 210000 },
