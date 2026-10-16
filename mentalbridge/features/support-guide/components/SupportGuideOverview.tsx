@@ -226,7 +226,6 @@ export default function SupportGuideOverview() {
           ) : (
             !error && (
               <section className={styles.empty}>
-                <span>Gợi ý sau sàng lọc</span>
                 <h1>Với kết quả của mình, bạn nên làm gì tiếp theo?</h1>
                 <p>
                   Hoàn tất PHQ-9 và GAD-7 trong cùng lượt Kiểm tra ban đầu để

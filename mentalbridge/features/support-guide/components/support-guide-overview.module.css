@@ -103,12 +103,6 @@
   background: var(--surface);
   box-shadow: var(--elevation-1);
 }
-.empty > span {
-  color: var(--teal-deep);
-  font-size: 0.75rem;
-  font-weight: 750;
-  text-transform: uppercase;
-}
 .empty h1 {
   max-width: 760px;
   margin: 0;

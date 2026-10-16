@@ -118,7 +118,7 @@ describe('SupportGuideCard', () => {
     expect(screen.getByText('Bản ghi lịch sử · Chỉ đọc')).toBeVisible()
     expect(
       screen.getByRole('heading', {
-        name: 'Với kết quả của lần đánh giá này, thông tin an toàn được ưu tiên trước',
+        name: 'Gợi ý đã lưu: thông tin an toàn được ưu tiên trước',
       }),
     ).toBeVisible()
     expect(
@@ -139,7 +139,7 @@ describe('SupportGuideCard', () => {
     ]
     const { container } = render(<SupportGuideCard guide={guide} />)
     const resources = screen.getByRole('region', {
-      name: 'Bài tập hỗ trợ có thể giúp bạn cải thiện tình trạng này',
+      name: 'Bài tập bạn có thể thử',
     })
     expect(
       within(resources).getAllByRole('link', { name: 'Xem bài tập' }),
@@ -207,7 +207,13 @@ describe('SupportGuideCard', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Với kết quả này, ưu tiên hàng đầu là kết nối hỗ trợ an toàn ngay',
+        name: 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: 'Ưu tiên hàng đầu là kết nối hỗ trợ an toàn ngay',
       }),
     ).toBeVisible()
     expect(

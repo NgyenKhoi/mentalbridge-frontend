@@ -86,7 +86,7 @@ function ScoreCard({
     >
       <div>
         <h3>Bài sàng lọc {phq9 ? 'PHQ-9' : 'GAD-7'}</h3>
-        <p>{phq9 ? 'Dấu hiệu về tâm trạng' : 'Dấu hiệu lo âu'}</p>
+        <p>{phq9 ? 'Dấu hiệu trầm cảm' : 'Dấu hiệu lo âu'}</p>
       </div>
       <div className="support-guide-score-result">
         <strong>{score ? `${score.totalScore}/${phq9 ? 27 : 21}` : '—'}</strong>
@@ -117,8 +117,13 @@ export default function SupportGuideCard({
   headingLevel?: 'h1' | 'h2'
   showOpenLink?: boolean
 }) {
-  const AnswerHeading = headingLevel
   const safetyPositive = guide.safety.status === 'POSITIVE_SAFETY_SCREEN'
+  const SafetyHeading = headingLevel
+  const AnswerHeading = safetyPositive
+    ? headingLevel === 'h1'
+      ? 'h2'
+      : 'h3'
+    : headingLevel
   const professional =
     !safetyPositive &&
     (supportTier === 'PROFESSIONAL_SUPPORT_RECOMMENDED' ||
@@ -136,17 +141,16 @@ export default function SupportGuideCard({
   )
   const answerTitle = safetyPositive
     ? historical
-      ? 'Với kết quả của lần đánh giá này, thông tin an toàn được ưu tiên trước'
-      : 'Với kết quả này, ưu tiên hàng đầu là kết nối hỗ trợ an toàn ngay'
+      ? 'Gợi ý đã lưu: thông tin an toàn được ưu tiên trước'
+      : 'Ưu tiên hàng đầu là kết nối hỗ trợ an toàn ngay'
     : professional
       ? historical
-        ? 'Với kết quả của lần đánh giá này, gợi ý được lưu là nên trao đổi với chuyên gia tâm lý'
-        : 'Với kết quả này, bạn nên trao đổi với chuyên gia tâm lý'
+        ? 'Gợi ý đã lưu: nên trao đổi với chuyên gia tâm lý'
+        : 'Bạn nên trao đổi với chuyên gia tâm lý'
       : historical
-        ? 'Với kết quả của lần đánh giá này, gợi ý được lưu là bắt đầu từ những bước nhỏ'
-        : 'Với kết quả này, bạn có thể bắt đầu từ những bước nhỏ'
-  const resourcesTitle =
-    'Bài tập hỗ trợ có thể giúp bạn cải thiện tình trạng này'
+        ? 'Gợi ý đã lưu: bắt đầu từ những bước nhỏ'
+        : 'Bắt đầu từ những bước nhỏ, vừa sức với bạn'
+  const resourcesTitle = 'Bài tập bạn có thể thử'
 
   return (
     <article
@@ -189,10 +193,9 @@ export default function SupportGuideCard({
             <ShieldCheck aria-hidden="true" />
           </span>
           <div>
-            <span className="support-guide-kicker">Ưu tiên an toàn</span>
-            <h2 id={`guide-safety-${guide.supportGuideId}`}>
+            <SafetyHeading id={`guide-safety-${guide.supportGuideId}`}>
               Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp
-            </h2>
+            </SafetyHeading>
             <p>{guide.safety.guidance}</p>
             <Link href="/safety-directory?trigger=positive-item-9">
               Xem hỗ trợ trong khu vực <ArrowRight aria-hidden="true" />
@@ -205,20 +208,6 @@ export default function SupportGuideCard({
         data-purpose="hero-guide-answer"
       >
         <div className="support-guide-answer-copy">
-          <div className="support-guide-badges">
-            {historical && (
-              <span className="support-guide-history-badge">
-                Bản ghi lịch sử · Chỉ đọc
-              </span>
-            )}
-            <span>
-              {historical ? 'Gợi ý của lần đánh giá này' : 'Gợi ý sau sàng lọc'}
-            </span>
-          </div>
-          <span className="support-guide-question">
-            <CircleHelp aria-hidden="true" /> Hỏi &amp; Đáp: Với kết quả này,
-            tôi nên làm gì?
-          </span>
           <AnswerHeading id={`guide-${guide.supportGuideId}`}>
             {answerTitle}
           </AnswerHeading>
@@ -296,18 +285,21 @@ export default function SupportGuideCard({
               </a>
             )}
             {!professional && !safetyPositive && (
-              <small>
+              <p className="support-guide-answer-note">
                 Miễn phí cho mọi tài khoản · Tự do thực hành, không áp lực
-              </small>
+              </p>
             )}
           </div>
           <div className="support-guide-answer-meta">
             <CalendarDays aria-hidden="true" />
-            <span>
-              Gợi ý được lưu lúc:{' '}
-              <strong>{guideDateTime(guide.generatedAt)}</strong>
-            </span>
-            <span>Gắn với lần đánh giá này</span>
+            <time dateTime={guide.generatedAt}>
+              Lưu lúc {guideDateTime(guide.generatedAt)}
+            </time>
+            {historical && (
+              <span className="support-guide-history-badge">
+                Bản ghi lịch sử · Chỉ đọc
+              </span>
+            )}
           </div>
         </div>
       </section>
@@ -317,9 +309,8 @@ export default function SupportGuideCard({
       >
         <header>
           <h2 id={`guide-results-${guide.supportGuideId}`}>
-            Cặp kết quả liên kết với gợi ý này
+            Kết quả sàng lọc dùng cho gợi ý này
           </h2>
-          <small>Đúng cặp đánh giá đã chọn</small>
         </header>
         <div className="support-guide-score-grid">
           <ScoreCard
@@ -363,12 +354,9 @@ export default function SupportGuideCard({
         )}
         {guide.resources.length > 0 ? (
           <ol>
-            {guide.resources.map((resource, index) => (
+            {guide.resources.map((resource) => (
               <li key={`${resource.resourceId}:${resource.contentVersion}`}>
                 <div className="support-guide-resource-top">
-                  <span className="support-guide-resource-number">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
                   <span className="support-guide-resource-domain">
                     {resource.domain === 'DEPRESSIVE_SYMPTOMS'
                       ? 'Tâm trạng'
@@ -462,21 +450,19 @@ export default function SupportGuideCard({
           </details>
         </div>
       </section>
-      <footer className="support-guide-footer">
-        <time dateTime={guide.generatedAt}>
-          <CalendarDays aria-hidden="true" /> Tạo lúc{' '}
-          {guideDateTime(guide.generatedAt)}
-        </time>
-        {historical ? (
-          <Link href="/assessments">
-            <ArrowLeft aria-hidden="true" /> Quay lại lịch sử sàng lọc
-          </Link>
-        ) : showOpenLink ? (
-          <Link href={`/support-guides/${guide.supportGuideId}`}>
-            Mở lại hướng dẫn này <ArrowRight aria-hidden="true" />
-          </Link>
-        ) : null}
-      </footer>
+      {(historical || showOpenLink) && (
+        <footer className="support-guide-footer">
+          {historical ? (
+            <Link href="/assessments">
+              <ArrowLeft aria-hidden="true" /> Quay lại lịch sử sàng lọc
+            </Link>
+          ) : (
+            <Link href={`/support-guides/${guide.supportGuideId}`}>
+              Mở lại hướng dẫn này <ArrowRight aria-hidden="true" />
+            </Link>
+          )}
+        </footer>
+      )}
     </article>
   )
 }

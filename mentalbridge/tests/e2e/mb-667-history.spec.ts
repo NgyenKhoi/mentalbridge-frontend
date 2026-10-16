@@ -504,7 +504,7 @@ test('MB-667 opens the exact saved pair and its persisted Guide', async ({
   )
   await expect(
     page.getByRole('heading', {
-      name: 'Với kết quả của lần đánh giá này, gợi ý được lưu là bắt đầu từ những bước nhỏ',
+      name: 'Gợi ý đã lưu: bắt đầu từ những bước nhỏ',
     }),
   ).toBeVisible()
   await expect(
@@ -515,8 +515,24 @@ test('MB-667 opens the exact saved pair and its persisted Guide', async ({
   await expect(
     page.getByRole('link', { name: /Quay lại Kết quả trước đây/ }),
   ).toHaveAttribute('href', `/assessments/results/${evaluationId}`)
+  const guideDesktop = testInfo.outputPath(
+    'mb-667-historical-guide-desktop.png',
+  )
+  await page.screenshot({ path: guideDesktop, fullPage: true })
+  await testInfo.attach('MB-667 historical guide desktop', {
+    path: guideDesktop,
+    contentType: 'image/png',
+  })
 
   await page.setViewportSize({ width: 375, height: 812 })
+  await expectNoHorizontalOverflow(page)
+  const guideMobile = testInfo.outputPath('mb-667-historical-guide-mobile.png')
+  await page.screenshot({ path: guideMobile, fullPage: true })
+  await testInfo.attach('MB-667 historical guide mobile', {
+    path: guideMobile,
+    contentType: 'image/png',
+  })
+
   await page.goto(`/assessments/results/${evaluationId}`)
   await expect(
     page.getByRole('heading', { name: meaning.baseMeaning.text }),
