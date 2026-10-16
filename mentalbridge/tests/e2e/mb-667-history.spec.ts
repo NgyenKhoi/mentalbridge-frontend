@@ -320,6 +320,60 @@ test('MB-667 post-screening tab and Results share the exact saved Meaning UI', a
   await expectNoHorizontalOverflow(page)
 })
 
+test('MB-667 current Meaning never substitutes an older Guide for its exact screening pair', async ({
+  page,
+}, testInfo) => {
+  const meaning = reviewedMeaning()
+  let matchedGuideId: string | null = null
+  let unrelatedGuideReads = 0
+  let guideGenerations = 0
+  await page.route('**/api/care/initial-check?**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        completedInitialCheck({ ...meaning, supportGuideId: matchedGuideId }),
+      ),
+    }),
+  )
+  await page.route('**/api/care/support-guides**', (route) => {
+    if (route.request().method() === 'POST') guideGenerations++
+    else unrelatedGuideReads++
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...historicalGuide(),
+        supportGuideId: '90000000-0000-4000-8000-000000000202',
+      }),
+    })
+  })
+
+  await page.goto('/initial-check')
+  await expect(
+    page.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
+  ).toBeVisible()
+  await expect(page.locator('a[href^="/support-guides/"]')).toHaveCount(0)
+  await expect(
+    page.getByRole('link', { name: /Xem tài nguyên hiện tại/ }),
+  ).toHaveAttribute('href', '/resources')
+  await page.screenshot({
+    path: testInfo.outputPath('mb-667-current-no-matching-guide.png'),
+    fullPage: true,
+  })
+
+  matchedGuideId = guideId
+  await page.reload()
+  await expect(
+    page.getByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
+  ).toHaveAttribute(
+    'href',
+    `/support-guides/${guideId}?from=screening-history&resultEvaluationId=${evaluationId}`,
+  )
+  expect(unrelatedGuideReads).toBe(0)
+  expect(guideGenerations).toBe(0)
+})
+
 test('MB-667 current desktop uses the full content grid and the Mầm An loading composition', async ({
   page,
 }, testInfo) => {

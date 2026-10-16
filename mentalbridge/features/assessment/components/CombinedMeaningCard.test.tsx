@@ -6,7 +6,13 @@ import { CombinedMeaningCard } from './CombinedMeaningCard'
 
 describe('CombinedMeaningCard', () => {
   it('uses one shared composition with both exact scores and no summary-download action', () => {
-    render(<CombinedMeaningCard meaning={combinedMeaningFixture()} />)
+    render(
+      <CombinedMeaningCard
+        meaning={combinedMeaningFixture({
+          supportGuideId: '90000000-0000-4000-8000-000000000101',
+        })}
+      />,
+    )
 
     expect(screen.getByRole('heading', { name: 'PHQ-9' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'GAD-7' })).toBeVisible()
@@ -14,11 +20,34 @@ describe('CombinedMeaningCard', () => {
     expect(screen.getByText('4')).toBeVisible()
     expect(
       screen.getByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
-    ).toHaveAttribute('href', '/support-guides')
+    ).toHaveAttribute(
+      'href',
+      '/support-guides/90000000-0000-4000-8000-000000000101?from=screening-history&resultEvaluationId=20000000-0000-4000-8000-000000000101',
+    )
     expect(
       screen.queryByRole('button', { name: /Lưu bản tóm tắt/ }),
     ).not.toBeInTheDocument()
   })
+
+  it.each(['SELF_GUIDED', 'PROFESSIONAL_SUPPORT', 'SAFETY'] as const)(
+    'never substitutes a generic Guide for a current %s result without a saved Guide',
+    (priority) => {
+      render(
+        <CombinedMeaningCard meaning={combinedMeaningFixture({ priority })} />,
+      )
+
+      expect(
+        screen.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
+      ).toBeVisible()
+      expect(
+        screen
+          .getAllByRole('link')
+          .some((link) =>
+            link.getAttribute('href')?.startsWith('/support-guides'),
+          ),
+      ).toBe(false)
+    },
+  )
 
   it('gives backend safety priority precedence over the ordinary CTA', () => {
     render(

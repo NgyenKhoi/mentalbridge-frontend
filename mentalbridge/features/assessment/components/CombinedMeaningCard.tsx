@@ -217,7 +217,7 @@ export function CombinedMeaningCard({
             </span>
           </div>
         )}
-        {historical && !guideHref && (
+        {!guideHref && (
           <aside className="combined-meaning-guide-status" role="note">
             <Info aria-hidden="true" />
             <p>
@@ -264,7 +264,7 @@ export function CombinedMeaningCard({
               <ArrowRight aria-hidden="true" />
             </Link>
           )}
-          {historical && guideHref && (
+          {guideHref && (
             <Link
               className={
                 professional || isSafety
@@ -273,16 +273,15 @@ export function CombinedMeaningCard({
               }
               href={guideHref}
             >
-              {isSafety ? 'Xem gợi ý an toàn đã lưu' : 'Xem gợi ý đã lưu'}{' '}
+              {isSafety
+                ? 'Xem gợi ý an toàn đã lưu'
+                : historical
+                  ? 'Xem gợi ý đã lưu'
+                  : 'Xem gợi ý hỗ trợ'}{' '}
               <ArrowRight aria-hidden="true" />
             </Link>
           )}
-          {!historical && !professional && !isSafety && (
-            <Link className="combined-meaning-primary" href="/support-guides">
-              Xem gợi ý hỗ trợ <ArrowRight aria-hidden="true" />
-            </Link>
-          )}
-          {historical && !guideHref && !isSafety && (
+          {!guideHref && !isSafety && (
             <Link className="combined-meaning-secondary" href="/resources">
               <BookOpen aria-hidden="true" />
               Xem tài nguyên hiện tại

@@ -168,8 +168,11 @@ describe('GuidedInitialCheck', () => {
       screen.getByText(/Nếu bạn không yên tâm về tình trạng của mình/),
     ).toBeVisible()
     expect(
-      screen.getByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
-    ).toHaveAttribute('href', '/support-guides')
+      screen.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
+    ).not.toBeInTheDocument()
     expect(container.textContent).not.toMatch(/sprint|backend|demo|test/i)
 
     await userEvent.click(
@@ -189,6 +192,39 @@ describe('GuidedInitialCheck', () => {
     expect(
       screen.queryByRole('group', { name: 'Xác nhận bắt đầu lượt mới' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('opens only the Guide matched to the newly completed screening pair', async () => {
+    const state = completedState()
+    const matchedGuideId = '90000000-0000-4000-8000-000000000101'
+    state.combinedMeaning.supportGuideId = matchedGuideId
+    const unrelatedCurrentGuide = vi.fn(() =>
+      HttpResponse.json({
+        supportGuideId: '90000000-0000-4000-8000-000000000202',
+      }),
+    )
+    const generateGuide = vi.fn(() => HttpResponse.json({}, { status: 201 }))
+    mockServer.use(
+      http.get('http://localhost/api/care/initial-check', () =>
+        HttpResponse.json(state),
+      ),
+      http.get(
+        'http://localhost/api/care/support-guides/current',
+        unrelatedCurrentGuide,
+      ),
+      http.post('http://localhost/api/care/support-guides', generateGuide),
+    )
+
+    render(<GuidedInitialCheck />)
+
+    expect(
+      await screen.findByRole('link', { name: /Xem gợi ý hỗ trợ/ }),
+    ).toHaveAttribute(
+      'href',
+      `/support-guides/${matchedGuideId}?from=screening-history&resultEvaluationId=${state.combinedMeaning.supportEvaluationId}`,
+    )
+    expect(unrelatedCurrentGuide).not.toHaveBeenCalled()
+    expect(generateGuide).not.toHaveBeenCalled()
   })
 
   it('offers a retry without discarding completed assessments when evaluation is unavailable', async () => {
