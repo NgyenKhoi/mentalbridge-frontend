@@ -270,7 +270,7 @@ describe('SupportEvaluationHistory unified Meaning', () => {
     const { container } = render(<SupportEvaluationHistory />)
     expect(
       await screen.findByRole('heading', {
-        name: 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp',
+        name: 'Thông tin an toàn của lần sàng lọc này',
         level: 2,
       }),
     ).toBeVisible()
@@ -281,8 +281,8 @@ describe('SupportEvaluationHistory unified Meaning', () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
     expect(
-      screen.getByRole('link', { name: /Xem hỗ trợ trong khu vực/ }),
-    ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
+      screen.getByRole('link', { name: 'Nếu bạn cần hỗ trợ ngay' }),
+    ).toHaveAttribute('href', '/safety-directory')
   })
 
   it('offers an assessment start when there is no saved result', async () => {

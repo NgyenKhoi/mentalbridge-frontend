@@ -176,17 +176,34 @@ export function CombinedMeaningCard({
           </span>
           <div>
             <span className="combined-meaning-kicker">
-              Ưu tiên an toàn ngay lúc này
+              {historical
+                ? 'Lượt này có thông tin an toàn cần ưu tiên'
+                : 'Ưu tiên an toàn ngay lúc này'}
             </span>
             <Heading id="combined-safety-title">
-              Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp
+              {historical
+                ? 'Thông tin an toàn của lần sàng lọc này'
+                : 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp'}
             </Heading>
+            {historical && (
+              <p>
+                Hướng dẫn dưới đây gắn với câu trả lời của lần sàng lọc đã lưu,
+                không khẳng định tình trạng hiện tại của bạn.
+              </p>
+            )}
             <p>{meaning.safetyGuidance}</p>
             <Link
               className="combined-meaning-primary"
-              href="/safety-directory?trigger=positive-item-9"
+              href={
+                historical
+                  ? '/safety-directory'
+                  : '/safety-directory?trigger=positive-item-9'
+              }
             >
-              Xem hỗ trợ trong khu vực <ArrowRight aria-hidden="true" />
+              {historical
+                ? 'Nếu bạn cần hỗ trợ ngay'
+                : 'Xem hỗ trợ trong khu vực'}{' '}
+              <ArrowRight aria-hidden="true" />
             </Link>
           </div>
         </section>

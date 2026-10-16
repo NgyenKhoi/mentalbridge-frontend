@@ -70,19 +70,27 @@ describe('CombinedMeaningCard', () => {
   })
 
   it('keeps an exact saved Guide reachable after historical safety guidance', () => {
-    render(
-      <CombinedMeaningCard
-        meaning={combinedMeaningFixture({
-          priority: 'SAFETY',
-          supportGuideId: '90000000-0000-4000-8000-000000000101',
-        })}
-        historical
-      />,
-    )
+    const meaning = combinedMeaningFixture({
+      priority: 'SAFETY',
+      supportGuideId: '90000000-0000-4000-8000-000000000101',
+    })
+    render(<CombinedMeaningCard meaning={meaning} historical />)
 
     expect(
-      screen.getByRole('link', { name: /Xem hỗ trợ trong khu vực/ }),
-    ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
+      screen.getByRole('link', { name: 'Nếu bạn cần hỗ trợ ngay' }),
+    ).toHaveAttribute('href', '/safety-directory')
+    expect(
+      screen.getByRole('heading', {
+        name: 'Thông tin an toàn của lần sàng lọc này',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.queryByText('Ưu tiên an toàn ngay lúc này'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/không khẳng định tình trạng hiện tại/),
+    ).toBeVisible()
+    expect(screen.getByText(meaning.safetyGuidance!)).toBeVisible()
     expect(
       screen.getByRole('link', { name: /Xem gợi ý an toàn đã lưu/ }),
     ).toHaveAttribute(

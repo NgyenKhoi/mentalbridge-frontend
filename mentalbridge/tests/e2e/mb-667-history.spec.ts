@@ -825,12 +825,16 @@ test('MB-667 keeps safety authoritative and renders severe professional support 
   await page.goto(`/assessments/results/${safetyEvaluationId}`)
   await expect(
     page.getByRole('heading', {
-      name: 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp',
+      name: 'Thông tin an toàn của lần sàng lọc này',
     }),
   ).toBeVisible()
   await expect(
-    page.getByRole('link', { name: /Xem hỗ trợ trong khu vực/ }),
-  ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
+    page.getByRole('link', { name: 'Nếu bạn cần hỗ trợ ngay' }),
+  ).toHaveAttribute('href', '/safety-directory')
+  await expect(page.getByText('Ưu tiên an toàn ngay lúc này')).toHaveCount(0)
+  await expect(
+    page.getByText(/không khẳng định tình trạng hiện tại/),
+  ).toBeVisible()
   await expect(
     page.getByRole('link', { name: /Xem gợi ý an toàn đã lưu/ }),
   ).toHaveAttribute(
