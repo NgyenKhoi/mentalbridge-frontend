@@ -1011,6 +1011,10 @@
   gap: 20px;
 }
 
+.assessment-modal-body > * {
+  flex-shrink: 0;
+}
+
 .assessment-modal-loading {
   padding: 32px 0;
   text-align: center;
