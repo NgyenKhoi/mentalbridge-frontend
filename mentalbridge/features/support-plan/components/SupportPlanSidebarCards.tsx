@@ -6,7 +6,12 @@ import SupportPlanIcon from './SupportPlanIcon'
 import SupportPlanScreeningProgress from './SupportPlanScreeningProgress'
 
 interface SupportPlanSidebarCardsProps {
-  activityRhythm?: ReadonlyArray<{ id: string; title: string; time: string; state: string }>
+  activityRhythm?: ReadonlyArray<{
+    id: string
+    title: string
+    time: string
+    state: string
+  }>
   planStatus?: 'ACTIVE' | 'PAUSED' | 'COMPLETED'
   onToggleStatus?: () => void
   onEndPlan?: () => void
@@ -47,13 +52,18 @@ export default function SupportPlanSidebarCards({
   return (
     <aside className="support-plan-sidebar-col" aria-label="Thông tin bổ trợ">
       {activityRhythm && activityRhythm.length > 0 ? (
-        <section className="support-plan-side-card" aria-label="Nhịp hoạt động hôm nay">
+        <section
+          className="support-plan-side-card"
+          aria-label="Nhịp hoạt động hôm nay"
+        >
           <h4 className="support-plan-side-card-title">Nhịp hôm nay</h4>
           <ul className="support-plan-activity-rhythm">
             {activityRhythm.slice(0, 4).map((activity) => (
               <li key={activity.id}>
                 <strong>{activity.title}</strong>
-                <span>{activity.time} · {activity.state}</span>
+                <span>
+                  {activity.time} · {activity.state}
+                </span>
               </li>
             ))}
           </ul>
@@ -132,10 +142,24 @@ export default function SupportPlanSidebarCards({
 
         <div className="support-plan-quick-actions-list">
           {onEndPlan ? (
-            <button type="button" className="support-plan-quick-action-btn" onClick={onEndPlan}>
-              <SupportPlanIcon name="check_circle" size={18} className="support-plan-quick-action-icon" />
-              <span className="support-plan-quick-action-label">Kết thúc kế hoạch</span>
-              <SupportPlanIcon name="chevron_right" size={18} className="support-plan-quick-action-chevron" />
+            <button
+              type="button"
+              className="support-plan-quick-action-btn"
+              onClick={onEndPlan}
+            >
+              <SupportPlanIcon
+                name="check_circle"
+                size={18}
+                className="support-plan-quick-action-icon"
+              />
+              <span className="support-plan-quick-action-label">
+                Kết thúc kế hoạch
+              </span>
+              <SupportPlanIcon
+                name="chevron_right"
+                size={18}
+                className="support-plan-quick-action-chevron"
+              />
             </button>
           ) : null}
           <button

@@ -84,7 +84,10 @@ export default function ServiceCreditsPanel() {
 
   if (loading)
     return (
-      <section className={`${styles.panel} ${styles.feedback}`} aria-busy="true">
+      <section
+        className={`${styles.panel} ${styles.feedback}`}
+        aria-busy="true"
+      >
         <p>Đang tải lượt tư vấn…</p>
       </section>
     )
@@ -105,19 +108,34 @@ export default function ServiceCreditsPanel() {
   const demo = account.source === 'DEMO'
   const balance = [
     { label: 'Còn lại', value: account.balance.available, Icon: Hourglass },
-    { label: 'Đang giữ lịch', value: account.balance.held, Icon: CalendarCheck2 },
+    {
+      label: 'Đang giữ lịch',
+      value: account.balance.held,
+      Icon: CalendarCheck2,
+    },
     { label: 'Đã sử dụng', value: account.balance.consumed, Icon: CircleCheck },
-    { label: 'Hết hiệu lực', value: account.balance.forfeited, Icon: CalendarX2 },
+    {
+      label: 'Hết hiệu lực',
+      value: account.balance.forfeited,
+      Icon: CalendarX2,
+    },
   ]
   return (
     <section className={styles.panel} aria-labelledby="credit-title">
       <header className={styles.status}>
-        <span className={styles.statusIcon} aria-hidden="true"><ShieldCheck size={20} /></span>
+        <span className={styles.statusIcon} aria-hidden="true">
+          <ShieldCheck size={20} />
+        </span>
         <div className={styles.statusCopy}>
           <span className={styles.eyebrow}>Tài khoản hoạt động</span>
           <p>
-            Bạn đang sử dụng <strong id="credit-title">Gói {PACKAGE_LABELS[account.packageCode]}{demo ? ' dùng thử' : ''}</strong>.
-            {' '}{account.reservationCapacity.active === 0
+            Bạn đang sử dụng{' '}
+            <strong id="credit-title">
+              Gói {PACKAGE_LABELS[account.packageCode]}
+              {demo ? ' dùng thử' : ''}
+            </strong>
+            .{' '}
+            {account.reservationCapacity.active === 0
               ? 'Hiện tại chưa có lịch hẹn tư vấn nào đang chờ.'
               : `Bạn đang giữ ${account.reservationCapacity.active} lịch hẹn tư vấn.`}
           </p>
@@ -141,85 +159,95 @@ export default function ServiceCreditsPanel() {
         {balance.map(({ label, value, Icon }) => (
           <div key={label} className={styles.metric}>
             <span>{label}</span>
-            <strong>{value}<small> buổi</small></strong>
-            <span className={styles.metricIcon} aria-hidden="true"><Icon size={18} /></span>
+            <strong>
+              {value}
+              <small> buổi</small>
+            </strong>
+            <span className={styles.metricIcon} aria-hidden="true">
+              <Icon size={18} />
+            </span>
           </div>
         ))}
       </div>
 
-      <div id="service-credit-details" className={styles.details} hidden={!showDetails}>
-      <section className={styles.capacity} aria-labelledby="capacity-title">
-        <div>
-          <span className={styles.eyebrow}>Giới hạn lịch đang giữ</span>
-          <h2 id="capacity-title">
-            {account.reservationCapacity.active}/
-            {account.reservationCapacity.maximum} lịch
-          </h2>
-        </div>
-        <p>
-          {account.reservationCapacity.maximum === 0
-            ? 'Gói hiện tại chưa thể giữ lịch tư vấn.'
-            : account.reservationCapacity.remaining === 0
-              ? 'Bạn đã đạt giới hạn lịch đang chờ, đã xác nhận hoặc đang diễn ra. Lượt tư vấn còn lại không làm tăng giới hạn này.'
-              : `Bạn có thể giữ thêm ${account.reservationCapacity.remaining} lịch. Đây là giới hạn riêng, không phải số lượt tư vấn còn lại.`}
-        </p>
-      </section>
-
-      <dl className={styles.period}>
-        <div>
-          <dt>Bắt đầu kỳ</dt>
-          <dd>{formatInstant(account.periodStart)}</dd>
-        </div>
-        <div>
-          <dt>Kết thúc kỳ</dt>
-          <dd>{formatInstant(account.periodEnd)}</dd>
-        </div>
-        <div>
-          <dt>Nguồn</dt>
-          <dd>
-            {demo ? 'Demo' : paid ? 'Đã thanh toán' : 'Mặc định miễn phí'}
-          </dd>
-        </div>
-      </dl>
-
-      <div className={styles.upgrade}>
-        {account.packageCode === 'FREE' && (
+      <div
+        id="service-credit-details"
+        className={styles.details}
+        hidden={!showDetails}
+      >
+        <section className={styles.capacity} aria-labelledby="capacity-title">
+          <div>
+            <span className={styles.eyebrow}>Giới hạn lịch đang giữ</span>
+            <h2 id="capacity-title">
+              {account.reservationCapacity.active}/
+              {account.reservationCapacity.maximum} lịch
+            </h2>
+          </div>
           <p>
-            Có thể nâng cấp lên Plus hoặc Premium khi luồng thanh toán được mở.
+            {account.reservationCapacity.maximum === 0
+              ? 'Gói hiện tại chưa thể giữ lịch tư vấn.'
+              : account.reservationCapacity.remaining === 0
+                ? 'Bạn đã đạt giới hạn lịch đang chờ, đã xác nhận hoặc đang diễn ra. Lượt tư vấn còn lại không làm tăng giới hạn này.'
+                : `Bạn có thể giữ thêm ${account.reservationCapacity.remaining} lịch. Đây là giới hạn riêng, không phải số lượt tư vấn còn lại.`}
           </p>
-        )}
-        {account.packageCode === 'PLUS' && (
-          <p>
-            Có thể nâng cấp lên Premium; hệ thống chỉ cấp thêm phần chênh lệch
-            của kỳ hiện tại.
-          </p>
-        )}
-        {account.packageCode === 'PREMIUM' && (
-          <p>
-            Đây là gói cao nhất. Không có thao tác hạ gói hoặc hoàn tiền trong
-            luồng này.
-          </p>
-        )}
-      </div>
+        </section>
 
-      <div className={styles.history}>
-        <h2>Lịch sử lượt tư vấn</h2>
-        {account.history.length === 0 ? (
-          <p>Chưa có thay đổi nào về lượt tư vấn.</p>
-        ) : (
-          <ul>
-            {account.history.map((event) => (
-              <li key={event.eventId}>
-                <span>{EVENT_LABELS[event.eventType]}</span>
-                <small>
-                  {event.source === 'DEMO' ? 'Demo' : 'Đã thanh toán'} ·{' '}
-                  {formatInstant(event.occurredAt)}
-                </small>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+        <dl className={styles.period}>
+          <div>
+            <dt>Bắt đầu kỳ</dt>
+            <dd>{formatInstant(account.periodStart)}</dd>
+          </div>
+          <div>
+            <dt>Kết thúc kỳ</dt>
+            <dd>{formatInstant(account.periodEnd)}</dd>
+          </div>
+          <div>
+            <dt>Nguồn</dt>
+            <dd>
+              {demo ? 'Demo' : paid ? 'Đã thanh toán' : 'Mặc định miễn phí'}
+            </dd>
+          </div>
+        </dl>
+
+        <div className={styles.upgrade}>
+          {account.packageCode === 'FREE' && (
+            <p>
+              Có thể nâng cấp lên Plus hoặc Premium khi luồng thanh toán được
+              mở.
+            </p>
+          )}
+          {account.packageCode === 'PLUS' && (
+            <p>
+              Có thể nâng cấp lên Premium; hệ thống chỉ cấp thêm phần chênh lệch
+              của kỳ hiện tại.
+            </p>
+          )}
+          {account.packageCode === 'PREMIUM' && (
+            <p>
+              Đây là gói cao nhất. Không có thao tác hạ gói hoặc hoàn tiền trong
+              luồng này.
+            </p>
+          )}
+        </div>
+
+        <div className={styles.history}>
+          <h2>Lịch sử lượt tư vấn</h2>
+          {account.history.length === 0 ? (
+            <p>Chưa có thay đổi nào về lượt tư vấn.</p>
+          ) : (
+            <ul>
+              {account.history.map((event) => (
+                <li key={event.eventId}>
+                  <span>{EVENT_LABELS[event.eventType]}</span>
+                  <small>
+                    {event.source === 'DEMO' ? 'Demo' : 'Đã thanh toán'} ·{' '}
+                    {formatInstant(event.occurredAt)}
+                  </small>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
   )

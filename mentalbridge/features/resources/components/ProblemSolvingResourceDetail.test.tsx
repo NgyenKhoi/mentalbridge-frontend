@@ -98,7 +98,9 @@ describe('ProblemSolvingResourceDetail', () => {
 
     // 6. Footer Citation
     expect(
-      screen.getByText(/Biên soạn theo tài liệu Problem Solving – NHS Every Mind Matters/i),
+      screen.getByText(
+        /Biên soạn theo tài liệu Problem Solving – NHS Every Mind Matters/i,
+      ),
     ).toBeInTheDocument()
 
     // 7. Gate on recording button (disabled initially)

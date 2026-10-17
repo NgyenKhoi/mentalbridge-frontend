@@ -194,7 +194,8 @@ function InitialProfileReview() {
         <h1>Vòng đời hồ sơ</h1>
         <p>
           Xét duyệt, từ chối, tạm ngưng và khôi phục bằng lý do vận hành đã được
-          chuẩn hóa. Giấy tờ chuyên gia được xét duyệt riêng trong hàng chờ bên dưới.
+          chuẩn hóa. Giấy tờ chuyên gia được xét duyệt riêng trong hàng chờ bên
+          dưới.
         </p>
       </header>
       <nav className={styles.filters} aria-label="Lọc trạng thái hồ sơ">

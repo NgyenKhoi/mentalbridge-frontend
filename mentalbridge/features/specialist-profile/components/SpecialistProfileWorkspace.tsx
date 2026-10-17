@@ -7,7 +7,27 @@ import {
   useMemo,
   useState,
 } from 'react'
-import { BadgeCheck, BookOpenText, BriefcaseBusiness, Check, CircleUserRound, Clock3, Eye, FileBadge2, FilePlus2, FileText, Globe2, Languages, LockKeyhole, Minus, Plus, Save, ShieldCheck, UserRound, Video } from 'lucide-react'
+import {
+  BadgeCheck,
+  BookOpenText,
+  BriefcaseBusiness,
+  Check,
+  CircleUserRound,
+  Clock3,
+  Eye,
+  FileBadge2,
+  FilePlus2,
+  FileText,
+  Globe2,
+  Languages,
+  LockKeyhole,
+  Minus,
+  Plus,
+  Save,
+  ShieldCheck,
+  UserRound,
+  Video,
+} from 'lucide-react'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import type {
   SpecialistDecisionReason,
@@ -91,7 +111,9 @@ export default function SpecialistProfileWorkspace() {
   const [error, setError] = useState('')
   const [documentsOpen, setDocumentsOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
+    null,
+  )
   const [documents, setDocuments] = useState<CredentialDocument[]>([])
   const [documentsError, setDocumentsError] = useState('')
   const [documentsLoading, setDocumentsLoading] = useState(false)
@@ -142,12 +164,26 @@ export default function SpecialistProfileWorkspace() {
     if (!profile) return
     let active = true
     setDocumentsLoading(true)
-    browserConsultation.credentialDocuments().then((result) => {
-      if (active) { setDocuments(result.data); setDocumentsError('') }
-    }).catch(() => {
-      if (active) setDocumentsError('Không thể tải giấy tờ. Hãy tải lại trang để thử lại.')
-    }).finally(() => { if (active) setDocumentsLoading(false) })
-    return () => { active = false }
+    browserConsultation
+      .credentialDocuments()
+      .then((result) => {
+        if (active) {
+          setDocuments(result.data)
+          setDocumentsError('')
+        }
+      })
+      .catch(() => {
+        if (active)
+          setDocumentsError(
+            'Không thể tải giấy tờ. Hãy tải lại trang để thử lại.',
+          )
+      })
+      .finally(() => {
+        if (active) setDocumentsLoading(false)
+      })
+    return () => {
+      active = false
+    }
   }, [profile?.accountId])
 
   const status = viewStatus(profile)
@@ -207,11 +243,24 @@ export default function SpecialistProfileWorkspace() {
     setBadgeBusyId(document.id)
     setDocumentsError('')
     try {
-      const result = await browserConsultation.credentialBadge(document.id, visible, document.version)
-      setDocuments((current) => current.map((item) => item.id === document.id ? result.data : item))
-      showActionToast({ title: visible ? 'Đã hiện huy hiệu trên hồ sơ' : 'Đã ẩn huy hiệu', tone: 'success' })
+      const result = await browserConsultation.credentialBadge(
+        document.id,
+        visible,
+        document.version,
+      )
+      setDocuments((current) =>
+        current.map((item) => (item.id === document.id ? result.data : item)),
+      )
+      showActionToast({
+        title: visible ? 'Đã hiện huy hiệu trên hồ sơ' : 'Đã ẩn huy hiệu',
+        tone: 'success',
+      })
     } catch (cause) {
-      setDocumentsError(cause instanceof Error ? cause.message : 'Không thể đổi huy hiệu. Hãy thử lại.')
+      setDocumentsError(
+        cause instanceof Error
+          ? cause.message
+          : 'Không thể đổi huy hiệu. Hãy thử lại.',
+      )
     } finally {
       setBadgeBusyId(null)
     }
@@ -228,7 +277,8 @@ export default function SpecialistProfileWorkspace() {
         let current = amendment
         let currentEtag = amendmentEtag
         if (!current) {
-          if (!etag) throw new Error('Không có phiên bản hồ sơ để bắt đầu chỉnh sửa.')
+          if (!etag)
+            throw new Error('Không có phiên bản hồ sơ để bắt đầu chỉnh sửa.')
           const started = await browserConsultation.startProfileAmendment(etag)
           current = started.data
           currentEtag = started.etag
@@ -236,12 +286,17 @@ export default function SpecialistProfileWorkspace() {
           setAmendmentEtag(currentEtag)
         }
         if (!currentEtag) throw new Error('Không có phiên bản bản chỉnh sửa.')
-        const result = await browserConsultation.editProfileAmendment(current.id, form, currentEtag)
+        const result = await browserConsultation.editProfileAmendment(
+          current.id,
+          form,
+          currentEtag,
+        )
         setAmendment(result.data)
         setAmendmentEtag(result.etag)
         setForm(result.data.proposedProfile)
         setSavedForm(result.data.proposedProfile)
-        const message = 'Đã lưu bản chỉnh sửa riêng tư. Gửi xét duyệt để cập nhật hồ sơ công khai.'
+        const message =
+          'Đã lưu bản chỉnh sửa riêng tư. Gửi xét duyệt để cập nhật hồ sơ công khai.'
         setNotice(message)
         showActionToast({ title: message, tone: 'success' })
         return
@@ -274,15 +329,23 @@ export default function SpecialistProfileWorkspace() {
     setNotice('')
     try {
       if (status === 'APPROVED' && amendment && amendmentEtag) {
-        const result = await browserConsultation.submitProfileAmendment(amendment.id, amendmentEtag, amendment.status === 'REJECTED')
+        const result = await browserConsultation.submitProfileAmendment(
+          amendment.id,
+          amendmentEtag,
+          amendment.status === 'REJECTED',
+        )
         setAmendment(result.data)
         setAmendmentEtag(result.etag)
         setNotice('Bản chỉnh sửa đã được gửi để quản trị viên xét duyệt.')
-        showActionToast({ title: 'Đã gửi bản chỉnh sửa để xét duyệt', tone: 'success' })
+        showActionToast({
+          title: 'Đã gửi bản chỉnh sửa để xét duyệt',
+          tone: 'success',
+        })
         return
       }
       const profileEtag = etag
-      if (!profileEtag) throw new Error('Không có phiên bản hồ sơ để gửi xét duyệt.')
+      if (!profileEtag)
+        throw new Error('Không có phiên bản hồ sơ để gửi xét duyệt.')
       const result =
         status === 'REJECTED'
           ? await browserConsultation.resubmit(profileEtag)
@@ -312,18 +375,46 @@ export default function SpecialistProfileWorkspace() {
     <section className={styles.workspace}>
       <header className={styles.heading}>
         <div>
-          <span className={styles.eyebrow}><CircleUserRound aria-hidden="true" /> Không gian chuyên gia</span>
+          <span className={styles.eyebrow}>
+            <CircleUserRound aria-hidden="true" /> Không gian chuyên gia
+          </span>
           <h1>Hồ sơ chuyên gia</h1>
-          <p>Hoàn thiện thông tin để người dùng hiểu lĩnh vực hỗ trợ và kinh nghiệm của bạn.</p>
+          <p>
+            Hoàn thiện thông tin để người dùng hiểu lĩnh vực hỗ trợ và kinh
+            nghiệm của bạn.
+          </p>
         </div>
         <div className={styles.headingActions}>
-          <button className={styles.documentsButton} type="button" onClick={() => { setSelectedDocumentId(null); setDocumentsOpen(true) }}><Eye aria-hidden="true" /> Xem giấy tờ</button>
-          {!locked && dirty && <button className={styles.topSave} type="submit" form="specialist-profile-form" disabled={!canSave}><Save aria-hidden="true" />{busy ? 'Đang lưu…' : 'Lưu thay đổi'}</button>}
+          <button
+            className={styles.documentsButton}
+            type="button"
+            onClick={() => {
+              setSelectedDocumentId(null)
+              setDocumentsOpen(true)
+            }}
+          >
+            <Eye aria-hidden="true" /> Xem giấy tờ
+          </button>
+          {!locked && dirty && (
+            <button
+              className={styles.topSave}
+              type="submit"
+              form="specialist-profile-form"
+              disabled={!canSave}
+            >
+              <Save aria-hidden="true" />
+              {busy ? 'Đang lưu…' : 'Lưu thay đổi'}
+            </button>
+          )}
         </div>
       </header>
 
       <div className={styles.columns}>
-        <form id="specialist-profile-form" className={styles.form} onSubmit={save}>
+        <form
+          id="specialist-profile-form"
+          className={styles.form}
+          onSubmit={save}
+        >
           <section className={`${styles.card} ${styles.profileHero}`}>
             <div className={styles.banner} aria-hidden="true" />
             <div className={styles.profileSummary}>
@@ -333,7 +424,8 @@ export default function SpecialistProfileWorkspace() {
               <div className={styles.profileIdentity}>
                 <h2>{form.displayName || 'Tên hiển thị của bạn'}</h2>
                 <p>
-                  Chuyên gia tâm lý <span data-state={status}>{statusTitle[status]}</span>
+                  Chuyên gia tâm lý{' '}
+                  <span data-state={status}>{statusTitle[status]}</span>
                 </p>
               </div>
             </div>
@@ -341,10 +433,22 @@ export default function SpecialistProfileWorkspace() {
               Ảnh đại diện hiện dùng tên viết tắt của bạn.
             </p>
             <div className={styles.heroStats} aria-label="Tổng quan hồ sơ">
-              <div><strong>{form.yearsOfExperience}</strong><span>Năm kinh nghiệm</span></div>
-              <div><strong>{form.supportAreas.length}</strong><span>Lĩnh vực hỗ trợ</span></div>
-              <div><strong>{form.languages.length}</strong><span>Ngôn ngữ</span></div>
-              <div><strong>{completion}%</strong><span>Đã hoàn thiện</span></div>
+              <div>
+                <strong>{form.yearsOfExperience}</strong>
+                <span>Năm kinh nghiệm</span>
+              </div>
+              <div>
+                <strong>{form.supportAreas.length}</strong>
+                <span>Lĩnh vực hỗ trợ</span>
+              </div>
+              <div>
+                <strong>{form.languages.length}</strong>
+                <span>Ngôn ngữ</span>
+              </div>
+              <div>
+                <strong>{completion}%</strong>
+                <span>Đã hoàn thiện</span>
+              </div>
             </div>
           </section>
 
@@ -374,7 +478,15 @@ export default function SpecialistProfileWorkspace() {
           )}
 
           <section className={`${styles.card} ${styles.section}`}>
-            <div className={styles.sectionHead}><span className={styles.sectionIcon}><UserRound aria-hidden="true" /></span><div><h3>Thông tin cơ bản</h3><p>Tên và lời giới thiệu người dùng đọc đầu tiên.</p></div></div>
+            <div className={styles.sectionHead}>
+              <span className={styles.sectionIcon}>
+                <UserRound aria-hidden="true" />
+              </span>
+              <div>
+                <h3>Thông tin cơ bản</h3>
+                <p>Tên và lời giới thiệu người dùng đọc đầu tiên.</p>
+              </div>
+            </div>
             <label className={styles.field}>
               <span>Tên hiển thị</span>
               <input
@@ -406,7 +518,15 @@ export default function SpecialistProfileWorkspace() {
           </section>
 
           <section className={`${styles.card} ${styles.section}`}>
-            <div className={styles.sectionHead}><span className={`${styles.sectionIcon} ${styles.amberIcon}`}><BookOpenText aria-hidden="true" /></span><div><h3>Chuyên môn</h3><p>Chọn lĩnh vực bạn có thể hỗ trợ.</p></div></div>
+            <div className={styles.sectionHead}>
+              <span className={`${styles.sectionIcon} ${styles.amberIcon}`}>
+                <BookOpenText aria-hidden="true" />
+              </span>
+              <div>
+                <h3>Chuyên môn</h3>
+                <p>Chọn lĩnh vực bạn có thể hỗ trợ.</p>
+              </div>
+            </div>
             <fieldset className={styles.optionGrid} disabled={locked}>
               {(
                 [
@@ -433,7 +553,18 @@ export default function SpecialistProfileWorkspace() {
           </section>
 
           <section className={`${styles.card} ${styles.section}`}>
-            <div className={styles.sectionHead}><span className={styles.sectionIcon}><Globe2 aria-hidden="true" /></span><div><h3>Ngôn ngữ, kinh nghiệm và hình thức tư vấn</h3><p>Giúp người dùng chọn đúng người phù hợp với cách họ muốn trò chuyện.</p></div></div>
+            <div className={styles.sectionHead}>
+              <span className={styles.sectionIcon}>
+                <Globe2 aria-hidden="true" />
+              </span>
+              <div>
+                <h3>Ngôn ngữ, kinh nghiệm và hình thức tư vấn</h3>
+                <p>
+                  Giúp người dùng chọn đúng người phù hợp với cách họ muốn trò
+                  chuyện.
+                </p>
+              </div>
+            </div>
             <strong className={styles.groupLabel}>Ngôn ngữ tư vấn</strong>
             <fieldset className={styles.optionGrid} disabled={locked}>
               {['vi', 'en', 'zh', 'fr'].map((language) => (
@@ -502,32 +633,110 @@ export default function SpecialistProfileWorkspace() {
               </div>
             </label>
             <div className={styles.serviceDetails}>
-              <div><span>Thời lượng mỗi phiên</span><strong><Clock3 aria-hidden="true" /> 60 phút</strong></div>
-              <div><span>Hình thức tư vấn</span><strong><Video aria-hidden="true" /> Trực tuyến · Chat hoặc Video trong ứng dụng</strong></div>
+              <div>
+                <span>Thời lượng mỗi phiên</span>
+                <strong>
+                  <Clock3 aria-hidden="true" /> 60 phút
+                </strong>
+              </div>
+              <div>
+                <span>Hình thức tư vấn</span>
+                <strong>
+                  <Video aria-hidden="true" /> Trực tuyến · Chat hoặc Video
+                  trong ứng dụng
+                </strong>
+              </div>
             </div>
           </section>
 
           <section className={`${styles.card} ${styles.section}`}>
             <div className={styles.credentialHeading}>
-              <div className={styles.sectionHead}><span className={`${styles.sectionIcon} ${styles.amberIcon}`}><FileBadge2 aria-hidden="true" /></span><div><h3>Bằng cấp và giấy phép hành nghề</h3><p>Tải lên để đội ngũ xác minh. Bấm “Xem” để mở bản đã tải lên.</p></div></div>
-              <button className={styles.addCredential} type="button" disabled={!profile} onClick={() => setUploadOpen(true)}><FilePlus2 aria-hidden="true" /> Thêm giấy tờ</button>
-            </div>
-            {documentsLoading && <p className={styles.credentialState}>Đang tải giấy tờ…</p>}
-            {documentsError && <p className={styles.error} role="alert">{documentsError}</p>}
-            {!documentsLoading && documents.length === 0 && <p className={styles.credentialState}>Bạn chưa có giấy tờ. Tải lên giấy tờ đầu tiên để được xác minh.</p>}
-            <div className={styles.credentialList}>
-              {documents.map((document) => <article className={styles.credentialRow} key={document.id}>
-                <span className={styles.credentialIcon}><FileText aria-hidden="true" /></span>
-                <div className={styles.credentialInfo}><strong>{document.title}</strong><span>{document.issuer} · {document.issueYear}</span>
-                  <div className={styles.credentialMeta}>
-                    <span data-status={document.verificationStatus}>{document.verificationStatus === 'VERIFIED' ? 'Đã xác minh' : document.verificationStatus === 'REJECTED' ? 'Chưa được xác minh' : 'Đang chờ xác minh'}</span>
-                    <label className={styles.badgeToggle}><input type="checkbox" checked={document.badgeVisible} disabled={document.verificationStatus !== 'VERIFIED' || badgeBusyId === document.id} onChange={(event) => void setBadge(document, event.target.checked)} /> Hiện huy hiệu trên hồ sơ</label>
-                  </div>
+              <div className={styles.sectionHead}>
+                <span className={`${styles.sectionIcon} ${styles.amberIcon}`}>
+                  <FileBadge2 aria-hidden="true" />
+                </span>
+                <div>
+                  <h3>Bằng cấp và giấy phép hành nghề</h3>
+                  <p>
+                    Tải lên để đội ngũ xác minh. Bấm “Xem” để mở bản đã tải lên.
+                  </p>
                 </div>
-                <button className={styles.viewCredential} type="button" onClick={() => { setSelectedDocumentId(document.id); setDocumentsOpen(true) }}><Eye aria-hidden="true" /> Xem</button>
-              </article>)}
+              </div>
+              <button
+                className={styles.addCredential}
+                type="button"
+                disabled={!profile}
+                onClick={() => setUploadOpen(true)}
+              >
+                <FilePlus2 aria-hidden="true" /> Thêm giấy tờ
+              </button>
             </div>
-            <p className={styles.credentialPrivacy}><ShieldCheck aria-hidden="true" /> Người dùng chỉ thấy huy hiệu “Đã xác minh” kèm tên giấy tờ bạn bật hiển thị. Tệp gốc và số hiệu không được công khai.</p>
+            {documentsLoading && (
+              <p className={styles.credentialState}>Đang tải giấy tờ…</p>
+            )}
+            {documentsError && (
+              <p className={styles.error} role="alert">
+                {documentsError}
+              </p>
+            )}
+            {!documentsLoading && documents.length === 0 && (
+              <p className={styles.credentialState}>
+                Bạn chưa có giấy tờ. Tải lên giấy tờ đầu tiên để được xác minh.
+              </p>
+            )}
+            <div className={styles.credentialList}>
+              {documents.map((document) => (
+                <article className={styles.credentialRow} key={document.id}>
+                  <span className={styles.credentialIcon}>
+                    <FileText aria-hidden="true" />
+                  </span>
+                  <div className={styles.credentialInfo}>
+                    <strong>{document.title}</strong>
+                    <span>
+                      {document.issuer} · {document.issueYear}
+                    </span>
+                    <div className={styles.credentialMeta}>
+                      <span data-status={document.verificationStatus}>
+                        {document.verificationStatus === 'VERIFIED'
+                          ? 'Đã xác minh'
+                          : document.verificationStatus === 'REJECTED'
+                            ? 'Chưa được xác minh'
+                            : 'Đang chờ xác minh'}
+                      </span>
+                      <label className={styles.badgeToggle}>
+                        <input
+                          type="checkbox"
+                          checked={document.badgeVisible}
+                          disabled={
+                            document.verificationStatus !== 'VERIFIED' ||
+                            badgeBusyId === document.id
+                          }
+                          onChange={(event) =>
+                            void setBadge(document, event.target.checked)
+                          }
+                        />{' '}
+                        Hiện huy hiệu trên hồ sơ
+                      </label>
+                    </div>
+                  </div>
+                  <button
+                    className={styles.viewCredential}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDocumentId(document.id)
+                      setDocumentsOpen(true)
+                    }}
+                  >
+                    <Eye aria-hidden="true" /> Xem
+                  </button>
+                </article>
+              ))}
+            </div>
+            <p className={styles.credentialPrivacy}>
+              <ShieldCheck aria-hidden="true" /> Người dùng chỉ thấy huy hiệu
+              “Đã xác minh” kèm tên giấy tờ bạn bật hiển thị. Tệp gốc và số hiệu
+              không được công khai.
+            </p>
           </section>
 
           {error && (
@@ -548,7 +757,9 @@ export default function SpecialistProfileWorkspace() {
                   ? 'Đang xử lý thay đổi…'
                   : notice
                     ? 'Trạng thái hồ sơ đã được cập nhật'
-                    : dirty ? 'Các thay đổi chưa lưu' : 'Hồ sơ đã được lưu'}
+                    : dirty
+                      ? 'Các thay đổi chưa lưu'
+                      : 'Hồ sơ đã được lưu'}
               </span>
               <button type="submit" disabled={!canSave}>
                 {busy ? 'Đang xử lý…' : 'Lưu thay đổi'}
@@ -560,7 +771,9 @@ export default function SpecialistProfileWorkspace() {
                   busy ||
                   dirty ||
                   (status === 'APPROVED'
-                    ? !amendment || !amendmentEtag || amendment.status === 'PENDING_REVIEW'
+                    ? !amendment ||
+                      !amendmentEtag ||
+                      amendment.status === 'PENDING_REVIEW'
                     : !etag || status === 'PENDING_REVIEW' || status === 'NEW')
                 }
                 onClick={() => void submit()}
@@ -575,13 +788,32 @@ export default function SpecialistProfileWorkspace() {
 
         <aside className={styles.previewColumn}>
           <section className={`${styles.card} ${styles.preview}`}>
-            <div className={styles.previewTop}><span>Xem trước hồ sơ</span><span className={styles.previewStatus} data-state={status}>{status === 'APPROVED' ? <BadgeCheck aria-hidden="true" /> : <CircleUserRound aria-hidden="true" />} {statusTitle[status]}</span></div>
+            <div className={styles.previewTop}>
+              <span>Xem trước hồ sơ</span>
+              <span className={styles.previewStatus} data-state={status}>
+                {status === 'APPROVED' ? (
+                  <BadgeCheck aria-hidden="true" />
+                ) : (
+                  <CircleUserRound aria-hidden="true" />
+                )}{' '}
+                {statusTitle[status]}
+              </span>
+            </div>
             <div className={styles.previewAvatar} aria-hidden="true">
               {initials(form.displayName)}
             </div>
             <h2>{form.displayName || 'Tên hiển thị của bạn'}</h2>
             <p className={styles.previewRole}>Chuyên gia tâm lý</p>
-            <div className={styles.previewFacts}><span><BriefcaseBusiness aria-hidden="true" /> {form.yearsOfExperience} năm kinh nghiệm</span><span><Languages aria-hidden="true" /> {form.languages.length} ngôn ngữ</span></div>
+            <div className={styles.previewFacts}>
+              <span>
+                <BriefcaseBusiness aria-hidden="true" />{' '}
+                {form.yearsOfExperience} năm kinh nghiệm
+              </span>
+              <span>
+                <Languages aria-hidden="true" /> {form.languages.length} ngôn
+                ngữ
+              </span>
+            </div>
             <p className={styles.previewBio}>
               {form.bio || 'Phần giới thiệu của bạn sẽ hiển thị ở đây.'}
             </p>
@@ -592,10 +824,22 @@ export default function SpecialistProfileWorkspace() {
               {form.languages.map((language) => (
                 <span key={language}>{languageLabels[language]}</span>
               ))}
-              {documents.filter((document) => document.verificationStatus === 'VERIFIED' && document.badgeVisible)
-                .map((document) => <span key={document.id}><BadgeCheck aria-hidden="true" /> {document.title}</span>)}
+              {documents
+                .filter(
+                  (document) =>
+                    document.verificationStatus === 'VERIFIED' &&
+                    document.badgeVisible,
+                )
+                .map((document) => (
+                  <span key={document.id}>
+                    <BadgeCheck aria-hidden="true" /> {document.title}
+                  </span>
+                ))}
             </div>
-            <div className={styles.previewPrivacy}><LockKeyhole aria-hidden="true" /> Chỉ thông tin đã phê duyệt mới hiển thị công khai.</div>
+            <div className={styles.previewPrivacy}>
+              <LockKeyhole aria-hidden="true" /> Chỉ thông tin đã phê duyệt mới
+              hiển thị công khai.
+            </div>
           </section>
 
           <section className={`${styles.card} ${styles.completion}`}>
@@ -620,11 +864,23 @@ export default function SpecialistProfileWorkspace() {
           </section>
         </aside>
       </div>
-      <SpecialistCredentialViewer open={documentsOpen} onClose={() => setDocumentsOpen(false)} documents={documents} selectedId={selectedDocumentId} />
-      <SpecialistCredentialUploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={(document) => {
-        setDocuments((current) => [document, ...current])
-        showActionToast({ title: 'Đã tải giấy tờ lên, đang chờ xác minh', tone: 'success' })
-      }} />
+      <SpecialistCredentialViewer
+        open={documentsOpen}
+        onClose={() => setDocumentsOpen(false)}
+        documents={documents}
+        selectedId={selectedDocumentId}
+      />
+      <SpecialistCredentialUploadDialog
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onUploaded={(document) => {
+          setDocuments((current) => [document, ...current])
+          showActionToast({
+            title: 'Đã tải giấy tờ lên, đang chờ xác minh',
+            tone: 'success',
+          })
+        }}
+      />
     </section>
   )
 }

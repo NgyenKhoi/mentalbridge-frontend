@@ -591,7 +591,9 @@ export function DailyEmotionCheckIn({
             {yesterdayStatus === 'loading' ? (
               <span className={styles.boxEmptyText}>Đang tải ghi nhận…</span>
             ) : yesterdayStatus === 'error' ? (
-              <span className={styles.boxEmptyText}>Chưa tải được ghi nhận</span>
+              <span className={styles.boxEmptyText}>
+                Chưa tải được ghi nhận
+              </span>
             ) : yesterdayCheckIn ? (
               <>
                 <span className={styles.boxMood}>

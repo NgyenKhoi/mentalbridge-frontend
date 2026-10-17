@@ -113,7 +113,8 @@ export function ResourceBingoPanel({
         <div>
           <h2 id="bingo-title">Bingo hoạt động trong kế hoạch</h2>
           <p>
-            Đánh dấu khi bạn hoàn thành hoạt động để tạo chuỗi thói quen lành mạnh.
+            Đánh dấu khi bạn hoàn thành hoạt động để tạo chuỗi thói quen lành
+            mạnh.
           </p>
         </div>
         {board && state === 'ready' && (
@@ -191,7 +192,9 @@ export function ResourceBingoPanel({
                           }
                           disabled={pendingPosition !== null}
                           aria-pressed={selfConfirmed}
-                          onClick={() => onToggle(item.position, !selfConfirmed)}
+                          onClick={() =>
+                            onToggle(item.position, !selfConfirmed)
+                          }
                         >
                           {selfConfirmed ? 'Bỏ tự đánh dấu' : 'Tự đánh dấu'}
                         </button>
@@ -209,21 +212,24 @@ export function ResourceBingoPanel({
               >
                 <span aria-hidden="true">🎉</span>
                 <span>
-                  Tuyệt vời! Bạn đã hoàn thành {completedLines} hàng Bingo tuần này và duy trì nhịp chăm sóc tâm trí đều đặn.
+                  Tuyệt vời! Bạn đã hoàn thành {completedLines} hàng Bingo tuần
+                  này và duy trì nhịp chăm sóc tâm trí đều đặn.
                 </span>
               </p>
             ) : (
               <p className={styles.bingoNote} role="status">
                 <span aria-hidden="true">💡</span>
                 <span>
-                  Chạm vào ô để đánh dấu khi bạn thực hiện hoạt động. Hoàn thành 3 ô thẳng hàng (ngang, dọc, chéo) để mở dấu ấn tuần.
+                  Chạm vào ô để đánh dấu khi bạn thực hiện hoạt động. Hoàn thành
+                  3 ô thẳng hàng (ngang, dọc, chéo) để mở dấu ấn tuần.
                 </span>
               </p>
             )}
           </>
         ) : (
           <p className={styles.panelEmpty} role="status">
-            Kế hoạch tuần này chưa có ô Bingo. Bạn có thể bỏ qua mà không bị trừ tiến độ.
+            Kế hoạch tuần này chưa có ô Bingo. Bạn có thể bỏ qua mà không bị trừ
+            tiến độ.
           </p>
         )
       ) : (

@@ -53,7 +53,9 @@ describe('SpecialistProfileWorkspace', () => {
     const name = await screen.findByLabelText('Tên hiển thị')
     await user.clear(name)
     await user.type(name, 'Nguyễn Bình')
-    await user.click(screen.getAllByRole('button', { name: 'Lưu thay đổi' }).at(-1)!)
+    await user.click(
+      screen.getAllByRole('button', { name: 'Lưu thay đổi' }).at(-1)!,
+    )
     await waitFor(() =>
       expect(api.save).toHaveBeenCalledWith(
         expect.objectContaining({ displayName: 'Nguyễn Bình' }),
@@ -106,7 +108,9 @@ describe('SpecialistProfileWorkspace', () => {
       await screen.findByText('Thông tin hồ sơ chưa đầy đủ.'),
     ).toBeInTheDocument()
     await user.type(screen.getByLabelText('Tên hiển thị'), ' đã sửa')
-    await user.click(screen.getAllByRole('button', { name: 'Lưu thay đổi' }).at(-1)!)
+    await user.click(
+      screen.getAllByRole('button', { name: 'Lưu thay đổi' }).at(-1)!,
+    )
     await user.click(
       await screen.findByRole('button', { name: 'Gửi lại để xét duyệt' }),
     )
@@ -140,7 +144,9 @@ describe('SpecialistProfileWorkspace', () => {
     const name = await screen.findByLabelText('Tên hiển thị')
     await user.clear(name)
     expect(screen.getByRole('button', { name: 'Gửi xét duyệt' })).toBeDisabled()
-    expect(screen.getAllByRole('button', { name: 'Lưu thay đổi' }).at(-1)).toBeDisabled()
+    expect(
+      screen.getAllByRole('button', { name: 'Lưu thay đổi' }).at(-1),
+    ).toBeDisabled()
     expect(api.save).not.toHaveBeenCalled()
   })
   it('recovers a failed initial read without creating a blank replacement', async () => {
@@ -151,9 +157,7 @@ describe('SpecialistProfileWorkspace', () => {
       'Chưa thể tải hồ sơ',
     )
     expect(screen.queryByLabelText('Tên hiển thị')).not.toBeInTheDocument()
-    await user.click(
-      screen.getByRole('button', { name: 'Thử lại' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Thử lại' }))
     expect(await screen.findByLabelText('Tên hiển thị')).toHaveValue(
       'Nguyễn An',
     )

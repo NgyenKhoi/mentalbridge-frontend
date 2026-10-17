@@ -160,7 +160,8 @@ export default function ResourcesShowcase() {
   const [journeyState, setJourneyState] = useState<
     'loading' | 'ready' | 'plan-required' | 'missing' | 'error'
   >('loading')
-  const [achievements, setAchievements] = useState<AchievementCollection | null>(null)
+  const [achievements, setAchievements] =
+    useState<AchievementCollection | null>(null)
   const [achievementsState, setAchievementsState] = useState<
     'loading' | 'ready' | 'error'
   >('loading')
@@ -897,7 +898,8 @@ export default function ResourcesShowcase() {
               <Link href="/achievements" className={styles.panelHeadLink}>
                 {achievementsState === 'ready' && achievements
                   ? `${earnedCount}/${achievements.items.length} đã đạt`
-                  : 'Xem tất cả'} →
+                  : 'Xem tất cả'}{' '}
+                →
               </Link>
             </div>
             {achievementsState === 'loading' ? (

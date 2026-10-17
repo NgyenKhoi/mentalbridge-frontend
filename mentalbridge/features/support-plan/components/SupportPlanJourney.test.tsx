@@ -722,10 +722,9 @@ describe('SupportPlanJourney', () => {
       name: 'Chỉnh sửa lịch',
     })
     fireEvent.click(editBtns[0])
-    fireEvent.change(
-      screen.getAllByLabelText('Thời lượng dự kiến (phút)')[0],
-      { target: { value: '25' } },
-    )
+    fireEvent.change(screen.getAllByLabelText('Thời lượng dự kiến (phút)')[0], {
+      target: { value: '25' },
+    })
     fireEvent.click(screen.getAllByRole('button', { name: 'Đóng' })[0])
 
     fireEvent.click(screen.getByRole('tab', { name: 'Điều chỉnh' }))
@@ -738,11 +737,12 @@ describe('SupportPlanJourney', () => {
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[0])
-    fireEvent.change(
-      screen.getByLabelText('Thời lượng dự kiến (phút)'),
-      { target: { value: '15' } },
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[0],
     )
+    fireEvent.change(screen.getByLabelText('Thời lượng dự kiến (phút)'), {
+      target: { value: '15' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
     expect(onDirtyChange).toHaveBeenLastCalledWith(true)
     expect(api.replaceSupportPlanPersonalization).not.toHaveBeenCalled()
@@ -766,20 +766,22 @@ describe('SupportPlanJourney', () => {
       name: 'Chỉnh sửa lịch',
     })
     fireEvent.click(editBtns[0])
-    fireEvent.change(
-      screen.getByLabelText('Thời lượng dự kiến (phút)'),
-      { target: { value: '25' } },
-    )
+    fireEvent.change(screen.getByLabelText('Thời lượng dự kiến (phút)'), {
+      target: { value: '25' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1])
-    fireEvent.change(
-      screen.getByLabelText('Thời lượng dự kiến (phút)'),
-      { target: { value: '35' } },
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1],
     )
+    fireEvent.change(screen.getByLabelText('Thời lượng dự kiến (phút)'), {
+      target: { value: '35' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[0])
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[0],
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }))
 
     await waitFor(() =>
@@ -787,10 +789,10 @@ describe('SupportPlanJourney', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1])
-    expect(
-      screen.getByLabelText('Thời lượng dự kiến (phút)'),
-    ).toHaveValue(35)
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1],
+    )
+    expect(screen.getByLabelText('Thời lượng dự kiến (phút)')).toHaveValue(35)
   })
 
   it('reloads the stale action while preserving another unsaved schedule draft', async () => {
@@ -809,20 +811,22 @@ describe('SupportPlanJourney', () => {
       name: 'Chỉnh sửa lịch',
     })
     fireEvent.click(editBtns[0])
-    fireEvent.change(
-      screen.getByLabelText('Thời lượng dự kiến (phút)'),
-      { target: { value: '25' } },
-    )
+    fireEvent.change(screen.getByLabelText('Thời lượng dự kiến (phút)'), {
+      target: { value: '25' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1])
-    fireEvent.change(
-      screen.getByLabelText('Thời lượng dự kiến (phút)'),
-      { target: { value: '35' } },
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1],
     )
+    fireEvent.change(screen.getByLabelText('Thời lượng dự kiến (phút)'), {
+      target: { value: '35' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[0])
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[0],
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }))
 
     const reload = await screen.findByRole('button', {
@@ -835,16 +839,14 @@ describe('SupportPlanJourney', () => {
     fireEvent.click(reload)
 
     await waitFor(() => {
-      expect(
-        screen.getByLabelText('Thời lượng dự kiến (phút)'),
-      ).toHaveValue(30)
+      expect(screen.getByLabelText('Thời lượng dự kiến (phút)')).toHaveValue(30)
     })
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1])
-    expect(
-      screen.getByLabelText('Thời lượng dự kiến (phút)'),
-    ).toHaveValue(35)
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1],
+    )
+    expect(screen.getByLabelText('Thời lượng dự kiến (phút)')).toHaveValue(35)
   })
 
   it('opens progress when only immutable plan history remains', async () => {

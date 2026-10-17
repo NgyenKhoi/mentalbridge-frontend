@@ -138,7 +138,8 @@ export default function SupportPlanEntry({
       <>
         {state.historyUnavailable && (
           <p className="support-plan-state" role="alert">
-            Chưa thể tải lịch sử kế hoạch. Bạn vẫn có thể xem hoặc tạo kế hoạch hỗ trợ.{' '}
+            Chưa thể tải lịch sử kế hoạch. Bạn vẫn có thể xem hoặc tạo kế hoạch
+            hỗ trợ.{' '}
             <button
               type="button"
               className="btn btn-secondary"

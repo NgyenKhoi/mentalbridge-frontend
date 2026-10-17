@@ -168,9 +168,7 @@ function JourneyProgress({ phase }: { phase: InitialCheckState['phase'] }) {
           return (
             <li
               key={label}
-              className={
-                isCompleted ? 'completed' : isActive ? 'active' : ''
-              }
+              className={isCompleted ? 'completed' : isActive ? 'active' : ''}
               aria-current={
                 isActive || (phase === 'COMPLETED' && index === 3)
                   ? 'step'
@@ -423,7 +421,9 @@ function getPhq9CardData(score: number, level: ScreeningLevel) {
   return {
     title: '⚠ Cần được chăm sóc & nâng đỡ',
     desc: 'Khí sắc và năng lượng đang chịu nhiều áp lực. Bạn rất xứng đáng nhận được sự hỗ trợ và đồng hành chuyên môn.',
-    levelLabel: screeningLabels[level] ? `Mức độ ${screeningLabels[level].toLowerCase()}` : 'Mức độ nặng',
+    levelLabel: screeningLabels[level]
+      ? `Mức độ ${screeningLabels[level].toLowerCase()}`
+      : 'Mức độ nặng',
     badgeClass: 'red',
     statusText: 'Cần lưu ý',
     statusClass: 'red',
@@ -472,7 +472,9 @@ function getGad7CardData(score: number, level: ScreeningLevel) {
   return {
     title: '⚠ Căng thẳng & Lo âu mức cao',
     desc: 'Cảm giác lo âu liên tục có thể gây kiệt sức và căng thẳng cơ thể. Hãy kết nối với chuyên gia để được nâng đỡ.',
-    levelLabel: screeningLabels[level] ? `Mức độ ${screeningLabels[level].toLowerCase()}` : 'Mức độ nặng',
+    levelLabel: screeningLabels[level]
+      ? `Mức độ ${screeningLabels[level].toLowerCase()}`
+      : 'Mức độ nặng',
     badgeClass: 'red',
     statusText: 'Cần hỗ trợ',
     statusClass: 'red',
@@ -559,9 +561,7 @@ function UnifiedResult({
       </header>
 
       {/* Safety block if item 9 triggered */}
-      {hasPositiveSafety && (
-        <SafetyBlock evaluation={evaluation} />
-      )}
+      {hasPositiveSafety && <SafetyBlock evaluation={evaluation} />}
 
       {/* 2. Score Cards (PHQ-9 & GAD-7) */}
       <article className={`initial-check-score-card ${phq9Data.bgClass}`}>
@@ -685,8 +685,8 @@ function UnifiedResult({
           <div className="initial-check-companion-text">
             <h2>Bạn không cần phải tự mình vượt qua tất cả</h2>
             <p>
-              Một buổi trò chuyện ấm áp, lắng nghe không phán xét cùng chuyên gia
-              tâm lý sẽ giúp xoa dịu những căng thẳng nội tại.
+              Một buổi trò chuyện ấm áp, lắng nghe không phán xét cùng chuyên
+              gia tâm lý sẽ giúp xoa dịu những căng thẳng nội tại.
             </p>
           </div>
         </div>
@@ -811,8 +811,8 @@ function UnifiedResult({
             </div>
             <h3>Thư giãn cơ tiến triển</h3>
             <p>
-              Giải tỏa căng cơ tích tụ từ vai, cổ đến các chi, trả lại trạng thái
-              thả lỏng tự nhiên.
+              Giải tỏa căng cơ tích tụ từ vai, cổ đến các chi, trả lại trạng
+              thái thả lỏng tự nhiên.
             </p>
             <Link href="/resources" className="initial-check-card-link">
               Nghe hướng dẫn →
@@ -843,8 +843,8 @@ function UnifiedResult({
           <div>
             <strong>Bảo mật chuẩn y tế &amp; Riêng tư tuyệt đối</strong>
             <p>
-              Dữ liệu bài sàng lọc chỉ dùng để gợi ý hành trình chăm sóc cá nhân,
-              không chia sẻ với bên thứ ba.
+              Dữ liệu bài sàng lọc chỉ dùng để gợi ý hành trình chăm sóc cá
+              nhân, không chia sẻ với bên thứ ba.
             </p>
           </div>
         </div>

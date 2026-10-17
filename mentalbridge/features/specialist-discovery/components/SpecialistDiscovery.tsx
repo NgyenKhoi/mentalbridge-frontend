@@ -37,8 +37,16 @@ const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
 const TOPICS = [
   { id: 'all', label: 'Tất cả', supportArea: '' },
-  { id: 'anxiety', label: 'Lo âu & Căng thẳng', supportArea: 'ANXIETY_SYMPTOMS' },
-  { id: 'depression', label: 'Khí sắc & Trầm buồn', supportArea: 'DEPRESSIVE_SYMPTOMS' },
+  {
+    id: 'anxiety',
+    label: 'Lo âu & Căng thẳng',
+    supportArea: 'ANXIETY_SYMPTOMS',
+  },
+  {
+    id: 'depression',
+    label: 'Khí sắc & Trầm buồn',
+    supportArea: 'DEPRESSIVE_SYMPTOMS',
+  },
   { id: 'insomnia', label: 'Mất ngủ', supportArea: '' },
   { id: 'work_study', label: 'Học tập & Công việc', supportArea: '' },
   { id: 'relationships', label: 'Quan hệ & Gia đình', supportArea: '' },
@@ -472,7 +480,13 @@ export default function SpecialistDiscovery() {
               <div className={styles.statText}>
                 <div className={styles.statDarkTitle}>
                   <strong>
-                    Gói {page?.packageCode === 'FREE' ? 'Free' : page?.packageCode === 'PREMIUM' ? 'Premium' : 'Plus'} của bạn
+                    Gói{' '}
+                    {page?.packageCode === 'FREE'
+                      ? 'Free'
+                      : page?.packageCode === 'PREMIUM'
+                        ? 'Premium'
+                        : 'Plus'}{' '}
+                    của bạn
                   </strong>
                   <span className={styles.onlineDot} />
                 </div>
@@ -596,8 +610,8 @@ export default function SpecialistDiscovery() {
           <div className={styles.benefitLeft}>
             <strong>Quyền lợi hội viên:</strong>{' '}
             <span>
-              Gói Plus tự động miễn phí 100% chi phí phiên chat đầu tiên khi bạn ấn{' '}
-              <strong>Đặt lịch.</strong>
+              Gói Plus tự động miễn phí 100% chi phí phiên chat đầu tiên khi bạn
+              ấn <strong>Đặt lịch.</strong>
             </span>
           </div>
           <div className={styles.benefitRight}>
@@ -699,8 +713,8 @@ export default function SpecialistDiscovery() {
                 <h2>{item.displayName}</h2>
 
                 <span className={cardStyles.verified}>
-                  <Check size={12} strokeWidth={2.5} aria-hidden="true" /> Đã kiểm
-                  định khoa
+                  <Check size={12} strokeWidth={2.5} aria-hidden="true" /> Đã
+                  kiểm định khoa
                 </span>
 
                 <p className={cardStyles.experience}>

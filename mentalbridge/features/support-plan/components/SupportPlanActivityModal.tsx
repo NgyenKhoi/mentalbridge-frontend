@@ -112,8 +112,16 @@ export default function SupportPlanActivityModal({
           >
             <SupportPlanIcon name="close" size={20} />
           </button>
-          <svg viewBox="0 0 640 96" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <path d="M0,96 L640,96 L640,64 Q480,32 320,64 Q160,96 0,64 Z" fill="#b0e0c9" opacity="0.5" />
+          <svg
+            viewBox="0 0 640 96"
+            preserveAspectRatio="xMidYMid slice"
+            aria-hidden="true"
+          >
+            <path
+              d="M0,96 L640,96 L640,64 Q480,32 320,64 Q160,96 0,64 Z"
+              fill="#b0e0c9"
+              opacity="0.5"
+            />
             <circle cx="500" cy="30" r="20" fill="#f8ead0" />
           </svg>
         </div>
@@ -122,7 +130,9 @@ export default function SupportPlanActivityModal({
           <div className="mb-sp-modal-intro">
             <div className="mb-sp-modal-header-meta">
               <span className="mb-sp-chip highlight">{stateLabel}</span>
-              <span className="mb-sp-modal-date">{formatActivityDateTime(occurrence)}</span>
+              <span className="mb-sp-modal-date">
+                {formatActivityDateTime(occurrence)}
+              </span>
               {resource?.expectedDurationMinutes ? (
                 <span>· {resource.expectedDurationMinutes} phút</span>
               ) : null}
@@ -141,8 +151,12 @@ export default function SupportPlanActivityModal({
           </div>
 
           <div className="mb-sp-modal-links">
-            <span className="mb-sp-modal-link-chip">Thuộc: <strong>Kế hoạch hỗ trợ</strong></span>
-            <span className="mb-sp-modal-link-chip">Loại: <strong>{sourceLabel}</strong></span>
+            <span className="mb-sp-modal-link-chip">
+              Thuộc: <strong>Kế hoạch hỗ trợ</strong>
+            </span>
+            <span className="mb-sp-modal-link-chip">
+              Loại: <strong>{sourceLabel}</strong>
+            </span>
             {resource?.sourceOrganization ? (
               <span className="mb-sp-modal-link-chip">
                 Nguồn: <strong>{resource.sourceOrganization}</strong>
@@ -202,7 +216,9 @@ export default function SupportPlanActivityModal({
             <a
               href={href}
               className="mb-sp-primary-btn"
-              aria-label={isScheduled ? 'Bắt đầu hoạt động' : 'Xem lại hoạt động'}
+              aria-label={
+                isScheduled ? 'Bắt đầu hoạt động' : 'Xem lại hoạt động'
+              }
             >
               {isScheduled ? 'Bắt đầu' : 'Xem lại'}
               <SupportPlanIcon name="arrow_forward" size={16} />

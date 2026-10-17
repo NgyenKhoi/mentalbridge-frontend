@@ -22,9 +22,11 @@ function query(filters: DiscoveryFilters) {
 
 export const specialistDiscoveryBrowserClient = {
   async badges(specialistAccountId: string) {
-    return (await browserApiClient.get<VerifiedCredentialBadge[]>(
-      `/consultation/specialists/${encodeURIComponent(specialistAccountId)}/credential-badges`,
-    )).data
+    return (
+      await browserApiClient.get<VerifiedCredentialBadge[]>(
+        `/consultation/specialists/${encodeURIComponent(specialistAccountId)}/credential-badges`,
+      )
+    ).data
   },
   async list(filters: DiscoveryFilters = {}) {
     return (

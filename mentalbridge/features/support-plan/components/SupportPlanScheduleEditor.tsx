@@ -552,375 +552,389 @@ function SupportPlanScheduleEditorState({
                 {activeActionId === action.actionId && (
                   <>
                     <div className="support-plan-dialog-header">
-                  <div>
-                    <p className="support-plan-dialog-kicker">
-                      Cài đặt lịch hoạt động
-                    </p>
-                    <h3 id={fieldId(action.actionId, 'modal-title')}>
-                      {action.presentation.title}
-                    </h3>
-                    <p className="support-plan-dialog-desc">
-                      Thiết lập thời gian và nhịp độ thực hiện cho hoạt động này.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="support-plan-dialog-close"
-                    aria-label="Đóng cửa sổ"
-                    onClick={() => setActiveActionId(null)}
-                  >
-                    <X size={18} aria-hidden="true" />
-                  </button>
-                </div>
-
-                <div className="support-plan-dialog-body">
-                  <div className="support-plan-dialog-toggle-row">
-                    <label className="support-plan-cadence-toggle">
-                      <input
-                        id={fieldId(action.actionId, 'enabled')}
-                        className="support-plan-themed-checkbox"
-                        type="checkbox"
-                        checked={form.enabled}
-                        disabled={disabled}
-                        onChange={(event) =>
-                          update(action.actionId, {
-                            enabled: event.target.checked,
-                          })
-                        }
-                      />
-                      <span
-                        className="support-plan-checkbox-mark"
-                        aria-hidden="true"
+                      <div>
+                        <p className="support-plan-dialog-kicker">
+                          Cài đặt lịch hoạt động
+                        </p>
+                        <h3 id={fieldId(action.actionId, 'modal-title')}>
+                          {action.presentation.title}
+                        </h3>
+                        <p className="support-plan-dialog-desc">
+                          Thiết lập thời gian và nhịp độ thực hiện cho hoạt động
+                          này.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="support-plan-dialog-close"
+                        aria-label="Đóng cửa sổ"
+                        onClick={() => setActiveActionId(null)}
                       >
-                        <Check />
-                      </span>
-                      <span>Lên lịch</span>
-                    </label>
-                  </div>
+                        <X size={18} aria-hidden="true" />
+                      </button>
+                    </div>
 
-                  {form.enabled && (
-                    <div className="support-plan-cadence-fields">
-                      <div className="support-plan-cadence-field">
-                        <label
-                          id={fieldId(action.actionId, 'cadence-label')}
-                          htmlFor={fieldId(action.actionId, 'cadence')}
-                        >
-                          Nhịp hoạt động
+                    <div className="support-plan-dialog-body">
+                      <div className="support-plan-dialog-toggle-row">
+                        <label className="support-plan-cadence-toggle">
+                          <input
+                            id={fieldId(action.actionId, 'enabled')}
+                            className="support-plan-themed-checkbox"
+                            type="checkbox"
+                            checked={form.enabled}
+                            disabled={disabled}
+                            onChange={(event) =>
+                              update(action.actionId, {
+                                enabled: event.target.checked,
+                              })
+                            }
+                          />
+                          <span
+                            className="support-plan-checkbox-mark"
+                            aria-hidden="true"
+                          >
+                            <Check />
+                          </span>
+                          <span>Lên lịch</span>
                         </label>
-                        <LightSelect
-                          id={fieldId(action.actionId, 'cadence')}
-                          labelledBy={fieldId(action.actionId, 'cadence-label')}
-                          value={form.recurrenceType}
-                          disabled={
-                            disabled ||
-                            action.actionType === 'REASSESSMENT_SCREENING'
-                          }
-                          onChange={(value) =>
-                            update(action.actionId, {
-                              recurrenceType:
-                                value as ScheduleForm['recurrenceType'],
-                              daysOfWeek:
-                                value === 'WEEKLY'
-                                  ? form.daysOfWeek.length
-                                    ? form.daysOfWeek
-                                    : [1]
-                                  : [],
-                            })
-                          }
-                          options={
-                            action.actionType === 'REASSESSMENT_SCREENING'
-                              ? [{ value: 'ONCE', label: 'Một lần' }]
-                              : ['WEEKLY', 'DAILY', 'ONCE'].map((value) => ({
-                                  value,
-                                  label:
-                                    cadenceLabels[
-                                      value as keyof typeof cadenceLabels
-                                    ],
-                                }))
-                          }
-                        />
                       </div>
-                      <div className="support-plan-cadence-field">
-                        <label
-                          id={fieldId(action.actionId, 'daypart-label')}
-                          htmlFor={fieldId(action.actionId, 'daypart')}
-                        >
-                          Thời điểm trong ngày
-                        </label>
-                        <LightSelect
-                          id={fieldId(action.actionId, 'daypart')}
-                          labelledBy={fieldId(action.actionId, 'daypart-label')}
-                          value={form.preferredDaypart}
-                          disabled={disabled}
-                          onChange={(value) =>
-                            update(action.actionId, {
-                              preferredDaypart:
-                                value as ScheduleForm['preferredDaypart'],
-                            })
-                          }
-                          options={daypartOptions}
-                        />
-                      </div>
-                      <label>
-                        Giờ địa phương
-                        <input
-                          id={fieldId(action.actionId, 'time')}
-                          aria-invalid={
-                            validationFields[action.actionId] === 'time' ||
-                            undefined
-                          }
-                          aria-describedby={
-                            validationFields[action.actionId] === 'time'
-                              ? fieldId(action.actionId, 'message')
-                              : undefined
-                          }
-                          type="time"
-                          value={form.localTime}
-                          disabled={disabled}
-                          required
-                          onChange={(event) =>
-                            update(action.actionId, {
-                              localTime: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        Thời lượng dự kiến (phút)
-                        <input
-                          id={fieldId(action.actionId, 'duration')}
-                          aria-invalid={
-                            validationFields[action.actionId] === 'duration' ||
-                            undefined
-                          }
-                          aria-describedby={
-                            validationFields[action.actionId] === 'duration'
-                              ? fieldId(action.actionId, 'message')
-                              : undefined
-                          }
-                          type="number"
-                          min="5"
-                          max="180"
-                          step="5"
-                          value={form.estimatedDurationMinutes}
-                          disabled={disabled}
-                          onChange={(event) =>
-                            update(action.actionId, {
-                              estimatedDurationMinutes: Number(
-                                event.target.value,
-                              ),
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        Múi giờ
-                        <input
-                          id={fieldId(action.actionId, 'timezone')}
-                          aria-invalid={
-                            validationFields[action.actionId] === 'timezone' ||
-                            undefined
-                          }
-                          aria-describedby={
-                            validationFields[action.actionId] === 'timezone'
-                              ? fieldId(action.actionId, 'message')
-                              : undefined
-                          }
-                          type="text"
-                          list="support-plan-timezones"
-                          value={form.timezone}
-                          disabled={disabled}
-                          onChange={(event) =>
-                            update(action.actionId, {
-                              timezone: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        Bắt đầu từ
-                        <input
-                          id={fieldId(action.actionId, 'starts')}
-                          aria-invalid={
-                            validationFields[action.actionId] === 'starts' ||
-                            undefined
-                          }
-                          aria-describedby={
-                            validationFields[action.actionId] === 'starts'
-                              ? fieldId(action.actionId, 'message')
-                              : undefined
-                          }
-                          type="date"
-                          min={minimumDate}
-                          value={
-                            form.effectiveFrom < minimumDate
-                              ? minimumDate
-                              : form.effectiveFrom
-                          }
-                          disabled={disabled}
-                          onChange={(event) =>
-                            update(action.actionId, {
-                              effectiveFrom: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        Kết thúc vào (không bắt buộc)
-                        <input
-                          id={fieldId(action.actionId, 'ends')}
-                          aria-invalid={
-                            validationFields[action.actionId] === 'ends' ||
-                            undefined
-                          }
-                          aria-describedby={
-                            validationFields[action.actionId] === 'ends'
-                              ? fieldId(action.actionId, 'message')
-                              : undefined
-                          }
-                          type="date"
-                          min={
-                            form.effectiveFrom < minimumDate
-                              ? minimumDate
-                              : form.effectiveFrom
-                          }
-                          value={form.effectiveUntil}
-                          disabled={disabled}
-                          onChange={(event) =>
-                            update(action.actionId, {
-                              effectiveUntil: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
-                      <label className="support-plan-cadence-reminder">
-                        <input
-                          className="support-plan-themed-checkbox"
-                          type="checkbox"
-                          checked={form.reminderEnabled}
-                          disabled={disabled}
-                          onChange={(event) =>
-                            update(action.actionId, {
-                              reminderEnabled: event.target.checked,
-                            })
-                          }
-                        />
-                        <span
-                          className="support-plan-checkbox-mark"
-                          aria-hidden="true"
-                        >
-                          <Check />
-                        </span>
-                        <Bell aria-hidden="true" />
-                        <span>Lưu tùy chọn nhắc nhở</span>
-                      </label>
-                      <small>
-                        Thông báo tự động cho hoạt động chưa được kích hoạt. Bạn
-                        vẫn có thể xem lịch trong kế hoạch.
-                      </small>
-                      {form.recurrenceType === 'WEEKLY' && (
-                        <fieldset
-                          className="support-plan-weekdays"
-                          disabled={disabled}
-                        >
-                          <legend>Ngày trong tuần</legend>
-                          {weekdayOptions.map(([day, label]) => (
-                            <label key={day}>
-                              <input
-                                id={fieldId(action.actionId, `day-${day}`)}
-                                className="support-plan-weekday-input"
-                                type="checkbox"
-                                checked={form.daysOfWeek.includes(day)}
-                                onChange={(event) =>
-                                  update(action.actionId, {
-                                    daysOfWeek: event.target.checked
-                                      ? [...form.daysOfWeek, day]
-                                      : form.daysOfWeek.filter(
-                                          (value) => value !== day,
-                                        ),
-                                  })
-                                }
-                              />
-                              <span>{label}</span>
+
+                      {form.enabled && (
+                        <div className="support-plan-cadence-fields">
+                          <div className="support-plan-cadence-field">
+                            <label
+                              id={fieldId(action.actionId, 'cadence-label')}
+                              htmlFor={fieldId(action.actionId, 'cadence')}
+                            >
+                              Nhịp hoạt động
                             </label>
-                          ))}
-                        </fieldset>
+                            <LightSelect
+                              id={fieldId(action.actionId, 'cadence')}
+                              labelledBy={fieldId(
+                                action.actionId,
+                                'cadence-label',
+                              )}
+                              value={form.recurrenceType}
+                              disabled={
+                                disabled ||
+                                action.actionType === 'REASSESSMENT_SCREENING'
+                              }
+                              onChange={(value) =>
+                                update(action.actionId, {
+                                  recurrenceType:
+                                    value as ScheduleForm['recurrenceType'],
+                                  daysOfWeek:
+                                    value === 'WEEKLY'
+                                      ? form.daysOfWeek.length
+                                        ? form.daysOfWeek
+                                        : [1]
+                                      : [],
+                                })
+                              }
+                              options={
+                                action.actionType === 'REASSESSMENT_SCREENING'
+                                  ? [{ value: 'ONCE', label: 'Một lần' }]
+                                  : ['WEEKLY', 'DAILY', 'ONCE'].map(
+                                      (value) => ({
+                                        value,
+                                        label:
+                                          cadenceLabels[
+                                            value as keyof typeof cadenceLabels
+                                          ],
+                                      }),
+                                    )
+                              }
+                            />
+                          </div>
+                          <div className="support-plan-cadence-field">
+                            <label
+                              id={fieldId(action.actionId, 'daypart-label')}
+                              htmlFor={fieldId(action.actionId, 'daypart')}
+                            >
+                              Thời điểm trong ngày
+                            </label>
+                            <LightSelect
+                              id={fieldId(action.actionId, 'daypart')}
+                              labelledBy={fieldId(
+                                action.actionId,
+                                'daypart-label',
+                              )}
+                              value={form.preferredDaypart}
+                              disabled={disabled}
+                              onChange={(value) =>
+                                update(action.actionId, {
+                                  preferredDaypart:
+                                    value as ScheduleForm['preferredDaypart'],
+                                })
+                              }
+                              options={daypartOptions}
+                            />
+                          </div>
+                          <label>
+                            Giờ địa phương
+                            <input
+                              id={fieldId(action.actionId, 'time')}
+                              aria-invalid={
+                                validationFields[action.actionId] === 'time' ||
+                                undefined
+                              }
+                              aria-describedby={
+                                validationFields[action.actionId] === 'time'
+                                  ? fieldId(action.actionId, 'message')
+                                  : undefined
+                              }
+                              type="time"
+                              value={form.localTime}
+                              disabled={disabled}
+                              required
+                              onChange={(event) =>
+                                update(action.actionId, {
+                                  localTime: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Thời lượng dự kiến (phút)
+                            <input
+                              id={fieldId(action.actionId, 'duration')}
+                              aria-invalid={
+                                validationFields[action.actionId] ===
+                                  'duration' || undefined
+                              }
+                              aria-describedby={
+                                validationFields[action.actionId] === 'duration'
+                                  ? fieldId(action.actionId, 'message')
+                                  : undefined
+                              }
+                              type="number"
+                              min="5"
+                              max="180"
+                              step="5"
+                              value={form.estimatedDurationMinutes}
+                              disabled={disabled}
+                              onChange={(event) =>
+                                update(action.actionId, {
+                                  estimatedDurationMinutes: Number(
+                                    event.target.value,
+                                  ),
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Múi giờ
+                            <input
+                              id={fieldId(action.actionId, 'timezone')}
+                              aria-invalid={
+                                validationFields[action.actionId] ===
+                                  'timezone' || undefined
+                              }
+                              aria-describedby={
+                                validationFields[action.actionId] === 'timezone'
+                                  ? fieldId(action.actionId, 'message')
+                                  : undefined
+                              }
+                              type="text"
+                              list="support-plan-timezones"
+                              value={form.timezone}
+                              disabled={disabled}
+                              onChange={(event) =>
+                                update(action.actionId, {
+                                  timezone: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Bắt đầu từ
+                            <input
+                              id={fieldId(action.actionId, 'starts')}
+                              aria-invalid={
+                                validationFields[action.actionId] ===
+                                  'starts' || undefined
+                              }
+                              aria-describedby={
+                                validationFields[action.actionId] === 'starts'
+                                  ? fieldId(action.actionId, 'message')
+                                  : undefined
+                              }
+                              type="date"
+                              min={minimumDate}
+                              value={
+                                form.effectiveFrom < minimumDate
+                                  ? minimumDate
+                                  : form.effectiveFrom
+                              }
+                              disabled={disabled}
+                              onChange={(event) =>
+                                update(action.actionId, {
+                                  effectiveFrom: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Kết thúc vào (không bắt buộc)
+                            <input
+                              id={fieldId(action.actionId, 'ends')}
+                              aria-invalid={
+                                validationFields[action.actionId] === 'ends' ||
+                                undefined
+                              }
+                              aria-describedby={
+                                validationFields[action.actionId] === 'ends'
+                                  ? fieldId(action.actionId, 'message')
+                                  : undefined
+                              }
+                              type="date"
+                              min={
+                                form.effectiveFrom < minimumDate
+                                  ? minimumDate
+                                  : form.effectiveFrom
+                              }
+                              value={form.effectiveUntil}
+                              disabled={disabled}
+                              onChange={(event) =>
+                                update(action.actionId, {
+                                  effectiveUntil: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label className="support-plan-cadence-reminder">
+                            <input
+                              className="support-plan-themed-checkbox"
+                              type="checkbox"
+                              checked={form.reminderEnabled}
+                              disabled={disabled}
+                              onChange={(event) =>
+                                update(action.actionId, {
+                                  reminderEnabled: event.target.checked,
+                                })
+                              }
+                            />
+                            <span
+                              className="support-plan-checkbox-mark"
+                              aria-hidden="true"
+                            >
+                              <Check />
+                            </span>
+                            <Bell aria-hidden="true" />
+                            <span>Lưu tùy chọn nhắc nhở</span>
+                          </label>
+                          <small>
+                            Thông báo tự động cho hoạt động chưa được kích hoạt.
+                            Bạn vẫn có thể xem lịch trong kế hoạch.
+                          </small>
+                          {form.recurrenceType === 'WEEKLY' && (
+                            <fieldset
+                              className="support-plan-weekdays"
+                              disabled={disabled}
+                            >
+                              <legend>Ngày trong tuần</legend>
+                              {weekdayOptions.map(([day, label]) => (
+                                <label key={day}>
+                                  <input
+                                    id={fieldId(action.actionId, `day-${day}`)}
+                                    className="support-plan-weekday-input"
+                                    type="checkbox"
+                                    checked={form.daysOfWeek.includes(day)}
+                                    onChange={(event) =>
+                                      update(action.actionId, {
+                                        daysOfWeek: event.target.checked
+                                          ? [...form.daysOfWeek, day]
+                                          : form.daysOfWeek.filter(
+                                              (value) => value !== day,
+                                            ),
+                                      })
+                                    }
+                                  />
+                                  <span>{label}</span>
+                                </label>
+                              ))}
+                            </fieldset>
+                          )}
+                        </div>
+                      )}
+
+                      {messages[action.actionId] && (
+                        <p
+                          role={
+                            validationFields[action.actionId]
+                              ? 'alert'
+                              : 'status'
+                          }
+                          className="support-plan-cadence-message"
+                        >
+                          {messages[action.actionId]}
+                        </p>
                       )}
                     </div>
-                  )}
 
-                  {messages[action.actionId] && (
-                    <p
-                      role={
-                        validationFields[action.actionId] ? 'alert' : 'status'
-                      }
-                      className="support-plan-cadence-message"
-                    >
-                      {messages[action.actionId]}
-                    </p>
-                  )}
-                </div>
-
-                <div className="support-plan-dialog-footer support-plan-cadence-actions">
-                  <span className="support-plan-cadence-dirty-status">
-                    {itemDirty ? 'Có thay đổi chưa lưu' : 'Lịch đã lưu'}
-                  </span>
-                  {itemDirty && (
-                    <button
-                      className="btn btn-ghost"
-                      type="button"
-                      disabled={disabled || !itemDirty}
-                      onClick={() => {
-                        const snapshot = JSON.parse(
-                          initial[action.actionId],
-                        ) as ScheduleForm
-                        focusAfterUndo.current = action.actionId
-                        update(action.actionId, snapshot)
-                      }}
-                    >
-                      <RotateCcw aria-hidden="true" />
-                      Hoàn tác
-                    </button>
-                  )}
-                  <button
-                    className="btn btn-primary"
-                    type="button"
-                    disabled={disabled || Boolean(savingActionId) || !itemDirty}
-                    onClick={() => void save(action)}
-                  >
-                    <Check aria-hidden="true" />
-                    {savingActionId === action.actionId
-                      ? 'Đang lưu…'
-                      : 'Lưu lịch'}
-                  </button>
-                  <button
-                    className="btn btn-outline"
-                    type="button"
-                    onClick={() => setActiveActionId(null)}
-                  >
-                    Đóng
-                  </button>
-                  {staleActionId === action.actionId && (
-                    <button
-                      className="btn btn-ghost"
-                      type="button"
-                      onClick={() => {
-                        setReloadRequest({
-                          actionId: action.actionId,
-                          planVersion: plan.version,
-                        })
-                        void onReload().then((reloaded) => {
-                          if (reloaded === false) setReloadRequest(undefined)
-                        })
-                      }}
-                    >
-                      Tải lịch mới
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </Dialog>
+                    <div className="support-plan-dialog-footer support-plan-cadence-actions">
+                      <span className="support-plan-cadence-dirty-status">
+                        {itemDirty ? 'Có thay đổi chưa lưu' : 'Lịch đã lưu'}
+                      </span>
+                      {itemDirty && (
+                        <button
+                          className="btn btn-ghost"
+                          type="button"
+                          disabled={disabled || !itemDirty}
+                          onClick={() => {
+                            const snapshot = JSON.parse(
+                              initial[action.actionId],
+                            ) as ScheduleForm
+                            focusAfterUndo.current = action.actionId
+                            update(action.actionId, snapshot)
+                          }}
+                        >
+                          <RotateCcw aria-hidden="true" />
+                          Hoàn tác
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-primary"
+                        type="button"
+                        disabled={
+                          disabled || Boolean(savingActionId) || !itemDirty
+                        }
+                        onClick={() => void save(action)}
+                      >
+                        <Check aria-hidden="true" />
+                        {savingActionId === action.actionId
+                          ? 'Đang lưu…'
+                          : 'Lưu lịch'}
+                      </button>
+                      <button
+                        className="btn btn-outline"
+                        type="button"
+                        onClick={() => setActiveActionId(null)}
+                      >
+                        Đóng
+                      </button>
+                      {staleActionId === action.actionId && (
+                        <button
+                          className="btn btn-ghost"
+                          type="button"
+                          onClick={() => {
+                            setReloadRequest({
+                              actionId: action.actionId,
+                              planVersion: plan.version,
+                            })
+                            void onReload().then((reloaded) => {
+                              if (reloaded === false)
+                                setReloadRequest(undefined)
+                            })
+                          }}
+                        >
+                          Tải lịch mới
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </Dialog>
             </article>
           )
         })}

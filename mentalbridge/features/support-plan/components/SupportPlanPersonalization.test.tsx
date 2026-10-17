@@ -80,10 +80,7 @@ describe('SupportPlanPersonalization', () => {
     })
 
     render(
-      <SupportPlanPersonalization
-        onReviewPlan={onReviewPlan}
-        defaultOpen
-      />,
+      <SupportPlanPersonalization onReviewPlan={onReviewPlan} defaultOpen />,
     )
 
     expect(await screen.findByLabelText('Ngủ và nghỉ ngơi')).toBeChecked()
