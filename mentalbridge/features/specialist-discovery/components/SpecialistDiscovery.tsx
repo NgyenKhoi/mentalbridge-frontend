@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Dialog } from '@/components/ui/Dialog'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
@@ -18,11 +17,9 @@ import {
   type DiscoveryFilters,
 } from '../api/browser-client'
 import styles from './SpecialistDiscovery.module.css'
+import legacy from './SpecialistDiscoveryLegacy.module.css'
+import SpecialistDiscoveryLegacyView from './SpecialistDiscoveryLegacyView'
 
-const supportAreaLabels = {
-  DEPRESSIVE_SYMPTOMS: 'Khí sắc và trầm buồn',
-  ANXIETY_SYMPTOMS: 'Lo âu',
-} as const
 const languageLabels = {
   vi: 'Tiếng Việt',
   en: 'English',
@@ -38,23 +35,6 @@ function initials(name: string) {
     .slice(-2)
     .map((part) => part[0]?.toLocaleUpperCase('vi-VN'))
     .join('')
-}
-
-function formatTime(value: string, timezone: string) {
-  const date = new Date(value)
-  const time = new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: timezone,
-  }).format(date)
-  const day = new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: timezone,
-  }).format(date)
-  return `${time} · ${day}`
 }
 
 function slotPresentation(slot: DiscoverySlot) {
@@ -562,241 +542,29 @@ export default function SpecialistDiscovery({
   }
 
   return (
-    <main className={styles.page}>
-      {returnSupportGuideId && (
-        <Link
-          className="btn btn-ghost"
-          href={`/support-guides/${returnSupportGuideId}`}
-        >
-          Quay lại gợi ý hỗ trợ
-        </Link>
-      )}
-      <header className={styles.hero}>
-        <span className={styles.heroPill}>
-          <i aria-hidden="true" /> Kết nối trực tuyến
-        </span>
-        <h1>Chuyên gia tư vấn</h1>
-        <p>
-          Xem hồ sơ đã được phê duyệt và chọn khung giờ chat hoặc video 60 phút
-          đang khả dụng.
-        </p>
-        <div className={styles.heroStats}>
-          <span>
-            <strong>{loading ? '—' : items.length}</strong> chuyên gia có lịch
-          </span>
-          <span>
-            <strong>60</strong> phút mỗi buổi
-          </span>
-        </div>
-      </header>
-
-      <section className={styles.controls} aria-label="Bộ lọc chuyên gia">
-        <div className={styles.controlGroup}>
-          <span>Lĩnh vực hỗ trợ</span>
-          <div className={styles.chips}>
-            {(
-              [
-                ['', 'Tất cả'],
-                ['ANXIETY_SYMPTOMS', 'Lo âu'],
-                ['DEPRESSIVE_SYMPTOMS', 'Khí sắc và trầm buồn'],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value || 'all'}
-                type="button"
-                data-active={supportArea === value}
-                disabled={loading}
-                onClick={() => setSupportArea(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <label>
-          <span>Ưu tiên ngôn ngữ</span>
-          <select
-            value={language}
-            disabled={loading}
-            onChange={(event) =>
-              setLanguage(event.target.value as typeof language)
-            }
-          >
-            <option value="">Không ưu tiên</option>
-            <option value="vi">Tiếng Việt</option>
-            <option value="en">English</option>
-          </select>
-        </label>
-        <div className={styles.controlGroup}>
-          <span>Hình thức</span>
-          <div className={styles.chips}>
-            <button
-              type="button"
-              data-active={modality === ''}
-              disabled={loading}
-              onClick={() => setModality('')}
-            >
-              Tất cả
-            </button>
-            <button
-              type="button"
-              data-active={modality === 'IN_APP_CHAT'}
-              disabled={loading}
-              onClick={() => setModality('IN_APP_CHAT')}
-            >
-              Chat
-            </button>
-            <button
-              type="button"
-              disabled
-              title="Video trong ứng dụng hiện chưa khả dụng"
-            >
-              Video · sắp có
-            </button>
-          </div>
-        </div>
-        <button
-          className={styles.reload}
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-        >
-          {loading ? 'Đang tải…' : 'Tải lại'}
-        </button>
-      </section>
-
-      {page && (
-        <aside className={styles.entitlement}>
-          {page.packageCode === 'FREE' ? (
-            <p>
-              <strong>Bạn đang dùng gói Free.</strong> Bạn có thể xem hồ sơ và
-              khung giờ; đặt lịch cần gói Plus hoặc Premium.
-            </p>
-          ) : (
-            <p>
-              <strong>
-                Gói {page.packageCode === 'PLUS' ? 'Plus' : 'Premium'}.
-              </strong>{' '}
-              Khi gửi yêu cầu, quyền lợi và lượt tư vấn sẽ được kiểm tra lại.
-            </p>
-          )}
-          {!page.videoEnabled && (
-            <p>
-              Video trong ứng dụng hiện chưa khả dụng; chỉ hiển thị lịch chat.
-            </p>
-          )}
-        </aside>
-      )}
-
-      {!loading && !error && (
-        <p className={styles.resultCount}>
-          Hiển thị <strong>{items.length}</strong> chuyên gia
-        </p>
-      )}
-
-      {error && (
-        <section className={styles.state} role="alert">
-          <h2>Chưa thể tải danh sách</h2>
-          <p>{error}</p>
-          <button type="button" onClick={() => void load()}>
-            Thử lại
-          </button>
-        </section>
-      )}
-
-      {loading ? (
-        <div className={styles.grid} aria-label="Đang tải chuyên gia">
-          {[0, 1, 2].map((value) => (
-            <div className={styles.skeletonCard} key={value}>
-              <Skeleton height="68px" />
-              <Skeleton height="24px" />
-              <Skeleton height="80px" />
-            </div>
-          ))}
-        </div>
-      ) : !error && items.length === 0 ? (
-        <section className={styles.state}>
-          <h2>Chưa có chuyên gia phù hợp</h2>
-          <p>Hãy đổi bộ lọc hoặc quay lại sau khi có lịch mới.</p>
-          <button
-            type="button"
-            onClick={() => {
-              setSupportArea('')
-              setLanguage('')
-              setModality('')
-            }}
-          >
-            Xóa bộ lọc
-          </button>
-        </section>
-      ) : (
-        <div className={styles.grid}>
-          {items.map((item) => (
-            <article className={styles.card} key={item.specialistAccountId}>
-              <div className={styles.identity}>
-                <span aria-hidden="true">{initials(item.displayName)}</span>
-                <div>
-                  <h2>{item.displayName}</h2>
-                  <p>{item.yearsOfExperience} năm kinh nghiệm</p>
-                  {item.ratingAggregate && (
-                    <p className={styles.cardRating}>
-                      <span aria-hidden="true">★</span>{' '}
-                      {item.ratingAggregate.averageRating.toFixed(1)}/5 ·{' '}
-                      {item.ratingAggregate.ratingCount} lượt
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className={styles.tags}>
-                {item.supportAreas.map((area) => (
-                  <span key={area}>{supportAreaLabels[area]}</span>
-                ))}
-              </div>
-              <p className={styles.summary}>{item.bio}</p>
-              <p className={styles.languages}>
-                Ngôn ngữ{' '}
-                <strong>
-                  {item.languages
-                    .map((value) => languageLabels[value])
-                    .join(', ')}
-                </strong>
-              </p>
-              <div className={styles.nextSlot}>
-                <i aria-hidden="true">◷</i>
-                <div>
-                  <small>Lịch gần nhất</small>
-                  <strong>
-                    {item.explanation.earliestSelectableStartAt
-                      ? formatTime(
-                          item.explanation.earliestSelectableStartAt,
-                          timezone,
-                        )
-                      : 'Chưa có lịch trống'}
-                  </strong>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => openDetail(item.specialistAccountId)}
-              >
-                Xem hồ sơ và khung giờ
-              </button>
-            </article>
-          ))}
-        </div>
-      )}
-
-      {page?.nextCursor && !error && (
-        <button
-          className={styles.more}
-          type="button"
-          disabled={loadingMore}
-          onClick={() => void load(page.nextCursor ?? undefined)}
-        >
-          {loadingMore ? 'Đang tải thêm…' : 'Xem thêm chuyên gia'}
-        </button>
-      )}
-
+    <main className={legacy.page} data-discovery-ui="">
+      <SpecialistDiscoveryLegacyView
+        returnSupportGuideId={returnSupportGuideId}
+        page={page}
+        items={items}
+        loading={loading}
+        loadingMore={loadingMore}
+        error={error}
+        supportArea={supportArea}
+        language={language}
+        modality={modality}
+        onSupportAreaChange={setSupportArea}
+        onLanguageChange={setLanguage}
+        onModalityChange={setModality}
+        onReload={() => void load()}
+        onReset={() => {
+          setSupportArea('')
+          setLanguage('')
+          setModality('')
+        }}
+        onLoadMore={() => void load(page?.nextCursor ?? undefined)}
+        onOpenDetail={openDetail}
+      />
       <DetailDialog
         key={detailId ?? 'closed'}
         open={detailId !== null}
