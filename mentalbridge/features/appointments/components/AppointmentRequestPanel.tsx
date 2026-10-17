@@ -264,7 +264,6 @@ function errorMessage(
       'Tư vấn video hiện chưa được bật. Hãy chọn chat trong ứng dụng.',
     APPOINTMENT_MODALITY_MISMATCH:
       'Hình thức tư vấn không khớp với khung giờ đã chọn.',
-    APPOINTMENT_LEAD_TIME_INVALID: 'Lịch hẹn cần được đặt trước ít nhất 4 giờ.',
     APPOINTMENT_VERSION_MISMATCH:
       'Lịch hẹn vừa được cập nhật. Hãy tải lại trước khi tiếp tục.',
     APPOINTMENT_NOT_CANCELLATION_ELIGIBLE: 'Lịch hẹn này không còn có thể hủy.',
