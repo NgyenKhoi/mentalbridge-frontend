@@ -655,21 +655,19 @@ export function StretchResourceDetail({
                       }
                     />
                     {duration !== null &&
-                      stretchExerciseSteps
-                        .slice(1)
-                        .map((step, index) => (
-                          <button
-                            key={step.id}
-                            type="button"
-                            className={`${styles.timelineMarker} ${currentTime >= step.start ? styles.markerPassed : ''}`}
-                            style={{
-                              left: `${(step.start / duration) * 100}%`,
-                            }}
-                            onClick={() => seekTo(step.start, true)}
-                            aria-label={`Chuyển đến động tác ${index + 2}: ${step.title}`}
-                            title={`${formatTime(step.start)} · ${step.title}`}
-                          />
-                        ))}
+                      stretchExerciseSteps.slice(1).map((step, index) => (
+                        <button
+                          key={step.id}
+                          type="button"
+                          className={`${styles.timelineMarker} ${currentTime >= step.start ? styles.markerPassed : ''}`}
+                          style={{
+                            left: `${(step.start / duration) * 100}%`,
+                          }}
+                          onClick={() => seekTo(step.start, true)}
+                          aria-label={`Chuyển đến động tác ${index + 2}: ${step.title}`}
+                          title={`${formatTime(step.start)} · ${step.title}`}
+                        />
+                      ))}
                   </div>
                   <div className={styles.controlRow}>
                     <button
