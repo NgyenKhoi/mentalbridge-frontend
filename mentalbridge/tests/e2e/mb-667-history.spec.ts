@@ -554,13 +554,10 @@ test('MB-667 opens the exact saved pair and its persisted Guide', async ({
     `/support-guides/${guideId}?from=screening-history&resultEvaluationId=${evaluationId}`,
   )
   await expect(
-    page.getByRole('heading', {
-      name: 'Gợi ý đã lưu: bắt đầu từ những bước nhỏ',
-    }),
+    page.getByRole('heading', { level: 1, name: meaning.baseMeaning.text }),
   ).toBeVisible()
-  await expect(
-    page.getByText(/Bản ghi lịch sử · Chỉ đọc/i).first(),
-  ).toBeVisible()
+  await expect(page.getByText(/Gợi ý này được lưu ngày/)).toBeVisible()
+  await expect(page.getByText(/Bản ghi lịch sử · Chỉ đọc/i)).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Tạo gợi ý/ })).toHaveCount(0)
   await expect(page.getByText('Bắt đầu từ một hoạt động nhỏ')).toBeVisible()
   await expect(

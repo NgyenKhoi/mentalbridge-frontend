@@ -1,6 +1,25 @@
-import { reopenAssessment } from '@/features/assessment/api/browser-care'
+import {
+  getCombinedScreeningMeaning,
+  reopenAssessment,
+} from '@/features/assessment/api/browser-care'
+import type { CombinedScreeningMeaning } from '@/features/assessment/api/care-contract'
 import type { SupportGuide } from '../api/support-guide-contract'
 import type { SupportGuideScorePair } from './SupportGuideCard'
+
+export async function loadGuideMeaning(
+  guide: SupportGuide,
+  presentationEvaluationId: string | null | undefined,
+): Promise<CombinedScreeningMeaning | null> {
+  if (!presentationEvaluationId) return null
+  try {
+    const meaning = await getCombinedScreeningMeaning(presentationEvaluationId)
+    return meaning.domainSupportEvaluationId === guide.supportEvaluationId
+      ? meaning
+      : null
+  } catch {
+    return null
+  }
+}
 
 export async function loadGuideScores(
   guide: SupportGuide,

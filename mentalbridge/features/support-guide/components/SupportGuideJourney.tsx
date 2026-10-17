@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { GuidedJourney } from '@/features/assessment/api/care-contract'
 import { ApiError } from '@/lib/api/api-error'
@@ -12,12 +12,14 @@ import {
   getSupportGuideHistory,
 } from '../api/browser-support-guide'
 import type { SupportGuide } from '../api/support-guide-contract'
+import GuideLoadError from './GuideLoadError'
 import GuidedJourneySteps from './GuidedJourneySteps'
 import SupportGuideCard, {
   type SupportGuideScorePair,
 } from './SupportGuideCard'
 import { guideContinuation, isCurrentJourneyGuide } from './guided-continuation'
-import { loadGuideScores } from './load-guide-scores'
+import { loadGuideMeaning, loadGuideScores } from './load-guide-scores'
+import type { CombinedScreeningMeaning } from '@/features/assessment/api/care-contract'
 
 import './support-guide.css'
 
@@ -28,7 +30,7 @@ function message(error: unknown) {
     if (error.status === 404)
       return 'Không tìm thấy hướng dẫn thuộc tài khoản này.'
   }
-  return 'Chưa thể tải gợi ý hỗ trợ. Vui lòng thử lại.'
+  return 'Gợi ý đã lưu của bạn không thay đổi. Hãy thử lại sau giây lát.'
 }
 
 export default function SupportGuideJourney({
@@ -51,43 +53,66 @@ export default function SupportGuideJourney({
   const [journey, setJourney] = useState<GuidedJourney | null>(null)
   const [journeyFailed, setJourneyFailed] = useState(false)
 
-  const loadJourney = useCallback(async () => {
-    if (historical || !supportGuideId) return
-    setJourneyFailed(false)
+  const [meaning, setMeaning] = useState<CombinedScreeningMeaning | null>(null)
+  const [journeyRetrying, setJourneyRetrying] = useState(false)
+  const journeyRetryInFlight = useRef(false)
+
+  const fetchJourney = useCallback(async () => {
+    if (historical || !supportGuideId) return { journey: null, failed: false }
     try {
-      setJourney(await getGuidedJourney())
+      return { journey: await getGuidedJourney(), failed: false }
     } catch {
-      setJourney(null)
-      setJourneyFailed(true)
+      return { journey: null, failed: true }
     }
   }, [historical, supportGuideId])
 
   const load = useCallback(
-    async (next?: string) => {
-      setLoading(true)
-      setError(undefined)
+    async (next?: string, retry = false) => {
+      // A retry keeps the error panel mounted so its busy state and focus survive.
+      if (!retry) {
+        setLoading(true)
+        setError(undefined)
+      }
       try {
         if (supportGuideId) {
-          const [guide] = await Promise.all([
+          const [guide, journeyResult] = await Promise.all([
             getSupportGuide(supportGuideId),
-            loadJourney(),
+            fetchJourney(),
           ])
+          const currentJourney = journeyResult.journey
+          // Resolve the whole card before committing it, so a retry never flashes a partial Guide.
+          const [pair, savedMeaning] = await Promise.all([
+            loadGuideScores(guide),
+            loadGuideMeaning(
+              guide,
+              historical
+                ? resultEvaluationId
+                : currentJourney?.supportGuideId === guide.supportGuideId
+                  ? currentJourney.presentationEvaluationId
+                  : null,
+            ),
+          ])
+          setError(undefined)
+          setJourney(currentJourney)
+          setJourneyFailed(journeyResult.failed)
           setItems([guide])
-          setScores({ [guide.supportGuideId]: await loadGuideScores(guide) })
+          setScores({ [guide.supportGuideId]: pair })
+          setMeaning(savedMeaning)
           setHasMore(false)
         } else {
           const history = await getSupportGuideHistory(next)
-          setItems((current) =>
-            next ? [...current, ...history.items] : history.items,
-          )
-          setCursor(history.nextCursor ?? undefined)
-          setHasMore(history.hasMore)
           const pairs = await Promise.all(
             history.items.map(
               async (guide) =>
                 [guide.supportGuideId, await loadGuideScores(guide)] as const,
             ),
           )
+          setError(undefined)
+          setItems((current) =>
+            next ? [...current, ...history.items] : history.items,
+          )
+          setCursor(history.nextCursor ?? undefined)
+          setHasMore(history.hasMore)
           setScores((current) => ({ ...current, ...Object.fromEntries(pairs) }))
         }
       } catch (cause) {
@@ -96,8 +121,39 @@ export default function SupportGuideJourney({
         setLoading(false)
       }
     },
-    [loadJourney, supportGuideId],
+    [fetchJourney, historical, resultEvaluationId, supportGuideId],
   )
+
+  // Re-reads only the next step and its matching meaning; the saved Guide on screen is kept.
+  const retryJourney = useCallback(async () => {
+    const guide = items[0]
+    if (journeyRetryInFlight.current || !guide) return
+    journeyRetryInFlight.current = true
+    setJourneyRetrying(true)
+    try {
+      const result = await fetchJourney()
+      if (result.failed) {
+        setJourney(null)
+        setJourneyFailed(true)
+        return
+      }
+      const presentationEvaluationId =
+        result.journey?.supportGuideId === guide.supportGuideId
+          ? result.journey.presentationEvaluationId
+          : null
+      const savedMeaning =
+        presentationEvaluationId &&
+        meaning?.supportEvaluationId === presentationEvaluationId
+          ? meaning
+          : await loadGuideMeaning(guide, presentationEvaluationId)
+      setJourney(result.journey)
+      setJourneyFailed(false)
+      setMeaning(savedMeaning)
+    } finally {
+      journeyRetryInFlight.current = false
+      setJourneyRetrying(false)
+    }
+  }, [fetchJourney, items, meaning])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0)
@@ -129,12 +185,11 @@ export default function SupportGuideJourney({
       )}
 
       {error && (
-        <div className="support-guide-state error" role="alert">
-          <p>{error}</p>
-          <button className="btn btn-ghost" onClick={() => void load()}>
-            Thử lại
-          </button>
-        </div>
+        <GuideLoadError
+          message={error}
+          onRetry={() => load(undefined, true)}
+          headingLevel={supportGuideId ? 'h1' : 'h2'}
+        />
       )}
       {!loading && journeyFailed && (
         <div className="support-guide-state" role="status">
@@ -142,14 +197,19 @@ export default function SupportGuideJourney({
             Chưa tải được bước tiếp theo. Gợi ý bên dưới vẫn được lưu nguyên
             vẹn.
           </p>
-          <button className="btn btn-ghost" onClick={() => void loadJourney()}>
-            Thử lại
+          <button
+            className="btn btn-ghost"
+            aria-busy={journeyRetrying}
+            aria-disabled={journeyRetrying}
+            onClick={() => void retryJourney()}
+          >
+            {journeyRetrying ? 'Đang thử lại…' : 'Thử lại'}
           </button>
         </div>
       )}
       {loading && (
         <MamAnLoadingState
-          title="Đang tải gợi ý hỗ trợ đã lưu..."
+          title="Đang tải gợi ý hỗ trợ đã lưu…"
           description="Mầm An đang mở lại gợi ý và đúng cặp kết quả của lần đánh giá này."
           preview="meaning"
         />
@@ -157,7 +217,7 @@ export default function SupportGuideJourney({
       {!loading && currentGuide && journey && (
         <GuidedJourneySteps
           journey={journey}
-          onRetry={() => void loadJourney()}
+          onRetry={() => void retryJourney()}
         />
       )}
       {!loading && !error && items.length === 0 && (
@@ -193,6 +253,7 @@ export default function SupportGuideJourney({
                 guide={guide}
                 historical={readOnly}
                 scorePair={scores[guide.supportGuideId]}
+                meaning={supportGuideId ? meaning : null}
                 resultEvaluationId={resultEvaluationId}
                 headingLevel={supportGuideId ? 'h1' : 'h2'}
                 showOpenLink={!supportGuideId}

@@ -1,36 +1,26 @@
+'use client'
+
 import Link from 'next/link'
+import type { MouseEvent } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
-  CalendarDays,
-  CircleHelp,
+  CirclePlay,
   HeartHandshake,
   Info,
+  Leaf,
+  NotebookPen,
   ShieldCheck,
+  Wind,
 } from 'lucide-react'
 
 import type {
+  CombinedScreeningMeaning,
   ScreeningLevel,
-  SupportEvaluation,
 } from '@/features/assessment/api/care-contract'
 import type { SupportGuide } from '../api/support-guide-contract'
 import { guideReturnQuery, type GuideContinuation } from './guided-continuation'
-
-const resourceStateCopy: Record<
-  SupportGuide['resourceResolution']['status'],
-  string
-> = {
-  AVAILABLE:
-    'Những bài tập dưới đây có thể giúp bạn thư giãn, nhận biết cảm xúc và xây dựng thói quen chăm sóc bản thân.',
-  PARTIAL:
-    'Một số tài nguyên đã lưu cùng gợi ý này hiện tạm thời không khả dụng.',
-  EMPTY: 'Lần đánh giá này không có tài nguyên đã lưu kèm theo.',
-  STALE:
-    'Phiên bản tài nguyên đã thay đổi nên MentalBridge không mở nội dung cũ.',
-  UNAVAILABLE:
-    'Chưa thể kiểm tra các tài nguyên đã lưu. Bạn có thể thử mở lại sau.',
-}
 
 const levelLabels: Record<ScreeningLevel, string> = {
   MINIMAL: 'Tối thiểu',
@@ -38,6 +28,20 @@ const levelLabels: Record<ScreeningLevel, string> = {
   MODERATE: 'Trung bình',
   MODERATELY_SEVERE: 'Khá nặng',
   SEVERE: 'Nặng',
+}
+
+const emptyResourceCopy: Record<
+  Exclude<
+    SupportGuide['resourceResolution']['status'],
+    'AVAILABLE' | 'PARTIAL'
+  >,
+  string
+> = {
+  EMPTY: 'Gợi ý này không có bài tập nào được lưu kèm.',
+  STALE:
+    'Các bài tập phù hợp đã được cập nhật trước khi gợi ý này được lưu, nên chưa có bài nào đi kèm.',
+  UNAVAILABLE:
+    'Khi lưu gợi ý này, MentalBridge chưa kiểm tra được bài tập phù hợp, nên chưa có bài nào đi kèm.',
 }
 
 export type SupportGuideScore = Readonly<{
@@ -50,6 +54,19 @@ export type SupportGuideScorePair = Readonly<{
   gad7: SupportGuideScore
 }>
 
+const categoryIcons: Record<string, typeof BookOpen> = {
+  BREATHING: Wind,
+  MEDITATION: Leaf,
+  JOURNALING: NotebookPen,
+  VIDEO: CirclePlay,
+}
+
+function levelClass(level: ScreeningLevel | undefined) {
+  return `level-${level?.toLowerCase().replaceAll('_', '-') ?? 'unavailable'}`
+}
+
+type GuidePriority = 'SAFETY' | 'PROFESSIONAL' | 'SELF_GUIDED' | 'UNKNOWN'
+
 function knownLevel(value: string | undefined): ScreeningLevel | undefined {
   return value === 'MINIMAL' ||
     value === 'MILD' ||
@@ -60,14 +77,26 @@ function knownLevel(value: string | undefined): ScreeningLevel | undefined {
     : undefined
 }
 
-function guideDateTime(value: string) {
+function guideDate(value: string) {
   return new Intl.DateTimeFormat('vi-VN', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   }).format(new Date(value))
+}
+
+function guidePriority(
+  guide: SupportGuide,
+  meaning: CombinedScreeningMeaning | null | undefined,
+  continuation: GuideContinuation | null | undefined,
+): GuidePriority {
+  if (guide.safety.status === 'POSITIVE_SAFETY_SCREEN') return 'SAFETY'
+  if (continuation?.professional) return 'PROFESSIONAL'
+  if (meaning?.presentationPriority === 'PROFESSIONAL_SUPPORT')
+    return 'PROFESSIONAL'
+  if (continuation || meaning?.presentationPriority === 'SELF_GUIDED')
+    return 'SELF_GUIDED'
+  return 'UNKNOWN'
 }
 
 function ScoreCard({
@@ -82,9 +111,7 @@ function ScoreCard({
   const phq9 = instrument === 'PHQ9'
   const level = knownLevel(score?.screeningLevel ?? evidence?.screeningLevel)
   return (
-    <section
-      className={`support-guide-score level-${level?.toLowerCase().replaceAll('_', '-') ?? 'unavailable'}`}
-    >
+    <section className={`support-guide-score ${levelClass(level)}`}>
       <div>
         <h3>Bài sàng lọc {phq9 ? 'PHQ-9' : 'GAD-7'}</h3>
         <p>{phq9 ? 'Dấu hiệu trầm cảm' : 'Dấu hiệu lo âu'}</p>
@@ -101,11 +128,96 @@ function ScoreCard({
   )
 }
 
+function ResourceList({
+  guide,
+  historical,
+  resultEvaluationId,
+}: Readonly<{
+  guide: SupportGuide
+  historical: boolean
+  resultEvaluationId?: string
+}>) {
+  return (
+    <ol>
+      {guide.resources.map((resource) => {
+        const Icon = categoryIcons[resource.category] ?? BookOpen
+        return (
+          <li key={`${resource.resourceId}:${resource.contentVersion}`}>
+            <div className="support-guide-resource-top">
+              <span className="support-guide-resource-icon" aria-hidden="true">
+                <Icon />
+              </span>
+              <span className="support-guide-resource-domain">
+                {resource.domain === 'DEPRESSIVE_SYMPTOMS'
+                  ? 'Tâm trạng'
+                  : 'Lo âu'}
+              </span>
+            </div>
+            <div className="support-guide-resource-copy">
+              <h3
+                id={`guide-resource-${guide.supportGuideId}-${resource.resourceId}`}
+              >
+                {resource.title}
+              </h3>
+              <p>{resource.summary}</p>
+            </div>
+            <a
+              className="support-guide-resource-link"
+              aria-describedby={`guide-resource-${guide.supportGuideId}-${resource.resourceId}`}
+              href={
+                resource.externalUrl ??
+                `/resources/${resource.resourceId}?contentVersion=${encodeURIComponent(resource.contentVersion)}&${guideReturnQuery(guide, { historical, resultEvaluationId })}`
+              }
+              target={resource.externalUrl ? '_blank' : undefined}
+              rel={resource.externalUrl ? 'noreferrer' : undefined}
+            >
+              {resource.externalUrl ? 'Mở tài nguyên' : 'Xem bài tập'}
+              <ArrowRight aria-hidden="true" />
+            </a>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+function revealResources(event: MouseEvent<HTMLAnchorElement>) {
+  const target = document.getElementById('support-guide-resources')
+  const modified =
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  if (!target || modified) return
+  event.preventDefault()
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  target.scrollIntoView({
+    behavior: reduce ? 'auto' : 'smooth',
+    block: 'start',
+  })
+  target.focus({ preventScroll: true })
+  target.animate?.(
+    reduce
+      ? [{ opacity: 0.9 }, { opacity: 0 }]
+      : [
+          { opacity: 0.9, transform: 'scale(1)' },
+          { opacity: 0, transform: 'scale(1.012)' },
+        ],
+    {
+      duration: 1400,
+      easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      pseudoElement: '::after',
+    },
+  )
+  window.history.replaceState(null, '', '#support-guide-resources')
+}
+
 export default function SupportGuideCard({
   guide,
   historical = false,
   scorePair,
-  supportTier,
+  meaning,
   resultEvaluationId,
   headingLevel = 'h2',
   showOpenLink = true,
@@ -114,30 +226,21 @@ export default function SupportGuideCard({
   guide: SupportGuide
   historical?: boolean
   scorePair?: SupportGuideScorePair | null
-  supportTier?: SupportEvaluation['supportTier']
+  meaning?: CombinedScreeningMeaning | null
   resultEvaluationId?: string
   headingLevel?: 'h1' | 'h2'
   showOpenLink?: boolean
   continuation?: GuideContinuation | null
 }) {
-  const safetyPositive = guide.safety.status === 'POSITIVE_SAFETY_SCREEN'
+  const priority = guidePriority(guide, meaning, continuation)
+  const safetyPositive = priority === 'SAFETY'
+  const professional = priority === 'PROFESSIONAL'
   const SafetyHeading = headingLevel
   const AnswerHeading = safetyPositive
     ? headingLevel === 'h1'
       ? 'h2'
       : 'h3'
     : headingLevel
-  const professional =
-    !safetyPositive &&
-    (continuation
-      ? continuation.professional === true
-      : supportTier === 'PROFESSIONAL_SUPPORT_RECOMMENDED' ||
-        (!supportTier &&
-          guide.provenance.assessmentResults.some((result) =>
-            ['MODERATE', 'MODERATELY_SEVERE', 'SEVERE'].includes(
-              result.screeningLevel,
-            ),
-          )))
   const phq9Evidence = guide.provenance.assessmentResults.find(
     (result) => result.instrument === 'PHQ9',
   )
@@ -146,24 +249,64 @@ export default function SupportGuideCard({
   )
   const answerTitle = safetyPositive
     ? historical
-      ? 'Gợi ý đã lưu: thông tin an toàn được ưu tiên trước'
+      ? 'Lần sàng lọc này đã ưu tiên thông tin an toàn'
       : 'Ưu tiên hàng đầu là kết nối hỗ trợ an toàn ngay'
-    : professional
-      ? historical
-        ? 'Gợi ý đã lưu: nên trao đổi với chuyên gia tâm lý'
-        : 'Bạn nên trao đổi với chuyên gia tâm lý'
-      : historical
-        ? 'Gợi ý đã lưu: bắt đầu từ những bước nhỏ'
-        : 'Bắt đầu từ những bước nhỏ, vừa sức với bạn'
-  const resourcesTitle = 'Bài tập bạn có thể thử'
+    : (meaning?.baseMeaning.text ??
+      (professional
+        ? 'Bạn nên trao đổi với chuyên gia tâm lý'
+        : priority === 'SELF_GUIDED'
+          ? 'Bắt đầu từ những bước nhỏ, vừa sức với bạn'
+          : 'Gợi ý hỗ trợ đã lưu cho lần sàng lọc này'))
+  const answerText = safetyPositive
+    ? (meaning?.baseMeaning.text ?? guide.explanation.text)
+    : (meaning?.baseMeaning.rationale ?? guide.explanation.text)
+  const explanationInDisclosure = answerText !== guide.explanation.text
   const specialistsHref = historical
     ? '/specialists'
     : `/specialists?${guideReturnQuery(guide)}`
+  const hasResources = guide.resources.length > 0
+  const resourcesTitle = professional
+    ? 'Trong lúc chờ trao đổi với chuyên gia'
+    : 'Việc bạn có thể thử'
+
+  const resourceBody = hasResources ? (
+    <>
+      <ResourceList
+        guide={guide}
+        historical={historical}
+        resultEvaluationId={resultEvaluationId}
+      />
+      {guide.resourceResolution.status === 'PARTIAL' && (
+        <p className="support-guide-resource-note">
+          Một số bài tập chưa sẵn sàng khi gợi ý này được lưu nên không có ở
+          đây.
+        </p>
+      )}
+    </>
+  ) : (
+    <div className="support-guide-resource-empty">
+      <Info aria-hidden="true" />
+      <p>
+        {
+          emptyResourceCopy[
+            guide.resourceResolution.status === 'AVAILABLE' ||
+            guide.resourceResolution.status === 'PARTIAL'
+              ? 'EMPTY'
+              : guide.resourceResolution.status
+          ]
+        }
+      </p>
+      {!historical && !safetyPositive && (
+        <Link href="/resources">Xem thư viện tài nguyên chung</Link>
+      )}
+    </div>
+  )
 
   return (
     <article
       className={`support-guide-card${historical ? ' is-historical' : ''}`}
       aria-labelledby={`guide-${guide.supportGuideId}`}
+      data-priority={priority.toLowerCase()}
     >
       {historical && (
         <>
@@ -180,14 +323,12 @@ export default function SupportGuideCard({
                 ? 'Quay lại Kết quả trước đây'
                 : 'Quay lại Lịch sử sàng lọc'}
             </Link>
-            <span>Từ kết quả này bạn có thể quay lại Lịch sử sàng lọc</span>
           </div>
           <aside className="support-guide-history-notice">
             <Info aria-hidden="true" />
             <p>
-              <strong>Lưu ý quan trọng:</strong> Đây là gợi ý được lưu tại thời
-              điểm đánh giá ({guideDateTime(guide.generatedAt)}) và có thể không
-              phản ánh tình trạng hiện tại của bạn.
+              Gợi ý này được lưu ngày {guideDate(guide.generatedAt)} và có thể
+              không còn đúng với cảm nhận hiện tại của bạn.
             </p>
           </aside>
         </>
@@ -202,10 +343,18 @@ export default function SupportGuideCard({
           </span>
           <div>
             <SafetyHeading id={`guide-safety-${guide.supportGuideId}`}>
-              Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp
+              {historical
+                ? 'Nếu lúc này bạn không cảm thấy an toàn, hãy tìm hỗ trợ trực tiếp'
+                : 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp'}
             </SafetyHeading>
             <p>{guide.safety.guidance}</p>
-            <Link href="/safety-directory?trigger=positive-item-9">
+            <Link
+              href={
+                historical
+                  ? '/safety-directory'
+                  : '/safety-directory?trigger=positive-item-9'
+              }
+            >
               Xem hỗ trợ trong khu vực <ArrowRight aria-hidden="true" />
             </Link>
           </div>
@@ -219,58 +368,30 @@ export default function SupportGuideCard({
           <AnswerHeading id={`guide-${guide.supportGuideId}`}>
             {answerTitle}
           </AnswerHeading>
-          <p>{guide.explanation.text}</p>
-          {!professional && !safetyPositive && (
-            <div className="support-guide-priority-list">
-              <strong>3 bước tự hỗ trợ có thể bắt đầu ngay:</strong>
-              <ol>
-                <li>
-                  <span>1</span>
-                  <div>
-                    <strong>Giữ giờ ngủ và giờ thức tương đối ổn định:</strong>{' '}
-                    Giúp bạn duy trì nhịp sinh hoạt đều đặn.
-                  </div>
-                </li>
-                <li>
-                  <span>2</span>
-                  <div>
-                    <strong>
-                      Chọn một hoạt động nhẹ bạn có thể thực hiện hôm nay:
-                    </strong>{' '}
-                    Đi dạo, giãn cơ hoặc uống đủ nước.
-                  </div>
-                </li>
-                <li>
-                  <span>3</span>
-                  <div>
-                    <strong>
-                      Theo dõi cảm xúc và những thay đổi khiến bạn thấy khó
-                      chịu:
-                    </strong>{' '}
-                    Lắng nghe bản thân và ghi chép ngắn gọn không phán xét.
-                  </div>
-                </li>
-              </ol>
-            </div>
-          )}
-          {professional && (
-            <div className="support-guide-professional-note">
-              <strong>
-                <HeartHandshake aria-hidden="true" /> Trao đổi với chuyên gia
-              </strong>
-              <p>
-                Các dấu hiệu được ghi nhận cho thấy việc trao đổi với chuyên gia
-                có thể giúp bạn hiểu rõ hơn điều mình đang trải qua và lựa chọn
-                hướng hỗ trợ phù hợp. Bạn hoàn toàn chủ động lựa chọn thời gian
-                và chuyên gia phù hợp với mình.
-              </p>
-            </div>
-          )}
+          <ul className="support-guide-answer-bands" aria-label="Mức độ đã lưu">
+            {[phq9Evidence, gad7Evidence].map((result) => {
+              const level = knownLevel(result?.screeningLevel)
+              return (
+                result &&
+                level && (
+                  <li key={result.instrument} className={levelClass(level)}>
+                    {result.instrument === 'PHQ9' ? 'Tâm trạng' : 'Lo âu'} ·{' '}
+                    <strong>Mức {levelLabels[level].toLowerCase()}</strong>
+                  </li>
+                )
+              )
+            })}
+          </ul>
+          <p>{answerText}</p>
           <div className="support-guide-answer-actions">
             {continuation !== undefined
               ? continuation &&
                 (continuation.href.startsWith('#') ? (
-                  <a className="support-guide-primary" href={continuation.href}>
+                  <a
+                    className="support-guide-primary"
+                    href={continuation.href}
+                    onClick={revealResources}
+                  >
                     {continuation.label} <ArrowRight aria-hidden="true" />
                   </a>
                 ) : (
@@ -281,52 +402,62 @@ export default function SupportGuideCard({
                     {continuation.label} <ArrowRight aria-hidden="true" />
                   </Link>
                 ))
-              : !safetyPositive &&
-                (professional ? (
+              : professional && (
                   <Link
                     className="support-guide-primary"
                     href={specialistsHref}
                   >
                     <HeartHandshake aria-hidden="true" /> Tìm chuyên gia phù hợp
                   </Link>
-                ) : guide.resources.length > 0 ? (
-                  <a
-                    className="support-guide-primary"
-                    href="#support-guide-resources"
-                  >
-                    <BookOpen aria-hidden="true" /> Khám phá bài tập phù hợp
-                  </a>
-                ) : (
-                  <Link className="support-guide-primary" href="/resources">
-                    Khám phá thư viện tài nguyên
-                  </Link>
-                ))}
-            {(safetyPositive || professional) && guide.resources.length > 0 && (
-              <a
-                className="support-guide-secondary"
-                href="#support-guide-resources"
-              >
-                Xem bài tập hỗ trợ trong lúc chờ
-              </a>
-            )}
-            {!professional && !safetyPositive && (
+                )}
+            {professional && (
               <p className="support-guide-answer-note">
-                Miễn phí cho mọi tài khoản · Tự do thực hành, không áp lực
+                Bạn chỉ xem danh sách chuyên gia. Chưa có lịch hẹn nào được đặt
+                và không có dữ liệu nào được chia sẻ.
               </p>
             )}
           </div>
-          <div className="support-guide-answer-meta">
-            <CalendarDays aria-hidden="true" />
-            <time dateTime={guide.generatedAt}>
-              Lưu lúc {guideDateTime(guide.generatedAt)}
-            </time>
-            {historical && (
-              <span className="support-guide-history-badge">
-                Bản ghi lịch sử · Chỉ đọc
-              </span>
-            )}
-          </div>
         </div>
+      </section>
+      <section
+        className="support-guide-resources"
+        id="support-guide-resources"
+        tabIndex={-1}
+        aria-labelledby={`guide-resources-${guide.supportGuideId}`}
+      >
+        {safetyPositive ? (
+          <details className="support-guide-resources-deferred">
+            <summary>
+              <span id={`guide-resources-${guide.supportGuideId}`}>
+                Bài tập đã lưu cùng gợi ý này
+              </span>
+            </summary>
+            {resourceBody}
+          </details>
+        ) : (
+          <>
+            <header>
+              <h2 id={`guide-resources-${guide.supportGuideId}`}>
+                {resourcesTitle}
+              </h2>
+              {professional && hasResources && (
+                <p>Các bài này không thay thế việc trao đổi với chuyên gia.</p>
+              )}
+            </header>
+            {resourceBody}
+          </>
+        )}
+        {(priority === 'SELF_GUIDED' || priority === 'UNKNOWN') && (
+          <aside className="support-guide-professional-fallback">
+            <p>
+              Muốn được giải thích rõ hơn về kết quả? Bạn có thể trao đổi với
+              chuyên gia.
+            </p>
+            <Link href={specialistsHref}>
+              Tìm chuyên gia <ArrowRight aria-hidden="true" />
+            </Link>
+          </aside>
+        )}
       </section>
       <section
         className="support-guide-linked-results"
@@ -349,131 +480,12 @@ export default function SupportGuideCard({
             score={scorePair?.gad7}
           />
         </div>
-      </section>
-      <section
-        className="support-guide-resources"
-        id="support-guide-resources"
-        aria-labelledby={`guide-resources-${guide.supportGuideId}`}
-      >
-        <header>
-          <div>
-            <h2 id={`guide-resources-${guide.supportGuideId}`}>
-              {resourcesTitle}
-            </h2>
-            <p>{resourceStateCopy[guide.resourceResolution.status]}</p>
-          </div>
-          <span className="support-guide-resource-status">
-            {professional
-              ? 'Hỗ trợ tạm thời'
-              : safetyPositive
-                ? 'Hỗ trợ thêm'
-                : 'Bạn chủ động lựa chọn'}
-          </span>
-        </header>
-        {professional && (
-          <p className="support-guide-resource-note">
-            Các bài tập dưới đây đóng vai trò hỗ trợ tạm thời trong lúc chờ trao
-            đổi với chuyên gia; không thay thế quá trình làm việc cùng chuyên
-            gia tâm lý.
-          </p>
-        )}
-        {guide.resources.length > 0 ? (
-          <ol>
-            {guide.resources.map((resource) => (
-              <li key={`${resource.resourceId}:${resource.contentVersion}`}>
-                <div className="support-guide-resource-top">
-                  <span className="support-guide-resource-domain">
-                    {resource.domain === 'DEPRESSIVE_SYMPTOMS'
-                      ? 'Tâm trạng'
-                      : 'Lo âu'}
-                  </span>
-                </div>
-                <div className="support-guide-resource-copy">
-                  <h3>{resource.title}</h3>
-                  <p>{resource.summary}</p>
-                </div>
-                <a
-                  href={
-                    resource.externalUrl ??
-                    `/resources/${resource.resourceId}?contentVersion=${encodeURIComponent(resource.contentVersion)}${historical ? '' : `&${guideReturnQuery(guide)}`}`
-                  }
-                  target={resource.externalUrl ? '_blank' : undefined}
-                  rel={resource.externalUrl ? 'noreferrer' : undefined}
-                >
-                  {resource.externalUrl ? 'Mở tài nguyên' : 'Xem bài tập'}
-                  <ArrowRight aria-hidden="true" />
-                </a>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <div className="support-guide-resource-empty">
-            <Info aria-hidden="true" />
-            <p>{resourceStateCopy[guide.resourceResolution.status]}</p>
-            {!historical && (
-              <Link href="/resources">Xem thư viện tài nguyên hiện tại</Link>
-            )}
-          </div>
-        )}
-        {!safetyPositive && !professional && (
-          <aside className="support-guide-professional-fallback">
-            <div>
-              <h3>
-                <CircleHelp aria-hidden="true" /> Bạn vẫn cảm thấy không yên
-                tâm?
-              </h3>
-              <p>
-                Nếu bạn cảm thấy không yên tâm về tình trạng sức khỏe tinh thần
-                hoặc muốn được giải thích rõ hơn về kết quả, bạn có thể trao đổi
-                với chuyên gia tâm lý.
-              </p>
-            </div>
-            <Link href={specialistsHref}>
-              Trao đổi với chuyên gia <ArrowRight aria-hidden="true" />
-            </Link>
-          </aside>
-        )}
-        {guide.phrasing.status === 'AI_UNAVAILABLE_FALLBACK' && (
-          <p className="support-guide-fallback" role="status">
-            Nội dung chuẩn bị sẵn đang được hiển thị. Kết quả sàng lọc và các
-            tài nguyên đã lưu không thay đổi.
-          </p>
-        )}
-        <div className="support-guide-disclosures">
-          <details>
-            <summary>Vì sao có gợi ý này?</summary>
+        {explanationInDisclosure && (
+          <details className="support-guide-disclosures">
+            <summary>Về gợi ý này</summary>
             <p>{guide.explanation.text}</p>
-            <p>
-              Bạn luôn chủ động lựa chọn bước phù hợp với mình. Kết quả sàng lọc
-              không thay thế chẩn đoán y khoa.
-            </p>
           </details>
-          <details className="support-guide-provenance">
-            <summary>Thông tin kỹ thuật</summary>
-            <dl>
-              <div>
-                <dt>Chính sách hướng dẫn</dt>
-                <dd>{guide.guidePolicyVersion}</dd>
-              </div>
-              <div>
-                <dt>Chính sách đánh giá</dt>
-                <dd>{guide.provenance.supportEvaluationPolicyVersion}</dd>
-              </div>
-              <div>
-                <dt>Chính sách tài nguyên</dt>
-                <dd>{guide.resourceResolution.policyVersion}</dd>
-              </div>
-            </dl>
-            <ul>
-              {guide.provenance.assessmentResults.map((result) => (
-                <li key={result.assessmentId}>
-                  {result.instrument} · {result.questionnaireVersion} ·{' '}
-                  {result.scoringVersion}
-                </li>
-              ))}
-            </ul>
-          </details>
-        </div>
+        )}
       </section>
       {(historical || showOpenLink) && (
         <footer className="support-guide-footer">

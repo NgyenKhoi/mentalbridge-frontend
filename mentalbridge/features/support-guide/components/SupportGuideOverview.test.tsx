@@ -98,7 +98,7 @@ describe('SupportGuideOverview', () => {
     expect(
       screen.getByRole('navigation', { name: 'Các bước sau sàng lọc' }),
     ).toBeVisible()
-    expect(screen.getByRole('link', { name: 'Kết quả' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^Kết quả/ })).toHaveAttribute(
       'href',
       '/assessments/results/20000000-0000-4000-8000-000000000668',
     )

@@ -4,10 +4,11 @@ import Link from 'next/link'
 import { RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
-import type { GuidedJourney } from '@/features/assessment/api/care-contract'
-import { getInitialCheckState } from '@/features/assessment/api/browser-care'
+import type {
+  CombinedScreeningMeaning,
+  GuidedJourney,
+} from '@/features/assessment/api/care-contract'
 import { MamAnLoadingState } from '@/features/assessment/components/MamAnLoadingState'
-import type { InitialCheckState } from '@/features/initial-check/api/initial-check-contract'
 import {
   ensureCurrentSupportGuide,
   getGuidedJourney,
@@ -15,12 +16,13 @@ import {
   getSupportGuideHistory,
 } from '../api/browser-support-guide'
 import type { SupportGuide } from '../api/support-guide-contract'
+import GuideLoadError from './GuideLoadError'
 import GuidedJourneySteps from './GuidedJourneySteps'
 import SupportGuideCard, {
   type SupportGuideScorePair,
 } from './SupportGuideCard'
 import { guideContinuation, isCurrentJourneyGuide } from './guided-continuation'
-import { loadGuideScores } from './load-guide-scores'
+import { loadGuideMeaning, loadGuideScores } from './load-guide-scores'
 import styles from './support-guide-overview.module.css'
 import './support-guide.css'
 
@@ -52,51 +54,64 @@ export default function SupportGuideOverview() {
   const [hasMore, setHasMore] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [scores, setScores] = useState<SupportGuideScorePair | null>(null)
-  const [initialCheck, setInitialCheck] = useState<InitialCheckState | null>(
-    null,
-  )
+  const [meaning, setMeaning] = useState<CombinedScreeningMeaning | null>(null)
   const [journey, setJourney] = useState<GuidedJourney | null>(null)
   const [loading, setLoading] = useState(true)
   const [preparing, setPreparing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    const [historyResult, checkResult, journeyResult] =
-      await Promise.allSettled([
-        getSupportGuideHistory(),
-        getInitialCheckState(),
-        getGuidedJourney(),
-      ])
-    setInitialCheck(
-      checkResult.status === 'fulfilled' ? checkResult.value : null,
-    )
+  // A retry keeps the error panel mounted so its busy state and focus survive.
+  const load = useCallback(async (retry = false) => {
+    if (!retry) {
+      setLoading(true)
+      setError(null)
+    }
+    const [historyResult, journeyResult] = await Promise.allSettled([
+      getSupportGuideHistory(),
+      getGuidedJourney(),
+    ])
     if (
       historyResult.status === 'rejected' ||
       journeyResult.status === 'rejected'
     ) {
-      setError('Chưa thể tải gợi ý hỗ trợ. Vui lòng thử lại.')
+      setError(
+        'Kết quả sàng lọc của bạn vẫn được lưu an toàn. Hãy thử lại sau giây lát.',
+      )
       setLoading(false)
       return
     }
     let currentJourney = journeyResult.value
     let current: SupportGuide | null
     try {
-      setPreparing(currentJourney.stage === 'GUIDE_REQUIRED')
+      if (currentJourney.stage === 'GUIDE_REQUIRED') {
+        setPreparing(true)
+        setLoading(true)
+      }
       current = await currentGuide(currentJourney, historyResult.value.items)
       if (currentJourney.stage === 'GUIDE_REQUIRED') {
         currentJourney = await getGuidedJourney()
       }
     } catch {
       setError(
-        'Chưa thể chuẩn bị gợi ý hỗ trợ. Kết quả sàng lọc của bạn vẫn được lưu, hãy thử lại.',
+        'Chưa thể chuẩn bị gợi ý hỗ trợ lúc này. Kết quả sàng lọc của bạn vẫn được lưu an toàn.',
       )
       setLoading(false)
       setPreparing(false)
       return
     }
     const shown = current ?? historyResult.value.items[0] ?? null
+    // Resolve the whole card before committing it, so a retry never flashes a partial Guide.
+    const [pair, savedMeaning] = shown
+      ? await Promise.all([
+          loadGuideScores(shown),
+          loadGuideMeaning(
+            shown,
+            isCurrentJourneyGuide(currentJourney, shown)
+              ? currentJourney.presentationEvaluationId
+              : null,
+          ),
+        ])
+      : [null, null]
     setJourney(currentJourney)
     setHistory(
       shown
@@ -110,8 +125,10 @@ export default function SupportGuideOverview() {
     )
     setCursor(historyResult.value.nextCursor ?? null)
     setHasMore(historyResult.value.hasMore)
+    setError(null)
     setGuide(shown)
-    setScores(shown ? await loadGuideScores(shown) : null)
+    setScores(pair)
+    setMeaning(savedMeaning)
     setPreparing(false)
     setLoading(false)
   }, [])
@@ -144,12 +161,6 @@ export default function SupportGuideOverview() {
     }
   }
 
-  const evaluation =
-    initialCheck?.phase === 'COMPLETED' &&
-    guide?.supportEvaluationId ===
-      initialCheck.combinedMeaning.domainSupportEvaluationId
-      ? initialCheck.evaluation
-      : null
   const isCurrent = guide !== null && isCurrentJourneyGuide(journey, guide)
   const resumeLabel = journey?.assessmentInProgress
     ? 'Tiếp tục bài sàng lọc đang làm'
@@ -161,22 +172,25 @@ export default function SupportGuideOverview() {
         <MamAnLoadingState
           title={
             preparing
-              ? 'Đang chuẩn bị gợi ý hỗ trợ của bạn...'
-              : 'Đang tải gợi ý hỗ trợ của bạn...'
+              ? 'Đang chuẩn bị gợi ý hỗ trợ của bạn…'
+              : 'Đang tải gợi ý hỗ trợ của bạn…'
           }
           description="Mầm An đang đồng hành cùng bạn. Gợi ý và cặp kết quả đã lưu sẽ xuất hiện tại đây."
           preview="meaning"
         />
       ) : (
         <>
-          {error && (
-            <div className={styles.state} role="alert">
-              <p>{error}</p>
-              <button type="button" onClick={() => void load()}>
-                Thử lại
-              </button>
-            </div>
-          )}
+          {error &&
+            (guide ? (
+              <div className={styles.state} role="alert">
+                <p>{error}</p>
+                <button type="button" onClick={() => void load()}>
+                  Thử lại
+                </button>
+              </div>
+            ) : (
+              <GuideLoadError message={error} onRetry={() => load(true)} />
+            ))}
           {guide ? (
             <>
               {isCurrent && journey && (
@@ -188,12 +202,12 @@ export default function SupportGuideOverview() {
               <div className={styles.contextRow}>
                 <Link
                   href={
-                    evaluation
-                      ? `/assessments/results/${evaluation.supportEvaluationId}`
+                    meaning
+                      ? `/assessments/results/${meaning.supportEvaluationId}`
                       : '/assessments'
                   }
                 >
-                  {evaluation
+                  {meaning
                     ? 'Xem kết quả sàng lọc liên kết'
                     : 'Xem lịch sử sàng lọc'}
                 </Link>
@@ -205,7 +219,7 @@ export default function SupportGuideOverview() {
                 guide={guide}
                 headingLevel="h1"
                 scorePair={scores}
-                supportTier={evaluation?.supportTier}
+                meaning={meaning}
                 continuation={
                   isCurrent && journey
                     ? guideContinuation(journey, guide)
@@ -231,7 +245,7 @@ export default function SupportGuideOverview() {
                     disabled={historyLoading}
                     onClick={() => void loadMoreHistory()}
                   >
-                    {historyLoading ? 'Đang tải...' : 'Tải thêm lịch sử'}
+                    {historyLoading ? 'Đang tải…' : 'Tải thêm lịch sử'}
                   </button>
                 )}
               </details>
