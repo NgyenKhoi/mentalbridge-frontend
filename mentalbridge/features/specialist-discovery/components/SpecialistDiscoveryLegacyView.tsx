@@ -89,7 +89,10 @@ export default function SpecialistDiscoveryLegacyView({
   return (
     <>
       {returnSupportGuideId && (
-        <Link className="btn btn-ghost" href={`/support-guides/${returnSupportGuideId}`}>
+        <Link
+          className="btn btn-ghost"
+          href={`/support-guides/${returnSupportGuideId}`}
+        >
           Quay lại gợi ý hỗ trợ
         </Link>
       )}
@@ -107,13 +110,17 @@ export default function SpecialistDiscoveryLegacyView({
           </div>
           <h1 className={legacy.heroTitle}>Kết nối chuyên gia tâm lý</h1>
           <p className={legacy.heroSubtitle}>
-            Xem hồ sơ chuyên gia đã được phê duyệt và chọn khung giờ tư vấn 60 phút
-            đang khả dụng.
+            Xem hồ sơ chuyên gia đã được phê duyệt và chọn khung giờ tư vấn 60
+            phút đang khả dụng.
           </p>
           <div className={legacy.heroCards}>
             <div className={legacy.statCard}>
               <div className={legacy.statIconMint}>
-                <User size={20} className={legacy.iconMint} aria-hidden="true" />
+                <User
+                  size={20}
+                  className={legacy.iconMint}
+                  aria-hidden="true"
+                />
               </div>
               <div className={legacy.statText}>
                 <strong className={legacy.statNumber}>
@@ -124,7 +131,11 @@ export default function SpecialistDiscoveryLegacyView({
             </div>
             <div className={legacy.statCard}>
               <div className={legacy.statIconPeach}>
-                <Clock3 size={20} className={legacy.iconPeach} aria-hidden="true" />
+                <Clock3
+                  size={20}
+                  className={legacy.iconPeach}
+                  aria-hidden="true"
+                />
               </div>
               <div className={legacy.statText}>
                 <strong className={legacy.statNumber}>60 phút</strong>
@@ -133,7 +144,11 @@ export default function SpecialistDiscoveryLegacyView({
             </div>
             <div className={legacy.statCardDark}>
               <div className={legacy.statIconDark}>
-                <Shield size={20} className={legacy.iconWhite} aria-hidden="true" />
+                <Shield
+                  size={20}
+                  className={legacy.iconWhite}
+                  aria-hidden="true"
+                />
               </div>
               <div className={legacy.statText}>
                 <div className={legacy.statDarkTitle}>
@@ -227,7 +242,11 @@ export default function SpecialistDiscoveryLegacyView({
             onClick={onReload}
             disabled={loading}
           >
-            <RefreshCw size={14} className={loading ? legacy.spinning : undefined} aria-hidden="true" />
+            <RefreshCw
+              size={14}
+              className={loading ? legacy.spinning : undefined}
+              aria-hidden="true"
+            />
             <span>Tải lại</span>
           </button>
         </div>
@@ -235,16 +254,21 @@ export default function SpecialistDiscoveryLegacyView({
           <div className={legacy.benefitNotice}>
             <div className={legacy.benefitLeft}>
               {page.packageCode === 'FREE' ? (
-                <span>Gói Free: xem hồ sơ và lịch trống; đặt lịch cần gói Plus hoặc Premium.</span>
+                <span>
+                  Gói Free: xem hồ sơ và lịch trống; đặt lịch cần gói Plus hoặc
+                  Premium.
+                </span>
               ) : (
                 <span>
-                  <strong>Gói {packageName}.</strong> Quyền lợi và lượt tư vấn sẽ
-                  được kiểm tra lại khi gửi yêu cầu.
+                  <strong>Gói {packageName}.</strong> Quyền lợi và lượt tư vấn
+                  sẽ được kiểm tra lại khi gửi yêu cầu.
                 </span>
               )}
             </div>
             {!page.videoEnabled && (
-              <div className={legacy.benefitRight}>Video hiện chưa khả dụng.</div>
+              <div className={legacy.benefitRight}>
+                Video hiện chưa khả dụng.
+              </div>
             )}
           </div>
         )}
@@ -262,7 +286,9 @@ export default function SpecialistDiscoveryLegacyView({
         <section className={legacy.state} role="alert">
           <h2>Chưa thể tải danh sách</h2>
           <p>{error}</p>
-          <button type="button" onClick={onReload}>Thử lại</button>
+          <button type="button" onClick={onReload}>
+            Thử lại
+          </button>
         </section>
       )}
 
@@ -282,7 +308,9 @@ export default function SpecialistDiscoveryLegacyView({
         <section className={legacy.state}>
           <h2>Chưa có chuyên gia phù hợp</h2>
           <p>Hãy đổi bộ lọc hoặc quay lại sau khi có lịch mới.</p>
-          <button type="button" onClick={onReset}>Xóa bộ lọc</button>
+          <button type="button" onClick={onReset}>
+            Xóa bộ lọc
+          </button>
         </section>
       ) : (
         <div className={cards.grid}>
@@ -298,14 +326,21 @@ export default function SpecialistDiscoveryLegacyView({
               </div>
               <h2>{item.displayName}</h2>
               <span className={cards.verified}>
-                <Check size={12} strokeWidth={2.5} aria-hidden="true" /> Hồ sơ đã duyệt
+                <Check size={12} strokeWidth={2.5} aria-hidden="true" /> Hồ sơ
+                đã duyệt
               </span>
-              <p className={cards.experience}>{item.yearsOfExperience} năm kinh nghiệm</p>
+              <p className={cards.experience}>
+                {item.yearsOfExperience} năm kinh nghiệm
+              </p>
               {item.ratingAggregate ? (
                 <p className={cards.rating}>
                   <Star size={13} className={cards.star} aria-hidden="true" />
-                  <strong>{item.ratingAggregate.averageRating.toFixed(1)}</strong>
-                  <span className={cards.reviewCount}>· {item.ratingAggregate.ratingCount} đánh giá</span>
+                  <strong>
+                    {item.ratingAggregate.averageRating.toFixed(1)}
+                  </strong>
+                  <span className={cards.reviewCount}>
+                    · {item.ratingAggregate.ratingCount} đánh giá
+                  </span>
                 </p>
               ) : (
                 <p className={cards.rating}>Chưa có đánh giá</p>
@@ -356,16 +391,26 @@ export default function SpecialistDiscoveryLegacyView({
         <div className={legacy.trustGrid}>
           <div className={legacy.trustItem}>
             <div className={legacy.trustIconBox}>
-              <Shield size={20} className={legacy.trustIcon} aria-hidden="true" />
+              <Shield
+                size={20}
+                className={legacy.trustIcon}
+                aria-hidden="true"
+              />
             </div>
             <div className={legacy.trustContent}>
               <h4>Hồ sơ được phê duyệt</h4>
-              <p>Xem thông tin chuyên gia và lĩnh vực hỗ trợ trước khi chọn lịch.</p>
+              <p>
+                Xem thông tin chuyên gia và lĩnh vực hỗ trợ trước khi chọn lịch.
+              </p>
             </div>
           </div>
           <div className={legacy.trustItem}>
             <div className={legacy.trustIconBox}>
-              <Clock3 size={20} className={legacy.trustIcon} aria-hidden="true" />
+              <Clock3
+                size={20}
+                className={legacy.trustIcon}
+                aria-hidden="true"
+              />
             </div>
             <div className={legacy.trustContent}>
               <h4>Buổi tư vấn 60 phút</h4>
@@ -374,7 +419,11 @@ export default function SpecialistDiscoveryLegacyView({
           </div>
           <div className={legacy.trustItem}>
             <div className={legacy.trustIconBox}>
-              <Check size={20} className={legacy.trustIcon} aria-hidden="true" />
+              <Check
+                size={20}
+                className={legacy.trustIcon}
+                aria-hidden="true"
+              />
             </div>
             <div className={legacy.trustContent}>
               <h4>Quyền lợi theo gói</h4>
