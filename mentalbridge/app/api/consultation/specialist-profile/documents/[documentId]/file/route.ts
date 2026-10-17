@@ -6,23 +6,41 @@ import {
   carryConsultationSession,
   consultationAuthenticationFailure,
 } from '@/lib/consultation/authenticated-actor'
-import { consultationFailure, consultationSuccess } from '@/lib/consultation/bff-response'
+import {
+  consultationFailure,
+  consultationSuccess,
+} from '@/lib/consultation/bff-response'
 import { consultationClient } from '@/lib/consultation/consultation-client'
 
-export async function GET(request: NextRequest, context: RouteContext<'/api/consultation/specialist-profile/documents/[documentId]/file'>) {
+export async function GET(
+  request: NextRequest,
+  context: RouteContext<'/api/consultation/specialist-profile/documents/[documentId]/file'>,
+) {
   const correlationId = correlationIdFrom(request)
   let actor
   try {
-    actor = await authenticatedConsultationActor(request, correlationId, ['SPECIALIST'])
+    actor = await authenticatedConsultationActor(request, correlationId, [
+      'SPECIALIST',
+    ])
   } catch (error) {
     return consultationAuthenticationFailure(error, correlationId)
   }
   const { documentId } = await context.params
   try {
-    const result = await consultationClient.credentialFile(actor.accessToken, correlationId, documentId,
-      request.nextUrl.searchParams.get('download') === 'true')
-    return carryConsultationSession(consultationSuccess(result.data, correlationId), actor)
+    const result = await consultationClient.credentialFile(
+      actor.accessToken,
+      correlationId,
+      documentId,
+      request.nextUrl.searchParams.get('download') === 'true',
+    )
+    return carryConsultationSession(
+      consultationSuccess(result.data, correlationId),
+      actor,
+    )
   } catch (error) {
-    return carryConsultationSession(consultationFailure(error, correlationId), actor)
+    return carryConsultationSession(
+      consultationFailure(error, correlationId),
+      actor,
+    )
   }
 }

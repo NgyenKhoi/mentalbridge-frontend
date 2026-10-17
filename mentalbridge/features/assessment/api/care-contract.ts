@@ -33,8 +33,12 @@ export type ScoreDirection = Schemas['ScoreDirection']
 export type ScreeningEpisodePurpose = Schemas['ScreeningEpisodePurpose']
 export type ScreeningEpisodeStatus = Schemas['ScreeningEpisodeStatus']
 export type ScreeningEpisode = Schemas['ScreeningEpisode']
+export type GuidedJourney = Schemas['GuidedJourney']
 export type ScreeningEpisodeEvaluationOutcome =
   Schemas['ScreeningEpisodeEvaluationOutcome']
+export type ScreeningEpisodeHistoryItem = Schemas['ScreeningEpisodeHistoryItem']
+export type ScreeningEpisodeHistoryPage = Schemas['ScreeningEpisodeHistoryPage']
+export type CombinedScreeningMeaning = Schemas['CombinedScreeningMeaning']
 export type ReassessmentCurrentExperience =
   Schemas['ReassessmentCurrentExperience']
 export type ReassessmentSelfReportCreateRequest =

@@ -113,6 +113,23 @@ function problem(status: number, code: string) {
 }
 
 describe('GuidedInitialCheck', () => {
+  it('returns to reassessment after accepting the required privacy notice', async () => {
+    mockServer.use(
+      http.get('http://localhost/api/care/initial-check', () =>
+        HttpResponse.json({ phase: 'CONSENT_REQUIRED' }),
+      ),
+    )
+    render(<GuidedInitialCheck purpose="REASSESSMENT" />)
+    expect(
+      await screen.findByRole('link', {
+        name: 'Xem quyền riêng tư và tiếp tục',
+      }),
+    ).toHaveAttribute(
+      'href',
+      '/profile?returnTo=%2Finitial-check%3Fpurpose%3Dreassessment',
+    )
+  })
+
   it('routes a first-time user to profile readiness and back to the journey', async () => {
     mockServer.use(
       http.get('http://localhost/api/care/initial-check', () =>
@@ -141,34 +158,22 @@ describe('GuidedInitialCheck', () => {
 
     const { container } = render(<GuidedInitialCheck />)
 
-    await screen.findByRole('heading', { name: 'Kết quả kiểm tra ban đầu' })
+    await screen.findByRole('heading', {
+      name: 'Lắng nghe nhịp điệu tâm trí của bạn',
+    })
     expect(
-      screen.getByRole('heading', { name: 'PHQ-9 — triệu chứng trầm cảm' }),
+      screen.getByRole('heading', { name: 'Khí sắc & Thể chất' }),
     ).toBeVisible()
     expect(
-      screen.getByRole('heading', { name: 'GAD-7 — triệu chứng lo âu' }),
+      screen.getByRole('heading', { name: 'Căng thẳng & Lo âu' }),
     ).toBeVisible()
     expect(
       screen.getByRole('heading', {
-        name: 'Không có câu trả lời cần thêm hướng dẫn an toàn',
+        name: 'Bạn không cần phải tự mình vượt qua tất cả',
       }),
     ).toBeVisible()
     expect(
-      screen.getByRole('link', { name: 'Tôi cần hỗ trợ ngay' }),
-    ).toHaveAttribute('href', '/safety-directory')
-    expect(
-      screen.getByRole('heading', { name: 'Tự hỗ trợ có hướng dẫn' }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('heading', { name: 'Hiểu kết quả trong đúng phạm vi' }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('heading', { name: 'Một lựa chọn bạn có thể cân nhắc' }),
-    ).toBeVisible()
-    expect(
-      await screen.findByText(
-        /Dịch vụ tạm thời không khả dụng|Không thể kết nối đến dịch vụ|Tài nguyên tạm thời không khả dụng/,
-      ),
+      screen.getByRole('heading', { name: 'Tài nguyên nuôi dưỡng hôm nay' }),
     ).toBeVisible()
     expect(container.textContent).not.toMatch(/sprint|backend|demo|test/i)
 

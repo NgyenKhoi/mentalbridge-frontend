@@ -165,7 +165,12 @@ async function request<T>(options: {
         },
         ...(options.body === undefined
           ? {}
-          : { body: options.body instanceof FormData ? options.body : JSON.stringify(options.body) }),
+          : {
+              body:
+                options.body instanceof FormData
+                  ? options.body
+                  : JSON.stringify(options.body),
+            }),
       },
     )
     const value = await json(response)
@@ -227,10 +232,18 @@ const profileRequest = (
   })
 
 export const consultationClient = {
-  publicCredentialBadges(token: string, correlationId: string, specialistId: string) {
-    return request<VerifiedCredentialBadge[]>({ method: 'GET',
+  publicCredentialBadges(
+    token: string,
+    correlationId: string,
+    specialistId: string,
+  ) {
+    return request<VerifiedCredentialBadge[]>({
+      method: 'GET',
       path: `/api/v1/specialists/${encodeURIComponent(specialistId)}/credential-badges`,
-      token, correlationId, parse: parseVerifiedCredentialBadges })
+      token,
+      correlationId,
+      parse: parseVerifiedCredentialBadges,
+    })
   },
   videoSession(token: string, correlationId: string, appointmentId: string) {
     return request({
@@ -372,37 +385,88 @@ export const consultationClient = {
     })
   },
   credentialDocuments(token: string, correlationId: string) {
-    return request<CredentialDocument[]>({ method: 'GET', path: '/api/v1/specialist-profile/documents',
-      token, correlationId, parse: parseCredentialDocuments })
+    return request<CredentialDocument[]>({
+      method: 'GET',
+      path: '/api/v1/specialist-profile/documents',
+      token,
+      correlationId,
+      parse: parseCredentialDocuments,
+    })
   },
   uploadCredential(token: string, correlationId: string, body: FormData) {
-    return request<CredentialDocument>({ method: 'POST', path: '/api/v1/specialist-profile/documents',
-      token, correlationId, body, parse: parseCredentialDocument })
+    return request<CredentialDocument>({
+      method: 'POST',
+      path: '/api/v1/specialist-profile/documents',
+      token,
+      correlationId,
+      body,
+      parse: parseCredentialDocument,
+    })
   },
-  credentialFile(token: string, correlationId: string, id: string, download: boolean) {
-    return request<CredentialDocumentLink>({ method: 'GET',
+  credentialFile(
+    token: string,
+    correlationId: string,
+    id: string,
+    download: boolean,
+  ) {
+    return request<CredentialDocumentLink>({
+      method: 'GET',
       path: `/api/v1/specialist-profile/documents/${encodeURIComponent(id)}/file?download=${download}`,
-      token, correlationId, parse: parseCredentialLink })
+      token,
+      correlationId,
+      parse: parseCredentialLink,
+    })
   },
-  credentialBadge(token: string, correlationId: string, id: string, visible: boolean, ifMatch: string) {
-    return request<CredentialDocument>({ method: 'PUT',
+  credentialBadge(
+    token: string,
+    correlationId: string,
+    id: string,
+    visible: boolean,
+    ifMatch: string,
+  ) {
+    return request<CredentialDocument>({
+      method: 'PUT',
       path: `/api/v1/specialist-profile/documents/${encodeURIComponent(id)}/badge`,
-      token, correlationId, body: { visible }, ifMatch, parse: parseCredentialDocument })
+      token,
+      correlationId,
+      body: { visible },
+      ifMatch,
+      parse: parseCredentialDocument,
+    })
   },
   pendingCredentialDocuments(token: string, correlationId: string) {
-    return request<CredentialDocument[]>({ method: 'GET',
+    return request<CredentialDocument[]>({
+      method: 'GET',
       path: '/api/v1/admin/specialist-profiles/documents/pending',
-      token, correlationId, parse: parseCredentialDocuments })
+      token,
+      correlationId,
+      parse: parseCredentialDocuments,
+    })
   },
   adminCredentialFile(token: string, correlationId: string, id: string) {
-    return request<CredentialDocumentLink>({ method: 'GET',
+    return request<CredentialDocumentLink>({
+      method: 'GET',
       path: `/api/v1/admin/specialist-profiles/documents/${encodeURIComponent(id)}/file`,
-      token, correlationId, parse: parseCredentialLink })
+      token,
+      correlationId,
+      parse: parseCredentialLink,
+    })
   },
-  reviewCredential(token: string, correlationId: string, id: string, decision: 'verify' | 'reject', ifMatch: string) {
-    return request<CredentialDocument>({ method: 'POST',
+  reviewCredential(
+    token: string,
+    correlationId: string,
+    id: string,
+    decision: 'verify' | 'reject',
+    ifMatch: string,
+  ) {
+    return request<CredentialDocument>({
+      method: 'POST',
       path: `/api/v1/admin/specialist-profiles/documents/${encodeURIComponent(id)}/${decision}`,
-      token, correlationId, ifMatch, parse: parseCredentialDocument })
+      token,
+      correlationId,
+      ifMatch,
+      parse: parseCredentialDocument,
+    })
   },
   adminAppointments(token: string, correlationId: string, query: string) {
     return request<AdminAppointmentPage>({

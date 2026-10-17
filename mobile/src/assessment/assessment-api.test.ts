@@ -122,7 +122,7 @@ describe('Care mobile assessment API contract', () => {
     expect(body).not.toHaveProperty('safetyStatus')
   })
 
-  it('generates a guide from the exact owned pair without creating a plan', async () => {
+  it('ensures the episode Guide without client evidence, keys or a plan request', async () => {
     const requests: InternalAxiosRequestConfig[] = []
     const adapter: AxiosAdapter = async (request) => {
       requests.push(request)
@@ -130,26 +130,67 @@ describe('Care mobile assessment API contract', () => {
         config: request,
         data: guide,
         headers: {},
-        status: 201,
-        statusText: 'Created',
+        status: 200,
+        statusText: 'OK',
       }
     }
     const api = createAssessmentApi(create({ adapter }))
 
-    await api.generateSupportGuide(
-      '10000000-0000-4000-8000-000000000101',
-      '10000000-0000-4000-8000-000000000102',
-      '70000000-0000-4000-8000-000000000102',
-    )
+    await api.ensureEpisodeSupportGuide('70000000-0000-4000-8000-000000000668')
 
-    expect(requests[0]?.url).toBe('/api/v1/support-guides')
-    expect(JSON.parse(String(requests[0]?.data))).toEqual({
-      phq9AssessmentId: '10000000-0000-4000-8000-000000000101',
-      gad7AssessmentId: '10000000-0000-4000-8000-000000000102',
-    })
+    expect(requests[0]?.method).toBe('post')
+    expect(requests[0]?.url).toBe(
+      '/api/v1/screening-episodes/70000000-0000-4000-8000-000000000668/support-guide',
+    )
+    expect(requests[0]?.data).toBeUndefined()
+    expect(requests[0]?.headers.get('Idempotency-Key')).toBeUndefined()
     expect(requests.some(({ url }) => url?.includes('support-plans'))).toBe(
       false,
     )
+    await expect(
+      api.ensureEpisodeSupportGuide('episode-1'),
+    ).rejects.toBeDefined()
+    expect(requests).toHaveLength(1)
+  })
+
+  it('parses the strict Care journey pointer and rejects inconsistent stages', async () => {
+    const journey = {
+      journeyPolicyVersion: 'mb-guided-journey-v1',
+      stage: 'GUIDE_READY',
+      assessmentInProgress: false,
+      episodeId: '70000000-0000-4000-8000-000000000668',
+      episodeCompletedAt: '2026-10-16T03:00:00.000Z',
+      presentationEvaluationId: '40000000-0000-4000-8000-000000000101',
+      supportGuideId: guide.supportGuideId,
+      nextAction: 'EXPLORE_GUIDE_RESOURCES',
+      currentSupportPlanId: null,
+      entitlementStatus: 'UNAVAILABLE',
+    }
+    let payload: unknown = journey
+    const adapter: AxiosAdapter = async (request) => ({
+      config: request,
+      data: payload,
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    })
+    const api = createAssessmentApi(create({ adapter }))
+
+    await expect(api.getGuidedJourney()).resolves.toEqual(journey)
+    payload = { ...journey, supportGuideId: null }
+    await expect(api.getGuidedJourney()).rejects.toBeDefined()
+    payload = { ...journey, episodeCompletedAt: null }
+    await expect(api.getGuidedJourney()).rejects.toBeDefined()
+    payload = { ...journey, nextAction: 'START_PLAN_PROPOSAL' }
+    await expect(api.getGuidedJourney()).rejects.toBeDefined()
+    payload = {
+      ...journey,
+      nextAction: 'OPEN_CURRENT_PLAN',
+      entitlementStatus: 'NOT_REQUIRED',
+    }
+    await expect(api.getGuidedJourney()).rejects.toBeDefined()
+    payload = { ...journey, rawAnswers: [] }
+    await expect(api.getGuidedJourney()).rejects.toBeDefined()
   })
 
   it('rejects guide payloads that do not match the immutable snapshot contract', async () => {

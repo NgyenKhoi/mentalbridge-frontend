@@ -190,6 +190,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialists/{specialistId}/credential-badges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns only approved, verified credentials that the specialist opted to show. Original files and identifiers are never returned. */
+        get: operations["getPublicSpecialistCredentialBadges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile/amendments/current": {
         parameters: {
             query?: never;
@@ -734,23 +751,6 @@ export interface paths {
         };
         /** @description Rechecks current approval and slot selectability and returns one approved public profile only when at least one selectable slot remains. A profile that is suspended, rejected, pending, missing, or has no selectable slot is indistinguishable as SPECIALIST_NOT_DISCOVERABLE. */
         get: operations["getApprovedSpecialistDetail"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/specialists/{specialistId}/credential-badges": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Returns only approved, verified credentials that the specialist opted to show. Original files and identifiers are never returned. */
-        get: operations["getPublicSpecialistCredentialBadges"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3288,6 +3288,31 @@ export interface operations {
             428: components["responses"]["VersionRequiredProblem"];
         };
     };
+    getPublicSpecialistCredentialBadges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                specialistId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Visible credential badges */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifiedCredentialBadge"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
     getOwnProfileAmendment: {
         parameters: {
             query?: never;
@@ -4283,31 +4308,6 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["EntitlementForbiddenProblem"];
             404: components["responses"]["DiscoveryNotFoundProblem"];
-        };
-    };
-    getPublicSpecialistCredentialBadges: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                specialistId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Visible credential badges */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VerifiedCredentialBadge"][];
-                };
-            };
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            404: components["responses"]["NotFoundProblem"];
         };
     };
     searchAdminAppointments: {

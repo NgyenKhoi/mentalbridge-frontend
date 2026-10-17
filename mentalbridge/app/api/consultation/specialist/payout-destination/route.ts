@@ -17,52 +17,8 @@ import {
   parseSavePayoutDestinationInput,
 } from '@/lib/consultation/consultation-validation'
 
-import {
-  isSpecialistMockEnabled,
-  specialistMockService,
-} from '@/lib/mock/specialist-mock-service'
-
 export async function PUT(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
-  const mockEnabled = isSpecialistMockEnabled(request)
-
-  if (mockEnabled) {
-    try {
-      const body = parseSavePayoutDestinationInput(
-        await readBoundedJson(request, 4 * 1024),
-      )
-      const saved = specialistMockService.savePayoutDestination(body)
-      let actor
-      try {
-        actor = await authenticatedConsultationActor(request, correlationId, [
-          'SPECIALIST',
-        ])
-      } catch {
-        // mock preview allowed
-      }
-      const res = consultationSuccess(saved, correlationId)
-      return actor ? carryConsultationSession(res, actor) : res
-    } catch (error) {
-      if (error instanceof ConsultationInputError)
-        return localProblem(
-          422,
-          'VALIDATION_FAILED',
-          'Thông tin nơi nhận tiền không hợp lệ.',
-          correlationId,
-          [{ field: error.field, code: 'INVALID_VALUE' }],
-        )
-      if (error instanceof RequestBodyError)
-        return localProblem(
-          error.status,
-          error.code,
-          error.message,
-          correlationId,
-          error.violations,
-        )
-      return consultationFailure(error, correlationId)
-    }
-  }
-
   let actor
   try {
     actor = await authenticatedConsultationActor(request, correlationId, [
@@ -71,7 +27,6 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     return consultationAuthenticationFailure(error, correlationId)
   }
-
   try {
     const body = parseSavePayoutDestinationInput(
       await readBoundedJson(request, 4 * 1024),

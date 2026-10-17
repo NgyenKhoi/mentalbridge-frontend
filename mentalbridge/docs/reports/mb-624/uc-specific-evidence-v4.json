@@ -1,0 +1,2782 @@
+{
+  "reportVersion": 4,
+  "generatedAt": "2026-10-16",
+  "rule": "A CODE_READY or E2E_AUTHORED_NOT_RUN claim is valid only when the literal scenario and every listed assertion occur in the named source. Feature-level file proximity is insufficient.",
+  "entries": [
+    {
+      "atomicUcId": "WBS-001",
+      "sourceTitle": "Register User Account",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/smoke.spec.ts",
+        "scenario": "registration follows the public contract and reaches a verification-pending state",
+        "assertions": [
+          "await route.fulfill({"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/auth/identity-session-service.test.ts",
+        "scenario": "registers only the USER actor allowed by this story",
+        "assertions": [
+          "expect(api.registerUser).toHaveBeenCalledWith("
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-002",
+      "sourceTitle": "Register Specialist Account",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-607_AUTH_SESSION.md",
+        "rationale": "registration is USER-only in Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/auth/components/RegistrationForm.test.tsx",
+        "scenario": "submits a specialist registration and shows the pending state",
+        "assertions": [
+          "await user.click(screen.getByRole('radio', { name: /chuyên gia/i }))"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-003",
+      "sourceTitle": "Login",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/identity-session.spec.ts",
+        "scenario": "logs in a USER, enforces role authorization, and logs out locally and upstream",
+        "assertions": [
+          "await expectProtectedSession(context, page)"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-612-assessment.yaml",
+        "scenario": "MB-612 real-contract assessment to support guide",
+        "assertions": [
+          "id: 'sign-in-submit'",
+          "assertVisible: 'Chào mừng bạn quay lại'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-004",
+      "sourceTitle": "Logout",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/auth/components/SessionActions.test.tsx",
+        "scenario": "prevents repeated logout actions while revocation is pending",
+        "assertions": [
+          "mocks.terminate.mockReturnValue("
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/auth/identity-session-service.test.ts",
+        "scenario": "invokes server logout and clears local credentials",
+        "assertions": [
+          "credentials.getCredentials.mockResolvedValue(activeCredentials)"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-005",
+      "sourceTitle": "Reset Password",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-607_AUTH_SESSION.md",
+        "rationale": "Mobile Delivery Contract v1 contains no password-reset journey"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/smoke.spec.ts",
+        "scenario": "password reset removes its challenge and returns to a fresh login",
+        "assertions": [
+          "await expect(page).toHaveURL(/\\/reset-password$/)"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-006",
+      "sourceTitle": "Anonymous Assessment",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-612_ASSESSMENT_GUIDANCE.md",
+        "rationale": "the mobile assessment journey requires an authenticated USER and is not anonymous"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/security-degradation.spec.ts",
+        "scenario": "Care service outage on anonymous PHQ-9 shows explicit unavailable without inventing questions",
+        "assertions": [
+          "void route.fulfill({"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-007",
+      "sourceTitle": "Authorize Role Access",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/identity-session.spec.ts",
+        "scenario": "routes a SPECIALIST from the confirmed backend role and logs out all sessions",
+        "assertions": [
+          "await expectProtectedSession(context, page)"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/auth/identity-session-service.test.ts",
+        "scenario": "signs in the Identity-confirmed active, verified SPECIALIST without client role selection",
+        "assertions": [
+          "api.login.mockResolvedValue(tokenPair)"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-008",
+      "sourceTitle": "View User Profile",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/app/(dashboard)/profile/page.test.tsx",
+        "scenario": "keeps the persisted header separate from an editable draft and can cancel changes",
+        "assertions": [
+          "screen.findByLabelText('Tên hiển thị')",
+          "screen.getByRole('heading', { name: 'Nguyễn An' })"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/profile/UserProfileScreen.test.tsx",
+        "scenario": "loads the persisted profile and replaces it with the current version",
+        "assertions": [
+          "screen.findByDisplayValue('Nguyễn An')",
+          "screen.getByLabelText('Tên hiển thị')"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-009",
+      "sourceTitle": "Update User Profile",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/app/(dashboard)/profile/page.test.tsx",
+        "scenario": "saves the edited profile and renders the authoritative returned version",
+        "assertions": [
+          "name: 'Lưu thay đổi'",
+          "update).toHaveBeenCalledWith",
+          "name: updated.displayName"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/profile/UserProfileScreen.test.tsx",
+        "scenario": "loads the persisted profile and replaces it with the current version",
+        "assertions": [
+          "api.putProfile).toHaveBeenCalledWith",
+          "displayName: 'Nguyễn Bình'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-010",
+      "sourceTitle": "View Data Consent Settings",
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/app/(dashboard)/profile/page.test.tsx",
+        "scenario": "renders backend data and appends a privacy decision without fake specialist data",
+        "assertions": [
+          "screen.findByDisplayValue('Nguyễn An')",
+          "Nội dung authoritative từ Care."
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-011",
+      "sourceTitle": "Update Data Consent Settings",
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/app/(dashboard)/profile/page.test.tsx",
+        "scenario": "renders backend data and appends a privacy decision without fake specialist data",
+        "assertions": [
+          "screen.getByRole('switch'",
+          "decision).toHaveBeenCalledWith",
+          "granted: true"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-012",
+      "sourceTitle": "Grant Specialist Data Access",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "ADR-approved appointment-purpose ConsultationBrief replaces generic specialist data grants and revocations.",
+        "rationale": "ADR-approved appointment-purpose ConsultationBrief replaces generic specialist data grants and revocations."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "ADR-approved appointment-purpose ConsultationBrief replaces generic specialist data grants and revocations.",
+        "rationale": "ADR-approved appointment-purpose ConsultationBrief replaces generic specialist data grants and revocations."
+      }
+    },
+    {
+      "atomicUcId": "WBS-013",
+      "sourceTitle": "Revoke Specialist Data Access",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "ADR-approved appointment-purpose ConsultationBrief replaces generic specialist data grants and revocations.",
+        "rationale": "ADR-approved appointment-purpose ConsultationBrief replaces generic specialist data grants and revocations."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "ADR-approved appointment-purpose ConsultationBrief replaces generic specialist data grants and revocations.",
+        "rationale": "ADR-approved appointment-purpose ConsultationBrief replaces generic specialist data grants and revocations."
+      }
+    },
+    {
+      "atomicUcId": "WBS-014",
+      "sourceTitle": "Request Personal Data Deletion",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-015",
+      "sourceTitle": "Create Emotion Journal Entry",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/journal.spec.ts",
+        "scenario": "creates, refreshes, recovers from 412, revises, and tombstones on desktop",
+        "assertions": [
+          "page.getByRole('button', { name: 'Lưu nhật ký' }).click()",
+          "page.getByText('Nội dung được giữ sau khi tải lại')"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-627-journal.yaml",
+        "scenario": "MB-627 private Journal to explicit authoritative AI safe outcome",
+        "assertions": [
+          "id: 'journal-save'",
+          "assertVisible: 'Đã lưu nhật ký.'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-016",
+      "sourceTitle": "View Journal List",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/journal.spec.ts",
+        "scenario": "creates, refreshes, recovers from 412, revises, and tombstones on desktop",
+        "assertions": [
+          "await page.reload()",
+          "page.getByText('Nội dung được giữ sau khi tải lại')"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-627-journal.yaml",
+        "scenario": "MB-627 private Journal to explicit authoritative AI safe outcome",
+        "assertions": [
+          "id: 'journal-entry-.*'",
+          "tapOn: 'Viết nhật ký'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-017",
+      "sourceTitle": "View Journal Entry Details",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/journal.spec.ts",
+        "scenario": "creates, refreshes, recovers from 412, revises, and tombstones on desktop",
+        "assertions": [
+          "page.getByRole('button', { name: 'Xem chi tiết' }).click()",
+          "page.getByRole('dialog')).toContainText('Bạn đã chọn: Tốt')"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-627-journal.yaml",
+        "scenario": "MB-627 private Journal to explicit authoritative AI safe outcome",
+        "assertions": [
+          "assertVisible: 'MB627 synthetic journal persistence demo.'",
+          "id: 'journal-entry-.*'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-018",
+      "sourceTitle": "Update Emotion Journal Entry",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/journal.spec.ts",
+        "scenario": "creates, refreshes, recovers from 412, revises, and tombstones on desktop",
+        "assertions": [
+          "page.getByRole('button', { name: 'Chỉnh sửa' }).click()",
+          "page.getByText('Bản chỉnh sửa không bị mất')"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/journal/JournalScreen.test.tsx",
+        "scenario": "edits a loaded entry with its exact revision and invalidates old AI",
+        "assertions": [
+          "revise: jest.fn().mockResolvedValue({"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-019",
+      "sourceTitle": "Delete Emotion Journal Entry",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/journal.spec.ts",
+        "scenario": "creates, refreshes, recovers from 412, revises, and tombstones on desktop",
+        "assertions": [
+          "page.getByRole('button', { name: 'Xóa nhật ký' }).click()",
+          "page.getByRole('heading', { name: 'Chưa có nhật ký' })"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/journal/JournalScreen.test.tsx",
+        "scenario": "requires confirmation before deleting, refreshes history, and closes the editor",
+        "assertions": [
+          "await fireEvent.press(screen.getByRole('button', { name: 'Xóa bài viết' }))"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-020",
+      "sourceTitle": "Complete PHQ-9 Assessment",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/assessment/components/AssessmentFlow.test.tsx",
+        "scenario": "submits only versioned answers and renders the server-owned result",
+        "assertions": [
+          "mockServer.use("
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-612-assessment.yaml",
+        "scenario": "MB-612 real-contract assessment to support guide",
+        "assertions": [
+          "assertVisible: 'Bài PHQ-9'",
+          "tapOn: 'Hoàn tất bài này'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-021",
+      "sourceTitle": "Complete GAD-7 Assessment",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/assessment/components/AssessmentFlow.test.tsx",
+        "scenario": "completes authenticated GAD-7 without inventing a safety policy",
+        "assertions": [
+          "mockServer.use("
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-612-assessment.yaml",
+        "scenario": "MB-612 real-contract assessment to support guide",
+        "assertions": [
+          "assertVisible: 'Bài GAD-7'",
+          "tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-022",
+      "sourceTitle": "View Assessment Result",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/assessment/components/ScreeningEpisodeHistory.test.tsx",
+        "scenario": "shows one card per exact saved pair and links to its meaning and persisted guide",
+        "assertions": [
+          "name: /Xem kết quả/",
+          "/assessments/results/"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-612-assessment.yaml",
+        "scenario": "MB-612 real-contract assessment to support guide",
+        "assertions": [
+          "assertVisible: 'Bạn đã hoàn tất lượt sàng lọc'",
+          "assertVisible: 'Gợi ý hỗ trợ sau sàng lọc'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-023",
+      "sourceTitle": "View Assessment History",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/assessment/components/ScreeningEpisodeHistory.test.tsx",
+        "scenario": "shows one card per exact saved pair and links to its meaning and persisted guide",
+        "assertions": [
+          "expect(resultLinks).toHaveLength(2)",
+          "name: 'Đánh giá lại'"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/assessment/AssessmentJourneyScreen.test.tsx",
+        "scenario": "reopens an owned result with its exact immutable questionnaire definition",
+        "assertions": [
+          "listAssessments: jest.fn().mockResolvedValue({"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-024",
+      "sourceTitle": "Delete Assessment Record",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-025",
+      "sourceTitle": "Analyze Journal with LLM",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/journal/reflection/JournalReflection.test.tsx",
+        "scenario": "records explicit AI consent and renders a successful exact-revision result",
+        "assertions": [
+          "name: 'Đồng ý và phân tích nhật ký này'",
+          "analysis-jobs"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-627-journal.yaml",
+        "scenario": "MB-627 private Journal to explicit authoritative AI safe outcome",
+        "assertions": [
+          "id: 'journal-ai-request'",
+          "id: 'journal-ai-consent'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-026",
+      "sourceTitle": "View Emotion Analysis Result",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/journal/reflection/JournalReflection.test.tsx",
+        "scenario": "records explicit AI consent and renders a successful exact-revision result",
+        "assertions": [
+          "screen.getByText('Kết quả phân tích nhật ký này')",
+          "name: 'Mở hướng dẫn hỗ trợ'"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-627-journal.yaml",
+        "scenario": "MB-627 private Journal to explicit authoritative AI safe outcome",
+        "assertions": [
+          "text: 'Chưa xác nhận được quyền dùng AI hiện tại.*|Gợi ý để bạn tự nhìn lại|AI chưa phản hồi lúc này.*|Phản hồi AI chưa đáp ứng yêu cầu an toàn.*'",
+          "text: 'Nhìn lại bài viết cùng AI'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-027",
+      "sourceTitle": "Re-run Emotion Analysis",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/journal/reflection/JournalReflection.test.tsx",
+        "scenario": "shows failure and starts a manual retry without changing the journal",
+        "assertions": [
+          "vi.spyOn(crypto, 'randomUUID').mockReturnValue("
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/journal/JournalAnalysisPanel.test.tsx",
+        "scenario": "reconciles an ambiguous submission with the stored same key only on explicit retry",
+        "assertions": [
+          ".mocked(persistence.read)"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-028",
+      "sourceTitle": "Run AI Benchmark Evaluation",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "NO — admin-only",
+        "rationale": "Synthetic/provider-gated benchmark evidence exists; general dataset import and approved production comparison do not."
+      }
+    },
+    {
+      "atomicUcId": "WBS-029",
+      "sourceTitle": "View AI Model Comparison Result",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "NO — admin-only",
+        "rationale": "Synthetic/provider-gated benchmark evidence exists; general dataset import and approved production comparison do not."
+      }
+    },
+    {
+      "atomicUcId": "WBS-030",
+      "sourceTitle": "View Risk Classification Result",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted screening contracts expose instrument meaning and a separate safety signal, not a global risk classification.",
+        "rationale": "Accepted screening contracts expose instrument meaning and a separate safety signal, not a global risk classification."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted screening contracts expose instrument meaning and a separate safety signal, not a global risk classification.",
+        "rationale": "Accepted screening contracts expose instrument meaning and a separate safety signal, not a global risk classification."
+      }
+    },
+    {
+      "atomicUcId": "WBS-031",
+      "sourceTitle": "View Personalized Intervention Plan",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/support-plan/components/SupportPlanJourney.test.tsx",
+        "scenario": "renders the authoritative current active plan before looking for a draft",
+        "assertions": [
+          "api.getCurrentSupportPlan.mockResolvedValue(activePlan())",
+          "screen.findByText('Kế hoạch đang thực hiện')"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-625-support-plan.yaml",
+        "scenario": "MB-625 persisted SupportPlan activity journey",
+        "assertions": [
+          "tapOn: 'Mở kế hoạch hỗ trợ'",
+          "assertVisible: 'Kế hoạch hỗ trợ'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-032",
+      "sourceTitle": "View Crisis Hotline Information",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/support-guide/components/SupportGuideCard.test.tsx",
+        "scenario": "keeps authoritative safety first and the exact saved resource behind it",
+        "assertions": [
+          "Safety guidance is available now.",
+          "name: 'Xem hỗ trợ trong khu vực'"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/assessment/AssessmentJourneyScreen.test.tsx",
+        "scenario": "completes PHQ-9 then GAD-7 and renders only authoritative result, safety, and guide data",
+        "assertions": [
+          "name: 'Tôi cần hỗ trợ ngay'",
+          "screen.findByText('Cơ sở hỗ trợ đã rà soát')"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-033",
+      "sourceTitle": "View Emergency Support Guidance",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/support-guide/components/SupportGuideCard.test.tsx",
+        "scenario": "keeps authoritative safety first and the exact saved resource behind it",
+        "assertions": [
+          "screen.getByText('Reviewed resource')",
+          "name: 'Xem bài tập'"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/assessment/AssessmentJourneyScreen.test.tsx",
+        "scenario": "completes PHQ-9 then GAD-7 and renders only authoritative result, safety, and guide data",
+        "assertions": [
+          "Ưu tiên xem hỗ trợ an toàn trước các tài nguyên bổ sung.",
+          "Hướng dẫn an toàn từ hệ thống."
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-034",
+      "sourceTitle": "View Self-Help Resource List",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/resources.spec.ts",
+        "scenario": "supports the daily challenge and interactive video detail journey",
+        "assertions": [
+          "page.getByRole('heading', { level: 1, name: catalogue[0].title })",
+          "page.goto('/resources')"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-626-resources.yaml",
+        "scenario": "MB-626 reviewed resource catalogue to persisted progress",
+        "assertions": [
+          "tapOn: 'Khám phá tài nguyên'",
+          "assertVisible: 'Chọn một nội dung phù hợp lúc này'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-035",
+      "sourceTitle": "View Self-Help Resource Details",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/resources.spec.ts",
+        "scenario": "supports the daily challenge and interactive video detail journey",
+        "assertions": [
+          "page.waitForURL(new RegExp(`/resources/${resourceId}`))",
+          "const video = page.getByTitle(catalogue[0].title)"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-626-resources.yaml",
+        "scenario": "MB-626 reviewed resource catalogue to persisted progress",
+        "assertions": [
+          "id: 'resource-card-00000000-0000-4000-8000-000000000205'",
+          "assertVisible: 'Hiểu các dấu hiệu thường gặp của trầm cảm.*'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-036",
+      "sourceTitle": "View Specialist List",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
+        "scenario": "allows Free users to browse real details and slots without booking",
+        "assertions": [
+          "screen.findByText('Chuyên gia An')",
+          "name: 'Xem hồ sơ và khung giờ'"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-629-discovery.yaml",
+        "scenario": "MB-629 real approved discovery profile and exact slot handoff",
+        "assertions": [
+          "tapOn: 'Tìm chuyên gia'",
+          "id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-037",
+      "sourceTitle": "Search Specialists",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready search-term scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-629-discovery.yaml",
+        "scenario": "MB-629 real approved discovery profile and exact slot handoff",
+        "assertions": [
+          "text: 'Tìm theo tiêu chí'",
+          "id: 'discovery-open-${MAESTRO_MB_DISCOVERY_SPECIALIST_ID}'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-038",
+      "sourceTitle": "Filter Specialists",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
+        "scenario": "applies the selected support-area and language filters to discovery",
+        "assertions": [
+          "supportArea: 'ANXIETY_SYMPTOMS'",
+          "language: 'vi'"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-629-discovery.yaml",
+        "scenario": "MB-629 real approved discovery profile and exact slot handoff",
+        "assertions": [
+          "tapOn: 'Lo âu'",
+          "tapOn: 'Tiếng Việt'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-039",
+      "sourceTitle": "View Specialist Details",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
+        "scenario": "allows Free users to browse real details and slots without booking",
+        "assertions": [
+          "name: 'Xem hồ sơ và khung giờ'",
+          "screen.findByText('Vì sao hồ sơ này xuất hiện?')"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-629-discovery.yaml",
+        "scenario": "MB-629 real approved discovery profile and exact slot handoff",
+        "assertions": [
+          "assertVisible: 'Hồ sơ chuyên gia'",
+          "assertVisible: 'MB629 synthetic specialist'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-040",
+      "sourceTitle": "Generate Specialist Recommendation",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted discovery contract preserves provider order and explicit filters; it does not generate or label recommendations.",
+        "rationale": "Accepted discovery contract preserves provider order and explicit filters; it does not generate or label recommendations."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted discovery contract preserves provider order and explicit filters; it does not generate or label recommendations.",
+        "rationale": "Accepted discovery contract preserves provider order and explicit filters; it does not generate or label recommendations."
+      }
+    },
+    {
+      "atomicUcId": "WBS-041",
+      "sourceTitle": "View Recommended Specialist List",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted discovery contract preserves provider order and explicit filters; it does not generate or label recommendations.",
+        "rationale": "Accepted discovery contract preserves provider order and explicit filters; it does not generate or label recommendations."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted discovery contract preserves provider order and explicit filters; it does not generate or label recommendations.",
+        "rationale": "Accepted discovery contract preserves provider order and explicit filters; it does not generate or label recommendations."
+      }
+    },
+    {
+      "atomicUcId": "WBS-042",
+      "sourceTitle": "View Subscription Plans",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
+        "scenario": "renders server prices and exposes only MoMo purchase actions",
+        "assertions": [
+          "screen.findByText(/1\\.390\\.000\\s*₫/)"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-043",
+      "sourceTitle": "View Subscription Details",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
+        "scenario": "renders server prices and exposes only MoMo purchase actions",
+        "assertions": [
+          "screen.getByText('4 lượt tư vấn')",
+          "screen.getByText('2 lịch')"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-044",
+      "sourceTitle": "Subscribe to Premium Plan",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
+        "scenario": "reuses the same command key after an ambiguous checkout failure",
+        "assertions": [
+          "browserSubscription.checkout).mock.calls",
+          "expect(calls).toHaveLength(2)"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-045",
+      "sourceTitle": "Make Subscription Payment",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
+        "scenario": "reuses the same command key after an ambiguous checkout failure",
+        "assertions": [
+          "expect(calls[1]).toEqual(calls[0])"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-046",
+      "sourceTitle": "View Payment Status",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
+        "scenario": "recovers pending history on remount and activates only after authoritative refresh",
+        "assertions": [
+          "screen.findByRole('status')",
+          "/đã được xác nhận thành công/"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-047",
+      "sourceTitle": "View Subscription Status",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/subscription/components/PlanCheckoutPanel.test.tsx",
+        "scenario": "recovers pending history on remount and activates only after authoritative refresh",
+        "assertions": [
+          "packageCode: 'PLUS'",
+          "screen.getByRole('button', { name: /Nâng cấp/ })"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-048",
+      "sourceTitle": "View Payment History",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no payment-history list or detail surface on the pinned revision."
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-049",
+      "sourceTitle": "Cancel Subscription",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-050",
+      "sourceTitle": "View Consultation Credit Balance",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/service-credits/components/ServiceCreditsPanel.test.tsx",
+        "scenario": "shows the provider balance and labels demo provenance truthfully",
+        "assertions": [
+          "screen.getByText('Còn lại').nextSibling",
+          "screen.findByText('Gói Plus dùng thử')"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-051",
+      "sourceTitle": "View Consultation Credit History",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/service-credits/components/ServiceCreditsPanel.test.tsx",
+        "scenario": "shows the provider balance and labels demo provenance truthfully",
+        "assertions": [
+          "name: 'Lịch sử lượt tư vấn'",
+          "name: '2/2 lịch'"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-052",
+      "sourceTitle": "View Own Specialist Profile",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-profile/components/SpecialistProfileWorkspace.test.tsx",
+        "scenario": "loads, saves, and explicitly submits the real profile flow",
+        "assertions": [
+          "screen.findByLabelText('Tên hiển thị')",
+          "api.own.mockResolvedValue"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-633-specialist-profile-availability.yaml",
+        "scenario": "MB-633 specialist profile and availability journey",
+        "assertions": [
+          "tapOn: 'Quản lý hồ sơ nghề nghiệp'",
+          "assertVisible: 'Hồ sơ nghề nghiệp'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-053",
+      "sourceTitle": "Update Specialist Profile",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-profile/components/SpecialistProfileWorkspace.test.tsx",
+        "scenario": "loads, saves, and explicitly submits the real profile flow",
+        "assertions": [
+          "name: 'Lưu thay đổi'",
+          "api.save).toHaveBeenCalledWith"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/specialist/SpecialistProfileScreen.test.tsx",
+        "scenario": "updates a draft with its authoritative version",
+        "assertions": [
+          "getProfile: jest.fn().mockResolvedValue(draft),"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-054",
+      "sourceTitle": "Upload Specialist Verification Document",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted specialist policy does not collect or verify credential document uploads.",
+        "rationale": "Accepted specialist policy does not collect or verify credential document uploads."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted specialist policy does not collect or verify credential document uploads.",
+        "rationale": "Accepted specialist policy does not collect or verify credential document uploads."
+      }
+    },
+    {
+      "atomicUcId": "WBS-055",
+      "sourceTitle": "View Specialist Verification Status",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-profile/components/SpecialistProfileWorkspace.test.tsx",
+        "scenario": "loads, saves, and explicitly submits the real profile flow",
+        "assertions": [
+          "name: 'Gửi xét duyệt'",
+          "api.submit).toHaveBeenCalledWith"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-633-specialist-profile-availability.yaml",
+        "scenario": "MB-633 specialist profile and availability journey",
+        "assertions": [
+          "assertVisible: 'Đã được phê duyệt'",
+          "assertVisible: 'Không gian chuyên môn của bạn'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-056",
+      "sourceTitle": "Create Availability Slot",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-availability/components/SpecialistAvailabilityManager.test.tsx",
+        "scenario": "publishes an exact 60-minute UTC slot using a stable idempotency key",
+        "assertions": [
+          "await screen.findByText('Chat trong ứng dụng')"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-633-specialist-profile-availability.yaml",
+        "scenario": "MB-633 specialist profile and availability journey",
+        "assertions": [
+          "id: 'availability-publish'",
+          "assertVisible: 'Đã xuất bản khung tư vấn trực tuyến 60 phút.'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-057",
+      "sourceTitle": "View Availability Slot List",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-availability/components/SpecialistAvailabilityManager.test.tsx",
+        "scenario": "shows persisted slots and explains that video publication is disabled",
+        "assertions": [
+          "screen.findByText('Chat trong ứng dụng')",
+          "screen.getByText(/Video chưa sẵn sàng/)"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-633-specialist-profile-availability.yaml",
+        "scenario": "MB-633 specialist profile and availability journey",
+        "assertions": [
+          "tapOn: 'Quản lý lịch khả dụng'",
+          "assertVisible: 'Lịch khả dụng trực tuyến'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-058",
+      "sourceTitle": "View Availability Slot Details",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-availability/components/SpecialistAvailabilityManager.test.tsx",
+        "scenario": "shows persisted slots and explains that video publication is disabled",
+        "assertions": [
+          "screen.findByText('Chat trong ứng dụng')",
+          "screen.getByRole('radio', { name: 'Video trong ứng dụng' })"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/specialist/SpecialistAvailabilityScreen.test.tsx",
+        "scenario": "renders the exact persisted slot time, modality, timezone and readiness",
+        "assertions": [
+          "screen.getByText('Chat trong ứng dụng · Asia/Ho_Chi_Minh')",
+          "screen.getByText('Có thể đặt')"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-059",
+      "sourceTitle": "Update Availability Slot",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted availability contract changes a slot by withdrawing its version and publishing a new slot; no in-place update exists.",
+        "rationale": "Accepted availability contract changes a slot by withdrawing its version and publishing a new slot; no in-place update exists."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted availability contract changes a slot by withdrawing its version and publishing a new slot; no in-place update exists.",
+        "rationale": "Accepted availability contract changes a slot by withdrawing its version and publishing a new slot; no in-place update exists."
+      }
+    },
+    {
+      "atomicUcId": "WBS-060",
+      "sourceTitle": "Delete Availability Slot",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-availability/components/SpecialistAvailabilityManager.test.tsx",
+        "scenario": "withdraws the current persisted version and keeps the tombstone visible",
+        "assertions": [
+          "await user.click("
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-633-specialist-profile-availability.yaml",
+        "scenario": "MB-633 specialist profile and availability journey",
+        "assertions": [
+          "tapOn: 'Xác nhận rút khung giờ'",
+          "assertVisible: 'Đã rút khung giờ khỏi lịch khả dụng.'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-061",
+      "sourceTitle": "View Specialist Available Slots",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
+        "scenario": "hands the exact selected slot and modality to MB-378 for paid plans",
+        "assertions": [
+          "await screen.findByRole('radio')",
+          "item.selectableSlots[0].id"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-629-discovery.yaml",
+        "scenario": "MB-629 real approved discovery profile and exact slot handoff",
+        "assertions": [
+          "id: 'discovery-select-${MAESTRO_MB_DISCOVERY_SLOT_ID}'",
+          "assertVisible: 'Khung giờ đã chọn'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-062",
+      "sourceTitle": "Book Appointment",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-discovery/components/SpecialistDiscovery.test.tsx",
+        "scenario": "hands the exact selected slot and modality to MB-378 for paid plans",
+        "assertions": [
+          "appointmentClient.request).toHaveBeenCalledWith",
+          "'IN_APP_CHAT'"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-630-appointments.yaml",
+        "scenario": "MB-630 real discovery request and persisted owner appointment",
+        "assertions": [
+          "id: appointment-confirm",
+          "assertVisible: 'Gửi yêu cầu đặt lịch'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-063",
+      "sourceTitle": "View User Appointment List",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AppointmentRequestPanel.test.tsx",
+        "scenario": "renders slots and appointments in their timezone snapshot",
+        "assertions": [
+          "appointmentClient.list.mockResolvedValue({",
+          "screen.findAllByText(snapshotStart)"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-630-appointments.yaml",
+        "scenario": "MB-630 real discovery request and persisted owner appointment",
+        "assertions": [
+          "tapOn: 'Lịch hẹn của tôi'",
+          "id: appointment-open-detail"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-064",
+      "sourceTitle": "View Specialist Appointment List",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/SpecialistAppointmentDecisionPanel.test.tsx",
+        "scenario": "shows the real pending request and its decision deadline",
+        "assertions": [
+          "expect(await screen.findByText('Chờ phản hồi')).toBeInTheDocument()"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-634-specialist-appointment-continuity.yaml",
+        "scenario": "MB-634 specialist appointment continuity journey",
+        "assertions": [
+          "tapOn: 'Mở lịch hẹn tư vấn'",
+          "assertVisible: 'Chờ xác nhận · 1'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-065",
+      "sourceTitle": "View Appointment Details",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AppointmentRequestPanel.test.tsx",
+        "scenario": "opens a reminder deep link only for an appointment in the current account",
+        "assertions": [
+          "focusAppointmentId={appointment.id}",
+          "document.getElementById('appointment-from-reminder')"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-630-appointments.yaml",
+        "scenario": "MB-630 real discovery request and persisted owner appointment",
+        "assertions": [
+          "assertVisible: 'Chi tiết lịch hẹn'",
+          "assertVisible: 'MB629 synthetic specialist'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-066",
+      "sourceTitle": "Accept Appointment",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/SpecialistAppointmentDecisionPanel.test.tsx",
+        "scenario": "accepts with the current version and updates the persisted outcome",
+        "assertions": [
+          "api.decide.mockResolvedValue({"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-634-specialist-appointment-continuity.yaml",
+        "scenario": "MB-634 specialist appointment continuity journey",
+        "assertions": [
+          "tapOn: 'Xác nhận'",
+          "assertVisible: 'Đã xác nhận lịch hẹn theo trạng thái mới nhất.'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-067",
+      "sourceTitle": "Reject Appointment",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/SpecialistAppointmentDecisionPanel.test.tsx",
+        "scenario": "rejects only after confirmation and shows the released credit",
+        "assertions": [
+          "api.decide.mockResolvedValue({"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/specialist-appointments/SpecialistAppointmentsScreen.test.tsx",
+        "scenario": "handles %s success and reconciles authority",
+        "assertions": [
+          ".mockResolvedValueOnce(makeAppointmentList())"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-068",
+      "sourceTitle": "Cancel Appointment by User",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AppointmentRequestPanel.test.tsx",
+        "scenario": "cancels with the exact version and renders the persisted audit outcome after reload",
+        "assertions": [
+          "appointmentClient.slots.mockResolvedValue({"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/appointments/AppointmentsScreen.test.tsx",
+        "scenario": "explicitly confirms cancellation and renders only the server settlement",
+        "assertions": [
+          "expect(service.api.cancel).not.toHaveBeenCalled()"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-069",
+      "sourceTitle": "Cancel Appointment by Specialist",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted appointment cancellation command is USER/ADMIN-owned; no specialist cancellation command exists.",
+        "rationale": "Accepted appointment cancellation command is USER/ADMIN-owned; no specialist cancellation command exists."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted appointment cancellation command is USER/ADMIN-owned; no specialist cancellation command exists.",
+        "rationale": "Accepted appointment cancellation command is USER/ADMIN-owned; no specialist cancellation command exists."
+      }
+    },
+    {
+      "atomicUcId": "WBS-070",
+      "sourceTitle": "Reschedule Appointment Request",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AppointmentRequestPanel.test.tsx",
+        "scenario": "carries the old appointment id and version through a replacement request",
+        "assertions": [
+          "appointmentClient.slots.mockResolvedValue({"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/appointments/AppointmentsScreen.test.tsx",
+        "scenario": "atomically replaces the old appointment with no spare credit/cap and invalidates old links",
+        "assertions": [
+          "const next = { ...appointment, id: slot.id, replacesAppointmentId: old.id }"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-071",
+      "sourceTitle": "Confirm Rescheduled Appointment",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted reschedule contract atomically confirms an explicit replacement request; there is no second confirmation command.",
+        "rationale": "Accepted reschedule contract atomically confirms an explicit replacement request; there is no second confirmation command."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted reschedule contract atomically confirms an explicit replacement request; there is no second confirmation command.",
+        "rationale": "Accepted reschedule contract atomically confirms an explicit replacement request; there is no second confirmation command."
+      }
+    },
+    {
+      "atomicUcId": "WBS-072",
+      "sourceTitle": "Mark Appointment as Completed",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted appointment completion is owner evidence-backed; clients do not manually mark an appointment completed.",
+        "rationale": "Accepted appointment completion is owner evidence-backed; clients do not manually mark an appointment completed."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted appointment completion is owner evidence-backed; clients do not manually mark an appointment completed.",
+        "rationale": "Accepted appointment completion is owner evidence-backed; clients do not manually mark an appointment completed."
+      }
+    },
+    {
+      "atomicUcId": "WBS-073",
+      "sourceTitle": "View Appointment History",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/model/appointment-view.test.ts",
+        "scenario": "orders actionable appointments first and history from newest to oldest",
+        "assertions": [
+          "id: '55555555-5555-4555-8555-555555555555',"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/appointments/AppointmentsScreen.test.tsx",
+        "scenario": "shows a persisted cancelled appointment in history and opens its exact detail",
+        "assertions": [
+          "screen.findAllByRole('radio')",
+          "screen.findByTestId('appointment-open-detail')",
+          "screen.findByTestId('appointment-detail')",
+          "service.api.cancel).not.toHaveBeenCalled()"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-074",
+      "sourceTitle": "Create Consultation Conversation",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Conversation authority is appointment-scoped and materialized by Consultation; clients do not create conversations.",
+        "rationale": "Conversation authority is appointment-scoped and materialized by Consultation; clients do not create conversations."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Conversation authority is appointment-scoped and materialized by Consultation; clients do not create conversations.",
+        "rationale": "Conversation authority is appointment-scoped and materialized by Consultation; clients do not create conversations."
+      }
+    },
+    {
+      "atomicUcId": "WBS-075",
+      "sourceTitle": "View Conversation List",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AppointmentMessagesWorkspace.test.tsx",
+        "scenario": "loads only appointment conversations assigned to the specialist",
+        "assertions": [
+          "id: '55555555-5555-4555-8555-555555555555',"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-631-chat.yaml",
+        "scenario": "MB-631 real eligible appointment and durable chat",
+        "assertions": [
+          "tapOn: 'Phiên trò chuyện'",
+          "tapOn: 'Mở phiên trò chuyện'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-076",
+      "sourceTitle": "View Conversation Details",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AppointmentMessagesWorkspace.test.tsx",
+        "scenario": "shows specialist names to the user and keeps selection in the URL",
+        "assertions": [
+          "id: '77777777-7777-4777-8777-777777777777',"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-631-chat.yaml",
+        "scenario": "MB-631 real eligible appointment and durable chat",
+        "assertions": [
+          "assertVisible: 'Trò chuyện tư vấn'",
+          "id: chat-composer"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-077",
+      "sourceTitle": "Send Text Message",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AppointmentChatPanel.test.tsx",
+        "scenario": "serializes pending sends and clears only after acknowledgment",
+        "assertions": [
+          "api.chatEligibility.mockResolvedValue({"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-631-chat.yaml",
+        "scenario": "MB-631 real eligible appointment and durable chat",
+        "assertions": [
+          "id: chat-send",
+          "MB631 synthetic user message"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-078",
+      "sourceTitle": "Receive Real-Time Message",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AppointmentChatPanel.test.tsx",
+        "scenario": "renders an inbound realtime message from message.created",
+        "assertions": [
+          "transport.options?.onEvent?.({",
+          "screen.findByText('Tin nhắn realtime từ chuyên gia')"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-631-chat.yaml",
+        "scenario": "MB-631 real eligible appointment and durable chat",
+        "assertions": [
+          "assertVisible: 'MB631 synthetic peer message'",
+          "extendedWaitUntil:"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-079",
+      "sourceTitle": "Mark Message as Read",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted realtime contract exposes durable persistence acknowledgements and deliberately has no delivery/read receipt command.",
+        "rationale": "Accepted realtime contract exposes durable persistence acknowledgements and deliberately has no delivery/read receipt command."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted realtime contract exposes durable persistence acknowledgements and deliberately has no delivery/read receipt command.",
+        "rationale": "Accepted realtime contract exposes durable persistence acknowledgements and deliberately has no delivery/read receipt command."
+      }
+    },
+    {
+      "atomicUcId": "WBS-080",
+      "sourceTitle": "Delete Own Message",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-081",
+      "sourceTitle": "Close Consultation Conversation",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Conversation closure follows authoritative appointment/session lifecycle; clients do not issue a close-conversation command.",
+        "rationale": "Conversation closure follows authoritative appointment/session lifecycle; clients do not issue a close-conversation command."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Conversation closure follows authoritative appointment/session lifecycle; clients do not issue a close-conversation command.",
+        "rationale": "Conversation closure follows authoritative appointment/session lifecycle; clients do not issue a close-conversation command."
+      }
+    },
+    {
+      "atomicUcId": "WBS-082",
+      "sourceTitle": "Report Chat Message",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-083",
+      "sourceTitle": "Create Specialist Review",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AppointmentRatingDialog.test.tsx",
+        "scenario": "creates a bounded rating for an unrated completed appointment",
+        "assertions": [
+          "client.rating.mockRejectedValue("
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-084",
+      "sourceTitle": "View Specialist Review List",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent.",
+        "rationale": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent.",
+        "rationale": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent."
+      }
+    },
+    {
+      "atomicUcId": "WBS-085",
+      "sourceTitle": "View Specialist Review Details",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent.",
+        "rationale": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent.",
+        "rationale": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent."
+      }
+    },
+    {
+      "atomicUcId": "WBS-086",
+      "sourceTitle": "Update Specialist Review",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AppointmentRatingDialog.test.tsx",
+        "scenario": "prefills and safely edits the current rating version",
+        "assertions": [
+          "client.rating.mockResolvedValue({"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-087",
+      "sourceTitle": "Delete Specialist Review",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent.",
+        "rationale": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent.",
+        "rationale": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent."
+      }
+    },
+    {
+      "atomicUcId": "WBS-088",
+      "sourceTitle": "Report Specialist Review",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent.",
+        "rationale": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent.",
+        "rationale": "Accepted rating contract is one private editable 1–5 appointment rating; public review list/detail/delete/report operations are absent."
+      }
+    },
+    {
+      "atomicUcId": "WBS-089",
+      "sourceTitle": "Create Follow-up Plan",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/support-plan/components/SupportPlanJourney.test.tsx",
+        "scenario": "creates a bounded draft from the empty state and retains one retry key",
+        "assertions": [
+          "api.getCurrentSupportPlanDraft.mockRejectedValue("
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/support-plan/support-plan-action-api.test.ts",
+        "scenario": "creates a separate native draft and activates with strong validators, preserving legacy model",
+        "assertions": [
+          ").toBe('NATIVE_V3')"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-090",
+      "sourceTitle": "View Follow-up Plan",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/support-plan/components/SupportPlanJourney.test.tsx",
+        "scenario": "renders the authoritative current active plan before looking for a draft",
+        "assertions": [
+          "screen.findByText('Kế hoạch đang thực hiện')",
+          "api.getCurrentSupportPlanDraft).toHaveBeenCalledTimes(1)"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-625-support-plan.yaml",
+        "scenario": "MB-625 persisted SupportPlan activity journey",
+        "assertions": [
+          "assertVisible: 'Hoạt động gần đây và sắp tới'",
+          "assertVisible: 'Sắp tới'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-091",
+      "sourceTitle": "Update Follow-up Plan",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/support-plan/components/SupportPlanScheduleEditor.test.tsx",
+        "scenario": "reviews a persisted default and sends an explicit bounded schedule change",
+        "assertions": [
+          "const onSave = vi.fn().mockResolvedValue(undefined)"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/support-plan/SupportPlanScheduleEditor.test.tsx",
+        "scenario": "reviews and saves the same bounded schedule fields as web",
+        "assertions": [
+          "const onSave = jest.fn().mockResolvedValue(undefined)"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-092",
+      "sourceTitle": "Submit Follow-up Check-in",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/support-plan/components/SupportPlanSchedule.test.tsx",
+        "scenario": "records helpfulness, private reflection, and explicit summary reuse approval",
+        "assertions": [
+          "api.getSupportPlanOccurrences.mockResolvedValue("
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-625-support-plan.yaml",
+        "scenario": "MB-625 persisted SupportPlan activity journey",
+        "assertions": [
+          "text: 'Đã hoàn thành'",
+          "assertVisible: 'Đã lưu ghi nhận cho hoạt động.'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-093",
+      "sourceTitle": "Start Follow-up Assessment",
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/assessment/components/ReassessmentJourney.test.tsx",
+        "scenario": "uses Care periods and a Journal job to render four separate dimensions",
+        "assertions": [
+          "name: 'Bắt đầu đánh giá lại'",
+          "api.createReassessmentSelfReport).toHaveBeenCalledWith"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-094",
+      "sourceTitle": "View Progress Comparison",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/assessment/components/ReassessmentJourney.test.tsx",
+        "scenario": "uses Care periods and a Journal job to render four separate dimensions",
+        "assertions": [
+          "screen.findByText('1. Thay đổi sàng lọc')",
+          "screen.getByText('4. Trải nghiệm tự báo cáo')"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/support-plan/SupportPlanActionWorkspace.test.tsx",
+        "scenario": "only replaces a current v2 plan after authoritative reassessment comparison and explicit choice",
+        "assertions": [
+          "owner.reviewReplacement.mockResolvedValue({"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-095",
+      "sourceTitle": "View Notification List",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/app/(dashboard)/notifications/page.test.tsx",
+        "scenario": "renders the persisted inbox and marks one item read before following its action",
+        "assertions": [
+          "screen.findByText('Lịch tư vấn sắp diễn ra')",
+          "inboxApi.get.mockResolvedValueOnce"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/notifications/NotificationInboxScreen.test.tsx",
+        "scenario": "opens only the fresh mark-read action, persists read and reloads the server inbox",
+        "assertions": [
+          "screen.findByText('1 thông báo chưa đọc')",
+          ".mockResolvedValueOnce(page())"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-096",
+      "sourceTitle": "View Notification Details",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/app/(dashboard)/notifications/page.test.tsx",
+        "scenario": "renders the persisted inbox and marks one item read before following its action",
+        "assertions": [
+          "const openButton = title.closest('button')",
+          "inboxApi.push).toHaveBeenCalledWith('/appointments')"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/notifications/NotificationInboxScreen.test.tsx",
+        "scenario": "opens only the fresh mark-read action, persists read and reloads the server inbox",
+        "assertions": [
+          "press('Mở: Lời nhắc của bạn')",
+          "value.onOpen).toHaveBeenCalledWith"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-097",
+      "sourceTitle": "Mark Notification as Read",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/app/(dashboard)/notifications/page.test.tsx",
+        "scenario": "renders the persisted inbox and marks one item read before following its action",
+        "assertions": [
+          "inboxApi.read).toHaveBeenCalledWith(notification.id)",
+          "screen.queryByLabelText('Chưa đọc')"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/notifications/NotificationInboxScreen.test.tsx",
+        "scenario": "opens only the fresh mark-read action, persists read and reloads the server inbox",
+        "assertions": [
+          "api.markRead).toHaveBeenCalledWith(notificationId)",
+          "screen.findByText('0 thông báo chưa đọc')"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-098",
+      "sourceTitle": "View Emotional Dashboard",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/emotion-check-in/EmotionProgress.test.tsx",
+        "scenario": "renders authoritative factual streaks, rolling counts, and detail box with Option D layout",
+        "assertions": [
+          "screen.findByText('Chuỗi hiện tại')",
+          "screen.getByText('4/7')"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-613-emotion-check-in.yaml",
+        "scenario": "MB-613 persisted emotion check-in to history and progress",
+        "assertions": [
+          "assertVisible: 'Đã ghi nhận [1-7]/7 ngày'",
+          "assertVisible: 'Mức cảm nhận 4/5'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-099",
+      "sourceTitle": "View Mood / Emotion Trend",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/emotion-check-in/EmotionProgress.test.tsx",
+        "scenario": "renders authoritative factual streaks, rolling counts, and detail box with Option D layout",
+        "assertions": [
+          "screen.getByText('Cường độ 4/5')",
+          "list.mockResolvedValue"
+        ]
+      },
+      "mobile": {
+        "state": "E2E_AUTHORED_NOT_RUN",
+        "source": "mobile/.maestro/mb-613-emotion-check-in.yaml",
+        "scenario": "MB-613 persisted emotion check-in to history and progress",
+        "assertions": [
+          "text: 'Lịch sử gần đây'",
+          "assertVisible: 'Mức cảm nhận 4/5'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-100",
+      "sourceTitle": "View Assessment Trend",
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/assessment/components/ReassessmentJourney.test.tsx",
+        "scenario": "uses Care periods and a Journal job to render four separate dimensions",
+        "assertions": [
+          "screen.findByText('1. Thay đổi sàng lọc')",
+          "rawDelta: -2"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-101",
+      "sourceTitle": "Filter Analytics by Period",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/emotion-check-in/EmotionProgressModal.test.tsx",
+        "scenario": "renders factual sparse 7/14/30-day data without private or inferred content",
+        "assertions": [
+          "expect(await screen.findByText('4/7 ngày')).toBeVisible()"
+        ]
+      },
+      "mobile": {
+        "state": "CODE_READY",
+        "source": "mobile/src/emotion/EmotionCheckInScreen.test.tsx",
+        "scenario": "shows sparse history as missing data and only authoritative 7/14/30 periods",
+        "assertions": [
+          "getProgress: jest.fn().mockResolvedValue(progress([2, 4, 6])),"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-102",
+      "sourceTitle": "View Specialist Dashboard",
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/components/SpecialistDashboardManager.test.tsx",
+        "scenario": "keeps the command dashboard layout and shows the compact real rating",
+        "assertions": [
+          "await screen.findByText('Chào bạn, Chuyên gia An'),"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-103",
+      "sourceTitle": "View Consenting User List",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted specialist continuity is appointment-assignment scoped; the legacy generic consenting-user directory is not a product surface.",
+        "rationale": "Accepted specialist continuity is appointment-assignment scoped; the legacy generic consenting-user directory is not a product surface."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted specialist continuity is appointment-assignment scoped; the legacy generic consenting-user directory is not a product surface.",
+        "rationale": "Accepted specialist continuity is appointment-assignment scoped; the legacy generic consenting-user directory is not a product surface."
+      }
+    },
+    {
+      "atomicUcId": "WBS-104",
+      "sourceTitle": "View Consenting User Details",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted specialist continuity is appointment-assignment scoped; the legacy generic consenting-user directory is not a product surface.",
+        "rationale": "Accepted specialist continuity is appointment-assignment scoped; the legacy generic consenting-user directory is not a product surface."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted specialist continuity is appointment-assignment scoped; the legacy generic consenting-user directory is not a product surface.",
+        "rationale": "Accepted specialist continuity is appointment-assignment scoped; the legacy generic consenting-user directory is not a product surface."
+      }
+    },
+    {
+      "atomicUcId": "WBS-105",
+      "sourceTitle": "View User Assessment History as Specialist",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable.",
+        "rationale": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable.",
+        "rationale": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable."
+      }
+    },
+    {
+      "atomicUcId": "WBS-106",
+      "sourceTitle": "View User Emotional Trend as Specialist",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable.",
+        "rationale": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable.",
+        "rationale": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable."
+      }
+    },
+    {
+      "atomicUcId": "WBS-107",
+      "sourceTitle": "View User Journal Data as Specialist",
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable.",
+        "rationale": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable.",
+        "rationale": "Accepted ConsultationBrief exposes only approved appointment-purpose snapshots; raw assessment, emotion and journal access remains unavailable."
+      }
+    },
+    {
+      "atomicUcId": "WBS-108",
+      "sourceTitle": "View Specialist Earnings",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/components/SpecialistEarningsManager.test.tsx",
+        "scenario": "renders only API-backed amounts and does not offer an arbitrary payout amount",
+        "assertions": [
+          "expect(await screen.findAllByText(/210\\.000/)).not.toHaveLength(0)"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-109",
+      "sourceTitle": "View Specialist Payout History",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/components/SpecialistEarningsManager.test.tsx",
+        "scenario": "renders an unknown payout in history without claiming success or failure",
+        "assertions": [
+          "payouts: [",
+          "screen.findByText('Chưa rõ kết quả')"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-110",
+      "sourceTitle": "View Pending Payout",
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/components/SpecialistEarningsManager.test.tsx",
+        "scenario": "renders pending settlement separately from the available payout balance",
+        "assertions": [
+          "screen.findByText(/Chờ đối soát/)",
+          "screen.getByText('Đủ điều kiện yêu cầu rút tiền')"
+        ]
+      },
+      "mobile": {
+        "state": "NONE",
+        "rationale": "Applicable mobile operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-111",
+      "sourceTitle": "Admin Login",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/auth/api/browser-auth.test.ts",
+        "scenario": "logs in an ADMIN and resolves the protected admin workspace from the authoritative session",
+        "assertions": [
+          "roles: ['ADMIN']",
+          "path: '/admin/dashboard'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-112",
+      "sourceTitle": "View Admin Dashboard",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no authoritative admin-dashboard data scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-113",
+      "sourceTitle": "View User List (Admin)",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/auth/components/AdminAccountManager.test.tsx",
+        "scenario": "searches by status, role and exact email",
+        "assertions": [
+          "await screen.findByText('member@example.com')"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-114",
+      "sourceTitle": "View User Details (Admin)",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/auth/components/AdminAccountManager.test.tsx",
+        "scenario": "loads detail and suspends with a closed reason",
+        "assertions": [
+          "name: /member@example.com/",
+          "screen.getByLabelText('Lý do tạm ngưng')"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-115",
+      "sourceTitle": "Update User Account Status",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/auth/components/AdminAccountManager.test.tsx",
+        "scenario": "loads detail and suspends with a closed reason",
+        "assertions": [
+          "name: 'Tạm ngưng tài khoản'",
+          "api.changeState).toHaveBeenCalledWith"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-116",
+      "sourceTitle": "Delete User Account",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      }
+    },
+    {
+      "atomicUcId": "WBS-117",
+      "sourceTitle": "View Specialist List (Admin)",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-profile/components/AdminSpecialistReviewSection.test.tsx",
+        "scenario": "loads the selected lifecycle queue instead of only pending profiles",
+        "assertions": [
+          "api.profiles.mockResolvedValue({"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-118",
+      "sourceTitle": "View Specialist Details (Admin)",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-profile/components/AdminSpecialistReviewSection.test.tsx",
+        "scenario": "inspects and rejects a pending profile with a closed reason",
+        "assertions": [
+          "name: /Nguyễn An/",
+          "screen.getByLabelText('Lý do từ chối')"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-119",
+      "sourceTitle": "Approve Specialist Account",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      }
+    },
+    {
+      "atomicUcId": "WBS-120",
+      "sourceTitle": "Reject Specialist Account",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-profile/components/AdminSpecialistReviewSection.test.tsx",
+        "scenario": "inspects and rejects a pending profile with a closed reason",
+        "assertions": [
+          "name: 'Từ chối hồ sơ'",
+          "api.reject).toHaveBeenCalledWith"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-121",
+      "sourceTitle": "Update Specialist Account Status",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/specialist-profile/components/AdminSpecialistReviewSection.test.tsx",
+        "scenario": "suspends an approved specialist and reports exact committed outcomes",
+        "assertions": [
+          "api.profiles.mockImplementation((status: string) =>"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-122",
+      "sourceTitle": "Delete Specialist Account",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted account lifecycle uses suspension/restoration; administrator hard-delete is not an exposed specialist command.",
+        "rationale": "Accepted account lifecycle uses suspension/restoration; administrator hard-delete is not an exposed specialist command."
+      }
+    },
+    {
+      "atomicUcId": "WBS-123",
+      "sourceTitle": "View Subscription List (Admin)",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      }
+    },
+    {
+      "atomicUcId": "WBS-124",
+      "sourceTitle": "View Subscription Details (Admin)",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      }
+    },
+    {
+      "atomicUcId": "WBS-125",
+      "sourceTitle": "View Payment List (Admin)",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/components/AdminPaymentsManager.test.tsx",
+        "scenario": "shows only canonical server transactions and labels synthetic money",
+        "assertions": [
+          "vi.mocked(browserSubscription.adminPayments).mockResolvedValue({"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-126",
+      "sourceTitle": "View Payment Details (Admin)",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no separate administrator payment-detail surface or scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-127",
+      "sourceTitle": "View Specialist Payout List (Admin)",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      }
+    },
+    {
+      "atomicUcId": "WBS-128",
+      "sourceTitle": "View Specialist Payout Details (Admin)",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      }
+    },
+    {
+      "atomicUcId": "WBS-129",
+      "sourceTitle": "Process Specialist Payout",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted payout flow is specialist-initiated and provider-settled; administrators do not issue arbitrary payout commands.",
+        "rationale": "Accepted payout flow is specialist-initiated and provider-settled; administrators do not issue arbitrary payout commands."
+      }
+    },
+    {
+      "atomicUcId": "WBS-130",
+      "sourceTitle": "Create Self-Help Resource",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/admin-resources.spec.ts",
+        "scenario": "creates and edits a draft, keeps publish locked, then archives public content",
+        "assertions": [
+          "name: '+ Thêm tài nguyên'",
+          "name: 'Tạo bản nháp'",
+          "Đã tạo tài nguyên mới thành công"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-131",
+      "sourceTitle": "View Self-Help Resource List (Admin)",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/admin-resources.spec.ts",
+        "scenario": "creates and edits a draft, keeps publish locked, then archives public content",
+        "assertions": [
+          "page.getByText('Draft Resource', { exact: true })",
+          "name: 'Tài nguyên tự chăm sóc'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-132",
+      "sourceTitle": "View Self-Help Resource Details (Admin)",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/admin-resources.spec.ts",
+        "scenario": "creates and edits a draft, keeps publish locked, then archives public content",
+        "assertions": [
+          "name: /Draft Resource/",
+          "name: 'Private Journey Draft'"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-133",
+      "sourceTitle": "Update Self-Help Resource",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/admin-resources.spec.ts",
+        "scenario": "creates and edits a draft, keeps publish locked, then archives public content",
+        "assertions": [
+          "name: 'Lưu thay đổi'",
+          "Đã cập nhật tài nguyên thành công"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-134",
+      "sourceTitle": "Delete Self-Help Resource",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/tests/e2e/admin-resources.spec.ts",
+        "scenario": "creates and edits a draft, keeps publish locked, then archives public content",
+        "assertions": [
+          "name: 'Lưu trữ', exact: true",
+          "Đã lưu trữ tài nguyên thành công"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-135",
+      "sourceTitle": "Create Hotline Information",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-136",
+      "sourceTitle": "View Hotline List (Admin)",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-137",
+      "sourceTitle": "View Hotline Details (Admin)",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-138",
+      "sourceTitle": "Update Hotline Information",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-139",
+      "sourceTitle": "Delete Hotline Information",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-140",
+      "sourceTitle": "View Reported Review List",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract has no public review text or review moderation queue.",
+        "rationale": "Accepted rating contract has no public review text or review moderation queue."
+      }
+    },
+    {
+      "atomicUcId": "WBS-141",
+      "sourceTitle": "View Reported Review Details",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract has no public review text or review moderation queue.",
+        "rationale": "Accepted rating contract has no public review text or review moderation queue."
+      }
+    },
+    {
+      "atomicUcId": "WBS-142",
+      "sourceTitle": "Hide Specialist Review",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract has no public review text or review moderation queue.",
+        "rationale": "Accepted rating contract has no public review text or review moderation queue."
+      }
+    },
+    {
+      "atomicUcId": "WBS-143",
+      "sourceTitle": "Restore Specialist Review",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract has no public review text or review moderation queue.",
+        "rationale": "Accepted rating contract has no public review text or review moderation queue."
+      }
+    },
+    {
+      "atomicUcId": "WBS-144",
+      "sourceTitle": "Delete Specialist Review as Admin",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NOT_APPLICABLE",
+        "authority": "Accepted rating contract has no public review text or review moderation queue.",
+        "rationale": "Accepted rating contract has no public review text or review moderation queue."
+      }
+    },
+    {
+      "atomicUcId": "WBS-145",
+      "sourceTitle": "View Reported Chat Message List",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-146",
+      "sourceTitle": "View Reported Chat Message Details",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-147",
+      "sourceTitle": "Take Action on Reported Chat Message",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-148",
+      "sourceTitle": "View Platform Appointment List",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/features/appointments/components/AdminAppointmentMonitor.test.tsx",
+        "scenario": "renders authoritative operational facts without private content",
+        "assertions": [
+          "expect(await screen.findByText('#11111111')).toBeVisible()"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-149",
+      "sourceTitle": "View Platform Appointment Details",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no separate platform appointment-detail surface or scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-150",
+      "sourceTitle": "Import Evaluation Dataset",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-151",
+      "sourceTitle": "View Evaluation Dataset List",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-152",
+      "sourceTitle": "View Evaluation Dataset Details",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-153",
+      "sourceTitle": "Update Dataset Metadata",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-154",
+      "sourceTitle": "Delete Evaluation Dataset",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-155",
+      "sourceTitle": "Run AI Benchmark Evaluation",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-156",
+      "sourceTitle": "View Benchmark Evaluation Results",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-157",
+      "sourceTitle": "View System Activity Report",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "CODE_READY",
+        "source": "mentalbridge/components/AdminReportsManager.test.tsx",
+        "scenario": "renders only authoritative catalogue and history values",
+        "assertions": [
+          "await screen.findByRole('option', { name: 'Account activity' }),"
+        ]
+      }
+    },
+    {
+      "atomicUcId": "WBS-158",
+      "sourceTitle": "View Platform Trend Analysis",
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      },
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      }
+    },
+    {
+      "atomicUcId": "WBS-159",
+      "sourceTitle": "View Audit Log",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-160",
+      "sourceTitle": "Filter Audit Log",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-161",
+      "sourceTitle": "Configure Data Retention Policy",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    },
+    {
+      "atomicUcId": "WBS-162",
+      "sourceTitle": "View Data Retention Policy",
+      "mobile": {
+        "state": "NOT_APPLICABLE",
+        "authority": "mobile/docs/MB-611_MOBILE_DELIVERY_CONTRACT_V1.md",
+        "rationale": "administrator surfaces are web-only under Mobile Delivery Contract v1"
+      },
+      "web": {
+        "state": "NONE",
+        "rationale": "Applicable web operation has no exact code-ready scenario on the pinned revision."
+      }
+    }
+  ]
+}

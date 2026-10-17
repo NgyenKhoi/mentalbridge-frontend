@@ -13,24 +13,24 @@
   --clinical-lavender: #EEF2FD;
   --clinical-lavender-hover: #e2e8f8;
   --clinical-card-bg: #FFFFFF;
-  
+
   --clinical-text-main: #1A1C1E;
   --clinical-text-sub: #5B6470;
   --clinical-text-muted: #6B7280;
-  
+
   --clinical-badge-peach: #FDE3DF;
   --clinical-badge-peach-text: #B3402F;
   --clinical-dot-red: #A8372C;
-  
+
   --clinical-radius-xl: 32px;
   --clinical-radius-lg: 28px;
   --clinical-radius-md: 24px;
   --clinical-radius-sm: 20px;
   --clinical-radius-pill: 999px;
-  
+
   --clinical-shadow-soft: 0 4px 24px rgba(20, 40, 60, 0.05);
   --clinical-shadow-btn: 0 4px 14px rgba(31, 92, 63, 0.25);
-  
+
   --clinical-font-serif: var(--font-lora-variable), "Newsreader", "Source Serif 4", Georgia, serif;
   --clinical-font-sans: var(--font-plus-jakarta), var(--font-be-vietnam-variable), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -1287,7 +1287,7 @@
   .clinical-grid-three-cards {
     grid-template-columns: 1fr 1fr;
   }
-  
+
   .clinical-session-columns-grid {
     grid-template-columns: 1fr;
     gap: 20px;
@@ -1300,17 +1300,17 @@
     align-items: flex-start;
     padding: 24px;
   }
-  
+
   .clinical-hero-right {
     align-items: flex-start;
     width: 100%;
   }
-  
+
   .clinical-hero-controls-row {
     width: 100%;
     justify-content: space-between;
   }
-  
+
   .clinical-search-wrapper {
     display: none;
   }
@@ -1320,15 +1320,15 @@
   .clinical-grid-three-cards {
     grid-template-columns: 1fr;
   }
-  
+
   .clinical-session-hero-card {
     padding: 24px 20px;
   }
-  
+
   .clinical-table-card-white {
     padding: 24px 20px;
   }
-  
+
   .clinical-client-panel-lavender {
     flex-direction: column;
     align-items: flex-start;
@@ -1340,12 +1340,12 @@
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .clinical-session-bottom-actions {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .clinical-session-bottom-actions a {
     width: 100%;
     text-align: center;

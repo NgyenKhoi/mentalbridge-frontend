@@ -118,16 +118,15 @@ test('MB-595 renders completed-session continuity without fabricated monitoring'
   await expect(page.getByText('Đã thống nhất', { exact: true })).toBeVisible()
   await expect(page.getByText(/3\/5|check-in cần xem/i)).toHaveCount(0)
   await expect(page.locator('body')).not.toHaveCSS('overflow-x', 'scroll')
-  await expect(page.getByRole('button', { name: 'Mới nhất' })).toHaveCSS(
-    'color',
-    'rgb(255, 255, 255)',
-  )
   await expect(
-    page.getByRole('button', { name: 'Mới nhất' }).locator('span'),
-  ).toHaveCSS('background-color', 'rgb(30, 74, 67)')
+    page.getByRole('tab', { name: 'Mới nhất · Bản 1' }),
+  ).toHaveAttribute('aria-selected', 'true')
+  await expect(
+    page.getByRole('tabpanel', { name: 'Mới nhất · Bản 1' }),
+  ).toBeVisible()
   await expect(
     page.getByText('Đã đề xuất một phiên trao đổi tiếp theo'),
-  ).toHaveCSS('color', 'rgb(255, 255, 255)')
+  ).toBeVisible()
   await page.screenshot({
     path: 'docs/evidence/mb-595-continuity-desktop.png',
     fullPage: true,
@@ -158,6 +157,10 @@ test('MB-595 renders completed-session continuity without fabricated monitoring'
       name: 'Nội dung đã thống nhất sau phiên',
     }),
   ).toBeVisible()
+  await page
+    .getByRole('complementary', { name: 'Các phiên đã hoàn thành' })
+    .getByRole('button')
+    .click()
   await expect(page.getByText('Ghi lại giờ ngủ trong ba ngày')).toBeVisible()
   await expect(page.locator('.role-sidebar')).toBeHidden()
   expect(

@@ -98,7 +98,7 @@ test.describe('reviewed safety directory consumer flow', () => {
 
     await page.goto('/safety-directory')
     await page
-      .getByLabel('Nhập tên khu vực')
+      .getByLabel('Hoặc nhập tên tỉnh/thành, quận/huyện')
       .fill('Khu vực tổng hợp không khớp')
     await page.getByRole('button', { name: 'Tra cứu khu vực' }).click()
 

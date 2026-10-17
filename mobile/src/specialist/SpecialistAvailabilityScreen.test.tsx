@@ -117,6 +117,22 @@ describe('SPECIALIST availability screen', () => {
     ).toBeOnTheScreen()
   })
 
+  it('renders the exact persisted slot time, modality, timezone and readiness', async () => {
+    const slot = makeAvailabilitySlot()
+    const api = makeApi({
+      listAvailability: jest
+        .fn()
+        .mockResolvedValue(makeAvailabilityList([slot])),
+    })
+    await renderScreen(<SpecialistAvailabilityScreen api={api} />)
+
+    expect(await screen.findByText(/15\/10\/2030/)).toBeOnTheScreen()
+    expect(
+      screen.getByText('Chat trong ứng dụng · Asia/Ho_Chi_Minh'),
+    ).toBeOnTheScreen()
+    expect(screen.getByText('Có thể đặt')).toBeOnTheScreen()
+  })
+
   it('keeps one idempotency key across an ambiguous publish retry', async () => {
     const publishAvailability = jest
       .fn()

@@ -19,7 +19,10 @@ describe('Consultation server-only client', () => {
     form.set('issuer', 'Trường đại học')
     form.set('issueYear', '2020')
     form.set('credentialType', 'DEGREE')
-    form.set('file', new File(['%PDF-'], 'degree.pdf', { type: 'application/pdf' }))
+    form.set(
+      'file',
+      new File(['%PDF-'], 'degree.pdf', { type: 'application/pdf' }),
+    )
     const document = {
       id: 'f5297ec9-bbc9-4d51-8212-62778245335c',
       specialistAccountId: 'f5297ec9-bbc9-4d51-8212-62778245335c',
@@ -36,13 +39,22 @@ describe('Consultation server-only client', () => {
       createdAt: '2026-10-17T00:00:00Z',
       version: 0,
     }
-    const fetchMock = vi.fn().mockResolvedValue(Response.json(document, { status: 201 }))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json(document, { status: 201 }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(consultationClient.uploadCredential('access-token', 'correlation-id', form))
-      .resolves.toMatchObject({ data: document, status: 201 })
+    await expect(
+      consultationClient.uploadCredential(
+        'access-token',
+        'correlation-id',
+        form,
+      ),
+    ).resolves.toMatchObject({ data: document, status: 201 })
     const [url, init] = fetchMock.mock.calls[0]
-    expect(String(url)).toBe('http://consultation.test/api/v1/specialist-profile/documents')
+    expect(String(url)).toBe(
+      'http://consultation.test/api/v1/specialist-profile/documents',
+    )
     expect(init.method).toBe('POST')
     expect(init.headers).toMatchObject({ Authorization: 'Bearer access-token' })
     expect(init.headers).not.toHaveProperty('Content-Type')

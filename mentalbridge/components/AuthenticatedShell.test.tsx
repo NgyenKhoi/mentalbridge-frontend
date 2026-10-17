@@ -26,6 +26,26 @@ describe('AuthenticatedShell', () => {
     profileApi.getCareProfile.mockReset().mockResolvedValue(null)
   })
 
+  it('keeps AI conversation and appointment messaging separate in the USER workspace', () => {
+    navigation.pathname = '/ai-companion'
+    render(
+      <AuthenticatedShell workspaces={[]}>Hội thoại AI</AuthenticatedShell>,
+    )
+
+    const navigationMenu = within(
+      screen.getByRole('navigation', { name: 'Điều hướng chính' }),
+    )
+    expect(
+      navigationMenu.getByRole('link', { name: 'AI Companion' }),
+    ).toHaveAttribute('href', '/ai-companion')
+    expect(
+      navigationMenu.getByRole('link', { name: 'Tin nhắn' }),
+    ).toHaveAttribute('href', '/messages')
+    expect(
+      within(screen.getByRole('banner')).getByText('AI Companion'),
+    ).toBeVisible()
+  })
+
   it('offers Community from the USER header and main navigation without a plan gate', () => {
     render(
       <AuthenticatedShell workspaces={[]}>
@@ -114,6 +134,16 @@ describe('AuthenticatedShell', () => {
     ).toHaveAttribute('href', '/community')
     expect(
       within(topbar).getByRole('navigation', { name: 'Đường dẫn trên cùng' }),
+    ).toBeVisible()
+  })
+
+  it('names a saved assessment result in the shared shell', () => {
+    navigation.pathname =
+      '/assessments/results/20000000-0000-4000-8000-000000000101'
+    render(<AuthenticatedShell workspaces={[]}>Kết quả</AuthenticatedShell>)
+
+    expect(
+      within(screen.getByRole('banner')).getByText('Kết quả sàng lọc'),
     ).toBeVisible()
   })
 })

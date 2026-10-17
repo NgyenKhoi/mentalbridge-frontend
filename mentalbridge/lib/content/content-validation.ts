@@ -630,7 +630,9 @@ export function parseAchievementCollection(
   for (const itemValue of collection.items) {
     const rawItem = record(itemValue)
     if (!rawItem) return null
-    const { target: _target, unit: _unit, ...item } = rawItem
+    const item = { ...rawItem }
+    delete item.target
+    delete item.unit
     if (
       !exactKeys(item, [
         'definitionId',

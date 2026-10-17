@@ -28,13 +28,14 @@ import type {
   ReassessmentContext,
   ReassessmentSummary,
   ReassessmentSummaryCreateRequest,
+  GuidedJourney,
   ScreeningEpisode,
   ScreeningEpisodeEvaluationOutcome,
+  ScreeningEpisodeHistoryPage,
   ScreeningEpisodePurpose,
 } from '@/features/assessment/api/care-contract'
 import { readCareServerConfig } from '@/lib/config/server'
 import type {
-  GenerateSupportGuideRequest,
   SupportGuide,
   SupportGuideHistory,
 } from '@/features/support-guide/api/support-guide-contract'
@@ -65,6 +66,12 @@ import {
   parseSupportGuide,
   parseSupportGuideHistory,
 } from './support-guide-validation'
+import { parseGuidedJourney } from './guided-journey-validation'
+import {
+  parseCombinedScreeningMeaning,
+  parseScreeningEpisodeHistory,
+  type CombinedScreeningMeaning,
+} from './combined-meaning-validation'
 
 import {
   parseAnonymousAssessment,
@@ -629,6 +636,23 @@ export const careClient = {
     })
   },
 
+  screeningEpisodeHistory(
+    accessToken: string,
+    cursor: string | undefined,
+    limit: number,
+    correlationId: string,
+  ): Promise<ScreeningEpisodeHistoryPage> {
+    const query = new URLSearchParams({ limit: String(limit) })
+    if (cursor) query.set('cursor', cursor)
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/screening-episodes/history?${query}`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseScreeningEpisodeHistory,
+    })
+  },
+
   submitScreeningEpisodeAssessment(
     accessToken: string,
     episodeId: string,
@@ -739,6 +763,21 @@ export const careClient = {
     })
   },
 
+  getCombinedScreeningMeaning(
+    accessToken: string,
+    supportEvaluationId: string,
+    correlationId: string,
+  ): Promise<CombinedScreeningMeaning> {
+    return careRequest({
+      method: 'GET',
+      path: `/api/v1/support-evaluations/${encodeURIComponent(supportEvaluationId)}/combined-meaning`,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: (value) =>
+        parseCombinedScreeningMeaning(value, supportEvaluationId),
+    })
+  },
+
   createReassessmentSelfReport(
     accessToken: string,
     request: ReassessmentSelfReportCreateRequest,
@@ -846,19 +885,29 @@ export const careClient = {
     })
   },
 
-  generateSupportGuide(
+  currentGuidedJourney(
     accessToken: string,
-    request: GenerateSupportGuideRequest,
-    idempotencyKey: string,
+    correlationId: string,
+  ): Promise<GuidedJourney> {
+    return careRequest({
+      method: 'GET',
+      path: '/api/v1/guided-journey/current',
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseGuidedJourney,
+    })
+  },
+
+  ensureScreeningEpisodeSupportGuide(
+    accessToken: string,
+    episodeId: string,
     correlationId: string,
   ): Promise<SupportGuide> {
     return careRequest({
       method: 'POST',
-      path: '/api/v1/support-guides',
+      path: `/api/v1/screening-episodes/${encodeURIComponent(episodeId)}/support-guide`,
       correlationId,
       authorization: accessToken,
-      idempotencyKey,
-      body: request,
       parseSuccess: parseSupportGuide,
     })
   },

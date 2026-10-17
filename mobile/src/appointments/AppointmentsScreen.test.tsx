@@ -440,6 +440,22 @@ describe('MB-630 authoritative USER appointments', () => {
       expect(screen.queryByRole('link')).toBeNull()
     },
   )
+  it('shows a persisted cancelled appointment in history and opens its exact detail', async () => {
+    const service = services([cancelled])
+    await mount(service, false)
+
+    const filters = await screen.findAllByRole('radio')
+    const historyFilter = filters[3]
+    if (!historyFilter) throw new Error('History filter missing')
+    await fireEvent.press(historyFilter)
+
+    const historyEntry = await screen.findByTestId('appointment-open-detail')
+    await fireEvent.press(historyEntry)
+
+    expect(await screen.findByTestId('appointment-detail')).toBeOnTheScreen()
+    expect(service.api.list).toHaveBeenCalled()
+    expect(service.api.cancel).not.toHaveBeenCalled()
+  })
   it('keeps history usable when credit dependency fails and distinguishes empty/filter-empty', async () => {
     const service = services([appointment])
     jest.mocked(service.api.credits).mockRejectedValue(problem(503))

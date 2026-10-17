@@ -7,7 +7,6 @@ import AchievementGallery from './AchievementGallery'
 
 const api = vi.hoisted(() => ({
   getAchievements: vi.fn(),
-  setAchievementVisibility: vi.fn(),
 }))
 
 vi.mock('../api/browser-achievements', () => api)
@@ -143,25 +142,39 @@ describe('AchievementGallery', () => {
     expect(api.getAchievements).toHaveBeenCalledTimes(2)
   })
 
-  it('hides and restores the gallery without changing source access', async () => {
+  it.each(['VISIBLE', 'HIDDEN'] as const)(
+    'shows the owner collection without visibility controls when the saved preference is %s',
+    async (visibilityState) => {
+      api.getAchievements.mockResolvedValue({
+        collection: collection(visibilityState),
+        etag: visibilityState === 'HIDDEN' ? '"1"' : '"0"',
+      })
+      render(<AchievementGallery />)
+      expect(
+        await screen.findByRole('heading', { name: 'journal.first-entry' }),
+      ).toBeVisible()
+      expect(screen.getByText('Riêng tư cho bạn')).toBeVisible()
+      expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /(?:Ẩn|Hiện) bộ sưu tập/i }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Bộ sưu tập đang được ẩn'),
+      ).not.toBeInTheDocument()
+      expect(api.getAchievements).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it('retries a failed collection read', async () => {
     const user = userEvent.setup()
-    api.setAchievementVisibility.mockResolvedValue({
-      collection: collection('HIDDEN'),
-      etag: '"1"',
-    })
+    api.getAchievements.mockRejectedValueOnce(new Error('unavailable'))
     render(<AchievementGallery />)
-    const toggle = await screen.findByRole('switch', {
-      name: 'Hiện bộ sưu tập',
-    })
-    await user.click(toggle)
-    expect(api.setAchievementVisibility).toHaveBeenCalledWith(
-      expect.any(String),
-      'HIDDEN',
-      '"0"',
-    )
     expect(
-      await screen.findByRole('heading', { name: 'Bộ sưu tập đang được ẩn' }),
+      await screen.findByRole('heading', { name: 'Chưa thể mở bộ sưu tập' }),
     ).toBeVisible()
-    expect(screen.getByText(/không ảnh hưởng đến Nhật ký/)).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(
+      await screen.findByRole('heading', { name: 'journal.first-entry' }),
+    ).toBeVisible()
   })
 })

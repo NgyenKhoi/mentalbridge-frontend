@@ -18,37 +18,18 @@ import {
   validEtag,
 } from '@/lib/consultation/consultation-validation'
 
-import {
-  specialistMockService,
-} from '@/lib/mock/specialist-mock-service'
-
 async function authorize(request: NextRequest, correlationId: string) {
   return authenticatedConsultationActor(request, correlationId, ['SPECIALIST'])
 }
 
 export async function GET(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
-  const mockEnabled = request.nextUrl.searchParams.get('mock') === 'true'
-
   let actor
   try {
     actor = await authorize(request, correlationId)
   } catch (error) {
-    if (mockEnabled) {
-      const mock = specialistMockService.getProfile()
-      return consultationSuccess(mock.data, correlationId, mock.etag)
-    }
     return consultationAuthenticationFailure(error, correlationId)
   }
-
-  if (mockEnabled) {
-    const mock = specialistMockService.getProfile()
-    return carryConsultationSession(
-      consultationSuccess(mock.data, correlationId, mock.etag),
-      actor,
-    )
-  }
-
   try {
     const result = await consultationClient.own(
       actor.accessToken,
@@ -68,64 +49,25 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
-  const mockEnabled = request.nextUrl.searchParams.get('mock') === 'true'
-
-  const etag = request.headers.get('If-Match')
-  if (etag !== null && !validEtag(etag))
-    return localProblem(
-      400,
-      'VALIDATION_FAILED',
-      'If-Match không hợp lệ.',
-      correlationId,
-    )
-
-  if (mockEnabled) {
-    try {
-      const body = parseProfileInput(await readBoundedJson(request, 8 * 1024))
-      const updated = specialistMockService.updateProfile(body)
-      let actor
-      try {
-        actor = await authorize(request, correlationId)
-      } catch {
-        // mock preview allowed without active session
-      }
-      const res = consultationSuccess(
-        updated.data,
-        correlationId,
-        updated.etag,
-        200,
-      )
-      return actor ? carryConsultationSession(res, actor) : res
-    } catch (error) {
-      if (error instanceof ConsultationInputError)
-        return localProblem(
-          422,
-          'VALIDATION_FAILED',
-          `Trường ${error.field} không hợp lệ.`,
-          correlationId,
-          [{ field: error.field, code: 'INVALID_VALUE' }],
-        )
-      if (error instanceof RequestBodyError)
-        return localProblem(
-          error.status,
-          error.code,
-          error.message,
-          correlationId,
-          error.violations,
-        )
-      return consultationFailure(error, correlationId)
-    }
-  }
-
   let actor
   try {
     actor = await authorize(request, correlationId)
   } catch (error) {
     return consultationAuthenticationFailure(error, correlationId)
   }
-
   try {
     const body = parseProfileInput(await readBoundedJson(request, 8 * 1024))
+    const etag = request.headers.get('If-Match')
+    if (etag !== null && !validEtag(etag))
+      return carryConsultationSession(
+        localProblem(
+          400,
+          'VALIDATION_FAILED',
+          'If-Match không hợp lệ.',
+          correlationId,
+        ),
+        actor,
+      )
     const result = await consultationClient.save(
       actor.accessToken,
       correlationId,

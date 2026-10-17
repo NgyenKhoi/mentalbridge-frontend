@@ -80,7 +80,25 @@ function guide(
   }
 }
 
-test('MB-511 renders reload history, stale resources, synchronous safety, and AI fallback', async ({
+function journey(
+  stage: 'GUIDE_REQUIRED' | 'GUIDE_READY',
+  guideId: string | null,
+) {
+  return {
+    journeyPolicyVersion: 'mb-guided-journey-v1',
+    stage,
+    assessmentInProgress: false,
+    episodeId: '70000000-0000-4000-8000-000000000511',
+    episodeCompletedAt: '2026-09-17T05:59:00Z',
+    presentationEvaluationId: '80000000-0000-4000-8000-000000000511',
+    supportGuideId: guideId,
+    nextAction: 'REVIEW_SAFETY_SUPPORT',
+    currentSupportPlanId: null,
+    entitlementStatus: 'NOT_REQUIRED',
+  }
+}
+
+test('MB-511/MB-668 prepares the current Guide once, keeps safety first and reloads the saved snapshot', async ({
   context,
   page,
 }) => {
@@ -99,17 +117,30 @@ test('MB-511 renders reload history, stale resources, synchronous safety, and AI
     'STALE',
     'NEGATIVE_SAFETY_SCREEN',
   )
-  const generated = guide(
+  const prepared = guide(
     '10000000-0000-4000-8000-000000000512',
     'AVAILABLE',
     'POSITIVE_SAFETY_SCREEN',
   )
+  let ensureCalls = 0
+  await page.route('**/api/care/guided-journey', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        ensureCalls === 0
+          ? journey('GUIDE_REQUIRED', null)
+          : journey('GUIDE_READY', prepared.supportGuideId),
+      ),
+    }),
+  )
   await page.route('**/api/care/support-guides**', async (route) => {
     if (route.request().method() === 'POST') {
+      ensureCalls += 1
       await route.fulfill({
-        status: 201,
+        status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(generated),
+        body: JSON.stringify(prepared),
       })
       return
     }
@@ -117,7 +148,7 @@ test('MB-511 renders reload history, stale resources, synchronous safety, and AI
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        items: [historical],
+        items: ensureCalls === 0 ? [historical] : [prepared, historical],
         nextCursor: null,
         hasMore: false,
       }),
@@ -126,24 +157,26 @@ test('MB-511 renders reload history, stale resources, synchronous safety, and AI
 
   await page.goto('/support-guides')
   await expect(
-    page.getByText('Synchronous safety guidance fixture.'),
+    page.getByRole('heading', {
+      name: 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp',
+    }),
   ).toBeVisible()
-  await expect(page.getByText('Bạn chủ động lựa chọn')).toBeVisible()
-  await expect(page.getByRole('status')).toContainText('AI')
-  await expect(page.locator('.support-guide-resources li')).toHaveCount(0)
+  const savedResources = page.getByText('Bài tập đã lưu cùng gợi ý này')
+  await expect(page.getByText('Reviewed resource fixture')).toBeHidden()
+  await savedResources.click()
+  await expect(page.getByText('Reviewed resource fixture')).toBeVisible()
+  await expect(
+    page.getByRole('navigation', { name: 'Các bước sau sàng lọc' }),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: /Tạo gợi ý/ })).toHaveCount(0)
+  expect(ensureCalls).toBe(1)
 
   await page.reload()
-  await expect(
-    page.getByText('Synchronous safety guidance fixture.'),
-  ).toBeVisible()
-
-  await page.locator('.support-guide-page-header button').click()
+  await savedResources.click()
   await expect(page.getByText('Reviewed resource fixture')).toBeVisible()
-  await expect(page.locator('.support-guide-safety.positive')).toContainText(
-    'Synchronous safety guidance fixture.',
-  )
+  expect(ensureCalls).toBe(1)
 
-  const visible = await page.locator('.support-guide-page').innerText()
+  const visible = await page.locator('main').innerText()
   expect(visible).not.toMatch(
     /MB-511|totalScore|answers|raw answer|backend|sprint/i,
   )

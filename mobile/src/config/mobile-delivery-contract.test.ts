@@ -237,7 +237,7 @@ describe('Mobile Delivery Contract v1', () => {
     expect(ios).toContain('runs-on: macos-26')
     expect(ios).toContain("node-version: '22.13.0'")
     expect(ios).toContain("XCODE_VERSION: '26.4.1'")
-    expect(ios).toContain('XCODE_BUILD: 17E202')
+    expect(ios).toContain("XCODE_BUILD: '17E202'")
     expect(ios).toContain(
       'XCODE_DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer',
     )

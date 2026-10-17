@@ -14,42 +14,11 @@ import {
 import { careClient } from '@/lib/care/care-client'
 import { isUuid } from '@/lib/care/care-validation'
 
-import {
-  isSpecialistMockEnabled,
-  specialistMockService,
-} from '@/lib/mock/specialist-mock-service'
-
 export async function GET(
   request: NextRequest,
   context: RouteContext<'/api/care/specialist/consultation-briefs/[appointmentId]'>,
 ) {
   const correlationId = correlationIdFrom(request)
-  const mockEnabled = isSpecialistMockEnabled(request)
-  const { appointmentId } = await context.params
-  if (!isUuid(appointmentId))
-    return localProblem(
-      400,
-      'VALIDATION_FAILED',
-      'A valid appointment id is required.',
-      correlationId,
-    )
-
-  if (mockEnabled) {
-    const brief = specialistMockService.getConsultationBrief(appointmentId)
-    if (brief) {
-      let specialist
-      try {
-        specialist = await authenticatedCareActor(request, correlationId, [
-          'SPECIALIST',
-        ])
-      } catch {
-        // mock preview allowed without active session
-      }
-      const res = careSuccessResponse(brief, correlationId)
-      return specialist ? carryCareSession(res, specialist) : res
-    }
-  }
-
   let specialist: Awaited<ReturnType<typeof authenticatedCareActor>>
   try {
     specialist = await authenticatedCareActor(request, correlationId, [
@@ -58,7 +27,17 @@ export async function GET(
   } catch (error) {
     return careAuthenticationFailure(error, correlationId)
   }
-
+  const { appointmentId } = await context.params
+  if (!isUuid(appointmentId))
+    return carryCareSession(
+      localProblem(
+        400,
+        'VALIDATION_FAILED',
+        'A valid appointment id is required.',
+        correlationId,
+      ),
+      specialist,
+    )
   try {
     return carryCareSession(
       careSuccessResponse(

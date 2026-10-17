@@ -159,7 +159,10 @@ test('analytics prototype interactions, meaningful details, responsive layout an
       await expect(navigation).toBeInViewport()
       await expect(
         navigation.getByRole('link', { name: 'Phân tích vận hành' }),
-      ).toHaveAttribute('aria-current', 'page')
+      ).toHaveCount(0)
+      await expect(
+        navigation.getByRole('navigation').getByRole('link'),
+      ).toHaveCount(8)
       await navigation.getByRole('button', { name: 'Đóng menu' }).click()
       await expect(navigation).not.toBeVisible()
       await expect(

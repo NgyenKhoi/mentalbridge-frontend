@@ -665,6 +665,7 @@ export default function AiCompanionChat() {
                   <article
                     key={item.messageId}
                     className={`${styles.messageRow} ${item.role === 'USER' ? styles.userMessage : styles.aiMessage}`}
+                    data-surface={item.role === 'USER' ? 'dark' : undefined}
                   >
                     <span className={styles.avatar} aria-hidden="true">
                       {item.role === 'USER' ? 'B' : <SparkIcon />}

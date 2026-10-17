@@ -579,6 +579,48 @@ describe('ResourceDetail', () => {
     )
   })
 
+  it.each([401, 404, 503])(
+    'does not fabricate a published exercise after a %s response',
+    async (status) => {
+      api.getResourceDetail.mockRejectedValue(new ResourceBrowserError(status))
+      render(
+        <ResourceDetail
+          resourceId="00000000-0000-4000-8000-000000000209"
+          fromSupportPlan={false}
+          contentVersion="1"
+        />,
+      )
+      expect(await screen.findByRole('alert')).toBeVisible()
+      expect(
+        screen.queryByText('Giải quyết một vấn đề theo từng bước'),
+      ).not.toBeInTheDocument()
+      expect(api.saveResourceProgress).not.toHaveBeenCalled()
+    },
+  )
+
+  it('retries an unavailable resource using its exact content version', async () => {
+    api.getResourceDetail
+      .mockRejectedValueOnce(new ResourceBrowserError(503))
+      .mockResolvedValue(resource)
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        fromSupportPlan={false}
+        contentVersion="4"
+      />,
+    )
+    await screen.findByRole('alert')
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(
+      await screen.findByRole('heading', { level: 1, name: resource.title }),
+    ).toBeVisible()
+    expect(api.getResourceDetail).toHaveBeenLastCalledWith(
+      resource.id,
+      '4',
+      expect.any(AbortSignal),
+    )
+  })
+
   it('uses resource-focused loading and unavailable copy', async () => {
     api.getResourceDetail.mockReturnValueOnce(new Promise(() => undefined))
     const { unmount } = render(
