@@ -28,7 +28,11 @@ mkdir -p "$evidence_dir"
 rm -f "$evidence_dir/android-assessment-result.png" \
   "$evidence_dir/android-assessment-real-contract.txt"
 
-maestro --device "$device" test "$flow"
+if ! maestro --device "$device" test "$flow"; then
+  node scripts/diagnose-sign-in-failure.mjs \
+    "$device" "$evidence_dir/android-assessment-failure.txt" || true
+  exit 1
+fi
 
 adb -s "$device" exec-out screencap -p \
   >"$evidence_dir/android-assessment-result.png"

@@ -56,7 +56,7 @@
         "source": "mobile/.maestro/mb-612-assessment.yaml",
         "scenario": "MB-612 real-contract assessment to support guide",
         "assertions": [
-          "tapOn: 'Đăng nhập'",
+          "id: 'sign-in-submit'",
           "assertVisible: 'Chào mừng bạn quay lại'"
         ]
       }
