@@ -26,8 +26,7 @@ function actionLabel(resource: ResourceSummary) {
   return resource.externalUrl ? 'Mở nguồn' : 'Đọc nội dung'
 }
 
-// Future feature notice component
-function FutureFeatureNotice() {
+function ProfessionalSupportLink() {
   return (
     <div
       style={{
@@ -36,22 +35,11 @@ function FutureFeatureNotice() {
         background: 'var(--surface-glass)',
         border: '1px solid var(--line)',
         borderRadius: 'var(--radius)',
-        opacity: 0.6,
       }}
     >
       <p style={{ fontSize: '0.9rem', textAlign: 'center' }}>
-        <strong>Sắp có:</strong> Đăng ký gói tư vấn và đặt lịch với chuyên gia
-        <span
-          style={{
-            marginLeft: '0.5rem',
-            fontSize: '0.8rem',
-            padding: '0.25rem 0.5rem',
-            background: 'var(--line)',
-            borderRadius: '4px',
-          }}
-        >
-          Chưa khả dụng
-        </span>
+        Muốn trao đổi thêm? <Link href="/specialists">Xem chuyên gia</Link> hoặc{' '}
+        <Link href="/subscription">xem quyền lợi tư vấn</Link>.
       </p>
     </div>
   )
@@ -175,7 +163,7 @@ export default function ResourcesList({
             />
           ))}
         </div>
-        <FutureFeatureNotice />
+        <ProfessionalSupportLink />
       </div>
     )
   }
@@ -213,7 +201,7 @@ export default function ResourcesList({
             Hiện chưa có tài liệu nào
           </p>
         </div>
-        <FutureFeatureNotice />
+        <ProfessionalSupportLink />
       </div>
     )
   }
@@ -258,7 +246,7 @@ export default function ResourcesList({
           </svg>
           <p style={{ fontSize: '0.95rem', opacity: 0.8 }}>{errorMessage}</p>
         </div>
-        <FutureFeatureNotice />
+        <ProfessionalSupportLink />
       </div>
     )
   }
@@ -422,7 +410,7 @@ export default function ResourcesList({
         ))}
       </div>
 
-      <FutureFeatureNotice />
+      <ProfessionalSupportLink />
     </motion.div>
   )
 }

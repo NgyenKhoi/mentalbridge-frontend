@@ -12,7 +12,10 @@ vi.mock('framer-motion', () => ({
   ),
 }))
 vi.mock('@/features/auth/components/SessionActions', () => ({
-  default: () => <button type="button">Người dùng</button>,
+  default: ({ displayName }: { displayName: string }) => <button type="button">{displayName}</button>,
+}))
+vi.mock('@/features/specialist-profile/api/browser-client', () => ({
+  browserConsultation: { own: vi.fn().mockResolvedValue({ data: { displayName: 'Chuyên gia từ hồ sơ' } }) },
 }))
 vi.mock('@/features/auth/components/WorkspaceSwitcher', () => ({
   default: () => null,
@@ -60,16 +63,16 @@ const props = {
 }
 
 describe('RoleWorkspace specialist production closure', () => {
-  it('exposes only owner-backed destinations without a fixed notification badge', () => {
+  it('keeps the new navigation and renders the authenticated profile identity', async () => {
     render(<RoleWorkspace {...props} sectionKey="dashboard" />)
 
     const navigation = screen.getByRole('navigation', {
       name: 'Điều hướng specialist',
     })
-    expect(within(navigation).getAllByRole('link')).toHaveLength(9)
+    expect(within(navigation).getAllByRole('link')).toHaveLength(8)
     expect(
-      within(navigation).getByRole('link', { name: /Phân tích vận hành/i }),
-    ).toBeInTheDocument()
+      within(navigation).queryByRole('link', { name: /Phân tích vận hành/i }),
+    ).not.toBeInTheDocument()
     expect(
       within(navigation).getByRole('link', { name: /Thu nhập/i }),
     ).toBeInTheDocument()
@@ -77,13 +80,14 @@ describe('RoleWorkspace specialist production closure', () => {
       within(navigation).queryByRole('link', { name: /Notifications/i }),
     ).not.toBeInTheDocument()
     expect(screen.queryByText('3')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Thông báo')).not.toBeInTheDocument()
-    expect(within(screen.getByRole('complementary')).getByText('Chuyên gia từ hồ sơ')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Thông báo' })).toHaveAttribute('href', '/specialist/notifications')
+    expect(await within(screen.getByRole('complementary')).findByRole('button', { name: 'Chuyên gia từ hồ sơ' })).toBeInTheDocument()
     expect(screen.queryByText('Người dùng')).not.toBeInTheDocument()
   })
 
-  it('does not expose unsupported appointment creation actions or modalities', () => {
+  it('does not expose unsupported appointment creation actions or modalities', async () => {
     render(<RoleWorkspace {...props} sectionKey="appointments" />)
+    await screen.findByRole('button', { name: 'Chuyên gia từ hồ sơ' })
 
     expect(screen.getByRole('heading', { name: 'Lịch hẹn thật' })).toBeVisible()
     expect(
@@ -97,16 +101,18 @@ describe('RoleWorkspace specialist production closure', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('renders the authoritative specialist earnings destination', () => {
+  it('renders the authoritative specialist earnings destination', async () => {
     render(<RoleWorkspace {...props} sectionKey="earnings" />)
+    await screen.findByRole('button', { name: 'Chuyên gia từ hồ sơ' })
 
     expect(screen.getByRole('heading', { name: 'Thu nhập thật' })).toBeVisible()
   })
 
   it.each([['notifications', 'Trung tâm thông báo chưa khả dụng']])(
     'shows truthful deferred state for %s',
-    (sectionKey, heading) => {
+    async (sectionKey, heading) => {
     render(<RoleWorkspace {...props} sectionKey={sectionKey} />)
+    await screen.findByRole('button', { name: 'Chuyên gia từ hồ sơ' })
 
     expect(screen.getByRole('heading', { name: heading })).toBeVisible()
     expect(

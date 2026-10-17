@@ -441,15 +441,13 @@ export default function ResourcesExperience() {
                   <p>Chọn ngày để xem những bước nhỏ của bạn.</p>
                 </div>
                 <div className="resource-streak-pill">
-                  {streak === undefined ? (
-                    <strong>Chưa tải được chuỗi thực hành</strong>
-                  ) : streak > 0 ? (
-                    <>
-                      <strong>{streak} ngày</strong> đã được lưu
-                    </>
-                  ) : (
-                    <strong>Chưa có chuỗi thực hành</strong>
-                  )}
+                  <strong>
+                    {streak === undefined
+                      ? 'Chưa tải được chuỗi thực hành'
+                      : streak === 0
+                        ? 'Chưa có chuỗi thực hành'
+                        : `${streak} ngày duy trì nhịp chăm sóc`}
+                  </strong>
                 </div>
                 <div className="resource-date-strip">
                   {dates.map((date) => {

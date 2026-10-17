@@ -4,17 +4,6 @@ import { describe, expect, it, vi } from 'vitest'
 import type { PublicResourceDetail } from '../api/browser-resources'
 import { ProblemSolvingResourceDetail } from './ProblemSolvingResourceDetail'
 
-vi.mock('../hooks/useResourceBookmarks', () => ({
-  useResourceBookmarks: () => ({
-    bookmarks: [],
-    isBookmarked: () => false,
-    state: 'ready',
-    pendingResourceId: null,
-    toggle: vi.fn().mockResolvedValue(true),
-    retry: vi.fn().mockResolvedValue(undefined),
-  }),
-}))
-
 const mockResource = {
   id: '00000000-0000-4000-8000-000000000209',
   title: 'Giải quyết một vấn đề theo từng bước',
@@ -90,7 +79,7 @@ describe('ProblemSolvingResourceDetail', () => {
       }),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('Bản nháp chỉ lưu trên thiết bị này'),
+      screen.getByText('Bản nháp lưu trên thiết bị này'),
     ).toBeInTheDocument()
     const textarea = screen.getByRole('textbox', {
       name: /Nội dung thực hành giải quyết vấn đề/i,

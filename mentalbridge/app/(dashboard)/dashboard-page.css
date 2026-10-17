@@ -345,7 +345,7 @@
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
-.ref-tasks > button {
+.ref-tasks > a {
   width: 100%;
   min-height: 48px;
   display: flex;
@@ -356,18 +356,19 @@
   color: var(--ink);
   text-align: left;
   font-size: 14px;
+  text-decoration: none;
   transition:
     color 0.18s ease,
     background 0.18s ease;
 }
-.ref-tasks > button:hover {
+.ref-tasks > a:hover {
   color: var(--teal-deep);
   background: rgba(207, 227, 216, 0.15);
 }
-.ref-tasks > button:active i {
+.ref-tasks > a:active i {
   transform: scale(0.9);
 }
-.ref-tasks > button i {
+.ref-tasks > a i {
   width: 22px;
   height: 22px;
   border: 1.5px solid rgba(27, 42, 34, 0.22);
@@ -381,13 +382,30 @@
     background 0.18s ease,
     border-color 0.18s ease;
 }
-.ref-tasks > button.done {
+.ref-tasks > a.done {
   color: var(--ink-faint);
   text-decoration: line-through;
 }
-.ref-tasks > button.done i {
+.ref-tasks > a.done i {
   border-color: var(--teal);
   background: var(--teal);
+}
+.ref-tasks > a span {
+  display: grid;
+  gap: 2px;
+}
+.ref-tasks > a small,
+.ref-tasks-note {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.ref-tasks > p {
+  line-height: 1.6;
+}
+.ref-tasks > p button {
+  margin-inline-start: 8px;
+  color: var(--teal-deep);
+  text-decoration: underline;
 }
 
 .ref-quick {

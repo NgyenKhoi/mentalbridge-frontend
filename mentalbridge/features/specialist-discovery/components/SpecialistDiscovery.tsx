@@ -23,7 +23,12 @@ const supportAreaLabels = {
   DEPRESSIVE_SYMPTOMS: 'Khí sắc và trầm buồn',
   ANXIETY_SYMPTOMS: 'Lo âu',
 } as const
-const languageLabels = { vi: 'Tiếng Việt', en: 'English' } as const
+const languageLabels = {
+  vi: 'Tiếng Việt',
+  en: 'English',
+  zh: 'Tiếng Trung',
+  fr: 'Tiếng Pháp',
+} as const
 const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
 function initials(name: string) {
