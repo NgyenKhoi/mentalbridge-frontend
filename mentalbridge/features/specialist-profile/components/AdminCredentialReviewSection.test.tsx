@@ -79,9 +79,7 @@ describe('AdminCredentialReviewSection', () => {
     expect(
       screen.queryByTitle('Tệp gốc Bằng chuyên môn B'),
     ).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'Xác minh', exact: true }),
-    ).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Xác minh' })).toBeDisabled()
     await act(async () => {
       resolveB({ data: { url: 'https://files.example.test/b.pdf' } })
     })
@@ -89,9 +87,7 @@ describe('AdminCredentialReviewSection', () => {
       'src',
       'https://files.example.test/b.pdf',
     )
-    await user.click(
-      screen.getByRole('button', { name: 'Xác minh', exact: true }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Xác minh' }))
     await waitFor(() =>
       expect(api.reviewCredential).toHaveBeenCalledWith(
         '10000000-0000-4000-8000-000000000002',

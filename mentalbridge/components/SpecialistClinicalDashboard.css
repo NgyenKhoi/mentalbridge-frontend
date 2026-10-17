@@ -1344,6 +1344,24 @@
   }
 }
 
+@media (max-width: 640px) {
+  .role-specialist .role-topbar-specialist > .clinical-topbar-left {
+    display: flex;
+    flex: 1;
+  }
+
+  .clinical-breadcrumb-parent,
+  .clinical-breadcrumb-sep,
+  .clinical-topbar-status-pill {
+    display: none;
+  }
+
+  .clinical-breadcrumb {
+    min-width: 0;
+    white-space: normal;
+  }
+}
+
 @media (max-width: 600px) {
   .clinical-session-top-strip {
     flex-direction: column;
