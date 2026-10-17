@@ -1,5 +1,12 @@
 export type FollowUpLane = 'attention' | 'inProgress' | 'ready'
-export type FollowUpPopupKind = 'encourage' | 'screening' | 'summary' | 'progress' | 'prepare' | 'questions' | 'chat'
+export type FollowUpPopupKind =
+  | 'encourage'
+  | 'screening'
+  | 'summary'
+  | 'progress'
+  | 'prepare'
+  | 'questions'
+  | 'chat'
 
 export type FollowUpPreviewItem = {
   id: string
@@ -22,5 +29,4 @@ export type FollowUpPreviewBoard = {
 }
 
 export type FollowUpPreviewResponse =
-  | { enabled: true; board: FollowUpPreviewBoard }
-  | { enabled: false }
+  { enabled: true; board: FollowUpPreviewBoard } | { enabled: false }

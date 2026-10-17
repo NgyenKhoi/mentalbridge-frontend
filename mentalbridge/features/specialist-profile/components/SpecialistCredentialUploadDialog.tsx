@@ -71,7 +71,8 @@ export default function SpecialistCredentialUploadDialog({
             <span>Nơi nhận giấy tờ</span>
             <h2 id="credential-upload-title">Thêm giấy tờ</h2>
             <p id="credential-upload-description">
-              Giấy tờ sẽ chờ xác minh trước khi bạn có thể hiện huy hiệu trên hồ sơ.
+              Giấy tờ sẽ chờ xác minh trước khi bạn có thể hiện huy hiệu trên hồ
+              sơ.
             </p>
           </div>
           <button
@@ -88,7 +89,12 @@ export default function SpecialistCredentialUploadDialog({
         <form onSubmit={(event) => void submit(event)} className={styles.form}>
           <label className={styles.field}>
             Loại giấy tờ
-            <select name="credentialType" defaultValue="DEGREE" required className={styles.input}>
+            <select
+              name="credentialType"
+              defaultValue="DEGREE"
+              required
+              className={styles.input}
+            >
               <option value="DEGREE">Bằng cấp</option>
               <option value="LICENSE">Giấy phép hành nghề</option>
               <option value="CERTIFICATE">Chứng chỉ</option>

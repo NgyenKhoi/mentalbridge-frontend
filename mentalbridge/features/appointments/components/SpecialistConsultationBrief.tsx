@@ -123,7 +123,11 @@ export function SpecialistConsultationBrief({
           <header className={styles.modalHeader}>
             <div className={styles.modalMeta}>
               <span className={styles.modalTag}>
-                <ShieldCheck size={13} className={styles.modalTagIcon} aria-hidden="true" />
+                <ShieldCheck
+                  size={13}
+                  className={styles.modalTagIcon}
+                  aria-hidden="true"
+                />
                 Hồ sơ tiếp nhận lâm sàng
               </span>
               {brief && (
@@ -143,11 +147,18 @@ export function SpecialistConsultationBrief({
           </header>
 
           <div className={styles.modalTitleBlock}>
-            <h2 id={`brief-title-${appointmentId}`} className={styles.modalTitle}>
+            <h2
+              id={`brief-title-${appointmentId}`}
+              className={styles.modalTitle}
+            >
               Tóm tắt trước buổi tư vấn
             </h2>
-            <p id={`brief-desc-${appointmentId}`} className={styles.modalSubtitle}>
-              Bản chụp thông tin do thân chủ phê duyệt chia sẻ riêng cho phiên hẹn này.
+            <p
+              id={`brief-desc-${appointmentId}`}
+              className={styles.modalSubtitle}
+            >
+              Bản chụp thông tin do thân chủ phê duyệt chia sẻ riêng cho phiên
+              hẹn này.
             </p>
           </div>
 
@@ -231,8 +242,15 @@ export function SpecialistConsultationBrief({
                   ))}
                 </div>
                 <div className={styles.disclaimerNote}>
-                  <Info size={15} className={styles.disclaimerIcon} aria-hidden="true" />
-                  <p>Kết quả sàng lọc không phải chẩn đoán y khoa. Dữ liệu mang tính chất tham khảo chuẩn bị cho phiên tư vấn.</p>
+                  <Info
+                    size={15}
+                    className={styles.disclaimerIcon}
+                    aria-hidden="true"
+                  />
+                  <p>
+                    Kết quả sàng lọc không phải chẩn đoán y khoa. Dữ liệu mang
+                    tính chất tham khảo chuẩn bị cho phiên tư vấn.
+                  </p>
                 </div>
               </div>
             </div>
@@ -250,7 +268,11 @@ export function SpecialistConsultationBrief({
                 onClick={() => void load()}
                 disabled={loading}
               >
-                <RefreshCw size={13} className={loading ? styles.spin : ''} aria-hidden="true" />
+                <RefreshCw
+                  size={13}
+                  className={loading ? styles.spin : ''}
+                  aria-hidden="true"
+                />
                 Tải lại
               </button>
               <button
