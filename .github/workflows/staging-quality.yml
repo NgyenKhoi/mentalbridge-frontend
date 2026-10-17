@@ -117,6 +117,8 @@ jobs:
 
   mobile-android-smoke:
     name: Staging Android native boot and real-contract journeys
+    # Owner-approved temporary web-demo exception; restore this and the gate condition together.
+    if: ${{ false }}
     needs: [promotion-policy]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -322,7 +324,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Require staging release checks
-        if: needs.promotion-policy.result != 'success' || needs.release-quality.result != 'success' || needs.mobile-release-quality.result != 'success' || needs.mobile-android-smoke.result != 'success' || needs.mobile-ios-smoke.result != 'success'
+        if: needs.promotion-policy.result != 'success' || needs.release-quality.result != 'success' || needs.mobile-release-quality.result != 'success' || (needs.mobile-android-smoke.result != 'success' && needs.mobile-android-smoke.result != 'skipped') || needs.mobile-ios-smoke.result != 'success'
         run: exit 1
+      - name: Report temporary Android demo exception
+        if: needs.mobile-android-smoke.result == 'skipped'
+        run: echo "::warning::Android native checks are temporarily skipped for the owner-approved web demo. Restore the Android job and its required-result condition after the demo."
       - name: Confirm staging quality gate
         run: echo "All required staging release checks passed."
