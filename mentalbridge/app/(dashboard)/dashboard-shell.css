@@ -16,14 +16,13 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  height: 100vh;
-  min-height: 100vh;
-  max-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding: 16px 12px 14px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  padding: 12px 10px 10px;
+  overflow: hidden;
   background: #e9efe7;
   border-right: 1px solid rgba(27, 42, 34, 0.1);
   box-shadow: none;
@@ -31,16 +30,16 @@
 .ref-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 4px 14px;
-  margin-bottom: 6px;
+  gap: 8px;
+  padding: 0 2px 10px;
+  margin-bottom: 2px;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
 .ref-brand > a {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
   border-radius: 13px;
   display: grid;
   place-items: center;
@@ -62,6 +61,7 @@
   color: var(--teal-deep);
   font: 600 15px var(--font-fraunces);
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ref-brand > div span {
   font-size: 9px;
@@ -71,9 +71,9 @@
   text-transform: uppercase;
 }
 .ref-brand > button {
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
   margin-left: auto;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -91,27 +91,34 @@
 .ref-sidebar nav {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  flex: 1;
+  justify-content: flex-start;
+  gap: 8px;
+  flex: 1 1 auto;
   min-height: 0;
-  padding: 8px 0 4px;
+  padding: 4px 0 2px;
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(49, 83, 74, 0.24) transparent;
 }
 .ref-sidebar nav::-webkit-scrollbar {
-  display: none;
+  width: 4px;
+}
+.ref-sidebar nav::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(49, 83, 74, 0.24);
 }
 .ref-sidebar nav section {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  justify-content: space-between;
+  flex: 1 0 auto;
+  gap: 2px;
   width: 100%;
   margin-bottom: 0;
 }
 .ref-sidebar nav h2 {
-  margin: 0 10px 5px;
+  margin: 0 10px 2px;
   color: var(--ink-faint);
   font: 700 9.5px var(--font-be-vietnam);
   letter-spacing: 0.08em;
@@ -121,11 +128,11 @@
 .ref-sidebar-foot > a {
   position: relative;
   width: 100%;
-  min-height: 38px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 11px;
+  padding: 5px 10px;
   border-radius: 10px;
   color: var(--ink-soft);
   font: 500 13px var(--font-be-vietnam);
@@ -172,9 +179,15 @@
   color: #412b0d;
   font-size: 9px;
 }
+.ref-sidebar nav a > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .ref-sidebar-foot {
-  margin-top: auto;
-  padding-top: 10px;
+  flex: none;
+  margin-top: 4px;
+  padding-top: 6px;
   border-top: 1px solid var(--line);
 }
 .ref-user {
@@ -561,10 +574,10 @@
 }
 
 .ref-shell:not(.collapsed) .ref-brand > div b {
-  overflow: visible;
-  font-size: 12.5px;
+  overflow: hidden;
+  font-size: 14px !important;
   letter-spacing: -0.02em;
-  text-overflow: clip;
+  text-overflow: ellipsis;
 }
 
 .plan-gate {
@@ -682,10 +695,10 @@
 }
 .ref-sidebar nav a,
 .ref-sidebar-foot > a {
-  min-height: 38px;
+  min-height: 34px;
   border-radius: 10px;
   font-size: 13px;
-  padding: 7px 11px;
+  padding: 5px 10px;
 }
 .ref-sidebar nav a:hover,
 .ref-sidebar-foot > a:hover {
