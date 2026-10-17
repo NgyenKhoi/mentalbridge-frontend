@@ -587,6 +587,76 @@ describe('ResourceDetail', () => {
     )
   })
 
+  it('returns to the same historical Guide with its saved result context', async () => {
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        fromSupportPlan={false}
+        returnSupportGuideId="30000000-0000-4000-8000-000000000668"
+        returnGuideContext={{
+          historical: true,
+          resultEvaluationId: '20000000-0000-4000-8000-000000000101',
+        }}
+      />,
+    )
+
+    expect(
+      await screen.findByRole('link', { name: /quay lại gợi ý hỗ trợ/i }),
+    ).toHaveAttribute(
+      'href',
+      '/support-guides/30000000-0000-4000-8000-000000000668?from=screening-history&resultEvaluationId=20000000-0000-4000-8000-000000000101',
+    )
+  })
+
+  it('never fabricates content when an exact Guide resource cannot be loaded', async () => {
+    api.getResourceDetail.mockRejectedValue(new ResourceBrowserError(502))
+    render(
+      <ResourceDetail
+        resourceId="00000000-0000-4000-8000-000000000209"
+        fromSupportPlan={false}
+        contentVersion="0"
+        returnSupportGuideId="30000000-0000-4000-8000-000000000668"
+      />,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Tài nguyên này tạm thời chưa tải được',
+    )
+    expect(
+      screen.queryByText('Giải quyết một vấn đề theo từng bước'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /quay lại gợi ý hỗ trợ/i }),
+    ).toHaveAttribute(
+      'href',
+      '/support-guides/30000000-0000-4000-8000-000000000668',
+    )
+    const calls = api.getResourceDetail.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    await waitFor(() =>
+      expect(api.getResourceDetail.mock.calls.length).toBeGreaterThan(calls),
+    )
+  })
+
+  it('explains a withdrawn exact Guide resource without blaming the user', async () => {
+    api.getResourceDetail.mockRejectedValue(new ResourceBrowserError(404))
+    render(
+      <ResourceDetail
+        resourceId={resource.id}
+        fromSupportPlan={false}
+        contentVersion="0"
+        returnSupportGuideId="30000000-0000-4000-8000-000000000668"
+      />,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Bài tập này không còn mở được',
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Gợi ý hỗ trợ của bạn vẫn được giữ nguyên.',
+    )
+  })
+
   it('shows a bounded not-found state', async () => {
     api.getResourceDetail.mockRejectedValue(new ResourceBrowserError(404))
     render(<ResourceDetail resourceId={resource.id} fromSupportPlan={false} />)

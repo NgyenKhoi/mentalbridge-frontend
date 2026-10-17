@@ -11,26 +11,40 @@ export default function GuidedJourneySteps({
     <nav className="support-guide-steps" aria-label="Các bước sau sàng lọc">
       <ol>
         <li className="completed">
-          <span className="support-guide-step-marker">
-            <Check aria-hidden="true" />
-          </span>
           <Link
+            className="support-guide-step"
             href={
               journey.presentationEvaluationId
                 ? `/assessments/results/${journey.presentationEvaluationId}`
                 : '/initial-check'
             }
           >
-            Kết quả
+            <span className="support-guide-step-marker">
+              <Check aria-hidden="true" />
+            </span>
+            <span className="support-guide-step-copy">
+              <strong>Kết quả</strong>
+              <small>Đã xong · xem lại</small>
+            </span>
           </Link>
         </li>
         <li className="active" aria-current="step">
-          <span className="support-guide-step-marker">2</span>
-          <span>Gợi ý hỗ trợ</span>
+          <span className="support-guide-step">
+            <span className="support-guide-step-marker">2</span>
+            <span className="support-guide-step-copy">
+              <strong>Gợi ý hỗ trợ</strong>
+              <small>Bạn đang ở đây</small>
+            </span>
+          </span>
         </li>
         <li>
-          <span className="support-guide-step-marker">3</span>
-          <span>Bước tiếp theo</span>
+          <span className="support-guide-step">
+            <span className="support-guide-step-marker">3</span>
+            <span className="support-guide-step-copy">
+              <strong>Bước tiếp theo</strong>
+              <small>Sau khi xem gợi ý</small>
+            </span>
+          </span>
         </li>
       </ol>
       {journey.entitlementStatus === 'UNAVAILABLE' && (

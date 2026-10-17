@@ -8,6 +8,8 @@ type Props = Readonly<{
     date?: string | string[]
     contentVersion?: string | string[]
     supportGuideId?: string | string[]
+    guideHistory?: string | string[]
+    resultEvaluationId?: string | string[]
   }>
 }>
 
@@ -16,6 +18,8 @@ export default async function ResourceDetailPage({
   searchParams,
 }: Props) {
   const [{ resourceId }, query] = await Promise.all([params, searchParams])
+  const guideHistory =
+    query.from === 'support-guide' && query.guideHistory === '1'
   return (
     <ResourceDetail
       resourceId={resourceId}
@@ -25,6 +29,13 @@ export default async function ResourceDetailPage({
           ? query.supportGuideId
           : undefined
       }
+      returnGuideContext={{
+        historical: guideHistory,
+        resultEvaluationId:
+          guideHistory && isUuid(query.resultEvaluationId)
+            ? query.resultEvaluationId
+            : undefined,
+      }}
       activityDate={typeof query.date === 'string' ? query.date : undefined}
       contentVersion={
         typeof query.contentVersion === 'string'

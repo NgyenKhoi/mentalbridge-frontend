@@ -592,7 +592,7 @@
       "web": {
         "state": "CODE_READY",
         "source": "mentalbridge/features/support-guide/components/SupportGuideCard.test.tsx",
-        "scenario": "keeps authoritative safety, exact resource provenance, and fallback visible",
+        "scenario": "keeps authoritative safety first and the exact saved resource behind it",
         "assertions": [
           "Safety guidance is available now.",
           "name: 'Xem hỗ trợ trong khu vực'"
@@ -614,7 +614,7 @@
       "web": {
         "state": "CODE_READY",
         "source": "mentalbridge/features/support-guide/components/SupportGuideCard.test.tsx",
-        "scenario": "keeps authoritative safety, exact resource provenance, and fallback visible",
+        "scenario": "keeps authoritative safety first and the exact saved resource behind it",
         "assertions": [
           "screen.getByText('Reviewed resource')",
           "name: 'Xem bài tập'"

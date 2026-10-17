@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { CircleAlert, CloudOff } from 'lucide-react'
 import {
   useCallback,
   useEffect,
@@ -11,6 +12,10 @@ import {
 } from 'react'
 
 import { Dialog } from '@/components/ui/Dialog'
+import {
+  guideReturnHref,
+  type GuideReturnContext,
+} from '@/features/support-guide/components/guided-continuation'
 
 import {
   getResourceProgress,
@@ -178,6 +183,7 @@ type Props = Readonly<{
   resourceId: string
   fromSupportPlan: boolean
   returnSupportGuideId?: string
+  returnGuideContext?: GuideReturnContext
   activityDate?: string
   contentVersion?: string
 }>
@@ -197,13 +203,15 @@ export default function ResourceDetail({
   resourceId,
   fromSupportPlan,
   returnSupportGuideId,
+  returnGuideContext,
   activityDate,
   contentVersion,
 }: Props) {
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const date = /^\d{4}-\d{2}-\d{2}$/.test(activityDate ?? '')
     ? (activityDate as string)
     : localDate()
-  const requestKey = `${resourceId}:${contentVersion ?? ''}:${date}`
+  const requestKey = `${resourceId}:${contentVersion ?? ''}:${date}:${loadAttempt}`
   const [result, setResult] = useState<LoadResult>()
   const [catalogueResult, setCatalogueResult] = useState<{
     requestKey: string
@@ -253,8 +261,10 @@ export default function ResourceDetail({
           return
         }
         if (
-          resourceId === '00000000-0000-4000-8000-000000000209' ||
-          resourceId === 'problem-solving'
+          contentVersion === undefined &&
+          !returnSupportGuideId &&
+          (resourceId === '00000000-0000-4000-8000-000000000209' ||
+            resourceId === 'problem-solving')
         ) {
           setResult({
             requestKey,
@@ -308,7 +318,7 @@ export default function ResourceDetail({
       active = false
       controller.abort()
     }
-  }, [contentVersion, date, requestKey, resourceId])
+  }, [contentVersion, date, requestKey, resourceId, returnSupportGuideId])
 
   useEffect(() => {
     let active = true
@@ -488,7 +498,7 @@ export default function ResourceDetail({
   const backHref = fromSupportPlan
     ? '/support-plan'
     : returnSupportGuideId
-      ? `/support-guides/${returnSupportGuideId}`
+      ? guideReturnHref(returnSupportGuideId, returnGuideContext)
       : '/resources'
   const backLabel = fromSupportPlan
     ? 'Quay lại kế hoạch hỗ trợ'
@@ -510,23 +520,40 @@ export default function ResourceDetail({
 
   if (loadState !== 'success' || !resource) {
     const notFound = loadState === 'not-found'
+    const fromGuide = Boolean(returnSupportGuideId)
     return (
       <main className={styles.page}>
         <section className={styles.state} role="alert">
           <span className={styles.stateIcon} aria-hidden="true">
-            {notFound ? '☁' : '!'}
+            {notFound ? <CloudOff /> : <CircleAlert />}
           </span>
           <h1>
             {notFound
-              ? 'Không tìm thấy tài nguyên'
+              ? fromGuide
+                ? 'Bài tập này không còn mở được'
+                : 'Không tìm thấy tài nguyên'
               : 'Tài nguyên này tạm thời chưa tải được'}
           </h1>
           <p>
             {notFound
-              ? 'Nội dung có thể đã được lưu trữ hoặc không còn trong thời gian phát hành.'
-              : 'Tiến độ đã lưu của bạn vẫn an toàn. Vui lòng thử lại sau.'}
+              ? fromGuide
+                ? 'Nội dung đã được cập nhật hoặc ngừng phát hành. Gợi ý hỗ trợ của bạn vẫn được giữ nguyên.'
+                : 'Nội dung có thể đã được lưu trữ hoặc không còn trong thời gian phát hành.'
+              : 'Tiến độ đã lưu của bạn vẫn an toàn. Bạn có thể thử lại.'}
           </p>
-          <Link className={styles.backButton} href={backHref}>
+          {!notFound && (
+            <button
+              type="button"
+              className={styles.backButton}
+              onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+            >
+              Thử lại
+            </button>
+          )}
+          <Link
+            className={notFound ? styles.backButton : styles.stateLink}
+            href={backHref}
+          >
             {backLabel}
           </Link>
         </section>

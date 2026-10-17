@@ -161,6 +161,9 @@ test('MB-511/MB-668 prepares the current Guide once, keeps safety first and relo
       name: 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp',
     }),
   ).toBeVisible()
+  const savedResources = page.getByText('Bài tập đã lưu cùng gợi ý này')
+  await expect(page.getByText('Reviewed resource fixture')).toBeHidden()
+  await savedResources.click()
   await expect(page.getByText('Reviewed resource fixture')).toBeVisible()
   await expect(
     page.getByRole('navigation', { name: 'Các bước sau sàng lọc' }),
@@ -169,6 +172,7 @@ test('MB-511/MB-668 prepares the current Guide once, keeps safety first and relo
   expect(ensureCalls).toBe(1)
 
   await page.reload()
+  await savedResources.click()
   await expect(page.getByText('Reviewed resource fixture')).toBeVisible()
   expect(ensureCalls).toBe(1)
 
