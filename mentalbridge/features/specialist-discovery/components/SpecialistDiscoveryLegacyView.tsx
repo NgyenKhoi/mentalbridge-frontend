@@ -229,6 +229,7 @@ export default function SpecialistDiscoveryLegacyView({
               <button
                 type="button"
                 disabled
+                aria-label="Video · sắp có"
                 className={legacy.modalityBtnDisabled}
                 title="Video trong ứng dụng hiện chưa khả dụng"
               >
@@ -255,8 +256,8 @@ export default function SpecialistDiscoveryLegacyView({
             <div className={legacy.benefitLeft}>
               {page.packageCode === 'FREE' ? (
                 <span>
-                  Gói Free: xem hồ sơ và lịch trống; đặt lịch cần gói Plus hoặc
-                  Premium.
+                  Bạn đang dùng gói Free. Bạn có thể xem hồ sơ và lịch trống;
+                  đặt lịch cần gói Plus hoặc Premium.
                 </span>
               ) : (
                 <span>
@@ -267,7 +268,7 @@ export default function SpecialistDiscoveryLegacyView({
             </div>
             {!page.videoEnabled && (
               <div className={legacy.benefitRight}>
-                Video hiện chưa khả dụng.
+                Video trong ứng dụng hiện chưa khả dụng.
               </div>
             )}
           </div>
@@ -336,11 +337,9 @@ export default function SpecialistDiscoveryLegacyView({
                 <p className={cards.rating}>
                   <Star size={13} className={cards.star} aria-hidden="true" />
                   <strong>
-                    {item.ratingAggregate.averageRating.toFixed(1)}
+                    {item.ratingAggregate.averageRating.toFixed(1)}/5 ·{' '}
+                    {item.ratingAggregate.ratingCount} lượt
                   </strong>
-                  <span className={cards.reviewCount}>
-                    · {item.ratingAggregate.ratingCount} đánh giá
-                  </span>
                 </p>
               ) : (
                 <p className={cards.rating}>Chưa có đánh giá</p>
@@ -358,6 +357,7 @@ export default function SpecialistDiscoveryLegacyView({
                 <button
                   type="button"
                   className={cards.profileBtn}
+                  aria-label="Xem hồ sơ và khung giờ"
                   onClick={() => onOpenDetail(item.specialistAccountId)}
                 >
                   Hồ sơ
