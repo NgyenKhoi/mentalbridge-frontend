@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import type { AppointmentDetail } from './AppointmentDetailModal'
 import './CancelAppointmentModal.css'
 
@@ -32,14 +33,13 @@ export default function CancelAppointmentModal({ appointment, onClose, onConfirm
   })
 
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow
+    const releaseScrollLock = lockBodyScroll()
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !submitting) onClose()
     }
-    document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', closeOnEscape)
     return () => {
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [onClose, submitting])

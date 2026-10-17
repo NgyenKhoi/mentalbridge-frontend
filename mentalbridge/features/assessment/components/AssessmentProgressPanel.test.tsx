@@ -34,17 +34,17 @@ describe('AssessmentProgressPanel', () => {
       <AssessmentProgressPanel assessmentId={assessmentId} onClose={vi.fn()} />,
     )
 
-    expect(screen.getByText('Đang tải so sánh từ Care…')).toBeVisible()
-    expect(await screen.findByText('Chưa đủ dữ liệu tương thích')).toBeVisible()
+    expect(screen.getByText('Đang tải dữ liệu so sánh…')).toBeVisible()
+    expect(await screen.findByText('Chưa đủ kết quả để so sánh')).toBeVisible()
   })
 
   it.each([
-    [409, 'INSUFFICIENT_COMPARABLE_DATA', 'Chưa đủ dữ liệu tương thích', false],
+    [409, 'INSUFFICIENT_COMPARABLE_DATA', 'Chưa đủ kết quả để so sánh', false],
     [401, 'UNAUTHENTICATED', 'Không thể truy cập so sánh này', false],
     [400, 'VALIDATION_FAILED', 'Yêu cầu so sánh không hợp lệ', false],
-    [504, 'CARE_TIMEOUT', 'Care phản hồi quá thời gian', true],
-    [503, 'CARE_UNAVAILABLE', 'Care tạm thời không khả dụng', true],
-    [502, 'CARE_MALFORMED_RESPONSE', 'Care trả về dữ liệu không hợp lệ', true],
+    [504, 'CARE_TIMEOUT', 'So sánh mất nhiều thời gian hơn dự kiến', true],
+    [503, 'CARE_UNAVAILABLE', 'Chưa thể tải so sánh lúc này', true],
+    [502, 'CARE_MALFORMED_RESPONSE', 'Chưa thể xác nhận dữ liệu so sánh', true],
   ])('renders explicit %s %s state', async (status, code, title, retryable) => {
     mockServer.use(http.get(endpoint, () => problem(status, code)))
 

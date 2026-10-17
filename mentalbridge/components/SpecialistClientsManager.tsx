@@ -1,150 +1,634 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import './specialist-clients-manager.css'
+import Link from 'next/link'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronRight,
+  MessageSquare,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  X,
+} from 'lucide-react'
+import { Skeleton } from '@/components/ui/Skeleton'
 
-export type SpecialistClientRow = {
+import type { SpecialistClientContinuityItem } from '@/features/appointments/api/consultation-brief-contract'
+import { consultationBriefBrowserClient } from '@/features/appointments/api/consultation-brief-browser-client'
+import { SessionSummaryPanel } from '@/features/appointments/components/SessionSummaryPanel'
+import { SpecialistConsultationBrief } from '@/features/appointments/components/SpecialistConsultationBrief'
+import { ApiError } from '@/lib/api/api-error'
+import styles from './SpecialistClientsManager.module.css'
+
+type Props = { rows?: unknown[]; initialAppointmentId?: string }
+type Client = {
   id: string
-  title: string
-  meta: string
-  status: string
-  detail: string
+  name: string
+  appointments: SpecialistClientContinuityItem[]
 }
 
-type Props = { rows: SpecialistClientRow[] }
-type DetailTab = 'overview' | 'assessments' | 'emotion' | 'followup'
-type EmotionRange = '7d' | '30d' | '90d'
+const VN_ZONE = 'Asia/Ho_Chi_Minh'
+const TABS = [
+  ['prepare', 'Chuẩn bị phiên'],
+  ['summary', 'Tổng kết phiên'],
+  ['history', 'Phạm vi truy cập'],
+] as const
 
-const clientProfiles = {
-  c1: {
-    initials: 'MA', age: '24 tuổi', since: 'Đồng hành từ 04/2026', lastSession: '20/08/2026', nextSession: '28/08 · 10:30', format: 'Video call',
-    focus: ['Lo âu', 'Giấc ngủ'], consent: ['Kết quả assessment', 'Xu hướng cảm xúc', 'Kế hoạch theo dõi'], privateItems: ['Nội dung nhật ký', 'Ghi chú cá nhân'],
-    mood: [3, 4, 3, 4, 5, 4, 4], assessment: { name: 'GAD-7', score: '8/21', level: 'Mức nhẹ', change: 'Giảm 3 điểm' },
-    followup: { title: 'Ổn định giấc ngủ', completed: 3, total: 5, due: 'Check-in tiếp theo: Thứ Sáu' },
-  },
-  c2: {
-    initials: 'GH', age: '29 tuổi', since: 'Đồng hành từ 06/2026', lastSession: '18/08/2026', nextSession: '27/08 · 14:00', format: 'Tại phòng tư vấn',
-    focus: ['Căng thẳng', 'Cân bằng công việc'], consent: ['Thông tin tổng quan', 'Kế hoạch theo dõi'], privateItems: ['Nội dung nhật ký', 'Chi tiết assessment', 'Ghi nhận cảm xúc'],
-    mood: [2, 3, 3, 2, 4, 3, 4], assessment: { name: 'DASS-21', score: '—', level: 'Không được chia sẻ', change: 'Cần quyền truy cập' },
-    followup: { title: 'Quản lý căng thẳng', completed: 2, total: 4, due: 'Check-in tiếp theo: 30/08' },
-  },
-} as const
-
-const tabs: { key: DetailTab; label: string }[] = [
-  { key: 'overview', label: 'Tổng quan' },
-  { key: 'assessments', label: 'Đánh giá' },
-  { key: 'emotion', label: 'Cảm xúc' },
-  { key: 'followup', label: 'Theo dõi' },
-]
-
-const emotionSeries: Record<EmotionRange, { label: string; value: number }[]> = {
-  '7d': [
-    { label: 'T2', value: 3 }, { label: 'T3', value: 4 }, { label: 'T4', value: 3 }, { label: 'T5', value: 4 }, { label: 'T6', value: 5 }, { label: 'T7', value: 4 }, { label: 'CN', value: 4 },
-  ],
-  '30d': [
-    { label: '29/7', value: 2 }, { label: '01/8', value: 3 }, { label: '04/8', value: 3 }, { label: '07/8', value: 4 }, { label: '10/8', value: 3 }, { label: '13/8', value: 4 }, { label: '16/8', value: 4 }, { label: '19/8', value: 5 }, { label: '22/8', value: 4 }, { label: '26/8', value: 4 },
-  ],
-  '90d': [
-    { label: 'T6', value: 2 }, { label: 'T7', value: 3 }, { label: 'T8', value: 3 }, { label: 'T9', value: 4 }, { label: 'T10', value: 3 }, { label: 'T11', value: 4 }, { label: 'T12', value: 4 }, { label: 'T13', value: 4 },
-  ],
+function initials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(-2)
+    .map((part) => part[0]?.toLocaleUpperCase('vi') ?? '')
+    .join('')
 }
 
-const emotionEntries = [
-  { date: '26/08/2026', time: '20:40', emoji: '🙂', mood: 'Tốt', score: 4, context: 'Check-in cảm xúc', note: 'Không chia sẻ ghi chú' },
-  { date: '25/08/2026', time: '21:15', emoji: '😊', mood: 'Rất tốt', score: 5, context: 'Check-in cảm xúc', note: 'Sau hoạt động tự chăm sóc' },
-  { date: '24/08/2026', time: '19:30', emoji: '😐', mood: 'Bình thường', score: 3, context: 'Check-in cảm xúc', note: 'Không chia sẻ ghi chú' },
-  { date: '23/08/2026', time: '22:05', emoji: '🙂', mood: 'Tốt', score: 4, context: 'Check-in cảm xúc', note: 'Sau bài tập thở' },
-]
+function formatAppointment(item: SpecialistClientContinuityItem) {
+  const start = new Date(item.scheduledStartAt)
+  const end = new Date(item.scheduledEndAt)
+  const date = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: VN_ZONE,
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(start)
+  const time = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: VN_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+  return { date, time: `${time.format(start)}–${time.format(end)}` }
+}
 
-export default function SpecialistClientsManager({ rows }: Props) {
+function statusLabel(status: SpecialistClientContinuityItem['status']) {
+  return {
+    CONFIRMED: 'Đã xác nhận',
+    IN_PROGRESS: 'Đang diễn ra',
+    SESSION_ENDED: 'Đang hoàn tất',
+    COMPLETED: 'Đã hoàn thành',
+  }[status]
+}
+
+function accessLabel(
+  state: SpecialistClientContinuityItem['briefAccessState'],
+) {
+  return {
+    AVAILABLE: 'Có thể xem lúc này',
+    TOO_EARLY: 'Chưa đến cửa sổ xem',
+    EXPIRED: 'Cửa sổ xem đã kết thúc',
+    REVOKED: 'Quyền đã được thu hồi',
+    STALE: 'Lịch hẹn đã thay đổi',
+    NOT_SHARED: 'Chưa được chia sẻ',
+    UNAVAILABLE: 'Không khả dụng ở trạng thái này',
+  }[state]
+}
+
+function accessDescription(
+  state: SpecialistClientContinuityItem['briefAccessState'],
+) {
+  return {
+    AVAILABLE: '',
+    TOO_EARLY:
+      'Bản chuẩn bị sẽ mở khi bắt đầu cửa sổ truy cập của lịch hẹn này.',
+    EXPIRED:
+      'Cửa sổ chuẩn bị đã kết thúc. Nội dung đã chia sẻ không còn được phép xem.',
+    REVOKED:
+      'Người dùng đã thu hồi quyền chia sẻ hoặc xóa bản chuẩn bị cho lịch hẹn này.',
+    STALE:
+      'Lịch hẹn đã thay đổi. Người dùng cần xem lại và chia sẻ một bản phù hợp với lịch mới.',
+    NOT_SHARED: 'Người dùng chưa chia sẻ bản chuẩn bị cho lịch hẹn này.',
+    UNAVAILABLE:
+      'Trạng thái hiện tại của lịch hẹn không cho phép mở bản chuẩn bị.',
+  }[state]
+}
+
+function appointmentOrder(
+  left: SpecialistClientContinuityItem,
+  right: SpecialistClientContinuityItem,
+) {
+  const rank = {
+    IN_PROGRESS: 0,
+    CONFIRMED: 1,
+    SESSION_ENDED: 2,
+    COMPLETED: 3,
+  } satisfies Record<SpecialistClientContinuityItem['status'], number>
+  const statusDifference = rank[left.status] - rank[right.status]
+  if (statusDifference !== 0) return statusDifference
+  const timeDifference =
+    Date.parse(left.scheduledStartAt) - Date.parse(right.scheduledStartAt)
+  return left.status === 'CONFIRMED' ? timeDifference : -timeDifference
+}
+
+function loadError(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.status === 401)
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+    if (error.status === 403)
+      return 'Quyền xem danh sách tiếp nối tư vấn hiện không khả dụng.'
+  }
+  return 'Chưa thể tải khách hàng và lịch hẹn được phép xem. Vui lòng thử lại.'
+}
+
+export default function SpecialistClientsManager({
+  initialAppointmentId,
+}: Props) {
+  const [items, setItems] = useState<SpecialistClientContinuityItem[]>([])
+  const [selectedClientId, setSelectedClientId] = useState('')
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState(
+    initialAppointmentId ?? '',
+  )
   const [query, setQuery] = useState('')
-  const [selectedId, setSelectedId] = useState(rows[0]?.id || '')
-  const [activeTab, setActiveTab] = useState<DetailTab>('overview')
-  const [emotionRange, setEmotionRange] = useState<EmotionRange>('30d')
-  const [notice, setNotice] = useState('')
+  const [tab, setTab] = useState<'prepare' | 'summary' | 'history'>('prepare')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [loaded, setLoaded] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(Boolean(initialAppointmentId))
+  const detailHeading = useRef<HTMLHeadingElement>(null)
+  const selectedClientButton = useRef<HTMLButtonElement>(null)
+  const searchInput = useRef<HTMLInputElement>(null)
+  const selectedId = useRef(initialAppointmentId ?? '')
+  const tabId = useId()
 
-  const clients = useMemo(() => rows.map((row, index) => ({
-    ...row,
-    profile: clientProfiles[row.id as keyof typeof clientProfiles] || {
-      initials: row.title.split(' ').slice(-2).map(part => part.charAt(0)).join(''), age: '—', since: 'Đang đồng hành', lastSession: '—', nextSession: 'Chưa có lịch', format: '—', focus: ['Theo dõi'], consent: ['Thông tin tổng quan'], privateItems: ['Nội dung nhật ký'], mood: [3, 3, 3, 3, 3, 3, 3], assessment: { name: 'Chưa có', score: '—', level: '—', change: '—' }, followup: { title: 'Chưa thiết lập', completed: 0, total: 1, due: 'Chưa có check-in' },
-    },
-    unread: index === 0 ? 2 : 0,
-  })), [rows])
+  const clients = useMemo<Client[]>(() => {
+    const groups = new Map<string, Client>()
+    for (const item of items) {
+      const current = groups.get(item.userAccountId)
+      if (current) current.appointments.push(item)
+      else
+        groups.set(item.userAccountId, {
+          id: item.userAccountId,
+          name: item.userDisplayName,
+          appointments: [item],
+        })
+    }
+    return [...groups.values()].map((client) => ({
+      ...client,
+      appointments: client.appointments.sort(appointmentOrder),
+    }))
+  }, [items])
 
-  const visibleClients = clients.filter(client => `${client.title} ${client.profile.focus.join(' ')}`.toLocaleLowerCase('vi').includes(query.trim().toLocaleLowerCase('vi')))
-  const selected = clients.find(client => client.id === selectedId) || clients[0]
-  const hasEmotionConsent = selected?.profile.consent.some(item => item === 'Xu hướng cảm xúc') || false
+  const visibleClients = useMemo(
+    () =>
+      clients.filter((client) =>
+        client.name
+          .toLocaleLowerCase('vi')
+          .includes(query.trim().toLocaleLowerCase('vi')),
+      ),
+    [clients, query],
+  )
 
-  const showNotice = (message: string) => {
-    setNotice(message)
-    window.setTimeout(() => setNotice(''), 2600)
+  const selectedClient =
+    clients.find((client) => client.id === selectedClientId) ??
+    clients[0] ??
+    null
+  const selectedAppointment =
+    selectedClient?.appointments.find(
+      (appointment) => appointment.appointmentId === selectedAppointmentId,
+    ) ??
+    selectedClient?.appointments[0] ??
+    null
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const response =
+        await consultationBriefBrowserClient.specialistContinuity()
+      setItems(response.items)
+      const first =
+        response.items.find(
+          (item) => item.appointmentId === selectedId.current,
+        ) ?? response.items[0]
+      setSelectedClientId(first?.userAccountId ?? '')
+      setSelectedAppointmentId(first?.appointmentId ?? '')
+      if (first?.appointmentId !== selectedId.current)
+        setTab(first?.status === 'COMPLETED' ? 'summary' : 'prepare')
+      selectedId.current = first?.appointmentId ?? ''
+      setLoaded(true)
+    } catch (caught) {
+      if (caught instanceof ApiError && [401, 403].includes(caught.status ?? 0))
+        setItems([])
+      setError(loadError(caught))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    void consultationBriefBrowserClient
+      .specialistContinuity()
+      .then((response) => {
+        if (!active) return
+        setItems(response.items)
+        const first =
+          response.items.find(
+            (item) => item.appointmentId === initialAppointmentId,
+          ) ?? response.items[0]
+        setSelectedClientId(first?.userAccountId ?? '')
+        setSelectedAppointmentId(first?.appointmentId ?? '')
+        selectedId.current = first?.appointmentId ?? ''
+        setLoaded(true)
+        setTab(first?.status === 'COMPLETED' ? 'summary' : 'prepare')
+      })
+      .catch((caught: unknown) => {
+        if (!active) return
+        setItems([])
+        setError(loadError(caught))
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [initialAppointmentId])
+
+  const chooseClient = (client: Client) => {
+    const next = client.appointments[0]
+    setSelectedClientId(client.id)
+    setSelectedAppointmentId(next?.appointmentId ?? '')
+    selectedId.current = next?.appointmentId ?? ''
+    setDetailOpen(true)
+    setTab(next?.status === 'COMPLETED' ? 'summary' : 'prepare')
+    requestAnimationFrame(() =>
+      detailHeading.current?.focus({ preventScroll: true }),
+    )
   }
 
-  if (!selected) return <section className="scm-empty-page"><h1>Chưa có khách hàng</h1><p>Khách hàng đã đồng ý chia sẻ sẽ xuất hiện tại đây.</p></section>
+  const chooseAppointment = (appointment: SpecialistClientContinuityItem) => {
+    setSelectedAppointmentId(appointment.appointmentId)
+    selectedId.current = appointment.appointmentId
+    setTab(appointment.status === 'COMPLETED' ? 'summary' : 'prepare')
+  }
 
-  return <section className="scm-manager">
-    <header className="scm-heading">
-      <div><span className="scm-eyebrow">Không gian chuyên gia</span><h1>Thông tin khách hàng</h1><p>Xem thông tin được khách hàng cho phép chia sẻ để chuẩn bị và theo dõi quá trình tư vấn.</p></div>
-      <aside><span>✓</span><div><strong>Dữ liệu theo phạm vi đồng ý</strong><small>Quyền truy cập có thể được thu hồi bất cứ lúc nào</small></div></aside>
-    </header>
-
-    <section className="scm-stats" aria-label="Tổng quan khách hàng">
-      <article className="is-primary"><span>Đang đồng hành</span><strong>{clients.length}</strong><p>Khách hàng đang hoạt động</p></article>
-      <article><span>Lịch hẹn tuần này</span><strong>4</strong><p>Phiên tiếp theo ngày 27/08</p></article>
-      <article><span>Cần theo dõi</span><strong>1</strong><p>Check-in cần xem hôm nay</p></article>
-      <article><span>Tin nhắn mới</span><strong>2</strong><p>Từ Nguyễn Minh Anh</p></article>
-    </section>
-
-    <div className="scm-layout">
-      <aside className="scm-directory">
-        <header><div><span>Danh sách</span><h2>Khách hàng của tôi</h2></div><b>{clients.length}</b></header>
-        <label className="scm-search"><span>⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Tìm tên hoặc chủ đề..." /></label>
-        <div className="scm-client-list">
-          {visibleClients.map(client => <button type="button" key={client.id} className={selected.id === client.id ? 'is-active' : ''} onClick={() => { setSelectedId(client.id); setActiveTab('overview') }}>
-            <span className="scm-list-avatar">{client.profile.initials}</span><span className="scm-list-copy"><strong>{client.title}</strong><small>{client.profile.focus.join(' · ')}</small><em><i />{client.status}</em></span>{client.unread > 0 ? <b>{client.unread}</b> : <span className="scm-list-arrow">›</span>}
-          </button>)}
-          {!visibleClients.length && <div className="scm-no-results"><span>○</span><strong>Không tìm thấy</strong><button type="button" onClick={() => setQuery('')}>Xóa tìm kiếm</button></div>}
+  return (
+    <section
+      className={styles.page}
+      data-specialist-journey="clients"
+      aria-labelledby="specialist-clients-title"
+    >
+      <header className={styles.heading}>
+        <div>
+          <span className={styles.eyebrow}>Không gian chuyên gia</span>
+          <h1 id="specialist-clients-title">Khách hàng &amp; phiên tư vấn</h1>
+          <p>
+            Chuẩn bị và xem lại nội dung theo đúng lịch hẹn, quyền chia sẻ và
+            cửa sổ truy cập hiện hành.
+          </p>
         </div>
-        <footer><span>ⓘ</span><p>Chỉ khách hàng đã cấp quyền mới xuất hiện trong danh sách này.</p></footer>
+        <div className={styles.headingActions}>
+          <button
+            type="button"
+            className={styles.reload}
+            onClick={() => void load()}
+            disabled={loading}
+            aria-label="Tải lại khách hàng"
+          >
+            <RefreshCw size={18} aria-hidden="true" />
+            <span>{loading ? 'Đang tải…' : 'Tải lại'}</span>
+          </button>
+          <Link className={styles.primaryLink} href="/specialist/appointments">
+            <CalendarDays size={18} aria-hidden="true" /> Quản lý lịch hẹn
+          </Link>
+        </div>
+      </header>
+
+      <aside className={styles.boundaryNote}>
+        <ShieldCheck size={20} aria-hidden="true" />
+        <p>
+          <strong>Danh sách được giới hạn theo lịch hẹn</strong>
+          Chỉ khách hàng có phiên đã xác nhận, đang diễn ra hoặc mới hoàn thành
+          với bạn mới xuất hiện tại đây.
+        </p>
       </aside>
 
-      <section className="scm-profile">
-        <header className="scm-profile-head">
-          <div className="scm-profile-person"><span className="scm-profile-avatar">{selected.profile.initials}<i /></span><div><span className="scm-profile-kicker">Hồ sơ khách hàng</span><h2>{selected.title}</h2><p>{selected.profile.age} · {selected.profile.since}</p><div>{selected.profile.focus.map(item => <span key={item}>{item}</span>)}</div></div></div>
-          <div className="scm-profile-actions"><button type="button" onClick={() => showNotice(`Đã mở cuộc trò chuyện với ${selected.title}.`)}>◇ Nhắn tin</button><button type="button" onClick={() => showNotice('Biểu mẫu tạo lịch hẹn đã sẵn sàng để kết nối API.')}>＋ Đặt lịch</button></div>
-        </header>
-
-        <section className="scm-consent-strip"><span>✓</span><div><strong>Quyền truy cập đang hoạt động</strong><p>Cập nhật lần cuối 18/08/2026 · Khách hàng có thể thay đổi quyền chia sẻ.</p></div><button type="button" onClick={() => showNotice('Đã mở chi tiết phạm vi đồng ý.')}>Xem phạm vi <span>→</span></button></section>
-
-        <nav className="scm-tabs" aria-label="Thông tin khách hàng">{tabs.map(tab => <button type="button" key={tab.key} className={activeTab === tab.key ? 'is-active' : ''} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>)}</nav>
-
-        <div className="scm-detail-content">
-          {activeTab === 'overview' && <div className="scm-overview">
-            <section className="scm-session-card"><header><span>Phiên sắp tới</span><b>Đã xác nhận</b></header><strong>{selected.profile.nextSession}</strong><h3>{selected.profile.format}</h3><p>Thời lượng dự kiến 45 phút</p><button type="button" onClick={() => showNotice('Đã mở phần chuẩn bị phiên tư vấn.')}>Chuẩn bị phiên <span>→</span></button></section>
-            <section className="scm-progress-card"><header><div><span>Tiến trình gần đây</span><h3>Nhịp cảm xúc 7 ngày</h3></div><small>1 · Khó khăn　5 · Tốt</small></header><div className="scm-mini-chart" aria-label="Biểu đồ cảm xúc 7 ngày">{selected.profile.mood.map((value, index) => <span key={index}><i style={{ height: `${value * 15}%` }} /><small>{['T2','T3','T4','T5','T6','T7','CN'][index]}</small></span>)}</div><footer><strong>Xu hướng ổn định</strong><span>Điểm trung bình 3,9/5</span></footer></section>
-            <section className="scm-assessment-card"><header><span>Đánh giá gần nhất</span><small>14/08/2026</small></header><div><strong>{selected.profile.assessment.name}</strong><b>{selected.profile.assessment.score}</b></div><h3>{selected.profile.assessment.level}</h3><p>{selected.profile.assessment.change} so với lần trước</p><button type="button" onClick={() => setActiveTab('assessments')}>Xem đánh giá <span>→</span></button></section>
-            <section className="scm-followup-card"><header><span>Kế hoạch theo dõi</span><b>Đang tiến hành</b></header><h3>{selected.profile.followup.title}</h3><p>{selected.profile.followup.completed}/{selected.profile.followup.total} nhiệm vụ đã hoàn thành</p><div><i style={{ width: `${selected.profile.followup.completed / selected.profile.followup.total * 100}%` }} /></div><small>{selected.profile.followup.due}</small><button type="button" onClick={() => setActiveTab('followup')}>Xem kế hoạch <span>→</span></button></section>
-          </div>}
-
-          {activeTab === 'assessments' && <section className="scm-tab-panel"><header><div><span>Dữ liệu được chia sẻ</span><h3>Lịch sử đánh giá tâm lý</h3><p>Kết quả hỗ trợ theo dõi và không thay thế chẩn đoán chuyên môn.</p></div><b>2 kết quả</b></header><article><div><span>GAD-7</span><strong>Đánh giá mức độ lo âu</strong><small>14/08/2026 · Hoàn thành</small></div><b>8/21</b><em>Mức nhẹ</em><button type="button">Xem chi tiết →</button></article><article><div><span>PHQ-9</span><strong>Đánh giá sức khỏe tinh thần</strong><small>02/08/2026 · Hoàn thành</small></div><b>6/27</b><em>Mức nhẹ</em><button type="button">Xem chi tiết →</button></article></section>}
-
-          {activeTab === 'emotion' && (hasEmotionConsent ? <section className="scm-emotion-history">
-            <header className="scm-emotion-head"><div><span>Lịch sử cảm xúc</span><h3>Nhịp cảm xúc của {selected.title}</h3><p>Dữ liệu do khách hàng chủ động ghi nhận và đồng ý chia sẻ.</p></div><div className="scm-emotion-ranges" aria-label="Khoảng thời gian">{([['7d','7 ngày'],['30d','30 ngày'],['90d','3 tháng']] as const).map(([value,label]) => <button type="button" key={value} className={emotionRange === value ? 'is-active' : ''} onClick={() => setEmotionRange(value)}>{label}</button>)}</div></header>
-            <aside className="scm-emotion-consent"><span>✓</span><p><strong>Được khách hàng cho phép chia sẻ</strong>Chỉ hiển thị điểm cảm xúc và ngữ cảnh đã chia sẻ; nội dung nhật ký vẫn riêng tư.</p><small>Cập nhật 26/08/2026</small></aside>
-            <div className="scm-emotion-metrics"><article className="is-primary"><span>Điểm trung bình</span><strong>3,9<small>/5</small></strong><p>Tăng 0,6 so với kỳ trước</p></article><article><span>Cảm xúc nổi bật</span><strong>🙂 Tốt</strong><p>Chiếm 42% ghi nhận</p></article><article><span>Số lần ghi nhận</span><strong>12</strong><p>6 ngày liên tiếp</p></article><article><span>Độ ổn định</span><strong>78<small>%</small></strong><p>Ít biến động hơn</p></article></div>
-            <div className="scm-emotion-grid">
-              <section className="scm-emotion-chart-card"><header><div><span>Xu hướng theo thời gian</span><h4>Điểm cảm xúc trung bình</h4></div><small>1 · Khó khăn　5 · Rất tốt</small></header><div className="scm-emotion-chart" aria-label={`Biểu đồ cảm xúc ${emotionRange}`}>{emotionSeries[emotionRange].map((item,index) => <span key={`${item.label}-${index}`}><b>{item.value}</b><i style={{ height: `${item.value * 17}%` }} /><small>{item.label}</small></span>)}</div><footer><span><i /> Điểm ghi nhận</span><strong>Xu hướng tích cực hơn <b>↗</b></strong></footer></section>
-              <aside className="scm-emotion-insight"><span>Điểm đáng chú ý</span><h4>Nhịp cảm xúc đang ổn định hơn</h4><ul><li><i>↗</i><p><strong>Cải thiện trong 14 ngày</strong>Điểm trung bình tăng từ 3,3 lên 3,9.</p></li><li><i>◷</i><p><strong>Thường ghi nhận buổi tối</strong>9/12 check-in được tạo sau 19:00.</p></li><li><i>✓</i><p><strong>Liên quan hoạt động chăm sóc</strong>3 lần ghi nhận sau bài tập thở.</p></li></ul><small>Thông tin hỗ trợ theo dõi, không phải kết luận lâm sàng.</small></aside>
-            </div>
-            <section className="scm-emotion-log"><header><div><span>Ghi nhận gần đây</span><h4>Lịch sử check-in</h4></div><button type="button" onClick={() => showNotice('Bộ lọc lịch sử cảm xúc đã sẵn sàng để kết nối API.')}>≡ Lọc lịch sử</button></header><div>{emotionEntries.map(entry => <button type="button" key={`${entry.date}-${entry.time}`} onClick={() => showNotice(`Đã chọn ghi nhận ngày ${entry.date}.`)}><time><strong>{entry.date.slice(0,5)}</strong><small>{entry.time}</small></time><span className="scm-emotion-emoji">{entry.emoji}</span><span className="scm-emotion-copy"><strong>{entry.mood}</strong><small>{entry.context}</small></span><span className="scm-emotion-score"><b>{entry.score}</b>/5</span><span className="scm-emotion-note">{entry.note}</span><i>›</i></button>)}</div></section>
-          </section> : <section className="scm-emotion-locked"><span>⌁</span><h3>Lịch sử cảm xúc chưa được chia sẻ</h3><p>{selected.title} chưa cấp quyền cho chuyên gia xem dữ liệu cảm xúc. Các điểm số, ghi nhận và biểu đồ được giữ riêng tư.</p><div><strong>Quyền hiện tại</strong>{selected.profile.consent.map(item => <span key={item}>✓ {item}</span>)}</div><small>Không yêu cầu quyền ngoài mục đích tư vấn đã thống nhất.</small></section>)}
-
-          {activeTab === 'followup' && <section className="scm-tab-panel scm-followup-panel"><header><div><span>Kế hoạch đang hoạt động</span><h3>{selected.profile.followup.title}</h3><p>{selected.profile.followup.due}</p></div><b>{selected.profile.followup.completed}/{selected.profile.followup.total}</b></header>{['Ghi nhận giờ ngủ mỗi ngày','Thực hành thở 4–7–8','Check-in cảm xúc cuối ngày','Hạn chế caffeine sau 15:00','Hoàn thành GAD-7 cuối tuần'].map((task,index) => <article key={task} className={index < selected.profile.followup.completed ? 'is-done' : ''}><span>{index < selected.profile.followup.completed ? '✓' : index + 1}</span><div><strong>{task}</strong><small>{index < selected.profile.followup.completed ? 'Đã hoàn thành' : 'Đang chờ khách hàng'}</small></div></article>)}</section>}
+      {error && (
+        <div className={styles.pageError} role="alert">
+          <p>{error}</p>
+          <button type="button" onClick={() => void load()} disabled={loading}>
+            Thử lại
+          </button>
         </div>
+      )}
+      {loading && !loaded ? (
+        <div
+          className={styles.loadingState}
+          role="status"
+          aria-label="Đang tải khách hàng"
+        >
+          <Skeleton width="100%" height={280} />
+          <Skeleton width="100%" height={480} />
+        </div>
+      ) : error && clients.length === 0 ? null : clients.length === 0 ? (
+        <div className={styles.emptyState}>
+          <span aria-hidden="true">◇</span>
+          <h2>Chưa có khách hàng trong phạm vi tiếp nối</h2>
+          <p>
+            Khách hàng sẽ xuất hiện sau khi một lịch hẹn được xác nhận. Các yêu
+            cầu chưa xác nhận và lịch cũ ngoài phạm vi gần đây không được liệt
+            kê.
+          </p>
+          <Link href="/specialist/appointments">Xem lịch hẹn</Link>
+        </div>
+      ) : (
+        <div
+          className={styles.workspace}
+          data-detail-open={detailOpen}
+          aria-busy={loading}
+        >
+          <aside
+            className={styles.directory}
+            aria-label="Khách hàng được phép xem"
+          >
+            <header>
+              <div>
+                <span>Theo quan hệ lịch hẹn</span>
+                <h2>Khách hàng của tôi</h2>
+              </div>
+              <strong>{clients.length}</strong>
+            </header>
+            <label className={styles.search}>
+              <Search size={18} aria-hidden="true" />
+              <input
+                ref={searchInput}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Tìm tên khách hàng…"
+                aria-label="Tìm khách hàng"
+              />
+              {query && (
+                <button
+                  type="button"
+                  aria-label="Xóa tìm kiếm"
+                  onClick={() => {
+                    setQuery('')
+                    searchInput.current?.focus()
+                  }}
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
+              )}
+            </label>
+            <div className={styles.appointmentList}>
+              {visibleClients.map((client) => {
+                const latest = client.appointments[0]
+                return (
+                  <button
+                    type="button"
+                    key={client.id}
+                    ref={
+                      selectedClient?.id === client.id
+                        ? selectedClientButton
+                        : undefined
+                    }
+                    className={
+                      selectedClient?.id === client.id
+                        ? styles.selectedAppointment
+                        : ''
+                    }
+                    aria-pressed={selectedClient?.id === client.id}
+                    onClick={() => chooseClient(client)}
+                  >
+                    <span className={styles.dateMark}>
+                      {initials(client.name)}
+                    </span>
+                    <span className={styles.appointmentCopy}>
+                      <strong>{client.name}</strong>
+                      <small>
+                        {client.appointments.length} phiên ·{' '}
+                        {statusLabel(latest.status)}
+                      </small>
+                    </span>
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </button>
+                )
+              })}
+              {visibleClients.length === 0 && (
+                <div className={styles.searchEmpty}>
+                  <p>Không tìm thấy khách hàng phù hợp.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery('')
+                      searchInput.current?.focus()
+                    }}
+                  >
+                    Xóa tìm kiếm
+                  </button>
+                </div>
+              )}
+            </div>
+          </aside>
 
-        <footer className="scm-privacy"><div><span>⌁</span><p><strong>Thông tin riêng tư được bảo vệ</strong>Nội dung nhật ký và ghi chú cá nhân không được hiển thị.</p></div><button type="button" onClick={() => showNotice('Đã mở thông tin quyền riêng tư.')}>Quyền riêng tư</button></footer>
-      </section>
-    </div>
-    {notice && <div className="scm-notice" role="status"><span>✓</span>{notice}</div>}
-  </section>
+          {selectedClient && selectedAppointment && (
+            <section className={styles.detail} aria-label="Chi tiết khách hàng">
+              <button
+                type="button"
+                className={styles.back}
+                onClick={() => {
+                  setDetailOpen(false)
+                  requestAnimationFrame(() =>
+                    selectedClientButton.current?.focus({
+                      preventScroll: true,
+                    }),
+                  )
+                }}
+              >
+                <ArrowLeft size={18} aria-hidden="true" /> Danh sách khách hàng
+              </button>
+              <header className={styles.detailHeader}>
+                <div>
+                  <span className={styles.sectionLabel}>
+                    Không gian phiên tư vấn
+                  </span>
+                  <h2 ref={detailHeading} tabIndex={-1}>
+                    {selectedClient.name}
+                  </h2>
+                  <p>
+                    {selectedClient.appointments.length} lịch hẹn với bạn ·{' '}
+                    {selectedAppointment.modality === 'IN_APP_CHAT'
+                      ? 'Chat trong ứng dụng'
+                      : 'Video trong ứng dụng'}
+                  </p>
+                </div>
+                <div className={styles.detailActions}>
+                  {selectedAppointment.modality === 'IN_APP_CHAT' && (
+                    <Link
+                      href={`/specialist/messages?appointmentId=${encodeURIComponent(selectedAppointment.appointmentId)}`}
+                    >
+                      <MessageSquare size={18} aria-hidden="true" /> Mở tin nhắn
+                    </Link>
+                  )}
+                </div>
+              </header>
+
+              <div className={styles.versionBar}>
+                <div>
+                  <span className={styles.sectionLabel}>
+                    Lịch hẹn đang chọn
+                  </span>
+                  <p>
+                    {formatAppointment(selectedAppointment).date} ·{' '}
+                    {formatAppointment(selectedAppointment).time} ·{' '}
+                    {statusLabel(selectedAppointment.status)}
+                  </p>
+                  <small>Múi giờ hiển thị: {VN_ZONE}</small>
+                </div>
+                <div
+                  className={styles.versionChoices}
+                  aria-label="Chọn lịch hẹn"
+                >
+                  {selectedClient.appointments.map((appointment) => (
+                    <button
+                      type="button"
+                      key={appointment.appointmentId}
+                      aria-pressed={
+                        appointment.appointmentId ===
+                        selectedAppointment.appointmentId
+                      }
+                      onClick={() => chooseAppointment(appointment)}
+                    >
+                      <span>
+                        {formatAppointment(appointment).date} ·{' '}
+                        {formatAppointment(appointment).time}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                className={styles.tabs}
+                role="tablist"
+                aria-label="Nội dung phiên tư vấn"
+              >
+                {TABS.map(([key, label]) => (
+                  <button
+                    type="button"
+                    role="tab"
+                    key={key}
+                    aria-selected={tab === key}
+                    id={`${tabId}-${key}`}
+                    aria-controls={`${tabId}-panel`}
+                    tabIndex={tab === key ? 0 : -1}
+                    onClick={() => setTab(key)}
+                    onKeyDown={(event) => {
+                      const index = TABS.findIndex(([value]) => value === key)
+                      const next =
+                        event.key === 'Home'
+                          ? 0
+                          : event.key === 'End'
+                            ? TABS.length - 1
+                            : event.key === 'ArrowRight'
+                              ? (index + 1) % TABS.length
+                              : event.key === 'ArrowLeft'
+                                ? (index + TABS.length - 1) % TABS.length
+                                : null
+                      if (next !== null) {
+                        event.preventDefault()
+                        setTab(TABS[next][0])
+                        document
+                          .getElementById(`${tabId}-${TABS[next][0]}`)
+                          ?.focus()
+                      }
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                className={styles.snapshot}
+                role="tabpanel"
+                id={`${tabId}-panel`}
+                aria-labelledby={`${tabId}-${tab}`}
+                tabIndex={0}
+                key={`${selectedAppointment.appointmentId}-${tab}`}
+              >
+                {tab === 'prepare' && (
+                  <>
+                    <div className={styles.snapshotMeta}>
+                      <span>
+                        {accessLabel(selectedAppointment.briefAccessState)}
+                      </span>
+                    </div>
+                    {selectedAppointment.briefAccessState === 'AVAILABLE' ? (
+                      <SpecialistConsultationBrief
+                        key={selectedAppointment.appointmentId}
+                        appointmentId={selectedAppointment.appointmentId}
+                      />
+                    ) : (
+                      <div className={styles.detailState}>
+                        <h3>
+                          {accessLabel(selectedAppointment.briefAccessState)}
+                        </h3>
+                        <p>
+                          {accessDescription(
+                            selectedAppointment.briefAccessState,
+                          )}
+                        </p>
+                        <button
+                          type="button"
+                          className={styles.reload}
+                          onClick={() => void load()}
+                          disabled={loading}
+                        >
+                          Kiểm tra lại quyền xem
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {tab === 'summary' &&
+                  (selectedAppointment.status === 'COMPLETED' ? (
+                    <SessionSummaryPanel
+                      key={selectedAppointment.appointmentId}
+                      appointmentId={selectedAppointment.appointmentId}
+                      viewer="SPECIALIST"
+                    />
+                  ) : (
+                    <div className={styles.detailState}>
+                      <h3>Tổng kết mở sau khi phiên hoàn thành</h3>
+                      <p>
+                        Bản tóm tắt sau phiên chỉ được xuất bản từ một lịch hẹn
+                        đã hoàn thành.
+                      </p>
+                    </div>
+                  ))}
+
+                {tab === 'history' && (
+                  <section className={styles.summarySection}>
+                    <h3>Nguồn và thời hạn của quyền xem</h3>
+                    <p>
+                      Nội dung được chia sẻ riêng cho lịch hẹn{' '}
+                      {formatAppointment(selectedAppointment).date},{' '}
+                      {formatAppointment(selectedAppointment).time}.
+                    </p>
+                    <p>
+                      {selectedAppointment.briefAccessStartAt &&
+                      selectedAppointment.briefAccessEndAt
+                        ? `Thời gian được xem: ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: VN_ZONE }).format(new Date(selectedAppointment.briefAccessStartAt))} – ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: VN_ZONE }).format(new Date(selectedAppointment.briefAccessEndAt))} (${VN_ZONE}).`
+                        : 'Người dùng chưa chia sẻ bản chuẩn bị cho lịch hẹn này.'}
+                    </p>
+                    <p>
+                      Chỉ bản tóm tắt được người dùng phê duyệt cho lịch hẹn này
+                      được chia sẻ. Nhật ký gốc, câu trả lời sàng lọc, kế hoạch
+                      hỗ trợ đầy đủ và ghi chú của chuyên gia khác không được
+                      chia sẻ tại đây.
+                    </p>
+                  </section>
+                )}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+    </section>
+  )
 }

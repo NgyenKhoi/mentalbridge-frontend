@@ -1,0 +1,241 @@
+.root {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding-bottom: 2px;
+}
+
+.reactions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.reactions button,
+.bookmark {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+.reactions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.icon,
+.bookmark svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon > svg:first-child {
+  width: 100%;
+  height: 100%;
+}
+
+.celebrating {
+  animation: reaction-pop var(--motion-medium) var(--ease-standard);
+}
+
+.celebrating::after {
+  position: absolute;
+  inset: -6px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  opacity: 0;
+  pointer-events: none;
+  content: '';
+  animation: reaction-halo var(--motion-medium) var(--ease-standard);
+}
+
+.sparkles {
+  position: absolute;
+  inset: -6px;
+  width: 32px;
+  height: 32px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  pointer-events: none;
+  opacity: 0;
+  animation: reaction-seeds var(--motion-medium) var(--ease-standard);
+}
+
+.mobileLabel {
+  display: none;
+}
+
+.reactions button.selected,
+.bookmark.selected {
+  color: var(--teal-deep);
+  border-color: var(--teal);
+  background: var(--teal-pale);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .reactions button:not(.selected):hover:not(:disabled),
+  .bookmark:not(.selected):hover:not(:disabled) {
+    color: var(--teal-deep);
+    background: var(--bg);
+  }
+}
+
+.reactions button:active:not(:disabled),
+.bookmark:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.reactions button:focus-visible,
+.bookmark:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.reactions button:disabled,
+.bookmark:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.count {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.bookmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.error,
+.status {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.error {
+  padding-inline-start: var(--space-3);
+  border-inline-start: 2px solid var(--terracotta);
+  color: var(--ink);
+}
+
+.status {
+  color: var(--ink-soft);
+}
+
+@keyframes reaction-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  45% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes reaction-halo {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.65);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes reaction-seeds {
+  0% {
+    opacity: 0;
+    transform: translateY(3px) scale(0.7);
+  }
+  35% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-3px) scale(1.1);
+  }
+}
+
+@media (max-width: 640px) {
+  .reactions {
+    width: 100%;
+  }
+
+  .reactions button {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    padding-inline: 4px;
+    font-size: 0.8125rem;
+  }
+
+  .desktopLabel {
+    display: none;
+  }
+
+  .mobileLabel {
+    display: inline;
+  }
+
+  .bookmark {
+    margin-left: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reactions button,
+  .bookmark {
+    transition: none;
+  }
+
+  .reactions button:active:not(:disabled),
+  .bookmark:active:not(:disabled) {
+    transform: none;
+  }
+
+  .celebrating,
+  .celebrating::after,
+  .sparkles {
+    animation: none;
+  }
+
+  .celebrating::after,
+  .sparkles {
+    display: none;
+  }
+}

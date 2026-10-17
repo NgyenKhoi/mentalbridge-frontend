@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  createCheckInCommand,
+  createHeartbeatCommand,
   createMessageCommand,
   createSubscribeCommand,
 } from '@/lib/realtime/commands'
-import { createProductionRealtimeBoundary } from '@/lib/realtime/production'
+import {
+  createProductionRealtimeBoundary,
+  currentBrowserHandshakeDecision,
+} from '@/lib/realtime/production'
 import type { RealtimeSocket, SocketListener } from '@/lib/realtime/socket'
 import {
   RealtimeTransport,
@@ -101,6 +106,40 @@ async function flush(): Promise<void> {
 describe('RealtimeTransport', () => {
   beforeEach(() => vi.useRealTimers())
 
+  it('authorizes explicit check-in and sends server-observed heartbeat commands', async () => {
+    const socket = new FakeSocket()
+    const operations: string[] = []
+    const transport = new RealtimeTransport({
+      socketFactory: () => socket,
+      credentialProvider: async () => ({
+        status: 'available',
+        credential: {
+          accessToken: 's'.repeat(43),
+          expiresAtEpochMs: Date.now() + 1000,
+        },
+      }),
+      eligibility: {
+        check: async (_conversation, operation) => {
+          operations.push(operation)
+          return 'eligible'
+        },
+      },
+    })
+    transport.connect()
+    await flush()
+    socket.trigger('realtime.event', readyEvent())
+
+    expect(
+      await transport.checkIn(
+        conversationId,
+        createCheckInCommand(conversationId),
+      ),
+    ).toBe('sent')
+    expect(transport.heartbeat(createHeartbeatCommand())).toBe('sent')
+    expect(operations).toEqual(['check-in'])
+    expect(socket.sent).toHaveLength(2)
+  })
+
   it('connects, applies duplicate acknowledgements/events once, and never maps not_applicable to delivered', async () => {
     const socket = new FakeSocket()
     const acknowledgements: string[] = []
@@ -111,7 +150,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),
@@ -162,7 +201,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),
@@ -207,7 +246,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),
@@ -255,7 +294,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 60_000,
         },
       }),
@@ -311,7 +350,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),
@@ -370,7 +409,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),
@@ -396,6 +435,10 @@ describe('RealtimeTransport', () => {
     if (boundary.status !== 'fail-closed')
       throw new Error('Expected fail-closed production boundary')
     expect(() => boundary.connect()).toThrow('No approved credential strategy.')
+    expect(currentBrowserHandshakeDecision).toEqual({
+      kind: 'short-lived-socket-credential',
+      architectureDecisionId: 'MB-382/ADR_REALTIME_BROWSER_HANDSHAKE',
+    })
   })
 
   it('keeps planned history visible as a non-success recovery state', async () => {
@@ -410,7 +453,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 60_000,
         },
       }),
@@ -452,7 +495,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 60_000,
         },
       }),
@@ -494,7 +537,7 @@ describe('RealtimeTransport', () => {
       credentialProvider: async () => ({
         status: 'available',
         credential: {
-          accessToken: 'synthetic',
+          accessToken: 's'.repeat(43),
           expiresAtEpochMs: Date.now() + 1000,
         },
       }),

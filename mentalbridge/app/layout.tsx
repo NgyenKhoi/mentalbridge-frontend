@@ -1,5 +1,12 @@
 import type { Metadata } from 'next'
-import { Fraunces, Be_Vietnam_Pro } from 'next/font/google'
+import {
+  Be_Vietnam_Pro,
+  Fraunces,
+  Lora,
+  Playfair_Display,
+  Plus_Jakarta_Sans,
+} from 'next/font/google'
+import CrisisSupportWidget from '../components/crisis-support/CrisisSupportWidget'
 import MotionPreferences from '../components/motion/MotionPreferences'
 import SmoothScroll from '../components/SmoothScroll'
 import { Providers } from './providers'
@@ -21,9 +28,30 @@ const beVietnamPro = Be_Vietnam_Pro({
   display: 'swap',
 })
 
+const lora = Lora({
+  subsets: ['latin', 'vietnamese'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-lora-variable',
+  display: 'swap',
+})
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin', 'vietnamese'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-plus-jakarta',
+  display: 'swap',
+})
+
+const playfairDisplay = Playfair_Display({
+  subsets: ['latin', 'vietnamese'],
+  variable: '--font-playfair-variable',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'MentalBridge — Cây cầu đến sự an yên',
-  description: 'Nền tảng sàng lọc sức khỏe tâm thần, đồng hành riêng tư và thấu cảm.',
+  description:
+    'Nền tảng sàng lọc sức khỏe tâm thần, đồng hành riêng tư và thấu cảm.',
 }
 
 export default function RootLayout({
@@ -33,7 +61,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body className={`${fraunces.variable} ${beVietnamPro.variable}`}>
+      <body
+        className={`${fraunces.variable} ${beVietnamPro.variable} ${lora.variable} ${plusJakartaSans.variable} ${playfairDisplay.variable}`}
+      >
         <div className="ambient-bg" aria-hidden="true">
           <div className="ambient-blob b1"></div>
           <div className="ambient-blob b2"></div>
@@ -42,6 +72,7 @@ export default function RootLayout({
         <MotionPreferences>
           <Providers>{children}</Providers>
         </MotionPreferences>
+        <CrisisSupportWidget />
         <SmoothScroll />
       </body>
     </html>

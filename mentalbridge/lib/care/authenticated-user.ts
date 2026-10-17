@@ -19,9 +19,17 @@ export async function authenticatedCareUser(
   request: NextRequest,
   correlationId: string,
 ) {
+  return authenticatedCareActor(request, correlationId, ['USER'])
+}
+
+export async function authenticatedCareActor(
+  request: NextRequest,
+  correlationId: string,
+  roles: readonly ('USER' | 'SPECIALIST')[],
+) {
   const credentials = readSessionCredentials(request.cookies)
   const session = await resolveSession(credentials, correlationId)
-  ensureRole(session.account, ['USER'])
+  ensureRole(session.account, roles)
   const accessToken =
     session.rotatedTokens?.accessToken ?? credentials.accessToken
   if (!accessToken)
@@ -47,7 +55,7 @@ export function careAuthenticationFailure(
 
 export function carryCareSession<T>(
   response: NextResponse<T>,
-  user: Awaited<ReturnType<typeof authenticatedCareUser>>,
+  user: Awaited<ReturnType<typeof authenticatedCareActor>>,
 ) {
   if (user.rotatedTokens) applySessionCookies(response, user.rotatedTokens)
   return response

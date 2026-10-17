@@ -40,6 +40,7 @@ const entry = {
   updatedAt: timestamp,
   deleted: false,
   tags: ['updated'],
+  mood: 'LOW',
   encryption: {
     algorithm: 'AES-256-GCM',
     keyId: 'test-v1',
@@ -97,7 +98,11 @@ describe('/api/journals/[journalId] Route Handler', () => {
 
   it('forwards revision and idempotency headers for PATCH', async () => {
     journalMocks.revise.mockResolvedValue(entry)
-    const write = { content: { text: 'updated journal' }, tags: ['updated'] }
+    const write = {
+      content: { text: 'updated journal' },
+      mood: 'LOW',
+      tags: ['updated'],
+    }
 
     const response = await PATCH(request('PATCH', write), context())
 

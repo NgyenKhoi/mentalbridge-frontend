@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 
 type BreathingIntroProps = { onFinish: () => void }
 type IntroLanguage = 'vi' | 'en'
@@ -29,8 +30,7 @@ export function BreathingIntro({ onFinish }: BreathingIntroProps) {
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     reducedMotionRef.current = reducedMotion
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = lockBodyScroll()
 
     // A short two-phase cue gives the user the idea without making them wait.
     const phaseTimer = reducedMotion ? undefined : window.setInterval(() => {
@@ -46,7 +46,7 @@ export function BreathingIntro({ onFinish }: BreathingIntroProps) {
       if (languageTimer) window.clearTimeout(languageTimer)
       window.clearTimeout(finishTimer)
       if (leaveTimerRef.current !== null) window.clearTimeout(leaveTimerRef.current)
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
     }
   }, [finish])
 

@@ -9,6 +9,7 @@ import {
   registrationErrorMessage,
   loginAndResolveWorkspace,
   loginErrorMessage,
+  resolveCurrentWorkspace,
   terminateSession,
   verificationErrorMessage,
   verifyEmailChallenge,
@@ -107,6 +108,46 @@ describe('browser authentication', () => {
       password: 'correct horse battery staple',
     })
   })
+
+  it('logs in an ADMIN and resolves the protected admin workspace from the authoritative session', async () => {
+    mockServer.use(
+      http.post('http://localhost/api/identity/login', () =>
+        HttpResponse.json({ authenticated: true }),
+      ),
+      http.get('http://localhost/api/identity/session', () =>
+        HttpResponse.json({
+          account: { ...activeAccount, roles: ['ADMIN'] },
+        }),
+      ),
+    )
+
+    await expect(
+      loginAndResolveWorkspace({
+        email: 'admin@example.com',
+        password: 'correct horse battery staple',
+      }),
+    ).resolves.toMatchObject({
+      path: '/admin/dashboard',
+      workspaces: [expect.objectContaining({ role: 'ADMIN' })],
+    })
+  })
+
+  it.each([
+    [['USER'], '/dashboard'],
+    [['SPECIALIST'], '/specialist/dashboard'],
+    [['ADMIN'], '/admin/dashboard'],
+  ] as const)(
+    'resolves the landing action for the authoritative %s workspace',
+    async (roles, path) => {
+      mockServer.use(
+        http.get('http://localhost/api/identity/session', () =>
+          HttpResponse.json({ account: { ...activeAccount, roles } }),
+        ),
+      )
+
+      await expect(resolveCurrentWorkspace()).resolves.toMatchObject({ path })
+    },
+  )
 
   it.each([
     { ...activeAccount, status: 'DISABLED' },

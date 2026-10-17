@@ -1,0 +1,167 @@
+.actionRegion,
+.notificationRegion {
+  position: fixed;
+  z-index: 100200;
+  display: grid;
+  width: min(420px, calc(100vw - 32px));
+  gap: var(--space-3);
+  pointer-events: none;
+}
+
+.actionRegion {
+  bottom: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.notificationRegion {
+  top: var(--space-5);
+  right: var(--space-5);
+}
+
+.toast {
+  --toast-accent: var(--teal);
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 36px;
+  align-items: start;
+  gap: var(--space-3);
+  min-height: 72px;
+  padding: 14px 12px 14px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(30, 74, 67, 0.16);
+  border-radius: var(--radius-panel);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  box-shadow: var(--elevation-dialog);
+  pointer-events: auto;
+  animation: toast-enter var(--motion-medium) var(--ease-standard) both;
+  backdrop-filter: blur(14px);
+}
+
+.notificationRegion .toast {
+  animation-name: notification-toast-enter;
+}
+
+.toast[data-tone='error'] {
+  --toast-accent: var(--terracotta);
+  border-color: rgba(199, 123, 92, 0.28);
+}
+
+.toast[data-tone='warning'] {
+  --toast-accent: var(--amber-deep);
+  border-color: rgba(225, 166, 81, 0.34);
+}
+
+.toast[data-tone='info'] {
+  --toast-accent: var(--lavender);
+}
+
+.icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--toast-accent) 15%, white);
+  color: var(--toast-accent);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.copy {
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.copy strong,
+.copy span {
+  display: block;
+}
+
+.copy strong {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.copy span {
+  margin-top: 3px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.dismiss {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: var(--radius-control);
+  color: var(--ink-faint);
+  font-size: 20px;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.dismiss:hover {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--toast-accent);
+  transform-origin: left;
+  animation: toast-progress linear forwards;
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-md)) scale(0.98);
+  }
+}
+
+@keyframes notification-toast-enter {
+  from {
+    opacity: 0;
+    transform: translateX(var(--motion-distance-md)) scale(0.98);
+  }
+}
+
+@keyframes toast-progress {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (max-width: 560px) {
+  .actionRegion,
+  .notificationRegion {
+    right: 12px;
+    left: 12px;
+    width: auto;
+    transform: none;
+  }
+
+  .actionRegion {
+    bottom: 12px;
+  }
+
+  .notificationRegion {
+    top: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .notificationRegion .toast,
+  .progress {
+    animation: none;
+  }
+}

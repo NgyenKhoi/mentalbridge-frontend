@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cộng đồng MentalBridge - Không gian Chia sẻ &amp; Lắng nghe</title>
+<!-- Google Fonts: Be Vietnam Pro & Fraunces -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,400&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bgPrimary: '#f1f4eb',
+            surface: '#ffffff',
+            ink: '#1b2a22',
+            muted: '#52604f',
+            deepteal: '#1e4a43',
+            tealBrand: '#3d7a6e',
+            sage: '#e9efe3',
+            sageBorder: '#dbe3d4',
+            terracotta: '#c86d51',
+            amberAccent: '#e59b38'
+          },
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'sans-serif'],
+            serif: ['"Fraunces"', 'serif']
+          },
+          boxShadow: {
+            subtle: '0 2px 8px -2px rgba(27, 42, 34, 0.05), 0 1px 4px -1px rgba(27, 42, 34, 0.03)',
+            cardHover: '0 8px 24px -4px rgba(27, 42, 34, 0.08), 0 2px 6px -1px rgba(27, 42, 34, 0.04)',
+            halo: '0 0 0 4px rgba(61, 122, 110, 0.15)'
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    body {
+      background-color: #f1f4eb;
+      color: #1b2a22;
+      font-family: 'Be Vietnam Pro', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Supportive Reaction Micro-animation */
+    @keyframes reactionPop {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.22); }
+      75% { transform: scale(0.95); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes haloGlow {
+      0% { opacity: 0; transform: scale(0.8); }
+      50% { opacity: 0.35; transform: scale(1.15); }
+      100% { opacity: 0; transform: scale(1.3); }
+    }
+
+    .reaction-btn.is-active svg {
+      animation: reactionPop 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .reaction-btn {
+      position: relative;
+    }
+
+    .reaction-btn::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 9999px;
+      background: radial-gradient(circle, rgba(61, 122, 110, 0.4) 0%, rgba(61, 122, 110, 0) 70%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .reaction-btn.is-active::after {
+      animation: haloGlow 300ms ease-out forwards;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reaction-btn.is-active svg,
+      .reaction-btn.is-active::after {
+        animation: none !important;
+      }
+      * {
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* Modal Backdrop */
+    .lightbox-backdrop {
+      background-color: rgba(27, 42, 34, 0.85);
+      backdrop-filter: blur(8px);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#f1f4eb] flex flex-col antialiased selection:bg-[#3d7a6e]/20 selection:text-[#1e4a43]">
+<!-- ========================================== -->
+<!-- 1. LOCKED REFERENCE CHROME: STICKY HEADER  -->
+<!-- Geometry: x:0, y:0, w:1440, h:68, bg:white -->
+<!-- ========================================== -->
+<header class="sticky top-0 z-40 w-full h-[68px] bg-white border-b border-[#e9efe3] shadow-sm flex items-center px-6 select-none" id="global-header"><div class="w-full max-w-[1440px] mx-auto flex items-center justify-between"><div class="flex items-center space-x-9"><a aria-label="MentalBridge Cộng đồng Trang chủ" class="flex items-center space-x-3 group" href="#"><div class="w-9 h-9 rounded-xl bg-[#e9efe3] flex items-center justify-center p-1.5 border border-[#dbe3d4]"><svg class="w-full h-full" fill="none" viewbox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="16" fill="#1e4a43" r="4.5"></circle><circle cx="22" cy="11" fill="#8dd3cc" r="3.5"></circle><circle cx="21" cy="21" fill="#e59b38" r="4"></circle></svg></div><div class="flex items-baseline space-x-1.5"><span class="text-[18px] font-bold tracking-tight text-[#0f4d47]">MentalBridge</span><span class="text-xs font-medium px-2 py-0.5 rounded-md bg-[#e9efe3] text-[#3d7a6e]">Cộng đồng</span></div></a><nav aria-label="Điều hướng cộng đồng" class="flex items-center space-x-6 h-[68px]"><a class="h-full flex items-center text-[15px] font-semibold text-[#0f615c] border-b-2 border-[#0f615c] transition-colors" href="#">Bảng tin</a><a class="h-full flex items-center text-[15px] font-normal text-[#52604f] hover:text-[#1b2a22] transition-colors" href="#">Bài viết đã lưu</a><a class="h-full flex items-center text-[15px] font-normal text-[#52604f] hover:text-[#1b2a22] transition-colors" href="#">Danh tính</a></nav></div><div class="flex items-center space-x-5"><a class="text-[14px] font-normal text-[#52604f] hover:text-[#c86d51] transition-colors" href="#">Cần hỗ trợ ngay</a><div class="h-4 w-[1px] bg-[#e9efe3]"></div><a class="h-9 px-3.5 rounded-xl bg-[#e9efe3] hover:bg-[#dbe3d4] text-[#0f615c] text-[14px] font-medium transition-colors flex items-center space-x-1.5" href="#" title="Quay về trang cá nhân"><svg class="w-4 h-4 text-[#0f615c]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>Trang cá nhân</span></a></div></div></header>
+<!-- ========================================== -->
+<!-- 2. MAIN EDITABLE CONTENT AREA              -->
+<!-- Geometry: Centered max-w-[980px]            -->
+<!-- Stream: 680px | Topics sidebar: 256px      -->
+<!-- Gap: 32px | Native document scrolling      -->
+<!-- ========================================== -->
+<main class="w-full flex-1 max-w-[980px] mx-auto px-4 pt-7 pb-24">
+<!-- Title & Compact Intro -->
+<section class="mb-6">
+<h1 class="text-[28px] font-serif font-semibold text-[#1e4a43] tracking-tight">Cộng đồng MentalBridge</h1>
+<p class="text-[15px] text-[#52604f] mt-1">Một không gian đọc an toàn, tử tế và không phán xét dành cho tất cả chúng ta.</p>
+</section>
+<!-- Two-column grid: 680px stream + 256px topics dock -->
+<div class="flex items-start gap-8">
+<!-- ======================================== -->
+<!-- COLUMN 1: STREAM (680px)                 -->
+<!-- ======================================== -->
+<section aria-label="Dòng thời gian bài viết" class="w-[680px] flex-shrink-0 flex flex-col space-y-5">
+<!-- COMPACT COMPOSER CARD -->
+<div class="bg-white rounded-[18px] p-5 shadow-subtle border border-[#e9efe3] transition-all hover:shadow-cardHover">
+<div class="flex items-center space-x-3">
+<div class="w-10 h-10 rounded-full bg-[#e9efe3] text-[#1e4a43] flex items-center justify-center font-medium text-sm flex-shrink-0 border border-[#dbe3d4]">
+              GA
+            </div>
+<!-- Quick prompt box pretending input -->
+<button class="flex-1 h-11 px-4 rounded-xl bg-[#f1f4eb]/70 hover:bg-[#f1f4eb] border border-[#dbe3d4] text-left text-[15px] text-[#52604f] flex items-center justify-between group transition-all" onclick="alert('Mở cửa sổ soạn thảo chia sẻ mới.')" type="button">
+<span>Bạn muốn chia sẻ điều gì hôm nay?</span>
+<svg class="w-4 h-4 text-[#3d7a6e] group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+<button class="h-11 px-5 rounded-xl bg-[#1e4a43] hover:bg-[#3d7a6e] text-white text-[15px] font-medium transition-colors shadow-sm flex items-center space-x-1.5 flex-shrink-0" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Viết bài</span>
+</button>
+</div>
+</div>
+<!-- POST 1: RICH MEDIA POST (WITH 4:3 CALM BALCONY IMAGE) -->
+<article class="bg-white rounded-[18px] p-6 shadow-subtle border border-[#e9efe3] flex flex-col overflow-hidden transition-all hover:border-[#dbe3d4]" id="post-1">
+<!-- Post Author Header -->
+<div class="flex items-center justify-between mb-3.5"><div class="flex items-center space-x-3"><div class="w-11 h-11 rounded-full bg-[#e9efe3] text-[#1e4a43] font-semibold text-sm flex items-center justify-center border border-[#dbe3d4]">MA</div><div><div class="flex items-center space-x-2"><h2 class="text-[16px] font-semibold text-[#1b2a22]">Minh An</h2></div><div class="flex items-center space-x-1.5 text-[12px] text-[#52604f] mt-0.5"><span>Hôm nay lúc 07:45</span><span>•</span><span class="flex items-center"><svg class="w-3.5 h-3.5 mr-0.5 text-[#52604f]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Công khai</span></div></div></div><button aria-label="Tùy chọn bài viết" class="w-8 h-8 rounded-lg text-[#52604f] hover:text-[#1b2a22] hover:bg-[#f1f4eb] flex items-center justify-center transition-colors" type="button"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div>
+<!-- Small muted topic chips -->
+<div class="flex flex-wrap gap-1.5 mb-3.5">
+<span class="px-2.5 py-1 rounded-full text-[12px] font-medium bg-[#f1f4eb] text-[#3d7a6e] hover:bg-[#e9efe3] transition-colors cursor-pointer">
+              #Bước tiến nhỏ
+            </span>
+<span class="px-2.5 py-1 rounded-full text-[12px] font-medium bg-[#f1f4eb] text-[#52604f] hover:bg-[#e9efe3] transition-colors cursor-pointer">
+              #Không gian yên tĩnh
+            </span>
+</div>
+<!-- Post Content Text (Be Vietnam Pro, 16px, line-height 1.6) -->
+<div class="text-[16px] leading-[1.65] text-[#1b2a22] space-y-2 mb-4">
+<p>
+              Sau hai tuần quay cuồng với những cơn lo âu bất chợt, sáng nay mình quyết định dậy sớm hơn 30 phút, pha một tách cà phê phin rồi ngồi ngoài ban công nhìn ngắm những chậu cây nhỏ tắm nắng sớm.
+            </p>
+<p>
+              Hóa ra việc cho phép bản thân được "chẳng cần phải vội" lại mang lại cảm giác bình an đến thế. Nhắn gửi một chút dịu dàng này đến những ai sáng nay cũng đang cảm thấy lòng mình hơi nặng trĩu nhé.
+            </p>
+</div>
+<!-- 4:3 TASTEFUL PHOTO (GENUINE IMAGE FROM ASSET) -->
+<div class="mb-4 rounded-xl overflow-hidden bg-[#e9efe3] border border-[#dbe3d4] relative group cursor-pointer" onclick="openLightbox('https://lh3.googleusercontent.com/aida-public/AB6AXuBXNeBN0bA7b8MU8IexxOCEXsAx2kLHiWwxUzabA2K2GW4drIg86xR7C4QSKqqFqjZ8szukENT6je_3cSxbC3dqszNx1QI63CPQZjWBDOd_UW25ptOJVAwbamUTpqN-_jp4AB1brHwLJTXEyy1iXpw0CGZD0EkNn6pyrXzYbRfWRB1hnNeaMPptMhFEEgVf3-iWIDAZUdkzhDFGKCzSqZPNvZazgfc_MC2Aw7JipOibLO1D8lN9u0J6gh9aTyVsZTLCgk-i3YGYuhIz', 'Góc ban công sớm bình yên với chậu cây xanh và ly cà phê')"><div class="aspect-[4/3] w-full overflow-hidden"><img alt="Góc ban công bình yên ngập nắng mai với cây xanh và tách cà phê" class="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]" loading="lazy" src="https://lh3.googleusercontent.com/aida/AEtjO1XPgtjgCufqeLkvtdy-XQC8U4mgWzv17eP_Dw9TLCieTY5L6rXWc1wg3234eZ59g-4vF_OdMLiT8MqMrOvuP_6gG9ypha1UfV_Ei2T4BXSy7I14lk7kgTqG8Q67ZPP8YUCJmA-EyHHCT684YuluhlQGJbe17-lyf_sGYJOxsZcDkEYbsAGiMrm6yS7ZVHf4B9S9jOrucfyVEZUG8uopo2o2NvJhNktILAkMkqH2hSLCX50R0whnqPVp2Q2d"/></div><div class="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-black/60 text-white text-[12px] font-medium backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>Xem kích thước gốc</span></div></div>
+<!-- Metas: Feedback summary count -->
+<div class="flex items-center justify-between text-[13px] text-[#52604f] pt-1 pb-3 border-b border-[#e9efe3]">
+<div class="flex items-center space-x-1.5">
+<span class="inline-flex -space-x-1 overflow-hidden">
+<span class="inline-block w-4 h-4 rounded-full bg-[#3d7a6e] ring-2 ring-white"></span>
+<span class="inline-block w-4 h-4 rounded-full bg-[#e59b38] ring-2 ring-white"></span>
+<span class="inline-block w-4 h-4 rounded-full bg-[#c86d51] ring-2 ring-white"></span>
+</span>
+<span id="p1-summary-count">28 người cùng đồng hành</span>
+</div>
+<div class="flex items-center space-x-3">
+<button class="hover:underline hover:text-[#1b2a22]" type="button">6 phản hồi</button>
+<span>•</span>
+<button class="hover:underline hover:text-[#1b2a22]" type="button">2 lượt lưu</button>
+</div>
+</div>
+<!-- SUPPORTIVE ACTION BAR: 3 SVG Icons + Labels (Đồng hành, Mình cũng vậy, Cảm ơn bạn) -->
+<div class="pt-2.5 flex items-center justify-between select-none">
+<!-- Supportive 3 buttons group -->
+<div class="flex items-center space-x-1">
+<!-- Action 1: Đồng hành -->
+<button aria-pressed="false" class="reaction-btn h-11 px-3.5 rounded-xl text-[14px] font-medium text-[#52604f] hover:bg-[#f1f4eb] hover:text-[#1e4a43] active:bg-[#e9efe3] transition-colors flex items-center space-x-2" data-post="p1" data-reaction="dong-hanh" onclick="toggleReaction(this, 'p1', 1)" type="button">
+<svg class="w-5 h-5 text-current transition-transform" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<!-- Two hands holding / walking together metaphor -->
+<path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Đồng hành</span>
+<span class="text-[13px] font-normal opacity-80 count-badge">14</span>
+</button>
+<!-- Action 2: Mình cũng vậy -->
+<button aria-pressed="false" class="reaction-btn h-11 px-3.5 rounded-xl text-[14px] font-medium text-[#52604f] hover:bg-[#f1f4eb] hover:text-[#1e4a43] active:bg-[#e9efe3] transition-colors flex items-center space-x-2" data-post="p1" data-reaction="cung-vay" onclick="toggleReaction(this, 'p1', 2)" type="button">
+<svg class="w-5 h-5 text-current transition-transform" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<!-- Heart / Resonating empathy metaphor -->
+<path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Mình cũng vậy</span>
+<span class="text-[13px] font-normal opacity-80 count-badge">9</span>
+</button>
+<!-- Action 3: Cảm ơn bạn -->
+<button aria-pressed="false" class="reaction-btn h-11 px-3.5 rounded-xl text-[14px] font-medium text-[#52604f] hover:bg-[#f1f4eb] hover:text-[#1e4a43] active:bg-[#e9efe3] transition-colors flex items-center space-x-2" data-post="p1" data-reaction="cam-on" onclick="toggleReaction(this, 'p1', 3)" type="button">
+<svg class="w-5 h-5 text-current transition-transform" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<!-- Warm blooming flower / gentle appreciation metaphor -->
+<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Cảm ơn bạn</span>
+<span class="text-[13px] font-normal opacity-80 count-badge">5</span>
+</button>
+</div>
+<!-- Right functional post actions: Bookmark & Read details -->
+<div class="flex items-center space-x-1">
+<button aria-pressed="false" class="h-11 w-11 rounded-xl text-[#52604f] hover:bg-[#f1f4eb] hover:text-[#1e4a43] flex items-center justify-center transition-colors" onclick="toggleBookmark(this)" title="Lưu bài viết" type="button">
+<svg class="w-5 h-5 text-current" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</button>
+<button class="h-10 px-3.5 rounded-lg text-[#3d7a6e] hover:bg-[#e9efe3] text-[14px] font-medium transition-colors flex items-center space-x-1" onclick="alert('Mở chi tiết bài viết và phần bình luận đồng hành.')" type="button">
+<span>Đọc bài viết</span>
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</div>
+</div>
+</article>
+<!-- POST 2: NEXT TEXT-ONLY POST (PARTIALLY VISIBLE, NATURAL SOCIAL READING ERGONOMICS) -->
+<article class="bg-white rounded-[18px] p-6 shadow-subtle border border-[#e9efe3] flex flex-col transition-all hover:border-[#dbe3d4]" id="post-2">
+<!-- Post Author Header -->
+<div class="flex items-center justify-between mb-3.5"><div class="flex items-center space-x-3"><div class="w-11 h-11 rounded-full bg-[#dbe3d4] text-[#1e4a43] font-semibold text-sm flex items-center justify-center border border-[#e9efe3]">MT</div><div><div class="flex items-center space-x-2"><h2 class="text-[16px] font-semibold text-[#1b2a22]">Minh Tâm</h2></div><div class="flex items-center space-x-1.5 text-[12px] text-[#52604f] mt-0.5"><span>Hôm qua lúc 21:15</span><span>•</span><span>Công khai</span></div></div></div><button aria-label="Tùy chọn bài viết" class="w-8 h-8 rounded-lg text-[#52604f] hover:text-[#1b2a22] hover:bg-[#f1f4eb] flex items-center justify-center transition-colors" type="button"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div>
+<!-- Small muted topic chips -->
+<div class="flex flex-wrap gap-1.5 mb-3.5">
+<span class="px-2.5 py-1 rounded-full text-[12px] font-medium bg-[#f1f4eb] text-[#3d7a6e] hover:bg-[#e9efe3] transition-colors cursor-pointer">
+              #Điều mình nhận ra
+            </span>
+<span class="px-2.5 py-1 rounded-full text-[12px] font-medium bg-[#f1f4eb] text-[#52604f] hover:bg-[#e9efe3] transition-colors cursor-pointer">
+              #Lắng nghe cảm xúc
+            </span>
+</div>
+<!-- Post Content Text (Short reflective writing) -->
+<div class="text-[16px] leading-[1.65] text-[#1b2a22] space-y-2 mb-4">
+<p>
+              "Học cách chấp nhận rằng hôm nay mình chỉ có 40% năng lượng, và hoàn thành 40% đó một cách trọn vẹn đã là một nỗ lực 100% đáng tự hào."
+            </p>
+<p class="text-[#52604f]">
+              Đó là câu nói của chuyên gia tham vấn tuần trước mà mình phải ghi vào sổ tay ngay. Trước đây mình luôn dằn vặt vì những ngày không đạt chỉ tiêu hiệu suất, nhưng hóa ra cơ thể và tâm trí cũng cần được phép chậm lại...
+            </p>
+</div>
+<!-- Metas: Feedback count -->
+<div class="flex items-center justify-between text-[13px] text-[#52604f] pt-1 pb-3 border-b border-[#e9efe3]">
+<div class="flex items-center space-x-1.5">
+<span class="inline-flex -space-x-1 overflow-hidden">
+<span class="inline-block w-4 h-4 rounded-full bg-[#3d7a6e] ring-2 ring-white"></span>
+<span class="inline-block w-4 h-4 rounded-full bg-[#e59b38] ring-2 ring-white"></span>
+</span>
+<span>41 người cùng đồng cảm</span>
+</div>
+<div class="flex items-center space-x-3">
+<button class="hover:underline hover:text-[#1b2a22]" type="button">12 phản hồi</button>
+<span>•</span>
+<button class="hover:underline hover:text-[#1b2a22]" type="button">8 lượt lưu</button>
+</div>
+</div>
+<!-- Supportive Actions -->
+<div class="pt-2.5 flex items-center justify-between select-none">
+<div class="flex items-center space-x-1">
+<button aria-pressed="false" class="reaction-btn h-11 px-3.5 rounded-xl text-[14px] font-medium text-[#52604f] hover:bg-[#f1f4eb] hover:text-[#1e4a43] active:bg-[#e9efe3] transition-colors flex items-center space-x-2" data-post="p2" data-reaction="dong-hanh" onclick="toggleReaction(this, 'p2', 1)" type="button">
+<svg class="w-5 h-5 text-current" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Đồng hành</span>
+<span class="text-[13px] font-normal opacity-80 count-badge">22</span>
+</button>
+<button aria-pressed="false" class="reaction-btn h-11 px-3.5 rounded-xl text-[14px] font-medium text-[#52604f] hover:bg-[#f1f4eb] hover:text-[#1e4a43] active:bg-[#e9efe3] transition-colors flex items-center space-x-2" data-post="p2" data-reaction="cung-vay" onclick="toggleReaction(this, 'p2', 2)" type="button">
+<svg class="w-5 h-5 text-current" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Mình cũng vậy</span>
+<span class="text-[13px] font-normal opacity-80 count-badge">19</span>
+</button>
+</div>
+<div class="flex items-center space-x-1">
+<button class="h-11 w-11 rounded-xl text-[#52604f] hover:bg-[#f1f4eb] hover:text-[#1e4a43] flex items-center justify-center transition-colors" onclick="toggleBookmark(this)" title="Lưu bài viết" type="button">
+<svg class="w-5 h-5 text-current" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+</button>
+<button class="h-10 px-3.5 rounded-lg text-[#3d7a6e] hover:bg-[#e9efe3] text-[14px] font-medium transition-colors flex items-center space-x-1" onclick="alert('Mở chi tiết bài viết.')" type="button">
+<span>Đọc bài viết</span>
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</div>
+</div>
+</article>
+</section>
+<!-- ======================================== -->
+<!-- COLUMN 2: TOPICS DOCK (256px)             -->
+<!-- Governed topics, max 3 selections        -->
+<!-- ======================================== -->
+<aside aria-label="Bộ lọc chủ đề" class="w-[256px] flex-shrink-0 sticky top-[92px] space-y-4">
+<!-- Topics Card -->
+<div class="bg-white rounded-[18px] p-5 shadow-subtle border border-[#e9efe3]">
+<div class="flex items-center justify-between mb-3">
+<h3 class="text-[15px] font-semibold text-[#1e4a43] tracking-tight">Chủ đề thảo luận</h3>
+<span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#f1f4eb] text-[#52604f]" id="topic-selected-badge">
+              Tất cả
+            </span>
+</div>
+<p class="text-[13px] text-[#52604f] leading-relaxed mb-4">
+            Chọn tối đa 3 chủ đề bạn muốn đọc hôm nay để tinh gọn bảng tin:
+          </p>
+<!-- Topic List: Active governed topic buttons -->
+<div class="space-y-1.5" id="topic-container"><button class="topic-btn w-full h-10 px-3 rounded-xl text-[14px] font-medium text-left flex items-center justify-between transition-all bg-[#e9efe3] text-[#1e4a43]" data-topic="all" onclick="handleTopicSelect(this, 'all')" type="button"><span>Tất cả bài viết</span><span class="w-2 h-2 rounded-full bg-[#1e4a43]"></span></button><button class="topic-btn w-full h-10 px-3 rounded-xl text-[14px] font-medium text-left flex items-center justify-between transition-all text-[#1b2a22] hover:bg-[#f1f4eb] border border-transparent" data-topic="my-story" onclick="handleTopicSelect(this, 'my-story')" type="button"><span>Câu chuyện của tôi</span><span class="w-1.5 h-1.5 rounded-full bg-[#dbe3d4]"></span></button><button class="topic-btn w-full h-10 px-3 rounded-xl text-[14px] font-medium text-left flex items-center justify-between transition-all text-[#1b2a22] hover:bg-[#f1f4eb] border border-transparent" data-topic="small-step" onclick="handleTopicSelect(this, 'small-step')" type="button"><span>Bước tiến nhỏ</span><span class="w-1.5 h-1.5 rounded-full bg-[#dbe3d4]"></span></button><button class="topic-btn w-full h-10 px-3 rounded-xl text-[14px] font-medium text-left flex items-center justify-between transition-all text-[#1b2a22] hover:bg-[#f1f4eb] border border-transparent" data-topic="realization" onclick="handleTopicSelect(this, 'realization')" type="button"><span>Điều mình nhận ra</span><span class="w-1.5 h-1.5 rounded-full bg-[#dbe3d4]"></span></button><button class="topic-btn w-full h-10 px-3 rounded-xl text-[14px] font-medium text-left flex items-center justify-between transition-all text-[#1b2a22] hover:bg-[#f1f4eb] border border-transparent" data-topic="ask" onclick="handleTopicSelect(this, 'ask')" type="button"><span>Hỏi cộng đồng</span><span class="w-1.5 h-1.5 rounded-full bg-[#dbe3d4]"></span></button><button class="topic-btn w-full h-10 px-3 rounded-xl text-[14px] font-medium text-left flex items-center justify-between transition-all text-[#1b2a22] hover:bg-[#f1f4eb] border border-transparent" data-topic="experience" onclick="handleTopicSelect(this, 'experience')" type="button"><span>Chia sẻ trải nghiệm</span><span class="w-1.5 h-1.5 rounded-full bg-[#dbe3d4]"></span></button><button class="topic-btn w-full h-10 px-3 rounded-xl text-[14px] font-medium text-left flex items-center justify-between transition-all text-[#1b2a22] hover:bg-[#f1f4eb] border border-transparent" data-topic="resource" onclick="handleTopicSelect(this, 'resource')" type="button"><span>Tài nguyên hữu ích</span><span class="w-1.5 h-1.5 rounded-full bg-[#dbe3d4]"></span></button></div>
+<!-- Topic Helper Footer -->
+<div class="mt-4 pt-3 border-t border-[#e9efe3] flex items-center justify-between text-[12px] text-[#52604f]">
+<span id="topic-count-status">Đang chọn: 1/3</span>
+<button class="text-[#3d7a6e] hover:underline font-medium" onclick="resetTopics()" type="button">Mặc định</button>
+</div>
+</div>
+<!-- Supportive Community Pact (Safe Space Reminder) -->
+<div class="bg-[#e9efe3]/70 rounded-[18px] p-4 border border-[#dbe3d4] text-[13px] text-[#52604f] space-y-2"><div class="flex items-center space-x-2 text-[#1e4a43] font-semibold text-[14px]"><svg class="w-4 h-4 text-[#3d7a6e]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>Quy ước cộng đồng</span></div><p class="leading-relaxed">Không gian chia sẻ tôn trọng, lắng nghe và đồng hành tử tế giữa các thành viên.</p></div>
+</aside>
+</div>
+</main>
+<!-- ========================================== -->
+<!-- 3. FIXED BOTTOM-RIGHT SAFETY SUPPORT BUTTON -->
+<!-- Remains unchanged as verified in project   -->
+<!-- ========================================== -->
+<aside aria-label="Nút an toàn hỗ trợ tâm lý" class="fixed bottom-6 right-6 z-30">
+<button class="w-12 h-12 rounded-full bg-[#e59b38] hover:bg-[#cf882b] text-white shadow-lg flex items-center justify-center transition-transform hover:scale-105 active:scale-95 border-2 border-white focus:outline-none focus:ring-4 focus:ring-[#e59b38]/30" onclick="alert('Đường dây nóng hỗ trợ tâm lý &amp; an toàn: 1900 xxxx (MentalBridge Safety Desk luôn đồng hành cùng bạn).')" title="Hỗ trợ an toàn &amp; Hotline hỗ trợ khẩn cấp" type="button">
+<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<!-- Hand holding heart / warm care symbol -->
+<path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</aside>
+<!-- ========================================== -->
+<!-- 4. LIGHTBOX MODAL: FULL UNCROPPED VIEWER   -->
+<!-- Supports Keyboard arrows & Escape key      -->
+<!-- ========================================== -->
+<div aria-label="Xem ảnh chi tiết" aria-modal="true" class="fixed inset-0 z-50 hidden lightbox-backdrop flex items-center justify-center p-4 sm:p-8" id="media-lightbox" role="dialog">
+<div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+<!-- Close button -->
+<button aria-label="Đóng xem ảnh (Phím Escape)" class="absolute -top-12 right-0 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-white" onclick="closeLightbox()" type="button">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+<!-- Uncropped Image Display with pristine natural aspect ratio -->
+<div class="rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10">
+<img alt="" class="max-h-[75vh] w-auto max-w-full object-contain block" id="lightbox-img" src=""/>
+</div>
+<!-- Caption -->
+<div class="mt-3 text-center text-white/90 text-[14px] font-medium bg-black/40 px-4 py-1.5 rounded-full backdrop-blur-md" id="lightbox-caption">
+</div>
+</div>
+</div>
+<!-- ========================================== -->
+<!-- JAVASCRIPT: INTERACTIONS, REACTIONS & A11Y -->
+<!-- ========================================== -->
+<script>
+    // State management for topics (Max 3 governed topics)
+    let selectedTopics = ['all'];
+
+    function handleTopicSelect(button, topicKey) {
+      if (topicKey === 'all') {
+        selectedTopics = ['all'];
+      } else {
+        // Remove 'all' if selecting specific topic
+        selectedTopics = selectedTopics.filter(t => t !== 'all');
+
+        if (selectedTopics.includes(topicKey)) {
+          selectedTopics = selectedTopics.filter(t => t !== topicKey);
+          if (selectedTopics.length === 0) {
+            selectedTopics = ['all'];
+          }
+        } else {
+          if (selectedTopics.length >= 3) {
+            alert('Bạn chỉ có thể chọn tối đa 3 chủ đề cùng lúc.');
+            return;
+          }
+          selectedTopics.push(topicKey);
+        }
+      }
+      renderTopicUI();
+    }
+
+    function resetTopics() {
+      selectedTopics = ['all'];
+      renderTopicUI();
+    }
+
+    function renderTopicUI() {
+      const container = document.getElementById('topic-container');
+      const buttons = container.querySelectorAll('.topic-btn');
+      const badge = document.getElementById('topic-selected-badge');
+      const countStatus = document.getElementById('topic-count-status');
+
+      buttons.forEach(btn => {
+        const key = btn.getAttribute('data-topic');
+        const indicator = btn.querySelector('span:last-child');
+
+        if (selectedTopics.includes(key)) {
+          btn.className = "topic-btn w-full h-10 px-3 rounded-xl text-[14px] font-medium text-left flex items-center justify-between transition-all bg-[#1e4a43] text-white shadow-xs";
+          indicator.className = "w-2 h-2 rounded-full bg-white opacity-90";
+        } else {
+          btn.className = "topic-btn w-full h-10 px-3 rounded-xl text-[14px] font-medium text-left flex items-center justify-between transition-all text-[#1b2a22] hover:bg-[#f1f4eb] border border-transparent";
+          indicator.className = "w-2 h-2 rounded-full bg-transparent";
+        }
+      });
+
+      if (selectedTopics.includes('all')) {
+        badge.innerText = 'Tất cả';
+        countStatus.innerText = 'Đang chọn: Tất cả';
+      } else {
+        badge.innerText = `${selectedTopics.length} chủ đề`;
+        countStatus.innerText = `Đang chọn: ${selectedTopics.length}/3`;
+      }
+    }
+
+    // Reaction handling with intentional 260ms micro-pop & halo
+    function toggleReaction(btn, postId, reactionIndex) {
+      const isCurrentlyActive = btn.classList.contains('is-active');
+      const countBadge = btn.querySelector('.count-badge');
+      let currentVal = parseInt(countBadge.innerText, 10);
+
+      // Reset sibling reactions for calm, non-polluting ergonomics
+      const parentPost = btn.closest('article');
+      const siblings = parentPost.querySelectorAll('.reaction-btn');
+
+      siblings.forEach(s => {
+        if (s !== btn && s.classList.contains('is-active')) {
+          s.classList.remove('is-active', 'bg-[#3d7a6e]/10', 'text-[#1e4a43]');
+          s.setAttribute('aria-pressed', 'false');
+          const badge = s.querySelector('.count-badge');
+          badge.innerText = Math.max(0, parseInt(badge.innerText, 10) - 1);
+        }
+      });
+
+      if (isCurrentlyActive) {
+        btn.classList.remove('is-active', 'bg-[#3d7a6e]/10', 'text-[#1e4a43]');
+        btn.setAttribute('aria-pressed', 'false');
+        countBadge.innerText = Math.max(0, currentVal - 1);
+      } else {
+        btn.classList.add('is-active', 'bg-[#3d7a6e]/10', 'text-[#1e4a43]');
+        btn.setAttribute('aria-pressed', 'true');
+        countBadge.innerText = currentVal + 1;
+      }
+    }
+
+    // Bookmark toggle
+    function toggleBookmark(btn) {
+      const isBookmarked = btn.getAttribute('aria-pressed') === 'true';
+      if (isBookmarked) {
+        btn.setAttribute('aria-pressed', 'false');
+        btn.classList.remove('text-[#3d7a6e]', 'bg-[#e9efe3]');
+        btn.classList.add('text-[#52604f]');
+      } else {
+        btn.setAttribute('aria-pressed', 'true');
+        btn.classList.remove('text-[#52604f]');
+        btn.classList.add('text-[#3d7a6e]', 'bg-[#e9efe3]');
+      }
+    }
+
+    // Lightbox modal logic
+    const lightbox = document.getElementById('media-lightbox');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxCaption = document.getElementById('lightbox-caption');
+
+    function openLightbox(src, caption) {
+      lightboxImg.src = src;
+      lightboxCaption.innerText = caption;
+      lightbox.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      // Trap focus
+      lightbox.focus();
+    }
+
+    function closeLightbox() {
+      lightbox.classList.add('hidden');
+      lightboxImg.src = '';
+      lightboxCaption.innerText = '';
+      document.body.style.overflow = '';
+    }
+
+    // Keyboard support: Escape closes modal
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !lightbox.classList.contains('hidden')) {
+        closeLightbox();
+      }
+    });
+
+    // Close on backdrop click
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox) {
+        closeLightbox();
+      }
+    });
+  </script>
+</body>
+</html>

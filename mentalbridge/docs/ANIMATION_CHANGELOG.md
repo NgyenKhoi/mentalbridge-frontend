@@ -18,7 +18,7 @@
   - Selected topic pop: 320ms với back.out(2.5)
   - Glow effect: box-shadow + filter brightness
   - Content fade in: 720ms với stagger 55ms
-  
+
 - ✅ **NEW**: Enhanced hover effects
   - Scale 1.08x với bounce easing
   - Brightness +15%
@@ -291,7 +291,7 @@
 ### Fixed Issues
 - ✅ Orbit topic transitions were abrupt
   - **Fix**: Added multi-stage GSAP timeline
-  
+
 - ✅ Cards appeared suddenly
   - **Fix**: Added scroll-triggered reveals with stagger
 
@@ -418,6 +418,6 @@ Same as project license.
 
 ---
 
-**Version:** 1.0.0  
-**Release Date:** 2026-08-19  
+**Version:** 1.0.0
+**Release Date:** 2026-08-19
 **Status:** ✅ Production Ready

@@ -6,6 +6,7 @@ import { test } from './test-fixtures'
 test.describe.configure({ mode: 'serial' })
 
 const identityFixtureUrl = 'http://127.0.0.1:3201'
+const careFixtureUrl = 'http://127.0.0.1:3202'
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -14,8 +15,11 @@ const identityFixtureUrl = 'http://127.0.0.1:3201'
 async function resetFixture(
   request: import('@playwright/test').APIRequestContext,
 ) {
-  const response = await request.post(`${identityFixtureUrl}/__test/reset`)
-  expect(response.status()).toBe(204)
+  const responses = await Promise.all([
+    request.post(`${identityFixtureUrl}/__test/reset`),
+    request.post(`${careFixtureUrl}/__test/reset`),
+  ])
+  for (const response of responses) expect(response.status()).toBe(204)
 }
 
 /** Inject the pre-seeded Care E2E USER session cookie. */
@@ -79,9 +83,11 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
     page,
   }) => {
     // No session cookie — layout calls requireCurrentAccount → 401 → redirect
-    await page.goto('/dashboard')
-    await expect(page).toHaveURL(/\/login/)
-    await expect(page.locator('form input[type="email"]')).toBeVisible()
+    for (const route of ['/dashboard', '/ai-companion']) {
+      await page.goto(route)
+      await expect(page).toHaveURL(/\/login/)
+      await expect(page.locator('form input[type="email"]')).toBeVisible()
+    }
   })
 
   test('invalid token on protected routes redirects to login without leaking data', async ({
@@ -124,7 +130,12 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
     await expect(page).toHaveURL(/\/specialist\/dashboard/)
     // Must not render USER dashboard content
     await expect(
-      page.getByRole('heading', { name: /nhiệm vụ hôm nay/i }),
+      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
+    ).toHaveCount(0)
+    await page.goto('/ai-companion')
+    await expect(page).toHaveURL(/\/specialist\/dashboard/)
+    await expect(
+      page.getByRole('region', { name: 'AI Companion' }),
     ).toHaveCount(0)
   })
 
@@ -309,7 +320,9 @@ test.describe('AC2: Explicit degradation states', () => {
     // contain any pre-filled data from a Care-owned user profile
     await expect(page.getByLabel('Tên hiển thị')).toHaveValue('')
     // Disclosure section must show unavailable state, not backend-owned content
-    await expect(page.getByText('Disclosure hiện chưa khả dụng')).toBeVisible()
+    await expect(
+      page.getByText('Thông báo quyền riêng tư tạm thời chưa tải được.'),
+    ).toBeVisible()
   })
 
   test('Care service outage on assessments page shows explicit error without mock history', async ({
@@ -335,13 +348,87 @@ test.describe('AC2: Explicit degradation states', () => {
     await page.goto('/assessments')
 
     // Error state must appear
-    await expect(page.getByText('Không thể tải lịch sử')).toBeVisible({
+    await expect(
+      page.getByText(
+        'Không thể tải lịch sử sàng lọc lúc này. Vui lòng thử lại.',
+      ),
+    ).toBeVisible({
       timeout: 10_000,
     })
     // Retry option must be available
-    await expect(page.getByRole('button', { name: 'Thử lại' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Thử lại', exact: true }).first(),
+    ).toBeVisible()
     // No invented assessment rows
     await expect(page.getByRole('link', { name: 'Xem lại' })).toHaveCount(0)
+  })
+
+  test('assessment history actions keep separate readable hit areas', async ({
+    context,
+    page,
+  }) => {
+    await injectUserSession(context)
+    await page.setViewportSize({ width: 1280, height: 720 })
+
+    await page.route('**/api/care/assessments/history**', (route) => {
+      void route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [
+            {
+              assessmentId: '10000000-0000-4000-8000-000000000003',
+              questionnaireDefinitionId: '10000000-0000-4000-8000-000000000001',
+              instrument: 'PHQ9',
+              questionnaireVersion: 'phq9-vi-vn-capstone-v1',
+              privacyPolicyVersion: 'privacy-capstone-v2',
+              submittedAt: '2026-09-02T00:00:00Z',
+              result: {
+                totalScore: 8,
+                screeningLevel: 'MILD',
+                scoringVersion: 'phq9-standard-bands-v1',
+                safetyStatus: 'NEGATIVE_SAFETY_SCREEN',
+                safetyPolicyVersion: 'MB-SAFETY-PHQ9-001/1.0-capstone',
+                disclaimerCode: 'SCREENING_NOT_DIAGNOSIS',
+              },
+            },
+          ],
+          nextCursor: null,
+          hasMore: false,
+        }),
+      })
+    })
+    await page.route('**/api/care/support-evaluations/history**', (route) => {
+      void route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [], nextCursor: null, hasMore: false }),
+      })
+    })
+
+    await page.goto('/assessments')
+
+    await page
+      .getByRole('button', {
+        name: 'Bài sàng lọc riêng lẻ và kết quả từng bài',
+      })
+      .click()
+    const reviewAction = page.getByRole('link', { name: 'Xem lại' })
+    const compareAction = page.getByRole('button', { name: 'So sánh' })
+    await expect(reviewAction).toBeVisible()
+    await expect(compareAction).toBeVisible()
+
+    const reviewActionBox = await reviewAction.boundingBox()
+    const compareActionBox = await compareAction.boundingBox()
+    expect(reviewActionBox).not.toBeNull()
+    expect(compareActionBox).not.toBeNull()
+    expect(reviewActionBox?.width).toBeGreaterThanOrEqual(44)
+    expect(compareActionBox?.width).toBeGreaterThanOrEqual(44)
+    expect(reviewActionBox?.height).toBeGreaterThanOrEqual(24)
+    expect(compareActionBox?.height).toBeGreaterThanOrEqual(24)
+    expect(
+      (reviewActionBox?.x ?? 0) + (reviewActionBox?.width ?? 0),
+    ).toBeLessThan(compareActionBox?.x ?? 0)
   })
 
   test('Care service outage on anonymous PHQ-9 shows explicit unavailable without inventing questions', async ({
@@ -374,8 +461,10 @@ test.describe('AC2: Explicit degradation states', () => {
   })
 
   test('Content outage renders an explicit resource fallback', async ({
+    context,
     page,
   }) => {
+    await injectUserSession(context)
     await page.route('**/api/resources**', (route) => {
       void route.fulfill({
         status: 200,
@@ -391,9 +480,10 @@ test.describe('AC2: Explicit degradation states', () => {
     })
     await page.goto('/resources')
     await expect(
-      page.getByText(
-        'Tài nguyên hỗ trợ tạm thời không khả dụng. Vui lòng thử lại sau.',
-      ),
+      page.getByRole('heading', { name: 'Góc tài nguyên đang nghỉ một chút' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Thử tải lại' }),
     ).toBeVisible()
     await expect(page.locator('.resource-card')).toHaveCount(0)
     await expect(page.getByText(/hotline/i)).toHaveCount(0)
@@ -423,7 +513,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.goto('/dashboard')
 
     await expect(
-      page.getByRole('heading', { name: /nhiệm vụ hôm nay/i }),
+      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
     ).toBeVisible({ timeout: 10_000 })
 
     const html = await page.evaluate(() => document.body.innerHTML)
@@ -436,7 +526,7 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
 
     // PHQ result card must show placeholder, not a fake result
     await expect(
-      page.getByText('Chưa có kết quả Care trong phiên này'),
+      page.getByText('Chưa có kết quả PHQ-9 nào được hiển thị.'),
     ).toBeVisible()
   })
 
@@ -451,19 +541,19 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     await page.reload()
 
     await expect(
-      page.getByRole('heading', { name: /nhiệm vụ hôm nay/i }),
+      page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
     ).toBeVisible({ timeout: 10_000 })
 
     // PlanGate must show upgrade link for locked features, not pretend they work
     await expect(
-      page.getByRole('link', { name: /nâng cấp plus/i }),
-    ).toBeVisible()
-    await expect(
       page.getByRole('link', { name: /nâng cấp premium/i }),
     ).toBeVisible()
 
-    // The locked feature content must be behind the gate overlay (aria-hidden preview)
-    // and the gate link must point to /subscription
+    await expect(page.locator('.plan-gate-preview')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
+    // The current dashboard gates priority appointments; upgrades go to the catalogue.
     const upgradeLinks = page.getByRole('link', { name: /nâng cấp/i })
     for (const link of await upgradeLinks.all()) {
       const href = await link.getAttribute('href')
@@ -476,11 +566,125 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     page,
   }) => {
     await injectUserSession(context)
+    let version = 0
+    let storedPreferences = {
+      notificationsEnabled: true,
+      channels: { inApp: true, email: false, push: false },
+      contentGroups: {
+        journalReminder: true,
+        emotionCheckIn: true,
+        streakMilestone: true,
+        screeningReassessment: true,
+        appointmentMessage: true,
+        resourceSystem: true,
+        communityInteraction: true,
+      },
+      quietHours: {
+        enabled: true,
+        start: '22:00',
+        end: '07:00',
+        timeZone: 'Asia/Ho_Chi_Minh',
+      },
+      email: {
+        cadence: 'IMMEDIATE',
+        wellbeingDigestEnabled: false,
+        resourceRemindersEnabled: false,
+        appointmentRemindersEnabled: false,
+        dailyDigestTime: '19:00',
+        resourceReminderTime: '18:30',
+      },
+      version,
+      updatedAt: '2026-09-26T00:00:00.000Z',
+    }
+    let inboxReadAt: string | null = null
+    let inboxDeleted = false
+    const inboxItem = {
+      id: 'c13e4567-e89b-42d3-a456-426614174000',
+      kind: 'APPOINTMENT',
+      title: 'Lịch tư vấn sắp diễn ra',
+      body: 'Bạn có một lịch tư vấn vào ngày mai.',
+      priority: 'NORMAL',
+      occurredAt: '2026-09-26T01:00:00.000Z',
+      createdAt: '2026-09-26T01:00:01.000Z',
+      action: null,
+      lifecycleState: 'ACTIVE',
+      expiresAt: '2026-12-25T01:00:01.000Z',
+    }
+    await page.route('**/api/notifications?*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: inboxDeleted
+            ? []
+            : [
+                {
+                  ...inboxItem,
+                  read: inboxReadAt !== null,
+                  readAt: inboxReadAt,
+                },
+              ],
+          nextCursor: null,
+          hasMore: false,
+          unreadCount: inboxDeleted || inboxReadAt ? 0 : 1,
+        }),
+      })
+    })
+    await page.route('**/api/notifications/mark-all-read', async (route) => {
+      inboxReadAt = '2026-09-26T02:00:00.000Z'
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ updatedCount: 1 }),
+      })
+    })
+    await page.route('**/api/notifications/*', async (route) => {
+      if (route.request().method() === 'DELETE') {
+        inboxDeleted = true
+        await route.fulfill({ status: 204, body: '' })
+        return
+      }
+      await route.fallback()
+    })
+    await page.route('**/api/notifications/preferences', async (route) => {
+      if (route.request().method() === 'PATCH') {
+        expect(route.request().headers()['if-match']).toBe(`"${version}"`)
+        const update = route
+          .request()
+          .postDataJSON() as typeof storedPreferences
+        version += 1
+        storedPreferences = {
+          ...storedPreferences,
+          ...update,
+          version,
+          updatedAt: '2026-09-26T00:01:00.000Z',
+        }
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { ETag: `"${version}"` },
+        body: JSON.stringify(storedPreferences),
+      })
+    })
     await page.goto('/notifications')
 
     await expect(
       page.getByRole('heading', { name: 'Thông báo của bạn' }),
     ).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(inboxItem.title)).toBeVisible()
+    await expect(page.getByLabel('Chưa đọc')).toBeVisible()
+    await page.getByRole('button', { name: /Đánh dấu đã đọc tất cả/i }).click()
+    await expect(page.getByText('Bạn đã xem tất cả thông báo.')).toBeVisible()
+    await page.reload()
+    await expect(page.getByText(inboxItem.title)).toBeVisible()
+    await expect(page.getByLabel('Chưa đọc')).toHaveCount(0)
+    await page
+      .getByRole('button', { name: `Xóa thông báo: ${inboxItem.title}` })
+      .click()
+    await expect(page.getByText('Chưa có thông báo')).toBeVisible()
+    await page.reload()
+    await expect(page.getByText('Chưa có thông báo')).toBeVisible()
 
     const html = await page.evaluate(() => document.body.innerHTML)
 
@@ -491,62 +695,139 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
     // No claim of continuous monitoring
     expect(html).not.toMatch(/giám sát.*24\/7/i)
 
-    // The safety note must not promise emergency response — only security alerts
+    // Preferences are server-backed, versioned, and survive a browser reload.
+    await page.getByRole('button', { name: /Cài đặt/ }).click()
+    await page.getByRole('switch', { name: 'Thông báo đẩy' }).click()
+    await page.getByLabel('Múi giờ').selectOption('Europe/Paris')
+    await page.getByRole('button', { name: 'Lưu cài đặt' }).click()
+    await expect(page.getByText('Đã lưu cài đặt thông báo.')).toBeVisible()
+    await page.reload()
     await page.getByRole('button', { name: /Cài đặt/ }).click()
     await expect(
-      page.getByText('Thông báo an toàn luôn được ưu tiên'),
+      page.getByRole('switch', { name: 'Thông báo đẩy' }),
+    ).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByLabel('Múi giờ')).toHaveValue('Europe/Paris')
+    await expect(
+      page.getByText('Quyền riêng tư được giữ ở mức tối thiểu'),
     ).toBeVisible()
-    // "An toàn" in this context is account security, not emergency service
     await expect(page.getByText(/dịch vụ ứng cứu/i)).toHaveCount(0)
   })
 
-  test('specialists page does not claim live booking or guaranteed availability', async ({
+  test('specialists page uses approved online discovery without fabricated affordances', async ({
     context,
     page,
   }) => {
     await injectUserSession(context)
+    const specialistId = '9e3a8903-3d31-48d0-bf1a-4d81bbcef4b8'
+    const item = {
+      specialistAccountId: specialistId,
+      displayName: 'Chuyên gia An',
+      bio: 'Hồ sơ tổng hợp dùng cho kiểm thử giao diện.',
+      supportAreas: ['ANXIETY_SYMPTOMS'],
+      languages: ['vi'],
+      yearsOfExperience: 6,
+      timezone: 'Asia/Ho_Chi_Minh',
+      ratingAggregate: null,
+      explanation: {
+        compatibility: 'NEUTRAL',
+        languageMatched: null,
+        hasSelectableSlot: true,
+        earliestSelectableStartAt: '2099-01-02T02:00:00Z',
+        timezoneMatch: 'OFFSET_DISTANCE',
+        timezoneOffsetDistanceMinutes: 0,
+        ratingTieBreakerApplied: false,
+        codes: [
+          'NO_SCREENING_CONTEXT',
+          'NO_REQUESTED_LANGUAGE',
+          'SELECTABLE_SLOT_AVAILABLE',
+          'TIMEZONE_OFFSET_DISTANCE',
+          'RATING_NOT_AVAILABLE',
+        ],
+      },
+      selectableSlots: [
+        {
+          id: '43b7dbb4-021e-4c75-ae48-bfa7126c7256',
+          specialistAccountId: specialistId,
+          startAt: '2099-01-02T02:00:00Z',
+          endAt: '2099-01-02T03:00:00Z',
+          timezone: 'Asia/Ho_Chi_Minh',
+          modality: 'IN_APP_CHAT',
+          version: 1,
+        },
+      ],
+    }
+    await page.route('**/api/consultation/specialists**', async (route) => {
+      const isDetail = new URL(route.request().url()).pathname.endsWith(
+        `/${specialistId}`,
+      )
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          isDetail
+            ? item
+            : {
+                items: [item],
+                count: 1,
+                nextCursor: null,
+                rankingPolicyVersion: 'specialist-discovery-v2',
+                generatedAt: '2099-01-01T00:00:00Z',
+                contextState: 'NOT_REQUESTED',
+                packageCode: 'FREE',
+                bookingHandoff: 'BROWSE_ONLY',
+                videoEnabled: false,
+              },
+        ),
+      })
+    })
     await page.goto('/specialists')
 
     await expect(
       page.getByRole('heading', { name: 'Chuyên gia tư vấn' }),
     ).toBeVisible({ timeout: 10_000 })
 
-    const html = await page.evaluate(() => document.body.innerHTML)
+    await expect(page.getByText('Chuyên gia An')).toBeVisible()
+    await expect(page.getByText(/Bạn đang dùng gói Free/)).toBeVisible()
+    await page.getByRole('button', { name: 'Xem hồ sơ và khung giờ' }).click()
+    await expect(page.getByText('Vì sao hồ sơ này xuất hiện?')).toBeVisible()
+    await expect(page.getByRole('radio')).toBeVisible()
+
+    const bodyText = await page.evaluate(() => document.body.innerText)
 
     // No emergency dispatch or monitoring claim
-    expect(html).not.toMatch(/ứng cứu khẩn cấp/i)
-    expect(html).not.toMatch(/cấp cứu/i)
-    expect(html).not.toMatch(/hotline/i)
-    expect(html).not.toMatch(/giám sát.*24\/7/i)
+    expect(bodyText).not.toMatch(/ứng cứu khẩn cấp/i)
+    expect(bodyText).not.toMatch(/cấp cứu/i)
+    expect(bodyText).not.toMatch(/hotline/i)
+    expect(bodyText).not.toMatch(/giám sát.*24\/7/i)
 
-    // Unavailable specialists must be clearly marked, not shown as available
-    await expect(page.getByText('Đang bận')).toBeVisible()
+    // No unsupported or fabricated specialist affordance.
+    expect(bodyText).not.toMatch(/phí tư vấn|địa điểm|điện thoại|chứng chỉ/i)
+    expect(bodyText).not.toMatch(/google meet|zoom|meeting link/i)
     await expect(
-      page.getByRole('button', { name: 'Chưa có lịch trống' }),
+      page.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByRole('link', { name: 'Xem quyền lợi các gói' }),
     ).toBeVisible()
   })
 
-  test('subscription checkout modal is explicitly labeled as simulation, not live payment', async ({
+  test('subscription page exposes no simulated or live payment action', async ({
     context,
     page,
   }) => {
     await injectUserSession(context)
     await page.goto('/subscription')
 
-    await expect(page.getByRole('heading', { name: /chọn gói/i })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { name: /quyền lợi tư vấn/i }),
+    ).toBeVisible({
       timeout: 10_000,
     })
-
-    // Open checkout for Plus plan
-    await page.getByRole('button', { name: 'Nâng cấp lên Plus' }).click()
-
-    await expect(page.getByRole('dialog')).toBeVisible()
-
-    // Must explicitly state it is a simulation
-    await expect(page.getByText(/chế độ mô phỏng/i)).toBeVisible()
-
-    // Must not claim real payment processing has occurred until confirmed
-    await expect(page.getByText('Thanh toán thành công')).toHaveCount(0)
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: /thanh toán|nâng cấp lên/i }),
+    ).toHaveCount(0)
+    await expect(page.getByText(/thanh toán thành công/i)).toHaveCount(0)
   })
 
   test('no protected page claims continuous human monitoring or emergency response', async ({
@@ -567,8 +848,13 @@ test.describe('AC3: No false monitoring, emergency, or paid-feature claims', () 
 
     for (const route of protectedRoutes) {
       await page.goto(route)
-      // Wait for page to settle
-      await page.waitForLoadState('networkidle').catch(() => undefined)
+      // Notification polling can keep the network busy after the screen is ready.
+      await expect(
+        page.getByRole('heading', { level: 1 }).first(),
+      ).toBeVisible()
+      await expect(
+        page.getByRole('heading', { level: 1 }).first(),
+      ).not.toContainText(/đang tải|đang chuẩn bị/i)
 
       const bodyText = await page.evaluate(() => document.body.innerText)
 

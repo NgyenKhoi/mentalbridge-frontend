@@ -1,0 +1,2728 @@
+import type { components as consultationComponents } from '@/contracts/consultation.generated'
+
+export const SUPPORT_AREAS = [
+  'DEPRESSIVE_SYMPTOMS',
+  'ANXIETY_SYMPTOMS',
+] as const
+export const LANGUAGES = ['vi', 'en', 'zh', 'fr'] as const
+export type SupportArea = (typeof SUPPORT_AREAS)[number]
+export type SpecialistApprovalStatus =
+  'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED'
+export const SPECIALIST_APPROVAL_STATUSES = [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'SUSPENDED',
+] as const
+export const SPECIALIST_REJECTION_REASONS = [
+  'PROFILE_INFORMATION_INCOMPLETE',
+  'PROFILE_CONTENT_NOT_APPROVED',
+  'OUTSIDE_SUPPORTED_SCOPE',
+] as const
+export const SPECIALIST_SUSPENSION_REASONS = [
+  'POLICY_VIOLATION',
+  'QUALITY_REVIEW_REQUIRED',
+  'ACCOUNT_REVIEW_REQUIRED',
+] as const
+export type SpecialistRejectionReason =
+  (typeof SPECIALIST_REJECTION_REASONS)[number]
+export type SpecialistSuspensionReason =
+  (typeof SPECIALIST_SUSPENSION_REASONS)[number]
+export type SpecialistDecisionReason =
+  SpecialistRejectionReason | SpecialistSuspensionReason
+
+export type SpecialistProfileInput = Readonly<{
+  displayName: string
+  bio: string
+  supportAreas: SupportArea[]
+  languages: string[]
+  yearsOfExperience: number
+  timezone: string
+}>
+
+export type SpecialistProfile = SpecialistProfileInput &
+  Readonly<{
+    accountId: string
+    approvalStatus: SpecialistApprovalStatus
+    submittedAt: string | null
+    reviewedAt: string | null
+    reviewedBy: string | null
+    decisionReasonCode: SpecialistDecisionReason | null
+    createdAt: string
+    updatedAt: string
+    version: number
+    publishedVersion?: number
+  }>
+
+export type SpecialistProfiles = Readonly<{
+  items: SpecialistProfile[]
+  count: number
+}>
+export type PendingProfiles = SpecialistProfiles
+
+export type ProfileAmendment =
+  consultationComponents['schemas']['ProfileAmendment']
+export type ProfileAmendmentDetail = Readonly<{
+  approvedProfile: SpecialistProfile
+  amendment: ProfileAmendment | null
+}>
+export type ProfileAmendments = Readonly<{
+  items: ProfileAmendment[]
+  count: number
+  hasMore: boolean
+}>
+
+export function parseProfileAmendment(value: unknown): ProfileAmendment | null {
+  const item = record(value)
+  if (
+    !item ||
+    !uuid(item.id) ||
+    !uuid(item.specialistAccountId) ||
+    !Number.isInteger(item.basePublishedVersion) ||
+    Number(item.basePublishedVersion) < 1 ||
+    !['DRAFT', 'PENDING_REVIEW', 'REJECTED', 'APPROVED', 'CANCELLED'].includes(
+      String(item.status),
+    ) ||
+    !Number.isInteger(item.version) ||
+    Number(item.version) < 0 ||
+    !utcInstant(item.createdAt) ||
+    !utcInstant(item.updatedAt) ||
+    !instantOrNull(item.submittedAt) ||
+    !instantOrNull(item.reviewedAt) ||
+    !(item.reviewedBy === null || uuid(item.reviewedBy))
+  )
+    return null
+  try {
+    parseProfileInput(item.proposedProfile)
+  } catch {
+    return null
+  }
+  const reviewed = item.status === 'APPROVED' || item.status === 'REJECTED'
+  if (
+    (reviewed
+      ? item.reviewedAt === null || item.reviewedBy === null
+      : item.reviewedAt !== null || item.reviewedBy !== null) ||
+    (item.status === 'DRAFT' || item.status === 'CANCELLED'
+      ? item.submittedAt !== null
+      : item.submittedAt === null) ||
+    (item.status === 'REJECTED'
+      ? !SPECIALIST_REJECTION_REASONS.includes(
+          item.reasonCode as SpecialistRejectionReason,
+        )
+      : item.reasonCode !== null)
+  )
+    return null
+  return item as ProfileAmendment
+}
+
+export function parseProfileAmendmentDetail(
+  value: unknown,
+): ProfileAmendmentDetail | null {
+  const item = record(value)
+  const approvedProfile = parseProfile(item?.approvedProfile)
+  if (!item || !approvedProfile) return null
+  const amendment =
+    item.amendment === null ? null : parseProfileAmendment(item.amendment)
+  if (item.amendment !== null && !amendment) return null
+  if (amendment && amendment.specialistAccountId !== approvedProfile.accountId)
+    return null
+  return { approvedProfile, amendment }
+}
+
+export function parseProfileAmendments(
+  value: unknown,
+): ProfileAmendments | null {
+  const item = record(value)
+  if (
+    !item ||
+    !Array.isArray(item.items) ||
+    item.items.length > 100 ||
+    item.count !== item.items.length ||
+    typeof item.hasMore !== 'boolean'
+  )
+    return null
+  const items = item.items.map(parseProfileAmendment)
+  if (items.some((entry) => !entry || entry.status !== 'PENDING_REVIEW'))
+    return null
+  return {
+    items: items as ProfileAmendment[],
+    count: Number(item.count),
+    hasMore: item.hasMore,
+  }
+}
+
+export type SpecialistSuspensionResult = Readonly<{
+  profile: SpecialistProfile
+  effects: Readonly<{
+    withdrawnAvailabilitySlots: number
+    cancelledAppointments: number
+    releasedCredits: number
+  }>
+}>
+
+export const AVAILABILITY_MODALITIES = ['IN_APP_CHAT', 'IN_APP_VIDEO'] as const
+export const AVAILABILITY_STATUSES = ['ACTIVE', 'WITHDRAWN'] as const
+export const AVAILABILITY_READINESS = [
+  'AVAILABLE',
+  'STARTED',
+  'WITHDRAWN',
+  'VIDEO_DISABLED',
+] as const
+export type AvailabilityModality = (typeof AVAILABILITY_MODALITIES)[number]
+export type AvailabilitySlotStatus = (typeof AVAILABILITY_STATUSES)[number]
+export type AvailabilityReadiness = (typeof AVAILABILITY_READINESS)[number]
+
+export type PublishAvailabilityInput = Readonly<{
+  startAt: string
+  endAt: string
+  timezone: string
+  modality: AvailabilityModality
+}>
+
+export type AvailabilitySlot = PublishAvailabilityInput &
+  Readonly<{
+    id: string
+    status: AvailabilitySlotStatus
+    readiness: AvailabilityReadiness
+    withdrawnAt: string | null
+    createdAt: string
+    updatedAt: string
+    version: number
+  }>
+
+export type AvailabilitySlotList = Readonly<{
+  items: AvailabilitySlot[]
+  count: number
+  generatedAt: string
+  videoPublishingEnabled: boolean
+}>
+
+export type AppointmentModality = 'IN_APP_CHAT' | 'IN_APP_VIDEO'
+
+export type AppointmentChatPhase =
+  | 'NOT_AVAILABLE'
+  | 'TOO_EARLY'
+  | 'WAITING'
+  | 'ACTIVE'
+  | 'ENDED_PROCESSING'
+  | 'COMPLETED'
+  | 'USER_NO_SHOW'
+  | 'SPECIALIST_NO_SHOW'
+  | 'BOTH_NO_SHOW'
+  | 'INSUFFICIENT_EVIDENCE'
+  | 'EVIDENCE_REVIEW'
+  | 'CANCELLED'
+  | 'RESCHEDULED'
+
+export type AppointmentChatEligibility = Readonly<{
+  conversationId: string
+  appointmentId: string
+  userAccountId: string
+  specialistAccountId: string
+  phase: AppointmentChatPhase
+  reasonCode: string
+  subscribeAllowed: boolean
+  sendAllowed: boolean
+  historyAllowed: boolean
+  checkInAllowed: boolean
+  participantCheckedIn: boolean
+  sessionOutcome: ChatSessionOutcome | null
+  creditState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
+  scheduledStartAt: string
+  scheduledEndAt: string
+  serverTime: string
+}>
+
+export function parseAppointmentChatEligibility(
+  value: unknown,
+): AppointmentChatEligibility | null {
+  const candidate = record(value)
+  if (!candidate) return null
+  const phase = candidate.phase
+  if (
+    !uuid(candidate.conversationId) ||
+    !uuid(candidate.appointmentId) ||
+    !uuid(candidate.userAccountId) ||
+    !uuid(candidate.specialistAccountId) ||
+    ![
+      'NOT_AVAILABLE',
+      'TOO_EARLY',
+      'WAITING',
+      'ACTIVE',
+      'ENDED_PROCESSING',
+      'COMPLETED',
+      'USER_NO_SHOW',
+      'SPECIALIST_NO_SHOW',
+      'BOTH_NO_SHOW',
+      'INSUFFICIENT_EVIDENCE',
+      'EVIDENCE_REVIEW',
+      'CANCELLED',
+      'RESCHEDULED',
+    ].includes(String(phase)) ||
+    typeof candidate.reasonCode !== 'string' ||
+    typeof candidate.subscribeAllowed !== 'boolean' ||
+    typeof candidate.sendAllowed !== 'boolean' ||
+    typeof candidate.historyAllowed !== 'boolean' ||
+    typeof candidate.checkInAllowed !== 'boolean' ||
+    typeof candidate.participantCheckedIn !== 'boolean' ||
+    ![
+      'COMPLETED',
+      'USER_NO_SHOW',
+      'SPECIALIST_NO_SHOW',
+      'BOTH_NO_SHOW',
+      'INSUFFICIENT_EVIDENCE',
+      'EVIDENCE_REVIEW',
+      null,
+    ].includes(candidate.sessionOutcome as ChatSessionOutcome | null) ||
+    !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
+      String(candidate.creditState),
+    ) ||
+    !utcInstant(candidate.scheduledStartAt) ||
+    !utcInstant(candidate.scheduledEndAt) ||
+    !utcInstant(candidate.serverTime)
+  )
+    return null
+  return candidate as AppointmentChatEligibility
+}
+export type AppointmentStatus =
+  | 'REQUESTED'
+  | 'CONFIRMED'
+  | 'IN_PROGRESS'
+  | 'SESSION_ENDED'
+  | 'COMPLETED'
+  | 'REJECTED'
+  | 'EXPIRED'
+  | 'CANCELLED'
+const APPOINTMENT_STATUSES: AppointmentStatus[] = [
+  'REQUESTED',
+  'CONFIRMED',
+  'IN_PROGRESS',
+  'SESSION_ENDED',
+  'COMPLETED',
+  'REJECTED',
+  'EXPIRED',
+  'CANCELLED',
+]
+export type AppointmentCancellationCreditOutcome =
+  'RELEASED' | 'FORFEITED' | 'TRANSFERRED_TO_REPLACEMENT'
+export type ChatSessionOutcome =
+  | 'COMPLETED'
+  | 'USER_NO_SHOW'
+  | 'SPECIALIST_NO_SHOW'
+  | 'BOTH_NO_SHOW'
+  | 'INSUFFICIENT_EVIDENCE'
+  | 'EVIDENCE_REVIEW'
+export type AppointmentHistoryEntry = Readonly<{
+  eventId: string
+  fromStatus: AppointmentStatus | null
+  toStatus: AppointmentStatus
+  actorType: 'USER' | 'SPECIALIST' | 'ADMIN' | 'SYSTEM'
+  actorId: string | null
+  reason:
+    | 'APPOINTMENT_REQUESTED'
+    | 'USER_CANCELLED'
+    | 'USER_RESCHEDULED'
+    | 'SPECIALIST_ACCEPTED'
+    | 'SPECIALIST_REJECTED'
+    | 'DECISION_DEADLINE_EXPIRED'
+    | 'SPECIALIST_SUSPENDED'
+    | 'SESSION_ACTIVITY_OBSERVED'
+    | 'SCHEDULED_WINDOW_ENDED'
+    | 'EVIDENCE_REQUIREMENTS_MET'
+    | 'SPECIALIST_VIDEO_END_CONFIRMED'
+    | 'VIDEO_MANUAL_REVIEW_REQUIRED'
+  creditOutcome: AppointmentCancellationCreditOutcome | null
+  occurredAt: string
+}>
+export type AppointmentRequestInput = Readonly<{
+  slotId: string
+  modality: AppointmentModality
+  replacesAppointmentId?: string | null
+  originatingPlanActionId?: string | null
+}>
+export type BookableSlot = Readonly<{
+  id: string
+  specialistAccountId: string
+  specialistDisplayName: string
+  startAt: string
+  endAt: string
+  timezone: string
+  modality: AppointmentModality
+}>
+export type BookableSlotList = Readonly<{
+  items: BookableSlot[]
+  count: number
+  generatedAt: string
+  videoEnabled: boolean
+}>
+
+type ConsultationSchemas = consultationComponents['schemas']
+export type SpecialistEarnings = ConsultationSchemas['SpecialistEarnings']
+export type PayoutDestination = ConsultationSchemas['PayoutDestination']
+export type SavePayoutDestinationInput =
+  ConsultationSchemas['SavePayoutDestination']
+export type AdminPayoutList = ConsultationSchemas['AdminPayoutList']
+export type DiscoverySlot = ConsultationSchemas['DiscoverySlot']
+export type DiscoveryExplanation = ConsultationSchemas['DiscoveryExplanation']
+export type SpecialistDiscoveryItem =
+  ConsultationSchemas['SpecialistDiscoveryItem']
+export type SpecialistDiscoveryPage =
+  ConsultationSchemas['SpecialistDiscoveryPage']
+export type AppointmentRating = ConsultationSchemas['AppointmentRating']
+export type SpecialistDashboard = ConsultationSchemas['SpecialistDashboard']
+export type SpecialistOperationalAnalytics =
+  ConsultationSchemas['SpecialistOperationalAnalytics']
+export type OpenAppointmentDisputeInput =
+  ConsultationSchemas['OpenAppointmentDispute']
+export type ResolveAppointmentDisputeInput =
+  ConsultationSchemas['ResolveAppointmentDispute']
+export type AppointmentDispute = ConsultationSchemas['AppointmentDispute']
+export type AppointmentDisputeList =
+  ConsultationSchemas['AppointmentDisputeList']
+export type Appointment = Readonly<{
+  id: string
+  slotId: string
+  specialistAccountId: string
+  specialistDisplayName: string
+  status: AppointmentStatus
+  modality: AppointmentModality
+  scheduledStartAt: string
+  scheduledEndAt: string
+  timezone: string
+  requestedAt: string
+  decisionDeadlineAt: string
+  heldCreditId: string
+  replacesAppointmentId: string | null
+  replacedByAppointmentId: string | null
+  originatingPlanActionId?: string | null
+  decidedAt: string | null
+  decisionReason:
+    | 'SPECIALIST_ACCEPTED'
+    | 'SPECIALIST_REJECTED'
+    | 'DECISION_DEADLINE_EXPIRED'
+    | null
+  cancelledAt: string | null
+  cancellationReason:
+    'USER_CANCELLED' | 'USER_RESCHEDULED' | 'SPECIALIST_SUSPENDED' | null
+  cancellationActor: 'USER' | 'ADMIN' | null
+  cancellationCreditOutcome: AppointmentCancellationCreditOutcome | null
+  sessionOutcome: ChatSessionOutcome | null
+  sessionOutcomeReason: string | null
+  sessionPolicyVersion: ConsultationSchemas['Appointment']['sessionPolicyVersion']
+  sessionEndedAt: string | null
+  sessionSettledAt: string | null
+  completionFactId: string | null
+  creditState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
+  history: AppointmentHistoryEntry[]
+  version: number
+}>
+export type AppointmentList = Readonly<{
+  items: Appointment[]
+  count: number
+  generatedAt: string
+}>
+
+export type AdminAppointmentItem = Readonly<{
+  appointmentId: string
+  availabilitySlotId: string
+  userAccountId: string
+  specialistAccountId: string
+  status: AppointmentStatus
+  modality: AppointmentModality
+  scheduledStartAt: string
+  scheduledEndAt: string
+  timezone: string
+  requestedAt: string
+  decisionDeadlineAt: string
+  decidedAt: string | null
+  decisionReasonCode: string | null
+  cancelledAt: string | null
+  cancellationReasonCode: string | null
+  cancellationCreditOutcome: AppointmentCancellationCreditOutcome | null
+  sessionEndedAt: string | null
+  sessionSettledAt: string | null
+  sessionOutcome: ChatSessionOutcome | null
+  sessionOutcomeReasonCode: string | null
+  settlementState: 'AVAILABLE' | 'HELD' | 'CONSUMED' | 'FORFEITED'
+  updatedAt: string
+  version: number
+}>
+
+export type AdminAppointmentPage = Readonly<{
+  source: 'CONSULTATION'
+  dataState: 'CURRENT' | 'STALE' | 'UNAVAILABLE'
+  generatedAt: string
+  queryFrom: string
+  queryTo: string
+  items: AdminAppointmentItem[]
+  count: number
+  nextCursor: string | null
+}>
+
+export type ServicePackage = 'FREE' | 'PLUS' | 'PREMIUM'
+export type CreditSource = 'DEFAULT_FREE' | 'DEMO' | 'PAID'
+export type ConsultationCreditPolicyVersion =
+  'consultation-credit-v1' | 'consultation-credit-v2'
+export type CreditEventType =
+  | 'PROVISIONED'
+  | 'HELD'
+  | 'CONSUMED'
+  | 'RELEASED'
+  | 'FORFEITED'
+  | 'ADJUSTED_RELEASED'
+
+export type ServiceCreditAccount = Readonly<{
+  accountId: string
+  packageCode: ServicePackage
+  source: CreditSource
+  sourceReference: string | null
+  periodStart: string | null
+  periodEnd: string | null
+  policyVersion: ConsultationCreditPolicyVersion
+  balance: Readonly<{
+    available: number
+    held: number
+    consumed: number
+    forfeited: number
+    total: number
+    releasedTransitions: number
+  }>
+  reservationCapacity: Readonly<{
+    active: number
+    maximum: number
+    remaining: number
+  }>
+  history: ReadonlyArray<
+    Readonly<{
+      eventId: string
+      creditId: string
+      eventType: CreditEventType
+      source: CreditSource
+      packageCode: ServicePackage
+      policyVersion: ConsultationCreditPolicyVersion
+      appointmentId: string | null
+      occurredAt: string
+    }>
+  >
+  generatedAt: string
+}>
+
+type Problem = Readonly<{
+  title: string
+  status: number
+  code: string
+  correlationId?: string
+}>
+
+function record(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function exactKeys(value: Record<string, unknown>, expected: string[]) {
+  const actual = Object.keys(value)
+  return (
+    actual.length === expected.length &&
+    actual.every((key) => expected.includes(key))
+  )
+}
+
+function uuid(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  )
+}
+
+function uuidText(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  )
+}
+
+function instantOrNull(value: unknown): value is string | null {
+  return (
+    value === null ||
+    (typeof value === 'string' && !Number.isNaN(Date.parse(value)))
+  )
+}
+
+function utcInstant(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/.test(value) &&
+    !Number.isNaN(Date.parse(value))
+  )
+}
+
+const EARNING_STATUSES = [
+  'PENDING_SETTLEMENT',
+  'AVAILABLE',
+  'PROCESSING',
+  'PAID',
+  'REVERSED',
+] as const
+const PAYOUT_STATUSES = [
+  'PENDING',
+  'PROCESSING',
+  'SUCCEEDED',
+  'FAILED',
+  'UNKNOWN',
+] as const
+const PAYOUT_PROVIDERS = ['FAKE', 'MOMO'] as const
+const PAYOUT_DESTINATION_TYPES = ['MOMO_WALLET', 'BANK_ACCOUNT'] as const
+
+function nonNegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0
+}
+
+function nullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function parsePayoutDestinationValue(value: unknown): PayoutDestination | null {
+  const destination = record(value)
+  if (
+    !destination ||
+    !exactKeys(destination, [
+      'id',
+      'provider',
+      'destinationType',
+      'displayHint',
+      'status',
+      'verifiedAt',
+    ]) ||
+    !uuid(destination.id) ||
+    !PAYOUT_PROVIDERS.includes(destination.provider as never) ||
+    !PAYOUT_DESTINATION_TYPES.includes(destination.destinationType as never) ||
+    typeof destination.displayHint !== 'string' ||
+    !['VERIFIED', 'DISABLED'].includes(String(destination.status)) ||
+    !utcInstant(destination.verifiedAt)
+  )
+    return null
+  return destination as PayoutDestination
+}
+
+export function parsePayoutDestination(
+  value: unknown,
+): PayoutDestination | null {
+  return parsePayoutDestinationValue(value)
+}
+
+export function parseSavePayoutDestinationInput(
+  value: unknown,
+): SavePayoutDestinationInput {
+  const input = record(value)
+  if (
+    !input ||
+    !PAYOUT_DESTINATION_TYPES.includes(input.destinationType as never) ||
+    !exactKeys(
+      input,
+      input.destinationType === 'BANK_ACCOUNT'
+        ? [
+            'destinationType',
+            'accountReference',
+            'accountHolderName',
+            'bankCode',
+          ]
+        : ['destinationType', 'accountReference', 'accountHolderName'],
+    ) ||
+    typeof input.accountReference !== 'string' ||
+    !/^\d{6,32}$/.test(input.accountReference) ||
+    typeof input.accountHolderName !== 'string' ||
+    input.accountHolderName.trim().length === 0 ||
+    input.accountHolderName.length > 100 ||
+    !(
+      input.bankCode === undefined ||
+      (typeof input.bankCode === 'string' && input.bankCode.length <= 32)
+    ) ||
+    (input.destinationType === 'BANK_ACCOUNT' && !input.bankCode?.trim())
+  )
+    throw new ConsultationInputError('payoutDestination')
+  return input as SavePayoutDestinationInput
+}
+
+export function parseSpecialistEarnings(
+  value: unknown,
+): SpecialistEarnings | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, [
+      'currency',
+      'earningPolicyVersion',
+      ...(response.payoutProvider === undefined ? [] : ['payoutProvider']),
+      'settlementHoldDays',
+      'minimumWithdrawalVnd',
+      'generatedAt',
+      'balance',
+      'destination',
+      'earnings',
+      'payouts',
+    ]) ||
+    response.currency !== 'VND' ||
+    response.earningPolicyVersion !== 'specialist-earning-v1' ||
+    !(
+      response.payoutProvider === undefined ||
+      PAYOUT_PROVIDERS.includes(response.payoutProvider as never)
+    ) ||
+    response.settlementHoldDays !== 7 ||
+    response.minimumWithdrawalVnd !== 100000 ||
+    !utcInstant(response.generatedAt)
+  )
+    return null
+
+  const balance = record(response.balance)
+  if (
+    !balance ||
+    !exactKeys(balance, [
+      'pendingSettlementVnd',
+      'availableVnd',
+      'processingVnd',
+      'paidVnd',
+    ]) ||
+    !nonNegativeInteger(balance.pendingSettlementVnd) ||
+    !nonNegativeInteger(balance.availableVnd) ||
+    !nonNegativeInteger(balance.processingVnd) ||
+    !nonNegativeInteger(balance.paidVnd)
+  )
+    return null
+
+  const destination =
+    response.destination === null
+      ? null
+      : parsePayoutDestinationValue(response.destination)
+  if (response.destination !== null && destination === null) return null
+  if (!Array.isArray(response.earnings) || !Array.isArray(response.payouts))
+    return null
+
+  const earnings = response.earnings.map((value) => {
+    const earning = record(value)
+    if (
+      !earning ||
+      !exactKeys(earning, [
+        'id',
+        'appointmentId',
+        'consumedCreditId',
+        'planVersion',
+        'creditAllocationVnd',
+        'sharePercent',
+        'earningAmountVnd',
+        'status',
+        'earnedAt',
+        'settlementAvailableAt',
+      ]) ||
+      !uuid(earning.id) ||
+      !uuid(earning.appointmentId) ||
+      !uuid(earning.consumedCreditId) ||
+      typeof earning.planVersion !== 'string' ||
+      !Number.isSafeInteger(earning.creditAllocationVnd) ||
+      Number(earning.creditAllocationVnd) <= 0 ||
+      Number(earning.creditAllocationVnd) > 1000000000 ||
+      earning.sharePercent !== 70 ||
+      !Number.isSafeInteger(earning.earningAmountVnd) ||
+      Number(earning.earningAmountVnd) !==
+        Math.floor((Number(earning.creditAllocationVnd) * 70) / 100) ||
+      !EARNING_STATUSES.includes(earning.status as never) ||
+      !utcInstant(earning.earnedAt) ||
+      !utcInstant(earning.settlementAvailableAt)
+    )
+      return null
+    return earning
+  })
+  if (earnings.some((earning) => earning === null)) return null
+
+  const payouts = response.payouts.map((value) => {
+    const payout = record(value)
+    if (
+      !payout ||
+      !exactKeys(payout, [
+        'id',
+        'destinationId',
+        'amountVnd',
+        'provider',
+        'status',
+        'providerReference',
+        'failureCode',
+        'requestedAt',
+        'completedAt',
+      ]) ||
+      !uuid(payout.id) ||
+      !uuid(payout.destinationId) ||
+      !nonNegativeInteger(payout.amountVnd) ||
+      !PAYOUT_PROVIDERS.includes(payout.provider as never) ||
+      !PAYOUT_STATUSES.includes(payout.status as never) ||
+      !nullableString(payout.providerReference) ||
+      !nullableString(payout.failureCode) ||
+      !utcInstant(payout.requestedAt) ||
+      !(payout.completedAt === null || utcInstant(payout.completedAt))
+    )
+      return null
+    return payout
+  })
+  if (payouts.some((payout) => payout === null)) return null
+
+  return {
+    ...response,
+    balance,
+    destination,
+    earnings,
+    payouts,
+  } as SpecialistEarnings
+}
+
+export function parseAdminPayoutList(value: unknown): AdminPayoutList | null {
+  const response = record(value)
+  if (
+    !response ||
+    !exactKeys(response, ['generatedAt', 'count', 'items']) ||
+    !utcInstant(response.generatedAt) ||
+    !nonNegativeInteger(response.count) ||
+    !Array.isArray(response.items) ||
+    response.count !== response.items.length
+  )
+    return null
+  const items = response.items.map((value) => {
+    const payout = record(value)
+    if (
+      !payout ||
+      !exactKeys(payout, [
+        'payoutId',
+        'specialistAccountId',
+        'destinationHint',
+        'amountVnd',
+        'currency',
+        'provider',
+        'status',
+        'earningCount',
+        'providerReference',
+        'failureCode',
+        'requestedAt',
+        'completedAt',
+      ]) ||
+      !uuid(payout.payoutId) ||
+      !uuid(payout.specialistAccountId) ||
+      typeof payout.destinationHint !== 'string' ||
+      !nonNegativeInteger(payout.amountVnd) ||
+      payout.currency !== 'VND' ||
+      !PAYOUT_PROVIDERS.includes(payout.provider as never) ||
+      !PAYOUT_STATUSES.includes(payout.status as never) ||
+      !nonNegativeInteger(payout.earningCount) ||
+      !nullableString(payout.providerReference) ||
+      !nullableString(payout.failureCode) ||
+      !utcInstant(payout.requestedAt) ||
+      !(payout.completedAt === null || utcInstant(payout.completedAt))
+    )
+      return null
+    return payout
+  })
+  if (items.some((item) => item === null)) return null
+  return { ...response, items } as AdminPayoutList
+}
+
+function ianaTimezone(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length < 1 || value.length > 64)
+    return false
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: value })
+    return true
+  } catch {
+    return false
+  }
+}
+
+const DASHBOARD_STATES = [
+  'AVAILABLE',
+  'EMPTY',
+  'BLOCKED',
+  'UNAVAILABLE',
+] as const
+const DASHBOARD_OPERATIONAL_STATUSES = [
+  'READY',
+  'PROFILE_REQUIRED',
+  'PENDING_APPROVAL',
+  'PROFILE_REJECTED',
+  'SUSPENDED',
+] as const
+const DASHBOARD_ACTIONS = [
+  'COMPLETE_PROFILE',
+  'AWAIT_PROFILE_APPROVAL',
+  'UPDATE_REJECTED_PROFILE',
+  'CONTACT_SUPPORT',
+  'REVIEW_APPOINTMENT_REQUESTS',
+  'PUBLISH_AVAILABILITY',
+] as const
+
+function dashboardMetadata(value: Record<string, unknown>) {
+  return value.source === 'CONSULTATION' && utcInstant(value.asOf)
+}
+
+function dashboardAppointment(value: unknown) {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'source',
+      'asOf',
+      'appointmentId',
+      'status',
+      'modality',
+      'scheduledStartAt',
+      'scheduledEndAt',
+      'timezone',
+      'decisionDeadlineAt',
+    ]) ||
+    !dashboardMetadata(item) ||
+    !uuid(item.appointmentId) ||
+    !['REQUESTED', 'CONFIRMED', 'IN_PROGRESS'].includes(String(item.status)) ||
+    !AVAILABILITY_MODALITIES.includes(item.modality as AppointmentModality) ||
+    !utcInstant(item.scheduledStartAt) ||
+    !utcInstant(item.scheduledEndAt) ||
+    Date.parse(item.scheduledEndAt) <= Date.parse(item.scheduledStartAt) ||
+    !ianaTimezone(item.timezone) ||
+    !utcInstant(item.decisionDeadlineAt)
+  )
+    return null
+  return item as SpecialistDashboard['todayConfirmedSessions']['items'][number]
+}
+
+function dashboardAppointmentCollection(value: unknown) {
+  const collection = record(value)
+  if (
+    !collection ||
+    !exactKeys(collection, [
+      'source',
+      'asOf',
+      'state',
+      'count',
+      'localDate',
+      'timezone',
+      'items',
+    ]) ||
+    !dashboardMetadata(collection) ||
+    !DASHBOARD_STATES.includes(collection.state as never) ||
+    !Number.isSafeInteger(collection.count) ||
+    Number(collection.count) < 0 ||
+    !(
+      collection.localDate === null ||
+      (typeof collection.localDate === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(collection.localDate) &&
+        !Number.isNaN(Date.parse(`${collection.localDate}T00:00:00Z`)))
+    ) ||
+    !(collection.timezone === null || ianaTimezone(collection.timezone)) ||
+    !Array.isArray(collection.items) ||
+    collection.items.length > 5 ||
+    Number(collection.count) < collection.items.length
+  )
+    return null
+  const items = collection.items.map(dashboardAppointment)
+  if (items.some((item) => item === null)) return null
+  if (
+    (collection.state === 'EMPTY' &&
+      (collection.count !== 0 || collection.items.length !== 0)) ||
+    (collection.state === 'AVAILABLE' &&
+      (Number(collection.count) === 0 || collection.items.length === 0)) ||
+    (['BLOCKED', 'UNAVAILABLE'].includes(String(collection.state)) &&
+      (collection.count !== 0 || collection.items.length !== 0))
+  )
+    return null
+  return {
+    ...collection,
+    items,
+  } as SpecialistDashboard['todayConfirmedSessions']
+}
+
+function dashboardNextAppointment(value: unknown) {
+  const next = record(value)
+  if (
+    !next ||
+    !exactKeys(next, ['source', 'asOf', 'state', 'item']) ||
+    !dashboardMetadata(next) ||
+    !DASHBOARD_STATES.includes(next.state as never)
+  )
+    return null
+  const item = next.item === null ? null : dashboardAppointment(next.item)
+  if (
+    (next.item !== null && item === null) ||
+    (next.state === 'AVAILABLE') !== (item !== null) ||
+    (item && item.status === 'REQUESTED')
+  )
+    return null
+  return { ...next, item } as SpecialistDashboard['nextAppointment']
+}
+
+function dashboardAvailability(value: unknown) {
+  const availability = record(value)
+  if (
+    !availability ||
+    !exactKeys(availability, ['source', 'asOf', 'state', 'count', 'items']) ||
+    !dashboardMetadata(availability) ||
+    !DASHBOARD_STATES.includes(availability.state as never) ||
+    !Number.isSafeInteger(availability.count) ||
+    Number(availability.count) < 0 ||
+    !Array.isArray(availability.items) ||
+    availability.items.length > 5 ||
+    Number(availability.count) < availability.items.length
+  )
+    return null
+  const items = availability.items.map((value) => {
+    const item = record(value)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'source',
+        'asOf',
+        'slotId',
+        'modality',
+        'startAt',
+        'endAt',
+        'timezone',
+      ]) ||
+      !dashboardMetadata(item) ||
+      !uuid(item.slotId) ||
+      !AVAILABILITY_MODALITIES.includes(item.modality as AppointmentModality) ||
+      !utcInstant(item.startAt) ||
+      !utcInstant(item.endAt) ||
+      Date.parse(item.endAt) <= Date.parse(item.startAt) ||
+      !ianaTimezone(item.timezone)
+    )
+      return null
+    return item
+  })
+  if (items.some((item) => item === null)) return null
+  if (
+    (availability.state === 'EMPTY' &&
+      (availability.count !== 0 || availability.items.length !== 0)) ||
+    (availability.state === 'AVAILABLE' &&
+      (Number(availability.count) === 0 || availability.items.length === 0)) ||
+    (['BLOCKED', 'UNAVAILABLE'].includes(String(availability.state)) &&
+      (availability.count !== 0 || availability.items.length !== 0))
+  )
+    return null
+  return { ...availability, items } as SpecialistDashboard['availability']
+}
+
+export function parseSpecialistDashboard(
+  value: unknown,
+): SpecialistDashboard | null {
+  const dashboard = record(value)
+  if (
+    !dashboard ||
+    !exactKeys(dashboard, [
+      'source',
+      'generatedAt',
+      'operationalStatus',
+      'profile',
+      'ratingAggregate',
+      'todayConfirmedSessions',
+      'pendingAppointmentRequests',
+      'nextAppointment',
+      'availability',
+      'actionRequired',
+    ]) ||
+    dashboard.source !== 'CONSULTATION' ||
+    !utcInstant(dashboard.generatedAt) ||
+    !DASHBOARD_OPERATIONAL_STATUSES.includes(
+      dashboard.operationalStatus as never,
+    )
+  )
+    return null
+  const profile = record(dashboard.profile)
+  const rating = record(dashboard.ratingAggregate)
+  const today = dashboardAppointmentCollection(dashboard.todayConfirmedSessions)
+  const pending = dashboardAppointmentCollection(
+    dashboard.pendingAppointmentRequests,
+  )
+  const next = dashboardNextAppointment(dashboard.nextAppointment)
+  const availability = dashboardAvailability(dashboard.availability)
+  if (
+    !profile ||
+    !exactKeys(profile, [
+      'source',
+      'asOf',
+      'state',
+      'displayName',
+      'timezone',
+      'approvalStatus',
+    ]) ||
+    !dashboardMetadata(profile) ||
+    !DASHBOARD_STATES.includes(profile.state as never) ||
+    !(
+      profile.displayName === null ||
+      (typeof profile.displayName === 'string' &&
+        profile.displayName.length >= 1 &&
+        profile.displayName.length <= 120)
+    ) ||
+    !(profile.timezone === null || ianaTimezone(profile.timezone)) ||
+    !(
+      profile.approvalStatus === null ||
+      SPECIALIST_APPROVAL_STATUSES.includes(profile.approvalStatus as never)
+    ) ||
+    !rating ||
+    !exactKeys(rating, [
+      'source',
+      'asOf',
+      'state',
+      'averageRating',
+      'ratingCount',
+    ]) ||
+    !dashboardMetadata(rating) ||
+    !DASHBOARD_STATES.includes(rating.state as never) ||
+    !Number.isSafeInteger(rating.ratingCount) ||
+    Number(rating.ratingCount) < 0 ||
+    !(
+      rating.averageRating === null ||
+      (typeof rating.averageRating === 'number' &&
+        Number.isFinite(rating.averageRating) &&
+        rating.averageRating >= 1 &&
+        rating.averageRating <= 5)
+    ) ||
+    (rating.state === 'AVAILABLE') !==
+      (Number(rating.ratingCount) > 0 && rating.averageRating !== null) ||
+    (rating.state !== 'AVAILABLE' &&
+      (rating.ratingCount !== 0 || rating.averageRating !== null)) ||
+    !today ||
+    !pending ||
+    !next ||
+    !availability ||
+    !Array.isArray(dashboard.actionRequired) ||
+    dashboard.actionRequired.length > 2
+  )
+    return null
+  const actions = dashboard.actionRequired.map((value) => {
+    const action = record(value)
+    if (
+      !action ||
+      !exactKeys(action, ['source', 'asOf', 'type', 'count']) ||
+      !dashboardMetadata(action) ||
+      !DASHBOARD_ACTIONS.includes(action.type as never) ||
+      !Number.isSafeInteger(action.count) ||
+      Number(action.count) < 1
+    )
+      return null
+    return action
+  })
+  if (actions.some((action) => action === null)) return null
+  const ready = dashboard.operationalStatus === 'READY'
+  const expectedApproval = {
+    READY: 'APPROVED',
+    PROFILE_REQUIRED: null,
+    PENDING_APPROVAL: 'PENDING',
+    PROFILE_REJECTED: 'REJECTED',
+    SUSPENDED: 'SUSPENDED',
+  }[dashboard.operationalStatus as SpecialistDashboard['operationalStatus']]
+  const projections = [
+    profile,
+    rating,
+    today,
+    pending,
+    next,
+    availability,
+    ...today.items,
+    ...pending.items,
+    ...(next.item ? [next.item] : []),
+    ...availability.items,
+    ...actions,
+  ]
+  if (
+    profile.approvalStatus !== expectedApproval ||
+    projections.some(
+      (projection) => projection?.asOf !== dashboard.generatedAt,
+    ) ||
+    (dashboard.operationalStatus === 'PROFILE_REQUIRED' &&
+      (profile.state !== 'EMPTY' ||
+        profile.displayName !== null ||
+        profile.timezone !== null)) ||
+    (dashboard.operationalStatus !== 'PROFILE_REQUIRED' &&
+      profile.state !== 'AVAILABLE') ||
+    (!ready &&
+      [
+        rating.state,
+        today.state,
+        pending.state,
+        next.state,
+        availability.state,
+      ].some((state) => state !== 'BLOCKED')) ||
+    (ready &&
+      ([today.state, pending.state, next.state, availability.state].some(
+        (state) => state === 'BLOCKED' || state === 'UNAVAILABLE',
+      ) ||
+        today.localDate === null ||
+        pending.localDate !== null ||
+        today.timezone !== profile.timezone ||
+        pending.timezone !== profile.timezone)) ||
+    today.items.some((item) => item.status === 'REQUESTED') ||
+    pending.items.some((item) => item.status !== 'REQUESTED')
+  )
+    return null
+  return {
+    source: 'CONSULTATION',
+    generatedAt: dashboard.generatedAt,
+    operationalStatus:
+      dashboard.operationalStatus as SpecialistDashboard['operationalStatus'],
+    profile: profile as SpecialistDashboard['profile'],
+    ratingAggregate: rating as SpecialistDashboard['ratingAggregate'],
+    todayConfirmedSessions: today,
+    pendingAppointmentRequests: pending,
+    nextAppointment: next,
+    availability,
+    actionRequired: actions as SpecialistDashboard['actionRequired'],
+  }
+}
+
+const ANALYTICS_STATES = [
+  'AVAILABLE',
+  'EMPTY',
+  'BLOCKED',
+  'UNAVAILABLE',
+  'STALE',
+] as const
+
+function nullableCount(value: unknown): value is number | null {
+  return value === null || (Number.isSafeInteger(value) && Number(value) >= 0)
+}
+
+function analyticsMetadata(
+  value: Record<string, unknown>,
+  generatedAt: string,
+) {
+  return (
+    value.source === 'CONSULTATION' &&
+    value.asOf === generatedAt &&
+    ANALYTICS_STATES.includes(value.state as never)
+  )
+}
+
+function allNull(values: unknown[]) {
+  return values.every((value) => value === null)
+}
+
+export function parseSpecialistOperationalAnalytics(
+  value: unknown,
+): SpecialistOperationalAnalytics | null {
+  const analytics = record(value)
+  if (
+    !analytics ||
+    !exactKeys(analytics, [
+      'source',
+      'generatedAt',
+      'operationalStatus',
+      'period',
+      'availability',
+      'appointments',
+      'rating',
+      'financials',
+    ]) ||
+    analytics.source !== 'CONSULTATION' ||
+    !utcInstant(analytics.generatedAt) ||
+    !DASHBOARD_OPERATIONAL_STATUSES.includes(
+      analytics.operationalStatus as never,
+    )
+  )
+    return null
+  const generatedAt = analytics.generatedAt
+  const period = record(analytics.period)
+  const availability = record(analytics.availability)
+  const appointments = record(analytics.appointments)
+  const rating = record(analytics.rating)
+  const financials = record(analytics.financials)
+  if (
+    !period ||
+    !exactKeys(period, ['from', 'to', 'timezone']) ||
+    !utcInstant(period.from) ||
+    !utcInstant(period.to) ||
+    Date.parse(period.from) >= Date.parse(period.to) ||
+    !ianaTimezone(period.timezone) ||
+    !availability ||
+    !exactKeys(availability, [
+      'source',
+      'asOf',
+      'state',
+      'publishedSlotCount',
+      'utilizedSlotCount',
+      'unusedSlotCount',
+      'utilizationRate',
+    ]) ||
+    !analyticsMetadata(availability, generatedAt) ||
+    !appointments ||
+    !exactKeys(appointments, [
+      'source',
+      'asOf',
+      'state',
+      'requestedCount',
+      'acceptedCount',
+      'rejectedCount',
+      'expiredCount',
+      'cancelledCount',
+      'rescheduledCount',
+      'completedCount',
+      'userNoShowCount',
+      'specialistNoShowCount',
+      'bothNoShowCount',
+    ]) ||
+    !analyticsMetadata(appointments, generatedAt) ||
+    !rating ||
+    !exactKeys(rating, [
+      'source',
+      'asOf',
+      'state',
+      'averageRating',
+      'ratingCount',
+    ]) ||
+    !analyticsMetadata(rating, generatedAt) ||
+    !financials ||
+    !exactKeys(financials, [
+      'source',
+      'asOf',
+      'state',
+      'currency',
+      'earnedAmountMinor',
+      'paidAmountMinor',
+    ]) ||
+    !analyticsMetadata(financials, generatedAt)
+  )
+    return null
+
+  const availabilityValues = [
+    availability.publishedSlotCount,
+    availability.utilizedSlotCount,
+    availability.unusedSlotCount,
+    availability.utilizationRate,
+  ]
+  const appointmentValues = [
+    appointments.requestedCount,
+    appointments.acceptedCount,
+    appointments.rejectedCount,
+    appointments.expiredCount,
+    appointments.cancelledCount,
+    appointments.rescheduledCount,
+    appointments.completedCount,
+    appointments.userNoShowCount,
+    appointments.specialistNoShowCount,
+    appointments.bothNoShowCount,
+  ]
+  const appointmentTotal = appointmentValues.reduce<number>(
+    (total, count) => total + (typeof count === 'number' ? count : 0),
+    0,
+  )
+  if (
+    !nullableCount(availability.publishedSlotCount) ||
+    !nullableCount(availability.utilizedSlotCount) ||
+    !nullableCount(availability.unusedSlotCount) ||
+    !(
+      availability.utilizationRate === null ||
+      (typeof availability.utilizationRate === 'number' &&
+        Number.isFinite(availability.utilizationRate) &&
+        availability.utilizationRate >= 0 &&
+        availability.utilizationRate <= 100)
+    ) ||
+    !appointmentValues.every(nullableCount) ||
+    !(
+      rating.averageRating === null ||
+      (typeof rating.averageRating === 'number' &&
+        Number.isFinite(rating.averageRating) &&
+        rating.averageRating >= 1 &&
+        rating.averageRating <= 5)
+    ) ||
+    !nullableCount(rating.ratingCount) ||
+    !(
+      financials.currency === null ||
+      (typeof financials.currency === 'string' &&
+        /^[A-Z]{3}$/.test(financials.currency))
+    ) ||
+    !nullableCount(financials.earnedAmountMinor) ||
+    !nullableCount(financials.paidAmountMinor)
+  )
+    return null
+
+  const blocked =
+    analytics.operationalStatus === 'PROFILE_REQUIRED' ||
+    analytics.operationalStatus === 'PENDING_APPROVAL' ||
+    analytics.operationalStatus === 'PROFILE_REJECTED'
+  if (
+    (blocked &&
+      ([
+        availability.state,
+        appointments.state,
+        rating.state,
+        financials.state,
+      ].some((state) => state !== 'BLOCKED') ||
+        !allNull(availabilityValues) ||
+        !allNull(appointmentValues) ||
+        !allNull([rating.averageRating, rating.ratingCount]) ||
+        !allNull([
+          financials.currency,
+          financials.earnedAmountMinor,
+          financials.paidAmountMinor,
+        ]))) ||
+    (!blocked &&
+      [availability.state, appointments.state, rating.state].some(
+        (state) => state === 'BLOCKED' || state === 'UNAVAILABLE',
+      )) ||
+    (!blocked && financials.state === 'BLOCKED') ||
+    (!blocked &&
+      (availability.publishedSlotCount === null ||
+        availability.utilizedSlotCount === null ||
+        availability.unusedSlotCount === null ||
+        appointmentValues.some((count) => count === null) ||
+        rating.ratingCount === null)) ||
+    (availability.publishedSlotCount !== null &&
+      availability.utilizedSlotCount !== null &&
+      availability.unusedSlotCount !== null &&
+      (availability.utilizedSlotCount + availability.unusedSlotCount !==
+        availability.publishedSlotCount ||
+        (availability.publishedSlotCount === 0) !==
+          (availability.utilizationRate === null))) ||
+    (availability.state === 'EMPTY' &&
+      (availability.publishedSlotCount !== 0 ||
+        availability.utilizedSlotCount !== 0 ||
+        availability.unusedSlotCount !== 0)) ||
+    (['AVAILABLE', 'STALE'].includes(String(availability.state)) &&
+      availability.publishedSlotCount === 0) ||
+    (appointments.state === 'EMPTY' && appointmentTotal !== 0) ||
+    (['AVAILABLE', 'STALE'].includes(String(appointments.state)) &&
+      appointmentTotal === 0) ||
+    ['AVAILABLE', 'STALE'].includes(String(rating.state)) !==
+      (rating.ratingCount !== null &&
+        rating.ratingCount > 0 &&
+        rating.averageRating !== null) ||
+    (rating.state === 'EMPTY' &&
+      (rating.ratingCount !== 0 || rating.averageRating !== null)) ||
+    (financials.state === 'UNAVAILABLE' &&
+      !allNull([
+        financials.currency,
+        financials.earnedAmountMinor,
+        financials.paidAmountMinor,
+      ])) ||
+    (['AVAILABLE', 'EMPTY', 'STALE'].includes(String(financials.state)) &&
+      (financials.currency === null ||
+        financials.earnedAmountMinor === null ||
+        financials.paidAmountMinor === null)) ||
+    (financials.state === 'EMPTY' &&
+      (financials.earnedAmountMinor !== 0 ||
+        financials.paidAmountMinor !== 0)) ||
+    (['AVAILABLE', 'STALE'].includes(String(financials.state)) &&
+      financials.earnedAmountMinor === 0 &&
+      financials.paidAmountMinor === 0)
+  )
+    return null
+  return analytics as SpecialistOperationalAnalytics
+}
+
+const DISCOVERY_COMPATIBILITY = [
+  'NEUTRAL',
+  'MATCHED',
+  'NOT_MATCHED',
+  'UNAVAILABLE',
+] as const
+const DISCOVERY_TIMEZONE_MATCH = [
+  'NOT_REQUESTED',
+  'EXACT',
+  'OFFSET_DISTANCE',
+] as const
+const DISCOVERY_CODES = [
+  'SCREENED_SUPPORT_AREA_MATCH',
+  'NO_SCREENED_SUPPORT_AREA_MATCH',
+  'NO_SCREENING_CONTEXT',
+  'SCREENING_CONTEXT_UNAVAILABLE',
+  'REQUESTED_LANGUAGE_MATCH',
+  'REQUESTED_LANGUAGE_NOT_MATCHED',
+  'NO_REQUESTED_LANGUAGE',
+  'SELECTABLE_SLOT_AVAILABLE',
+  'NO_SELECTABLE_SLOT',
+  'EXACT_TIMEZONE_MATCH',
+  'TIMEZONE_OFFSET_DISTANCE',
+  'NO_REQUESTED_TIMEZONE',
+  'RATING_AVAILABLE',
+  'RATING_NOT_AVAILABLE',
+] as const
+
+function parseDiscoverySlot(
+  value: unknown,
+  specialistAccountId: string,
+): DiscoverySlot | null {
+  const slot = record(value)
+  if (
+    !slot ||
+    !uuid(slot.id) ||
+    slot.specialistAccountId !== specialistAccountId ||
+    !utcInstant(slot.startAt) ||
+    !utcInstant(slot.endAt) ||
+    Date.parse(slot.endAt) - Date.parse(slot.startAt) !== 3_600_000 ||
+    !ianaTimezone(slot.timezone) ||
+    !AVAILABILITY_MODALITIES.includes(slot.modality as AppointmentModality) ||
+    !Number.isSafeInteger(slot.version) ||
+    Number(slot.version) < 0
+  )
+    return null
+  return {
+    id: slot.id,
+    specialistAccountId,
+    startAt: slot.startAt,
+    endAt: slot.endAt,
+    timezone: slot.timezone,
+    modality: slot.modality as AppointmentModality,
+    version: Number(slot.version),
+  }
+}
+
+function parseDiscoveryExplanation(
+  value: unknown,
+  hasSlots: boolean,
+): DiscoveryExplanation | null {
+  const explanation = record(value)
+  if (
+    !explanation ||
+    !DISCOVERY_COMPATIBILITY.includes(explanation.compatibility as never) ||
+    !(
+      explanation.languageMatched === null ||
+      typeof explanation.languageMatched === 'boolean'
+    ) ||
+    explanation.hasSelectableSlot !== hasSlots ||
+    !instantOrNull(explanation.earliestSelectableStartAt) ||
+    !DISCOVERY_TIMEZONE_MATCH.includes(explanation.timezoneMatch as never) ||
+    !(
+      explanation.timezoneOffsetDistanceMinutes === null ||
+      (Number.isSafeInteger(explanation.timezoneOffsetDistanceMinutes) &&
+        Number(explanation.timezoneOffsetDistanceMinutes) >= 0)
+    ) ||
+    typeof explanation.ratingTieBreakerApplied !== 'boolean' ||
+    !Array.isArray(explanation.codes) ||
+    explanation.codes.length > DISCOVERY_CODES.length ||
+    !explanation.codes.every((code) => DISCOVERY_CODES.includes(code as never))
+  )
+    return null
+  if (
+    hasSlots !== (explanation.earliestSelectableStartAt !== null) ||
+    (explanation.timezoneMatch === 'NOT_REQUESTED') !==
+      (explanation.timezoneOffsetDistanceMinutes === null)
+  )
+    return null
+  return {
+    compatibility:
+      explanation.compatibility as DiscoveryExplanation['compatibility'],
+    languageMatched: explanation.languageMatched,
+    hasSelectableSlot: hasSlots,
+    earliestSelectableStartAt: explanation.earliestSelectableStartAt,
+    timezoneMatch:
+      explanation.timezoneMatch as DiscoveryExplanation['timezoneMatch'],
+    timezoneOffsetDistanceMinutes: explanation.timezoneOffsetDistanceMinutes as
+      number | null,
+    ratingTieBreakerApplied: explanation.ratingTieBreakerApplied,
+    codes: [...explanation.codes] as DiscoveryExplanation['codes'],
+  }
+}
+
+export function parseSpecialistDiscoveryItem(
+  value: unknown,
+): SpecialistDiscoveryItem | null {
+  const item = record(value)
+  if (
+    !item ||
+    !uuid(item.specialistAccountId) ||
+    typeof item.displayName !== 'string' ||
+    item.displayName.length < 1 ||
+    item.displayName.length > 120 ||
+    typeof item.bio !== 'string' ||
+    item.bio.length > 2_000 ||
+    !Array.isArray(item.supportAreas) ||
+    item.supportAreas.length < 1 ||
+    !item.supportAreas.every((area) => SUPPORT_AREAS.includes(area as never)) ||
+    new Set(item.supportAreas).size !== item.supportAreas.length ||
+    !Array.isArray(item.languages) ||
+    item.languages.length < 1 ||
+    !item.languages.every((language) =>
+      LANGUAGES.includes(language as never),
+    ) ||
+    new Set(item.languages).size !== item.languages.length ||
+    !Number.isSafeInteger(item.yearsOfExperience) ||
+    Number(item.yearsOfExperience) < 0 ||
+    Number(item.yearsOfExperience) > 80 ||
+    !ianaTimezone(item.timezone) ||
+    !validSpecialistRatingAggregate(item.ratingAggregate) ||
+    !Array.isArray(item.selectableSlots) ||
+    item.selectableSlots.length < 1 ||
+    item.selectableSlots.length > 20
+  )
+    return null
+  const slots = item.selectableSlots.map((slot) =>
+    parseDiscoverySlot(slot, item.specialistAccountId as string),
+  )
+  if (slots.some((slot) => slot === null)) return null
+  const parsedSlots = slots as DiscoverySlot[]
+  if (new Set(parsedSlots.map((slot) => slot.id)).size !== parsedSlots.length)
+    return null
+  const explanation = parseDiscoveryExplanation(
+    item.explanation,
+    parsedSlots.length > 0,
+  )
+  if (!explanation) return null
+  return {
+    specialistAccountId: item.specialistAccountId,
+    displayName: item.displayName,
+    bio: item.bio,
+    supportAreas: [...item.supportAreas] as SupportArea[],
+    languages: [...item.languages] as (typeof LANGUAGES)[number][],
+    yearsOfExperience: Number(item.yearsOfExperience),
+    timezone: item.timezone,
+    ratingAggregate:
+      item.ratingAggregate as SpecialistDiscoveryItem['ratingAggregate'],
+    explanation,
+    selectableSlots: parsedSlots,
+  }
+}
+
+export function parseSpecialistDiscoveryPage(
+  value: unknown,
+): SpecialistDiscoveryPage | null {
+  const page = record(value)
+  if (
+    !page ||
+    !Array.isArray(page.items) ||
+    page.items.length > 50 ||
+    !Number.isSafeInteger(page.count) ||
+    page.count !== page.items.length ||
+    !(
+      page.nextCursor === null ||
+      (typeof page.nextCursor === 'string' && page.nextCursor.length <= 2_048)
+    ) ||
+    page.rankingPolicyVersion !== 'specialist-discovery-v2' ||
+    !utcInstant(page.generatedAt) ||
+    !['NOT_REQUESTED', 'APPLIED', 'UNAVAILABLE'].includes(
+      String(page.contextState),
+    ) ||
+    !['FREE', 'PLUS', 'PREMIUM'].includes(String(page.packageCode)) ||
+    !['BROWSE_ONLY', 'BOOKING_POLICY_CHECK_REQUIRED'].includes(
+      String(page.bookingHandoff),
+    ) ||
+    typeof page.videoEnabled !== 'boolean' ||
+    (page.packageCode === 'FREE') !== (page.bookingHandoff === 'BROWSE_ONLY')
+  )
+    return null
+  const items = page.items.map(parseSpecialistDiscoveryItem)
+  if (items.some((item) => item === null)) return null
+  const parsedItems = items as SpecialistDiscoveryItem[]
+  if (
+    new Set(parsedItems.map((item) => item.specialistAccountId)).size !==
+      parsedItems.length ||
+    (!page.videoEnabled &&
+      parsedItems.some((item) =>
+        item.selectableSlots.some((slot) => slot.modality === 'IN_APP_VIDEO'),
+      ))
+  )
+    return null
+  return {
+    items: parsedItems,
+    count: Number(page.count),
+    nextCursor: page.nextCursor,
+    rankingPolicyVersion: 'specialist-discovery-v2',
+    generatedAt: page.generatedAt,
+    contextState: page.contextState as SpecialistDiscoveryPage['contextState'],
+    packageCode: page.packageCode as SpecialistDiscoveryPage['packageCode'],
+    bookingHandoff:
+      page.bookingHandoff as SpecialistDiscoveryPage['bookingHandoff'],
+    videoEnabled: page.videoEnabled,
+  }
+}
+
+function validSpecialistRatingAggregate(value: unknown) {
+  if (value === null) return true
+  const aggregate = record(value)
+  return Boolean(
+    aggregate &&
+    typeof aggregate.averageRating === 'number' &&
+    Number.isFinite(aggregate.averageRating) &&
+    aggregate.averageRating >= 1 &&
+    aggregate.averageRating <= 5 &&
+    Number.isSafeInteger(aggregate.ratingCount) &&
+    Number(aggregate.ratingCount) >= 1,
+  )
+}
+
+export function parseAppointmentRating(
+  value: unknown,
+): AppointmentRating | null {
+  const rating = record(value)
+  if (
+    !rating ||
+    !uuid(rating.appointmentId) ||
+    !uuid(rating.specialistAccountId) ||
+    !Number.isSafeInteger(rating.rating) ||
+    Number(rating.rating) < 1 ||
+    Number(rating.rating) > 5 ||
+    !utcInstant(rating.createdAt) ||
+    !utcInstant(rating.updatedAt) ||
+    !Number.isSafeInteger(rating.version) ||
+    Number(rating.version) < 0 ||
+    !validSpecialistRatingAggregate(rating.specialistAggregate)
+  )
+    return null
+  return rating as AppointmentRating
+}
+
+export function discoveryQuery(
+  searchParams: URLSearchParams,
+  detail = false,
+): string {
+  const allowed = new Set([
+    'supportEvaluationId',
+    ...(detail ? [] : ['supportArea']),
+    'language',
+    'timezone',
+    'modality',
+    'from',
+    'to',
+    ...(detail ? [] : ['limit', 'cursor']),
+  ])
+  for (const key of searchParams.keys())
+    if (!allowed.has(key) || searchParams.getAll(key).length !== 1)
+      throw new ConsultationInputError(key)
+  const evaluation = searchParams.get('supportEvaluationId')
+  const supportArea = searchParams.get('supportArea')
+  const language = searchParams.get('language')
+  const timezone = searchParams.get('timezone')
+  const modality = searchParams.get('modality')
+  const from = searchParams.get('from')
+  const to = searchParams.get('to')
+  const limit = searchParams.get('limit')
+  const cursor = searchParams.get('cursor')
+  if (evaluation !== null && !uuid(evaluation))
+    throw new ConsultationInputError('supportEvaluationId')
+  if (supportArea !== null && !SUPPORT_AREAS.includes(supportArea as never))
+    throw new ConsultationInputError('supportArea')
+  if (language !== null && !LANGUAGES.includes(language as never))
+    throw new ConsultationInputError('language')
+  if (timezone !== null && !ianaTimezone(timezone))
+    throw new ConsultationInputError('timezone')
+  if (modality !== null && !AVAILABILITY_MODALITIES.includes(modality as never))
+    throw new ConsultationInputError('modality')
+  if (from !== null && !utcInstant(from))
+    throw new ConsultationInputError('from')
+  if (to !== null && !utcInstant(to)) throw new ConsultationInputError('to')
+  if (
+    limit !== null &&
+    (!/^\d{1,2}$/.test(limit) || Number(limit) < 1 || Number(limit) > 50)
+  )
+    throw new ConsultationInputError('limit')
+  if (cursor !== null && (cursor.length < 1 || cursor.length > 2_048))
+    throw new ConsultationInputError('cursor')
+  return searchParams.size ? `?${searchParams.toString()}` : ''
+}
+
+export function parseProfile(value: unknown): SpecialistProfile | null {
+  const item = record(value)
+  if (!item) return null
+  if (
+    !uuid(item.accountId) ||
+    typeof item.displayName !== 'string' ||
+    typeof item.bio !== 'string' ||
+    !Array.isArray(item.supportAreas) ||
+    !item.supportAreas.every((area) =>
+      SUPPORT_AREAS.includes(area as SupportArea),
+    ) ||
+    !Array.isArray(item.languages) ||
+    !item.languages.every((language) =>
+      LANGUAGES.includes(language as (typeof LANGUAGES)[number]),
+    ) ||
+    !Number.isInteger(item.yearsOfExperience) ||
+    typeof item.timezone !== 'string' ||
+    !SPECIALIST_APPROVAL_STATUSES.includes(
+      item.approvalStatus as SpecialistApprovalStatus,
+    ) ||
+    !instantOrNull(item.submittedAt) ||
+    !instantOrNull(item.reviewedAt) ||
+    !(item.reviewedBy === null || uuidText(item.reviewedBy)) ||
+    !validProfileDecisionReason(item.approvalStatus, item.decisionReasonCode) ||
+    !instantOrNull(item.createdAt) ||
+    !instantOrNull(item.updatedAt) ||
+    !Number.isInteger(item.version)
+  )
+    return null
+  return item as SpecialistProfile
+}
+
+export function parsePendingProfiles(value: unknown): PendingProfiles | null {
+  const result = record(value)
+  if (
+    !result ||
+    !Array.isArray(result.items) ||
+    !Number.isInteger(result.count)
+  )
+    return null
+  const items = result.items.map(parseProfile)
+  if (items.some((item) => item === null)) return null
+  return { items: items as SpecialistProfile[], count: result.count as number }
+}
+
+function validProfileDecisionReason(status: unknown, reason: unknown) {
+  if (status === 'REJECTED')
+    return SPECIALIST_REJECTION_REASONS.includes(
+      reason as SpecialistRejectionReason,
+    )
+  if (status === 'SUSPENDED')
+    return SPECIALIST_SUSPENSION_REASONS.includes(
+      reason as SpecialistSuspensionReason,
+    )
+  return reason === null
+}
+
+export function parseSpecialistSuspensionResult(
+  value: unknown,
+): SpecialistSuspensionResult | null {
+  const result = record(value)
+  const profile = parseProfile(result?.profile)
+  const effects = record(result?.effects)
+  if (
+    !result ||
+    !profile ||
+    profile.approvalStatus !== 'SUSPENDED' ||
+    !effects ||
+    ![
+      'withdrawnAvailabilitySlots',
+      'cancelledAppointments',
+      'releasedCredits',
+    ].every(
+      (key) => Number.isInteger(effects[key]) && Number(effects[key]) >= 0,
+    ) ||
+    effects.cancelledAppointments !== effects.releasedCredits
+  )
+    return null
+  return {
+    profile,
+    effects: {
+      withdrawnAvailabilitySlots: Number(effects.withdrawnAvailabilitySlots),
+      cancelledAppointments: Number(effects.cancelledAppointments),
+      releasedCredits: Number(effects.releasedCredits),
+    },
+  }
+}
+
+export function parseAvailabilitySlot(value: unknown): AvailabilitySlot | null {
+  const slot = record(value)
+  if (
+    !slot ||
+    !uuid(slot.id) ||
+    !utcInstant(slot.startAt) ||
+    !utcInstant(slot.endAt) ||
+    Date.parse(slot.endAt) - Date.parse(slot.startAt) !== 60 * 60 * 1000 ||
+    !ianaTimezone(slot.timezone) ||
+    !AVAILABILITY_MODALITIES.includes(slot.modality as AvailabilityModality) ||
+    !AVAILABILITY_STATUSES.includes(slot.status as AvailabilitySlotStatus) ||
+    !AVAILABILITY_READINESS.includes(slot.readiness as AvailabilityReadiness) ||
+    !(slot.withdrawnAt === null || utcInstant(slot.withdrawnAt)) ||
+    !utcInstant(slot.createdAt) ||
+    !utcInstant(slot.updatedAt) ||
+    !Number.isInteger(slot.version) ||
+    Number(slot.version) < 0
+  )
+    return null
+  return slot as AvailabilitySlot
+}
+
+export function parseAvailabilitySlotList(
+  value: unknown,
+): AvailabilitySlotList | null {
+  const result = record(value)
+  if (
+    !result ||
+    !Array.isArray(result.items) ||
+    result.items.length > 500 ||
+    !Number.isInteger(result.count) ||
+    result.count !== result.items.length ||
+    !utcInstant(result.generatedAt) ||
+    typeof result.videoPublishingEnabled !== 'boolean'
+  )
+    return null
+  const items = result.items.map(parseAvailabilitySlot)
+  if (items.some((item) => item === null)) return null
+  return {
+    items: items as AvailabilitySlot[],
+    count: result.count as number,
+    generatedAt: result.generatedAt,
+    videoPublishingEnabled: result.videoPublishingEnabled,
+  }
+}
+
+export function parseServiceCreditAccount(
+  value: unknown,
+): ServiceCreditAccount | null {
+  const account = record(value)
+  const balance = record(account?.balance)
+  const reservationCapacity = record(account?.reservationCapacity)
+  if (
+    !account ||
+    !uuid(account.accountId) ||
+    !['FREE', 'PLUS', 'PREMIUM'].includes(String(account.packageCode)) ||
+    !['DEFAULT_FREE', 'DEMO', 'PAID'].includes(String(account.source)) ||
+    !(
+      account.sourceReference === null ||
+      typeof account.sourceReference === 'string'
+    ) ||
+    !instantOrNull(account.periodStart) ||
+    !instantOrNull(account.periodEnd) ||
+    !['consultation-credit-v1', 'consultation-credit-v2'].includes(
+      String(account.policyVersion),
+    ) ||
+    !balance ||
+    ![
+      'available',
+      'held',
+      'consumed',
+      'forfeited',
+      'total',
+      'releasedTransitions',
+    ].every(
+      (key) => Number.isInteger(balance[key]) && Number(balance[key]) >= 0,
+    ) ||
+    Number(balance.total) > 10 ||
+    Number(balance.available) +
+      Number(balance.held) +
+      Number(balance.consumed) +
+      Number(balance.forfeited) !==
+      Number(balance.total) ||
+    !reservationCapacity ||
+    !['active', 'maximum', 'remaining'].every(
+      (key) =>
+        Number.isInteger(reservationCapacity[key]) &&
+        Number(reservationCapacity[key]) >= 0,
+    ) ||
+    Number(reservationCapacity.maximum) > 4 ||
+    Number(reservationCapacity.remaining) >
+      Number(reservationCapacity.maximum) ||
+    Number(reservationCapacity.remaining) !==
+      Math.max(
+        0,
+        Number(reservationCapacity.maximum) -
+          Number(reservationCapacity.active),
+      ) ||
+    !Array.isArray(account.history) ||
+    account.history.length > 100 ||
+    !utcInstant(account.generatedAt)
+  )
+    return null
+  for (const value of account.history) {
+    const event = record(value)
+    if (
+      !event ||
+      !uuid(event.eventId) ||
+      !uuid(event.creditId) ||
+      ![
+        'PROVISIONED',
+        'HELD',
+        'CONSUMED',
+        'RELEASED',
+        'FORFEITED',
+        'ADJUSTED_RELEASED',
+      ].includes(String(event.eventType)) ||
+      !['DEMO', 'PAID'].includes(String(event.source)) ||
+      !['PLUS', 'PREMIUM'].includes(String(event.packageCode)) ||
+      !['consultation-credit-v1', 'consultation-credit-v2'].includes(
+        String(event.policyVersion),
+      ) ||
+      !(event.appointmentId === null || uuid(event.appointmentId)) ||
+      !utcInstant(event.occurredAt)
+    )
+      return null
+  }
+  if (
+    (account.source === 'DEFAULT_FREE' &&
+      (account.packageCode !== 'FREE' ||
+        account.sourceReference !== null ||
+        account.periodStart !== null ||
+        account.periodEnd !== null ||
+        Number(balance.total) !== 0)) ||
+    (account.source !== 'DEFAULT_FREE' &&
+      (account.packageCode === 'FREE' ||
+        typeof account.sourceReference !== 'string' ||
+        account.periodStart === null ||
+        account.periodEnd === null))
+  )
+    return null
+  return account as ServiceCreditAccount
+}
+
+function parseBookableSlot(value: unknown): BookableSlot | null {
+  const slot = record(value)
+  if (
+    !slot ||
+    !uuid(slot.id) ||
+    !uuid(slot.specialistAccountId) ||
+    typeof slot.specialistDisplayName !== 'string' ||
+    !utcInstant(slot.startAt) ||
+    !utcInstant(slot.endAt) ||
+    Date.parse(slot.endAt) - Date.parse(slot.startAt) !== 3_600_000 ||
+    !ianaTimezone(slot.timezone) ||
+    !AVAILABILITY_MODALITIES.includes(slot.modality as AppointmentModality)
+  )
+    return null
+  return slot as BookableSlot
+}
+
+export function parseBookableSlotList(value: unknown): BookableSlotList | null {
+  const result = record(value)
+  if (
+    !result ||
+    !Array.isArray(result.items) ||
+    result.items.length > 200 ||
+    result.count !== result.items.length ||
+    !utcInstant(result.generatedAt) ||
+    typeof result.videoEnabled !== 'boolean'
+  )
+    return null
+  const items = result.items.map(parseBookableSlot)
+  if (items.some((item) => item === null)) return null
+  return { ...result, items } as BookableSlotList
+}
+
+export function parseAppointment(value: unknown): Appointment | null {
+  const item = record(value)
+  if (
+    !item ||
+    !uuid(item.id) ||
+    !uuid(item.slotId) ||
+    !uuid(item.specialistAccountId) ||
+    typeof item.specialistDisplayName !== 'string' ||
+    ![
+      'REQUESTED',
+      'CONFIRMED',
+      'IN_PROGRESS',
+      'SESSION_ENDED',
+      'COMPLETED',
+      'REJECTED',
+      'EXPIRED',
+      'CANCELLED',
+    ].includes(String(item.status)) ||
+    !AVAILABILITY_MODALITIES.includes(item.modality as AppointmentModality) ||
+    !utcInstant(item.scheduledStartAt) ||
+    !utcInstant(item.scheduledEndAt) ||
+    !ianaTimezone(item.timezone) ||
+    !utcInstant(item.requestedAt) ||
+    !utcInstant(item.decisionDeadlineAt) ||
+    !uuid(item.heldCreditId) ||
+    !(
+      item.replacesAppointmentId === null || uuid(item.replacesAppointmentId)
+    ) ||
+    !(
+      item.replacedByAppointmentId === null ||
+      uuid(item.replacedByAppointmentId)
+    ) ||
+    !(
+      item.originatingPlanActionId === undefined ||
+      item.originatingPlanActionId === null ||
+      uuid(item.originatingPlanActionId)
+    ) ||
+    !(item.decidedAt === null || utcInstant(item.decidedAt)) ||
+    ![
+      'SPECIALIST_ACCEPTED',
+      'SPECIALIST_REJECTED',
+      'DECISION_DEADLINE_EXPIRED',
+      null,
+    ].includes(item.decisionReason as string | null) ||
+    !(item.cancelledAt === null || utcInstant(item.cancelledAt)) ||
+    ![
+      'USER_CANCELLED',
+      'USER_RESCHEDULED',
+      'SPECIALIST_SUSPENDED',
+      null,
+    ].includes(item.cancellationReason as string | null) ||
+    !['USER', 'ADMIN', null].includes(
+      item.cancellationActor as string | null,
+    ) ||
+    !['RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT', null].includes(
+      item.cancellationCreditOutcome as string | null,
+    ) ||
+    ![
+      'COMPLETED',
+      'USER_NO_SHOW',
+      'SPECIALIST_NO_SHOW',
+      'BOTH_NO_SHOW',
+      'INSUFFICIENT_EVIDENCE',
+      'EVIDENCE_REVIEW',
+      null,
+    ].includes(item.sessionOutcome as ChatSessionOutcome | null) ||
+    !(
+      item.sessionOutcomeReason === null ||
+      typeof item.sessionOutcomeReason === 'string'
+    ) ||
+    ![
+      'chat-session-completion-v1',
+      'livekit-video-completion-v1',
+      null,
+    ].includes(item.sessionPolicyVersion as string | null) ||
+    !(item.sessionEndedAt === null || utcInstant(item.sessionEndedAt)) ||
+    !(item.sessionSettledAt === null || utcInstant(item.sessionSettledAt)) ||
+    !(item.completionFactId === null || uuid(item.completionFactId)) ||
+    !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
+      String(item.creditState),
+    ) ||
+    !Array.isArray(item.history) ||
+    item.history.length > 20 ||
+    !item.history.every(validAppointmentHistoryEntry) ||
+    !Number.isInteger(item.version) ||
+    Number(item.version) < 0 ||
+    !validAppointmentOutcome(item)
+  )
+    return null
+  return {
+    ...item,
+    originatingPlanActionId: item.originatingPlanActionId ?? null,
+  } as Appointment
+}
+
+function validAppointmentOutcome(item: Record<string, unknown>) {
+  const sessionPolicyMatches =
+    item.sessionPolicyVersion ===
+    (item.modality === 'IN_APP_VIDEO'
+      ? 'livekit-video-completion-v1'
+      : 'chat-session-completion-v1')
+  const completedSessionPolicyMatches =
+    sessionPolicyMatches ||
+    (item.modality === 'IN_APP_VIDEO' &&
+      item.sessionPolicyVersion === 'chat-session-completion-v1')
+  const cancellationFields = [
+    item.cancelledAt,
+    item.cancellationReason,
+    item.cancellationActor,
+    item.cancellationCreditOutcome,
+  ]
+  if (item.status === 'CANCELLED') {
+    if (cancellationFields.some((value) => value === null)) return false
+    return true
+  }
+  if (cancellationFields.some((value) => value !== null)) return false
+  if (item.status === 'REQUESTED')
+    return (
+      item.decidedAt === null &&
+      item.decisionReason === null &&
+      item.creditState === 'HELD'
+    )
+  if (item.status === 'CONFIRMED' || item.status === 'IN_PROGRESS')
+    return (
+      item.decidedAt !== null &&
+      item.decisionReason === 'SPECIALIST_ACCEPTED' &&
+      item.creditState === 'HELD'
+    )
+  if (item.status === 'SESSION_ENDED')
+    return (
+      item.decidedAt !== null &&
+      item.decisionReason === 'SPECIALIST_ACCEPTED' &&
+      item.sessionEndedAt !== null &&
+      sessionPolicyMatches &&
+      item.sessionOutcome !== 'COMPLETED' &&
+      (item.sessionOutcome === null
+        ? item.creditState === 'HELD' &&
+          item.sessionSettledAt === null &&
+          item.completionFactId === null
+        : item.creditState !== 'HELD' && item.sessionSettledAt !== null) &&
+      (item.modality !== 'IN_APP_VIDEO' || item.sessionOutcome === null)
+    )
+  if (item.status === 'COMPLETED')
+    return (
+      item.decidedAt !== null &&
+      item.decisionReason === 'SPECIALIST_ACCEPTED' &&
+      item.sessionOutcome === 'COMPLETED' &&
+      completedSessionPolicyMatches &&
+      item.sessionEndedAt !== null &&
+      item.sessionSettledAt !== null &&
+      item.completionFactId !== null &&
+      ['CONSUMED', 'AVAILABLE'].includes(String(item.creditState))
+    )
+  if (item.status === 'REJECTED')
+    return (
+      item.decidedAt !== null &&
+      item.decisionReason === 'SPECIALIST_REJECTED' &&
+      item.creditState === 'AVAILABLE'
+    )
+  if (item.status === 'EXPIRED')
+    return (
+      item.decidedAt !== null &&
+      item.decisionReason === 'DECISION_DEADLINE_EXPIRED' &&
+      item.creditState === 'AVAILABLE'
+    )
+  return true
+}
+
+function validAppointmentHistoryEntry(value: unknown) {
+  const item = record(value)
+  if (
+    !item ||
+    !uuid(item.eventId) ||
+    ![
+      'REQUESTED',
+      'CONFIRMED',
+      'IN_PROGRESS',
+      'SESSION_ENDED',
+      'COMPLETED',
+      'REJECTED',
+      'EXPIRED',
+      'CANCELLED',
+      null,
+    ].includes(item.fromStatus as string | null) ||
+    ![
+      'REQUESTED',
+      'CONFIRMED',
+      'IN_PROGRESS',
+      'SESSION_ENDED',
+      'COMPLETED',
+      'REJECTED',
+      'EXPIRED',
+      'CANCELLED',
+    ].includes(String(item.toStatus)) ||
+    !['USER', 'SPECIALIST', 'ADMIN', 'SYSTEM'].includes(
+      String(item.actorType),
+    ) ||
+    !(item.actorId === null || uuid(item.actorId)) ||
+    ![
+      'APPOINTMENT_REQUESTED',
+      'USER_CANCELLED',
+      'USER_RESCHEDULED',
+      'SPECIALIST_ACCEPTED',
+      'SPECIALIST_REJECTED',
+      'DECISION_DEADLINE_EXPIRED',
+      'SPECIALIST_SUSPENDED',
+      'SESSION_ACTIVITY_OBSERVED',
+      'SCHEDULED_WINDOW_ENDED',
+      'EVIDENCE_REQUIREMENTS_MET',
+      'SPECIALIST_VIDEO_END_CONFIRMED',
+      'VIDEO_MANUAL_REVIEW_REQUIRED',
+    ].includes(String(item.reason)) ||
+    !['RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT', null].includes(
+      item.creditOutcome as string | null,
+    ) ||
+    !utcInstant(item.occurredAt)
+  )
+    return false
+  return item.toStatus === 'CANCELLED'
+    ? item.creditOutcome !== null
+    : item.creditOutcome === null
+}
+
+export function parseAppointmentList(value: unknown): AppointmentList | null {
+  const result = record(value)
+  if (
+    !result ||
+    !Array.isArray(result.items) ||
+    result.items.length > 100 ||
+    result.count !== result.items.length ||
+    !utcInstant(result.generatedAt)
+  )
+    return null
+  const items = result.items.map(parseAppointment)
+  if (items.some((item) => item === null)) return null
+  return { ...result, items } as AppointmentList
+}
+
+export function parseAdminAppointmentPage(
+  value: unknown,
+): AdminAppointmentPage | null {
+  const page = record(value)
+  if (
+    !page ||
+    !exactKeys(page, [
+      'source',
+      'dataState',
+      'generatedAt',
+      'queryFrom',
+      'queryTo',
+      'items',
+      'count',
+      'nextCursor',
+    ]) ||
+    page.source !== 'CONSULTATION' ||
+    !['CURRENT', 'STALE', 'UNAVAILABLE'].includes(String(page.dataState)) ||
+    !utcInstant(page.generatedAt) ||
+    !utcInstant(page.queryFrom) ||
+    !utcInstant(page.queryTo) ||
+    !Array.isArray(page.items) ||
+    page.items.length > 100 ||
+    !Number.isInteger(page.count) ||
+    page.count !== page.items.length ||
+    (page.nextCursor !== null &&
+      (typeof page.nextCursor !== 'string' ||
+        page.nextCursor.length < 1 ||
+        page.nextCursor.length > 512))
+  )
+    return null
+
+  const items: AdminAppointmentItem[] = []
+  for (const input of page.items) {
+    const item = record(input)
+    if (
+      !item ||
+      !exactKeys(item, [
+        'appointmentId',
+        'availabilitySlotId',
+        'userAccountId',
+        'specialistAccountId',
+        'status',
+        'modality',
+        'scheduledStartAt',
+        'scheduledEndAt',
+        'timezone',
+        'requestedAt',
+        'decisionDeadlineAt',
+        'decidedAt',
+        'decisionReasonCode',
+        'cancelledAt',
+        'cancellationReasonCode',
+        'cancellationCreditOutcome',
+        'sessionEndedAt',
+        'sessionSettledAt',
+        'sessionOutcome',
+        'sessionOutcomeReasonCode',
+        'settlementState',
+        'updatedAt',
+        'version',
+      ]) ||
+      !uuid(item.appointmentId) ||
+      !uuid(item.availabilitySlotId) ||
+      !uuid(item.userAccountId) ||
+      !uuid(item.specialistAccountId) ||
+      !APPOINTMENT_STATUSES.includes(item.status as AppointmentStatus) ||
+      !['IN_APP_CHAT', 'IN_APP_VIDEO'].includes(String(item.modality)) ||
+      !utcInstant(item.scheduledStartAt) ||
+      !utcInstant(item.scheduledEndAt) ||
+      typeof item.timezone !== 'string' ||
+      item.timezone.length < 1 ||
+      item.timezone.length > 64 ||
+      !utcInstant(item.requestedAt) ||
+      !utcInstant(item.decisionDeadlineAt) ||
+      !nullableInstant(item.decidedAt) ||
+      !nullableCode(item.decisionReasonCode) ||
+      !nullableInstant(item.cancelledAt) ||
+      !nullableCode(item.cancellationReasonCode) ||
+      ![null, 'RELEASED', 'FORFEITED', 'TRANSFERRED_TO_REPLACEMENT'].includes(
+        item.cancellationCreditOutcome as never,
+      ) ||
+      !nullableInstant(item.sessionEndedAt) ||
+      !nullableInstant(item.sessionSettledAt) ||
+      ![
+        null,
+        'COMPLETED',
+        'USER_NO_SHOW',
+        'SPECIALIST_NO_SHOW',
+        'BOTH_NO_SHOW',
+        'INSUFFICIENT_EVIDENCE',
+        'EVIDENCE_REVIEW',
+      ].includes(item.sessionOutcome as never) ||
+      !nullableCode(item.sessionOutcomeReasonCode) ||
+      !['AVAILABLE', 'HELD', 'CONSUMED', 'FORFEITED'].includes(
+        String(item.settlementState),
+      ) ||
+      !utcInstant(item.updatedAt) ||
+      !Number.isInteger(item.version) ||
+      (item.version as number) < 0
+    )
+      return null
+    items.push(item as AdminAppointmentItem)
+  }
+  return { ...page, items } as AdminAppointmentPage
+}
+
+function nullableInstant(value: unknown) {
+  return value === null || utcInstant(value)
+}
+
+function nullableCode(value: unknown) {
+  return (
+    value === null ||
+    (typeof value === 'string' && value.length >= 1 && value.length <= 64)
+  )
+}
+
+const DISPUTE_REASONS = [
+  'OUTCOME_INCORRECT',
+  'PARTICIPATION_EVIDENCE_INCORRECT',
+  'SESSION_DELIVERY_NOT_RECOGNIZED',
+  'TECHNICAL_FAILURE',
+] as const
+const DISPUTE_EVIDENCE_TYPES = [
+  'ACCESS_LOG',
+  'CONNECTION_INCIDENT',
+  'PROVIDER_INCIDENT',
+] as const
+const DISPUTE_RESOLUTION_OUTCOMES = [
+  'UPHOLD_RECORDED_OUTCOME',
+  'RELEASE_USER_CREDIT',
+] as const
+const DISPUTE_RESOLUTION_REASONS = [
+  'EVIDENCE_SUPPORTS_RECORDED_OUTCOME',
+  'EVIDENCE_INCONCLUSIVE_RELEASED',
+  'TECHNICAL_FAILURE_CONFIRMED',
+] as const
+
+export function parseOpenAppointmentDisputeInput(
+  value: unknown,
+): OpenAppointmentDisputeInput {
+  const input = record(value)
+  if (!input) throw new ConsultationInputError('body')
+  const keys = Object.keys(input)
+  if (
+    keys.length < 1 ||
+    keys.length > 3 ||
+    !keys.every((key) =>
+      ['reasonCode', 'evidenceType', 'evidenceOccurredAt'].includes(key),
+    ) ||
+    !DISPUTE_REASONS.includes(input.reasonCode as never)
+  )
+    throw new ConsultationInputError('reasonCode')
+  const evidenceType = input.evidenceType ?? null
+  const evidenceOccurredAt = input.evidenceOccurredAt ?? null
+  if (
+    ![...DISPUTE_EVIDENCE_TYPES, null].includes(evidenceType as never) ||
+    !instantOrNull(evidenceOccurredAt) ||
+    (evidenceType === null) !== (evidenceOccurredAt === null)
+  )
+    throw new ConsultationInputError('evidence')
+  return {
+    reasonCode: input.reasonCode as OpenAppointmentDisputeInput['reasonCode'],
+    evidenceType: evidenceType as OpenAppointmentDisputeInput['evidenceType'],
+    evidenceOccurredAt:
+      evidenceOccurredAt as OpenAppointmentDisputeInput['evidenceOccurredAt'],
+  }
+}
+
+export function parseResolveAppointmentDisputeInput(
+  value: unknown,
+): ResolveAppointmentDisputeInput {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['outcome', 'reasonCode']) ||
+    !DISPUTE_RESOLUTION_OUTCOMES.includes(input.outcome as never) ||
+    !DISPUTE_RESOLUTION_REASONS.includes(input.reasonCode as never) ||
+    (input.outcome === 'UPHOLD_RECORDED_OUTCOME') !==
+      (input.reasonCode === 'EVIDENCE_SUPPORTS_RECORDED_OUTCOME')
+  )
+    throw new ConsultationInputError('resolution')
+  return input as ResolveAppointmentDisputeInput
+}
+
+export function parseAppointmentDispute(
+  value: unknown,
+): AppointmentDispute | null {
+  const item = record(value)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'id',
+      'appointmentId',
+      'appointmentVersion',
+      'status',
+      'openedByRole',
+      'reasonCode',
+      'evidenceType',
+      'evidenceOccurredAt',
+      'openedAt',
+      'eligibleUntil',
+      'settlementGated',
+      'resolutionOutcome',
+      'resolutionReason',
+      'resolvedAt',
+      'priorAppointmentStatus',
+      'priorSessionOutcome',
+      'resultingAppointmentStatus',
+      'resultingSessionOutcome',
+      'creditAction',
+      'version',
+    ]) ||
+    !uuid(item.id) ||
+    !uuid(item.appointmentId) ||
+    !Number.isSafeInteger(item.appointmentVersion) ||
+    Number(item.appointmentVersion) < 0 ||
+    !['OPEN', 'RESOLVED'].includes(String(item.status)) ||
+    !['USER', 'SPECIALIST'].includes(String(item.openedByRole)) ||
+    !DISPUTE_REASONS.includes(item.reasonCode as never) ||
+    ![...DISPUTE_EVIDENCE_TYPES, null].includes(item.evidenceType as never) ||
+    !instantOrNull(item.evidenceOccurredAt) ||
+    (item.evidenceType === null) !== (item.evidenceOccurredAt === null) ||
+    !utcInstant(item.openedAt) ||
+    !utcInstant(item.eligibleUntil) ||
+    typeof item.settlementGated !== 'boolean' ||
+    ![...DISPUTE_RESOLUTION_OUTCOMES, null].includes(
+      item.resolutionOutcome as never,
+    ) ||
+    ![...DISPUTE_RESOLUTION_REASONS, null].includes(
+      item.resolutionReason as never,
+    ) ||
+    !instantOrNull(item.resolvedAt) ||
+    ![
+      null,
+      ...[
+        'REQUESTED',
+        'CONFIRMED',
+        'IN_PROGRESS',
+        'SESSION_ENDED',
+        'COMPLETED',
+        'REJECTED',
+        'EXPIRED',
+        'CANCELLED',
+      ],
+    ].includes(item.priorAppointmentStatus as never) ||
+    ![
+      null,
+      ...[
+        'REQUESTED',
+        'CONFIRMED',
+        'IN_PROGRESS',
+        'SESSION_ENDED',
+        'COMPLETED',
+        'REJECTED',
+        'EXPIRED',
+        'CANCELLED',
+      ],
+    ].includes(item.resultingAppointmentStatus as never) ||
+    ![
+      ...[
+        'COMPLETED',
+        'USER_NO_SHOW',
+        'SPECIALIST_NO_SHOW',
+        'BOTH_NO_SHOW',
+        'INSUFFICIENT_EVIDENCE',
+        'EVIDENCE_REVIEW',
+      ],
+      null,
+    ].includes(item.priorSessionOutcome as never) ||
+    ![
+      ...[
+        'COMPLETED',
+        'USER_NO_SHOW',
+        'SPECIALIST_NO_SHOW',
+        'BOTH_NO_SHOW',
+        'INSUFFICIENT_EVIDENCE',
+        'EVIDENCE_REVIEW',
+      ],
+      null,
+    ].includes(item.resultingSessionOutcome as never) ||
+    !['NONE', 'ALREADY_AVAILABLE', 'ADJUSTED_RELEASED', null].includes(
+      item.creditAction as never,
+    ) ||
+    !Number.isSafeInteger(item.version) ||
+    Number(item.version) < 0
+  )
+    return null
+  const resolved = item.status === 'RESOLVED'
+  if (
+    resolved !== (item.resolutionOutcome !== null) ||
+    resolved !== (item.resolutionReason !== null) ||
+    resolved !== (item.resolvedAt !== null) ||
+    resolved !== (item.creditAction !== null)
+  )
+    return null
+  return item as AppointmentDispute
+}
+
+export function parseAppointmentDisputeList(
+  value: unknown,
+): AppointmentDisputeList | null {
+  const result = record(value)
+  if (
+    !result ||
+    !exactKeys(result, ['items', 'count', 'generatedAt']) ||
+    !Array.isArray(result.items) ||
+    result.items.length > 100 ||
+    result.count !== result.items.length ||
+    !utcInstant(result.generatedAt)
+  )
+    return null
+  const items = result.items.map(parseAppointmentDispute)
+  return items.some((item) => item === null)
+    ? null
+    : ({ ...result, items } as AppointmentDisputeList)
+}
+export function parseAppointmentRequestInput(
+  value: unknown,
+): AppointmentRequestInput {
+  const input = record(value)
+  if (!input) throw new ConsultationInputError('body')
+  const keys = Object.keys(input)
+  if (
+    keys.length < 2 ||
+    keys.length > 4 ||
+    !keys.every((key) =>
+      [
+        'slotId',
+        'modality',
+        'replacesAppointmentId',
+        'originatingPlanActionId',
+      ].includes(key),
+    ) ||
+    !uuid(input.slotId)
+  )
+    throw new ConsultationInputError('slotId')
+  if (!AVAILABILITY_MODALITIES.includes(input.modality as AppointmentModality))
+    throw new ConsultationInputError('modality')
+  if (
+    input.replacesAppointmentId !== undefined &&
+    input.replacesAppointmentId !== null &&
+    !uuid(input.replacesAppointmentId)
+  )
+    throw new ConsultationInputError('replacesAppointmentId')
+  if (
+    input.originatingPlanActionId !== undefined &&
+    input.originatingPlanActionId !== null &&
+    !uuid(input.originatingPlanActionId)
+  )
+    throw new ConsultationInputError('originatingPlanActionId')
+  return {
+    slotId: input.slotId,
+    modality: input.modality as AppointmentModality,
+    ...(input.replacesAppointmentId === undefined
+      ? {}
+      : { replacesAppointmentId: input.replacesAppointmentId }),
+    ...(input.originatingPlanActionId === undefined
+      ? {}
+      : { originatingPlanActionId: input.originatingPlanActionId }),
+  }
+}
+
+export function parseProblem(value: unknown, status: number): Problem | null {
+  const problem = record(value)
+  if (
+    !problem ||
+    typeof problem.title !== 'string' ||
+    typeof problem.code !== 'string'
+  )
+    return null
+  return {
+    title: problem.title,
+    code: problem.code,
+    status,
+    ...(typeof problem.correlationId === 'string'
+      ? { correlationId: problem.correlationId }
+      : {}),
+  }
+}
+
+export class ConsultationInputError extends Error {
+  constructor(readonly field: string) {
+    super(`Invalid ${field}`)
+  }
+}
+
+export function parsePublishAvailabilityInput(
+  value: unknown,
+): PublishAvailabilityInput {
+  const input = record(value)
+  if (!input) throw new ConsultationInputError('body')
+  const keys = Object.keys(input)
+  if (
+    keys.length !== 4 ||
+    !keys.every((key) =>
+      ['startAt', 'endAt', 'timezone', 'modality'].includes(key),
+    )
+  )
+    throw new ConsultationInputError('body')
+  if (!utcInstant(input.startAt)) throw new ConsultationInputError('startAt')
+  if (!utcInstant(input.endAt)) throw new ConsultationInputError('endAt')
+  if (Date.parse(input.endAt) - Date.parse(input.startAt) !== 60 * 60 * 1000)
+    throw new ConsultationInputError('endAt')
+  if (!ianaTimezone(input.timezone))
+    throw new ConsultationInputError('timezone')
+  if (!AVAILABILITY_MODALITIES.includes(input.modality as AvailabilityModality))
+    throw new ConsultationInputError('modality')
+  return {
+    startAt: input.startAt,
+    endAt: input.endAt,
+    timezone: input.timezone,
+    modality: input.modality as AvailabilityModality,
+  }
+}
+
+export function validIdempotencyKey(value: string | null): value is string {
+  return value !== null && /^[!-~]{16,128}$/.test(value)
+}
+
+export function validUtcInstant(value: string | null): value is string {
+  return value !== null && utcInstant(value)
+}
+
+export function parseProfileInput(value: unknown): SpecialistProfileInput {
+  const input = record(value)
+  if (!input) throw new ConsultationInputError('body')
+  const displayName =
+    typeof input.displayName === 'string' ? input.displayName.trim() : ''
+  const bio = typeof input.bio === 'string' ? input.bio.trim() : ''
+  if (displayName.length < 1 || displayName.length > 120)
+    throw new ConsultationInputError('displayName')
+  if (bio.length < 1 || bio.length > 2000)
+    throw new ConsultationInputError('bio')
+  if (
+    !Array.isArray(input.supportAreas) ||
+    input.supportAreas.length < 1 ||
+    !input.supportAreas.every((area) =>
+      SUPPORT_AREAS.includes(area as SupportArea),
+    )
+  ) {
+    throw new ConsultationInputError('supportAreas')
+  }
+  if (
+    !Array.isArray(input.languages) ||
+    input.languages.length < 1 ||
+    !input.languages.every((language) =>
+      LANGUAGES.includes(language as (typeof LANGUAGES)[number]),
+    )
+  ) {
+    throw new ConsultationInputError('languages')
+  }
+  if (
+    !Number.isInteger(input.yearsOfExperience) ||
+    Number(input.yearsOfExperience) < 0 ||
+    Number(input.yearsOfExperience) > 80
+  ) {
+    throw new ConsultationInputError('yearsOfExperience')
+  }
+  if (
+    typeof input.timezone !== 'string' ||
+    input.timezone.length < 3 ||
+    input.timezone.length > 80
+  ) {
+    throw new ConsultationInputError('timezone')
+  }
+  return {
+    displayName,
+    bio,
+    supportAreas: [...new Set(input.supportAreas as SupportArea[])],
+    languages: [...new Set(input.languages as string[])],
+    yearsOfExperience: Number(input.yearsOfExperience),
+    timezone: input.timezone.trim(),
+  }
+}
+
+export function validEtag(value: string | null): value is string {
+  return value !== null && /^"\d+"$/.test(value)
+}
+
+export function validSpecialistStatus(
+  value: string | null,
+): value is SpecialistApprovalStatus {
+  return SPECIALIST_APPROVAL_STATUSES.includes(
+    value as SpecialistApprovalStatus,
+  )
+}
+
+export function parseSpecialistDecisionInput(
+  value: unknown,
+  kind: 'REJECTION' | 'SUSPENSION',
+): Readonly<{ reasonCode: SpecialistDecisionReason }> {
+  const input = record(value)
+  if (!input || Object.keys(input).length !== 1)
+    throw new ConsultationInputError('body')
+  const allowed =
+    kind === 'REJECTION'
+      ? SPECIALIST_REJECTION_REASONS
+      : SPECIALIST_SUSPENSION_REASONS
+  if (!allowed.includes(input.reasonCode as never))
+    throw new ConsultationInputError('reasonCode')
+  return { reasonCode: input.reasonCode as SpecialistDecisionReason }
+}
+
+export function validUuid(value: string) {
+  return uuid(value)
+}

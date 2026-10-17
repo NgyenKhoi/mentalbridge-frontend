@@ -1,9 +1,13 @@
 import 'server-only'
 
+import { createHash } from 'node:crypto'
+
 import { ApiError } from '@/lib/api/api-error'
 import { isProblemDetails } from '@/lib/api/problem-details'
 import type {
   AccountDetail,
+  AccountPage,
+  AccountStateChangeRequest,
   AccountSummary,
   ChallengeRequest,
   EmailRequest,
@@ -13,23 +17,38 @@ import type {
   TokenPair,
   PasswordResetRequest,
   PasswordChangeRequest,
+  PlatformReport,
+  PlatformReportPage,
+  PlatformReportRequest,
+  PlatformReportType,
+  PlatformReportSchedule,
+  PlatformReportScheduleRequest,
 } from '@/features/auth/api/identity-contract'
 import { readIdentityServerConfig } from '@/lib/config/server'
 
 import {
   parseAccountDetail,
+  parseAccountPage,
   parseAccountSummary,
   parseRegistrationResponse,
   parseTokenPair,
+  parsePlatformReport,
+  parsePlatformReportCatalogue,
+  parsePlatformReportPage,
 } from './identity-validation'
+import {
+  parseReportSchedule,
+  parseReportSchedules,
+} from './report-schedule-validation'
 
 type RequestOptions<T> = Readonly<{
-  method: 'GET' | 'POST' | 'PUT'
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   path: string
   expectedStatus: number
   correlationId: string
   authorization?: string
   idempotencyKey?: string
+  ifMatch?: string
   body?: unknown
   parseSuccess?: (value: unknown) => T | null
   emptySuccess?: boolean
@@ -113,6 +132,9 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
         ...(options.idempotencyKey === undefined
           ? {}
           : { 'Idempotency-Key': options.idempotencyKey }),
+        ...(options.ifMatch === undefined
+          ? {}
+          : { 'If-Match': options.ifMatch }),
       },
       ...(options.body === undefined
         ? {}
@@ -177,6 +199,110 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
       message: 'Identity is unavailable.',
       code: 'IDENTITY_UNAVAILABLE',
       status: 503,
+      cause: error,
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+async function identityArtifactRequest(
+  accessToken: string,
+  reportId: string,
+  correlationId: string,
+) {
+  const config = readIdentityServerConfig()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetch(
+      upstreamUrl(
+        config.baseUrl,
+        `/api/v1/admin/platform-reports/${encodeURIComponent(reportId)}/artifact`,
+      ),
+      {
+        cache: 'no-store',
+        redirect: 'error',
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json, application/problem+json',
+          Authorization: `Bearer ${accessToken}`,
+          'X-Correlation-Id': correlationId,
+        },
+      },
+    )
+    if (!response.ok) {
+      const body = await readJson(response)
+      if (isProblemDetails(body)) {
+        throw new ApiError({
+          message: body.title,
+          code: body.code,
+          status: response.status,
+          correlationId: body.correlationId,
+          problem: body,
+        })
+      }
+      throw new ApiError({
+        message: 'Identity returned an invalid error response.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const contentLength = Number(response.headers.get('content-length'))
+    if (
+      !Number.isFinite(contentLength) ||
+      contentLength < 1 ||
+      contentLength > 1_048_576
+    ) {
+      throw new ApiError({
+        message: 'Identity returned an invalid artifact.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const content = new Uint8Array(await response.arrayBuffer())
+    if (content.byteLength !== contentLength) {
+      throw new ApiError({
+        message: 'Identity returned an invalid artifact.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const sha256 = response.headers.get('x-content-sha256')
+    const retainedUntil = response.headers.get('x-retained-until')
+    if (
+      !sha256?.match(/^[0-9a-f]{64}$/) ||
+      !retainedUntil ||
+      Number.isNaN(Date.parse(retainedUntil))
+    ) {
+      throw new ApiError({
+        message: 'Identity returned invalid artifact provenance.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const actualSha256 = createHash('sha256').update(content).digest('hex')
+    if (actualSha256 !== sha256) {
+      throw new ApiError({
+        message: 'Identity returned an artifact with invalid integrity.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    return {
+      content,
+      contentType: response.headers.get('content-type') ?? 'application/json',
+      contentDisposition: response.headers.get('content-disposition'),
+      sha256,
+      retainedUntil,
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    const timedOut = controller.signal.aborted
+    throw new ApiError({
+      message: timedOut ? 'Identity timed out.' : 'Identity is unavailable.',
+      code: timedOut ? 'IDENTITY_TIMEOUT' : 'IDENTITY_UNAVAILABLE',
+      status: timedOut ? 504 : 503,
       cause: error,
     })
   } finally {
@@ -312,5 +438,206 @@ export const identityClient = {
       authorization: accessToken,
       parseSuccess: parseAccountDetail,
     })
+  },
+
+  searchAccounts(
+    accessToken: string,
+    params: {
+      status?: string
+      role?: string
+      email?: string
+      cursor?: string
+      limit?: number
+    },
+    correlationId: string,
+  ) {
+    const query = new URLSearchParams()
+    if (params.status) query.set('status', params.status)
+    if (params.role) query.set('role', params.role)
+    if (params.email) query.set('email', params.email)
+    if (params.cursor) query.set('cursor', params.cursor)
+    if (params.limit !== undefined) query.set('limit', String(params.limit))
+    const queryString = query.toString()
+    const path = `/api/v1/admin/accounts${queryString ? `?${queryString}` : ''}`
+    return identityRequest<AccountPage>({
+      method: 'GET',
+      path,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAccountPage,
+    })
+  },
+
+  getAccountById(
+    accessToken: string,
+    accountId: string,
+    correlationId: string,
+  ) {
+    return identityRequest<AccountDetail>({
+      method: 'GET',
+      path: `/api/v1/admin/accounts/${encodeURIComponent(accountId)}`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAccountDetail,
+    })
+  },
+
+  changeAccountState(
+    accessToken: string,
+    accountId: string,
+    request: AccountStateChangeRequest,
+    ifMatch: string,
+    correlationId: string,
+  ) {
+    const formattedIfMatch =
+      ifMatch.startsWith('"') && ifMatch.endsWith('"')
+        ? ifMatch
+        : `"${ifMatch}"`
+    return identityRequest<AccountDetail>({
+      method: 'PUT',
+      path: `/api/v1/admin/accounts/${encodeURIComponent(accountId)}/state`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: formattedIfMatch,
+      body: request,
+      parseSuccess: parseAccountDetail,
+    })
+  },
+
+  platformReportCatalogue(accessToken: string, correlationId: string) {
+    return identityRequest<PlatformReportType[]>({
+      method: 'GET',
+      path: '/api/v1/admin/platform-reports/catalogue',
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parsePlatformReportCatalogue,
+    })
+  },
+
+  reportSchedules(accessToken: string, correlationId: string) {
+    return identityRequest<PlatformReportSchedule[]>({
+      method: 'GET',
+      path: '/api/v1/admin/platform-report-schedules',
+      expectedStatus: 200,
+      authorization: accessToken,
+      correlationId,
+      parseSuccess: parseReportSchedules,
+    })
+  },
+
+  createReportSchedule(
+    accessToken: string,
+    body: PlatformReportScheduleRequest,
+    correlationId: string,
+  ) {
+    return identityRequest<PlatformReportSchedule>({
+      method: 'POST',
+      path: '/api/v1/admin/platform-report-schedules',
+      expectedStatus: 201,
+      authorization: accessToken,
+      correlationId,
+      body,
+      parseSuccess: parseReportSchedule,
+    })
+  },
+
+  updateReportSchedule(
+    accessToken: string,
+    id: string,
+    version: number,
+    body: PlatformReportScheduleRequest,
+    correlationId: string,
+  ) {
+    return identityRequest<PlatformReportSchedule>({
+      method: 'PUT',
+      path: `/api/v1/admin/platform-report-schedules/${encodeURIComponent(id)}?expectedVersion=${version}`,
+      expectedStatus: 200,
+      authorization: accessToken,
+      correlationId,
+      body,
+      parseSuccess: parseReportSchedule,
+    })
+  },
+
+  deleteReportSchedule(
+    accessToken: string,
+    id: string,
+    version: number,
+    correlationId: string,
+  ) {
+    return identityRequest<void>({
+      method: 'DELETE',
+      path: `/api/v1/admin/platform-report-schedules/${encodeURIComponent(id)}?expectedVersion=${version}`,
+      expectedStatus: 204,
+      authorization: accessToken,
+      correlationId,
+      emptySuccess: true,
+    })
+  },
+
+  platformReportHistory(
+    accessToken: string,
+    params: { cursor?: string; limit?: number },
+    correlationId: string,
+  ) {
+    const query = new URLSearchParams()
+    if (params.cursor) query.set('cursor', params.cursor)
+    if (params.limit !== undefined) query.set('limit', String(params.limit))
+    const suffix = query.toString()
+    return identityRequest<PlatformReportPage>({
+      method: 'GET',
+      path: `/api/v1/admin/platform-reports${suffix ? `?${suffix}` : ''}`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parsePlatformReportPage,
+    })
+  },
+
+  requestPlatformReport(
+    accessToken: string,
+    request: PlatformReportRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return identityRequest<PlatformReport>({
+      method: 'POST',
+      path: '/api/v1/admin/platform-reports',
+      expectedStatus: 202,
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parsePlatformReport,
+    })
+  },
+
+  retryPlatformReport(
+    accessToken: string,
+    reportId: string,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return identityRequest<PlatformReport>({
+      method: 'POST',
+      path: `/api/v1/admin/platform-reports/${encodeURIComponent(reportId)}/retries`,
+      expectedStatus: 202,
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      parseSuccess: parsePlatformReport,
+    })
+  },
+
+  downloadPlatformReport(
+    accessToken: string,
+    reportId: string,
+    correlationId: string,
+  ) {
+    return identityArtifactRequest(accessToken, reportId, correlationId)
   },
 }

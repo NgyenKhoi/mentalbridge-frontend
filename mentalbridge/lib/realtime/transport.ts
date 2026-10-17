@@ -105,7 +105,7 @@ type BoundListener = {
   readonly listener: SocketListener
 }
 
-type AuthorizedOperation = 'subscribe' | 'send'
+type AuthorizedOperation = 'subscribe' | 'send' | 'check-in'
 
 type CommandAuthorization = {
   readonly conversationId: string
@@ -252,6 +252,41 @@ export class RealtimeTransport {
     return this.dispatch(command)
   }
 
+  async checkIn(
+    conversationId: string,
+    command: CommandEnvelopeV1,
+  ): Promise<'sent' | 'unavailable' | 'denied' | 'conflict'> {
+    const scope = this.commandScope(command)
+    if (
+      !scope ||
+      scope.operation !== 'check-in' ||
+      scope.conversationId !== conversationId
+    ) {
+      this.authorizationIssue('Check-in command scope does not match.')
+      return 'denied'
+    }
+    const generation = this.generation
+    const eligible = await this.eligibility.check(conversationId, 'check-in')
+    if (!this.isActiveGeneration(generation)) return 'unavailable'
+    if (eligible !== 'eligible') {
+      this.eligibilityIssue(eligible)
+      return eligible
+    }
+    const authorization = this.authorize(command, scope)
+    if (authorization === 'conflict') return authorization
+    return this.dispatch(command)
+  }
+
+  heartbeat(
+    command: CommandEnvelopeV1,
+  ): 'sent' | 'unavailable' | 'denied' | 'conflict' {
+    if (command.commandType !== 'presence.heartbeat') {
+      this.authorizationIssue('Heartbeat command type does not match.')
+      return 'denied'
+    }
+    return this.dispatch(command)
+  }
+
   async retry(
     command: CommandEnvelopeV1,
   ): Promise<'sent' | 'unavailable' | 'denied' | 'conflict'> {
@@ -297,6 +332,11 @@ export class RealtimeTransport {
       return {
         conversationId: command.payload.conversationId,
         operation: 'subscribe',
+      }
+    if (command.commandType === 'conversation.check-in')
+      return {
+        conversationId: command.payload.conversationId,
+        operation: 'check-in',
       }
     if (command.commandType === 'message.send')
       return {

@@ -1,15 +1,12 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '@/lib/api/api-error'
 import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
-import {
-  INITIAL_CHECK_GAD7_COOKIE,
-  INITIAL_CHECK_PHQ9_COOKIE,
-} from '@/lib/care/guided-initial-check-cookies'
 
 const careMocks = vi.hoisted(() => ({
-  submitAuthenticated: vi.fn(),
-  getAuthenticated: vi.fn(),
+  startScreeningEpisode: vi.fn(),
+  submitScreeningEpisodeAssessment: vi.fn(),
   questionnaireDefinition: vi.fn(),
 }))
 const sessionMocks = vi.hoisted(() => ({
@@ -36,18 +33,15 @@ const submission = {
   answers: [{ questionId, value: 0 }],
 }
 
-function request(extraCookies: string[] = []) {
+function request(instrument = 'phq9') {
   return new NextRequest(
-    'http://localhost/api/care/initial-check/assessments/phq9',
+    `http://localhost/api/care/initial-check/assessments/${instrument}`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Idempotency-Key': 'guided-assessment-request-0001',
-        cookie: [
-          `${ACCESS_COOKIE_NAME}=identity-access-secret`,
-          ...extraCookies,
-        ].join('; '),
+        cookie: `${ACCESS_COOKIE_NAME}=identity-access-secret`,
       },
       body: JSON.stringify(submission),
     },
@@ -60,10 +54,13 @@ function context(instrument: string) {
 
 describe('POST /api/care/initial-check/assessments/[instrument]', () => {
   beforeEach(() => {
-    careMocks.submitAuthenticated.mockReset()
-    careMocks.getAuthenticated.mockReset()
+    careMocks.startScreeningEpisode.mockReset()
+    careMocks.submitScreeningEpisodeAssessment.mockReset()
     careMocks.questionnaireDefinition.mockReset()
     careMocks.questionnaireDefinition.mockResolvedValue({ instrument: 'PHQ9' })
+    careMocks.startScreeningEpisode.mockResolvedValue({
+      episodeId: '40000000-0000-4000-8000-000000000101',
+    })
     sessionMocks.resolveSession.mockReset()
     sessionMocks.ensureRole.mockReset()
     sessionMocks.resolveSession.mockResolvedValue({
@@ -76,8 +73,8 @@ describe('POST /api/care/initial-check/assessments/[instrument]', () => {
     })
   })
 
-  it('stores only the returned PHQ-9 identifier in HttpOnly journey cookies', async () => {
-    careMocks.submitAuthenticated.mockResolvedValue({
+  it('submits PHQ-9 directly into the persisted Care episode', async () => {
+    careMocks.submitScreeningEpisodeAssessment.mockResolvedValue({
       assessmentId: phq9AssessmentId,
       instrument: 'PHQ9',
       voidedAt: null,
@@ -86,30 +83,35 @@ describe('POST /api/care/initial-check/assessments/[instrument]', () => {
     const response = await POST(request(), context('phq9'))
 
     expect(response.status).toBe(201)
-    expect(careMocks.submitAuthenticated).toHaveBeenCalledWith(
+    expect(careMocks.submitScreeningEpisodeAssessment).toHaveBeenCalledWith(
       'identity-access-secret',
+      '40000000-0000-4000-8000-000000000101',
+      'PHQ9',
       submission,
       'guided-assessment-request-0001',
       expect.any(String),
     )
-    const cookieHeader = response.headers.get('set-cookie') ?? ''
-    expect(cookieHeader).toContain(
-      `${INITIAL_CHECK_PHQ9_COOKIE}=${phq9AssessmentId}`,
+    expect(response.headers.get('set-cookie') ?? '').not.toContain(
+      'mentalbridge_initial_check',
     )
-    expect(cookieHeader).toContain('HttpOnly')
-    expect(cookieHeader).toContain('SameSite=lax')
-    expect(cookieHeader).toContain(`${INITIAL_CHECK_GAD7_COOKIE}=`)
-    expect(cookieHeader).not.toContain('identity-access-secret')
   })
 
-  it('rejects GAD-7 before PHQ-9 without calling Care submission', async () => {
-    const response = await POST(request(), context('gad7'))
+  it('propagates Care-owned episode ordering for GAD-7', async () => {
+    careMocks.questionnaireDefinition.mockResolvedValue({ instrument: 'GAD7' })
+    careMocks.submitScreeningEpisodeAssessment.mockRejectedValue(
+      new ApiError({
+        message: 'PHQ-9 is required first',
+        code: 'SCREENING_EPISODE_ORDER_REQUIRED',
+        status: 409,
+      }),
+    )
+    const response = await POST(request('gad7'), context('gad7'))
 
     expect(response.status).toBe(409)
     await expect(response.json()).resolves.toMatchObject({
-      code: 'INITIAL_CHECK_ORDER_REQUIRED',
+      code: 'SCREENING_EPISODE_ORDER_REQUIRED',
     })
-    expect(careMocks.submitAuthenticated).not.toHaveBeenCalled()
+    expect(careMocks.submitScreeningEpisodeAssessment).toHaveBeenCalled()
   })
 
   it('rejects a definition for another instrument before creating an assessment', async () => {
@@ -127,6 +129,6 @@ describe('POST /api/care/initial-check/assessments/[instrument]', () => {
         },
       ],
     })
-    expect(careMocks.submitAuthenticated).not.toHaveBeenCalled()
+    expect(careMocks.submitScreeningEpisodeAssessment).not.toHaveBeenCalled()
   })
 })

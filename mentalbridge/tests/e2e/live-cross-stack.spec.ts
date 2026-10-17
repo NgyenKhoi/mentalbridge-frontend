@@ -137,11 +137,13 @@ async function createProfileAndGrantPrivacyConsent(
     })
   }
 
-  const grant = page.getByRole('button', { name: 'Tôi đã đọc và xác nhận' })
+  const grant = page.getByRole('button', {
+    name: 'Đồng ý xử lý dữ liệu sàng lọc',
+  })
   if (await grant.isVisible()) {
     await grant.click()
     await expect(
-      page.getByText('Đã ghi nhận xác nhận quyền riêng tư.'),
+      page.getByText('Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'),
     ).toBeVisible()
   }
 }

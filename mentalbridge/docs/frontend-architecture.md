@@ -51,6 +51,61 @@ Story 211 provides Axios and TanStack Query with these responsibilities:
 Transport details stay in `lib/api` and `lib/auth`; feature query keys, hooks,
 schemas, and UI state stay in the owning `features/<feature>` package.
 
+### Specialist discovery boundary
+
+MB-363 exposes two bounded USER-only same-origin reads under
+`/api/consultation/specialists`: the ranked list and a fresh profile detail.
+Consultation remains authoritative for current approval, ranking, and slot
+eligibility. The frontend validates and minimizes every response, displays the
+returned explanation, and passes the exact selected slot ID and in-app modality
+to the existing MB-378 appointment request operation. It does not re-derive
+specialist approval or slot availability.
+
+FREE users can browse the same approved profiles and selectable slots, but the
+consumer does not expose a booking command. PLUS and PREMIUM users can submit a
+request; MB-378 still rechecks plan and credit authority. Physical location,
+phone, price, credentials, external meeting links, and raw assessment, Journal,
+or chat content are outside this boundary.
+
+### Journal AI reflection boundary
+
+MB-368 exposes only two bounded same-origin Journal operations: create an
+analysis job for an explicit journal ID and revision, and read a job by ID. The
+browser never sends Journal text to these handlers, never receives provider
+credentials, and never invents analysis fields when a provider response is
+missing or malformed. AI processing requires the current Care-owned
+`AI_PROCESSING` disclosure and an explicit user decision before a new request.
+
+The UI stores only the journal ID, revision, idempotency key, and returned job
+ID in local storage so a same-browser reload can resume polling. It does not
+store journal text or analysis output. A result renders only when its journal
+ID and revision exactly match the displayed entry. Suggested actions are a
+closed enum routed to existing governed pages; arbitrary URLs or provider copy
+cannot become navigation.
+
+### Personal analytics overview boundary
+
+MB-570 introduced the owner-only factual analytics boundary. MB-571 and MB-610
+supersede its initial overview projection with the same-origin `/api/analytics`
+read. A single browser request selects a 7, 30, or 90-day range; Care
+aggregates assessment submissions, Journal metadata, emotion check-ins, recent
+SupportPlan occurrence outcomes, and created appointments into the same
+zero-filled local-date buckets. The browser receives counts, assessment recency,
+and the five-point self-reported emotion level needed for the owner's chart. It
+does not receive source record IDs, Journal text, assessment results or answers,
+emotion notes, SupportPlan reflections, specialist identity, chat content, or
+AI payload.
+
+Each dependency reports `available`, `empty`, `limited`, or `unavailable`;
+partial responses stay visibly partial instead of filling missing sources.
+Source reads are bounded (50 assessments, 50 journals, 90 emotion dates, at
+most 100 appointments, and the selected SupportPlan occurrence window). The
+analytics page runs the response through one pure `buildAnalytics` projection,
+then passes that model to the KPI, emotion trend, activity mix, and daily rhythm
+views. Components do not fetch or independently recalculate business totals.
+Care, Journal/AI, and Consultation retain lifecycle and deletion ownership, and
+the BFF does not read their databases directly.
+
 ## Approved Identity session design
 
 Story 212 implements the following design:

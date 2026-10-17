@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>MentalBridge - Kế hoạch Hỗ trợ</title>
+<!-- Google Fonts: Fraunces & Be Vietnam Pro -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-primary": "#ffffff",
+            "tertiary-container": "#5e3c00",
+            "surface-bright": "#ecfef1",
+            "surface-container-highest": "#d5e7da",
+            "tertiary": "#412800",
+            "secondary-container": "#b0efe0",
+            "surface": "#ecfef1",
+            "on-tertiary-fixed": "#291800",
+            "background": "#ecfef1",
+            "secondary-fixed-dim": "#94d3c4",
+            "error": "#ba1a1a",
+            "primary-fixed-dim": "#a2d0c6",
+            "on-surface": "#101f17",
+            "on-primary-container": "#8cb9af",
+            "inverse-primary": "#a2d0c6",
+            "inverse-on-surface": "#e3f5e8",
+            "primary-container": "#1e4a43",
+            "on-error-container": "#93000a",
+            "primary-fixed": "#beece2",
+            "on-primary-fixed-variant": "#224e47",
+            "on-secondary": "#ffffff",
+            "primary": "#01332d",
+            "surface-container-low": "#e6f8eb",
+            "on-error": "#ffffff",
+            "secondary-fixed": "#b0efe0",
+            "on-secondary-fixed-variant": "#085045",
+            "on-secondary-container": "#316e63",
+            "surface-container-lowest": "#ffffff",
+            "on-tertiary-container": "#e0a550",
+            "on-tertiary": "#ffffff",
+            "tertiary-fixed-dim": "#f9bb64",
+            "on-tertiary-fixed-variant": "#633f00",
+            "error-container": "#ffdad6",
+            "tertiary-fixed": "#ffddb4",
+            "surface-container": "#e0f2e6",
+            "outline": "#717976",
+            "outline-variant": "#c0c8c5",
+            "on-surface-variant": "#404846",
+            "on-background": "#101f17",
+            "surface-dim": "#cdded2",
+            "surface-container-high": "#dbede0",
+            "on-primary-fixed": "#00201c",
+            "surface-tint": "#3b665e",
+            "secondary": "#2a685d",
+            "surface-variant": "#d5e7da",
+            "inverse-surface": "#24342b",
+            "on-secondary-fixed": "#00201b",
+            "brand": {
+              teal: '#1e4a43',
+              'teal-dark': '#01332d',
+              'teal-light': '#2a685d',
+              mint: '#e6f8eb',
+              'mint-subtle': '#ecfef1',
+              bg: '#f6faf7',
+              surface: '#ffffff',
+              border: '#d5e2dc',
+              text: '#101f17',
+              'text-muted': '#404846',
+              'amber-tag': '#854d0e',
+              'amber-bg': '#fef9ee',
+              'amber-border': '#fde68a'
+            }
+          },
+          fontFamily: {
+            fraunces: ['Fraunces', 'Georgia', 'serif'],
+            headline: ['Fraunces', 'Georgia', 'serif'],
+            serif: ['Fraunces', 'Georgia', 'serif'],
+            display: ['Fraunces', 'Georgia', 'serif'],
+            sans: ['Be Vietnam Pro', 'system-ui', 'sans-serif'],
+            body: ['Be Vietnam Pro', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            'soft': '0 4px 20px -2px rgba(1, 51, 45, 0.05), 0 2px 6px -1px rgba(1, 51, 45, 0.03)',
+            'sheet': '0 -8px 32px rgba(1, 51, 45, 0.16)',
+            'toast': '0 10px 25px -5px rgba(1, 51, 45, 0.2), 0 6px 12px -3px rgba(1, 51, 45, 0.12)'
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Prevent root and horizontal overflow */
+    html, body {
+      overflow-x: hidden;
+      max-width: 100vw;
+    }
+    /* Hide scrollbars for clean horizontal tab strips */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* Ensure minimum touch target size */
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    /* Generous text line height to prevent Vietnamese tone clipping */
+    p, span, h1, h2, h3, button, a {
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body class="bg-[#f4f8f5] text-brand-text font-sans antialiased min-h-screen flex justify-center selection:bg-brand-mint selection:text-brand-teal overflow-x-hidden">
+<!-- Mobile Viewport Shell (390px fixed mobile layout standard) -->
+<div class="w-full max-w-[390px] bg-[#f6faf7] min-h-screen flex flex-col relative pb-12 shadow-2xl border-x border-brand-border/60 overflow-x-hidden">
+<!-- NAVIGATION & SAFETY HEADER -->
+<header class="sticky top-0 z-30 bg-[#f6faf7]/95 backdrop-blur-md border-b border-brand-border/70 px-4 py-3 flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-9 h-9 rounded-full bg-brand-teal flex items-center justify-center text-white shadow-xs">
+<!-- Compass Icon -->
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+</svg>
+</div>
+<span class="font-fraunces font-semibold text-lg text-brand-teal tracking-tight">MentalBridge</span>
+</div>
+<div class="flex items-center gap-2">
+<!-- Neutral safe directory button (min 44px touch) -->
+<a aria-label="Xem thư mục hỗ trợ an toàn" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-brand-border bg-white text-brand-teal text-xs font-medium hover:bg-brand-mint/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal touch-target transition-colors shadow-xs" href="#safe-directory" onclick="switchTab('panel-today'); document.getElementById('support-card')?.scrollIntoView({behavior: 'smooth'}); return false;">
+<svg aria-hidden="true" class="w-3.5 h-3.5 text-brand-teal" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+<polyline points="9 22 9 12 15 12 15 22"></polyline>
+</svg>
+<span>Thư mục an toàn</span>
+</a>
+<!-- User profile indicator -->
+<button aria-label="Tài khoản cá nhân AN" class="w-9 h-9 rounded-full bg-brand-mint border border-brand-border flex items-center justify-center text-brand-teal text-xs font-semibold hover:bg-brand-mint/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal transition-colors touch-target">
+          AN
+        </button>
+</div>
+</header>
+<!-- ACCESSIBLE 4-TAB ARIA TABLIST -->
+<nav aria-label="Chế độ theo dõi kế hoạch" class="sticky top-[57px] z-20 bg-[#f6faf7] border-b border-brand-border/70 px-4 pt-2.5 pb-2">
+<div aria-orientation="horizontal" class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5" id="main-tablist" role="tablist">
+<!-- Tab 1: Hôm nay -->
+<button aria-controls="panel-today" aria-selected="true" class="tab-btn px-4 py-2 rounded-full bg-brand-teal text-white shadow-xs font-medium text-xs whitespace-nowrap flex items-center gap-1.5 touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal transition-all" id="tab-today" onclick="switchTab('panel-today')" role="tab" tabindex="0">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+<span>Hôm nay</span>
+</button>
+<!-- Tab 2: Kế hoạch -->
+<button aria-controls="panel-plan" aria-selected="false" class="tab-btn px-4 py-2 rounded-full bg-white border border-brand-border text-brand-text-muted hover:text-brand-text hover:bg-slate-50 text-xs font-medium whitespace-nowrap touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal transition-all" id="tab-plan" onclick="switchTab('panel-plan')" role="tab" tabindex="-1">
+<span>Kế hoạch</span>
+</button>
+<!-- Tab 3: Tiến triển -->
+<button aria-controls="panel-progress" aria-selected="false" class="tab-btn px-4 py-2 rounded-full bg-white border border-brand-border text-brand-text-muted hover:text-brand-text hover:bg-slate-50 text-xs font-medium whitespace-nowrap touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal transition-all" id="tab-progress" onclick="switchTab('panel-progress')" role="tab" tabindex="-1">
+<span>Tiến triển</span>
+</button>
+<!-- Tab 4: Điều chỉnh -->
+<button aria-controls="panel-adjust" aria-selected="false" class="tab-btn px-4 py-2 rounded-full bg-white border border-brand-border text-brand-text-muted hover:text-brand-text hover:bg-slate-50 text-xs font-medium whitespace-nowrap touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal transition-all" id="tab-adjust" onclick="switchTab('panel-adjust')" role="tab" tabindex="-1">
+<span>Điều chỉnh</span>
+</button>
+</div>
+</nav>
+<!-- MAIN SCROLLABLE CONTENT PANELS -->
+<main class="flex-1 px-4 pt-4 pb-6">
+<!-- ============================================== -->
+<!-- TAB PANEL 1: HÔM NAY (ACTIVE)                  -->
+<!-- ============================================== -->
+<section aria-labelledby="tab-today" class="tab-panel space-y-5 focus-visible:outline-none" id="panel-today" role="tabpanel" tabindex="0">
+<!-- HEADER & INTRO -->
+<div class="space-y-2">
+<div class="flex items-center justify-between">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-brand-border text-brand-teal text-xs font-medium shadow-xs">
+<svg aria-hidden="true" class="w-3.5 h-3.5 text-brand-teal" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect>
+<line x1="16" x2="16" y1="2" y2="6"></line>
+<line x1="8" x2="8" y1="2" y2="6"></line>
+<line x1="3" x2="21" y1="10" y2="10"></line>
+</svg>
+<span>Thứ Bảy, 10 tháng 10</span>
+</span>
+<button class="text-xs text-brand-teal font-medium hover:underline flex items-center gap-1 touch-target" onclick="switchTab('panel-adjust')">
+<svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<line x1="4" x2="4" y1="21" y2="14"></line>
+<line x1="4" x2="4" y1="10" y2="3"></line>
+<line x1="12" x2="12" y1="21" y2="12"></line>
+<line x1="12" x2="12" y1="8" y2="3"></line>
+<line x1="20" x2="20" y1="21" y2="16"></line>
+<line x1="20" x2="20" y1="12" y2="3"></line>
+<line x1="1" x2="7" y1="14" y2="14"></line>
+<line x1="9" x2="15" y1="8" y2="8"></line>
+<line x1="17" x2="23" y1="16" y2="16"></line>
+</svg>
+<span>Tùy chỉnh nhịp</span>
+</button>
+</div>
+<h1 class="font-fraunces text-2xl font-semibold text-brand-text leading-snug pt-1">
+            Hôm nay, mình đi một bước nhỏ
+          </h1>
+<p class="text-xs text-brand-text-muted leading-relaxed">
+            Kế hoạch này gom những việc hữu ích vào đúng lúc, để bạn không phải tự nhớ mọi thứ.
+          </p>
+</div>
+<!-- SECTION: ƯU TIÊN HÔM NAY -->
+<section class="space-y-2.5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<h2 class="text-xs font-semibold text-brand-text uppercase tracking-wider">Ưu tiên hôm nay</h2>
+<span class="px-2 py-0.5 rounded-full text-[11px] bg-brand-mint text-brand-teal font-medium">1 trọng tâm</span>
+</div>
+<span class="text-[11px] text-brand-text-muted">Không áp lực thời gian</span>
+</div>
+<!-- Hero Priority Card -->
+<article class="bg-white border border-brand-border rounded-2xl p-4 shadow-soft space-y-3 relative overflow-hidden transition-all" id="priority-card">
+<div class="absolute -top-10 -right-10 w-28 h-28 bg-brand-mint/50 rounded-full blur-xl pointer-events-none"></div>
+<!-- Tags & Time -->
+<div class="flex flex-wrap items-center gap-2 text-xs">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-amber-bg text-brand-amber-tag border border-brand-amber-border font-medium text-[11px]">
+<svg aria-hidden="true" class="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+</svg>
+                Hỗ trợ chuyên môn
+              </span>
+<span class="inline-flex items-center gap-1 text-brand-text-muted text-[11px]">
+<svg aria-hidden="true" class="w-3 h-3 text-brand-text-muted" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<polyline points="12 6 12 12 16 14"></polyline>
+</svg>
+                14:30 · khoảng 10 phút
+              </span>
+</div>
+<!-- Title & Calm Copy -->
+<div>
+<h3 class="font-fraunces text-lg font-semibold text-brand-text leading-snug" id="priority-title">
+                Chuẩn bị cho buổi trao đổi
+              </h3>
+<p class="text-xs text-brand-text-muted mt-1.5 leading-relaxed">
+                Xem lại điều bạn muốn chia sẻ và chọn một câu hỏi quan trọng nhất. Giúp buổi trao đổi diễn ra nhẹ nhàng, đúng trọng tâm.
+              </p>
+</div>
+<!-- Provenance & Reassurance context -->
+<div class="flex items-center justify-between text-[11px] py-1.5 px-2.5 rounded-xl bg-brand-mint/40 border border-brand-mint text-brand-teal font-medium">
+<span class="flex items-center gap-1.5">
+<svg aria-hidden="true" class="w-3.5 h-3.5 text-brand-teal" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+</svg>
+                Gợi ý từ nhu cầu tự chia sẻ gần đây
+              </span>
+<span class="text-brand-text-muted">Không gian an tâm</span>
+</div>
+<!-- Actions (Min 44px Height) -->
+<div class="pt-1 flex flex-col gap-2">
+<button class="w-full h-11 px-4 rounded-xl bg-brand-teal text-white font-medium text-xs flex items-center justify-center gap-2 hover:bg-brand-teal-dark active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal transition-all shadow-xs touch-target" onclick="triggerAction('Bắt đầu chuẩn bị buổi trao đổi')">
+<svg aria-hidden="true" class="w-4 h-4 fill-white" fill="currentColor" stroke="none" viewbox="0 0 24 24">
+<polygon points="5 3 19 12 5 21 5 3"></polygon>
+</svg>
+<span>Bắt đầu chuẩn bị</span>
+</button>
+<div class="grid grid-cols-2 gap-2">
+<button class="w-full h-11 px-3 rounded-xl border border-brand-border bg-white text-brand-teal text-xs font-medium flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal active:scale-[0.99] transition-all touch-target" onclick="openDeferSheet('Chuẩn bị cho buổi trao đổi', this)">
+<svg aria-hidden="true" class="w-3.5 h-3.5 text-brand-teal" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<polyline points="1 4 1 10 7 10"></polyline>
+<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+</svg>
+<span>Dời sang lúc khác</span>
+</button>
+<button class="w-full h-11 px-3 rounded-xl border border-brand-border bg-white text-brand-text-muted hover:text-brand-teal text-xs font-medium flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal active:scale-[0.99] transition-all touch-target" id="btn-toggle-priority-done" onclick="togglePriorityComplete(this)">
+<svg aria-hidden="true" class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<polyline points="20 6 9 17 4 12"></polyline>
+</svg>
+<span id="priority-done-label">Đánh dấu xong</span>
+</button>
+</div>
+</div>
+<!-- Gentle Reassurance Footnote -->
+<div class="pt-1.5 border-t border-brand-border/60 text-[11px] text-brand-text-muted flex items-center justify-between">
+<span class="flex items-center gap-1">
+<svg aria-hidden="true" class="w-3 h-3 text-brand-teal" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>
+<line x1="16" x2="2" y1="8" y2="22"></line>
+<line x1="17.5" x2="9" y1="15" y2="15"></line>
+</svg>
+                Bạn luôn có thể đổi thời gian hoặc bỏ qua
+              </span>
+<span>Không ảnh hưởng tiến trình</span>
+</div>
+</article>
+</section>
+<!-- SECTION: CÁC BƯỚC NHỎ KHÁC -->
+<section class="space-y-2.5">
+<div class="flex items-center justify-between">
+<h2 class="text-xs font-semibold text-brand-text uppercase tracking-wider">Các bước nhỏ khác</h2>
+<span class="text-[11px] text-brand-text-muted">Thực hiện khi sẵn sàng</span>
+</div>
+<div class="space-y-2.5">
+<!-- Step 1: Cảm xúc -->
+<article class="bg-white border border-brand-border rounded-xl p-3 shadow-xs space-y-2.5 transition-all" id="step-emotion">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-start gap-2.5">
+<div class="w-7 h-7 rounded-lg bg-brand-mint text-brand-teal flex items-center justify-center shrink-0 mt-0.5">
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+<line x1="9" x2="9.01" y1="9" y2="9"></line>
+<line x1="15" x2="15.01" y1="9" y2="9"></line>
+</svg>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h3 class="text-xs font-semibold text-brand-text">Ghi lại cảm xúc hôm nay</h3>
+<span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 font-medium">Cảm xúc</span>
+</div>
+<p class="text-[11px] text-brand-text-muted mt-0.5">09:00 · 2 phút · Chọn 3 từ mô tả hiện tại</p>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-brand-border/40">
+<div class="flex items-center gap-1.5">
+<button class="px-2.5 py-1.5 rounded-lg border border-brand-border text-brand-text-muted hover:text-brand-text text-[11px] font-medium hover:bg-slate-50 touch-target focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-teal" onclick="openDeferSheet('Ghi lại cảm xúc hôm nay', this)">
+                    Dời lịch
+                  </button>
+<button class="px-2.5 py-1.5 rounded-lg border border-brand-border text-brand-text-muted hover:text-brand-text text-[11px] font-medium hover:bg-slate-50 touch-target focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-teal" onclick="skipStep('step-emotion', 'Ghi lại cảm xúc hôm nay')">
+                    Bỏ qua
+                  </button>
+</div>
+<button class="px-3.5 py-2 rounded-xl bg-brand-teal text-white text-xs font-medium hover:bg-brand-teal-dark active:scale-95 transition-all touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal" onclick="completeSubStep('step-emotion', 'Ghi lại cảm xúc')">
+                  Ghi lại
+                </button>
+</div>
+</article>
+<!-- Step 2: Nhật ký (Already completed state) -->
+<article class="bg-emerald-50/40 border border-emerald-200/70 rounded-xl p-3 shadow-xs space-y-2.5 transition-all" id="step-journal">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-start gap-2.5">
+<div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5">
+<svg aria-hidden="true" class="w-4 h-4 text-emerald-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<polyline points="20 6 9 17 4 12"></polyline>
+</svg>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h3 class="text-xs font-semibold text-brand-text line-through text-brand-text-muted">Viết vài dòng để nhẹ lòng</h3>
+<span class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-medium flex items-center gap-0.5">
+<svg aria-hidden="true" class="w-2.5 h-2.5 text-emerald-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        Đã xong
+                      </span>
+</div>
+<p class="text-[11px] text-brand-text-muted mt-0.5">12:30 · 5 phút · Đã lưu vào kho ghi chép riêng tư</p>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-emerald-200/50">
+<button class="px-2.5 py-1.5 rounded-lg text-brand-text-muted hover:text-brand-text text-[11px] font-medium hover:bg-white/80 touch-target focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-teal" onclick="undoJournalCompletion()">
+                  Hoàn tác
+                </button>
+<button class="px-3.5 py-2 rounded-xl border border-brand-border bg-white text-brand-teal text-xs font-medium hover:bg-slate-50 active:scale-95 transition-all touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal" onclick="triggerAction('Mở nhật ký')">
+                  Mở nhật ký
+                </button>
+</div>
+</article>
+<!-- Step 3: Tài nguyên thở -->
+<article class="bg-white border border-brand-border rounded-xl p-3 shadow-xs space-y-2.5 transition-all" id="step-breathing">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-start gap-2.5">
+<div class="w-7 h-7 rounded-lg bg-brand-mint text-brand-teal flex items-center justify-center shrink-0 mt-0.5">
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
+</svg>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h3 class="text-xs font-semibold text-brand-text">Bài thở 4 – 6</h3>
+<span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 font-medium">Tài nguyên</span>
+</div>
+<p class="text-[11px] text-brand-text-muted mt-0.5">20:30 · 6 phút · Thả lỏng nhịp thở trước khi nghỉ</p>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-brand-border/40">
+<div class="flex items-center gap-1.5">
+<button class="px-2.5 py-1.5 rounded-lg border border-brand-border text-brand-text-muted hover:text-brand-text text-[11px] font-medium hover:bg-slate-50 touch-target focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-teal" onclick="openDeferSheet('Bài thở 4 – 6', this)">
+                    Dời lịch
+                  </button>
+<button class="px-2.5 py-1.5 rounded-lg border border-brand-border text-brand-text-muted hover:text-brand-text text-[11px] font-medium hover:bg-slate-50 touch-target focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-teal" onclick="skipStep('step-breathing', 'Bài thở 4 – 6')">
+                    Bỏ qua
+                  </button>
+</div>
+<button class="px-3.5 py-2 rounded-xl bg-brand-teal text-white text-xs font-medium hover:bg-brand-teal-dark active:scale-95 transition-all touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal" onclick="triggerAction('Bắt đầu bài thở 4 - 6')">
+                  Bắt đầu
+                </button>
+</div>
+</article>
+</div>
+</section>
+<!-- SECTION: NHỊP HÔM NAY (CALM TIMELINE TRACKER) -->
+<section class="bg-white border border-brand-border rounded-2xl p-4 shadow-soft space-y-3">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="text-xs font-semibold text-brand-text uppercase tracking-wider">Nhịp hôm nay</h2>
+<p class="text-[11px] text-brand-text-muted">Phân bổ tự nhiên theo thời gian</p>
+</div>
+<span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-700 font-medium">4 điểm chạm</span>
+</div>
+<div class="space-y-3 pt-1">
+<!-- 09:00 Cảm xúc -->
+<div class="flex items-start gap-3 relative">
+<div class="w-5 flex flex-col items-center">
+<div class="w-3 h-3 rounded-full border-2 border-brand-teal bg-white mt-1"></div>
+<div class="w-0.5 h-10 bg-slate-200 mt-1"></div>
+</div>
+<div class="flex-1 bg-[#f6faf7]/80 p-2.5 rounded-xl border border-brand-border/60">
+<div class="flex items-center justify-between text-xs">
+<span class="font-semibold text-brand-teal">09:00 · Cảm xúc</span>
+<span class="text-[10px] text-brand-text-muted">2 phút</span>
+</div>
+<p class="text-[11px] text-brand-text-muted mt-0.5">Ghi lại cảm xúc hôm nay</p>
+</div>
+</div>
+<!-- 12:30 Nhật ký (Đã xong) -->
+<div class="flex items-start gap-3 relative">
+<div class="w-5 flex flex-col items-center">
+<div class="w-3.5 h-3.5 rounded-full bg-brand-teal text-white flex items-center justify-center mt-1">
+<svg aria-hidden="true" class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+</div>
+<div class="w-0.5 h-12 bg-slate-200 mt-1"></div>
+</div>
+<div class="flex-1 bg-[#f6faf7]/80 p-2.5 rounded-xl border border-brand-border/60">
+<div class="flex items-center justify-between text-xs">
+<span class="font-medium text-brand-text-muted line-through">12:30 · Nhật ký</span>
+<span class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-medium">Đã xong</span>
+</div>
+<p class="text-[11px] text-brand-text-muted mt-0.5">Viết vài dòng để nhẹ lòng</p>
+</div>
+</div>
+<!-- 14:30 Chuẩn bị tư vấn (Ưu tiên) -->
+<div class="flex items-start gap-3 relative">
+<div class="w-5 flex flex-col items-center">
+<div class="w-3.5 h-3.5 rounded-full bg-amber-600 ring-4 ring-amber-100 mt-1"></div>
+<div class="w-0.5 h-10 bg-slate-200 mt-1"></div>
+</div>
+<div class="flex-1 bg-amber-50/60 p-2.5 rounded-xl border border-amber-200/70">
+<div class="flex items-center justify-between text-xs">
+<span class="font-semibold text-brand-text">14:30 · Chuẩn bị tư vấn</span>
+<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-medium">Ưu tiên</span>
+</div>
+<p class="text-[11px] text-brand-text-muted mt-0.5">Buổi trao đổi cùng chuyên viên</p>
+</div>
+</div>
+<!-- 20:30 Tài nguyên -->
+<div class="flex items-start gap-3">
+<div class="w-5 flex flex-col items-center">
+<div class="w-3 h-3 rounded-full border-2 border-brand-teal bg-white mt-1"></div>
+</div>
+<div class="flex-1 bg-[#f6faf7]/80 p-2.5 rounded-xl border border-brand-border/60">
+<div class="flex items-center justify-between text-xs">
+<span class="font-semibold text-brand-teal">20:30 · Tài nguyên</span>
+<span class="text-[10px] text-brand-text-muted">6 phút</span>
+</div>
+<p class="text-[11px] text-brand-text-muted mt-0.5">Bài thở 4 – 6 chuẩn bị ngủ</p>
+</div>
+</div>
+</div>
+<p class="text-[11px] text-center text-brand-text-muted pt-1">
+            Không tính chuỗi ngày · Làm khi thấy thoải mái
+          </p>
+</section>
+<!-- SECTION: KHI CẦN THÊM HỖ TRỢ (REASSURANCE CARD) -->
+<section class="bg-white border border-brand-border rounded-2xl p-4 shadow-soft space-y-3" id="support-card">
+<div class="flex items-start gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-emerald-100 text-brand-teal flex items-center justify-center shrink-0">
+<svg aria-hidden="true" class="w-4 h-4 text-brand-teal" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+</svg>
+</div>
+<div>
+<h2 class="text-xs font-semibold text-brand-text uppercase tracking-wider">Khi cần thêm hỗ trợ</h2>
+<p class="text-[11px] text-brand-text-muted">Các lựa chọn hỗ trợ khi bạn cần</p>
+</div>
+</div>
+<p class="text-xs text-brand-text-muted leading-relaxed">
+            Nếu cảm thấy nhịp hiện tại chưa phù hợp hoặc cần người đồng hành, bạn hoàn toàn có thể kết nối với chuyên gia hoặc tham khảo thư mục hỗ trợ an toàn.
+          </p>
+<div class="space-y-2 pt-1">
+<button class="w-full h-11 px-4 rounded-xl bg-brand-teal text-white text-xs font-medium flex items-center justify-center gap-2 hover:bg-brand-teal-dark active:scale-[0.99] transition-all touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal shadow-xs" onclick="triggerAction('Mở danh sách chuyên gia tư vấn')">
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+<circle cx="9" cy="7" r="4"></circle>
+<path d="m19 11 2 2 4-4"></path>
+</svg>
+<span>Tìm chuyên gia</span>
+</button>
+<button class="w-full h-11 px-4 rounded-xl border border-brand-border bg-white text-brand-teal text-xs font-medium flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-[0.99] transition-all touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal" onclick="triggerAction('Mở thư mục hỗ trợ an toàn')">
+<svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path>
+<path d="M6 6h10"></path>
+<path d="M6 10h10"></path>
+</svg>
+<span>Xem thư mục hỗ trợ an toàn</span>
+</button>
+</div>
+<div class="pt-1 flex items-center justify-center gap-1.5 text-[11px] text-brand-text-muted">
+<svg aria-hidden="true" class="w-3.5 h-3.5 text-brand-teal" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+<polyline points="22 4 12 14.01 9 11.01"></polyline>
+</svg>
+<span>Bạn chọn hình thức hỗ trợ phù hợp với nhu cầu hiện tại.</span>
+</div>
+</section>
+<!-- SECTION: NHỊP ĐÁNH GIÁ ĐỊNH KỲ -->
+<section class="bg-white border border-brand-border rounded-2xl p-4 shadow-soft space-y-2.5">
+<div class="flex items-center justify-between">
+<span class="text-xs font-semibold uppercase tracking-wider text-brand-teal">Nhịp đánh giá định kỳ</span>
+<svg aria-hidden="true" class="w-4 h-4 text-brand-teal" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect>
+<line x1="16" x2="16" y1="2" y2="6"></line>
+<line x1="8" x2="8" y1="2" y2="6"></line>
+<line x1="3" x2="21" y1="10" y2="10"></line>
+</svg>
+</div>
+<div>
+<span class="text-xs text-brand-text-muted">Lần xem lại tiếp theo</span>
+<div class="font-fraunces text-2xl font-bold text-brand-text tracking-tight mt-0.5">
+              18 tháng 10
+            </div>
+<span class="text-xs text-brand-teal font-medium">Còn 8 ngày nữa</span>
+</div>
+<p class="text-xs text-brand-text-muted leading-relaxed">
+            Bạn sẽ quyết định cùng MentalBridge điều gì nên giữ, đổi hoặc bỏ để lộ trình tiếp tục sát với nhịp sống thực tế.
+          </p>
+<button class="w-full h-11 px-4 rounded-xl border border-brand-border bg-white text-brand-text hover:bg-slate-50 text-xs font-medium transition-colors touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal" onclick="switchTab('panel-adjust')">
+            Xem và chỉnh sửa tiêu chí đánh giá
+          </button>
+</section>
+</section>
+<!-- ============================================== -->
+<!-- TAB PANEL 2: KẾ HOẠCH                           -->
+<!-- ============================================== -->
+<section aria-labelledby="tab-plan" class="tab-panel hidden space-y-4 focus-visible:outline-none" id="panel-plan" role="tabpanel" tabindex="0">
+<div class="space-y-1">
+<h2 class="font-fraunces text-xl font-semibold text-brand-text">Kế hoạch tuần này</h2>
+<p class="text-xs text-brand-text-muted">Nhìn trước nhịp độ tuần một cách nhẹ nhàng, không thúc giục.</p>
+</div>
+<!-- Weekly Focus -->
+<div class="p-3.5 rounded-2xl bg-brand-mint/50 border border-brand-mint space-y-1.5">
+<span class="text-[11px] font-semibold text-brand-teal uppercase tracking-wider">Trọng tâm tuần</span>
+<p class="font-fraunces text-base font-semibold text-brand-text">
+            Xây dựng nhịp nghỉ &amp; điều hòa cảm xúc
+          </p>
+<p class="text-xs text-brand-text-muted">
+            Ưu tiên sự ổn định giấc ngủ và ghi chép ngắn lúc giữa ngày. Hoàn toàn chủ động theo nhịp của bạn.
+          </p>
+</div>
+<!-- Schedule list grouped by day with clear provenance/source -->
+<div class="space-y-3">
+<h3 class="text-xs font-semibold text-brand-text uppercase tracking-wider">Lịch hoạt động &amp; Nguồn gợi ý</h3>
+<!-- Day 1: Hôm nay -->
+<div class="p-3.5 rounded-xl bg-white border border-brand-border space-y-2">
+<div class="flex items-center justify-between text-xs">
+<span class="font-semibold text-brand-teal">Hôm nay (Thứ Bảy, 10/10)</span>
+<span class="text-[11px] text-brand-text-muted">3 hoạt động</span>
+</div>
+<ul class="space-y-2 text-xs divide-y divide-slate-100">
+<li class="pt-1 flex items-start justify-between gap-2">
+<div>
+<p class="font-medium text-brand-text">Chuẩn bị cho buổi trao đổi</p>
+<p class="text-[11px] text-brand-text-muted">14:30 · 10 phút</p>
+</div>
+<span class="text-[10px] text-brand-teal bg-brand-mint/70 px-2 py-0.5 rounded-full whitespace-nowrap">Nhu cầu tự chia sẻ</span>
+</li>
+<li class="pt-2 flex items-start justify-between gap-2">
+<div>
+<p class="font-medium text-brand-text">Ghi lại cảm xúc &amp; Bài thở 4-6</p>
+<p class="text-[11px] text-brand-text-muted">09:00 &amp; 20:30</p>
+</div>
+<span class="text-[10px] text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full whitespace-nowrap">Từ phản hồi tuần trước</span>
+</li>
+</ul>
+</div>
+<!-- Day 2: Ngày mai -->
+<div class="p-3.5 rounded-xl bg-white border border-brand-border space-y-2">
+<div class="flex items-center justify-between text-xs">
+<span class="font-semibold text-brand-text">Chủ Nhật, 11/10</span>
+<span class="text-[11px] text-brand-text-muted">1 hoạt động nhẹ</span>
+</div>
+<div class="flex items-start justify-between gap-2 text-xs">
+<div>
+<p class="font-medium text-brand-text">Đi dạo ngoài trời không thiết bị</p>
+<p class="text-[11px] text-brand-text-muted">16:30 · 15 phút</p>
+</div>
+<span class="text-[10px] text-brand-teal bg-brand-mint/70 px-2 py-0.5 rounded-full whitespace-nowrap">Mục tiêu cá nhân</span>
+</div>
+</div>
+<!-- Day 3: Đầu tuần -->
+<div class="p-3.5 rounded-xl bg-white border border-brand-border space-y-2">
+<div class="flex items-center justify-between text-xs">
+<span class="font-semibold text-brand-text">Thứ Hai, 12/10</span>
+<span class="text-[11px] text-brand-text-muted">2 hoạt động</span>
+</div>
+<div class="flex items-start justify-between gap-2 text-xs">
+<div>
+<p class="font-medium text-brand-text">Ghi chú điều tạo động lực đầu tuần</p>
+<p class="text-[11px] text-brand-text-muted">09:30 · 3 phút</p>
+</div>
+<span class="text-[10px] text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full whitespace-nowrap">Nhịp điều hòa</span>
+</div>
+</div>
+</div>
+<div class="p-3 rounded-xl bg-slate-50 border border-brand-border/60 text-[11px] text-brand-text-muted text-center">
+          Kế hoạch mang tính gợi ý linh hoạt. Không có chỉ số tuân thủ hay điểm phạt nào.
+        </div>
+</section>
+<!-- ============================================== -->
+<!-- TAB PANEL 3: TIẾN TRIỂN                         -->
+<!-- ============================================== -->
+<section aria-labelledby="tab-progress" class="tab-panel hidden space-y-4 focus-visible:outline-none" id="panel-progress" role="tabpanel" tabindex="0">
+<div class="space-y-1">
+<h2 class="font-fraunces text-xl font-semibold text-brand-text">Nhìn lại tiến trình</h2>
+<p class="text-xs text-brand-text-muted">Ghi nhận khách quan, tập trung vào cảm nhận thực tế thay vì con số.</p>
+</div>
+<!-- Factual Summary Cards -->
+<div class="grid grid-cols-2 gap-2.5">
+<div class="p-3.5 rounded-2xl bg-white border border-brand-border shadow-xs">
+<span class="text-[11px] text-brand-text-muted font-medium">Đã thực hiện tuần này</span>
+<div class="font-fraunces text-2xl font-bold text-brand-teal mt-1">
+              3 bước
+            </div>
+<p class="text-[10px] text-brand-text-muted mt-0.5">Hoàn thành theo ý muốn</p>
+</div>
+<div class="p-3.5 rounded-2xl bg-white border border-brand-border shadow-xs">
+<span class="text-[11px] text-brand-text-muted font-medium">Linh hoạt dời lịch</span>
+<div class="font-fraunces text-2xl font-bold text-amber-700 mt-1">
+              1 bước
+            </div>
+<p class="text-[10px] text-brand-text-muted mt-0.5">Dành thêm thời gian nghỉ</p>
+</div>
+</div>
+<!-- Qualitative Helpful Feedback -->
+<div class="bg-white border border-brand-border rounded-2xl p-4 shadow-soft space-y-3">
+<h3 class="text-xs font-semibold text-brand-text uppercase tracking-wider">Cảm nhận sau các bước gần đây</h3>
+<div class="space-y-2.5 text-xs">
+<div class="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200/60 flex items-start gap-2.5">
+<span class="w-2 h-2 rounded-full bg-emerald-600 mt-1.5 shrink-0"></span>
+<div>
+<p class="font-medium text-brand-text">2 bước cảm thấy nhẹ nhõm hơn</p>
+<p class="text-[11px] text-brand-text-muted mt-0.5">Ghi chép nhật ký 5 phút và bài thở 4-6 giúp dễ ngủ hơn vào ban đêm.</p>
+</div>
+</div>
+<div class="p-3 rounded-xl bg-amber-50/50 border border-amber-200/60 flex items-start gap-2.5">
+<span class="w-2 h-2 rounded-full bg-amber-600 mt-1.5 shrink-0"></span>
+<div>
+<p class="font-medium text-brand-text">1 bước cần thêm thời gian</p>
+<p class="text-[11px] text-brand-text-muted mt-0.5">Buổi chuẩn bị tư vấn cần thêm sự tập trung, bạn đã chủ động dời sang giờ phù hợp.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- No Gamification Reassurance -->
+<div class="p-3.5 rounded-xl bg-white border border-brand-border text-center space-y-1">
+<p class="text-xs font-medium text-brand-text">Nguyên tắc chăm sóc tại MentalBridge</p>
+<p class="text-[11px] text-brand-text-muted leading-relaxed">
+            Hệ thống không xếp hạng, không duy trì streak, không gán điểm số hồi phục. Mỗi bước bạn đi là sự lựa chọn có ý thức của riêng bạn.
+          </p>
+</div>
+</section>
+<!-- ============================================== -->
+<!-- TAB PANEL 4: ĐIỀU CHỈNH                          -->
+<!-- ============================================== -->
+<section aria-labelledby="tab-adjust" class="tab-panel hidden space-y-4 focus-visible:outline-none" id="panel-adjust" role="tabpanel" tabindex="0">
+<div class="space-y-1">
+<h2 class="font-fraunces text-xl font-semibold text-brand-text">Tùy chỉnh nhịp độ</h2>
+<p class="text-xs text-brand-text-muted">Bạn có toàn quyền quyết định khối lượng và nhịp sống của mình.</p>
+</div>
+<!-- Pace options -->
+<div class="bg-white border border-brand-border rounded-2xl p-4 shadow-soft space-y-3">
+<h3 class="text-xs font-semibold text-brand-text uppercase tracking-wider">Chọn nhịp hỗ trợ</h3>
+<div class="space-y-2">
+<label class="flex items-start gap-3 p-3 rounded-xl border border-brand-border hover:bg-brand-mint/30 cursor-pointer touch-target transition-colors">
+<input class="mt-1 text-brand-teal focus:ring-brand-teal" name="plan_pace" type="radio" value="gentle"/>
+<div>
+<span class="text-xs font-semibold text-brand-text">Nhịp nhẹ nhàng hơn</span>
+<p class="text-[11px] text-brand-text-muted mt-0.5">Giảm còn 1 bước mỗi ngày, không nhắc nhở vào cuối tuần.</p>
+</div>
+</label>
+<label class="flex items-start gap-3 p-3 rounded-xl border border-brand-teal bg-brand-mint/20 cursor-pointer touch-target transition-colors">
+<input checked="" class="mt-1 text-brand-teal focus:ring-brand-teal" name="plan_pace" type="radio" value="current"/>
+<div>
+<span class="text-xs font-semibold text-brand-text">Giữ nguyên nhịp hiện tại</span>
+<p class="text-[11px] text-brand-text-muted mt-0.5">1 trọng tâm và 2–3 bước nhỏ phân bổ sáng, trưa, tối.</p>
+</div>
+</label>
+<label class="flex items-start gap-3 p-3 rounded-xl border border-brand-border hover:bg-brand-mint/30 cursor-pointer touch-target transition-colors">
+<input class="mt-1 text-brand-teal focus:ring-brand-teal" name="plan_pace" type="radio" value="pause"/>
+<div>
+<span class="text-xs font-semibold text-brand-text">Tạm dừng kế hoạch vài ngày</span>
+<p class="text-[11px] text-brand-text-muted mt-0.5">Chỉ giữ lại các tài nguyên tự mở khi cần, không gửi gợi ý.</p>
+</div>
+</label>
+</div>
+</div>
+<!-- Review cycle adjust -->
+<div class="bg-white border border-brand-border rounded-2xl p-4 shadow-soft space-y-2.5">
+<h3 class="text-xs font-semibold text-brand-text uppercase tracking-wider">Lịch đánh giá định kỳ</h3>
+<p class="text-xs text-brand-text-muted leading-relaxed">
+            Hiện tại: 2 tuần một lần (Lần tới vào 18/10). Bạn có thể đổi sang hàng tuần hoặc hàng tháng.
+          </p>
+<div class="grid grid-cols-2 gap-2 pt-1">
+<button class="h-11 px-3 rounded-xl border border-brand-border bg-white text-brand-text text-xs font-medium hover:bg-slate-50 touch-target focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-teal" onclick="triggerAction('Đổi lịch đánh giá thành 1 tuần')">
+              Mỗi 1 tuần
+            </button>
+<button class="h-11 px-3 rounded-xl border border-brand-border bg-white text-brand-text text-xs font-medium hover:bg-slate-50 touch-target focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-teal" onclick="triggerAction('Đổi lịch đánh giá thành 4 tuần')">
+              Mỗi 4 tuần
+            </button>
+</div>
+</div>
+<!-- Agency Reassurance -->
+<div class="p-3.5 rounded-xl bg-brand-mint/40 border border-brand-mint/70 text-xs text-brand-teal space-y-1">
+<p class="font-semibold">Quyền chủ động thuộc về bạn</p>
+<p class="text-[11px] text-brand-text-muted leading-relaxed">
+            MentalBridge không tự ý thay đổi số bước hoặc lộ trình mà chưa có xác nhận từ bạn. Bạn luôn nắm quyền kiểm soát trải nghiệm của mình.
+          </p>
+</div>
+<button class="w-full h-11 px-4 rounded-xl bg-brand-teal text-white text-xs font-medium hover:bg-brand-teal-dark active:scale-[0.99] transition-all touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal shadow-xs" onclick="triggerAction('Lưu tùy chọn điều chỉnh')">
+          Lưu thay đổi
+        </button>
+</section>
+</main>
+<!-- CLEAN FOOTER WITH PRODUCT METADATA & NEUTRAL LINKS -->
+<footer class="mt-auto px-4 pt-4 pb-6 border-t border-brand-border/60 text-center space-y-2 text-[11px] text-brand-text-muted">
+<div class="flex items-center justify-center gap-2">
+<span class="w-2 h-2 rounded-full bg-brand-teal"></span>
+<span class="font-medium text-brand-text">MentalBridge v3.4</span>
+</div>
+<p class="leading-relaxed">Không gian chăm sóc sức khỏe tinh thần chuẩn hóa &amp; tôn trọng nhịp điệu cá nhân</p>
+<div class="flex items-center justify-center gap-3 pt-1 text-[11px]">
+<a class="text-brand-text-muted hover:text-brand-teal underline touch-target" href="#privacy" onclick="triggerAction('Xem chính sách riêng tư'); return false;">Chính sách riêng tư</a>
+<span>•</span>
+<a class="text-brand-text-muted hover:text-brand-teal underline touch-target" href="#safety-guide" onclick="triggerAction('Xem hướng dẫn an toàn'); return false;">Hướng dẫn an toàn</a>
+</div>
+</footer>
+<!-- ============================================== -->
+<!-- ACCESSIBLE MOBILE BOTTOM SHEET: DEFER MODAL    -->
+<!-- ============================================== -->
+<div class="fixed inset-0 z-50 bg-[#01332d]/50 backdrop-blur-xs hidden transition-opacity flex items-end justify-center" id="defer-sheet-backdrop" onclick="closeDeferSheet()">
+<div aria-labelledby="defer-title" aria-modal="true" class="w-full max-w-[390px] bg-white rounded-t-3xl p-5 shadow-sheet transform translate-y-full transition-transform duration-300 ease-out" id="defer-sheet" onclick="event.stopPropagation()" role="dialog">
+<!-- Sheet Handle -->
+<div aria-hidden="true" class="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-3"></div>
+<div class="flex items-start justify-between">
+<div>
+<h3 class="font-fraunces text-lg font-semibold text-brand-text" id="defer-title">Dời thời gian thực hiện</h3>
+<p class="text-xs text-brand-text-muted mt-0.5" id="defer-target-label">Chuẩn bị cho buổi trao đổi</p>
+</div>
+<button aria-label="Đóng bảng dời lịch" class="p-2 rounded-full text-brand-text-muted hover:bg-slate-100 touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal" id="defer-close-btn" onclick="closeDeferSheet()">
+<svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<line x1="18" x2="6" y1="6" y2="18"></line>
+<line x1="6" x2="18" y1="6" y2="18"></line>
+</svg>
+</button>
+</div>
+<p class="text-xs text-brand-text-muted mt-2 leading-relaxed">
+          Chọn mốc thời gian phù hợp hơn với bạn hôm nay. Việc dời lại không tính trừ bất kỳ chỉ số nào.
+        </p>
+<!-- Time options -->
+<div class="mt-4 space-y-2" id="defer-options-group">
+<label class="flex items-center justify-between p-3 rounded-xl border border-brand-border bg-slate-50/50 hover:bg-brand-mint/40 cursor-pointer touch-target transition-colors">
+<div class="flex items-center gap-2.5">
+<input checked="" class="text-brand-teal focus:ring-brand-teal" name="defer_choice" type="radio" value="Chiều nay (sau 16:00)"/>
+<span class="text-xs font-medium text-brand-text">Chiều nay (sau 16:00)</span>
+</div>
+<span class="text-[11px] text-brand-text-muted">+2 giờ nữa</span>
+</label>
+<label class="flex items-center justify-between p-3 rounded-xl border border-brand-border bg-slate-50/50 hover:bg-brand-mint/40 cursor-pointer touch-target transition-colors">
+<div class="flex items-center gap-2.5">
+<input class="text-brand-teal focus:ring-brand-teal" name="defer_choice" type="radio" value="Tối nay (sau 20:00)"/>
+<span class="text-xs font-medium text-brand-text">Tối nay (sau 20:00)</span>
+</div>
+<span class="text-[11px] text-brand-text-muted">Trước giờ nghỉ</span>
+</label>
+<label class="flex items-center justify-between p-3 rounded-xl border border-brand-border bg-slate-50/50 hover:bg-brand-mint/40 cursor-pointer touch-target transition-colors">
+<div class="flex items-center gap-2.5">
+<input class="text-brand-teal focus:ring-brand-teal" name="defer_choice" type="radio" value="Ngày mai"/>
+<span class="text-xs font-medium text-brand-text">Ngày mai (Chủ Nhật)</span>
+</div>
+<span class="text-[11px] text-brand-text-muted">Bắt đầu ngày mới</span>
+</label>
+<label class="flex items-center justify-between p-3 rounded-xl border border-brand-border bg-slate-50/50 hover:bg-brand-mint/40 cursor-pointer touch-target transition-colors">
+<div class="flex items-center gap-2.5">
+<input class="text-brand-teal focus:ring-brand-teal" name="defer_choice" type="radio" value="Dời sang tuần sau"/>
+<span class="text-xs font-medium text-brand-text">Dời sang tuần sau</span>
+</div>
+<span class="text-[11px] text-brand-text-muted">Tuần tới</span>
+</label>
+<label class="flex items-center justify-between p-3 rounded-xl border border-brand-border bg-slate-50/50 hover:bg-brand-mint/40 cursor-pointer touch-target transition-colors">
+<div class="flex items-center gap-2.5">
+<input class="text-brand-teal focus:ring-brand-teal" name="defer_choice" type="radio" value="Tạm bỏ qua hôm nay"/>
+<span class="text-xs font-medium text-brand-text">Tạm bỏ qua hôm nay</span>
+</div>
+<span class="text-[11px] text-brand-text-muted">Nghỉ ngơi</span>
+</label>
+</div>
+<div class="mt-5 flex items-center gap-2.5">
+<button class="w-1/2 h-11 rounded-xl border border-brand-border text-brand-text-muted text-xs font-medium hover:bg-slate-50 touch-target focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-teal" onclick="closeDeferSheet()">
+            Giữ nguyên
+          </button>
+<button class="w-1/2 h-11 rounded-xl bg-brand-teal text-white text-xs font-medium hover:bg-brand-teal-dark touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal shadow-xs" onclick="confirmDefer()">
+            Lưu thời gian mới
+          </button>
+</div>
+</div>
+</div>
+<!-- ============================================== -->
+<!-- FLOATING TOAST NOTIFICATION WITH UNDO BUTTON   -->
+<!-- ============================================== -->
+<div aria-live="polite" class="fixed bottom-4 inset-x-4 max-w-[360px] mx-auto z-50 bg-brand-teal text-white text-xs px-4 py-3 rounded-xl shadow-toast flex items-center justify-between opacity-0 pointer-events-none transition-all duration-300 transform translate-y-2" id="toast" role="status">
+<div class="flex items-center gap-2 pr-2">
+<svg aria-hidden="true" class="w-4 h-4 text-emerald-300 shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+<polyline points="22 4 12 14.01 9 11.01"></polyline>
+</svg>
+<span class="leading-snug" id="toast-msg">Đã hoàn thành bước nhỏ</span>
+</div>
+<button class="px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white font-medium text-xs whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white touch-target transition-colors" id="toast-undo-btn" onclick="executeToastUndo()">
+        Hoàn tác
+      </button>
+</div>
+</div>
+<!-- JAVASCRIPT: ACCESSIBILITY, ARIA TABLIST & SHEET LOGIC -->
+<script>
+    let toastTimeout = null;
+    let lastUndoAction = null;
+    let lastFocusedElementBeforeModal = null;
+
+    // Toast with Undo trigger
+    function showToast(message, undoCallback = null) {
+      if (toastTimeout) clearTimeout(toastTimeout);
+
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      const undoBtn = document.getElementById('toast-undo-btn');
+
+      toastMsg.innerText = message;
+      lastUndoAction = undoCallback;
+
+      if (undoCallback) {
+        undoBtn.classList.remove('hidden');
+      } else {
+        undoBtn.classList.add('hidden');
+      }
+
+      toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-2');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      toastTimeout = setTimeout(() => {
+        dismissToast();
+      }, 4000);
+    }
+
+    function dismissToast() {
+      const toast = document.getElementById('toast');
+      toast.classList.remove('opacity-100', 'translate-y-0');
+      toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-2');
+    }
+
+    function executeToastUndo() {
+      if (typeof lastUndoAction === 'function') {
+        lastUndoAction();
+      }
+      dismissToast();
+    }
+
+    // ARIA Tab Navigation & Roving Tabindex
+    const tabList = [
+      { id: 'tab-today', panelId: 'panel-today' },
+      { id: 'tab-plan', panelId: 'panel-plan' },
+      { id: 'tab-progress', panelId: 'panel-progress' },
+      { id: 'tab-adjust', panelId: 'panel-adjust' }
+    ];
+
+    function switchTab(panelId) {
+      tabList.forEach(t => {
+        const btn = document.getElementById(t.id);
+        const panel = document.getElementById(t.panelId);
+        const isActive = t.panelId === panelId;
+
+        if (isActive) {
+          btn.setAttribute('aria-selected', 'true');
+          btn.setAttribute('tabindex', '0');
+          btn.className = 'tab-btn px-4 py-2 rounded-full bg-brand-teal text-white shadow-xs font-medium text-xs whitespace-nowrap flex items-center gap-1.5 touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal transition-all';
+          if (!btn.querySelector('span.w-1\\.5')) {
+            const dot = document.createElement('span');
+            dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-300';
+            btn.insertBefore(dot, btn.firstChild);
+          }
+          panel.classList.remove('hidden');
+        } else {
+          btn.setAttribute('aria-selected', 'false');
+          btn.setAttribute('tabindex', '-1');
+          btn.className = 'tab-btn px-4 py-2 rounded-full bg-white border border-brand-border text-brand-text-muted hover:text-brand-text hover:bg-slate-50 text-xs font-medium whitespace-nowrap touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal transition-all';
+          const dot = btn.querySelector('span.w-1\\.5');
+          if (dot) dot.remove();
+          panel.classList.add('hidden');
+        }
+      });
+    }
+
+    // Keyboard support for ARIA tabs (ArrowLeft, ArrowRight, Home, End)
+    const tabButtons = document.querySelectorAll('[role="tab"]');
+    tabButtons.forEach((tab, index) => {
+      tab.addEventListener('keydown', (e) => {
+        let targetIndex = null;
+        if (e.key === 'ArrowRight') {
+          targetIndex = (index + 1) % tabButtons.length;
+        } else if (e.key === 'ArrowLeft') {
+          targetIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+        } else if (e.key === 'Home') {
+          targetIndex = 0;
+        } else if (e.key === 'End') {
+          targetIndex = tabButtons.length - 1;
+        }
+
+        if (targetIndex !== null) {
+          e.preventDefault();
+          const targetTab = tabButtons[targetIndex];
+          targetTab.focus();
+          const panelTarget = targetTab.getAttribute('aria-controls');
+          switchTab(panelTarget);
+        }
+      });
+    });
+
+    // Priority Action Complete / Toggle
+    function togglePriorityComplete(btn) {
+      const card = document.getElementById('priority-card');
+      const label = document.getElementById('priority-done-label');
+      const isDone = label.innerText === 'Đã xong';
+
+      if (!isDone) {
+        label.innerText = 'Đã xong';
+        card.classList.add('opacity-75', 'bg-emerald-50/30');
+        showToast('Đã ghi nhận hoàn thành buổi chuẩn bị', () => {
+          togglePriorityComplete(btn);
+        });
+      } else {
+        label.innerText = 'Đánh dấu xong';
+        card.classList.remove('opacity-75', 'bg-emerald-50/30');
+        showToast('Đã hoàn tác trạng thái ưu tiên');
+      }
+    }
+
+    // Sub-step completion
+    function completeSubStep(stepId, title) {
+      const el = document.getElementById(stepId);
+      if (el) {
+        el.style.display = 'none';
+        showToast(`Đã ghi nhận "${title}"`, () => {
+          el.style.display = 'block';
+        });
+      }
+    }
+
+    function skipStep(stepId, title) {
+      const el = document.getElementById(stepId);
+      if (el) {
+        el.style.display = 'none';
+        showToast(`Đã tạm ẩn "${title}" hôm nay`, () => {
+          el.style.display = 'block';
+        });
+      }
+    }
+
+    function undoJournalCompletion() {
+      showToast('Đã hoàn tác trạng thái nhật ký');
+    }
+
+    // Defer Bottom Sheet Controls
+    let currentDeferTitle = '';
+
+    function openDeferSheet(title, triggerEl) {
+      lastFocusedElementBeforeModal = triggerEl;
+      currentDeferTitle = title;
+      document.getElementById('defer-target-label').innerText = title;
+      const backdrop = document.getElementById('defer-sheet-backdrop');
+      const sheet = document.getElementById('defer-sheet');
+
+      backdrop.classList.remove('hidden');
+      setTimeout(() => {
+        sheet.classList.remove('translate-y-full');
+        // Initial focus on first choice radio
+        const firstInput = document.querySelector('input[name="defer_choice"]');
+        if (firstInput) firstInput.focus();
+      }, 10);
+    }
+
+    function closeDeferSheet() {
+      const backdrop = document.getElementById('defer-sheet-backdrop');
+      const sheet = document.getElementById('defer-sheet');
+
+      sheet.classList.add('translate-y-full');
+      setTimeout(() => {
+        backdrop.classList.add('hidden');
+        if (lastFocusedElementBeforeModal) {
+          lastFocusedElementBeforeModal.focus();
+        }
+      }, 250);
+    }
+
+    function confirmDefer() {
+      const selected = document.querySelector('input[name="defer_choice"]:checked')?.value || 'Thời gian đã chọn';
+      closeDeferSheet();
+      showToast(`Đã dời "${currentDeferTitle}" sang: ${selected}`, () => {
+        showToast(`Đã phục hồi thời gian ban đầu cho "${currentDeferTitle}"`);
+      });
+    }
+
+    // Keyboard handlers (Escape key & Focus trap for bottom sheet)
+    document.addEventListener('keydown', (e) => {
+      const backdrop = document.getElementById('defer-sheet-backdrop');
+      const isSheetOpen = !backdrop.classList.contains('hidden');
+
+      if (e.key === 'Escape' && isSheetOpen) {
+        closeDeferSheet();
+      }
+
+      // Simple focus trap inside modal
+      if (e.key === 'Tab' && isSheetOpen) {
+        const sheet = document.getElementById('defer-sheet');
+        const focusableElements = sheet.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    });
+
+    // Generic friendly action helper
+    function triggerAction(actionName) {
+      showToast(`Đã chuyển hướng: ${actionName}`);
+    }
+  </script>
+</body></html>

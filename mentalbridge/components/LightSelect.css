@@ -5,26 +5,35 @@
 
 .light-select-trigger {
   width: 100%;
-  height: 50px;
+  min-height: 50px;
+  min-width: 0;
   padding: 0 15px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius-control);
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-be-vietnam), sans-serif;
   font-size: 16px;
   text-align: left;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition:
+    border-color var(--motion-fast),
+    background-color var(--motion-fast);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.light-select-trigger:hover {
+.light-select-trigger:hover:not(:disabled) {
   background: #fff;
   border-color: var(--ink-faint);
+}
+
+.light-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  background: var(--surface-soft);
 }
 
 .light-select-trigger:focus {
@@ -34,19 +43,20 @@
   box-shadow: 0 0 0 3px var(--teal-pale);
 }
 
-.light-select-trigger[aria-expanded="true"] {
+.light-select-trigger[aria-expanded='true'] {
   border-color: var(--teal);
   background: #fff;
 }
 
 .light-select-chevron {
+  width: 16px;
+  height: 16px;
   color: var(--ink-soft);
-  font-size: 18px;
   transition: transform 0.2s ease;
   flex-shrink: 0;
 }
 
-.light-select-trigger[aria-expanded="true"] .light-select-chevron {
+.light-select-trigger[aria-expanded='true'] .light-select-chevron {
   transform: rotate(180deg);
 }
 
@@ -66,6 +76,11 @@
   animation: light-select-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.light-select-menu.opens-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
 @keyframes light-select-appear {
   from {
     opacity: 0;
@@ -78,6 +93,7 @@
 }
 
 .light-select-option {
+  min-height: 44px;
   width: 100%;
   padding: 12px 15px;
   border: none;
@@ -91,6 +107,11 @@
   border-bottom: 1px solid var(--line);
 }
 
+.light-select-option:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -3px;
+}
+
 .light-select-option:last-child {
   border-bottom: none;
 }
@@ -99,7 +120,7 @@
   background: var(--surface-soft);
 }
 
-.light-select-option[aria-selected="true"] {
+.light-select-option[aria-selected='true'] {
   background: var(--teal-pale);
   color: var(--teal-deep);
   font-weight: 600;
@@ -120,4 +141,14 @@
 
 .light-select-menu::-webkit-scrollbar-thumb:hover {
   background: var(--ink-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .light-select-trigger,
+  .light-select-chevron,
+  .light-select-menu,
+  .light-select-option {
+    transition: none;
+    animation: none;
+  }
 }

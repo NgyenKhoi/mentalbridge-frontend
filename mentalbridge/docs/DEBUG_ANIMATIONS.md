@@ -111,8 +111,8 @@ console.log('Halo:', halo)
 console.log('Content:', content)
 
 // 2. Test GSAP animation manual
-gsap.to(topic, { 
-  scale: 1.5, 
+gsap.to(topic, {
+  scale: 1.5,
   duration: 0.5,
   onComplete: () => console.log('Animation done!')
 })
@@ -355,5 +355,5 @@ npm run dev
 
 ---
 
-**Status:** Ready for Debug  
+**Status:** Ready for Debug
 **Next:** Run the Complete Test Script in Console

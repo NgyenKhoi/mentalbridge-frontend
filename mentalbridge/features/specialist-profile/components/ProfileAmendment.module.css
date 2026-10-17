@@ -1,0 +1,306 @@
+.workspace {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: var(--ink);
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.workspace .header h1 {
+  margin: 6px 0;
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  line-height: 1.2;
+}
+.header p,
+.help {
+  color: var(--ink-soft);
+  margin: 0;
+  line-height: 1.6;
+}
+.eyebrow {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.workspace button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.workspace button:hover:not(:disabled) {
+  background: var(--surface-soft);
+}
+.workspace button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.workspace button:focus-visible,
+.history summary:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 3px;
+}
+.workspace button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.workspace button.primary {
+  background: var(--teal-deep);
+  color: var(--surface);
+  border-color: var(--teal-deep);
+}
+.workspace button.primary:hover:not(:disabled) {
+  background: var(--ink);
+}
+.status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 24px;
+}
+.status span,
+.panelHeading span {
+  flex-shrink: 0;
+  color: var(--teal-deep);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.status p {
+  color: var(--ink-soft);
+  margin: 0;
+  line-height: 1.6;
+  font-size: 0.875rem;
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+.reading {
+  max-width: 760px;
+}
+.editor,
+.snapshot {
+  min-width: 0;
+}
+.editor > div > section {
+  margin-bottom: 16px;
+}
+.panelHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.panelHeading h2 {
+  font-size: 1.125rem;
+  margin: 0;
+}
+.snapshot {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+.snapshot h2 {
+  font-size: 1.5rem;
+  margin: 16px 0;
+  overflow-wrap: anywhere;
+}
+.bio {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.75;
+  color: var(--ink-soft);
+}
+.snapshot dl {
+  margin: 24px 0 0;
+  display: grid;
+  gap: 16px;
+}
+.snapshot dt {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+.snapshot dd {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.actions > span {
+  flex: 1 1 180px;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+.error,
+.reason {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  margin: 16px 0;
+  line-height: 1.6;
+}
+.error p,
+.reason p {
+  margin: 0 0 12px;
+}
+.notice {
+  color: var(--teal-deep);
+  line-height: 1.6;
+}
+.loading {
+  min-height: 240px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.history {
+  color: var(--ink-soft);
+  margin-top: 24px;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+.history summary {
+  cursor: pointer;
+  padding: 12px 0;
+}
+.queue {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+}
+.queue button {
+  text-align: left;
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.queue button[aria-pressed='true'] {
+  border-color: var(--teal-deep);
+  background: var(--surface-soft);
+}
+.queue small {
+  color: var(--ink-soft);
+}
+.reviewLayout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 24px;
+}
+.comparison {
+  display: grid;
+  gap: 16px;
+}
+.difference {
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.difference h3 {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+}
+.difference > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.difference p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+.difference[data-changed='true'] h3::after {
+  content: ' · Có thay đổi';
+  color: var(--teal-deep);
+}
+.decision {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  display: grid;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.workspace .queue h2 {
+  margin: 0 0 12px;
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+
+.editor > .actions {
+  position: sticky;
+  bottom: 16px;
+  z-index: 2;
+  background: var(--bg-deep);
+}
+
+@media (max-width: 900px) {
+  .editor > .actions {
+    position: static;
+  }
+}
+.decision label {
+  display: grid;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+@media (max-width: 900px) {
+  .columns,
+  .reviewLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .header,
+  .status {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .header > button {
+    width: 100%;
+  }
+  .snapshot {
+    padding: 20px;
+  }
+  .difference > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .actions > button {
+    flex: 1 1 140px;
+  }
+}

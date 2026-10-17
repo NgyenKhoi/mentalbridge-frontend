@@ -196,7 +196,7 @@ Dự án đã được chuyển đổi thành công từ **HTML tĩnh** sang **N
 - ✅ Type safety với TypeScript
 - ✅ Production ready
 
-**Next steps**: 
+**Next steps**:
 - Run `npm run dev` để xem kết quả
 - Deploy lên Vercel với 1 click
 - Thêm các pages khác nếu cần

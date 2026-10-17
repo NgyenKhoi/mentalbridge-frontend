@@ -151,6 +151,11 @@ async function run() {
       CARE_API_TIMEOUT_MS: '3000',
       CARE_QUESTIONNAIRE_LOCALE: 'vi-VN',
       CONTENT_SERVICE_URL: `http://${host}:${identityPort}`,
+      CONSULTATION_SERVICE_URL: `http://${host}:${identityPort}`,
+      COMMUNITY_SERVICE_URL: `http://${host}:${identityPort}`,
+      CONSULTATION_SERVICE_TIMEOUT_MS: '3000',
+      JOURNAL_AI_SERVICE_URL: `http://${host}:${identityPort}`,
+      JOURNAL_AI_SERVICE_TIMEOUT_MS: '3000',
       HOSTNAME: host,
       PORT: String(frontendPort),
     },
@@ -169,6 +174,7 @@ async function run() {
     {
       ...inheritedEnvironment,
       PLAYWRIGHT_BASE_URL: `http://${host}:${frontendPort}`,
+      MENTALBRIDGE_MANAGED_E2E: 'true',
     },
   )
   const code = await new Promise((resolve) => playwright.once('exit', resolve))

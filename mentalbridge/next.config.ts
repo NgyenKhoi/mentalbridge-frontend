@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   agentRules: false,
   distDir: process.env.NEXT_DEV_DIST_DIR ?? '.next',
   output: 'standalone',

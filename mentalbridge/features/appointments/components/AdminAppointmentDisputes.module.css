@@ -1,0 +1,171 @@
+.root {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.root > h1,
+.root > p {
+  margin: 0;
+}
+
+.root > p {
+  max-width: 68ch;
+  color: var(--ink-soft);
+}
+
+.eyebrow {
+  color: var(--teal-deep);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.toolbar button,
+.decision button,
+.decision select {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding-inline: var(--space-4);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.toolbar button[aria-pressed='true'],
+.decision button {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+  color: var(--primary-foreground);
+  font-weight: 700;
+}
+
+.toolbar button:focus-visible,
+.decision button:focus-visible,
+.decision select:focus-visible {
+  outline: 3px solid var(--teal-pale);
+  outline-offset: 2px;
+}
+
+.message,
+.empty {
+  border-radius: var(--radius-panel);
+  padding: var(--space-4);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.card {
+  display: grid;
+  gap: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-5);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+
+.card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.card h2,
+.card header span,
+.card dl,
+.outcome {
+  margin: 0;
+}
+
+.card header span {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.card header > strong {
+  border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-3);
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+}
+
+.card header > strong[data-state='OPEN'] {
+  background: var(--amber-soft);
+  color: var(--amber-deep);
+}
+
+.card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.card dt {
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.card dd {
+  margin: var(--space-1) 0 0;
+  font-weight: 700;
+}
+
+.decision {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.decision label {
+  display: grid;
+  flex: 1 1 16rem;
+  gap: var(--space-2);
+  font-weight: 700;
+}
+
+.decision button:disabled,
+.decision select:disabled,
+.toolbar button:disabled {
+  cursor: wait;
+  opacity: 0.64;
+}
+
+.outcome {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  .card header,
+  .outcome {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .card dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .decision,
+  .decision button {
+    width: 100%;
+  }
+}

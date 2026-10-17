@@ -12,16 +12,24 @@ import type {
   CareProfileUpdate,
   ConsentCollection,
   ConsentDecisionRequest,
+  AiProcessingDisclosure,
   PrivacyDisclosure,
   AssessmentHistoryPage,
   AssessmentProgress,
   AssessmentProgressPoint,
   ScoreDirection,
+  ScreeningEpisode,
+  ScreeningEpisodeEvaluationOutcome,
   SupportEvaluation,
+  SupportEvaluationHistoryPage,
   SupportEvaluationRequest,
   SupportEvidence,
   SupportReasonCode,
   SupportTier,
+  SafetyDirectoryResponse,
+  ReassessmentSelfReport,
+  ReassessmentContext,
+  ReassessmentSummary,
 } from '@/features/assessment/api/care-contract'
 import type {
   ValidationResult,
@@ -54,6 +62,12 @@ const SCORE_DIRECTIONS = new Set<ScoreDirection>([
   'INCREASED',
   'DECREASED',
   'UNCHANGED',
+])
+const SCREENING_EPISODE_PURPOSES = new Set(['INITIAL_CHECK', 'REASSESSMENT'])
+const SCREENING_EPISODE_STATUSES = new Set([
+  'IN_PROGRESS',
+  'READY',
+  'COMPLETED',
 ])
 const SUPPORT_TIERS = new Set<SupportTier>([
   'SELF_GUIDED_SUPPORT',
@@ -95,6 +109,66 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value)
+}
+
+const AREA_WORDING_CONSTANT = 'Cơ sở trong khu vực đã chọn' as const
+const SAFETY_GUIDANCE_CONSTANT =
+  'Nếu bạn cảm thấy mình không an toàn hoặc có nguy cơ gây hại cho bản thân, hãy chủ động liên hệ dịch vụ khẩn cấp hoặc cơ sở y tế phù hợp tại khu vực của bạn.' as const
+const LIMITATION_CONSTANT =
+  'MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.' as const
+
+// States that must never carry directory entries in the response.
+const EMPTY_ENTRY_STATES = new Set(['EMPTY', 'INVALID_AREA', 'UNAVAILABLE'])
+
+export function parseSafetyDirectory(
+  value: unknown,
+): SafetyDirectoryResponse | null {
+  if (!isRecord(value)) return null
+  const states = new Set(['RESULTS', 'EMPTY', 'INVALID_AREA', 'UNAVAILABLE'])
+  const triggers = new Set(['POSITIVE_ITEM_9', 'HELP_NOW'])
+  const state = String(value.state)
+  if (
+    !triggers.has(String(value.trigger)) ||
+    !states.has(state) ||
+    // Enforce the exact approved constant — rejects any "nearest" or other
+    // deviation that would violate ADR 0018 / MB-554.
+    value.areaWording !== AREA_WORDING_CONSTANT ||
+    value.safetyGuidance !== SAFETY_GUIDANCE_CONSTANT ||
+    value.limitation !== LIMITATION_CONSTANT ||
+    !Array.isArray(value.entries)
+  )
+    return null
+
+  // State-entry consistency: non-RESULTS states must not carry entries.
+  if (EMPTY_ENTRY_STATES.has(state) && value.entries.length > 0) return null
+
+  const entries = value.entries.filter(
+    (entry): entry is SafetyDirectoryResponse['entries'][number] => {
+      if (!isRecord(entry)) return false
+      return (
+        typeof entry.directoryEntryId === 'string' &&
+        typeof entry.name === 'string' &&
+        (entry.type === 'FACILITY' || entry.type === 'HOTLINE') &&
+        typeof entry.phone === 'string' &&
+        (entry.address === null || typeof entry.address === 'string') &&
+        Array.isArray(entry.coverage) &&
+        typeof entry.sourceName === 'string' &&
+        typeof entry.sourceReference === 'string' &&
+        typeof entry.reviewedAt === 'string' &&
+        typeof entry.verifiedAt === 'string'
+      )
+    },
+  )
+  if (entries.length !== value.entries.length || entries.length > 100)
+    return null
+  return {
+    trigger: value.trigger as SafetyDirectoryResponse['trigger'],
+    state: value.state as SafetyDirectoryResponse['state'],
+    areaWording: AREA_WORDING_CONSTANT,
+    safetyGuidance: SAFETY_GUIDANCE_CONSTANT,
+    limitation: LIMITATION_CONSTANT,
+    entries,
+  }
 }
 
 function parseRfc3339Instant(value: unknown): PreciseMilliseconds | null {
@@ -333,12 +407,34 @@ export function parsePrivacyDisclosure(
   return value as PrivacyDisclosure
 }
 
+export function parseAiProcessingDisclosure(
+  value: unknown,
+): AiProcessingDisclosure | null {
+  if (
+    !isRecord(value) ||
+    value.consentType !== 'AI_PROCESSING' ||
+    value.version !== 'ai-processing-capstone-v2' ||
+    value.locale !== 'vi-VN' ||
+    typeof value.title !== 'string' ||
+    value.title.length < 1 ||
+    value.title.length > 160 ||
+    typeof value.content !== 'string' ||
+    value.content.length < 1 ||
+    value.content.length > 4000 ||
+    value.capstoneOnly !== true
+  )
+    return null
+  return value as AiProcessingDisclosure
+}
+
 function parseConsentDecision(value: unknown) {
   if (
     !isRecord(value) ||
     !isUuid(value.decisionId) ||
-    value.consentType !== 'PRIVACY_POLICY' ||
+    !['PRIVACY_POLICY', 'AI_PROCESSING'].includes(String(value.consentType)) ||
     typeof value.policyVersion !== 'string' ||
+    value.policyVersion.length < 1 ||
+    value.policyVersion.length > 64 ||
     typeof value.granted !== 'boolean' ||
     !isDateTime(value.decidedAt)
   )
@@ -352,6 +448,7 @@ export function parseConsentCollection(
   if (
     !isRecord(value) ||
     !Array.isArray(value.decisions) ||
+    value.decisions.length > 2 ||
     value.decisions.some((item) => !parseConsentDecision(item))
   )
     return null
@@ -366,8 +463,12 @@ export function parseConsentRequest(
     Object.keys(value).some(
       (key) => !['consentType', 'policyVersion', 'granted'].includes(key),
     ) ||
-    value.consentType !== 'PRIVACY_POLICY' ||
-    value.policyVersion !== 'privacy-capstone-v3' ||
+    !(
+      (value.consentType === 'PRIVACY_POLICY' &&
+        value.policyVersion === 'privacy-capstone-v3') ||
+      (value.consentType === 'AI_PROCESSING' &&
+        value.policyVersion === 'ai-processing-capstone-v2')
+    ) ||
     typeof value.granted !== 'boolean'
   )
     return null
@@ -746,6 +847,79 @@ export function parseSupportEvaluation(
   }
 }
 
+export function parseScreeningEpisode(value: unknown): ScreeningEpisode | null {
+  if (
+    !isRecord(value) ||
+    !isUuid(value.episodeId) ||
+    !SCREENING_EPISODE_PURPOSES.has(String(value.purpose)) ||
+    !SCREENING_EPISODE_STATUSES.has(String(value.status)) ||
+    (value.phq9AssessmentId !== null &&
+      value.phq9AssessmentId !== undefined &&
+      !isUuid(value.phq9AssessmentId)) ||
+    (value.gad7AssessmentId !== null &&
+      value.gad7AssessmentId !== undefined &&
+      !isUuid(value.gad7AssessmentId)) ||
+    (value.supportEvaluationId !== null &&
+      value.supportEvaluationId !== undefined &&
+      !isUuid(value.supportEvaluationId)) ||
+    (value.presentationEvaluationId !== null &&
+      value.presentationEvaluationId !== undefined &&
+      !isUuid(value.presentationEvaluationId)) ||
+    !isDateTime(value.createdAt) ||
+    !isDateTime(value.updatedAt) ||
+    (value.completedAt !== null &&
+      value.completedAt !== undefined &&
+      !isDateTime(value.completedAt)) ||
+    !Number.isInteger(value.version) ||
+    Number(value.version) < 0
+  ) {
+    return null
+  }
+
+  return value as ScreeningEpisode
+}
+
+export function parseScreeningEpisodeEvaluationOutcome(
+  value: unknown,
+): ScreeningEpisodeEvaluationOutcome | null {
+  if (!isRecord(value)) return null
+  const episode = parseScreeningEpisode(value.episode)
+  if (!episode?.phq9AssessmentId || !episode.gad7AssessmentId) return null
+  const presentationEvaluation = parseSupportEvaluation(
+    value.presentationEvaluation,
+    {
+      phq9AssessmentId: episode.phq9AssessmentId,
+      gad7AssessmentId: episode.gad7AssessmentId,
+    },
+  )
+  if (!presentationEvaluation) return null
+  return { episode, presentationEvaluation }
+}
+
+export function parseSupportEvaluationHistory(
+  value: unknown,
+): SupportEvaluationHistoryPage | null {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.items) ||
+    value.items.length > 50 ||
+    typeof value.hasMore !== 'boolean' ||
+    (value.nextCursor !== undefined &&
+      value.nextCursor !== null &&
+      (typeof value.nextCursor !== 'string' ||
+        value.nextCursor.length < 1 ||
+        value.nextCursor.length > 256))
+  )
+    return null
+  const items = value.items.map((item) => parseSupportEvaluation(item))
+  if (items.some((item) => item === null)) return null
+  return {
+    items: items as SupportEvaluationHistoryPage['items'],
+    nextCursor: value.nextCursor as string | null | undefined,
+    hasMore: value.hasMore,
+  }
+}
+
 export function parseAnonymousAssessment(
   value: unknown,
 ): AnonymousAssessment | null {
@@ -958,4 +1132,160 @@ export function isCareIdempotencyKey(value: string | null): value is string {
     value.length <= 128 &&
     /^[!-~]+$/.test(value)
   )
+}
+
+const REASSESSMENT_EXPERIENCES = new Set([
+  'BETTER',
+  'ABOUT_THE_SAME',
+  'MORE_DIFFICULT',
+  'UNSURE',
+])
+
+function isNullableBoundedText(value: unknown) {
+  return (
+    value === null ||
+    (typeof value === 'string' && value.length >= 1 && value.length <= 500)
+  )
+}
+
+export function parseReassessmentSelfReport(
+  value: unknown,
+): ReassessmentSelfReport | null {
+  if (
+    !isRecord(value) ||
+    !isUuid(value.selfReportId) ||
+    value.sourceVersion !== 'reassessment-self-report-v1' ||
+    !isRecord(value.currentPeriod) ||
+    !isDateTime(value.currentPeriod.startAt) ||
+    !isDateTime(value.currentPeriod.endAt) ||
+    new Date(value.currentPeriod.startAt).getTime() >=
+      new Date(value.currentPeriod.endAt).getTime() ||
+    !REASSESSMENT_EXPERIENCES.has(String(value.currentExperience)) ||
+    !isNullableBoundedText(value.helpfulContext) ||
+    !isNullableBoundedText(value.difficultContext) ||
+    !Number.isSafeInteger(value.version) ||
+    Number(value.version) < 0 ||
+    !isDateTime(value.authoredAt) ||
+    !isDateTime(value.updatedAt)
+  )
+    return null
+
+  return value as ReassessmentSelfReport
+}
+
+const REASSESSMENT_STATES = new Set([
+  'AVAILABLE',
+  'INSUFFICIENT_DATA',
+  'UNAVAILABLE',
+])
+
+function isReassessmentPeriod(value: unknown) {
+  return (
+    isRecord(value) &&
+    isDateTime(value.startAt) &&
+    isDateTime(value.endAt) &&
+    Date.parse(value.startAt) < Date.parse(value.endAt)
+  )
+}
+
+export function parseReassessmentContext(
+  value: unknown,
+): ReassessmentContext | null {
+  if (
+    !isRecord(value) ||
+    value.policyVersion !== 'reassessment-comparison-v1' ||
+    !['READY', 'INCOMPLETE'].includes(String(value.state)) ||
+    !Array.isArray(value.missingInstruments) ||
+    value.missingInstruments.length > 2 ||
+    !value.missingInstruments.every((item) =>
+      ['PHQ9', 'GAD7'].includes(String(item)),
+    ) ||
+    (value.phq9AssessmentId !== null && !isUuid(value.phq9AssessmentId)) ||
+    (value.gad7AssessmentId !== null && !isUuid(value.gad7AssessmentId)) ||
+    !isReassessmentPeriod(value.previousPeriod) ||
+    !isReassessmentPeriod(value.currentPeriod)
+  )
+    return null
+  if (
+    (value.state === 'READY' &&
+      (!isUuid(value.phq9AssessmentId) || !isUuid(value.gad7AssessmentId))) ||
+    (value.state === 'INCOMPLETE' && value.missingInstruments.length === 0)
+  )
+    return null
+  return value as ReassessmentContext
+}
+
+const nonNegativeInteger = (value: unknown) =>
+  Number.isSafeInteger(value) && Number(value) >= 0
+
+export function parseReassessmentSummary(
+  value: unknown,
+): ReassessmentSummary | null {
+  if (
+    !isRecord(value) ||
+    !isUuid(value.summaryId) ||
+    !['reassessment-summary-v1', 'reassessment-summary-v2'].includes(
+      String(value.summaryVersion),
+    ) ||
+    !isDateTime(value.composedAt) ||
+    !isReassessmentPeriod(value.previousPeriod) ||
+    !isReassessmentPeriod(value.currentPeriod) ||
+    value.disclaimerCode !== 'FOUR_DIMENSIONS_NOT_COMBINED' ||
+    !isRecord(value.screening) ||
+    !REASSESSMENT_STATES.has(String(value.screening.state)) ||
+    !Array.isArray(value.screening.trends) ||
+    value.screening.trends.length !== 2 ||
+    !value.screening.trends.every(
+      (trend) =>
+        isRecord(trend) &&
+        ['PHQ9', 'GAD7'].includes(String(trend.instrument)) &&
+        REASSESSMENT_STATES.has(String(trend.state)) &&
+        isRecord(trend.current) &&
+        isUuid(trend.current.assessmentId) &&
+        nonNegativeInteger(trend.current.totalScore),
+    ) ||
+    !isRecord(value.journalContext) ||
+    !REASSESSMENT_STATES.has(String(value.journalContext.state)) ||
+    (value.journalContext.jobId !== null &&
+      !isUuid(value.journalContext.jobId)) ||
+    (value.journalContext.analysisId !== null &&
+      !isUuid(value.journalContext.analysisId)) ||
+    !Array.isArray(value.journalContext.changesComparedWithPreviousPeriod) ||
+    !isRecord(value.supportPlanEngagement) ||
+    !REASSESSMENT_STATES.has(String(value.supportPlanEngagement.state)) ||
+    !isRecord(value.supportPlanEngagement.previousPeriod) ||
+    !nonNegativeInteger(
+      value.supportPlanEngagement.previousPeriod.completedCount,
+    ) ||
+    !nonNegativeInteger(
+      value.supportPlanEngagement.previousPeriod.skippedCount,
+    ) ||
+    !isRecord(value.supportPlanEngagement.currentPeriod) ||
+    !nonNegativeInteger(
+      value.supportPlanEngagement.currentPeriod.completedCount,
+    ) ||
+    !nonNegativeInteger(value.supportPlanEngagement.currentPeriod.skippedCount)
+  )
+    return null
+
+  if (value.summaryVersion === 'reassessment-summary-v2') {
+    if (
+      !isRecord(value.selfReportedExperience) ||
+      !REASSESSMENT_STATES.has(String(value.selfReportedExperience.state)) ||
+      !isRecord(value.activityReflection) ||
+      !REASSESSMENT_STATES.has(String(value.activityReflection.state)) ||
+      !Array.isArray(value.activityReflection.sources)
+    )
+      return null
+    const source = value.selfReportedExperience.source
+    if (
+      source !== null &&
+      (!isRecord(source) ||
+        !isUuid(source.selfReportId) ||
+        source.sourceVersion !== 'reassessment-self-report-v1' ||
+        !REASSESSMENT_EXPERIENCES.has(String(source.currentExperience)))
+    )
+      return null
+  }
+  return value as ReassessmentSummary
 }

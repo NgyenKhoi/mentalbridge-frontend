@@ -6,7 +6,7 @@ Hệ thống animation đã được nâng cấp toàn diện với GSAP 3.15, L
 
 ### 📖 Các file tài liệu:
 
-1. **[ANIMATION_IMPROVEMENTS.md](./ANIMATION_IMPROVEMENTS.md)** 
+1. **[ANIMATION_IMPROVEMENTS.md](./ANIMATION_IMPROVEMENTS.md)**
    - Chi tiết đầy đủ về tất cả animations
    - Cấu trúc code và implementation
    - Performance optimizations
@@ -220,7 +220,7 @@ timeline.to(content.children, {
 })
 
 // Pulse selected topic
-timeline.fromTo(selected, 
+timeline.fromTo(selected,
   { scale: 0.92 },
   {
     scale: 1.24,
@@ -392,9 +392,9 @@ Need help?
 
 ---
 
-**Status:** ✅ Production Ready  
-**Version:** 1.0.0  
-**Last Updated:** 2026-08-19  
+**Status:** ✅ Production Ready
+**Version:** 1.0.0
+**Last Updated:** 2026-08-19
 **Author:** Kiro AI Assistant
 
 ---

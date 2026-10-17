@@ -190,10 +190,10 @@ useEffect(() => {
   // ... same logic with refs
   const handleMouseMove = (e: MouseEvent) => { ... }
   const handleMouseLeave = () => { ... }
-  
+
   heroVisual?.addEventListener('mousemove', handleMouseMove)
   heroVisual?.addEventListener('mouseleave', handleMouseLeave)
-  
+
   return () => {
     heroVisual?.removeEventListener('mousemove', handleMouseMove)
     heroVisual?.removeEventListener('mouseleave', handleMouseLeave)
@@ -220,16 +220,16 @@ const phoneRef = useRef<HTMLDivElement>(null)
 useEffect(() => {
   const phoneSlides = phoneRef.current?.querySelectorAll('.phone-slide')
   if (!phoneSlides?.length) return
-  
+
   phoneSlides[0].classList.add('active')
   let slideIdx = 0
-  
+
   const interval = setInterval(() => {
     phoneSlides[slideIdx].classList.remove('active')
     slideIdx = (slideIdx + 1) % phoneSlides.length
     phoneSlides[slideIdx].classList.add('active')
   }, 3600)
-  
+
   return () => clearInterval(interval)
 }, [])
 ```

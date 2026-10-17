@@ -1,0 +1,280 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+import { z } from 'zod'
+
+const mobileRoot = resolve(__dirname, '../..')
+const repositoryRoot = resolve(mobileRoot, '..')
+
+function readJson(relativePath: string): unknown {
+  return JSON.parse(readFileSync(resolve(mobileRoot, relativePath), 'utf8'))
+}
+
+function workflowJob(workflow: string, jobName: string): string {
+  const lines = workflow.split(/\r?\n/)
+  const start = lines.findIndex((line) => line === `  ${jobName}:`)
+  if (start < 0) throw new Error(`Workflow job ${jobName} is missing`)
+
+  const relativeEnd = lines
+    .slice(start + 1)
+    .findIndex((line) => /^  [A-Za-z0-9_-]+:$/.test(line))
+  const end = relativeEnd < 0 ? lines.length : start + 1 + relativeEnd
+  return lines.slice(start, end).join('\n')
+}
+
+describe('Mobile Delivery Contract v1', () => {
+  it('freezes the shared app identity and verification-link scheme', () => {
+    const appConfig = z
+      .object({
+        expo: z.object({
+          name: z.literal('MentalBridge'),
+          slug: z.literal('mentalbridge-mobile'),
+          scheme: z.literal('mentalbridge'),
+          android: z.object({
+            package: z.literal('com.mentalbridge.mobile'),
+          }),
+          ios: z.object({
+            bundleIdentifier: z.literal('com.mentalbridge.mobile'),
+          }),
+        }),
+      })
+      .parse(readJson('app.json'))
+
+    expect(appConfig.expo).toMatchObject({
+      name: 'MentalBridge',
+      slug: 'mentalbridge-mobile',
+      scheme: 'mentalbridge',
+      android: { package: 'com.mentalbridge.mobile' },
+      ios: { bundleIdentifier: 'com.mentalbridge.mobile' },
+    })
+  })
+
+  it('pins the agreed SDK and JavaScript toolchain baseline', () => {
+    const packageConfig = z
+      .object({
+        main: z.literal('index.js'),
+        packageManager: z.literal('npm@10.9.2'),
+        engines: z.object({
+          node: z.literal('22.13.0'),
+          npm: z.literal('10.9.2'),
+        }),
+        dependencies: z.object({
+          expo: z.literal('~57.0.26'),
+          'expo-router': z.literal('~57.0.24'),
+          react: z.literal('19.2.3'),
+          'react-native': z.literal('0.86.3'),
+        }),
+        devDependencies: z.object({
+          typescript: z.literal('~6.0.3'),
+        }),
+      })
+      .parse(readJson('package.json'))
+
+    expect(packageConfig.engines).toEqual({
+      node: '22.13.0',
+      npm: '10.9.2',
+    })
+    const entry = readFileSync(resolve(mobileRoot, 'index.js'), 'utf8')
+    expect(entry.indexOf("import './src/video/register'")).toBeLessThan(
+      entry.indexOf("import 'expo-router/entry'"),
+    )
+    const nativeRegistration = readFileSync(
+      resolve(mobileRoot, 'src/video/register.native.ts'),
+      'utf8',
+    )
+    expect(nativeRegistration).toContain('registerGlobals()')
+    expect(nativeRegistration).toContain('setLogLevel(LogLevel.silent)')
+  })
+
+  it('pins native staging runners and their selected toolchains', () => {
+    const stagingWorkflow = readFileSync(
+      resolve(repositoryRoot, '.github/workflows/staging-quality.yml'),
+      'utf8',
+    )
+    const developmentWorkflow = readFileSync(
+      resolve(repositoryRoot, '.github/workflows/frontend-quality.yml'),
+      'utf8',
+    )
+    const mobileCompile = workflowJob(developmentWorkflow, 'mobile-compile')
+    const androidEvidence = workflowJob(
+      developmentWorkflow,
+      'mobile-android-evidence',
+    )
+    const mobileQuality = workflowJob(stagingWorkflow, 'mobile-release-quality')
+    const android = workflowJob(stagingWorkflow, 'mobile-android-smoke')
+    const ios = workflowJob(stagingWorkflow, 'mobile-ios-smoke')
+
+    expect(mobileCompile).toContain('runs-on: ubuntu-24.04')
+    expect(mobileCompile).toContain("node-version: '22.13.0'")
+    expect(mobileQuality).toContain('runs-on: ubuntu-24.04')
+    expect(mobileQuality).toContain("node-version: '22.13.0'")
+
+    expect(androidEvidence).toContain('environment: staging-mobile-e2e')
+    expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-staging-e2e')",
+    )
+    expect(androidEvidence).toContain(
+      'ref: ${{ github.event.pull_request.head.sha }}',
+    )
+    expect(androidEvidence).toContain(
+      'EVIDENCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}',
+    )
+    expect(androidEvidence).toContain(
+      'repository: NgyenKhoi/mentalbridge-backend',
+    )
+    expect(androidEvidence).toContain(
+      'PROVIDER_EVIDENCE=protected-controlled-real-contract',
+    )
+    expect(androidEvidence).toContain('npm run e2e:android:resources:evidence')
+    expect(androidEvidence).toContain('npm run e2e:android:journal:evidence')
+    expect(androidEvidence).toContain('npm run e2e:android:community:evidence')
+    expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e')",
+    )
+    expect(androidEvidence).toContain(
+      '-f ../mobile/ci/docker-compose.mobile-community-e2e.yml',
+    )
+    expect(androidEvidence).toContain('services=(identity community)')
+    expect(androidEvidence).toContain('npm run e2e:android:discovery:evidence')
+    expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-chat-e2e')",
+    )
+    expect(androidEvidence).toContain('npm run e2e:android:chat:evidence')
+    expect(androidEvidence).toContain(
+      'services=(identity consultation realtime)',
+    )
+    expect(androidEvidence).toContain(
+      '-f ../mobile/ci/docker-compose.mobile-chat-e2e.yml',
+    )
+    expect(androidEvidence).toContain(
+      'npm run e2e:android:appointments:evidence',
+    )
+    expect(androidEvidence).toContain(
+      "env.MOBILE_EVIDENCE_FEATURE == 'appointments'",
+    )
+    expect(androidEvidence).toContain('services=(identity consultation)')
+    expect(androidEvidence).toContain(
+      '-f ../mobile/ci/docker-compose.mobile-discovery-e2e.yml',
+    )
+    expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-discovery-e2e')",
+    )
+    const compileOnly = workflowJob(developmentWorkflow, 'mobile-compile')
+    expect(compileOnly).not.toMatch(
+      /e2e:android|native:android|native:ios|test:ci|build:bundle/,
+    )
+    const gate = workflowJob(developmentWorkflow, 'quality-gate')
+    expect(gate).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-chat-e2e')",
+    )
+    expect(gate).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-appointments-e2e')",
+    )
+    expect(gate).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-discovery-e2e')",
+    )
+    expect(gate).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-community-e2e')",
+    )
+    expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-journal-e2e')",
+    )
+    expect(androidEvidence).toContain(
+      "contains(github.event.pull_request.labels.*.name, 'run-mobile-specialist-e2e')",
+    )
+    expect(androidEvidence).toContain(
+      'npm run e2e:android:specialist-continuity:evidence',
+    )
+    expect(androidEvidence).toContain(
+      'PROTECTED_SPECIALIST_EMAIL: ${{ secrets.MB_SPECIALIST_EMAIL }}',
+    )
+    expect(androidEvidence).toContain(
+      'PROTECTED_SPECIALIST_PASSWORD: ${{ secrets.MB_SPECIALIST_PASSWORD }}',
+    )
+    expect(androidEvidence).toContain(
+      '-f ../mobile/ci/docker-compose.mobile-journal-e2e.yml',
+    )
+    expect(androidEvidence).toContain(
+      'PROTECTED_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}',
+    )
+    expect(androidEvidence).toContain(
+      'PROTECTED_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}',
+    )
+
+    expect(android).toContain('runs-on: ubuntu-24.04')
+    expect(android).toContain("node-version: '22.13.0'")
+    expect(android).toContain('distribution: temurin')
+    expect(android).toContain("java-version: '17.0.20+8'")
+    expect(android).toContain('api-level: 36')
+    expect(android).toContain('arch: x86_64')
+    expect(android).toContain('target: google_apis')
+    expect(android).toContain('profile: pixel_6')
+    expect(android).toContain(
+      'reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d',
+    )
+    expect(android).toContain('&& npm run e2e:android:journal')
+    expect(android).toContain('environment: staging-mobile-e2e')
+    expect(android).toContain(
+      'EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}',
+    )
+    expect(android).toContain("MAESTRO_VERSION: '2.11.0'")
+    expect(android).toContain(
+      'npm run native:android:smoke && npm run e2e:android:assessment && npm run e2e:android:emotion && npm run e2e:android:support-plan && npm run e2e:android:resources',
+    )
+    expect(android).toContain(
+      'MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}',
+    )
+    expect(android).toContain(
+      'MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}',
+    )
+    expect(android).toContain(
+      'MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL: ${{ secrets.MB_SUPPORT_PLAN_USER_EMAIL }}',
+    )
+    expect(android).toContain(
+      'MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD: ${{ secrets.MB_SUPPORT_PLAN_USER_PASSWORD }}',
+    )
+
+    expect(ios).toContain('runs-on: macos-26')
+    expect(ios).toContain("node-version: '22.13.0'")
+    expect(ios).toContain("XCODE_VERSION: '26.4.1'")
+    expect(ios).toContain("XCODE_BUILD: '17E202'")
+    expect(ios).toContain(
+      'XCODE_DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer',
+    )
+    expect(ios).toContain(
+      'IOS_RUNTIME_ID: com.apple.CoreSimulator.SimRuntime.iOS-26-4',
+    )
+    expect(ios).toContain("IOS_RUNTIME_VERSION: '26.4.1'")
+    expect(ios).toContain('IOS_DEVICE_NAME: iPhone 17')
+    expect(ios).toContain('xcode-select --switch "$XCODE_DEVELOPER_DIR"')
+  })
+
+  it('exposes one public API edge and no secret-shaped public setting', () => {
+    const example = readFileSync(resolve(mobileRoot, '.env.example'), 'utf8')
+    const publicKeys = example
+      .split(/\r?\n/)
+      .map((line) => line.match(/^(EXPO_PUBLIC_[A-Z0-9_]+)=/)?.[1])
+      .filter((key): key is string => Boolean(key))
+
+    expect(publicKeys).toEqual([
+      'EXPO_PUBLIC_API_BASE_URL',
+      'EXPO_PUBLIC_API_TIMEOUT_MS',
+    ])
+    expect(publicKeys.join(' ')).not.toMatch(
+      /SECRET|TOKEN|PASSWORD|CREDENTIAL|PRIVATE_KEY/,
+    )
+  })
+  it('forwards concurrency/idempotency headers only through the protected real appointment edge', () => {
+    const edge = readFileSync(
+      resolve(mobileRoot, 'scripts/controlled-discovery-edge.mjs'),
+      'utf8',
+    )
+    expect(edge).toContain(
+      "process.env.MOBILE_EVIDENCE_FEATURE === 'appointments'",
+    )
+    expect(edge).toContain("process.env.CI === 'true'")
+    expect(edge).toContain("'idempotency-key'")
+    expect(edge).toContain("'if-match'")
+    expect(edge).not.toMatch(/\/payments|\/credit-ledger|\/settlement/)
+  })
+})

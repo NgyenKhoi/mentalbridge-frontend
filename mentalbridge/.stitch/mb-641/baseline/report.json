@@ -1,0 +1,95 @@
+[
+  {
+    "route": "/support-plan",
+    "role": "USER",
+    "data": "isolated synthetic Identity/Care, no shared database",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "zoom": 100,
+    "tabs": [
+      "Hôm nay",
+      "Kế hoạch",
+      "Tiến triển",
+      "Điều chỉnh"
+    ],
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "/dashboard",
+    "role": "USER",
+    "data": "isolated synthetic Identity/Care, no shared database",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "zoom": 100,
+    "tabs": [],
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "/support-plan",
+    "role": "USER",
+    "data": "isolated synthetic Identity/Care, no shared database",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "zoom": 100,
+    "tabs": [
+      "Hôm nay",
+      "Kế hoạch",
+      "Tiến triển",
+      "Điều chỉnh"
+    ],
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "/dashboard",
+    "role": "USER",
+    "data": "isolated synthetic Identity/Care, no shared database",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "zoom": 100,
+    "tabs": [],
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "/support-plan",
+    "role": "USER",
+    "data": "isolated synthetic Identity/Care, no shared database",
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "zoom": 100,
+    "tabs": [
+      "Hôm nay",
+      "Kế hoạch",
+      "Tiến triển",
+      "Điều chỉnh"
+    ],
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "/dashboard",
+    "role": "USER",
+    "data": "isolated synthetic Identity/Care, no shared database",
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "zoom": 100,
+    "tabs": [],
+    "overflow": false,
+    "errors": []
+  }
+]

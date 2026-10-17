@@ -1,0 +1,145 @@
+.page {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding: 24px 32px 56px;
+  color: var(--ink);
+}
+.contextRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-bottom: 20px;
+}
+.contextRow :is(a, button),
+.history button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--teal-deep);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+.contextRow svg {
+  width: 16px;
+  height: 16px;
+}
+.history {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.history summary {
+  min-height: 44px;
+  align-content: center;
+  color: var(--teal-deep);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.history ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+}
+.history li a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--teal-deep);
+  font-size: 0.8rem;
+}
+.history button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.state {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid var(--terracotta);
+  border-radius: var(--radius-panel);
+  background: var(--terracotta-soft);
+  color: var(--ink);
+}
+.state p {
+  margin: 0;
+}
+.state button,
+.empty :is(a, button) {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--teal-deep);
+  border-radius: var(--radius-control);
+  background: var(--teal-deep);
+  color: var(--surface);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+.empty h1 {
+  max-width: 760px;
+  margin: 0;
+  font:
+    650 2rem/1.25 var(--font-fraunces),
+    Georgia,
+    serif;
+}
+.empty p {
+  max-width: 70ch;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+.empty svg {
+  width: 17px;
+  height: 17px;
+}
+.page :is(a, button, summary):focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 3px;
+}
+@media (max-width: 760px) {
+  .page {
+    padding: 16px 16px 40px;
+  }
+  .contextRow {
+    margin-bottom: 16px;
+  }
+  .empty {
+    padding: 20px;
+  }
+  .empty h1 {
+    font-size: 1.6rem;
+  }
+  .empty :is(a, button) {
+    width: 100%;
+  }
+}

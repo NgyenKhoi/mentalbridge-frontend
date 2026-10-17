@@ -11,6 +11,15 @@ const contentResources = [
   {
     id: '30000000-0000-4000-8000-000000000001',
     category: 'ARTICLE',
+    resourceKind: 'LEARNING',
+    interactionType: 'STRUCTURED_READER',
+    repeatability: 'REPEATABLE',
+    completionMode: 'EXPLICIT',
+    streakEligible: false,
+    expectedDurationMinutes: 5,
+    cooldownDays: 0,
+    recommendedFrequencyPerWeek: 1,
+    planTags: [],
     locale: 'en-US',
     title: 'Published Resource',
     summary: 'Reviewed support content from the controlled provider fixture.',
@@ -18,6 +27,10 @@ const contentResources = [
     status: 'PUBLISHED',
     reviewedAt: '2026-08-01T00:00:00Z',
     contentBody: 'Published fixture body.',
+    contentVersion: '1',
+    sourceTitle: null,
+    sourceUrl: null,
+    sourceReviewNote: null,
     reviewedBy: '10000000-0000-4000-8000-000000000006',
     effectiveAt: null,
     expiresAt: null,
@@ -58,11 +71,71 @@ const contentResources = [
   },
 ]
 
+const communityTopics = [
+  ['MY_STORY', 'Câu chuyện của tôi'],
+  ['SMALL_MILESTONE', 'Bước tiến nhỏ'],
+  ['HELPFUL_REFLECTION', 'Điều mình nhận ra'],
+  ['PEER_QUESTION', 'Hỏi cộng đồng'],
+  ['EXPERIENCE_SHARING', 'Chia sẻ trải nghiệm'],
+  ['HELPFUL_RESOURCE', 'Tài nguyên hữu ích'],
+].map(([code, label]) => ({
+  code,
+  label,
+  description: `Chủ đề cộng đồng: ${label}.`,
+}))
+
+const communityPosts = [
+  {
+    postId: '50000000-0000-4000-8000-000000000002',
+    author: {
+      communityProfileId: '51000000-0000-4000-8000-000000000002',
+      displayName: 'Minh An',
+      avatarPreset: 'LEAF',
+      state: 'ACTIVE',
+    },
+    content:
+      'Hôm nay mình đã chủ động dành mười phút để đi bộ và cảm thấy nhẹ nhàng hơn. Mình ghi lại điều này như một lời nhắc rằng những bước nhỏ vẫn rất đáng quý.',
+    topics: ['MY_STORY', 'SMALL_MILESTONE'],
+    media: [],
+    mediaAvailability: 'PARTIAL',
+    counts: { comments: 4, reactions: 12 },
+    viewerState: { reaction: null, bookmarked: false },
+    publishedAt: '2026-09-29T05:00:00Z',
+    updatedAt: '2026-09-29T05:00:00Z',
+  },
+  {
+    postId: '50000000-0000-4000-8000-000000000001',
+    author: {
+      communityProfileId: '51000000-0000-4000-8000-000000000001',
+      displayName: 'Thành viên đã rời cộng đồng',
+      avatarPreset: null,
+      state: 'DELETED',
+    },
+    content:
+      'Một thay đổi nhỏ mình học được là chuẩn bị sẵn một việc dễ làm cho những ngày thiếu năng lượng.',
+    topics: ['HELPFUL_REFLECTION'],
+    media: [],
+    mediaAvailability: 'NONE',
+    counts: { comments: 1, reactions: 8 },
+    viewerState: { reaction: null, bookmarked: false },
+    publishedAt: '2026-09-28T05:00:00Z',
+    updatedAt: '2026-09-28T05:00:00Z',
+  },
+]
+
 const actors = new Map([
   [
     'user@example.com',
     {
       accountId: '10000000-0000-4000-8000-000000000001',
+      roles: ['USER'],
+      initialAccessExpired: false,
+    },
+  ],
+  [
+    'community-peer@example.com',
+    {
+      accountId: '10000000-0000-4000-8000-000000000008',
       roles: ['USER'],
       initialAccessExpired: false,
     },
@@ -117,8 +190,73 @@ const actors = new Map([
   ],
 ])
 
+const initialAdminAccounts = [
+  {
+    accountId: '10000000-0000-4000-8000-000000000001',
+    email: 'user@example.com',
+    status: 'ACTIVE',
+    roles: ['USER'],
+    emailVerified: true,
+    ...timestamps,
+    version: 0,
+  },
+  {
+    accountId: '10000000-0000-4000-8000-000000000003',
+    email: 'specialist@example.com',
+    status: 'ACTIVE',
+    roles: ['SPECIALIST'],
+    emailVerified: true,
+    ...timestamps,
+    version: 0,
+  },
+  {
+    accountId: '10000000-0000-4000-8000-000000000006',
+    email: 'admin-resource-e2e@example.com',
+    status: 'ACTIVE',
+    roles: ['ADMIN'],
+    emailVerified: true,
+    ...timestamps,
+    version: 0,
+  },
+]
+const adminAccounts = structuredClone(initialAdminAccounts)
+
 const initialContentResources = structuredClone(contentResources)
+const initialCommunityPosts = structuredClone(communityPosts)
+const communityReactionByViewer = new Map()
+const communityBookmarks = new Set()
+const communityComments = [
+  {
+    commentId: '52000000-0000-4000-8000-000000000001',
+    postId: '50000000-0000-4000-8000-000000000002',
+    parentCommentId: null,
+    author: {
+      communityProfileId: '51000000-0000-4000-8000-000000000003',
+      displayName: 'Lá Dịu Dàng',
+      avatarPreset: 'SPROUT',
+      state: 'ACTIVE',
+    },
+    content: 'Cảm ơn bạn đã chia sẻ bước tiến này.',
+    state: 'ACTIVE',
+    version: 0,
+    createdAt: '2026-09-29T05:10:00Z',
+    updatedAt: '2026-09-29T05:10:00Z',
+  },
+]
+const initialCommunityComments = structuredClone(communityComments)
 const contentCreateByKey = new Map()
+const communityCreateByKey = new Map()
+const communityCommentCreateByKey = new Map()
+const communityCommentOwners = new Map()
+const communityPostOwners = new Map([
+  [
+    '50000000-0000-4000-8000-000000000002',
+    actors.get('community-peer@example.com').accountId,
+  ],
+])
+const communityPostVersions = new Map([
+  ['50000000-0000-4000-8000-000000000002', 1],
+])
 
 const accessSessions = new Map()
 const refreshSessions = new Map()
@@ -127,10 +265,14 @@ const anonymousAssessments = new Map()
 const authenticatedAssessments = new Map()
 const supportEvaluations = new Map()
 const supportEvaluationByPair = new Map()
+const screeningEpisodes = new Map()
 const careProfiles = new Map()
 const careConsents = new Map()
 const journalEntries = new Map()
 const journalCommands = new Map()
+const journalAnalysisJobs = new Map()
+const availabilitySlots = new Map()
+const availabilityCommands = new Map()
 const careAccessToken = 'synthetic-care-e2e-access'
 const otherCareAccessToken = 'synthetic-care-e2e-other-access'
 const careActor = actors.get('care-e2e@example.com')
@@ -144,6 +286,17 @@ let progressFault = null
 let questionnaireFault = null
 let contentFault = null
 let journalConflictOnce = false
+let journalCreateFailureOnce = false
+let journalAnalysisFailureOnce = false
+const communityProfiles = new Map()
+const communityMedia = new Map()
+const communityMediaCreateByKey = new Map()
+const communityHiddenContent = new Set()
+const communityBlocks = new Set()
+const communityReportsByKey = new Map()
+const communityModerationCases = []
+const communityModerationActionsByKey = new Map()
+const communityUnavailablePosts = new Set()
 accessSessions.set(careAccessToken, careActor)
 accessSessions.set(otherCareAccessToken, otherCareActor)
 accessSessions.set(resourceAccessToken, resourceActor)
@@ -171,11 +324,51 @@ function reset() {
   authenticatedAssessments.clear()
   supportEvaluations.clear()
   supportEvaluationByPair.clear()
+  screeningEpisodes.clear()
   careProfiles.clear()
   careConsents.clear()
   journalEntries.clear()
   journalCommands.clear()
+  journalAnalysisJobs.clear()
+  communityProfiles.clear()
+  communityMedia.clear()
+  communityMediaCreateByKey.clear()
+  communityHiddenContent.clear()
+  communityBlocks.clear()
+  communityReportsByKey.clear()
+  communityModerationCases.splice(0, communityModerationCases.length)
+  communityModerationActionsByKey.clear()
+  communityUnavailablePosts.clear()
+  availabilitySlots.clear()
+  availabilityCommands.clear()
+  adminAccounts.splice(
+    0,
+    adminAccounts.length,
+    ...structuredClone(initialAdminAccounts),
+  )
   contentCreateByKey.clear()
+  communityCreateByKey.clear()
+  communityCommentCreateByKey.clear()
+  communityReactionByViewer.clear()
+  communityBookmarks.clear()
+  communityComments.splice(
+    0,
+    communityComments.length,
+    ...structuredClone(initialCommunityComments),
+  )
+  communityCommentOwners.clear()
+  communityPosts.splice(
+    0,
+    communityPosts.length,
+    ...structuredClone(initialCommunityPosts),
+  )
+  communityPostOwners.clear()
+  communityPostOwners.set(
+    '50000000-0000-4000-8000-000000000002',
+    actors.get('community-peer@example.com').accountId,
+  )
+  communityPostVersions.clear()
+  communityPostVersions.set('50000000-0000-4000-8000-000000000002', 1)
   contentResources.splice(
     0,
     contentResources.length,
@@ -190,6 +383,8 @@ function reset() {
   questionnaireFault = null
   contentFault = null
   journalConflictOnce = false
+  journalCreateFailureOnce = false
+  journalAnalysisFailureOnce = false
   careProfiles.set(careActor.accountId, {
     accountId: careActor.accountId,
     displayName: 'Care E2E User',
@@ -201,22 +396,43 @@ function reset() {
     ...timestamps,
     version: 0,
   })
-  careConsents.set(otherCareActor.accountId, {
+  careConsents.set(`${otherCareActor.accountId}:PRIVACY_POLICY`, {
     decisionId: '30000000-0000-4000-8000-000000000001',
     consentType: 'PRIVACY_POLICY',
     policyVersion: 'privacy-capstone-v3',
     granted: true,
     decidedAt: careNow.toISOString(),
   })
+  const specialist = actors.get('specialist@example.com')
+  availabilitySlots.set('60000000-0000-4000-8000-000000000001', {
+    id: '60000000-0000-4000-8000-000000000001',
+    ownerAccountId: specialist.accountId,
+    startAt: '2098-01-02T02:00:00.000Z',
+    endAt: '2098-01-02T03:00:00.000Z',
+    timezone: 'Asia/Ho_Chi_Minh',
+    modality: 'IN_APP_CHAT',
+    status: 'ACTIVE',
+    withdrawnAt: null,
+    createdAt: '2026-09-17T01:00:00.000Z',
+    updatedAt: '2026-09-17T01:00:00.000Z',
+    version: 0,
+  })
   Object.keys(state).forEach((key) => {
     state[key] = 0
   })
 }
 
-function json(response, status, body, contentType = 'application/json') {
+function json(
+  response,
+  status,
+  body,
+  contentType = 'application/json',
+  extraHeaders = {},
+) {
   response.writeHead(status, {
     'Content-Type': `${contentType}; charset=utf-8`,
     'X-Correlation-Id': correlationId,
+    ...extraHeaders,
   })
   response.end(JSON.stringify(body))
 }
@@ -292,6 +508,56 @@ function journalActor(request, response) {
   return actor
 }
 
+function communityAdminActor(request, response) {
+  const actor = accessSessions.get(bearerToken(request))
+  if (!actor || !actor.roles.includes('ADMIN')) {
+    problem(response, 403, 'FORBIDDEN', 'Administrator role is required')
+    return null
+  }
+  return actor
+}
+
+function communityPostVisibleTo(post, actor) {
+  if (communityUnavailablePosts.has(post.postId)) return false
+  if (communityHiddenContent.has(`${actor.accountId}:POST:${post.postId}`))
+    return false
+  const profileId = post.author.communityProfileId
+  return !profileId || !communityBlocks.has(`${actor.accountId}:${profileId}`)
+}
+
+function specialistActor(request, response) {
+  const actor = accessSessions.get(bearerToken(request))
+  if (!actor || !actor.roles.includes('SPECIALIST')) {
+    problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+    return null
+  }
+  return actor
+}
+
+function availabilityView(slot) {
+  const readiness =
+    slot.status === 'WITHDRAWN'
+      ? 'WITHDRAWN'
+      : Date.parse(slot.startAt) <= Date.now()
+        ? 'STARTED'
+        : slot.modality === 'IN_APP_VIDEO'
+          ? 'VIDEO_DISABLED'
+          : 'AVAILABLE'
+  return {
+    id: slot.id,
+    startAt: slot.startAt,
+    endAt: slot.endAt,
+    timezone: slot.timezone,
+    modality: slot.modality,
+    status: slot.status,
+    readiness,
+    withdrawnAt: slot.withdrawnAt,
+    createdAt: slot.createdAt,
+    updatedAt: slot.updatedAt,
+    version: slot.version,
+  }
+}
+
 function journalCommand(actor, request, fingerprint) {
   const key = request.headers['idempotency-key']
   if (typeof key !== 'string') return { error: 'missing' }
@@ -313,6 +579,7 @@ function journalEntry(actor, body) {
     updatedAt: now,
     deleted: false,
     tags: body.tags ?? [],
+    mood: body.mood ?? null,
     encryption: {
       algorithm: 'AES-256-GCM',
       keyId: 'e2e-v1',
@@ -333,6 +600,41 @@ function journalSummary(entry) {
       preview: Array.from(entry.content.text).slice(0, 160).join(''),
       byteLength: entry.content.byteLength,
     },
+  }
+}
+
+function consentKey(accountId, consentType) {
+  return `${accountId}:${consentType}`
+}
+
+function journalAnalysisResult() {
+  return {
+    summary:
+      'Bản ghi cho thấy bạn đang dành thời gian nhận diện điều gì đã giúp mình trong ngày.',
+    contextSignals: ['công việc', 'cuối ngày'],
+    emotionIndicators: ['nhẹ nhõm'],
+    themes: ['tự quan sát'],
+    preferenceSignals: ['khoảng lặng ngắn'],
+    barrierSignals: ['ít thời gian'],
+    sentiment: 'reflective',
+    modelConfidence: 0.82,
+    suggestedAction: 'GUIDE_APPROVED_ACTIVITY',
+    workload: 'EXACT_REVISION',
+    servicePlan: 'FREE',
+    entitlementSource: 'DEFAULT_FREE',
+    entitlementPolicyVersion: 'journal-analysis-entitlement-v1',
+    entitlementVersion: 1,
+    routingPolicyVersion: 'journal-action-routing-v1',
+    providerApprovalVersion: 'provider-approval-v1',
+    provider: 'DETERMINISTIC_FAKE',
+    model: 'fixture-reflection-v1',
+    promptVersion: 'journal-reflection-v1',
+    schemaVersion: 1,
+    latencyMs: 45,
+    inputTokens: null,
+    outputTokens: null,
+    estimatedCostMicroUsd: null,
+    createdAt: new Date().toISOString(),
   }
 }
 
@@ -558,6 +860,1195 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/v1/service-plans') {
+      if (!journalActor(request, response)) return
+      json(response, 200, {
+        plans: [
+          {
+            planVersionId: '51500000-0000-4000-8000-000000000001',
+            planCode: 'FREE',
+            version: 'v2-vnd-2026-01',
+            displayName: 'Free',
+            currency: 'VND',
+            priceVnd: 0,
+            billingPeriodMonths: 1,
+            consultationCredits: 0,
+            maxActiveReservations: 0,
+            creditAllocationVnd: 0,
+            aiQuotaCode: 'FREE_DAILY_5',
+            supportPlanEnabled: false,
+            entitlements: ['AI_JOURNAL_BASIC'],
+            allowedUpgrades: ['PLUS', 'PREMIUM'],
+            effectiveFrom: '2026-01-01T00:00:00Z',
+          },
+          {
+            planVersionId: '62200000-0000-4000-8000-000000000002',
+            planCode: 'PLUS',
+            version: 'sandbox-vnd-2026-10',
+            pricingPolicyVersion: 'sandbox-full-price-v1',
+            displayName: 'Plus',
+            currency: 'VND',
+            priceVnd: 5000,
+            billingPeriodMonths: 1,
+            consultationCredits: 4,
+            maxActiveReservations: 2,
+            creditAllocationVnd: 300000,
+            aiQuotaCode: 'PLUS_STANDARD',
+            supportPlanEnabled: true,
+            entitlements: ['AI_JOURNAL_PLUS', 'SUPPORT_PLAN'],
+            allowedUpgrades: ['PREMIUM'],
+            effectiveFrom: '2026-01-01T00:00:00Z',
+          },
+          {
+            planVersionId: '62200000-0000-4000-8000-000000000003',
+            planCode: 'PREMIUM',
+            version: 'sandbox-vnd-2026-10',
+            pricingPolicyVersion: 'sandbox-full-price-v1',
+            displayName: 'Premium',
+            currency: 'VND',
+            priceVnd: 10000,
+            billingPeriodMonths: 1,
+            consultationCredits: 10,
+            maxActiveReservations: 4,
+            creditAllocationVnd: 300000,
+            aiQuotaCode: 'PREMIUM_ADVANCED',
+            supportPlanEnabled: true,
+            entitlements: ['AI_JOURNAL_PREMIUM', 'SUPPORT_PLAN'],
+            allowedUpgrades: [],
+            effectiveFrom: '2026-01-01T00:00:00Z',
+          },
+        ],
+        checkoutEnabled: true,
+        paymentProvider: 'MOMO',
+        generatedAt: new Date().toISOString(),
+      })
+      return
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/v1/payments') {
+      if (!journalActor(request, response)) return
+      json(response, 200, {
+        items: [],
+        count: 0,
+        generatedAt: new Date().toISOString(),
+      })
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/service-credits'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const paidSubscription = bearerToken(request) === otherCareAccessToken
+      json(response, 200, {
+        accountId: actor.accountId,
+        packageCode: 'PLUS',
+        source: paidSubscription ? 'PAID' : 'DEMO',
+        sourceReference: paidSubscription
+          ? '51500000-0000-4000-8000-000000000051'
+          : 'controlled-e2e-mb-558',
+        periodStart: '2098-01-01T00:00:00Z',
+        periodEnd: '2098-02-01T00:00:00Z',
+        policyVersion: 'consultation-credit-v2',
+        balance: {
+          available: 4,
+          held: 0,
+          consumed: 0,
+          forfeited: 0,
+          total: 4,
+          releasedTransitions: 0,
+        },
+        reservationCapacity: {
+          active: 1,
+          maximum: 2,
+          remaining: 1,
+        },
+        history: [
+          {
+            eventId: '0f31cf85-4538-4e7d-8ba8-d2646ce44e3f',
+            creditId: 'fbd686b0-29c1-4a0b-8255-b61da0aff407',
+            eventType: 'PROVISIONED',
+            source: paidSubscription ? 'PAID' : 'DEMO',
+            packageCode: 'PLUS',
+            policyVersion: 'consultation-credit-v2',
+            appointmentId: null,
+            occurredAt: '2098-01-01T00:00:00Z',
+          },
+        ],
+        generatedAt: new Date().toISOString(),
+      })
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/availability-slots'
+    ) {
+      const actor = specialistActor(request, response)
+      if (!actor) return
+      const includeWithdrawn =
+        url.searchParams.get('includeWithdrawn') === 'true'
+      const items = [...availabilitySlots.values()]
+        .filter(
+          (slot) =>
+            slot.ownerAccountId === actor.accountId &&
+            (includeWithdrawn || slot.status === 'ACTIVE'),
+        )
+        .sort((left, right) => left.startAt.localeCompare(right.startAt))
+        .map(availabilityView)
+      json(response, 200, {
+        items,
+        count: items.length,
+        generatedAt: new Date().toISOString(),
+        videoPublishingEnabled: false,
+      })
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/availability-slots'
+    ) {
+      const actor = specialistActor(request, response)
+      if (!actor) return
+      const key = request.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      const body = await readBody(request)
+      const fingerprint = JSON.stringify(body)
+      const commandKey = `${actor.accountId}:${key}`
+      const replay = availabilityCommands.get(commandKey)
+      if (replay) {
+        if (replay.fingerprint !== fingerprint) {
+          problem(
+            response,
+            409,
+            'IDEMPOTENCY_KEY_REUSED',
+            'Idempotency key was reused',
+          )
+          return
+        }
+        json(response, 201, availabilityView(replay.slot), 'application/json', {
+          ETag: `"${replay.slot.version}"`,
+        })
+        return
+      }
+      if (
+        !['IN_APP_CHAT', 'IN_APP_VIDEO'].includes(body.modality) ||
+        body.modality === 'IN_APP_VIDEO' ||
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(
+          body.startAt,
+        ) ||
+        Date.parse(body.endAt) - Date.parse(body.startAt) !== 3_600_000
+      ) {
+        problem(
+          response,
+          body.modality === 'IN_APP_VIDEO' ? 409 : 422,
+          body.modality === 'IN_APP_VIDEO'
+            ? 'VIDEO_AVAILABILITY_DISABLED'
+            : 'VALIDATION_FAILED',
+          'Availability slot is invalid',
+        )
+        return
+      }
+      try {
+        new Intl.DateTimeFormat('en', { timeZone: body.timezone })
+      } catch {
+        problem(response, 422, 'VALIDATION_FAILED', 'Timezone is invalid')
+        return
+      }
+      const overlap = [...availabilitySlots.values()].some(
+        (slot) =>
+          slot.ownerAccountId === actor.accountId &&
+          slot.status === 'ACTIVE' &&
+          Date.parse(slot.startAt) < Date.parse(body.endAt) &&
+          Date.parse(slot.endAt) > Date.parse(body.startAt),
+      )
+      if (overlap) {
+        problem(
+          response,
+          409,
+          'AVAILABILITY_SLOT_OVERLAP',
+          'Availability overlaps',
+        )
+        return
+      }
+      const now = new Date().toISOString()
+      const slot = {
+        id: crypto.randomUUID(),
+        ownerAccountId: actor.accountId,
+        ...body,
+        status: 'ACTIVE',
+        withdrawnAt: null,
+        createdAt: now,
+        updatedAt: now,
+        version: 0,
+      }
+      availabilitySlots.set(slot.id, slot)
+      availabilityCommands.set(commandKey, { fingerprint, slot })
+      json(response, 201, availabilityView(slot), 'application/json', {
+        ETag: '"0"',
+      })
+      return
+    }
+
+    const availabilityResource = url.pathname.match(
+      /^\/api\/v1\/availability-slots\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'DELETE' && availabilityResource) {
+      const actor = specialistActor(request, response)
+      if (!actor) return
+      const slot = availabilitySlots.get(availabilityResource[1])
+      if (!slot || slot.ownerAccountId !== actor.accountId) {
+        problem(response, 404, 'AVAILABILITY_SLOT_NOT_FOUND', 'Slot not found')
+        return
+      }
+      if (request.headers['if-match'] !== `"${slot.version}"`) {
+        problem(response, 412, 'VERSION_CONFLICT', 'Slot changed')
+        return
+      }
+      if (slot.status !== 'ACTIVE') {
+        problem(
+          response,
+          409,
+          'AVAILABILITY_SLOT_WITHDRAWN',
+          'Slot was withdrawn',
+        )
+        return
+      }
+      slot.status = 'WITHDRAWN'
+      slot.withdrawnAt = new Date().toISOString()
+      slot.updatedAt = slot.withdrawnAt
+      slot.version += 1
+      json(response, 200, availabilityView(slot), 'application/json', {
+        ETag: `"${slot.version}"`,
+      })
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/community/topics'
+    ) {
+      if (!journalActor(request, response)) return
+      json(response, 200, communityTopics)
+      return
+    }
+
+    if (url.pathname === '/api/v1/community/profile') {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const current = communityProfiles.get(actor.accountId)
+      if (request.method === 'GET') {
+        if (!current) {
+          problem(
+            response,
+            404,
+            'COMMUNITY_PROFILE_NOT_FOUND',
+            'Community profile was not found',
+          )
+          return
+        }
+        json(response, 200, current, 'application/json', {
+          ETag: `"${current.version}"`,
+        })
+        return
+      }
+      if (request.method === 'PUT') {
+        const expected = current ? `"${current.version}"` : undefined
+        if (
+          (current && request.headers['if-match'] !== expected) ||
+          (!current && request.headers['if-match'])
+        ) {
+          problem(
+            response,
+            412,
+            'COMMUNITY_PROFILE_VERSION_MISMATCH',
+            'Community profile changed',
+          )
+          return
+        }
+        const body = await readBody(request)
+        const now = new Date().toISOString()
+        const saved = {
+          communityProfileId:
+            current?.communityProfileId ??
+            '51000000-0000-4000-8000-000000000099',
+          displayName: body.displayName,
+          avatarPreset: body.avatarPreset,
+          status: 'ACTIVE',
+          version: current ? current.version + 1 : 0,
+          createdAt: current?.createdAt ?? now,
+          updatedAt: now,
+        }
+        communityProfiles.set(actor.accountId, saved)
+        json(response, current ? 200 : 201, saved, 'application/json', {
+          ETag: `"${saved.version}"`,
+        })
+        return
+      }
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/community/media/upload-intents'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const key = request.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      const body = await readBody(request)
+      const commandKey = `${actor.accountId}:${key}`
+      const fingerprint = JSON.stringify(body)
+      const replay = communityMediaCreateByKey.get(commandKey)
+      if (replay) {
+        if (replay.fingerprint !== fingerprint) {
+          problem(response, 409, 'IDEMPOTENCY_KEY_REUSED', 'Key was reused')
+          return
+        }
+        json(response, 201, replay.intent)
+        return
+      }
+      const mediaId = crypto.randomUUID()
+      const now = new Date().toISOString()
+      const intent = {
+        mediaId,
+        state: 'PENDING',
+        uploadUrl: `https://api.cloudinary.com/v1_1/mentalbridge-fixture/${body.mediaType === 'VIDEO' ? 'video' : 'image'}/upload`,
+        expiresAt: '2099-01-01T00:00:00Z',
+        uploadFields: {
+          api_key: 'fixture-public-key',
+          public_id: `community/${actor.accountId}/${mediaId}`,
+          signature: 'fixture-signature',
+          timestamp: '4070908800',
+        },
+        version: 0,
+      }
+      communityMedia.set(mediaId, {
+        mediaId,
+        ownerAccountId: actor.accountId,
+        mediaType: body.mediaType,
+        fileName: body.fileName,
+        state: 'PENDING',
+        version: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      communityMediaCreateByKey.set(commandKey, { fingerprint, intent })
+      json(response, 201, intent)
+      return
+    }
+
+    const communityMediaFinalize = url.pathname.match(
+      /^\/api\/v1\/community\/media\/([0-9a-f-]+)\/finalize$/i,
+    )
+    if (request.method === 'POST' && communityMediaFinalize) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const media = communityMedia.get(communityMediaFinalize[1])
+      if (!media || media.ownerAccountId !== actor.accountId) {
+        problem(response, 404, 'COMMUNITY_MEDIA_NOT_FOUND', 'Media not found')
+        return
+      }
+      media.state = 'READY'
+      media.version = 1
+      media.updatedAt = new Date().toISOString()
+      json(response, 200, {
+        mediaId: media.mediaId,
+        mediaType: media.mediaType,
+        state: media.state,
+        version: media.version,
+        createdAt: media.createdAt,
+        updatedAt: media.updatedAt,
+      })
+      return
+    }
+
+    const communityMediaResource = url.pathname.match(
+      /^\/api\/v1\/community\/media\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'DELETE' && communityMediaResource) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const media = communityMedia.get(communityMediaResource[1])
+      if (!media || media.ownerAccountId !== actor.accountId) {
+        problem(response, 404, 'COMMUNITY_MEDIA_NOT_FOUND', 'Media not found')
+        return
+      }
+      if (request.headers['if-match'] !== `"${media.version}"`) {
+        problem(
+          response,
+          412,
+          'COMMUNITY_MEDIA_VERSION_MISMATCH',
+          'Media changed',
+        )
+        return
+      }
+      communityMedia.delete(media.mediaId)
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/community/saved-posts'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const cursor = url.searchParams.get('cursor')
+      const matching = communityPosts.filter(
+        (post) =>
+          communityBookmarks.has(`${actor.accountId}:${post.postId}`) &&
+          communityPostVisibleTo(post, actor),
+      )
+      const offset = cursor === 'community-saved-next' ? 1 : 0
+      const items = matching
+        .slice(offset, offset + 1)
+        .map(({ content, ...post }) => ({
+          ...post,
+          contentPreview: content,
+          viewerState: {
+            reaction:
+              communityReactionByViewer.get(
+                `${actor.accountId}:${post.postId}`,
+              ) ?? null,
+            bookmarked: true,
+          },
+        }))
+      const hasMore = offset + items.length < matching.length
+      json(response, 200, {
+        items,
+        nextCursor: hasMore ? 'community-saved-next' : null,
+        hasMore,
+      })
+      return
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/v1/community/feed') {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const topics = url.searchParams.getAll('topic')
+      const cursor = url.searchParams.get('cursor')
+      const visiblePosts = communityPosts.filter((post) =>
+        communityPostVisibleTo(post, actor),
+      )
+      const matching = topics.length
+        ? visiblePosts.filter((post) =>
+            post.topics.some((topic) => topics.includes(topic)),
+          )
+        : visiblePosts
+      const offset = cursor === 'community-next' ? 1 : 0
+      const items = matching
+        .slice(offset, offset + 1)
+        .map(({ content, ...post }) => {
+          const viewerKey = `${actor.accountId}:${post.postId}`
+          return {
+            ...post,
+            contentPreview: content,
+            viewerState: {
+              reaction: communityReactionByViewer.get(viewerKey) ?? null,
+              bookmarked: communityBookmarks.has(viewerKey),
+            },
+          }
+        })
+      const hasMore = offset + items.length < matching.length
+      json(response, 200, {
+        items,
+        nextCursor: hasMore ? 'community-next' : null,
+        hasMore,
+      })
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/community/posts'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const key = request.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      const body = await readBody(request)
+      const commandKey = `${actor.accountId}:${key}`
+      const fingerprint = JSON.stringify(body)
+      const existing = communityCreateByKey.get(commandKey)
+      if (existing) {
+        if (existing.fingerprint !== fingerprint) {
+          problem(response, 409, 'IDEMPOTENCY_KEY_REUSED', 'Key was reused')
+          return
+        }
+        json(response, 201, existing.post, 'application/json', {
+          ETag: `"${communityPostVersions.get(existing.post.postId)}"`,
+        })
+        return
+      }
+      const now = new Date().toISOString()
+      const attachedMedia = (body.mediaIds ?? []).flatMap((mediaId) => {
+        const media = communityMedia.get(mediaId)
+        if (
+          !media ||
+          media.ownerAccountId !== actor.accountId ||
+          media.state !== 'READY'
+        )
+          return []
+        return [
+          {
+            mediaId: media.mediaId,
+            type: media.mediaType,
+            url: `https://res.cloudinary.com/mentalbridge-fixture/${media.mediaType === 'VIDEO' ? 'video' : 'image'}/upload/${media.mediaId}`,
+            width: media.mediaType === 'IMAGE' ? 1 : null,
+            height: media.mediaType === 'IMAGE' ? 1 : null,
+            durationSeconds: media.mediaType === 'VIDEO' ? 1 : null,
+            altText: media.fileName,
+          },
+        ]
+      })
+      const post = {
+        postId: crypto.randomUUID(),
+        author:
+          body.authorMode === 'ANONYMOUS'
+            ? {
+                communityProfileId: null,
+                displayName: 'Thành viên ẩn danh',
+                avatarPreset: null,
+                state: 'ANONYMOUS',
+              }
+            : {
+                communityProfileId: crypto.randomUUID(),
+                displayName: 'Thành viên MentalBridge',
+                state: 'ACTIVE',
+              },
+        content: body.content,
+        topics: body.topics,
+        media: attachedMedia,
+        mediaAvailability: attachedMedia.length > 0 ? 'READY' : 'NONE',
+        resourceAttachment: body.resourceId
+          ? { resourceId: body.resourceId }
+          : null,
+        sensitiveContentWarning: body.sensitiveContentWarning ?? null,
+        counts: { comments: 0, reactions: 0 },
+        viewerState: { reaction: null, bookmarked: false },
+        publishedAt: now,
+        updatedAt: now,
+      }
+      communityPosts.unshift(post)
+      communityPostOwners.set(post.postId, actor.accountId)
+      communityPostVersions.set(post.postId, 1)
+      communityCreateByKey.set(commandKey, { fingerprint, post })
+      json(response, 201, post, 'application/json', { ETag: '"1"' })
+      return
+    }
+
+    const communityReaction = url.pathname.match(
+      /^\/api\/v1\/community\/posts\/([0-9a-f-]+)\/reaction$/i,
+    )
+    if (communityReaction) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const post = communityPosts.find(
+        (candidate) =>
+          candidate.postId === communityReaction[1] &&
+          communityPostVisibleTo(candidate, actor),
+      )
+      if (!post) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+        return
+      }
+      const viewerKey = `${actor.accountId}:${post.postId}`
+      if (request.method === 'PUT') {
+        const body = await readBody(request)
+        if (!['SUPPORT', 'RELATE', 'THANK_YOU'].includes(body.reaction)) {
+          problem(response, 400, 'VALIDATION_FAILED', 'Reaction is invalid')
+          return
+        }
+        if (!communityReactionByViewer.has(viewerKey)) {
+          post.counts.reactions += 1
+        }
+        communityReactionByViewer.set(viewerKey, body.reaction)
+        json(response, 200, {
+          postId: post.postId,
+          reaction: body.reaction,
+        })
+        return
+      }
+      if (request.method === 'DELETE') {
+        if (communityReactionByViewer.delete(viewerKey)) {
+          post.counts.reactions = Math.max(0, post.counts.reactions - 1)
+        }
+        response.writeHead(204, { 'X-Correlation-Id': correlationId })
+        response.end()
+        return
+      }
+    }
+
+    const communityBookmark = url.pathname.match(
+      /^\/api\/v1\/community\/posts\/([0-9a-f-]+)\/bookmark$/i,
+    )
+    if (communityBookmark) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const post = communityPosts.find(
+        (candidate) =>
+          candidate.postId === communityBookmark[1] &&
+          communityPostVisibleTo(candidate, actor),
+      )
+      if (!post) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+        return
+      }
+      const viewerKey = `${actor.accountId}:${post.postId}`
+      if (request.method === 'PUT') {
+        communityBookmarks.add(viewerKey)
+        response.writeHead(204, { 'X-Correlation-Id': correlationId })
+        response.end()
+        return
+      }
+      if (request.method === 'DELETE') {
+        communityBookmarks.delete(viewerKey)
+        response.writeHead(204, { 'X-Correlation-Id': correlationId })
+        response.end()
+        return
+      }
+    }
+
+    const communityPostDetail = url.pathname.match(
+      /^\/api\/v1\/community\/posts\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'GET' && communityPostDetail) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const post = communityPosts.find(
+        (candidate) =>
+          candidate.postId === communityPostDetail[1] &&
+          communityPostVisibleTo(candidate, actor),
+      )
+      if (!post) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+      } else {
+        const owner = communityPostOwners.get(post.postId)
+        const viewerKey = `${actor.accountId}:${post.postId}`
+        json(
+          response,
+          200,
+          {
+            ...post,
+            viewerState: {
+              reaction: communityReactionByViewer.get(viewerKey) ?? null,
+              bookmarked: communityBookmarks.has(viewerKey),
+            },
+          },
+          'application/json',
+          owner === actor.accountId
+            ? { ETag: `"${communityPostVersions.get(post.postId)}"` }
+            : {},
+        )
+      }
+      return
+    }
+
+    if (request.method === 'PATCH' && communityPostDetail) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const post = communityPosts.find(
+        ({ postId }) => postId === communityPostDetail[1],
+      )
+      if (!post || communityPostOwners.get(post.postId) !== actor.accountId) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+        return
+      }
+      const version = communityPostVersions.get(post.postId)
+      if (request.headers['if-match'] !== `"${version}"`) {
+        problem(
+          response,
+          412,
+          'COMMUNITY_POST_VERSION_MISMATCH',
+          'Post changed',
+        )
+        return
+      }
+      const body = await readBody(request)
+      post.content = body.content
+      post.topics = body.topics
+      post.resourceAttachment = body.resourceId
+        ? { resourceId: body.resourceId }
+        : null
+      post.sensitiveContentWarning = body.sensitiveContentWarning ?? null
+      if (body.authorMode === 'ANONYMOUS') {
+        post.author = {
+          communityProfileId: null,
+          displayName: 'Thành viên ẩn danh',
+          avatarPreset: null,
+          state: 'ANONYMOUS',
+        }
+      } else if (body.authorMode === 'PROFILE') {
+        post.author = {
+          communityProfileId: crypto.randomUUID(),
+          displayName: 'Thành viên MentalBridge',
+          state: 'ACTIVE',
+        }
+      }
+      post.updatedAt = new Date().toISOString()
+      communityPostVersions.set(post.postId, version + 1)
+      json(response, 200, post, 'application/json', {
+        ETag: `"${version + 1}"`,
+      })
+      return
+    }
+
+    if (request.method === 'DELETE' && communityPostDetail) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const index = communityPosts.findIndex(
+        ({ postId }) => postId === communityPostDetail[1],
+      )
+      const post = communityPosts[index]
+      if (!post || communityPostOwners.get(post.postId) !== actor.accountId) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+        return
+      }
+      const version = communityPostVersions.get(post.postId)
+      if (request.headers['if-match'] !== `"${version}"`) {
+        problem(
+          response,
+          412,
+          'COMMUNITY_POST_VERSION_MISMATCH',
+          'Post changed',
+        )
+        return
+      }
+      communityPosts.splice(index, 1)
+      communityPostOwners.delete(post.postId)
+      communityPostVersions.delete(post.postId)
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    const communityCommentCollection = url.pathname.match(
+      /^\/api\/v1\/community\/posts\/([0-9a-f-]+)\/comments$/i,
+    )
+    if (communityCommentCollection) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const post = communityPosts.find(
+        (candidate) =>
+          candidate.postId === communityCommentCollection[1] &&
+          communityPostVisibleTo(candidate, actor),
+      )
+      if (!post) {
+        problem(response, 404, 'COMMUNITY_POST_NOT_FOUND', 'Post not found')
+        return
+      }
+      if (request.method === 'GET') {
+        const offset = Number(url.searchParams.get('cursor') ?? 0)
+        const limit = Number(url.searchParams.get('limit') ?? 20)
+        const matching = communityComments.filter(
+          (comment) => comment.postId === post.postId,
+        )
+        const items = matching.slice(offset, offset + limit)
+        const nextOffset = offset + items.length
+        json(response, 200, {
+          items,
+          nextCursor: nextOffset < matching.length ? String(nextOffset) : null,
+          hasMore: nextOffset < matching.length,
+        })
+        return
+      }
+      if (request.method === 'POST') {
+        const key = request.headers['idempotency-key']
+        if (typeof key !== 'string') {
+          problem(
+            response,
+            400,
+            'VALIDATION_FAILED',
+            'Idempotency key is required',
+          )
+          return
+        }
+        const body = await readBody(request)
+        const parent = body.parentCommentId
+          ? communityComments.find(
+              (comment) =>
+                comment.commentId === body.parentCommentId &&
+                comment.postId === post.postId &&
+                comment.parentCommentId === null &&
+                comment.state === 'ACTIVE',
+            )
+          : null
+        if (body.parentCommentId && !parent) {
+          problem(
+            response,
+            404,
+            'COMMUNITY_COMMENT_NOT_FOUND',
+            'Comment not found',
+          )
+          return
+        }
+        const commandKey = `${actor.accountId}:${key}`
+        const fingerprint = JSON.stringify({ postId: post.postId, ...body })
+        const replay = communityCommentCreateByKey.get(commandKey)
+        if (replay) {
+          if (replay.fingerprint !== fingerprint) {
+            problem(response, 409, 'IDEMPOTENCY_KEY_REUSED', 'Key was reused')
+            return
+          }
+          json(response, 201, replay.comment, 'application/json', {
+            ETag: `"${replay.comment.version}"`,
+          })
+          return
+        }
+        const now = new Date().toISOString()
+        let profile = communityProfiles.get(actor.accountId)
+        if (!profile) {
+          profile = {
+            communityProfileId: crypto.randomUUID(),
+            displayName: 'Thành viên MentalBridge',
+            avatarPreset: null,
+            status: 'ACTIVE',
+            version: 0,
+            createdAt: now,
+            updatedAt: now,
+          }
+          communityProfiles.set(actor.accountId, profile)
+        }
+        const comment = {
+          commentId: crypto.randomUUID(),
+          postId: post.postId,
+          parentCommentId: body.parentCommentId,
+          author: {
+            communityProfileId: profile.communityProfileId,
+            displayName: profile.displayName,
+            avatarPreset: profile.avatarPreset,
+            state: 'ACTIVE',
+          },
+          content: body.content,
+          state: 'ACTIVE',
+          version: 0,
+          createdAt: now,
+          updatedAt: now,
+        }
+        communityComments.push(comment)
+        communityCommentOwners.set(comment.commentId, actor.accountId)
+        communityCommentCreateByKey.set(commandKey, { fingerprint, comment })
+        post.counts.comments += 1
+        json(response, 201, comment, 'application/json', { ETag: '"0"' })
+        return
+      }
+    }
+
+    const communityCommentResource = url.pathname.match(
+      /^\/api\/v1\/community\/comments\/([0-9a-f-]+)$/i,
+    )
+    if (communityCommentResource) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const comment = communityComments.find(
+        ({ commentId }) => commentId === communityCommentResource[1],
+      )
+      if (
+        !comment ||
+        comment.state !== 'ACTIVE' ||
+        communityCommentOwners.get(comment.commentId) !== actor.accountId
+      ) {
+        problem(
+          response,
+          404,
+          'COMMUNITY_COMMENT_NOT_FOUND',
+          'Comment not found',
+        )
+        return
+      }
+      if (request.headers['if-match'] !== `"${comment.version}"`) {
+        problem(
+          response,
+          412,
+          'COMMUNITY_COMMENT_VERSION_MISMATCH',
+          'Comment changed',
+        )
+        return
+      }
+      if (request.method === 'PATCH') {
+        const body = await readBody(request)
+        comment.content = body.content
+        comment.updatedAt = new Date().toISOString()
+        comment.version += 1
+        json(response, 200, comment, 'application/json', {
+          ETag: `"${comment.version}"`,
+        })
+        return
+      }
+      if (request.method === 'DELETE') {
+        comment.content = 'Bình luận đã được người viết xóa.'
+        comment.state = 'OWNER_DELETED'
+        comment.updatedAt = new Date().toISOString()
+        comment.version += 1
+        const post = communityPosts.find(
+          ({ postId }) => postId === comment.postId,
+        )
+        if (post) post.counts.comments = Math.max(0, post.counts.comments - 1)
+        response.writeHead(204, { 'X-Correlation-Id': correlationId })
+        response.end()
+        return
+      }
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v1/community/reports'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const key = request.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      const body = await readBody(request)
+      const commandKey = `${actor.accountId}:${key}`
+      const fingerprint = JSON.stringify(body)
+      const replay = communityReportsByKey.get(commandKey)
+      if (replay) {
+        if (replay !== fingerprint) {
+          problem(response, 409, 'IDEMPOTENCY_KEY_REUSED', 'Key was reused')
+          return
+        }
+        response.writeHead(202, { 'X-Correlation-Id': correlationId })
+        response.end()
+        return
+      }
+      const post =
+        body.targetType === 'POST'
+          ? communityPosts.find(
+              (candidate) =>
+                candidate.postId === body.targetId &&
+                communityPostVisibleTo(candidate, actor),
+            )
+          : null
+      const comment =
+        body.targetType === 'COMMENT'
+          ? communityComments.find(
+              (candidate) =>
+                candidate.commentId === body.targetId &&
+                candidate.state === 'ACTIVE',
+            )
+          : null
+      if (!post && !comment) {
+        problem(response, 404, 'COMMUNITY_TARGET_NOT_FOUND', 'Target not found')
+        return
+      }
+      const now = new Date().toISOString()
+      let moderationCase = communityModerationCases.find(
+        (candidate) =>
+          candidate.targetType === body.targetType &&
+          candidate.targetId === body.targetId,
+      )
+      if (!moderationCase) {
+        moderationCase = {
+          caseId: crypto.randomUUID(),
+          targetType: body.targetType,
+          targetId: body.targetId,
+          state: 'OPEN',
+          priority:
+            body.reason === 'SELF_HARM_OR_CRISIS_CONCERN' ? 'HIGH' : 'NORMAL',
+          reportReasons: [body.reason],
+          reportContexts: body.details ? [body.details] : [],
+          evidence: {
+            content: post?.content ?? comment.content,
+            state: 'ACTIVE',
+            version: post
+              ? communityPostVersions.get(post.postId)
+              : comment.version,
+          },
+          actions: [],
+          createdAt: now,
+          updatedAt: now,
+          version: 0,
+        }
+        communityModerationCases.push(moderationCase)
+      } else {
+        if (!moderationCase.reportReasons.includes(body.reason))
+          moderationCase.reportReasons.push(body.reason)
+        if (body.details) moderationCase.reportContexts.push(body.details)
+        if (body.reason === 'SELF_HARM_OR_CRISIS_CONCERN')
+          moderationCase.priority = 'HIGH'
+        moderationCase.updatedAt = now
+        moderationCase.version += 1
+      }
+      communityReportsByKey.set(commandKey, fingerprint)
+      response.writeHead(202, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    const communityHiddenContentResource = url.pathname.match(
+      /^\/api\/v1\/community\/hidden-content\/(POST|COMMENT)\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'PUT' && communityHiddenContentResource) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      communityHiddenContent.add(
+        `${actor.accountId}:${communityHiddenContentResource[1].toUpperCase()}:${communityHiddenContentResource[2]}`,
+      )
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    const communityBlockResource = url.pathname.match(
+      /^\/api\/v1\/community\/blocks\/([0-9a-f-]+)$/i,
+    )
+    if (communityBlockResource) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const blockKey = `${actor.accountId}:${communityBlockResource[1]}`
+      if (request.method === 'PUT') communityBlocks.add(blockKey)
+      else if (request.method === 'DELETE') communityBlocks.delete(blockKey)
+      else return
+      response.writeHead(204, { 'X-Correlation-Id': correlationId })
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/community/admin/moderation-cases'
+    ) {
+      if (!communityAdminActor(request, response)) return
+      const stateFilter = url.searchParams.get('state')
+      const targetTypeFilter = url.searchParams.get('targetType')
+      const priorityFilter = url.searchParams.get('priority')
+      json(
+        response,
+        200,
+        communityModerationCases.filter(
+          (item) =>
+            (!stateFilter || item.state === stateFilter) &&
+            (!targetTypeFilter || item.targetType === targetTypeFilter) &&
+            (!priorityFilter || item.priority === priorityFilter),
+        ),
+      )
+      return
+    }
+
+    const communityModerationAction = url.pathname.match(
+      /^\/api\/v1\/community\/admin\/moderation-cases\/([0-9a-f-]+)\/actions$/i,
+    )
+    if (request.method === 'POST' && communityModerationAction) {
+      const actor = communityAdminActor(request, response)
+      if (!actor) return
+      const moderationCase = communityModerationCases.find(
+        (candidate) => candidate.caseId === communityModerationAction[1],
+      )
+      if (!moderationCase) {
+        problem(
+          response,
+          404,
+          'COMMUNITY_MODERATION_CASE_NOT_FOUND',
+          'Moderation case not found',
+        )
+        return
+      }
+      const key = request.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      const body = await readBody(request)
+      const commandKey = `${actor.accountId}:${key}`
+      const fingerprint = JSON.stringify(body)
+      const replay = communityModerationActionsByKey.get(commandKey)
+      if (replay) {
+        if (replay.fingerprint !== fingerprint) {
+          problem(response, 409, 'IDEMPOTENCY_KEY_REUSED', 'Key was reused')
+          return
+        }
+        json(response, 201, replay.moderationCase)
+        return
+      }
+      const post = communityPosts.find(
+        (candidate) => candidate.postId === moderationCase.targetId,
+      )
+      const priorState = communityUnavailablePosts.has(moderationCase.targetId)
+        ? 'MODERATION_HIDDEN'
+        : (post?.sensitiveContentWarning ?? 'ACTIVE')
+      if (body.action === 'HIDE' || body.action === 'REMOVE')
+        communityUnavailablePosts.add(moderationCase.targetId)
+      if (body.action === 'RESTORE')
+        communityUnavailablePosts.delete(moderationCase.targetId)
+      if (post && body.action === 'APPLY_SENSITIVE_WARNING')
+        post.sensitiveContentWarning = 'SENSITIVE_CONTENT'
+      if (post && body.action === 'REMOVE_SENSITIVE_WARNING')
+        post.sensitiveContentWarning = null
+      const resultingState =
+        body.action === 'HIDE'
+          ? 'MODERATION_HIDDEN'
+          : body.action === 'REMOVE'
+            ? 'MODERATION_REMOVED'
+            : body.action === 'RESTORE'
+              ? 'ACTIVE'
+              : body.action === 'APPLY_SENSITIVE_WARNING'
+                ? 'SENSITIVE_CONTENT'
+                : body.action === 'REMOVE_SENSITIVE_WARNING'
+                  ? 'NONE'
+                  : priorState
+      const now = new Date().toISOString()
+      moderationCase.actions.push({
+        actionId: crypto.randomUUID(),
+        action: body.action,
+        reasonCode: body.reasonCode,
+        actorSubject: actor.accountId,
+        priorState,
+        resultingState,
+        targetVersion: moderationCase.evidence.version,
+        createdAt: now,
+      })
+      moderationCase.state = 'RESOLVED'
+      moderationCase.updatedAt = now
+      moderationCase.version += 1
+      communityModerationActionsByKey.set(commandKey, {
+        fingerprint,
+        moderationCase,
+      })
+      json(response, 201, moderationCase)
+      return
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/v1/resources') {
       if (contentFault === 'UNAVAILABLE') {
         problem(
@@ -587,6 +2078,32 @@ const server = createServer(async (request, response) => {
           (resource) => resource.status === 'PUBLISHED',
         ).length,
       })
+      return
+    }
+
+    const publicResourceDetail = url.pathname.match(
+      /^\/api\/v1\/resources\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'GET' && publicResourceDetail) {
+      const resource = contentResources.find(
+        ({ id, status }) =>
+          id === publicResourceDetail[1] && status === 'PUBLISHED',
+      )
+      if (!resource) {
+        problem(response, 404, 'RESOURCE_NOT_FOUND', 'Resource not found')
+      } else {
+        json(response, 200, resource)
+      }
+      return
+    }
+
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/resource-progress'
+    ) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      json(response, 200, { items: [] })
       return
     }
 
@@ -788,6 +2305,36 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/__test/journal/create-failure'
+    ) {
+      const mode = url.searchParams.get('mode')
+      if (!['NEXT_POST', 'CLEAR'].includes(mode)) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Unsupported fault mode')
+        return
+      }
+      journalCreateFailureOnce = mode === 'NEXT_POST'
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/__test/journal/analysis-failure'
+    ) {
+      const mode = url.searchParams.get('mode')
+      if (!['NEXT_JOB', 'CLEAR'].includes(mode)) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Unsupported fault mode')
+        return
+      }
+      journalAnalysisFailureOnce = mode === 'NEXT_JOB'
+      response.writeHead(204)
+      response.end()
+      return
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/v1/journals') {
       const actor = journalActor(request, response)
       if (!actor) return
@@ -833,6 +2380,16 @@ const server = createServer(async (request, response) => {
         json(response, command.replay.status, command.replay.body)
         return
       }
+      if (journalCreateFailureOnce) {
+        journalCreateFailureOnce = false
+        problem(
+          response,
+          503,
+          'JOURNAL_MUTATION_OUTCOME_UNKNOWN',
+          'Synthetic ambiguous create outcome',
+        )
+        return
+      }
       if (journalEntries.has(body.clientEntryId)) {
         problem(response, 409, 'CONFLICT', 'Journal entry already exists')
         return
@@ -845,6 +2402,123 @@ const server = createServer(async (request, response) => {
         body: structuredClone(created),
       })
       json(response, 201, created)
+      return
+    }
+
+    const journalAnalysisCreate = url.pathname.match(
+      /^\/api\/v1\/journals\/([0-9a-f-]+)\/revisions\/(\d+)\/analysis-jobs$/i,
+    )
+    if (request.method === 'POST' && journalAnalysisCreate) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const [, journalId, rawRevision] = journalAnalysisCreate
+      const journalRevision = Number.parseInt(rawRevision, 10)
+      const entry = journalEntries.get(journalId)
+      if (
+        !entry ||
+        entry.ownerAccountId !== actor.accountId ||
+        entry.deleted === true
+      ) {
+        problem(response, 404, 'NOT_FOUND', 'Journal entry was not found')
+        return
+      }
+      if (entry.currentRevision !== journalRevision) {
+        problem(response, 409, 'REVISION_STALE', 'Journal revision is stale')
+        return
+      }
+      const fingerprint = `analysis:${journalId}:${journalRevision}`
+      const command = journalCommand(actor, request, fingerprint)
+      if (command.error === 'missing') {
+        problem(
+          response,
+          400,
+          'VALIDATION_FAILED',
+          'Idempotency key is required',
+        )
+        return
+      }
+      if (command.error === 'conflict') {
+        problem(response, 409, 'CONFLICT', 'Idempotency key was reused')
+        return
+      }
+      if (command.replay) {
+        json(response, command.replay.status, command.replay.body)
+        return
+      }
+      const now = new Date().toISOString()
+      const job = {
+        jobId: crypto.randomUUID(),
+        journalId,
+        journalRevision,
+        status: 'RUNNING',
+        attemptCount: 0,
+        terminalReason: null,
+        result: null,
+        createdAt: now,
+        updatedAt: now,
+        completedAt: null,
+      }
+      journalAnalysisJobs.set(job.jobId, {
+        actorId: actor.accountId,
+        pollCount: 0,
+        fail: journalAnalysisFailureOnce,
+        job,
+      })
+      journalAnalysisFailureOnce = false
+      const responseBody = structuredClone(job)
+      journalCommands.set(command.commandKey, {
+        fingerprint,
+        status: 202,
+        body: responseBody,
+      })
+      json(response, 202, responseBody)
+      return
+    }
+
+    const journalAnalysisGet = url.pathname.match(
+      /^\/api\/v1\/analysis-jobs\/([0-9a-f-]+)$/i,
+    )
+    if (request.method === 'GET' && journalAnalysisGet) {
+      const actor = journalActor(request, response)
+      if (!actor) return
+      const stored = journalAnalysisJobs.get(journalAnalysisGet[1])
+      if (!stored || stored.actorId !== actor.accountId) {
+        problem(response, 404, 'NOT_FOUND', 'Analysis job was not found')
+        return
+      }
+      stored.pollCount += 1
+      const now = new Date().toISOString()
+      if (stored.job.status === 'RUNNING' && stored.pollCount === 1) {
+        stored.job.attemptCount = 1
+        stored.job.updatedAt = now
+      } else if (stored.job.status === 'RUNNING') {
+        Object.assign(
+          stored.job,
+          stored.fail
+            ? {
+                status: 'FAILED',
+                attemptCount: 2,
+                terminalReason: 'PROVIDER_UNAVAILABLE',
+                updatedAt: now,
+                completedAt: now,
+              }
+            : {
+                status: 'SUCCEEDED',
+                attemptCount: 1,
+                result: journalAnalysisResult(),
+                updatedAt: now,
+                completedAt: now,
+              },
+        )
+        const entry = journalEntries.get(stored.job.journalId)
+        if (
+          !stored.fail &&
+          entry?.currentRevision === stored.job.journalRevision
+        ) {
+          entry.analysisState = 'current'
+        }
+      }
+      json(response, 200, structuredClone(stored.job))
       return
     }
 
@@ -920,6 +2594,7 @@ const server = createServer(async (request, response) => {
           currentRevision: entry.currentRevision + 1,
           updatedAt,
           tags: body.tags ?? entry.tags,
+          mood: body.mood ?? entry.mood,
           encryption: { ...entry.encryption, encryptedAt: updatedAt },
           analysisState: 'stale',
           content: {
@@ -990,14 +2665,32 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v1/ai-processing-disclosures/current'
+    ) {
+      json(response, 200, {
+        consentType: 'AI_PROCESSING',
+        version: 'ai-processing-capstone-v2',
+        locale: 'vi-VN',
+        title: 'Đồng ý xử lý nhật ký bằng AI',
+        content:
+          'Chỉ phiên bản nhật ký bạn chủ động chọn mới được gửi để tạo phản ánh không mang tính chẩn đoán. Bạn có thể rút lại đồng ý cho các yêu cầu mới bất cứ lúc nào.',
+        capstoneOnly: true,
+      })
+      return
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/v1/consents') {
       const actor = accessSessions.get(bearerToken(request))
       if (!actor || !actor.roles.includes('USER')) {
         problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
         return
       }
-      const decision = careConsents.get(actor.accountId)
-      json(response, 200, { decisions: decision ? [decision] : [] })
+      const decisions = [...careConsents.entries()]
+        .filter(([key]) => key.startsWith(`${actor.accountId}:`))
+        .map(([, decision]) => decision)
+      json(response, 200, { decisions })
       return
     }
 
@@ -1011,14 +2704,24 @@ const server = createServer(async (request, response) => {
         return
       }
       const body = await readBody(request)
+      const expectedVersion =
+        body.consentType === 'AI_PROCESSING'
+          ? 'ai-processing-capstone-v2'
+          : body.consentType === 'PRIVACY_POLICY'
+            ? 'privacy-capstone-v3'
+            : null
+      if (!expectedVersion || body.policyVersion !== expectedVersion) {
+        problem(response, 400, 'VALIDATION_FAILED', 'Invalid consent decision')
+        return
+      }
       const decision = {
         decisionId: crypto.randomUUID(),
-        consentType: 'PRIVACY_POLICY',
-        policyVersion: 'privacy-capstone-v3',
+        consentType: body.consentType,
+        policyVersion: expectedVersion,
         granted: body.granted === true,
         decidedAt: new Date().toISOString(),
       }
-      careConsents.set(actor.accountId, decision)
+      careConsents.set(consentKey(actor.accountId, body.consentType), decision)
       json(response, 201, decision)
       return
     }
@@ -1185,6 +2888,231 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (url.pathname.startsWith('/api/v1/screening-episodes')) {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || actor.expired || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      if (url.pathname === '/api/v1/screening-episodes/current') {
+        const episode = screeningEpisodes.get(
+          `${actor.accountId}:${url.searchParams.get('purpose')}`,
+        )
+        if (!episode) {
+          problem(
+            response,
+            404,
+            'SCREENING_EPISODE_NOT_FOUND',
+            'No current episode',
+          )
+          return
+        }
+        json(response, 200, episode)
+        return
+      }
+      if (
+        request.method === 'POST' &&
+        url.pathname === '/api/v1/screening-episodes'
+      ) {
+        const { purpose } = await readBody(request)
+        if (!['INITIAL_CHECK', 'REASSESSMENT'].includes(purpose)) {
+          problem(response, 400, 'VALIDATION_FAILED', 'Unknown episode purpose')
+          return
+        }
+        const key = `${actor.accountId}:${purpose}`
+        let episode = screeningEpisodes.get(key)
+        if (!episode || episode.status === 'COMPLETED') {
+          episode = {
+            episodeId: crypto.randomUUID(),
+            purpose,
+            status: 'IN_PROGRESS',
+            phq9AssessmentId: null,
+            gad7AssessmentId: null,
+            supportEvaluationId: null,
+            presentationEvaluationId: null,
+            createdAt: careNow.toISOString(),
+            updatedAt: careNow.toISOString(),
+            completedAt: null,
+            version: 0,
+          }
+          screeningEpisodes.set(key, episode)
+        }
+        json(response, 201, episode)
+        return
+      }
+      const command = url.pathname.match(
+        /^\/api\/v1\/screening-episodes\/([^/]+)\/(?:assessments\/(PHQ9|GAD7)|(support-evaluation))$/,
+      )
+      if (request.method === 'POST' && command) {
+        const episode = [...screeningEpisodes.entries()].find(
+          ([key, item]) =>
+            key.startsWith(`${actor.accountId}:`) &&
+            item.episodeId === command[1],
+        )?.[1]
+        if (!episode) {
+          problem(
+            response,
+            404,
+            'SCREENING_EPISODE_NOT_FOUND',
+            'No owned episode',
+          )
+          return
+        }
+        if (command[2]) {
+          const body = await readBody(request)
+          const questionnaire = careQuestionnaires.get(
+            body.questionnaireDefinitionId,
+          )
+          if (
+            questionnaire?.instrument !== command[2] ||
+            body.privacyPolicyVersion !== 'privacy-capstone-v3' ||
+            body.privacyDisclosureAcknowledged !== true ||
+            careConsents.get(consentKey(actor.accountId, 'PRIVACY_POLICY'))
+              ?.granted !== true
+          ) {
+            problem(
+              response,
+              409,
+              'PRIVACY_DISCLOSURE_REQUIRED',
+              'Privacy disclosure required',
+            )
+            return
+          }
+          const field =
+            command[2] === 'PHQ9' ? 'phq9AssessmentId' : 'gad7AssessmentId'
+          let assessment = authenticatedAssessments.get(
+            `${actor.accountId}:${episode[field]}`,
+          )
+          if (!assessment) {
+            assessment = careAssessment(crypto.randomUUID(), body)
+            authenticatedAssessments.set(
+              `${actor.accountId}:${assessment.assessmentId}`,
+              assessment,
+            )
+            episode[field] = assessment.assessmentId
+            episode.version += 1
+            episode.updatedAt = careNow.toISOString()
+            state.authenticatedAssessmentCount += 1
+          }
+          json(response, 201, assessment)
+          return
+        }
+        const phq9 = authenticatedAssessments.get(
+          `${actor.accountId}:${episode.phq9AssessmentId}`,
+        )
+        const gad7 = authenticatedAssessments.get(
+          `${actor.accountId}:${episode.gad7AssessmentId}`,
+        )
+        if (!phq9 || !gad7) {
+          problem(
+            response,
+            409,
+            'SCREENING_EPISODE_INCOMPLETE',
+            'Both assessments are required',
+          )
+          return
+        }
+        let evaluation = supportEvaluations.get(
+          `${actor.accountId}:${episode.presentationEvaluationId}`,
+        )
+        if (!evaluation) {
+          evaluation = supportEvaluation(phq9, gad7)
+          supportEvaluations.set(
+            `${actor.accountId}:${evaluation.supportEvaluationId}`,
+            evaluation,
+          )
+          Object.assign(episode, {
+            status: 'COMPLETED',
+            supportEvaluationId: evaluation.supportEvaluationId,
+            presentationEvaluationId: evaluation.supportEvaluationId,
+            updatedAt: careNow.toISOString(),
+            completedAt: careNow.toISOString(),
+            version: episode.version + 1,
+          })
+        }
+        json(response, 201, { episode, presentationEvaluation: evaluation })
+        return
+      }
+    }
+
+    const combinedMeaningGet = url.pathname.match(
+      /^\/api\/v1\/support-evaluations\/([^/]+)\/combined-meaning$/,
+    )
+    if (request.method === 'GET' && combinedMeaningGet) {
+      const actor = accessSessions.get(bearerToken(request))
+      if (!actor || actor.expired || !actor.roles.includes('USER')) {
+        problem(response, 401, 'UNAUTHENTICATED', 'Authentication is required')
+        return
+      }
+      const evaluation = supportEvaluations.get(
+        `${actor.accountId}:${combinedMeaningGet[1]}`,
+      )
+      const episode = [...screeningEpisodes.entries()].find(
+        ([key, item]) =>
+          key.startsWith(`${actor.accountId}:`) &&
+          item.presentationEvaluationId === combinedMeaningGet[1],
+      )?.[1]
+      if (!evaluation || !episode) {
+        problem(
+          response,
+          404,
+          'SUPPORT_EVALUATION_NOT_FOUND',
+          'No owned evaluation',
+        )
+        return
+      }
+      const evidence = evaluation.evidence.map((item) => ({
+        assessmentId: item.assessmentId,
+        instrument: item.instrument,
+        questionnaireVersion: item.questionnaireVersion,
+        scoringVersion: item.scoringVersion,
+        screeningLevel: item.screeningLevel,
+        safetyStatus: item.safetyStatus,
+        totalScore: authenticatedAssessments.get(
+          `${actor.accountId}:${item.assessmentId}`,
+        ).result.totalScore,
+      }))
+      const [phq9, gad7] = evidence
+      const professional = [phq9, gad7].some((item) =>
+        ['MODERATE', 'MODERATELY_SEVERE', 'SEVERE'].includes(
+          item.screeningLevel,
+        ),
+      )
+      json(response, 200, {
+        supportEvaluationId: evaluation.supportEvaluationId,
+        sourcePolicyVersion: evaluation.policyVersion,
+        evaluatedAt: evaluation.evaluatedAt,
+        presentationPolicyVersion: 'mb-combined-screening-meaning-v1',
+        contentVersion: 'mb-combined-screening-meaning-vi-vn-v1-draft.3',
+        referencePeriodDays: 14,
+        episodeId: episode.episodeId,
+        episodePurpose: episode.purpose,
+        episodeCompletedAt: episode.completedAt,
+        domainSupportEvaluationId: episode.supportEvaluationId,
+        supportGuideId: null,
+        evidence,
+        supportTier: evaluation.supportTier,
+        baseMeaning: {
+          code: `PHQ9_${phq9.screeningLevel}_GAD7_${gad7.screeningLevel}`,
+          text: 'Kết quả phản ánh câu trả lời trong 14 ngày qua.',
+          rationale: 'Bạn có thể xem từng kết quả và bước hỗ trợ phù hợp.',
+          supportTier: professional
+            ? 'PROFESSIONAL_SUPPORT_RECOMMENDED'
+            : 'SELF_GUIDED_SUPPORT',
+        },
+        presentationPriority: evaluation.safetyGuidance
+          ? 'SAFETY'
+          : professional
+            ? 'PROFESSIONAL_SUPPORT'
+            : 'SELF_GUIDED',
+        nextStep: evaluation.nextStep,
+        safetyGuidance: evaluation.safetyGuidance,
+        disclaimerCode: evaluation.disclaimerCode,
+        disclaimer: evaluation.disclaimer,
+      })
+      return
+    }
+
     if (request.method === 'POST' && url.pathname === '/api/v1/assessments') {
       const accessToken = bearerToken(request)
       const actor = accessSessions.get(accessToken)
@@ -1200,7 +3128,8 @@ const server = createServer(async (request, response) => {
         !questionnaire ||
         body.privacyPolicyVersion !== 'privacy-capstone-v3' ||
         body.privacyDisclosureAcknowledged !== true ||
-        careConsents.get(actor.accountId)?.granted !== true
+        careConsents.get(consentKey(actor.accountId, 'PRIVACY_POLICY'))
+          ?.granted !== true
       ) {
         problem(
           response,
@@ -1669,6 +3598,94 @@ const server = createServer(async (request, response) => {
       refreshSessions.delete(body.refreshToken)
       state.refreshCount += 1
       json(response, 200, tokenPair(actor, `${actor.accountId}-rotated`))
+      return
+    }
+
+    if (url.pathname === '/api/v1/admin/accounts') {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      if (request.method !== 'GET') {
+        problem(response, 405, 'METHOD_NOT_ALLOWED', 'Method is not allowed')
+        return
+      }
+      const items = adminAccounts.filter((candidate) => {
+        const status = url.searchParams.get('status')
+        const role = url.searchParams.get('role')
+        const email = url.searchParams.get('email')
+        return (
+          (!status || candidate.status === status) &&
+          (!role || candidate.roles.includes(role)) &&
+          (!email || candidate.email === email.toLowerCase())
+        )
+      })
+      json(response, 200, { items, nextCursor: null })
+      return
+    }
+
+    const adminAccountState = url.pathname.match(
+      /^\/api\/v1\/admin\/accounts\/([^/]+)\/state$/,
+    )
+    if (request.method === 'PUT' && adminAccountState) {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      const target = adminAccounts.find(
+        ({ accountId }) => accountId === adminAccountState[1],
+      )
+      if (!target) {
+        problem(response, 404, 'ACCOUNT_NOT_FOUND', 'Account was not found')
+        return
+      }
+      if (target.roles.includes('ADMIN')) {
+        problem(
+          response,
+          403,
+          'DEDICATED_ADMIN_PROTECTED',
+          'Account is protected',
+        )
+        return
+      }
+      if (request.headers['if-match'] !== `"${target.version}"`) {
+        problem(response, 412, 'VERSION_CONFLICT', 'Account version changed')
+        return
+      }
+      const body = await readBody(request)
+      const nextStatus = body.status === 'DISABLED' ? 'DISABLED' : 'ACTIVE'
+      if (target.status !== nextStatus) {
+        target.status = nextStatus
+        target.updatedAt = '2026-10-02T00:00:00Z'
+        target.version += 1
+      }
+      json(response, 200, target, 'application/json', {
+        ETag: `"${target.version}"`,
+      })
+      return
+    }
+
+    const adminAccountDetail = url.pathname.match(
+      /^\/api\/v1\/admin\/accounts\/([^/]+)$/,
+    )
+    if (request.method === 'GET' && adminAccountDetail) {
+      const session = accessSessions.get(bearerToken(request))
+      if (!session?.roles.includes('ADMIN')) {
+        problem(response, 403, 'FORBIDDEN', 'Administrator access is required')
+        return
+      }
+      const target = adminAccounts.find(
+        ({ accountId }) => accountId === adminAccountDetail[1],
+      )
+      if (!target) {
+        problem(response, 404, 'ACCOUNT_NOT_FOUND', 'Account was not found')
+        return
+      }
+      json(response, 200, target, 'application/json', {
+        ETag: `"${target.version}"`,
+      })
       return
     }
 

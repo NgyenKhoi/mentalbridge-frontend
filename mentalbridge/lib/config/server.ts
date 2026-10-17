@@ -4,6 +4,9 @@ const DEFAULT_IDENTITY_TIMEOUT_MS = 2_000
 const DEFAULT_CARE_TIMEOUT_MS = 3_000
 const DEFAULT_CONTENT_TIMEOUT_MS = 5_000
 const DEFAULT_JOURNAL_TIMEOUT_MS = 5_000
+const DEFAULT_CONSULTATION_TIMEOUT_MS = 5_000
+const DEFAULT_REALTIME_TIMEOUT_MS = 3_000
+const DEFAULT_COMMUNITY_TIMEOUT_MS = 5_000
 const MIN_IDENTITY_TIMEOUT_MS = 100
 const MAX_IDENTITY_TIMEOUT_MS = 30_000
 
@@ -24,6 +27,22 @@ export type ContentServerConfig = Readonly<{
 }>
 
 export type JournalServerConfig = Readonly<{
+  baseUrl: string
+  timeoutMs: number
+}>
+
+export type ConsultationServerConfig = Readonly<{
+  baseUrl: string
+  timeoutMs: number
+}>
+
+export type RealtimeServerConfig = Readonly<{
+  baseUrl: string
+  publicUrl: string
+  timeoutMs: number
+}>
+
+export type CommunityServerConfig = Readonly<{
   baseUrl: string
   timeoutMs: number
 }>
@@ -143,6 +162,58 @@ export function readJournalServerConfig(
       'JOURNAL_AI_SERVICE_TIMEOUT_MS',
       environment.JOURNAL_AI_SERVICE_TIMEOUT_MS,
       DEFAULT_JOURNAL_TIMEOUT_MS,
+    ),
+  })
+}
+
+export function readConsultationServerConfig(
+  environment: Environment = process.env,
+): ConsultationServerConfig {
+  return Object.freeze({
+    baseUrl: parseBaseUrl(
+      'CONSULTATION_SERVICE_URL',
+      environment.CONSULTATION_SERVICE_URL,
+    ),
+    timeoutMs: parseTimeout(
+      'CONSULTATION_SERVICE_TIMEOUT_MS',
+      environment.CONSULTATION_SERVICE_TIMEOUT_MS,
+      DEFAULT_CONSULTATION_TIMEOUT_MS,
+    ),
+  })
+}
+
+export function readRealtimeServerConfig(
+  environment: Environment = process.env,
+): RealtimeServerConfig {
+  return Object.freeze({
+    baseUrl: parseBaseUrl(
+      'REALTIME_SERVICE_URL',
+      environment.REALTIME_SERVICE_URL,
+    ),
+    publicUrl: parseBaseUrl(
+      'REALTIME_PUBLIC_URL',
+      environment.REALTIME_PUBLIC_URL,
+    ),
+    timeoutMs: parseTimeout(
+      'REALTIME_SERVICE_TIMEOUT_MS',
+      environment.REALTIME_SERVICE_TIMEOUT_MS,
+      DEFAULT_REALTIME_TIMEOUT_MS,
+    ),
+  })
+}
+
+export function readCommunityServerConfig(
+  environment: Environment = process.env,
+): CommunityServerConfig {
+  return Object.freeze({
+    baseUrl: parseBaseUrl(
+      'COMMUNITY_SERVICE_URL',
+      environment.COMMUNITY_SERVICE_URL,
+    ),
+    timeoutMs: parseTimeout(
+      'COMMUNITY_SERVICE_TIMEOUT_MS',
+      environment.COMMUNITY_SERVICE_TIMEOUT_MS,
+      DEFAULT_COMMUNITY_TIMEOUT_MS,
     ),
   })
 }

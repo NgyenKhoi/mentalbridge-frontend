@@ -1,8 +1,9 @@
 import { http, HttpResponse } from 'msw'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { mockServer } from '@/tests/mocks/server'
 
 vi.mock('@/features/auth/components/PasswordChangeForm', () => ({
@@ -32,7 +33,17 @@ const disclosure = {
   capstoneOnly: true,
 }
 
+function renderProfile() {
+  return render(
+    <FeedbackProvider>
+      <ProfilePage />
+    </FeedbackProvider>,
+  )
+}
+
 describe('Care profile page', () => {
+  afterEach(() => window.history.replaceState({}, '', '/profile'))
+
   it('renders backend data and appends a privacy decision without fake specialist data', async () => {
     const decision = vi.fn()
     mockServer.use(
@@ -62,18 +73,26 @@ describe('Care profile page', () => {
         },
       ),
     )
-    render(<ProfilePage />)
+    renderProfile()
     await screen.findByDisplayValue('Nguyễn An')
+    expect(
+      screen.getByText(/MentalBridge cung cấp công cụ hỗ trợ tự nhìn lại/i),
+    ).toBeVisible()
     expect(screen.getByTestId('password-change-form')).toBeInTheDocument()
+    await userEvent.click(screen.getByText('Xem thêm'))
     expect(screen.getByText('Nội dung authoritative từ Care.')).toBeVisible()
     expect(screen.queryByText(/ThS\.|specialist/i)).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /Tôi đồng ý/ }))
+    await userEvent.click(
+      screen.getByRole('switch', {
+        name: 'Bật xử lý dữ liệu cho các lần sàng lọc mới',
+      }),
+    )
     expect(decision).toHaveBeenCalledWith({
       consentType: 'PRIVACY_POLICY',
       policyVersion: 'privacy-capstone-v3',
       granted: true,
     })
-    await screen.findByText(/đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc/i)
+    await screen.findByText(/đã bật xử lý dữ liệu/i)
   })
 
   it('shows first-time onboarding when profile and consent data are empty', async () => {
@@ -101,11 +120,51 @@ describe('Care profile page', () => {
       ),
     )
 
-    render(<ProfilePage />)
+    renderProfile()
 
     expect(await screen.findByText('Bạn chưa có hồ sơ')).toBeVisible()
     expect(screen.getAllByRole('button', { name: 'Tạo hồ sơ' })).toHaveLength(2)
     expect(screen.queryByText(/không thể tải đầy đủ/i)).not.toBeInTheDocument()
+  })
+
+  it('returns only to the allowlisted reassessment journey after readiness', async () => {
+    window.history.pushState(
+      {},
+      '',
+      '/profile?returnTo=%2Finitial-check%3Fpurpose%3Dreassessment',
+    )
+    mockServer.use(
+      http.get('http://localhost/api/care/profile', () =>
+        HttpResponse.json(profile),
+      ),
+      http.get('http://localhost/api/care/privacy-disclosure', () =>
+        HttpResponse.json(disclosure),
+      ),
+      http.get('http://localhost/api/care/consents', () =>
+        HttpResponse.json({
+          decisions: [
+            {
+              decisionId: '10000000-0000-4000-8000-000000000020',
+              consentType: 'PRIVACY_POLICY',
+              policyVersion: 'privacy-capstone-v3',
+              granted: true,
+              decidedAt: '2026-09-02T00:01:00Z',
+            },
+          ],
+        }),
+      ),
+    )
+
+    renderProfile()
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Bạn có thể tiếp tục đánh giá lại',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Tiếp tục bước chưa hoàn tất' }),
+    ).toHaveAttribute('href', '/initial-check?purpose=reassessment')
   })
 
   it('keeps the persisted header separate from an editable draft and can cancel changes', async () => {
@@ -121,7 +180,7 @@ describe('Care profile page', () => {
       ),
     )
     const user = userEvent.setup()
-    render(<ProfilePage />)
+    renderProfile()
 
     const name = await screen.findByLabelText('Tên hiển thị')
     await user.clear(name)
@@ -133,6 +192,47 @@ describe('Care profile page', () => {
     ).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Hủy thay đổi' }))
     expect(name).toHaveValue('Nguyễn An')
+  })
+
+  it('saves the edited profile and renders the authoritative returned version', async () => {
+    const update = vi.fn()
+    const updated = {
+      ...profile,
+      displayName: 'Nguyễn An cập nhật',
+      updatedAt: '2026-09-02T00:02:00Z',
+      version: 1,
+    }
+    mockServer.use(
+      http.get('http://localhost/api/care/profile', () =>
+        HttpResponse.json(profile),
+      ),
+      http.get('http://localhost/api/care/privacy-disclosure', () =>
+        HttpResponse.json(disclosure),
+      ),
+      http.get('http://localhost/api/care/consents', () =>
+        HttpResponse.json({ decisions: [] }),
+      ),
+      http.put('http://localhost/api/care/profile', async ({ request }) => {
+        update(await request.json())
+        return HttpResponse.json(updated)
+      }),
+    )
+    const user = userEvent.setup()
+    renderProfile()
+    const name = await screen.findByLabelText('Tên hiển thị')
+
+    await user.clear(name)
+    await user.type(name, updated.displayName)
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+
+    expect(update).toHaveBeenCalledWith({
+      displayName: updated.displayName,
+      dateOfBirth: profile.dateOfBirth,
+      gender: profile.gender,
+    })
+    expect(
+      await screen.findByRole('heading', { name: updated.displayName }),
+    ).toBeVisible()
   })
 
   it('shows an adult-rule violation next to the birth-date field without submitting', async () => {
@@ -153,7 +253,7 @@ describe('Care profile page', () => {
       }),
     )
     const user = userEvent.setup()
-    render(<ProfilePage />)
+    renderProfile()
     const dateOfBirth = await screen.findByLabelText('Ngày sinh')
     const underageYear = new Date().getUTCFullYear() - 17
 
@@ -196,7 +296,7 @@ describe('Care profile page', () => {
       ),
     )
     const user = userEvent.setup()
-    render(<ProfilePage />)
+    renderProfile()
     const name = await screen.findByLabelText('Tên hiển thị')
 
     await user.clear(name)

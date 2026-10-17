@@ -13,7 +13,6 @@ const mode = process.env.MB273_E2E_MODE
 const isLocalMode = mode === 'fixture' || mode === 'service'
 const isLiveMode = mode === 'live'
 const careServiceUrl = 'http://127.0.0.1:3202'
-const identityFixtureUrl = 'http://127.0.0.1:3201'
 const releaseAccessToken = 'synthetic-mb273-e2e-access'
 const foreignAccessToken = 'synthetic-care-e2e-other-access'
 const accessCookie = 'mentalbridge_access'
@@ -60,6 +59,18 @@ type ReleaseState = {
       meaning: { text: string; limitation: string }
     }>
     nextStep: { text: string; boundary: string }
+    disclaimer: string
+  }
+  combinedMeaning: {
+    supportEvaluationId: string
+    episodeId: string
+    evidence: Array<{
+      assessmentId: string
+      instrument: string
+      totalScore: number
+      screeningLevel: string
+    }>
+    presentationPriority: string
     disclaimer: string
   }
 }
@@ -132,11 +143,13 @@ async function createProfileAndConsent(
   await save.click()
   await expect(page.getByText('Đã tạo hồ sơ của bạn.')).toBeVisible()
 
-  const grant = page.getByRole('button', { name: 'Tôi đồng ý' })
+  const grant = page.getByRole('button', {
+    name: 'Đồng ý xử lý dữ liệu sàng lọc',
+  })
   if (await grant.isVisible().catch(() => false)) {
     await grant.click()
     await expect(
-      page.getByText('Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'),
+      page.getByText('Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'),
     ).toBeVisible()
   }
 }
@@ -164,13 +177,6 @@ async function injectLocalCareFault(request: APIRequestContext) {
     { headers: { Authorization: `Bearer ${releaseAccessToken}` } },
   )
   expect([200, 204]).toContain(response.status())
-}
-
-async function injectLocalContentFault(request: APIRequestContext) {
-  const response = await request.post(
-    `${identityFixtureUrl}/__test/content-fault?mode=UNAVAILABLE`,
-  )
-  expect(response.status()).toBe(204)
 }
 
 async function submitForeignGad(request: APIRequestContext) {
@@ -220,11 +226,13 @@ async function submitLiveForeignGad(browser: Browser, baseURL: string) {
     ) {
       await createProfileAndConsent(page, 'MB-273 Foreign Evidence', false)
     }
-    const grant = page.getByRole('button', { name: 'Tôi đồng ý' })
+    const grant = page.getByRole('button', {
+      name: 'Đồng ý xử lý dữ liệu sàng lọc',
+    })
     if (await grant.isVisible().catch(() => false)) {
       await grant.click()
       await expect(
-        page.getByText('Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'),
+        page.getByText('Đã bật xử lý dữ liệu cho các lần sàng lọc mới.'),
       ).toBeVisible()
     }
 
@@ -427,46 +435,35 @@ test.describe('MB-273 initial-check release readiness', () => {
       }),
     ).toBeVisible()
 
-    if (isLocalMode) {
-      await injectLocalContentFault(request)
-    } else {
-      await page.route('**/api/resources?**', (route) =>
-        route.fulfill({
-          status: 503,
-          contentType: 'application/problem+json',
-          body: JSON.stringify({
-            type: 'about:blank',
-            title: 'Unavailable',
-            status: 503,
-            code: 'CONTENT_UNAVAILABLE',
-            correlationId: '50000000-0000-4000-8000-000000000274',
-          }),
-        }),
-      )
-    }
     await completeQuestions(
       page,
       Array.from({ length: 7 }, () => 'Không bao giờ (0 ngày nào)'),
     )
 
-    const resultHeading = page.getByRole('heading', {
-      name: 'Kết quả kiểm tra ban đầu',
-    })
+    const resultCard = page.locator('article.combined-meaning-card')
+    const resultHeading = resultCard.getByRole('heading', { level: 1 })
     await expect(resultHeading).toBeVisible()
     await expect(
-      page.getByRole('heading', { name: 'Ưu tiên xem hướng dẫn an toàn' }),
+      resultCard.getByRole('heading', {
+        name: 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp',
+      }),
     ).toBeVisible()
     await expect(
-      page.getByRole('heading', { name: 'Nên ưu tiên theo dõi an toàn' }),
+      resultCard.getByRole('progressbar', {
+        name: /PHQ-9: 1 trên 27 điểm, mức tối thiểu/i,
+      }),
     ).toBeVisible()
     await expect(
-      page.getByText(/không phải chẩn đoán y khoa/i).first(),
+      resultCard.getByRole('progressbar', {
+        name: /GAD-7: 0 trên 21 điểm, mức tối thiểu/i,
+      }),
     ).toBeVisible()
     await expect(
-      page.getByText(/chủ động liên hệ dịch vụ khẩn cấp/i),
+      resultCard.getByText(/chủ động liên hệ dịch vụ khẩn cấp/i),
     ).toBeVisible()
+    await resultCard.getByText('Vì sao có gợi ý này?').first().click()
     await expect(
-      page.getByText('Dịch vụ tạm thời không khả dụng'),
+      resultCard.getByText(/không phải chẩn đoán y khoa/i).first(),
     ).toBeVisible()
 
     const stateResult = await page.evaluate(async () => {
@@ -500,6 +497,11 @@ test.describe('MB-273 initial-check release readiness', () => {
         supportTier: 'SAFETY_FOLLOW_UP_RECOMMENDED',
         reasonCodes: ['PHQ9_SAFETY_SCREEN_POSITIVE'],
       },
+      combinedMeaning: {
+        supportEvaluationId: state.evaluation.supportEvaluationId,
+        episodeId: expect.any(String),
+        presentationPriority: 'SAFETY',
+      },
     })
     expect(state.evaluation.evidence.map((item) => item.instrument)).toEqual([
       'PHQ9',
@@ -518,6 +520,19 @@ test.describe('MB-273 initial-check release readiness', () => {
     expect(state.evaluation.nextStep.text).toBeTruthy()
     expect(state.evaluation.nextStep.boundary).toBeTruthy()
     expect(state.evaluation.disclaimer).toMatch(/không phải chẩn đoán/i)
+    expect(state.combinedMeaning.evidence).toEqual([
+      expect.objectContaining({
+        assessmentId: state.phq9.assessmentId,
+        instrument: 'PHQ9',
+        totalScore: 1,
+      }),
+      expect.objectContaining({
+        assessmentId: state.gad7.assessmentId,
+        instrument: 'GAD7',
+        totalScore: 0,
+      }),
+    ])
+    expect(state.combinedMeaning.disclaimer).toMatch(/không phải chẩn đoán/i)
     await attachEvidence(testInfo, state)
 
     const evidencePath =

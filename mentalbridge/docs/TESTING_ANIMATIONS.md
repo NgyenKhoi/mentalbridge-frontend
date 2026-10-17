@@ -24,7 +24,7 @@ Mở browser tại: `http://localhost:3000`
   - Topic được chọn pulse với glow effect
   - Các topic khác dim down
   - Content mới fade in với bounce effect
-  
+
 - [ ] Click lần lượt qua 6 topics
   - Mỗi transition mất ~1 giây
   - Không bị giật lag
@@ -92,7 +92,7 @@ Mở browser tại: `http://localhost:3000`
   - Stagger 110ms
 
 - [ ] Hover qua từng risk card
-  - **Low (Teal)**: 
+  - **Low (Teal)**:
     - Shadow màu teal
     - Border glow teal
   - **Mid (Amber)**:

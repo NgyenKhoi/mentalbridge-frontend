@@ -47,23 +47,36 @@ function invalidSession() {
   })
 }
 
+export async function resolveCurrentWorkspace() {
+  const response = await browserApiClient.get('/identity/session')
+  const account = parseCurrentAccountResponse(response.data)
+  const path = account && primaryWorkspacePath(account.roles)
+  const workspaces = account && resolveWorkspaces(account.roles)
+  const workspace = workspaces?.[0]
+
+  if (
+    !account ||
+    !isUsableAccount(account) ||
+    !path ||
+    !workspaces ||
+    !workspace
+  ) {
+    throw invalidSession()
+  }
+
+  return {
+    account,
+    path,
+    workspace,
+    workspaces,
+  }
+}
+
 export async function loginAndResolveWorkspace(credentials: LoginCredentials) {
   await browserApiClient.post('/identity/login', credentials)
 
   try {
-    const response = await browserApiClient.get('/identity/session')
-    const account = parseCurrentAccountResponse(response.data)
-    const path = account && primaryWorkspacePath(account.roles)
-
-    if (!account || !isUsableAccount(account) || !path) {
-      throw invalidSession()
-    }
-
-    return {
-      account,
-      path,
-      workspaces: resolveWorkspaces(account.roles) ?? [],
-    }
+    return await resolveCurrentWorkspace()
   } catch (error) {
     await browserApiClient.post('/identity/logout').catch(() => undefined)
     throw error

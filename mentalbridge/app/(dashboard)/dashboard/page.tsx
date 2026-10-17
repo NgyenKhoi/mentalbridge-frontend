@@ -1,7 +1,10 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { Suspense, useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import PlanGate, { type PlanId } from '@/components/PlanGate'
+import LatestPhq9Result from '@/features/assessment/components/LatestPhq9Result'
+import { PlanEmotionCheckIn } from '@/features/emotion-check-in/PlanEmotionCheckIn'
+import { EmotionProgress } from '@/features/emotion-check-in/EmotionProgress'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import '../dashboard-page.css'
@@ -9,17 +12,10 @@ import '../dashboard-page.css'
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger)
 }
-const moods = [
-  ['😌', 'Thư giãn'],
-  ['😊', 'Ổn định'],
-  ['😄', 'Vui vẻ'],
-  ['🥱', 'Mệt mỏi'],
-  ['😟', 'Lo lắng'],
-]
 const tasks = [
   'Viết nhật ký hôm nay',
   'Hoàn thành bài tập thở',
-  'Đánh giá tâm trạng tuần này',
+  'Làm bài sàng lọc khi bạn sẵn sàng',
 ]
 const SmallIcon = ({ type }: { type: 'note' | 'check' | 'user' }) => (
   <svg
@@ -48,9 +44,9 @@ const SmallIcon = ({ type }: { type: 'note' | 'check' | 'user' }) => (
 )
 
 export default function DashboardPage() {
-  const [mood, setMood] = useState(1)
   const [done, setDone] = useState<number[]>([])
   const [plan, setPlan] = useState<PlanId>('free')
+  const [emotionRefresh, setEmotionRefresh] = useState(0)
   const heroRef = useRef<HTMLElement>(null)
   const bentoRef = useRef<HTMLElement>(null)
   const todayRef = useRef<HTMLElement>(null)
@@ -82,7 +78,7 @@ export default function DashboardPage() {
 
       // Bento cards stagger
       if (bentoRef.current) {
-        gsap.from(bentoRef.current.querySelectorAll('.ref-card'), {
+        gsap.from(bentoRef.current.querySelectorAll('.ref-panel-col'), {
           scrollTrigger: {
             trigger: bentoRef.current,
             start: 'top 80%',
@@ -169,15 +165,14 @@ export default function DashboardPage() {
         <div>
           <p>
             <i />
-            Thứ Sáu, 14 tháng 8 năm 2026
+            Không gian chăm sóc tinh thần của bạn
           </p>
-          <h1>Chào buổi sáng, Người dùng 👋</h1>
+          <h1>Chào bạn</h1>
           <span>Hôm nay bạn cảm thấy thế nào?</span>
         </div>
         <div className="ref-streak">
-          🔥
           <b>
-            7 ngày<small>liên tiếp</small>
+            Bắt đầu hôm nay<small>Mỗi ghi chép là một bước nhìn lại</small>
           </b>
         </div>
       </section>
@@ -190,76 +185,30 @@ export default function DashboardPage() {
           <h2 id="initial-check-cta-title">Hiểu rõ hơn về 14 ngày gần đây</h2>
           <p>
             Hoàn thành PHQ-9 rồi GAD-7 trong một hành trình có hướng dẫn để nhận
-            kết quả và bước hỗ trợ phù hợp. Đây là sàng lọc triệu chứng, không
-            phải chẩn đoán y khoa.
+            kết quả và bước hỗ trợ phù hợp.
           </p>
         </div>
         <Link href="/initial-check">
           Bắt đầu kiểm tra ban đầu <strong aria-hidden="true">→</strong>
         </Link>
       </section>
-      <section ref={bentoRef} className="ref-bento">
-        <article className="ref-card ref-mood">
-          <header>
-            <div>
-              <h2>Cảm xúc hôm nay</h2>
-              <p>Chọn cảm xúc phù hợp nhất</p>
-            </div>
-            <i aria-hidden="true">🙂</i>
-          </header>
-          <div>
-            {moods.map((x, i) => (
-              <button
-                type="button"
-                key={x[1]}
-                onClick={() => setMood(i)}
-                className={mood === i ? 'active' : ''}
-                aria-label={x[1]}
-                aria-pressed={mood === i}
-              >
-                {x[0]}
-              </button>
-            ))}
-          </div>
-          <footer>
-            Bạn đang cảm thấy <b>{moods[mood][1]}</b>
-            <Link href="/journal">Viết thêm →</Link>
-          </footer>
-        </article>
-        <article className="ref-card ref-result">
-          <header>
+      <section ref={bentoRef} className="ref-panel">
+        <div className="ref-panel-col ref-panel-mood">
+          <Suspense fallback={<p role="status">Đang tải cảm xúc hôm nay…</p>}>
+            <PlanEmotionCheckIn
+              onPersisted={() => setEmotionRefresh((value) => value + 1)}
+            />
+          </Suspense>
+        </div>
+        <div className="ref-panel-col ref-panel-result">
+          <header className="ref-col-header">
             <h2>Kết quả sàng lọc</h2>
-            <i aria-hidden="true">✓</i>
           </header>
-          <p>Chưa có kết quả Care trong phiên này</p>
-          <Link href="/assessment/phq9">Làm PHQ-9 →</Link>
-        </article>
-        <PlanGate
-          currentPlan={plan}
-          required="plus"
-          title="Phân tích xu hướng chi tiết"
-        >
-          <article className="ref-card ref-trend">
-            <header>
-              <h2>Xu hướng 7 ngày</h2>
-              <i aria-hidden="true">📈</i>
-            </header>
-            <div role="img" aria-label="Biểu đồ xu hướng cảm xúc trong 7 ngày">
-              {[52, 68, 38, 28, 46, 60, 74].map((h, i) => (
-                <b
-                  key={i}
-                  aria-hidden="true"
-                  className={[1, 5, 6].includes(i) ? 'high' : ''}
-                  style={{ height: `${h}%` }}
-                />
-              ))}
-            </div>
-            <footer>
-              <span>T2</span>
-              <span>CN</span>
-            </footer>
-          </article>
-        </PlanGate>
+          <LatestPhq9Result />
+        </div>
+        <div className="ref-panel-col ref-panel-progress">
+          <EmotionProgress refreshKey={emotionRefresh} />
+        </div>
       </section>
       <section ref={todayRef} className="ref-today">
         <PlanGate
@@ -269,23 +218,23 @@ export default function DashboardPage() {
         >
           <article className="ref-card ref-appointment">
             <header>
-              <h2>Lịch hẹn sắp tới</h2>
+              <h2>Lịch hẹn</h2>
               <Link href="/appointments">Xem tất cả →</Link>
             </header>
             <div>
-              <b>BS</b>
               <p>
-                <strong>Bs. Nguyễn Văn A</strong>
-                <span>Thứ 6, 15/08 · 10:00 AM</span>
+                <strong>Xem lịch hẹn của bạn</strong>
+                <span>Mở trang lịch hẹn để xem thông tin mới nhất.</span>
               </p>
-              <i>SẮP TỚI</i>
             </div>
-            <footer>Không có lịch hẹn nào khác</footer>
+            <footer>
+              Thông tin lịch hẹn không được tạo mẫu trên trang này.
+            </footer>
           </article>
         </PlanGate>
         <article className="ref-card ref-tasks">
           <header>
-            <h2>Nhiệm vụ hôm nay</h2>
+            <h2>Gợi ý cho hôm nay</h2>
             <b>{done.length}/3</b>
           </header>
           {tasks.map((task, i) => (
@@ -323,8 +272,10 @@ export default function DashboardPage() {
               <SmallIcon type="check" />
             </i>
             <p>
-              <b>Làm bài đánh giá</b>
-              <span>Bài sàng lọc sức khỏe tinh thần PHQ-9</span>
+              <b>Làm bài sàng lọc</b>
+              <span>
+                Nhìn lại trải nghiệm 14 ngày gần đây với PHQ-9 hoặc GAD-7
+              </span>
             </p>
           </Link>
           <Link href="/specialists">
@@ -333,18 +284,28 @@ export default function DashboardPage() {
             </i>
             <p>
               <b>Tìm chuyên gia</b>
-              <span>2 chuyên gia phù hợp với bạn</span>
+              <span>Xem chuyên gia theo lĩnh vực bạn quan tâm</span>
             </p>
           </Link>
         </div>
       </section>
       <section ref={streakRef} className="ref-journal-streak">
-        <i>📖</i>
-        <p>
-          <b>Chuỗi viết nhật ký</b>
-          <span>Bạn đã duy trì được 7 ngày liên tiếp!</span>
-        </p>
-        <strong>🔥 7 ngày</strong>
+        <div className="ref-streak-left">
+          <div className="ref-streak-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </div>
+          <div className="ref-streak-text">
+            <h3>Dành một phút nhìn lại hôm nay</h3>
+            <p>Viết điều bạn đang cảm nhận theo cách riêng của mình.</p>
+          </div>
+        </div>
+        <Link href="/journal" className="ref-streak-btn">
+          <span>Viết nhật ký</span>
+          <span className="ref-streak-btn-arrow" aria-hidden="true">→</span>
+        </Link>
       </section>
     </div>
   )

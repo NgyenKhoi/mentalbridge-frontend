@@ -1,0 +1,908 @@
+import type { components } from '@/contracts/community.generated'
+
+export type CommunityAuthor = components['schemas']['CommunityAuthor']
+export type CommunityViewerState = components['schemas']['CommunityViewerState']
+export type CommunitySensitiveContentWarning =
+  components['schemas']['CommunitySensitiveContentWarning']
+type ContractCommunityPostSummary =
+  components['schemas']['CommunityPostSummary']
+type ContractCommunityPostDetail = components['schemas']['CommunityPostDetail']
+export type CommunityPostSummary = Omit<
+  ContractCommunityPostSummary,
+  'viewerState' | 'sensitiveContentWarning'
+> & {
+  viewerState?: CommunityViewerState
+  sensitiveContentWarning: CommunitySensitiveContentWarning | null
+}
+export type CommunityPostDetail = Omit<
+  ContractCommunityPostDetail,
+  'viewerState' | 'sensitiveContentWarning'
+> & {
+  viewerState?: CommunityViewerState
+  sensitiveContentWarning: CommunitySensitiveContentWarning | null
+}
+export type CommunityFeedPage = Omit<
+  components['schemas']['CommunityFeedPage'],
+  'items'
+> & { items: CommunityPostSummary[] }
+export type CommunityTopic = components['schemas']['CommunityTopic']
+export type CommunityTopicCode = components['schemas']['CommunityTopicCode']
+export type CommunityProfile = components['schemas']['CommunityProfile']
+export type CommunityAvatarPreset =
+  components['schemas']['CommunityAvatarPreset']
+export type CommunityAvatarImage = components['schemas']['CommunityAvatarImage']
+export type PutCommunityAvatarRequest =
+  components['schemas']['PutCommunityAvatarRequest']
+export type PutCommunityProfileRequest =
+  components['schemas']['PutCommunityProfileRequest']
+export type CommunityProblem = components['schemas']['Problem']
+export type CommunityPostWrite = components['schemas']['CreatePostRequest']
+export type CreateMediaUploadIntentRequest =
+  components['schemas']['CreateMediaUploadIntentRequest']
+export type MediaUploadIntent = components['schemas']['MediaUploadIntent']
+export type CommunityMediaRecord = components['schemas']['CommunityMediaRecord']
+export type CommunityComment = components['schemas']['CommunityComment']
+export type CommunityCommentPage = components['schemas']['CommunityCommentPage']
+export type CreateCommentRequest = components['schemas']['CreateCommentRequest']
+export type UpdateCommentRequest = components['schemas']['UpdateCommentRequest']
+export type SupportiveReaction = components['schemas']['SupportiveReaction']
+export type PutReactionRequest = components['schemas']['PutReactionRequest']
+export type CommunityReaction = components['schemas']['CommunityReaction']
+export type ReportTargetType = components['schemas']['ReportTargetType']
+export type ReportReason = components['schemas']['ReportReason']
+export type CreateReportRequest = components['schemas']['CreateReportRequest']
+export type ModerationCase = components['schemas']['ModerationCase']
+export type ModerationCaseState = components['schemas']['ModerationCaseState']
+export type ModerationPriority = components['schemas']['ModerationPriority']
+export type CreateModerationActionRequest =
+  components['schemas']['CreateModerationActionRequest']
+
+const UUID =
+  /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
+const TOPICS = new Set<CommunityTopicCode>([
+  'MY_STORY',
+  'SMALL_MILESTONE',
+  'HELPFUL_REFLECTION',
+  'PEER_QUESTION',
+  'EXPERIENCE_SHARING',
+  'HELPFUL_RESOURCE',
+])
+const MEDIA_TYPES = new Set(['IMAGE', 'VIDEO'])
+const MEDIA_AVAILABILITY = new Set(['NONE', 'READY', 'PARTIAL', 'UNAVAILABLE'])
+const MEDIA_STATES = new Set([
+  'PENDING',
+  'PROCESSING',
+  'READY',
+  'REJECTED',
+  'DELETED',
+  'EXPIRED',
+])
+const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime'])
+const UPLOAD_HOSTS = new Set([
+  'api.cloudinary.com',
+  'api-eu.cloudinary.com',
+  'api-ap.cloudinary.com',
+])
+const AVATAR_PRESETS = new Set<CommunityAvatarPreset>([
+  'LEAF',
+  'SUNRISE',
+  'WAVE',
+  'LOTUS',
+  'CLOUD',
+  'SPROUT',
+])
+const POST_AUTHOR_MODES = new Set(['PROFILE', 'ANONYMOUS'])
+const SENSITIVE_CONTENT_WARNINGS = new Set<CommunitySensitiveContentWarning>([
+  'SENSITIVE_CONTENT',
+])
+const COMMENT_STATES = new Set([
+  'ACTIVE',
+  'OWNER_DELETED',
+  'MODERATION_HIDDEN',
+  'MODERATION_REMOVED',
+])
+const SUPPORTIVE_REACTIONS = new Set<SupportiveReaction>([
+  'SUPPORT',
+  'RELATE',
+  'THANK_YOU',
+])
+const REPORT_TARGET_TYPES = new Set(['POST', 'COMMENT'])
+const REPORT_REASONS = new Set([
+  'HARASSMENT',
+  'PRIVACY_OR_DOXXING',
+  'MEDICAL_MISINFORMATION',
+  'SELF_HARM_OR_CRISIS_CONCERN',
+  'SPAM',
+  'SEXUAL_OR_VIOLENT_CONTENT',
+  'OTHER',
+])
+const MODERATION_STATES = new Set(['OPEN', 'IN_REVIEW', 'RESOLVED'])
+const MODERATION_PRIORITIES = new Set(['NORMAL', 'HIGH'])
+const MODERATION_ACTIONS = new Set([
+  'NO_ACTION',
+  'HIDE',
+  'REMOVE',
+  'RESTORE',
+  'RESTRICT_COMMUNITY_ACCESS',
+  'APPLY_SENSITIVE_WARNING',
+  'REMOVE_SENSITIVE_WARNING',
+])
+
+function record(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function exactKeys(value: Record<string, unknown>, allowed: readonly string[]) {
+  const keys = Object.keys(value)
+  return (
+    keys.length === allowed.length && keys.every((key) => allowed.includes(key))
+  )
+}
+
+function dateTime(value: unknown): value is string {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value))
+}
+
+function nonNegativeInteger(value: unknown) {
+  return Number.isSafeInteger(value) && Number(value) >= 0
+}
+
+function nullablePositiveInteger(value: unknown) {
+  return value === null || (Number.isSafeInteger(value) && Number(value) > 0)
+}
+
+function text(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): value is string {
+  if (typeof value !== 'string') return false
+  const length = [...value].length
+  return length >= minimum && length <= maximum
+}
+
+function avatarPreset(value: unknown): value is CommunityAvatarPreset | null {
+  return (
+    value === null ||
+    (typeof value === 'string' &&
+      AVATAR_PRESETS.has(value as CommunityAvatarPreset))
+  )
+}
+
+function httpsUrl(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 2048) return false
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
+
+function uploadUrl(value: unknown): value is string {
+  if (!httpsUrl(value)) return false
+  return UPLOAD_HOSTS.has(new URL(value).hostname)
+}
+
+export function parseCommunityReportInput(
+  value: unknown,
+): CreateReportRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['targetType', 'targetId', 'reason', 'details']) ||
+    !REPORT_TARGET_TYPES.has(String(input.targetType)) ||
+    typeof input.targetId !== 'string' ||
+    !UUID.test(input.targetId) ||
+    !REPORT_REASONS.has(String(input.reason)) ||
+    (input.details !== null && !text(input.details, 1, 1000)) ||
+    (typeof input.details === 'string' &&
+      input.details !== input.details.trim())
+  )
+    return null
+  return input as CreateReportRequest
+}
+
+export function parseModerationActionInput(
+  value: unknown,
+): CreateModerationActionRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['action', 'reasonCode']) ||
+    !MODERATION_ACTIONS.has(String(input.action)) ||
+    typeof input.reasonCode !== 'string' ||
+    !/^[A-Z0-9_]{1,64}$/.test(input.reasonCode)
+  )
+    return null
+  return input as CreateModerationActionRequest
+}
+
+export function parseModerationCase(value: unknown): ModerationCase | null {
+  const item = record(value)
+  const evidence = record(item?.evidence)
+  if (
+    !item ||
+    !exactKeys(item, [
+      'caseId',
+      'targetType',
+      'targetId',
+      'state',
+      'priority',
+      'reportReasons',
+      'reportContexts',
+      'evidence',
+      'actions',
+      'createdAt',
+      'updatedAt',
+      'version',
+    ]) ||
+    typeof item.caseId !== 'string' ||
+    !UUID.test(item.caseId) ||
+    !REPORT_TARGET_TYPES.has(String(item.targetType)) ||
+    typeof item.targetId !== 'string' ||
+    !UUID.test(item.targetId) ||
+    !MODERATION_STATES.has(String(item.state)) ||
+    !MODERATION_PRIORITIES.has(String(item.priority)) ||
+    !Array.isArray(item.reportReasons) ||
+    item.reportReasons.some((reason) => !REPORT_REASONS.has(String(reason))) ||
+    !Array.isArray(item.reportContexts) ||
+    item.reportContexts.length > 20 ||
+    item.reportContexts.some((context) => !text(context, 1, 1000)) ||
+    !evidence ||
+    !exactKeys(evidence, ['content', 'state', 'version']) ||
+    typeof evidence.content !== 'string' ||
+    typeof evidence.state !== 'string' ||
+    !nonNegativeInteger(evidence.version) ||
+    !Array.isArray(item.actions) ||
+    item.actions.some((action) => !parseModerationActionRecord(action)) ||
+    !dateTime(item.createdAt) ||
+    !dateTime(item.updatedAt) ||
+    !nonNegativeInteger(item.version)
+  )
+    return null
+  return item as ModerationCase
+}
+
+function parseModerationActionRecord(value: unknown) {
+  const item = record(value)
+  return Boolean(
+    item &&
+    exactKeys(item, [
+      'actionId',
+      'action',
+      'reasonCode',
+      'actorSubject',
+      'priorState',
+      'resultingState',
+      'targetVersion',
+      'createdAt',
+    ]) &&
+    typeof item.actionId === 'string' &&
+    UUID.test(item.actionId) &&
+    MODERATION_ACTIONS.has(String(item.action)) &&
+    typeof item.reasonCode === 'string' &&
+    typeof item.actorSubject === 'string' &&
+    UUID.test(item.actorSubject) &&
+    typeof item.priorState === 'string' &&
+    typeof item.resultingState === 'string' &&
+    nonNegativeInteger(item.targetVersion) &&
+    dateTime(item.createdAt),
+  )
+}
+
+export function parseModerationCases(value: unknown): ModerationCase[] | null {
+  if (!Array.isArray(value)) return null
+  const parsed = value.map(parseModerationCase)
+  return parsed.every((item): item is ModerationCase => item !== null)
+    ? parsed
+    : null
+}
+
+function parseAuthor(value: unknown): CommunityAuthor | null {
+  const author = record(value)
+  if (!author) return null
+  const hasAvatarPreset = Object.hasOwn(author, 'avatarPreset')
+  const allowedKeys = hasAvatarPreset
+    ? ['communityProfileId', 'displayName', 'avatarPreset', 'state']
+    : ['communityProfileId', 'displayName', 'state']
+  if (Object.hasOwn(author, 'avatarImage')) allowedKeys.push('avatarImage')
+  const normalizedAvatarPreset = hasAvatarPreset ? author.avatarPreset : null
+  const hasImage = Object.hasOwn(author, 'avatarImage')
+  const avatarImage = hasImage
+    ? parseCommunityAvatarImage(author.avatarImage)
+    : null
+  const anonymous = author.state === 'ANONYMOUS'
+  if (
+    !exactKeys(author, allowedKeys) ||
+    (anonymous
+      ? author.communityProfileId !== null
+      : typeof author.communityProfileId !== 'string' ||
+        !UUID.test(author.communityProfileId)) ||
+    !text(author.displayName, 1, 80) ||
+    !avatarPreset(normalizedAvatarPreset) ||
+    (author.state !== 'ACTIVE' &&
+      author.state !== 'DELETED' &&
+      author.state !== 'ANONYMOUS') ||
+    (anonymous && normalizedAvatarPreset !== null) ||
+    (hasImage && (author.state !== 'ACTIVE' || !avatarImage))
+  ) {
+    return null
+  }
+  const communityProfileId = anonymous
+    ? null
+    : (author.communityProfileId as string)
+  return {
+    communityProfileId,
+    displayName: author.displayName,
+    avatarPreset: normalizedAvatarPreset,
+    state: author.state,
+    ...(avatarImage ? { avatarImage } : {}),
+  }
+}
+
+export function parseCommunityProfile(value: unknown): CommunityProfile | null {
+  const profile = record(value)
+  if (
+    !profile ||
+    !exactKeys(profile, [
+      'communityProfileId',
+      'displayName',
+      'avatarPreset',
+      'status',
+      'version',
+      'createdAt',
+      'updatedAt',
+      ...(Object.hasOwn(profile, 'avatarImage') ? ['avatarImage'] : []),
+    ]) ||
+    typeof profile.communityProfileId !== 'string' ||
+    !UUID.test(profile.communityProfileId) ||
+    !text(profile.displayName, 1, 80) ||
+    !avatarPreset(profile.avatarPreset) ||
+    (profile.status !== 'ACTIVE' && profile.status !== 'DELETED') ||
+    !nonNegativeInteger(profile.version) ||
+    !dateTime(profile.createdAt) ||
+    !dateTime(profile.updatedAt) ||
+    (Object.hasOwn(profile, 'avatarImage') &&
+      (profile.status !== 'ACTIVE' ||
+        !parseCommunityAvatarImage(profile.avatarImage)))
+  ) {
+    return null
+  }
+  return profile as CommunityProfile
+}
+
+export function parseCommunityProfileInput(
+  value: unknown,
+): PutCommunityProfileRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['displayName', 'avatarPreset']) ||
+    !text(input.displayName, 1, 80) ||
+    input.displayName !== (input.displayName as string).trim() ||
+    !avatarPreset(input.avatarPreset)
+  ) {
+    return null
+  }
+  return input as PutCommunityProfileRequest
+}
+
+export function parseCommunityAvatarImage(
+  value: unknown,
+): CommunityAvatarImage | null {
+  const image = record(value)
+  if (
+    !image ||
+    !exactKeys(image, ['mediaId', 'url', 'width', 'height']) ||
+    typeof image.mediaId !== 'string' ||
+    !UUID.test(image.mediaId) ||
+    !httpsUrl(image.url) ||
+    !Number.isSafeInteger(image.width) ||
+    Number(image.width) < 1 ||
+    !Number.isSafeInteger(image.height) ||
+    Number(image.height) < 1
+  )
+    return null
+  return image as CommunityAvatarImage
+}
+
+export function parseCommunityAvatarInput(
+  value: unknown,
+): PutCommunityAvatarRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['mediaId']) ||
+    (input.mediaId !== null &&
+      (typeof input.mediaId !== 'string' || !UUID.test(input.mediaId)))
+  )
+    return null
+  return input as PutCommunityAvatarRequest
+}
+
+export function isCommunityEtag(value: string | null): value is string {
+  return value !== null && /^"(0|[1-9]\d*)"$/.test(value)
+}
+
+function parseCounts(value: unknown) {
+  const counts = record(value)
+  return Boolean(
+    counts &&
+    exactKeys(counts, ['comments', 'reactions']) &&
+    nonNegativeInteger(counts.comments) &&
+    nonNegativeInteger(counts.reactions),
+  )
+}
+
+function parseViewerState(value: unknown): value is CommunityViewerState {
+  const state = record(value)
+  return Boolean(
+    state &&
+    exactKeys(state, ['reaction', 'bookmarked']) &&
+    (state.reaction === null ||
+      (typeof state.reaction === 'string' &&
+        SUPPORTIVE_REACTIONS.has(state.reaction as SupportiveReaction))) &&
+    typeof state.bookmarked === 'boolean',
+  )
+}
+
+function parseMedia(value: unknown) {
+  const media = record(value)
+  return Boolean(
+    media &&
+    exactKeys(media, [
+      'mediaId',
+      'type',
+      'url',
+      'width',
+      'height',
+      'durationSeconds',
+      'altText',
+    ]) &&
+    typeof media.mediaId === 'string' &&
+    UUID.test(media.mediaId) &&
+    typeof media.type === 'string' &&
+    MEDIA_TYPES.has(media.type) &&
+    httpsUrl(media.url) &&
+    nullablePositiveInteger(media.width) &&
+    nullablePositiveInteger(media.height) &&
+    nullablePositiveInteger(media.durationSeconds) &&
+    (media.altText === null || text(media.altText, 0, 300)),
+  )
+}
+
+function parsePost(
+  value: unknown,
+  detail: boolean,
+): CommunityPostSummary | CommunityPostDetail | null {
+  const post = record(value)
+  const content = detail ? post?.content : post?.contentPreview
+  const author = parseAuthor(post?.author)
+  const keys = [
+    'postId',
+    'author',
+    detail ? 'content' : 'contentPreview',
+    'topics',
+    'media',
+    'mediaAvailability',
+    'counts',
+    'publishedAt',
+    'updatedAt',
+  ]
+  const optionalKeys = [
+    'viewerState',
+    'resourceAttachment',
+    'sensitiveContentWarning',
+  ].filter((key) => Object.hasOwn(post ?? {}, key))
+  const resourceAttachment = record(post?.resourceAttachment)
+  if (
+    !post ||
+    !exactKeys(post, [...keys, ...optionalKeys]) ||
+    typeof post.postId !== 'string' ||
+    !UUID.test(post.postId) ||
+    !author ||
+    !text(content, 1, detail ? 5000 : 421) ||
+    !Array.isArray(post.topics) ||
+    post.topics.length < 1 ||
+    !post.topics.every(
+      (topic) =>
+        typeof topic === 'string' && TOPICS.has(topic as CommunityTopicCode),
+    ) ||
+    new Set(post.topics).size !== post.topics.length ||
+    !Array.isArray(post.media) ||
+    post.media.length > 10 ||
+    !post.media.every(parseMedia) ||
+    typeof post.mediaAvailability !== 'string' ||
+    !MEDIA_AVAILABILITY.has(post.mediaAvailability) ||
+    (post.resourceAttachment !== undefined &&
+      post.resourceAttachment !== null &&
+      (!resourceAttachment ||
+        !exactKeys(resourceAttachment, ['resourceId']) ||
+        typeof resourceAttachment.resourceId !== 'string' ||
+        !UUID.test(resourceAttachment.resourceId))) ||
+    (post.sensitiveContentWarning !== undefined &&
+      post.sensitiveContentWarning !== null &&
+      (typeof post.sensitiveContentWarning !== 'string' ||
+        !SENSITIVE_CONTENT_WARNINGS.has(
+          post.sensitiveContentWarning as CommunitySensitiveContentWarning,
+        ))) ||
+    !parseCounts(post.counts) ||
+    ('viewerState' in post && !parseViewerState(post.viewerState)) ||
+    !dateTime(post.publishedAt) ||
+    !dateTime(post.updatedAt)
+  ) {
+    return null
+  }
+  return {
+    ...post,
+    author,
+    resourceAttachment: resourceAttachment ?? null,
+    sensitiveContentWarning:
+      (post.sensitiveContentWarning as CommunitySensitiveContentWarning) ??
+      null,
+  } as CommunityPostSummary | CommunityPostDetail
+}
+
+export function isCommunityPostId(value: string) {
+  return UUID.test(value)
+}
+
+export function isCommunityMediaId(value: string) {
+  return UUID.test(value)
+}
+
+export function isCommunityCommentId(value: string) {
+  return UUID.test(value)
+}
+
+export function isCommunityTopic(value: string): value is CommunityTopicCode {
+  return TOPICS.has(value as CommunityTopicCode)
+}
+
+export function parseCommunityPostWrite(
+  value: unknown,
+): CommunityPostWrite | null {
+  const input = record(value)
+  const hasAuthorMode = Boolean(input && Object.hasOwn(input, 'authorMode'))
+  const hasResourceId = Boolean(input && Object.hasOwn(input, 'resourceId'))
+  const hasSensitiveContentWarning = Boolean(
+    input && Object.hasOwn(input, 'sensitiveContentWarning'),
+  )
+  const keys = ['content', 'topics', 'mediaIds']
+  if (hasAuthorMode) keys.push('authorMode')
+  if (hasResourceId) keys.push('resourceId')
+  if (hasSensitiveContentWarning) keys.push('sensitiveContentWarning')
+  if (
+    !input ||
+    !exactKeys(input, keys) ||
+    !text(input.content, 1, 5000) ||
+    (input.content as string).trim().length === 0 ||
+    !Array.isArray(input.topics) ||
+    input.topics.length < 1 ||
+    input.topics.length > 3 ||
+    !input.topics.every(
+      (topic) =>
+        typeof topic === 'string' && TOPICS.has(topic as CommunityTopicCode),
+    ) ||
+    new Set(input.topics).size !== input.topics.length ||
+    !Array.isArray(input.mediaIds) ||
+    input.mediaIds.length > 10 ||
+    !input.mediaIds.every((mediaId) =>
+      typeof mediaId === 'string' ? UUID.test(mediaId) : false,
+    ) ||
+    new Set(input.mediaIds).size !== input.mediaIds.length ||
+    (hasAuthorMode &&
+      (typeof input.authorMode !== 'string' ||
+        !POST_AUTHOR_MODES.has(input.authorMode))) ||
+    (hasResourceId &&
+      input.resourceId !== null &&
+      (typeof input.resourceId !== 'string' || !UUID.test(input.resourceId))) ||
+    (hasSensitiveContentWarning &&
+      input.sensitiveContentWarning !== null &&
+      (typeof input.sensitiveContentWarning !== 'string' ||
+        !SENSITIVE_CONTENT_WARNINGS.has(
+          input.sensitiveContentWarning as CommunitySensitiveContentWarning,
+        )))
+  ) {
+    return null
+  }
+  return input as CommunityPostWrite
+}
+
+export function parseCreateCommentRequest(
+  value: unknown,
+): CreateCommentRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['content', 'parentCommentId']) ||
+    !text(input.content, 1, 2000) ||
+    (input.content as string).trim().length === 0 ||
+    !(
+      input.parentCommentId === null ||
+      (typeof input.parentCommentId === 'string' &&
+        UUID.test(input.parentCommentId))
+    )
+  ) {
+    return null
+  }
+  return input as CreateCommentRequest
+}
+
+export function parseUpdateCommentRequest(
+  value: unknown,
+): UpdateCommentRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['content']) ||
+    !text(input.content, 1, 2000) ||
+    (input.content as string).trim().length === 0
+  ) {
+    return null
+  }
+  return input as UpdateCommentRequest
+}
+
+export function parsePutReactionRequest(
+  value: unknown,
+): PutReactionRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['reaction']) ||
+    typeof input.reaction !== 'string' ||
+    !SUPPORTIVE_REACTIONS.has(input.reaction as SupportiveReaction)
+  ) {
+    return null
+  }
+  return input as PutReactionRequest
+}
+
+export function parseCommunityReaction(
+  value: unknown,
+): CommunityReaction | null {
+  const reaction = record(value)
+  if (
+    !reaction ||
+    !exactKeys(reaction, ['postId', 'reaction']) ||
+    typeof reaction.postId !== 'string' ||
+    !UUID.test(reaction.postId) ||
+    typeof reaction.reaction !== 'string' ||
+    !SUPPORTIVE_REACTIONS.has(reaction.reaction as SupportiveReaction)
+  ) {
+    return null
+  }
+  return reaction as CommunityReaction
+}
+
+export function parseCreateMediaUploadIntent(
+  value: unknown,
+): CreateMediaUploadIntentRequest | null {
+  const input = record(value)
+  if (
+    !input ||
+    !exactKeys(input, ['fileName', 'mediaType', 'mimeType', 'sizeBytes']) ||
+    !text(input.fileName, 1, 255) ||
+    (input.fileName as string).trim().length === 0 ||
+    [...(input.fileName as string)].some((character) =>
+      /[\u0000-\u001f\u007f]/.test(character),
+    ) ||
+    (input.mediaType !== 'IMAGE' && input.mediaType !== 'VIDEO') ||
+    typeof input.mimeType !== 'string' ||
+    !Number.isSafeInteger(input.sizeBytes) ||
+    Number(input.sizeBytes) < 1
+  ) {
+    return null
+  }
+  const allowed =
+    input.mediaType === 'IMAGE' ? IMAGE_MIME_TYPES : VIDEO_MIME_TYPES
+  const maximum = input.mediaType === 'IMAGE' ? 10_485_760 : 52_428_800
+  if (!allowed.has(input.mimeType) || Number(input.sizeBytes) > maximum) {
+    return null
+  }
+  return input as CreateMediaUploadIntentRequest
+}
+
+export function parseMediaUploadIntent(
+  value: unknown,
+): MediaUploadIntent | null {
+  const intent = record(value)
+  const fields = record(intent?.uploadFields)
+  if (
+    !intent ||
+    !exactKeys(intent, [
+      'mediaId',
+      'state',
+      'uploadUrl',
+      'expiresAt',
+      'uploadFields',
+      'version',
+    ]) ||
+    typeof intent.mediaId !== 'string' ||
+    !UUID.test(intent.mediaId) ||
+    intent.state !== 'PENDING' ||
+    !uploadUrl(intent.uploadUrl) ||
+    !dateTime(intent.expiresAt) ||
+    !fields ||
+    Object.keys(fields).length < 1 ||
+    Object.keys(fields).length > 16 ||
+    !Object.entries(fields).every(
+      ([key, field]) =>
+        /^[a-z][a-z0-9_]{0,63}$/.test(key) &&
+        typeof field === 'string' &&
+        field.length <= 1024,
+    ) ||
+    !nonNegativeInteger(intent.version)
+  ) {
+    return null
+  }
+  return intent as MediaUploadIntent
+}
+
+export function parseCommunityMediaRecord(
+  value: unknown,
+): CommunityMediaRecord | null {
+  const media = record(value)
+  if (
+    !media ||
+    !exactKeys(media, [
+      'mediaId',
+      'mediaType',
+      'state',
+      'version',
+      'createdAt',
+      'updatedAt',
+    ]) ||
+    typeof media.mediaId !== 'string' ||
+    !UUID.test(media.mediaId) ||
+    (media.mediaType !== 'IMAGE' && media.mediaType !== 'VIDEO') ||
+    typeof media.state !== 'string' ||
+    !MEDIA_STATES.has(media.state) ||
+    !nonNegativeInteger(media.version) ||
+    !dateTime(media.createdAt) ||
+    !dateTime(media.updatedAt)
+  ) {
+    return null
+  }
+  return media as CommunityMediaRecord
+}
+
+export function parseOwnerVersion(value: string | null): number | null {
+  if (!value || !/^"(?:0|[1-9]\d*)"$/.test(value)) return null
+  const version = Number(value.slice(1, -1))
+  return Number.isSafeInteger(version) ? version : null
+}
+
+export function parseCommunityFeedPage(
+  value: unknown,
+): CommunityFeedPage | null {
+  const page = record(value)
+  const items = Array.isArray(page?.items)
+    ? page.items.map((item) => parsePost(item, false))
+    : null
+  if (
+    !page ||
+    !exactKeys(page, ['items', 'nextCursor', 'hasMore']) ||
+    !items ||
+    items.some((item) => item === null) ||
+    !(page.nextCursor === null || typeof page.nextCursor === 'string') ||
+    (typeof page.nextCursor === 'string' && page.nextCursor.length > 256) ||
+    typeof page.hasMore !== 'boolean' ||
+    (page.hasMore && !page.nextCursor)
+  ) {
+    return null
+  }
+  return { ...page, items } as CommunityFeedPage
+}
+
+export function parseCommunityPostDetail(
+  value: unknown,
+): CommunityPostDetail | null {
+  return parsePost(value, true) as CommunityPostDetail | null
+}
+
+export function parseCommunityComment(value: unknown): CommunityComment | null {
+  const comment = record(value)
+  const author = parseAuthor(comment?.author)
+  if (
+    !comment ||
+    !exactKeys(comment, [
+      'commentId',
+      'postId',
+      'parentCommentId',
+      'author',
+      'content',
+      'state',
+      'version',
+      'createdAt',
+      'updatedAt',
+    ]) ||
+    typeof comment.commentId !== 'string' ||
+    !UUID.test(comment.commentId) ||
+    typeof comment.postId !== 'string' ||
+    !UUID.test(comment.postId) ||
+    !(
+      comment.parentCommentId === null ||
+      (typeof comment.parentCommentId === 'string' &&
+        UUID.test(comment.parentCommentId))
+    ) ||
+    !author ||
+    !text(comment.content, 1, 2000) ||
+    typeof comment.state !== 'string' ||
+    !COMMENT_STATES.has(comment.state) ||
+    !nonNegativeInteger(comment.version) ||
+    !dateTime(comment.createdAt) ||
+    !dateTime(comment.updatedAt)
+  ) {
+    return null
+  }
+  return { ...comment, author } as CommunityComment
+}
+
+export function parseCommunityCommentPage(
+  value: unknown,
+): CommunityCommentPage | null {
+  const page = record(value)
+  const items = Array.isArray(page?.items)
+    ? page.items.map(parseCommunityComment)
+    : null
+  if (
+    !page ||
+    !exactKeys(page, ['items', 'nextCursor', 'hasMore']) ||
+    !items ||
+    items.some((item) => item === null) ||
+    !(page.nextCursor === null || typeof page.nextCursor === 'string') ||
+    (typeof page.nextCursor === 'string' && page.nextCursor.length > 256) ||
+    typeof page.hasMore !== 'boolean' ||
+    (page.hasMore && !page.nextCursor)
+  ) {
+    return null
+  }
+  return { ...page, items } as CommunityCommentPage
+}
+
+export function parseCommunityTopics(value: unknown): CommunityTopic[] | null {
+  if (
+    !Array.isArray(value) ||
+    value.length > TOPICS.size ||
+    !value.every((entry) => {
+      const topic = record(entry)
+      return Boolean(
+        topic &&
+        exactKeys(topic, ['code', 'label', 'description']) &&
+        typeof topic.code === 'string' &&
+        TOPICS.has(topic.code as CommunityTopicCode) &&
+        text(topic.label, 1, 80) &&
+        text(topic.description, 1, 240),
+      )
+    }) ||
+    new Set(value.map((entry) => (entry as { code: string }).code)).size !==
+      value.length
+  ) {
+    return null
+  }
+  return value as CommunityTopic[]
+}
+
+export function parseCommunityProblem(
+  value: unknown,
+  responseStatus: number,
+): CommunityProblem | null {
+  const problem = record(value)
+  if (
+    !problem ||
+    typeof problem.type !== 'string' ||
+    typeof problem.title !== 'string' ||
+    problem.status !== responseStatus ||
+    typeof problem.code !== 'string' ||
+    !/^[A-Z0-9_]{1,64}$/.test(problem.code)
+  ) {
+    return null
+  }
+  return problem as CommunityProblem
+}

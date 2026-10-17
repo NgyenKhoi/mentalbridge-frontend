@@ -1,0 +1,899 @@
+{
+  "checks": [
+    "1440x900: feed/saved/detail/comments/profile/composer, loaded Vietnamese font, no overflow, preserved chrome, draft validation/Escape/focus",
+    "1280x800: feed/saved/detail/comments/profile/composer, loaded Vietnamese font, no overflow, preserved chrome, draft validation/Escape/focus",
+    "768x1024: feed/saved/detail/comments/profile/composer, loaded Vietnamese font, no overflow, preserved chrome, draft validation/Escape/focus",
+    "375x812: feed/saved/detail/comments/profile/composer, loaded Vietnamese font, no overflow, preserved chrome, draft validation/Escape/focus",
+    "640x400: feed/saved/detail/comments/profile/composer, loaded Vietnamese font, no overflow, preserved chrome, draft validation/Escape/focus",
+    "Explicit topic OR filtering and empty-filter recovery use fixture membership",
+    "Reaction pending preserves state; duplicate commands suppressed; add +1, replacement unchanged, remove -1; error unchanged with no success pulse; retry succeeds; reduced motion static",
+    "Two-image gallery button/keyboard navigation, uncropped viewer, Escape, trigger focus restoration",
+    "Profile edit feedback and in-memory navigation persistence"
+  ],
+  "captures": [
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\feed-1440x900.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\feed-1440x900-viewport.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\saved-1440x900.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\detail-1440x900.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\comments-1440x900.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\profile-1440x900.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\composer-1440x900.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\feed-1280x800.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\feed-1280x800-viewport.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\saved-1280x800.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\detail-1280x800.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\comments-1280x800.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\profile-1280x800.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\composer-1280x800.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\feed-768x1024.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\feed-768x1024-viewport.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\saved-768x1024.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\detail-768x1024.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\comments-768x1024.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\profile-768x1024.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\composer-768x1024.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\feed-375x812.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\feed-375x812-viewport.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\saved-375x812.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\detail-375x812.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\comments-375x812.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\profile-375x812.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\composer-375x812.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\feed-640x400.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\feed-640x400-viewport.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\saved-640x400.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\detail-640x400.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\comments-640x400.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\profile-640x400.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\composer-640x400.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\filter-empty-1440x900.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\reaction-error-1440x900.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\reaction-reduced-motion-1440x900.png",
+    "D:\\mentalbridge\\mentalbridge-frontend\\mentalbridge\\.stitch\\community-social\\prototype-qa\\gallery-viewer-1440x900.png"
+  ],
+  "errors": [],
+  "apiRequests": [],
+  "fonts": [
+    {
+      "name": "feed-1440x900",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "feed-1440x900-viewport",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "saved-1440x900",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "detail-1440x900",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "comments-1440x900",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "profile-1440x900",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "composer-1440x900",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "feed-1280x800",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "feed-1280x800-viewport",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "saved-1280x800",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "detail-1280x800",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "comments-1280x800",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "profile-1280x800",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "composer-1280x800",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "feed-768x1024",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "feed-768x1024-viewport",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "saved-768x1024",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "detail-768x1024",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "comments-768x1024",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "profile-768x1024",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "composer-768x1024",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "feed-375x812",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "feed-375x812-viewport",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "saved-375x812",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "detail-375x812",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "comments-375x812",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "profile-375x812",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "composer-375x812",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "feed-640x400",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "feed-640x400-viewport",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "saved-640x400",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "detail-640x400",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "comments-640x400",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "profile-640x400",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "composer-640x400",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "filter-empty-1440x900",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces Fallback",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "reaction-error-1440x900",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces Fallback",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "reaction-reduced-motion-1440x900",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    },
+    {
+      "name": "gallery-viewer-1440x900",
+      "status": "loaded",
+      "family": "\"Be Vietnam Pro\", \"Be Vietnam Pro Fallback\", sans-serif",
+      "loaded": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ]
+    }
+  ],
+  "geometry": [
+    {
+      "size": "1440x900",
+      "media": {
+        "width": 678,
+        "height": 381.375,
+        "naturalWidth": 1920,
+        "naturalHeight": 1080,
+        "fit": "contain"
+      }
+    },
+    {
+      "size": "1280x800",
+      "media": {
+        "width": 678,
+        "height": 381.375,
+        "naturalWidth": 1920,
+        "naturalHeight": 1080,
+        "fit": "contain"
+      }
+    },
+    {
+      "size": "768x1024",
+      "media": {
+        "width": 678,
+        "height": 381.375,
+        "naturalWidth": 1920,
+        "naturalHeight": 1080,
+        "fit": "contain"
+      }
+    },
+    {
+      "size": "375x812",
+      "media": {
+        "width": 349,
+        "height": 196.3125,
+        "naturalWidth": 1920,
+        "naturalHeight": 1080,
+        "fit": "contain"
+      }
+    },
+    {
+      "size": "640x400",
+      "media": {
+        "width": 614,
+        "height": 300,
+        "naturalWidth": 1920,
+        "naturalHeight": 1080,
+        "fit": "contain"
+      }
+    }
+  ],
+  "result": "passed"
+}

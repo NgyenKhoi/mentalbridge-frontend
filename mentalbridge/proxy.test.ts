@@ -17,6 +17,17 @@ describe('proxy', () => {
     )
   })
 
+  it('protects resources before rendering their authenticated layout', () => {
+    const response = proxy(
+      new NextRequest('https://mentalbridge.test/resources/resource-1'),
+    )
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      'https://mentalbridge.test/login?next=%2Fresources%2Fresource-1',
+    )
+  })
+
   it('allows a request with a session hint without treating it as authorization', () => {
     const response = proxy(
       new NextRequest('https://mentalbridge.test/dashboard', {

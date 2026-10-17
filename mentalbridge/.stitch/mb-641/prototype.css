@@ -1,0 +1,245 @@
+.emotion-action,
+.emotion-plan-review,
+.emotion-progress {
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  min-width: 0;
+}
+.emotion-action {
+  border-left: 4px solid var(--teal);
+  margin-top: var(--space-4);
+}
+.emotion-action-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.emotion-action h3,
+.emotion-secondary h3 {
+  font-family: var(--font-display), serif;
+  font-size: 22px;
+  line-height: 1.3;
+  margin: var(--space-1) 0;
+}
+.emotion-action p,
+.emotion-action li,
+.emotion-return-strip p,
+.emotion-secondary p {
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 72ch;
+}
+.emotion-mark {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  border-radius: var(--radius-control);
+}
+.emotion-mark svg {
+  width: 24px;
+  height: 24px;
+}
+.emotion-meta {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+.emotion-purpose {
+  list-style: disc;
+  padding-left: var(--space-5);
+  margin: var(--space-3) 0;
+  color: var(--ink-soft);
+}
+.emotion-state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink-soft);
+  font-weight: 600;
+  margin: var(--space-3) 0;
+}
+.emotion-state svg {
+  width: 20px;
+  height: 20px;
+  display: none;
+}
+.emotion-state.is-completed {
+  color: var(--teal-deep);
+}
+.emotion-state.is-completed svg {
+  display: block;
+}
+.emotion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-3);
+}
+.emotion-actions .btn,
+.emotion-return-strip .btn {
+  min-height: 44px;
+  white-space: normal;
+  text-align: center;
+}
+.emotion-context {
+  color: var(--ink-soft);
+  margin-top: var(--space-3);
+}
+.emotion-secondary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) 0;
+  border-bottom: 1px solid var(--line);
+}
+.emotion-secondary > div {
+  flex: 1;
+  min-width: 0;
+}
+.emotion-secondary h3 {
+  font-size: 18px;
+}
+.emotion-return-strip {
+  padding: var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  margin: var(--space-3) 0;
+  scroll-margin-top: 100px;
+}
+.emotion-return-strip p {
+  margin: var(--space-1) 0;
+  color: var(--ink-soft);
+}
+.emotion-return-strip strong {
+  font-size: 14px;
+  line-height: 1.5;
+  display: block;
+}
+.emotion-return-strip .btn {
+  margin-top: var(--space-2);
+  font-size: 13px;
+}
+[data-evidence-status]:not(:empty),
+[data-origin-note]:not(:empty) {
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  margin-top: var(--space-3);
+}
+[data-evidence-status].is-error {
+  border: 1px solid var(--terracotta);
+}
+.emotion-action.is-updated .emotion-state {
+  animation: emotion-commit var(--motion-base) var(--ease-standard);
+}
+@keyframes emotion-commit {
+  from {
+    opacity: 0.7;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.emotion-fixture {
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 13px;
+}
+.emotion-fixture summary {
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.emotion-fixture div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.emotion-fixture button {
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  font: inherit;
+  color: var(--ink);
+}
+.emotion-fixture p {
+  margin: var(--space-3) 0;
+  line-height: 1.5;
+}
+.emotion-action :focus-visible,
+.emotion-fixture :focus-visible,
+.emotion-return-strip :focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 3px;
+}
+#delete-confirm {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-6);
+  max-width: min(480px, calc(100vw - 32px));
+  background: var(--surface);
+  color: var(--ink);
+}
+#delete-confirm::backdrop {
+  background: rgba(27, 42, 34, 0.4);
+}
+#delete-confirm h2 {
+  font-family: var(--font-display), serif;
+  font-size: 24px;
+  margin-bottom: var(--space-3);
+}
+#delete-confirm p {
+  line-height: 1.6;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 767px) {
+  .emotion-action,
+  .emotion-plan-review,
+  .emotion-progress {
+    padding: var(--space-4);
+  }
+  .emotion-secondary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .emotion-action h3 {
+    font-size: 21px;
+  }
+  .emotion-action p,
+  .emotion-action li {
+    font-size: 15px;
+  }
+  .emotion-actions {
+    align-items: stretch;
+  }
+  .emotion-actions .btn {
+    flex: 1 1 140px;
+  }
+  .emotion-return-strip {
+    scroll-margin-top: 80px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .emotion-action.is-updated .emotion-state {
+    animation: none;
+  }
+}

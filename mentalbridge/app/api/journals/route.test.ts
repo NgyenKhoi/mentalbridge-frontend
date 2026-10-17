@@ -40,6 +40,7 @@ const created = {
   updatedAt: timestamp,
   deleted: false,
   tags: [],
+  mood: 'GOOD',
   encryption: {
     algorithm: 'AES-256-GCM',
     keyId: 'test-v1',
@@ -52,6 +53,7 @@ const body = {
   clientEntryId: '50000000-0000-4000-8000-000000000001',
   occurredAt: timestamp,
   content: { text: 'synthetic journal' },
+  mood: 'GOOD',
 }
 
 function request(method = 'GET', requestBody?: unknown, key?: string) {

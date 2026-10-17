@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import ResourcesList from '@/components/ResourcesList'
+import { Disclosure } from '@/components/ui/Disclosure'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type {
   AssessmentResult,
@@ -41,10 +44,79 @@ const levelLabels: Record<ScreeningLevel, string> = {
 }
 
 const instrumentLabels: Readonly<
-  Record<Instrument, { shortName: string; resultTitle: string }>
+  Record<Instrument, { shortName: string; resultTitle: string; topic: string }>
 > = {
-  PHQ9: { shortName: 'PHQ-9', resultTitle: 'Kết quả sàng lọc PHQ-9' },
-  GAD7: { shortName: 'GAD-7', resultTitle: 'Kết quả sàng lọc GAD-7' },
+  PHQ9: {
+    shortName: 'PHQ-9',
+    resultTitle: 'Kết quả sàng lọc PHQ-9',
+    topic: 'Dấu hiệu liên quan tâm trạng',
+  },
+  GAD7: {
+    shortName: 'GAD-7',
+    resultTitle: 'Kết quả sàng lọc GAD-7',
+    topic: 'Dấu hiệu lo âu',
+  },
+}
+
+type ScreeningMeaning = Readonly<{ text: string; limitation: string }>
+
+const screeningMeanings: Readonly<
+  Record<Instrument, Record<ScreeningLevel, ScreeningMeaning>>
+> = {
+  PHQ9: {
+    MINIMAL: {
+      text: 'Trong 14 ngày qua, các câu trả lời PHQ-9 của bạn cho thấy ít hoặc không có dấu hiệu đáng kể liên quan đến tâm trạng, hứng thú, giấc ngủ, năng lượng hoặc sinh hoạt. Kết quả cho thấy sức khỏe tinh thần của bạn đang ở trạng thái ổn định.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MILD: {
+      text: 'Trong 14 ngày qua, các câu trả lời PHQ-9 của bạn cho thấy một số dấu hiệu nhẹ liên quan đến tâm trạng, hứng thú, giấc ngủ, năng lượng hoặc sinh hoạt. Những trải nghiệm này có thể đáng để bạn quan tâm hơn, đặc biệt nếu chúng kéo dài.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MODERATE: {
+      text: 'Trong 14 ngày qua, các câu trả lời PHQ-9 của bạn cho thấy nhiều dấu hiệu liên quan đến tâm trạng, hứng thú, giấc ngủ, năng lượng hoặc sinh hoạt ở mức trung bình. Những trải nghiệm này có thể đáng để bạn quan tâm hơn, nhất là khi chúng làm gián đoạn giấc ngủ, khả năng tập trung, công việc, học tập hoặc các mối quan hệ.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MODERATELY_SEVERE: {
+      text: 'Trong 14 ngày qua, các câu trả lời PHQ-9 của bạn cho thấy nhiều dấu hiệu liên quan đến tâm trạng, hứng thú, giấc ngủ, năng lượng hoặc sinh hoạt ở mức khá nặng. Kết quả cho thấy bạn đang ghi nhận khó khăn ở nhiều nội dung của bài sàng lọc; chủ động tìm một người có chuyên môn để trao đổi có thể giúp bạn hiểu rõ hơn điều mình đang trải qua.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    SEVERE: {
+      text: 'Trong 14 ngày qua, các câu trả lời PHQ-9 của bạn cho thấy nhiều dấu hiệu nghiêm trọng liên quan đến tâm trạng, hứng thú, giấc ngủ, năng lượng hoặc sinh hoạt. Kết quả cho thấy bạn đang ghi nhận khó khăn đáng kể ở hầu hết nội dung; việc liên hệ với chuyên gia sức khỏe tinh thần có thể giúp bạn nhận được hỗ trợ kịp thời.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+  },
+  GAD7: {
+    MINIMAL: {
+      text: 'Trong 14 ngày qua, các câu trả lời GAD-7 của bạn cho thấy ít hoặc không có dấu hiệu đáng kể liên quan đến lo lắng, căng thẳng hoặc khó thư giãn. Kết quả cho thấy bạn đang ở trạng thái tương đối bình ổn về mặt lo âu.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MILD: {
+      text: 'Trong 14 ngày qua, các câu trả lời GAD-7 của bạn cho thấy một số dấu hiệu nhẹ liên quan đến lo lắng, căng thẳng hoặc khó thư giãn. Những trải nghiệm này có thể đáng để bạn lưu ý, đặc biệt nếu chúng bắt đầu ảnh hưởng đến giấc ngủ hoặc sinh hoạt hàng ngày.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MODERATE: {
+      text: 'Trong 14 ngày qua, các câu trả lời GAD-7 của bạn cho thấy nhiều dấu hiệu như lo lắng, căng thẳng hoặc khó thư giãn ở mức trung bình. Những trải nghiệm này có thể đáng để bạn quan tâm hơn, nhất là khi chúng làm gián đoạn giấc ngủ, khả năng tập trung, công việc, học tập hoặc các mối quan hệ.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    MODERATELY_SEVERE: {
+      text: 'Trong 14 ngày qua, các câu trả lời GAD-7 của bạn cho thấy nhiều dấu hiệu như lo lắng, căng thẳng hoặc khó thư giãn ở mức khá nặng. Kết quả cho thấy bạn đang ghi nhận khó khăn ở nhiều nội dung; chủ động tìm một người có chuyên môn để trao đổi có thể giúp bạn hiểu rõ hơn điều mình đang trải qua.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+    SEVERE: {
+      text: 'Trong 14 ngày qua, các câu trả lời GAD-7 của bạn cho thấy nhiều dấu hiệu nghiêm trọng liên quan đến lo lắng, căng thẳng hoặc khó thư giãn. Kết quả cho thấy bạn đang ghi nhận khó khăn đáng kể; việc liên hệ với chuyên gia sức khỏe tinh thần có thể giúp bạn nhận được hỗ trợ kịp thời.',
+      limitation:
+        'Kết quả này chỉ dựa trên câu trả lời tự khai của bạn trong 14 ngày qua. Bài sàng lọc không xác định nguyên nhân, không bao quát toàn bộ hoàn cảnh của bạn và không phải là chẩn đoán y khoa. Nếu những điều bạn đang trải qua khiến bạn lo lắng hoặc ảnh hưởng đến cuộc sống hằng ngày, bạn có thể cân nhắc trao đổi với một chuyên gia phù hợp.',
+    },
+  },
 }
 
 function ResultPanel({
@@ -92,8 +164,8 @@ function ResultPanel({
             {!safetyApplicable
               ? 'Không áp dụng cho bộ câu hỏi này'
               : positive
-                ? 'Dương tính theo quy tắc sàng lọc'
-                : 'Âm tính theo quy tắc sàng lọc'}
+                ? 'Có câu trả lời cần bạn lưu ý'
+                : 'Không có câu trả lời cần thêm hướng dẫn an toàn'}
           </strong>
           <p>
             {!safetyApplicable
@@ -102,11 +174,57 @@ function ResultPanel({
                 ? 'Bạn có thể xem các tài nguyên hỗ trợ phù hợp ở bên dưới.'
                 : 'Bạn vẫn có thể xem các tài nguyên chăm sóc sức khỏe tinh thần ở bên dưới.'}
           </p>
+          {positive && (
+            <Link
+              href="/safety-directory?trigger=positive-item-9"
+              className="btn btn-primary care-safety-directory-link"
+            >
+              Xem hỗ trợ trong khu vực đã chọn
+            </Link>
+          )}
         </article>
       </div>
 
+      <article className="care-meaning-card">
+        <header>
+          <h2>
+            {instrumentLabel.shortName} · {instrumentLabel.topic}
+          </h2>
+          <span className="care-meaning-badge">
+            {levelLabels[result.screeningLevel]}
+          </span>
+        </header>
+        <p>
+          {screeningMeanings[assessment.instrument][result.screeningLevel].text}
+        </p>
+        <Disclosure
+          className="care-meaning-disclosure"
+          summary="Lưu ý về phạm vi và giới hạn kết quả"
+        >
+          <p>
+            {
+              screeningMeanings[assessment.instrument][result.screeningLevel]
+                .limitation
+            }
+          </p>
+        </Disclosure>
+      </article>
+
       <aside className="care-result-disclaimer">
-        <span aria-hidden="true">i</span>
+        <span aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v5" />
+            <path d="M12 8h.01" />
+          </svg>
+        </span>
         <div>
           <strong>Kết quả sàng lọc không phải là chẩn đoán</strong>
           <p>
@@ -117,8 +235,7 @@ function ResultPanel({
         </div>
       </aside>
 
-      <details className="care-provenance">
-        <summary>Thông tin phiên bản</summary>
+      <Disclosure className="care-provenance" summary="Thông tin kỹ thuật">
         <dl>
           <div>
             <dt>Bộ câu hỏi</dt>
@@ -133,13 +250,15 @@ function ResultPanel({
             <dd>{result.safetyPolicyVersion ?? 'Không áp dụng'}</dd>
           </div>
         </dl>
-      </details>
+      </Disclosure>
 
-      <details className="care-provenance care-definition-history">
-        <summary>Nội dung và thang điểm đã dùng</summary>
+      <Disclosure
+        className="care-provenance care-definition-history"
+        summary="Nội dung và thang điểm của bài này"
+      >
         <p>
-          Đây là định nghĩa bất biến <strong>{questionnaire.version}</strong>{' '}
-          được lưu cùng kết quả này.
+          Nội dung dưới đây được lưu cùng kết quả để bạn có thể xem lại đúng bài
+          đã thực hiện.
         </p>
         <ol>
           {questionnaire.questions.map((question) => (
@@ -154,15 +273,15 @@ function ResultPanel({
             </li>
           ))}
         </ul>
-      </details>
+      </Disclosure>
 
       {mode === 'anonymous' && (
         <aside className="care-anonymous-note">
           <div>
             <strong>Kết quả ẩn danh chỉ tồn tại trong phiên hiện tại</strong>
             <p>
-              Đăng ký không tự động gắn kết quả này vào tài khoản. Các tính năng
-              cá nhân hóa và lịch sử chỉ dành cho người dùng đã đăng nhập.
+              Đăng ký không tự động gắn kết quả này vào tài khoản. Lịch sử sàng
+              lọc chỉ dành cho người dùng đã đăng nhập.
             </p>
           </div>
           <Link href="/register" className="btn btn-outline">
@@ -174,6 +293,9 @@ function ResultPanel({
       <ResourcesList limit={6} className="care-result-resources" />
 
       <div className="care-result-actions">
+        <Link href="/safety-directory" className="btn btn-outline">
+          Tôi cần hỗ trợ ngay
+        </Link>
         <button className="btn btn-primary" type="button" onClick={onRestart}>
           Làm bài mới
         </button>
@@ -226,6 +348,7 @@ export default function AssessmentFlow({
   instrument,
   initialAssessmentId,
   workflow = 'standalone',
+  screeningPurpose = 'INITIAL_CHECK',
   onCompleted,
   returnHref,
   completionLabel = 'Xem kết quả',
@@ -235,11 +358,13 @@ export default function AssessmentFlow({
   instrument: Instrument
   initialAssessmentId?: string
   workflow?: 'standalone' | 'initial-check'
+  screeningPurpose?: 'INITIAL_CHECK' | 'REASSESSMENT'
   onCompleted?: () => void
   returnHref?: string
   completionLabel?: string
   completionPendingLabel?: string
 }) {
+  const { showActionToast } = useFeedback()
   const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null)
   const [assessment, setAssessment] = useState<AssessmentView | null>(null)
   const [answers, setAnswers] = useState<Record<string, number>>({})
@@ -375,8 +500,13 @@ export default function AssessmentFlow({
               instrument,
               submission,
               idempotencyKey.current,
+              screeningPurpose,
             )
           : await submitAssessment(mode, submission, idempotencyKey.current)
+      showActionToast({
+        title: `Đã lưu bài sàng lọc ${instrument}`,
+        tone: 'success',
+      })
       if (onCompleted) {
         onCompleted()
         return
@@ -391,10 +521,21 @@ export default function AssessmentFlow({
 
   if (loading) {
     return (
-      <section className="care-assessment-state" aria-live="polite">
-        <span className="care-loader" aria-hidden="true" />
-        <h1>Đang chuẩn bị bài sàng lọc</h1>
-        <p>MentalBridge đang chuẩn bị nội dung phù hợp cho bạn.</p>
+      <section
+        className="care-assessment-state care-assessment-loading"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="care-assessment-skeleton" aria-hidden="true">
+          <Skeleton width="34%" height={14} />
+          <Skeleton width="72%" height={44} />
+          <Skeleton width="88%" height={18} />
+          <Skeleton width="100%" height={132} />
+        </div>
+        <h1 className="sr-only">Đang chuẩn bị bài sàng lọc</h1>
+        <p className="sr-only">
+          MentalBridge đang chuẩn bị nội dung phù hợp cho bạn.
+        </p>
       </section>
     )
   }
@@ -460,7 +601,14 @@ export default function AssessmentFlow({
         </span>
         <span>{answeredCount} câu đã trả lời</span>
       </div>
-      <div className="care-progress" aria-hidden="true">
+      <div
+        className="care-progress"
+        role="progressbar"
+        aria-label="Tiến độ bài sàng lọc"
+        aria-valuemin={1}
+        aria-valuemax={questions.length}
+        aria-valuenow={step + 1}
+      >
         <i style={{ width: `${((step + 1) / questions.length) * 100}%` }} />
       </div>
 

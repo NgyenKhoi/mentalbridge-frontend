@@ -1,0 +1,282 @@
+{
+  "checks": [
+    "1440x900: shell heights/routes/SVG/widget, bounded680 content, loaded Vietnamese font/glyphs, target44, no overflow",
+    "1280x800: shell heights/routes/SVG/widget, bounded680 content, loaded Vietnamese font/glyphs, target44, no overflow",
+    "768x1024: shell heights/routes/SVG/widget, bounded680 content, loaded Vietnamese font/glyphs, target44, no overflow",
+    "375x812: shell heights/routes/SVG/widget, bounded680 content, loaded Vietnamese font/glyphs, target44, no overflow",
+    "640x400: shell heights/routes/SVG/widget, bounded680 content, loaded Vietnamese font/glyphs, target44, no overflow",
+    "Unsupported/empty/oversize/corrupt image rejected without changing saved photo or staging invalid file",
+    "Valid center-cropped preview, cancel restores actual selected SPROUT icon, independent dirty name and preview preserved, focus restored",
+    "Upload failure retains file; select failure retains media ID; retry reuses upload; pending does not claim success; avatar save preserves independent dirty name",
+    "Stale blocks retry until explicit reload; reload keeps chosen photo+dirty name; name save keeps staged photo and uploaded ID; retry succeeds",
+    "Remove confirmation native focus trap/Escape/restoration; pending and failure keep dialog/photo; inline retry succeeds and actual SPROUT fallback renders",
+    "Fast A/B image-decode race retains newest choice and revokes stale URL; keyboard opens picker; reduced motion preserves controls/status; all created object URLs cleaned",
+    "stitch-desktop-approved.html: actual1440px render, header height, routes, loaded Vietnamese font and no overflow",
+    "stitch-mobile-approved.html: actual375px render, header height, routes, loaded Vietnamese font and no overflow"
+  ],
+  "captures": [
+    "initial-1440x900.png",
+    "initial-1280x800.png",
+    "initial-768x1024.png",
+    "initial-375x812.png",
+    "initial-640x400.png",
+    "photo-staged-desktop.png",
+    "remove-error-dialog.png",
+    "photo-staged-mobile-reduced-motion.png",
+    "stitch-desktop-approved-1440x900.png",
+    "stitch-mobile-approved-375x812.png"
+  ],
+  "errors": [],
+  "apiRequests": [],
+  "geometry": [
+    {
+      "width": 1440,
+      "height": 900,
+      "headerHeight": 68,
+      "contentWidth": 680,
+      "tabs": [
+        {
+          "href": "/community",
+          "svg": true
+        },
+        {
+          "href": "/community/saved",
+          "svg": true
+        },
+        {
+          "href": "/community/profile",
+          "svg": true
+        }
+      ],
+      "navVisible": false,
+      "fonts": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ],
+      "glyphs": true
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "headerHeight": 68,
+      "contentWidth": 680,
+      "tabs": [
+        {
+          "href": "/community",
+          "svg": true
+        },
+        {
+          "href": "/community/saved",
+          "svg": true
+        },
+        {
+          "href": "/community/profile",
+          "svg": true
+        }
+      ],
+      "navVisible": false,
+      "fonts": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ],
+      "glyphs": true
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "headerHeight": 68,
+      "contentWidth": 680,
+      "tabs": [
+        {
+          "href": "/community",
+          "svg": true
+        },
+        {
+          "href": "/community/saved",
+          "svg": true
+        },
+        {
+          "href": "/community/profile",
+          "svg": true
+        }
+      ],
+      "navVisible": false,
+      "fonts": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ],
+      "glyphs": true
+    },
+    {
+      "width": 375,
+      "height": 812,
+      "headerHeight": 64,
+      "contentWidth": 351,
+      "tabs": [
+        {
+          "href": "/community",
+          "svg": true
+        },
+        {
+          "href": "/community/saved",
+          "svg": true
+        },
+        {
+          "href": "/community/profile",
+          "svg": true
+        }
+      ],
+      "navVisible": true,
+      "fonts": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ],
+      "glyphs": true
+    },
+    {
+      "width": 640,
+      "height": 400,
+      "headerHeight": 64,
+      "contentWidth": 616,
+      "tabs": [
+        {
+          "href": "/community",
+          "svg": true
+        },
+        {
+          "href": "/community/saved",
+          "svg": true
+        },
+        {
+          "href": "/community/profile",
+          "svg": true
+        }
+      ],
+      "navVisible": true,
+      "fonts": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ],
+      "glyphs": true
+    }
+  ],
+  "fonts": [
+    {
+      "headerHeight": 68,
+      "fonts": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro"
+      ],
+      "routes": [
+        "/community",
+        "/community",
+        "/community/saved",
+        "/community/profile",
+        "/safety-directory",
+        "/dashboard"
+      ],
+      "viewport": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "headerHeight": 64,
+      "fonts": [
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro"
+      ],
+      "routes": [
+        "/community",
+        "/dashboard"
+      ],
+      "viewport": 375,
+      "scrollWidth": 375
+    }
+  ],
+  "result": "passed"
+}

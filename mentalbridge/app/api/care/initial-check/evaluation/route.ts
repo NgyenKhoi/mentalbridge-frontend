@@ -6,20 +6,15 @@ import {
   careAuthenticationFailure,
   carryCareSession,
 } from '@/lib/care/authenticated-user'
-import {
-  careErrorResponse,
-  careSuccessResponse,
-  localProblem,
-} from '@/lib/care/bff-response'
+import { careErrorResponse, careSuccessResponse } from '@/lib/care/bff-response'
 import { careClient } from '@/lib/care/care-client'
-import {
-  readInitialCheckIds,
-  rememberInitialCheckEvaluation,
-} from '@/lib/care/guided-initial-check-cookies'
-import { isUuid } from '@/lib/care/care-validation'
 
 export async function POST(request: NextRequest) {
   const correlationId = correlationIdFrom(request)
+  const purpose =
+    request.nextUrl.searchParams.get('purpose') === 'REASSESSMENT'
+      ? ('REASSESSMENT' as const)
+      : ('INITIAL_CHECK' as const)
   let user: Awaited<ReturnType<typeof authenticatedCareUser>>
 
   try {
@@ -28,37 +23,21 @@ export async function POST(request: NextRequest) {
     return careAuthenticationFailure(error, correlationId)
   }
 
-  const { phq9AssessmentId, gad7AssessmentId } = readInitialCheckIds(
-    request.cookies,
-  )
-  if (
-    !phq9AssessmentId ||
-    !gad7AssessmentId ||
-    !isUuid(phq9AssessmentId) ||
-    !isUuid(gad7AssessmentId)
-  ) {
-    return carryCareSession(
-      localProblem(
-        409,
-        'INITIAL_CHECK_INCOMPLETE',
-        'Both guided assessments are required before support evaluation.',
-        correlationId,
-      ),
-      user,
-    )
-  }
-
   try {
-    const selection = { phq9AssessmentId, gad7AssessmentId }
-    const evaluation = await careClient.evaluateSupport(
+    const episode = await careClient.currentScreeningEpisode(
       user.accessToken,
-      selection,
-      `initial-check:${phq9AssessmentId}:${gad7AssessmentId}`,
+      purpose,
       correlationId,
     )
-    const response = careSuccessResponse(evaluation, correlationId, 201)
-    rememberInitialCheckEvaluation(response, evaluation.supportEvaluationId)
-    return carryCareSession(response, user)
+    const outcome = await careClient.evaluateScreeningEpisode(
+      user.accessToken,
+      episode.episodeId,
+      correlationId,
+    )
+    return carryCareSession(
+      careSuccessResponse(outcome.presentationEvaluation, correlationId, 201),
+      user,
+    )
   } catch (error) {
     return carryCareSession(careErrorResponse(error, correlationId), user)
   }

@@ -6,7 +6,11 @@ import {
   carryContentSession,
   contentAuthenticationFailure,
 } from '@/lib/content/authenticated-admin'
-import { contentErrorResponse, localProblem } from '@/lib/content/bff-response'
+import {
+  contentErrorResponse,
+  contentSuccessResponse,
+  localProblem,
+} from '@/lib/content/bff-response'
 import { contentAdminClient } from '@/lib/content/content-client'
 import { isResourceId } from '@/lib/content/content-validation'
 
@@ -42,17 +46,14 @@ export async function POST(
     )
   }
   try {
-    await contentAdminClient.publish(
-      admin.accessToken,
-      id,
-      version,
-      correlationId,
-    )
     return carryContentSession(
-      localProblem(
-        409,
-        'REVIEW_APPROVAL_REQUIRED',
-        'Review approval is required.',
+      contentSuccessResponse(
+        await contentAdminClient.publish(
+          admin.accessToken,
+          id,
+          version,
+          correlationId,
+        ),
         correlationId,
       ),
       admin,

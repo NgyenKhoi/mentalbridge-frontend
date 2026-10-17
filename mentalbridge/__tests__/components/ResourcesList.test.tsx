@@ -10,6 +10,7 @@ const resource = {
   title: 'Bài viết đã kiểm duyệt',
   summary: 'Nội dung hỗ trợ đã được kiểm duyệt.',
   externalUrl: 'https://example.com/article',
+  sourceOrganization: 'NHS',
   status: 'PUBLISHED',
   reviewedAt: '2026-09-01T00:00:00Z',
   createdAt: '2026-08-01T00:00:00Z',
@@ -28,7 +29,7 @@ function respond(body: Record<string, unknown>, status = 200) {
 describe('ResourcesList', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('announces the loading state and keeps future scope explicit', () => {
+  it('announces loading and exposes the supported consultation destinations', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       () => new Promise(() => {}),
     )
@@ -37,21 +38,37 @@ describe('ResourcesList', () => {
 
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByText('Đang tải...')).toBeInTheDocument()
-    expect(screen.getByText('Chưa khả dụng')).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Xem chuyên gia' }),
+    ).toHaveAttribute('href', '/specialists')
+    expect(
+      screen.getByRole('link', { name: 'xem quyền lợi tư vấn' }),
+    ).toHaveAttribute('href', '/subscription')
   })
 
-  it('renders a reviewed resource and a safe external link', async () => {
+  it('routes every reviewed card through Resource Detail with a meaningful action', async () => {
     respond({ items: [resource], hasMore: false })
 
     render(<ResourcesList />)
 
+    await waitFor(() =>
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({
+          headers: {
+            Accept: 'application/json',
+            'Accept-Language': 'vi-VN',
+          },
+        }),
+      ),
+    )
     const link = await screen.findByRole('link', {
-      name: /bài viết đã kiểm duyệt/i,
+      name: /mở nguồn: bài viết đã kiểm duyệt/i,
     })
-    expect(link).toHaveAttribute('href', 'https://example.com/article')
-    expect(link).toHaveAttribute('target', '_blank')
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(link).toHaveAttribute('href', `/resources/${resource.id}`)
+    expect(link).not.toHaveAttribute('target')
     expect(screen.getByText(resource.summary)).toBeInTheDocument()
+    expect(screen.getByText('NHS')).toBeInTheDocument()
   })
 
   it('shows a distinct empty state', async () => {
@@ -125,7 +142,7 @@ describe('ResourcesList', () => {
     ).toBeInTheDocument()
   })
 
-  it('renders a resource without an external URL as a non-interactive card', async () => {
+  it('keeps an internal resource actionable', async () => {
     respond({
       items: [{ ...resource, externalUrl: null, title: 'Tài liệu tại chỗ' }],
       hasMore: false,
@@ -133,13 +150,14 @@ describe('ResourcesList', () => {
 
     render(<ResourcesList />)
 
-    await screen.findByText('Tài liệu tại chỗ')
     expect(
-      screen.queryByRole('link', { name: /tài liệu tại chỗ/i }),
-    ).not.toBeInTheDocument()
+      await screen.findByRole('link', {
+        name: /đọc nội dung: tài liệu tại chỗ/i,
+      }),
+    ).toHaveAttribute('href', `/resources/${resource.id}`)
   })
 
-  it('does not render an unsafe URL as a link even if the BFF regresses', async () => {
+  it('does not expose a regressed unsafe external URL from the catalogue card', async () => {
     respond({
       items: [
         {
@@ -153,10 +171,14 @@ describe('ResourcesList', () => {
 
     render(<ResourcesList />)
 
-    await screen.findByText('Unsafe resource')
-    expect(
-      screen.queryByRole('link', { name: /unsafe resource/i }),
-    ).not.toBeInTheDocument()
+    const link = await screen.findByRole('link', {
+      name: /mở nguồn: unsafe resource/i,
+    })
+    expect(link).toHaveAttribute('href', `/resources/${resource.id}`)
+    expect(link).not.toHaveAttribute(
+      'href',
+      'javascript:alert(document.cookie)',
+    )
   })
 
   it('refetches when filters change and aborts the superseded request', async () => {

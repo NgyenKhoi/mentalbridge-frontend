@@ -24,15 +24,46 @@ export type ConsentDecision = Schemas['ConsentDecision']
 export type ConsentDecisionRequest = Schemas['ConsentDecisionRequest']
 export type ConsentCollection = Schemas['ConsentCollection']
 export type PrivacyDisclosure = Schemas['PrivacyDisclosure']
+export type AiProcessingDisclosure = Schemas['AiProcessingDisclosure']
 export type AssessmentSummary = Schemas['AssessmentSummary']
 export type AssessmentHistoryPage = Schemas['AssessmentHistoryPage']
 export type AssessmentProgress = Schemas['AssessmentProgress']
 export type AssessmentProgressPoint = Schemas['AssessmentProgressPoint']
 export type ScoreDirection = Schemas['ScoreDirection']
+export type ScreeningEpisodePurpose = Schemas['ScreeningEpisodePurpose']
+export type ScreeningEpisodeStatus = Schemas['ScreeningEpisodeStatus']
+export type ScreeningEpisode = Schemas['ScreeningEpisode']
+export type GuidedJourney = Schemas['GuidedJourney']
+export type ScreeningEpisodeEvaluationOutcome =
+  Schemas['ScreeningEpisodeEvaluationOutcome']
+export type ScreeningEpisodeHistoryItem = Schemas['ScreeningEpisodeHistoryItem']
+export type ScreeningEpisodeHistoryPage = Schemas['ScreeningEpisodeHistoryPage']
+export type CombinedScreeningMeaning = Schemas['CombinedScreeningMeaning']
+export type ReassessmentCurrentExperience =
+  Schemas['ReassessmentCurrentExperience']
+export type ReassessmentSelfReportCreateRequest =
+  Schemas['ReassessmentSelfReportCreateRequest']
+export type ReassessmentSelfReportReplaceRequest =
+  Schemas['ReassessmentSelfReportReplaceRequest']
+export type ReassessmentSelfReport = Schemas['ReassessmentSelfReport']
+export type ReassessmentContext = Schemas['ReassessmentContext']
+export type ReassessmentSummary = Schemas['ReassessmentSummary']
+export type ReassessmentSummaryCreateRequest =
+  Schemas['ReassessmentSummaryCreateRequest']
+export type ReassessmentSummaryHistoryPage =
+  Schemas['ReassessmentSummaryHistoryPage']
 export type SupportEvaluationRequest = Schemas['SupportEvaluationRequest']
 export type SupportEvaluation = Schemas['SupportEvaluation']
+export type SupportEvaluationHistoryPage =
+  Schemas['SupportEvaluationHistoryPage']
 export type SupportEvidence = Schemas['SupportEvidence']
 export type ScreeningMeaning = Schemas['ScreeningMeaning']
 export type SupportNextStep = Schemas['SupportNextStep']
 export type SupportTier = Schemas['SupportTier']
 export type SupportReasonCode = Schemas['SupportReasonCode']
+
+export type SafetyDirectoryTrigger = Schemas['SafetyDirectoryTrigger']
+export type SafetyDirectoryState = Schemas['CareSafetyDirectoryState']
+export type SafetyDirectoryEntry = Schemas['CareSafetyDirectoryEntry']
+export type SafetyDirectoryResponse =
+  Schemas['CareSafetyDirectoryLookupResponse']
