@@ -212,6 +212,7 @@ export default function ResourceDetail({
     : localDate()
   const requestKey = `${resourceId}:${contentVersion ?? ''}:${date}`
   const [result, setResult] = useState<LoadResult>()
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [catalogueResult, setCatalogueResult] = useState<{
     requestKey: string
     items: PublicResourceSummary[]
@@ -259,64 +260,6 @@ export default function ResourceDetail({
         ) {
           return
         }
-        if (
-          resourceId === '00000000-0000-4000-8000-000000000209' ||
-          resourceId === 'problem-solving'
-        ) {
-          setResult({
-            requestKey,
-            state: 'success',
-            resource: {
-              id: '00000000-0000-4000-8000-000000000209',
-              title: 'Giải quyết một vấn đề theo từng bước',
-              category: 'VIDEO',
-              interactionType: 'VIDEO_TRANSCRIPT',
-              summary:
-                'Sắp xếp và phân tách vấn đề thành từng bước nhỏ có thể hành động để giảm cảm giác quá tải và lấy lại quyền kiểm soát.',
-              contentBody: 'Nội dung chi tiết...',
-              contentVersion: '2026.10',
-              repeatability: 'REPEATABLE',
-              status: 'PUBLISHED',
-              resourceKind: 'LEARNING',
-              durationMinutes: 6,
-              difficulty: 'EASY',
-              publishedAt: '2026-10-01T00:00:00Z',
-              updatedAt: '2026-10-01T00:00:00Z',
-            } as unknown as PublicResourceDetail,
-          })
-          return
-        }
-        if (
-          resourceId === '00000000-0000-4000-8000-000000000216' ||
-          resourceId === '00000000-0000-4000-8000-000000000215' ||
-          resourceId === 'progressive-relaxation'
-        ) {
-          setResult({
-            requestKey,
-            state: 'success',
-            resource: {
-              id: resourceId,
-              title:
-                resourceId === '00000000-0000-4000-8000-000000000215'
-                  ? 'Thư giãn cơ tiến triển'
-                  : 'Thả lỏng cơ theo từng vùng',
-              category: 'MEDITATION',
-              interactionType: 'PROGRESSIVE_RELAXATION',
-              summary:
-                'Thực hành căng – thả nhẹ từng nhóm cơ để nhận biết căng cơ sớm hơn và hỗ trợ cơ thể thư giãn.',
-              contentBody:
-                'Chọn tư thế được nâng đỡ. Đi lần lượt qua bàn tay, vai, khuôn mặt, bụng và chân. Với mỗi vùng, tạo lực căng rất nhẹ trong vài giây rồi thả hoàn toàn lâu hơn.',
-              contentVersion: '1',
-              repeatability: 'REPEATABLE',
-              status: 'PUBLISHED',
-              resourceKind: 'PRACTICE',
-              expectedDurationMinutes: 10,
-              publishedAt: '2026-09-29T00:00:00.000Z',
-              updatedAt: '2026-09-30T09:40:39.857Z',
-            } as unknown as PublicResourceDetail,
-          })
-          return
-        }
         setResult({
           requestKey,
           state:
@@ -346,7 +289,7 @@ export default function ResourceDetail({
       active = false
       controller.abort()
     }
-  }, [contentVersion, date, requestKey, resourceId])
+  }, [contentVersion, date, loadAttempt, requestKey, resourceId])
 
   useEffect(() => {
     let active = true
@@ -578,7 +521,22 @@ export default function ResourceDetail({
                 : 'Nội dung có thể đã được lưu trữ hoặc không còn trong thời gian phát hành.'
               : 'Tiến độ đã lưu của bạn vẫn an toàn. Vui lòng thử lại sau.'}
           </p>
-          <Link className={styles.backButton} href={backHref}>
+          {!notFound && (
+            <button
+              type="button"
+              className={styles.backButton}
+              onClick={() => {
+                setResult(undefined)
+                setLoadAttempt((attempt) => attempt + 1)
+              }}
+            >
+              Thử lại
+            </button>
+          )}
+          <Link
+            className={notFound ? styles.backButton : styles.stateLink}
+            href={backHref}
+          >
             {backLabel}
           </Link>
         </section>

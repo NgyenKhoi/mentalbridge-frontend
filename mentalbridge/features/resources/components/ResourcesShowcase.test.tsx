@@ -19,6 +19,10 @@ const api = vi.hoisted(() => ({
   deleteResourceBookmark: vi.fn(),
   getResourceBingo: vi.fn(),
   setResourceBingoSelfConfirmation: vi.fn(),
+  getAchievements: vi.fn(),
+}))
+vi.mock('@/features/achievements/api/browser-achievements', () => ({
+  getAchievements: api.getAchievements,
 }))
 
 vi.mock('../api/browser-resources', () => ({
@@ -113,6 +117,7 @@ describe('ResourcesShowcase owner data', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(2026, 8, 29, 9))
     vi.clearAllMocks()
+    api.getAchievements.mockResolvedValue({ collection: { items: [] } })
     api.getResourceCatalogue.mockResolvedValue({
       items: [resource],
       hasMore: false,
@@ -136,6 +141,14 @@ describe('ResourcesShowcase owner data', () => {
   })
 
   afterEach(() => vi.useRealTimers())
+
+  it('does not invent unearned badges when the collection is unavailable', async () => {
+    api.getAchievements.mockRejectedValue(new Error('unavailable'))
+    render(<ResourcesShowcase />)
+    expect(await screen.findByText(/Chưa tải được bộ sưu tập/)).toBeVisible()
+    expect(screen.queryByText('Chưa đạt')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tài nguyên đầu tiên')).not.toBeInTheDocument()
+  })
 
   it('shows saved plan activity without invented XP or streaks', async () => {
     render(<ResourcesShowcase />)

@@ -920,6 +920,17 @@ export default function ResourcesShowcase() {
                   <small>Dấu mốc</small>
                 </div>
               </div>
+            ) : achievementsState === 'error' ? (
+              <p className={styles.panelEmpty} role="status">
+                Chưa tải được bộ sưu tập.{' '}
+                <button type="button" onClick={() => window.location.reload()}>
+                  Thử lại
+                </button>
+              </p>
+            ) : achievements?.items.length === 0 ? (
+              <p className={styles.panelEmpty} role="status">
+                Chưa có dấu mốc trong bộ sưu tập.
+              </p>
             ) : (
               <div className={styles.badgeGrid}>
                 {displayBadges.map((badge) => (
