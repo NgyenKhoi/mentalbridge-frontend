@@ -46,11 +46,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Check out staging Realtime provider contracts
+      - name: Check out promotion Realtime provider contracts
         uses: actions/checkout@v4
         with:
           repository: NgyenKhoi/mentalbridge-backend
-          ref: staging
+          ref: ${{ github.event_name == 'pull_request' && 'dev' || 'staging' }}
           path: realtime-provider
           sparse-checkout: contracts/websocket/realtime
 
