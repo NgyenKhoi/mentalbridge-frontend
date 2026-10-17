@@ -201,7 +201,8 @@ async function contentRequest<T>(options: RequestOptions<T>): Promise<T> {
     }
     options.onSuccessResponse?.(response)
     if (response.status === 204) return undefined as T
-    const parsed = options.parseSuccess?.(await readJson(response))
+    const rawJson = await readJson(response)
+    const parsed = options.parseSuccess?.(rawJson)
     if (!parsed) {
       throw localError(
         502,

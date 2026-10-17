@@ -245,10 +245,6 @@
   cursor: pointer;
 }
 
-.backButton:hover {
-  background: #1f5248;
-}
-
 .completeButton:disabled,
 .practiceSection button:disabled {
   cursor: default;
@@ -1182,31 +1178,6 @@
   margin: 0;
   color: var(--detail-muted);
   line-height: 1.65;
-}
-
-.stateLink {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  margin-top: 8px;
-  color: #29675a;
-  font-weight: 750;
-  text-underline-offset: 3px;
-}
-
-.stateLink:hover {
-  text-decoration: underline;
-}
-
-.stateIcon svg {
-  width: 26px;
-  height: 26px;
-}
-
-.stateLink:focus-visible {
-  outline: 3px solid #29675a;
-  outline-offset: 3px;
-  border-radius: 8px;
 }
 
 .stateIcon,

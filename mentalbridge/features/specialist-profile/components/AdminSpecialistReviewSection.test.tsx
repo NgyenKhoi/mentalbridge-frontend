@@ -27,12 +27,14 @@ const api = vi.hoisted(() => ({
   reject: vi.fn(),
   suspend: vi.fn(),
   restore: vi.fn(),
+  pendingCredentialDocuments: vi.fn(),
 }))
 vi.mock('../api/browser-client', () => ({ browserConsultation: api }))
 
 describe('AdminSpecialistReviewSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    api.pendingCredentialDocuments.mockResolvedValue({ data: [] })
     api.profiles.mockResolvedValue({
       data: { items: [profile], count: 1 },
       etag: null,

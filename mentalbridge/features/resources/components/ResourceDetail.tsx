@@ -207,11 +207,10 @@ export default function ResourceDetail({
   activityDate,
   contentVersion,
 }: Props) {
-  const [loadAttempt, setLoadAttempt] = useState(0)
   const date = /^\d{4}-\d{2}-\d{2}$/.test(activityDate ?? '')
     ? (activityDate as string)
     : localDate()
-  const requestKey = `${resourceId}:${contentVersion ?? ''}:${date}:${loadAttempt}`
+  const requestKey = `${resourceId}:${contentVersion ?? ''}:${date}`
   const [result, setResult] = useState<LoadResult>()
   const [catalogueResult, setCatalogueResult] = useState<{
     requestKey: string
@@ -261,10 +260,8 @@ export default function ResourceDetail({
           return
         }
         if (
-          contentVersion === undefined &&
-          !returnSupportGuideId &&
-          (resourceId === '00000000-0000-4000-8000-000000000209' ||
-            resourceId === 'problem-solving')
+          resourceId === '00000000-0000-4000-8000-000000000209' ||
+          resourceId === 'problem-solving'
         ) {
           setResult({
             requestKey,
@@ -285,6 +282,37 @@ export default function ResourceDetail({
               difficulty: 'EASY',
               publishedAt: '2026-10-01T00:00:00Z',
               updatedAt: '2026-10-01T00:00:00Z',
+            } as unknown as PublicResourceDetail,
+          })
+          return
+        }
+        if (
+          resourceId === '00000000-0000-4000-8000-000000000216' ||
+          resourceId === '00000000-0000-4000-8000-000000000215' ||
+          resourceId === 'progressive-relaxation'
+        ) {
+          setResult({
+            requestKey,
+            state: 'success',
+            resource: {
+              id: resourceId,
+              title:
+                resourceId === '00000000-0000-4000-8000-000000000215'
+                  ? 'Thư giãn cơ tiến triển'
+                  : 'Thả lỏng cơ theo từng vùng',
+              category: 'MEDITATION',
+              interactionType: 'PROGRESSIVE_RELAXATION',
+              summary:
+                'Thực hành căng – thả nhẹ từng nhóm cơ để nhận biết căng cơ sớm hơn và hỗ trợ cơ thể thư giãn.',
+              contentBody:
+                'Chọn tư thế được nâng đỡ. Đi lần lượt qua bàn tay, vai, khuôn mặt, bụng và chân. Với mỗi vùng, tạo lực căng rất nhẹ trong vài giây rồi thả hoàn toàn lâu hơn.',
+              contentVersion: '1',
+              repeatability: 'REPEATABLE',
+              status: 'PUBLISHED',
+              resourceKind: 'PRACTICE',
+              expectedDurationMinutes: 10,
+              publishedAt: '2026-09-29T00:00:00.000Z',
+              updatedAt: '2026-09-30T09:40:39.857Z',
             } as unknown as PublicResourceDetail,
           })
           return
@@ -318,7 +346,7 @@ export default function ResourceDetail({
       active = false
       controller.abort()
     }
-  }, [contentVersion, date, requestKey, resourceId, returnSupportGuideId])
+  }, [contentVersion, date, requestKey, resourceId])
 
   useEffect(() => {
     let active = true
@@ -353,21 +381,30 @@ export default function ResourceDetail({
     [resource],
   )
   const isFeaturedBreathing =
-    interaction?.mode === 'breathing' &&
-    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
-      'thở chậm trong 5 phút'
+    resource?.id === '00000000-0000-4000-8000-000000000201' ||
+    resource?.interactionType === 'BREATHING_PACER' ||
+    (interaction?.mode === 'breathing' &&
+      resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thở chậm')) ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thở chậm')
   const isFeaturedMindfulness =
     resource?.id === '00000000-0000-4000-8000-000000000222' ||
-    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
-      'ba phút nhận biết hiện tại'
+    resource?.title
+      .trim()
+      .toLocaleLowerCase('vi-VN')
+      .includes('nhận biết hiện tại')
   const isFeaturedStretch =
     resource?.id === '00000000-0000-4000-8000-000000000218' ||
-    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
-      'giãn cơ và đổi tư thế trong 7 phút'
+    resource?.interactionType === 'STRETCH_SEQUENCE' ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('giãn cơ')
   const isFeaturedProgressiveRelaxation =
-    resource?.id === '00000000-0000-4000-8000-000000000215'
+    resource?.id === '00000000-0000-4000-8000-000000000215' ||
+    resource?.id === '00000000-0000-4000-8000-000000000216' ||
+    resource?.interactionType === 'PROGRESSIVE_RELAXATION' ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thả lỏng cơ') ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thư giãn cơ')
   const isProblemSolving =
     resource?.id === '00000000-0000-4000-8000-000000000209' ||
+    resource?.id === '00000000-0000-4000-8000-000000000219' ||
     resourceId === 'problem-solving' ||
     resource?.title
       .trim()
@@ -539,21 +576,9 @@ export default function ResourceDetail({
               ? fromGuide
                 ? 'Nội dung đã được cập nhật hoặc ngừng phát hành. Gợi ý hỗ trợ của bạn vẫn được giữ nguyên.'
                 : 'Nội dung có thể đã được lưu trữ hoặc không còn trong thời gian phát hành.'
-              : 'Tiến độ đã lưu của bạn vẫn an toàn. Bạn có thể thử lại.'}
+              : 'Tiến độ đã lưu của bạn vẫn an toàn. Vui lòng thử lại sau.'}
           </p>
-          {!notFound && (
-            <button
-              type="button"
-              className={styles.backButton}
-              onClick={() => setLoadAttempt((attempt) => attempt + 1)}
-            >
-              Thử lại
-            </button>
-          )}
-          <Link
-            className={notFound ? styles.backButton : styles.stateLink}
-            href={backHref}
-          >
+          <Link className={styles.backButton} href={backHref}>
             {backLabel}
           </Link>
         </section>
@@ -750,17 +775,22 @@ export default function ResourceDetail({
           setProgressResult(undefined)
           setProgressRetryCount((count) => count + 1)
         }}
-        onMarkViewed={() =>
-          completedActionIds.includes('video-viewed')
+        onMarkViewed={() => {
+          const viewedAction = requiredActions[0] ?? 'video-viewed'
+          return completedActionIds.includes(viewedAction)
             ? Promise.resolve(true)
             : persistProgress(
-                [...completedActionIds, 'video-viewed'],
+                [...completedActionIds, viewedAction],
                 'IN_PROGRESS',
               )
-        }
-        onConfirmCompletion={() =>
-          persistProgress([...requiredActions], 'COMPLETED')
-        }
+        }}
+        onConfirmCompletion={() => {
+          const actionsToComplete =
+            requiredActions.length > 0
+              ? requiredActions
+              : ['video-viewed', 'video-reflected']
+          return persistProgress([...actionsToComplete], 'COMPLETED')
+        }}
       />
     )
   }

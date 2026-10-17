@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import SessionActions from '@/features/auth/components/SessionActions'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
+import { getCareProfile } from '@/features/assessment/api/browser-care'
+import { browserConsultation } from '@/features/specialist-profile/api/browser-client'
 import SpecialistProfileWorkspace from '@/features/specialist-profile/components/SpecialistProfileWorkspace'
 import SpecialistAvailabilityManager from '@/features/specialist-availability/components/SpecialistAvailabilityManager'
 import availabilityStyles from '@/features/specialist-availability/components/SpecialistAvailabilityManager.module.css'
@@ -13,14 +15,14 @@ import SpecialistAppointmentDecisionPanel from '@/features/appointments/componen
 import appointmentStyles from '@/features/appointments/components/SpecialistAppointmentDecisionPanel.module.css'
 import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
 import SpecialistContinuityManager from '@/features/appointments/components/SpecialistContinuityManager'
-import SpecialistOperationalAnalytics from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics'
 import SpecialistDashboardManager from './SpecialistDashboardManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
+import SpecialistWorkspaceIdentity from './SpecialistWorkspaceIdentity'
+import SpecialistOperationalAnalytics from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics'
 import SpecialistDeferredSection, {
   type SpecialistDeferredSectionKey,
 } from './SpecialistDeferredSection'
-import SpecialistWorkspaceIdentity from './SpecialistWorkspaceIdentity'
 import AdminUsersManager from './AdminUsersManager'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
 import AdminAssessmentsManager from './AdminAssessmentsManager'
@@ -31,6 +33,8 @@ import AdminDashboardManager from './AdminDashboardManager'
 import AdminPayoutsManager from './AdminPayoutsManager'
 import AdminModerationManager from './AdminModerationManager'
 import AdminAppointmentsManager from './AdminAppointmentsManager'
+import { Bell, Headphones, User, Search } from 'lucide-react'
+import './SpecialistClinicalDashboard.css'
 import './role-workspace.css'
 import profileStyles from '@/features/specialist-profile/components/ProfilePage.module.css'
 import analyticsStyles from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics.module.css'
@@ -48,7 +52,7 @@ const specialistSections = {
   availability: 'Lịch khả dụng',
   clients: 'Khách hàng',
   messages: 'Tin nhắn',
-  'follow-up': 'Sau tư vấn',
+  'follow-up': 'Theo dõi sau phiên',
   profile: 'Hồ sơ',
   earnings: 'Thu nhập & thanh toán',
   notifications: 'Thông báo',
@@ -104,7 +108,7 @@ const adminSections: Record<string, Section> = {
   ], tabs: ['Audit log', 'Data retention'] },
 }
 const navByRole = {
-  specialist: [['dashboard','Tổng quan'],['analytics','Phân tích vận hành'],['appointments','Lịch hẹn'],['availability','Lịch khả dụng'],['clients','Khách hàng'],['messages','Tin nhắn'],['follow-up','Sau tư vấn'],['earnings','Thu nhập & thanh toán'],['profile','Hồ sơ']],
+  specialist: [['dashboard','Tổng quan'],['appointments','Lịch hẹn'],['availability','Lịch khả dụng'],['clients','Khách hàng'],['messages','Tin nhắn'],['follow-up','Theo dõi sau phiên'],['earnings','Thu nhập & thanh toán'],['profile','Hồ sơ']],
   admin: [['dashboard','Dashboard'],['users','Users'],['specialists','Specialists'],['assessments','Assessments'],['payments','Subscriptions & Payments'],['payouts','Payouts'],['appointments','Appointments'],['content','Content'],['moderation','Moderation'],['ai','AI Evaluation'],['reports','Reports'],['audit','Audit & Privacy']],
 } as const
 
@@ -133,6 +137,21 @@ export default function RoleWorkspace({
   const [toast, setToast] = useState('')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [accountName, setAccountName] = useState<string | null>(null)
+  const hasPersonalWorkspace = workspaces.some((workspace) => workspace.role === 'USER')
+
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   useEffect(() => {
     const handleResize = () => {
@@ -148,6 +167,40 @@ export default function RoleWorkspace({
     })
     return () => window.cancelAnimationFrame(frame)
   }, [])
+
+  useEffect(() => {
+    let active = true
+    const loadAccountName = async () => {
+      let name = ''
+      if (role === 'specialist') {
+        try {
+          name = (await browserConsultation.own()).data.displayName.trim()
+        } catch {
+          name = ''
+        }
+      } else if (hasPersonalWorkspace) {
+        try {
+          name = (await getCareProfile()).displayName.trim()
+        } catch {
+          name = ''
+        }
+      }
+      if (active) setAccountName(name || null)
+    }
+
+    void loadAccountName()
+    window.addEventListener('mb:profile-updated', loadAccountName)
+    window.addEventListener('mb:specialist-profile-updated', loadAccountName)
+    return () => {
+      active = false
+      window.removeEventListener('mb:profile-updated', loadAccountName)
+      window.removeEventListener('mb:specialist-profile-updated', loadAccountName)
+    }
+  }, [hasPersonalWorkspace, role, sectionKey])
+
+  const accountAvatar = accountName
+    ? accountName.split(/\s+/).slice(-2).map((part) => Array.from(part)[0]?.toLocaleUpperCase('vi') ?? '').join('')
+    : '?'
 
   const toggleSidebar = () => {
     setSidebarCollapsed(value => {
@@ -175,7 +228,25 @@ export default function RoleWorkspace({
         {navByRole[role].map(([key,label]) => <div key={key} className="role-nav-item"><Link href={`/${role}/${key}`} className={key === sectionKey ? 'active' : ''} onClick={() => setMobileOpen(false)} title={sidebarCollapsed ? label : undefined}>{key === sectionKey && <motion.span layoutId={`role-active-${role}`} className="role-active-pill" transition={{ type: 'spring', stiffness: 380, damping: 32 }} />}<span className="role-nav-icon" aria-hidden="true">{navIcons[key] || '·'}</span><span className="role-nav-label">{label}</span></Link></div>)}
       </nav>
       <WorkspaceSwitcher workspaces={workspaces} currentRole={role === 'admin' ? 'ADMIN' : 'SPECIALIST'} />
-      {role === 'specialist' ? <SpecialistWorkspaceIdentity compact={sidebarCollapsed} /> : <><motion.div className="role-user" whileHover={{ y: -2 }}><span>AD</span><div className="role-user-copy"><strong>Quản trị viên</strong><small>System admin</small></div><span className="role-online" /></motion.div><SessionActions compact={sidebarCollapsed} /></>}
+      {role === 'admin' && (
+        <motion.div className="role-user" whileHover={{ y: -2 }}>
+          <span>AD</span>
+          <div className="role-user-copy">
+            <strong>Quản trị viên</strong>
+            <small>System admin</small>
+          </div>
+          <span className="role-online" />
+        </motion.div>
+      )}
+      <div className="role-sidebar-foot">
+        <SessionActions
+          compact={sidebarCollapsed}
+          displayName={accountName ?? 'Tài khoản của bạn'}
+          avatar={accountAvatar}
+          accountKind={role === 'specialist' ? 'specialist' : hasPersonalWorkspace ? 'personal' : 'specialist'}
+          description={role === 'specialist' ? 'Tài khoản chuyên gia' : hasPersonalWorkspace ? 'Tài khoản cá nhân' : 'Tài khoản chuyên gia'}
+        />
+      </div>
     </motion.aside>
     {role === 'specialist' && <Dialog open={mobileOpen} onOpenChange={setMobileOpen} labelledBy="specialist-navigation-title" className={navigationStyles.drawer}>
       <header className={navigationStyles.heading}><div><strong>MentalBridge</strong><h2 id="specialist-navigation-title">Điều hướng chuyên gia</h2></div><button type="button" onClick={() => setMobileOpen(false)} aria-label="Đóng menu">×</button></header>
@@ -185,7 +256,48 @@ export default function RoleWorkspace({
       <div className={navigationStyles.account}><WorkspaceSwitcher workspaces={workspaces} currentRole="SPECIALIST" /><SpecialistWorkspaceIdentity /></div>
     </Dialog>}
     <motion.main className="role-main" layout="position" transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
-      <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div>{role === 'specialist' ? <><span className="role-live-dot" />{section.label}</> : <><span className="role-live-dot" /> Hệ thống hoạt động ổn định</>}</div>{role === 'admin' && <Link href="/admin/notifications" className="role-bell" aria-label="Thông báo">○</Link>}</header>
+      {role === 'specialist' ? (
+        <header className="role-topbar role-topbar-specialist">
+          <div className="clinical-topbar-left">
+            <button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button>
+            <div className="clinical-breadcrumb" aria-label="Đường dẫn điều hướng">
+              <span className="clinical-breadcrumb-parent">Không gian chuyên gia</span>
+              <span className="clinical-breadcrumb-sep" aria-hidden="true">›</span>
+              <span className="clinical-breadcrumb-current">{sectionKey === 'dashboard' ? 'Không gian làm việc lâm sàng' : section.label}</span>
+            </div>
+            <div className="clinical-topbar-status-pill">
+              <span className="clinical-topbar-status-dot" aria-hidden="true" />
+              <span>Trực tuyến & Tiếp nhận</span>
+            </div>
+          </div>
+          <div className="clinical-topbar-right">
+            <div className="clinical-search-wrapper">
+              <Search size={15} strokeWidth={1.75} className="clinical-search-icon" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="clinical-search-input"
+                placeholder="Tìm kiếm hồ sơ, phiên hẹn..."
+                aria-label="Tìm kiếm hồ sơ, phiên hẹn"
+              />
+              <kbd className="clinical-search-kbd">⌘K</kbd>
+            </div>
+
+            <button className="clinical-topbar-btn" aria-label="Thông báo" title="Thông báo">
+              <span className="clinical-btn-dot-red" />
+              <Bell size={17} strokeWidth={1.75} />
+            </button>
+            <button className="clinical-topbar-btn" aria-label="Cài đặt & Trợ giúp" title="Trợ giúp">
+              <Headphones size={17} strokeWidth={1.75} />
+            </button>
+            <Link href="/specialist/profile" className="clinical-topbar-avatar" aria-label="Hồ sơ chuyên gia" title="Hồ sơ">
+              <User size={18} strokeWidth={1.75} />
+            </Link>
+          </div>
+        </header>
+      ) : (
+        <header className="role-topbar"><button className="role-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Mở menu">☰</button><div><span className="role-live-dot" /> Hệ thống hoạt động ổn định</div>{role === 'admin' && <Link href="/admin/notifications" className="role-bell" aria-label="Thông báo">○</Link>}</header>
+      )}
       <div className={`role-content${role === 'specialist' && sectionKey === 'messages' ? ' role-content-messages' : ''}`}>
         {role === 'specialist' && sectionKey === 'dashboard' && <SpecialistDashboardManager />}
         {role === 'specialist' && sectionKey === 'analytics' && <SpecialistOperationalAnalytics />}

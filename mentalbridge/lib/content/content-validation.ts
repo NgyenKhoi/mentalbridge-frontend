@@ -30,6 +30,7 @@ export type ResourceBingoSelfConfirmationUpdate =
   components['schemas']['ResourceBingoSelfConfirmationUpdate']
 export type AchievementCollection =
   components['schemas']['AchievementCollection']
+export type AchievementItem = components['schemas']['AchievementItem']
 export type AchievementPreferenceUpdate =
   components['schemas']['AchievementPreferenceUpdate']
 
@@ -625,10 +626,14 @@ export function parseAchievementCollection(
   }
 
   const definitionIds = new Set<string>()
+  const sanitizedItems: AchievementItem[] = []
   for (const itemValue of collection.items) {
-    const item = record(itemValue)
+    const rawItem = record(itemValue)
+    if (!rawItem) return null
+    const item = { ...rawItem }
+    delete item.target
+    delete item.unit
     if (
-      !item ||
       !exactKeys(item, [
         'definitionId',
         'domain',
@@ -705,8 +710,12 @@ export function parseAchievementCollection(
       return null
     }
     definitionIds.add(item.definitionId)
+    sanitizedItems.push(item as unknown as AchievementItem)
   }
-  return collection as AchievementCollection
+  return {
+    ...collection,
+    items: sanitizedItems,
+  } as AchievementCollection
 }
 
 export function parseAchievementPreferenceUpdate(

@@ -121,7 +121,11 @@ export function ProgressiveRelaxationResourceDetail({
               items
                 .filter(
                   (item) =>
-                    item.resourceId === resource.id &&
+                    (item.resourceId === resource.id ||
+                      item.resourceId ===
+                        '00000000-0000-4000-8000-000000000215' ||
+                      item.resourceId ===
+                        '00000000-0000-4000-8000-000000000216') &&
                     item.status === 'COMPLETED',
                 )
                 .map((item) => item.localDate),
@@ -164,7 +168,7 @@ export function ProgressiveRelaxationResourceDetail({
   const ringLength = 2 * Math.PI * 68
   const playedPercent = (currentTime / progressiveRelaxationDuration) * 100
 
-  const seekTo = useCallback((seconds: number) => {
+  function seekTo(seconds: number) {
     const target = Math.min(progressiveRelaxationDuration, Math.max(0, seconds))
     if (videoRef.current) {
       videoRef.current.currentTime = target
@@ -172,7 +176,7 @@ export function ProgressiveRelaxationResourceDetail({
     }
     setCurrentTime(target)
     setEnded(false)
-  }, [])
+  }
 
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return
@@ -183,7 +187,7 @@ export function ProgressiveRelaxationResourceDetail({
     } else {
       videoRef.current.pause()
     }
-  }, [ended, seekTo])
+  }, [ended])
 
   function toggleMute() {
     if (!videoRef.current) return
@@ -237,7 +241,7 @@ export function ProgressiveRelaxationResourceDetail({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentTime, seekTo, togglePlay])
+  }, [currentTime, ended, isPlaying, togglePlay])
 
   async function startCompletion() {
     if (!ended || progressLoadState !== 'ready' || saving) return
@@ -264,15 +268,25 @@ export function ProgressiveRelaxationResourceDetail({
           <div className={styles.headerCopy}>
             <nav className={styles.breadcrumb} aria-label="Đường dẫn">
               <Link href={backHref}>
-                <ArrowLeft size={17} aria-hidden="true" /> Tài nguyên
+                <ArrowLeft size={17} aria-hidden="true" /> Quay lại Tài nguyên
               </Link>
               <span aria-hidden="true">/</span>
-              <span aria-current="page">Thư giãn cơ tiến triển</span>
+              <span aria-current="page">
+                {resource.title || 'Thư giãn cơ tiến triển'}
+              </span>
             </nav>
-            <h1>Thư giãn cơ tiến triển</h1>
+            <h1>{resource.title || 'Thư giãn cơ tiến triển'}</h1>
             <div className={styles.tags}>
-              <span>Thư giãn thể chất</span>
-              <span>8 phút</span>
+              <span>
+                {resource.category === 'MEDITATION'
+                  ? 'Thiền & Thư giãn'
+                  : 'Thư giãn thể chất'}
+              </span>
+              <span>
+                {resource.expectedDurationMinutes
+                  ? `${resource.expectedDurationMinutes} phút`
+                  : '10 phút'}
+              </span>
               <span>Khoa học thần kinh</span>
             </div>
           </div>
@@ -638,7 +652,7 @@ export function ProgressiveRelaxationResourceDetail({
                 ? 'Đã hoàn thành'
                 : saving
                   ? 'Đang ghi nhận...'
-                  : 'Ghi nhận hoàn thành'}
+                  : 'Hoàn thành (+15 XP)'}
             </button>
             {progressLoadState === 'error' && (
               <button

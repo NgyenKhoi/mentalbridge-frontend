@@ -307,6 +307,28 @@
   gap: 10px;
   flex-shrink: 0;
 }
+.ref-new-booking-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #12382c;
+  color: #ffffff !important;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9999px;
+  padding: 8px 18px;
+  text-decoration: none;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+.ref-new-booking-btn:hover {
+  background: #0d2a21;
+  transform: translateY(-1px);
+}
+.ref-new-booking-btn,
+.ref-new-booking-btn * {
+  color: #ffffff !important;
+}
 
 .ref-community-link {
   min-width: 44px;
@@ -602,51 +624,6 @@
 }
 
 /* Preserve-mode visual refinement: calmer surfaces and a tighter product hierarchy. */
-.ref-screening-journey .ref-topbar {
-  height: 64px;
-  padding: 10px 32px;
-  gap: 20px;
-}
-.ref-screening-crumb {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: none;
-  font-size: 11px;
-}
-.ref-screening-crumb a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--ink-soft);
-  text-decoration: none;
-}
-.ref-screening-crumb > span:last-child {
-  color: var(--teal-deep);
-  font-weight: 650;
-}
-.ref-screening-journey .ref-topbar > label {
-  width: min(440px, 40vw);
-  padding-block: 8px;
-}
-.ref-content-screening {
-  padding: 0;
-}
-@media (max-width: 1100px) {
-  .ref-screening-crumb {
-    display: none;
-  }
-}
-@media (max-width: 560px) {
-  .ref-screening-journey .ref-topbar {
-    padding-inline: 14px;
-    gap: 10px;
-  }
-  .ref-screening-journey .ref-topbar > label {
-    width: auto;
-  }
-}
-
 .ref-topbar {
   height: 72px;
   padding-block: 12px;
