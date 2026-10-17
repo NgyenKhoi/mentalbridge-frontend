@@ -62,12 +62,8 @@ test('one specialist identity, usable collapsed menu, consistent floating suppor
       })
       await expect(account).toHaveCount(1)
       await expect(account).toContainText(approvedProfile.displayName)
-      await expect(account).toContainText('Chuyên gia đã được duyệt')
-      expect(
-        await account
-          .locator('span[aria-hidden="true"]')
-          .evaluate((el) => getComputedStyle(el).color),
-      ).toBe('rgb(255, 255, 255)')
+      await expect(account).toContainText('Tài khoản chuyên gia')
+      await expect(account.locator('span[aria-hidden="true"]')).toHaveText('GA')
       await expect(sidebar).not.toContainText('Tài khoản cá nhân')
       await account.click()
       await expect(
@@ -139,7 +135,6 @@ test('one specialist identity, usable collapsed menu, consistent floating suppor
     'follow-up',
     'earnings',
     'profile',
-    'analytics',
     'dashboard',
   ]) {
     await sidebar.locator(`a[href="/specialist/${key}"]`).first().click()

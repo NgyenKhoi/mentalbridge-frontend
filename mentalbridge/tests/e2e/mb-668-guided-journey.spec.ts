@@ -203,7 +203,10 @@ test('MB-668 continues Meaning to an automatic Guide, opens a resource and retur
   )
 
   await page.goto('/initial-check')
-  await page.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }).click()
+  await page
+    .getByRole('navigation', { name: 'Điều hướng chính' })
+    .getByRole('link', { name: 'Gợi ý hỗ trợ', exact: true })
+    .click()
 
   await expect(page).toHaveURL(/\/support-guides$/)
   const steps = page.getByRole('navigation', { name: 'Các bước sau sàng lọc' })

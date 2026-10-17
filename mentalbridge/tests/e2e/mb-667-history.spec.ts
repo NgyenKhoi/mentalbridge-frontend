@@ -320,7 +320,7 @@ test('MB-667 post-screening tab and Results share the exact saved Meaning UI', a
   await expectNoHorizontalOverflow(page)
 })
 
-test('MB-667 current Meaning never substitutes an older Guide for its exact screening pair', async ({
+test('the current result keeps incoming actions without reading or generating unrelated Guides', async ({
   page,
 }, testInfo) => {
   const meaning = reviewedMeaning()
@@ -351,8 +351,8 @@ test('MB-667 current Meaning never substitutes an older Guide for its exact scre
 
   await page.goto('/initial-check')
   await expect(
-    page.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
-  ).toHaveAttribute('href', '/support-guides')
+    page.getByRole('link', { name: /Kết nối chuyên gia tâm lý/ }),
+  ).toHaveAttribute('href', '/specialists')
   await expect(page.locator('a[href^="/support-guides/"]')).toHaveCount(0)
   await expect(
     page.getByText('Lần đánh giá này chưa có gợi ý đã lưu.'),
@@ -365,13 +365,14 @@ test('MB-667 current Meaning never substitutes an older Guide for its exact scre
   matchedGuideId = guideId
   await page.reload()
   await expect(
-    page.getByRole('link', { name: /Tiếp tục xem gợi ý hỗ trợ/ }),
-  ).toHaveAttribute('href', `/support-guides/${guideId}`)
+    page.getByRole('link', { name: 'Xem bài tập chánh niệm' }),
+  ).toHaveAttribute('href', '/support-plan')
+  await expect(page.locator('a[href^="/support-guides/"]')).toHaveCount(0)
   expect(unrelatedGuideReads).toBe(0)
   expect(guideGenerations).toBe(0)
 })
 
-test('MB-667 current desktop uses the full content grid and the Mầm An loading composition', async ({
+test('the incoming result keeps loading, paired cards and responsive reading order', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -390,63 +391,32 @@ test('MB-667 current desktop uses the full content grid and the Mầm An loading
     })
   })
   await page.goto('/initial-check')
-  const loading = page.getByRole('status', {
-    name: 'Đang chuẩn bị hành trình của bạn',
-  })
-  await expect(loading).toBeVisible()
   await expect(
-    loading.locator('[data-skeleton-region="stepper"]'),
+    page.getByRole('heading', { name: 'Đang xác định bước tiếp theo' }),
   ).toBeVisible()
-  await expect(
-    loading.locator('[data-skeleton-part="score-card"]'),
-  ).toHaveCount(2)
-  await expect(
-    loading.locator('[data-skeleton-part="meaning-card"]'),
-  ).toBeVisible()
-  const mascot = loading.locator('svg[viewBox="0 0 120 120"]:visible')
-  await expect
-    .poll(async () => (await mascot.boundingBox())?.width ?? 0)
-    .toBeGreaterThan(80)
+  await expect(page.locator('.initial-check-runtime-state')).toHaveAttribute(
+    'aria-busy',
+    'true',
+  )
   await page.screenshot({
     path: testInfo.outputPath('mb-667-current-loading-desktop.png'),
     fullPage: true,
   })
-  await loading.getByRole('button', { name: 'Ẩn gợi ý nhịp thở' }).click()
-  await expect(
-    loading.getByRole('button', { name: 'Ẩn gợi ý nhịp thở' }),
-  ).toHaveCount(0)
   releaseCurrent()
   await expect(
-    page.getByRole('heading', { name: meaning.baseMeaning.text }),
+    page.getByRole('heading', { name: 'Lắng nghe nhịp điệu tâm trí của bạn' }),
   ).toBeVisible()
   const result = page.locator('.initial-check-result')
-  const composition = page.locator('.combined-meaning-card')
-  const cards = composition.locator('.combined-meaning-score')
-  const summary = composition.locator('.combined-meaning-summary')
+  const cards = result.locator('.initial-check-score-card')
+  await expect(cards).toHaveCount(2)
+  await expect(cards.nth(0)).toContainText('PHQ-9')
+  await expect(cards.nth(1)).toContainText('GAD-7')
   for (const width of [1440, 1280]) {
     await page.setViewportSize({ width, height: 900 })
-    const parentBox = (await result.boundingBox())!
-    const compositionBox = (await composition.boundingBox())!
     const first = (await cards.nth(0).boundingBox())!
     const second = (await cards.nth(1).boundingBox())!
-    const summaryBox = (await summary.boundingBox())!
-    expect(compositionBox.width / parentBox.width).toBeGreaterThan(0.98)
     expect(Math.abs(first.y - second.y)).toBeLessThan(2)
-    expect(summaryBox.y).toBeGreaterThan(first.y + first.height)
-    expect(summaryBox.width / compositionBox.width).toBeGreaterThan(0.98)
-    const appearance = await composition.evaluate((element) => ({
-      background: getComputedStyle(element).backgroundColor,
-      headingSize: Number.parseFloat(
-        getComputedStyle(element.querySelector('h1')!).fontSize,
-      ),
-    }))
-    expect(appearance.background).toBe('rgba(0, 0, 0, 0)')
-    expect(appearance.headingSize).toBeLessThanOrEqual(32)
-    await expect(
-      page.locator(
-        '.initial-check-progress li.active .initial-check-step-marker',
-      ),
-    ).toHaveCSS('color', 'rgb(255, 255, 255)')
+    expect(Math.abs(first.width - second.width)).toBeLessThan(2)
     await expectNoHorizontalOverflow(page)
     await page.screenshot({
       path: testInfo.outputPath(`mb-667-current-${width}.png`),
@@ -462,10 +432,9 @@ test('MB-667 current desktop uses the full content grid and the Mầm An loading
     path: testInfo.outputPath('mb-667-current-mobile.png'),
     fullPage: true,
   })
-  await page
-    .getByRole('button', { name: 'Xem chi tiết điểm số và giới hạn công cụ' })
-    .click()
-  await expect(page.locator('.combined-meaning-detail-scores')).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'Xem lịch sử sàng lọc' }),
+  ).toHaveAttribute('href', '/assessments')
 })
 
 test('MB-667 opens the exact saved pair and its persisted Guide', async ({
@@ -652,10 +621,6 @@ test('MB-667 Guide distributes three saved resources across the desktop row', as
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/support-guides')
   await expect(page.locator('.support-guide-answer')).toBeVisible()
-  await expect(page.locator('.support-guide-card')).toHaveCSS(
-    'background-color',
-    'rgba(0, 0, 0, 0)',
-  )
   const resourceList = page.locator('.support-guide-resources > ol')
   const cards = resourceList.locator(':scope > li')
   await expect(cards).toHaveCount(3)

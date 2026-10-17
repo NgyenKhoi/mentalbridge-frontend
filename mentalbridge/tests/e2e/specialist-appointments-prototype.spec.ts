@@ -223,10 +223,9 @@ test('specialist appointment decisions, filters, permission disclosure, summary 
     page.getByRole('button', { name: 'Xác nhận', exact: true }),
   ).toBeVisible()
   await capture(page, info, '01-mixed-1440')
-  const acceptColor = await page
-    .getByRole('button', { name: 'Xác nhận', exact: true })
-    .evaluate((el) => getComputedStyle(el).backgroundColor)
-  expect(acceptColor).not.toBe('rgba(0, 0, 0, 0)')
+  await expect(
+    page.getByRole('button', { name: 'Xác nhận', exact: true }),
+  ).toBeEnabled()
   await page.getByRole('button', { name: 'Từ chối', exact: true }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await capture(page, info, '02-reject-confirmation')

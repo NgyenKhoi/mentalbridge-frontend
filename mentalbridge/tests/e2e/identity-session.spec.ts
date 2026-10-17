@@ -110,7 +110,10 @@ test.describe('Identity session delivery', () => {
     await page.goto('/admin/dashboard')
     await expect(page).toHaveURL(/\/dashboard$/)
 
-    await page.getByRole('button', { name: 'Đăng xuất', exact: true }).click()
+    await page
+      .getByRole('button', { name: 'Mở menu tài khoản', exact: true })
+      .click()
+    await page.getByRole('menuitem', { name: 'Đăng xuất', exact: true }).click()
     await expect(page).toHaveURL(/\/login$/)
     await expectSessionCleared(context)
 
@@ -147,7 +150,10 @@ test.describe('Identity session delivery', () => {
     await expectProtectedSession(context, page)
 
     await page
-      .getByRole('button', { name: 'Đăng xuất mọi thiết bị', exact: true })
+      .getByRole('button', { name: 'Mở menu tài khoản chuyên gia' })
+      .click()
+    await page
+      .getByRole('menuitem', { name: 'Đăng xuất mọi thiết bị', exact: true })
       .click()
     await expect(page).toHaveURL(/\/login$/)
     await expectSessionCleared(context)
@@ -168,12 +174,14 @@ test.describe('Identity session delivery', () => {
     await login(page, 'user@example.com', /\/dashboard$/)
     await page.goto('/profile')
 
-    await page.getByLabel('Mật khẩu hiện tại').fill('synthetic-e2e-password')
+    await page
+      .getByLabel('Mật khẩu hiện tại', { exact: true })
+      .fill('synthetic-e2e-password')
     await page
       .getByLabel('Mật khẩu mới', { exact: true })
       .fill('a sufficiently long password')
     await page
-      .getByLabel('Xác nhận mật khẩu mới')
+      .getByLabel('Xác nhận mật khẩu mới', { exact: true })
       .fill('a sufficiently long password')
     const passwordResponsePromise = page.waitForResponse(
       (response) =>
