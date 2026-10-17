@@ -6,6 +6,7 @@ import AdminContentSection from './AdminContentSection'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
 import AdminAccountManager from './AdminAccountManager'
 import AdminCommunityModerationSection from '@/features/community/components/AdminCommunityModerationSection'
+import AdminOperationsDashboard from '@/features/dashboard/components/AdminOperationsDashboard'
 import AdminAppointmentMonitor from '@/features/appointments/components/AdminAppointmentMonitor'
 import AdminAppointmentDisputes from '@/features/appointments/components/AdminAppointmentDisputes'
 import AdminReportsSection from '@/features/reports/components/AdminReportsSection'
@@ -18,7 +19,7 @@ const SECTIONS = {
   dashboard: {
     label: 'Tổng quan',
     description:
-      'Điểm bắt đầu cho các công cụ vận hành sẽ được tích hợp ở những story sau.',
+      'Bảng điều khiển các chỉ số vận hành có thẩm quyền từ các dịch vụ nền tảng.',
   },
   accounts: {
     label: 'Tài khoản',
@@ -111,7 +112,9 @@ export default function AdminWorkspace({
       <main
         className={`${styles.main} ${section === 'specialists' || section === 'reports' || section === 'payments' || section === 'payouts' ? styles.reviewMain : ''}`}
       >
-        {section === 'content' ? (
+        {section === 'dashboard' ? (
+          <AdminOperationsDashboard />
+        ) : section === 'content' ? (
           <AdminContentSection />
         ) : section === 'specialists' ? (
           <AdminSpecialistReviewSection />

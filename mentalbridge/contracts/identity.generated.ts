@@ -377,6 +377,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/accounts/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read authoritative aggregate account counts and status for admin operations dashboard (excluding soft-deleted accounts) */
+        get: operations["getAccountsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/accounts/{accountId}": {
         parameters: {
             query?: never;
@@ -628,6 +645,24 @@ export interface components {
              * @enum {string}
              */
             reasonCode: "SAFETY_CONCERN" | "POLICY_VIOLATION" | "ACCOUNT_REVIEW_REQUIRED" | "REVIEW_COMPLETED";
+        };
+        AccountsSummaryRoleBreakdown: {
+            users: number;
+            specialists: number;
+            admins: number;
+        };
+        AccountsSummary: {
+            /** @constant */
+            source: "IDENTITY";
+            /** Format: date-time */
+            asOf: string;
+            /** @description Total manageable accounts in the platform, excluding soft-deleted (purged) accounts. Matches the sum of status breakdown and the sum of role breakdown. */
+            totalAccounts: number;
+            activeAccounts: number;
+            pendingVerificationAccounts: number;
+            disabledAccounts: number;
+            deletionPendingAccounts: number;
+            byRole: components["schemas"]["AccountsSummaryRoleBreakdown"];
         };
         Problem: {
             /** Format: uri-reference */
@@ -1480,6 +1515,31 @@ export interface operations {
             };
             401: components["responses"]["UnauthorizedProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getAccountsSummary: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative aggregate account summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountsSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
         };
     };
     getAccountById: {
