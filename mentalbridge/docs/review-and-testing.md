@@ -32,8 +32,10 @@ claim it passed or weaken configuration.
 
 `.github/workflows/staging-quality.yml` accepts only `dev` as the source of a
 staging pull request and also runs on pushes to `staging`. It checks the
-Realtime schemas against the backend `staging` branch, installs Chromium, then
-runs `npm run ci:staging`: the complete non-browser gate, controlled Realtime
+Realtime schemas against backend `dev` for a promotion pull request and backend
+`staging` for a staging push, so the pull request verifies the stack being
+promoted. Merge the backend promotion before the frontend promotion. It installs
+Chromium, then runs `npm run ci:staging`: the complete non-browser gate, controlled Realtime
 browser tests, and the full fixture Playwright suite against a production
 build. The same workflow runs the complete mobile quality gate and native
 Android/iOS boot smokes. Pull requests into `dev` run only the mobile TypeScript

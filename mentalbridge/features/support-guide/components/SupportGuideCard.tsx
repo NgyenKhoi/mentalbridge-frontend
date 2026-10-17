@@ -363,6 +363,7 @@ export default function SupportGuideCard({
       <section
         className="support-guide-answer"
         data-purpose="hero-guide-answer"
+        data-surface={safetyPositive ? undefined : 'dark'}
       >
         <div className="support-guide-answer-copy">
           <AnswerHeading id={`guide-${guide.supportGuideId}`}>

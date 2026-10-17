@@ -1009,6 +1009,7 @@
 .initial-check-subtle-btn,
 .initial-check-subtle-link {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
   gap: 6px;
   background: none;
@@ -1471,12 +1472,18 @@
   }
 
   .initial-check-progress li {
+    min-width: 0;
+    flex-direction: column;
     font-size: 11px;
     gap: 5px;
   }
 
+  .initial-check-progress li:last-child {
+    flex: 1;
+  }
+
   .initial-check-progress li:not(:last-child)::after {
-    margin: 0 6px;
+    display: none;
   }
 
   .initial-check-step-marker {
@@ -1487,7 +1494,8 @@
 
   .initial-check-step-label {
     font-size: 11px;
-    white-space: nowrap;
+    text-align: center;
+    white-space: normal;
   }
 
   .initial-check-readiness,
@@ -1497,8 +1505,18 @@
   }
 
   .initial-check-result {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
+  }
+
+  .initial-check-curated-header,
+  .initial-check-footer-links {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .initial-check-footer-links {
+    justify-content: center;
   }
 
   .initial-check-result-hero-zen {

@@ -8,7 +8,7 @@ const now = '2026-09-22T08:00:00Z'
 test('MB-512 completes a quota-governed companion conversation on mobile', async ({
   context,
   page,
-}) => {
+}, testInfo) => {
   await context.addCookies([
     {
       name: 'mentalbridge_access',
@@ -19,7 +19,7 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
       sameSite: 'Lax',
     },
   ])
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize({ width: 375, height: 844 })
 
   const messages: Array<Record<string, unknown>> = []
   let deleted = false
@@ -159,7 +159,13 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
     })
   })
 
-  await page.goto('/messages')
+  await page.goto('/dashboard')
+  await page.getByRole('button', { name: 'Mở menu', exact: true }).click()
+  await page
+    .getByRole('navigation', { name: 'Điều hướng chính' })
+    .getByRole('link', { name: 'AI Companion' })
+    .click()
+  await expect(page).toHaveURL(/\/ai-companion$/)
   await expect(page.getByRole('heading', { name: 'Hội thoại' })).toBeVisible()
   await page
     .getByRole('button', { name: /Cuộc trò chuyện mới.*Tiếp tục/ })
@@ -188,6 +194,12 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
   await page.getByText('Đã dùng 2 nguồn').click()
   await expect(page.getByText('Nhật ký gần đây')).toBeVisible()
   await expect(page.getByText('Kế hoạch hỗ trợ hiện tại')).toBeVisible()
+  await page.getByText('Đã dùng 2 nguồn').click()
+  await expect(
+    page
+      .getByRole('region', { name: 'AI Companion' })
+      .getByText('Mình nên bắt đầu từ đâu?', { exact: true }),
+  ).toHaveCSS('color', 'rgb(255, 255, 255)')
   expect(idempotencyKey.length).toBeGreaterThanOrEqual(16)
   expect(savedContextBody).toEqual({
     sources: {
@@ -199,6 +211,22 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
   })
   expect(sentBody).toEqual({ message: 'Mình nên bắt đầu từ đâu?' })
 
+  for (const width of [1440, 1280, 768, 375]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(
+      page.getByRole('region', { name: 'AI Companion' }),
+    ).toBeVisible()
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true)
+    await testInfo.attach(`ai-companion-${width}`, {
+      body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+  }
+
   await page.getByLabel('Tùy chọn hội thoại').click()
   await page.getByRole('button', { name: 'Xóa cuộc trò chuyện' }).click()
   await page
@@ -207,6 +235,10 @@ test('MB-512 completes a quota-governed companion conversation on mobile', async
     .click()
   await expect(page.getByText('Chưa có cuộc trò chuyện nào.')).toBeVisible()
   expect(deleted).toBe(true)
+  await page.goto('/messages')
+  await expect(
+    page.getByRole('heading', { name: 'Lịch hẹn chat' }),
+  ).toBeVisible()
 })
 
 test('MB-512 retries an unchanged draft with a fresh key after provider failure', async ({
@@ -304,7 +336,7 @@ test('MB-512 retries an unchanged draft with a fresh key after provider failure'
     })
   })
 
-  await page.goto('/messages')
+  await page.goto('/ai-companion')
   await page
     .getByRole('button', { name: /Cuộc trò chuyện mới.*Tiếp tục/ })
     .click()

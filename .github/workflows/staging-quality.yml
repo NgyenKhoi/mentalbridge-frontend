@@ -46,11 +46,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Check out staging Realtime provider contracts
+      - name: Check out promotion Realtime provider contracts
         uses: actions/checkout@v4
         with:
           repository: NgyenKhoi/mentalbridge-backend
-          ref: staging
+          ref: ${{ github.event_name == 'pull_request' && 'dev' || 'staging' }}
           path: realtime-provider
           sparse-checkout: contracts/websocket/realtime
 
@@ -167,6 +167,45 @@ jobs:
             exit 1
           fi
 
+      - name: Verify protected staging fixture sign-in
+        run: |
+          node --input-type=module <<'NODE'
+          const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL.replace(/\/+$/, '')
+          for (const [label, prefix] of [
+            ['USER', 'MAESTRO_MB_USER'],
+            ['SupportPlan USER', 'MAESTRO_MB_SUPPORT_PLAN_USER'],
+            ['SPECIALIST', 'MAESTRO_MB_SPECIALIST'],
+          ]) {
+            try {
+              const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
+                method: 'POST',
+                redirect: 'error',
+                signal: AbortSignal.timeout(15000),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: process.env[`${prefix}_EMAIL`],
+                  password: process.env[`${prefix}_PASSWORD`],
+                }),
+              })
+              if (!response.ok) {
+                console.error(`${label} fixture sign-in failed: HTTP ${response.status}.`)
+                process.exitCode = 1
+                continue
+              }
+              const session = await response.json()
+              if (typeof session.accessToken !== 'string' || !session.accessToken) {
+                console.error(`${label} fixture sign-in returned no access token.`)
+                process.exitCode = 1
+                continue
+              }
+              console.log(`${label} fixture sign-in passed.`)
+            } catch {
+              console.error(`${label} fixture sign-in failed: network, redirect or response format.`)
+              process.exitCode = 1
+            }
+          }
+          NODE
+
       - name: Install pinned Maestro CLI
         run: |
           curl -fsSL "https://get.maestro.mobile.dev" | bash
@@ -215,7 +254,7 @@ jobs:
       IOS_DEVICE_NAME: iPhone 17
       IOS_RUNTIME_ID: com.apple.CoreSimulator.SimRuntime.iOS-26-4
       IOS_RUNTIME_VERSION: '26.4.1'
-      XCODE_BUILD: 17E202
+      XCODE_BUILD: '17E202'
       XCODE_DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer
       XCODE_VERSION: '26.4.1'
     steps:
