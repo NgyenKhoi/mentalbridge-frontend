@@ -267,7 +267,7 @@ export default function RoleWorkspace({
             </div>
             <div className="clinical-topbar-status-pill">
               <span className="clinical-topbar-status-dot" aria-hidden="true" />
-              <span>Trực tuyến & Tiếp nhận</span>
+              <span>Không gian chuyên gia</span>
             </div>
           </div>
           <div className="clinical-topbar-right">
@@ -279,15 +279,16 @@ export default function RoleWorkspace({
                 className="clinical-search-input"
                 placeholder="Tìm kiếm hồ sơ, phiên hẹn..."
                 aria-label="Tìm kiếm hồ sơ, phiên hẹn"
+                disabled
+                title="Tìm kiếm chưa khả dụng"
               />
               <kbd className="clinical-search-kbd">⌘K</kbd>
             </div>
 
-            <button className="clinical-topbar-btn" aria-label="Thông báo" title="Thông báo">
-              <span className="clinical-btn-dot-red" />
+            <Link href="/specialist/notifications" className="clinical-topbar-btn" aria-label="Thông báo" title="Thông báo">
               <Bell size={17} strokeWidth={1.75} />
-            </button>
-            <button className="clinical-topbar-btn" aria-label="Cài đặt & Trợ giúp" title="Trợ giúp">
+            </Link>
+            <button className="clinical-topbar-btn" aria-label="Cài đặt & Trợ giúp" disabled title="Trợ giúp trực tiếp chưa khả dụng">
               <Headphones size={17} strokeWidth={1.75} />
             </button>
             <Link href="/specialist/profile" className="clinical-topbar-avatar" aria-label="Hồ sơ chuyên gia" title="Hồ sơ">

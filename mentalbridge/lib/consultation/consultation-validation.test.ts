@@ -182,9 +182,16 @@ describe('Consultation contract validation', () => {
   })
 
   it('rejects unsupported language input before calling Consultation', () => {
-    expect(() => parseProfileInput({ ...profile, languages: ['fr'] })).toThrow(
+    expect(() => parseProfileInput({ ...profile, languages: ['de'] })).toThrow(
       ConsultationInputError,
     )
+  })
+
+  it('accepts all four languages supported by the paired credential PR', () => {
+    expect(
+      parseProfileInput({ ...profile, languages: ['vi', 'en', 'zh', 'fr'] })
+        .languages,
+    ).toEqual(['vi', 'en', 'zh', 'fr'])
   })
 
   it('enforces state-specific specialist reasons and suspension outcomes', () => {
