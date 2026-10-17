@@ -14,8 +14,34 @@ export function isCurrentJourneyGuide(
   return journey?.supportGuideId === guide.supportGuideId
 }
 
-export function guideReturnQuery(guide: SupportGuide) {
-  return `from=support-guide&supportGuideId=${guide.supportGuideId}`
+export type GuideReturnContext = Readonly<{
+  historical?: boolean
+  resultEvaluationId?: string
+}>
+
+export function guideReturnQuery(
+  guide: SupportGuide,
+  context: GuideReturnContext = {},
+) {
+  const query = new URLSearchParams({
+    from: 'support-guide',
+    supportGuideId: guide.supportGuideId,
+  })
+  if (context.historical) query.set('guideHistory', '1')
+  if (context.historical && context.resultEvaluationId)
+    query.set('resultEvaluationId', context.resultEvaluationId)
+  return query.toString()
+}
+
+export function guideReturnHref(
+  supportGuideId: string,
+  context: GuideReturnContext = {},
+) {
+  if (!context.historical) return `/support-guides/${supportGuideId}`
+  const query = new URLSearchParams({ from: 'screening-history' })
+  if (context.resultEvaluationId)
+    query.set('resultEvaluationId', context.resultEvaluationId)
+  return `/support-guides/${supportGuideId}?${query}`
 }
 
 export function guideContinuation(
