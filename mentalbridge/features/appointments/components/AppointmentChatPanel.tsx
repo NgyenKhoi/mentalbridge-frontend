@@ -926,6 +926,21 @@ export default function AppointmentChatPanel({
               }}
             >
               <label htmlFor="appointment-chat-message">Tin nhắn</label>
+              {isSpecialist && eligibility?.sendAllowed && (
+                <div className={styles.composerSuggestions}>
+                  <span>Mẫu nhanh:</span>
+                  {quickReplies.map((reply, index) => (
+                    <button
+                      type="button"
+                      key={reply}
+                      title={reply}
+                      onClick={() => setContent(reply)}
+                    >
+                      {index === 0 ? 'Chào đón ấm áp' : 'Xác nhận sẵn sàng'}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className={styles.composerBox}>
                 <textarea
                   id="appointment-chat-message"

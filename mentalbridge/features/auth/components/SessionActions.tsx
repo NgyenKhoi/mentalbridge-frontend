@@ -28,13 +28,21 @@ export default function SessionActions({
   displayName = 'Người dùng',
   avatar = 'N',
   accountKind = 'personal',
-  description = 'Tài khoản cá nhân',
+  accountLabel,
+  description,
+  profileHref,
+  profileLabel,
+  showSubscription,
 }: {
   compact?: boolean
   displayName?: string
   avatar?: string
   accountKind?: 'personal' | 'specialist'
+  accountLabel?: string
   description?: string
+  profileHref?: string
+  profileLabel?: string
+  showSubscription?: boolean
 }) {
   const router = useRouter()
   const menuId = useId()
@@ -44,7 +52,15 @@ export default function SessionActions({
   const [open, setOpen] = useState(false)
   const [pendingMode, setPendingMode] = useState<LogoutMode | null>(null)
   const specialist = accountKind === 'specialist'
-  const profileLabel = specialist ? 'Hồ sơ chuyên gia' : 'Hồ sơ cá nhân'
+  const resolvedAccountLabel =
+    description ??
+    accountLabel ??
+    (specialist ? 'Tài khoản chuyên gia' : 'Tài khoản cá nhân')
+  const resolvedProfileHref =
+    profileHref ?? (specialist ? '/specialist/profile' : '/profile')
+  const resolvedProfileLabel =
+    profileLabel ?? (specialist ? 'Hồ sơ chuyên gia' : 'Hồ sơ cá nhân')
+  const subscriptionEnabled = showSubscription ?? !specialist
 
   useEffect(() => {
     if (!open) return
@@ -107,15 +123,15 @@ export default function SessionActions({
             <span className={styles.headerAvatar}>{avatar}</span>
             <span>
               <strong>{displayName}</strong>
-              <small>{description}</small>
+              <small>{resolvedAccountLabel}</small>
             </span>
           </div>
           <Link
-            href={specialist ? '/specialist/profile' : '/profile'}
+            href={resolvedProfileHref}
             className={styles.menuItem}
             role="menuitem"
             onClick={() => setOpen(false)}
-            title={compact ? profileLabel : undefined}
+            title={compact ? resolvedProfileLabel : undefined}
           >
             <span className={styles.itemIcon}>
               <Icon>
@@ -123,23 +139,25 @@ export default function SessionActions({
                 <path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6" />
               </Icon>
             </span>
-            <span className={styles.itemLabel}>{profileLabel}</span>
+            <span className={styles.itemLabel}>{resolvedProfileLabel}</span>
           </Link>
-          <Link
-            href="/subscription"
-            className={styles.menuItem}
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            title={compact ? 'Gói dịch vụ' : undefined}
-          >
-            <span className={styles.itemIcon}>
-              <Icon>
-                <rect x="3" y="6" width="18" height="12" rx="2.5" />
-                <path d="M3 10h18" />
-              </Icon>
-            </span>
-            <span className={styles.itemLabel}>Gói dịch vụ</span>
-          </Link>
+          {subscriptionEnabled && (
+            <Link
+              href="/subscription"
+              className={styles.menuItem}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              title={compact ? 'Gói dịch vụ' : undefined}
+            >
+              <span className={styles.itemIcon}>
+                <Icon>
+                  <rect x="3" y="6" width="18" height="12" rx="2.5" />
+                  <path d="M3 10h18" />
+                </Icon>
+              </span>
+              <span className={styles.itemLabel}>Gói dịch vụ</span>
+            </Link>
+          )}
           <div className={styles.separator} role="separator" />
           <button
             type="button"
@@ -185,7 +203,7 @@ export default function SessionActions({
         type="button"
         className={styles.trigger}
         aria-label={`${open ? 'Đóng' : 'Mở'} menu tài khoản${specialist ? ' chuyên gia' : ''}`}
-        title={compact ? `${displayName} · ${description}` : undefined}
+        title={compact ? `${displayName} · ${resolvedAccountLabel}` : undefined}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -196,7 +214,7 @@ export default function SessionActions({
         </span>
         <span className={styles.triggerCopy}>
           <strong>{displayName}</strong>
-          <small>{description}</small>
+          <small>{resolvedAccountLabel}</small>
         </span>
         <svg
           className={styles.chevron}

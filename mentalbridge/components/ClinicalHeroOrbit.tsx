@@ -12,11 +12,7 @@ export default function ClinicalHeroOrbit() {
 
     let renderer: THREE.WebGLRenderer
     try {
-      renderer = new THREE.WebGLRenderer({
-        alpha: true,
-        antialias: true,
-        powerPreference: 'low-power',
-      })
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'low-power' })
     } catch {
       return
     }
@@ -29,21 +25,9 @@ export default function ClinicalHeroOrbit() {
     const outerGeometry = new THREE.TorusGeometry(1.18, 0.012, 8, 120)
     const innerGeometry = new THREE.TorusGeometry(0.79, 0.01, 8, 100)
     const pointGeometry = new THREE.SphereGeometry(0.06, 12, 12)
-    const outerMaterial = new THREE.MeshBasicMaterial({
-      color: 0x27694d,
-      transparent: true,
-      opacity: 0.42,
-    })
-    const innerMaterial = new THREE.MeshBasicMaterial({
-      color: 0x27694d,
-      transparent: true,
-      opacity: 0.24,
-    })
-    const pointMaterial = new THREE.MeshBasicMaterial({
-      color: 0x27694d,
-      transparent: true,
-      opacity: 0.35,
-    })
+    const outerMaterial = new THREE.MeshBasicMaterial({ color: 0x27694d, transparent: true, opacity: 0.42 })
+    const innerMaterial = new THREE.MeshBasicMaterial({ color: 0x27694d, transparent: true, opacity: 0.24 })
+    const pointMaterial = new THREE.MeshBasicMaterial({ color: 0x27694d, transparent: true, opacity: 0.35 })
     const outer = new THREE.Mesh(outerGeometry, outerMaterial)
     const inner = new THREE.Mesh(innerGeometry, innerMaterial)
     const point = new THREE.Mesh(pointGeometry, pointMaterial)
@@ -69,9 +53,7 @@ export default function ClinicalHeroOrbit() {
     observer.observe(host)
     resize()
 
-    const reducedMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let frame = 0
     if (!reducedMotion) {
       const animate = () => {
@@ -98,7 +80,5 @@ export default function ClinicalHeroOrbit() {
     }
   }, [])
 
-  return (
-    <div className="clinical-hero-orbit" ref={hostRef} aria-hidden="true" />
-  )
+  return <div className="clinical-hero-orbit" ref={hostRef} aria-hidden="true" />
 }

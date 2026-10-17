@@ -5,22 +5,22 @@
 
 :root {
   /* Design Tokens */
-  --clinical-primary: #1f5c3f;
+  --clinical-primary: #1F5C3F;
   --clinical-primary-hover: #184a32;
-  --clinical-mint: #d9f3e4;
-  --clinical-mint-text: #1f5c3f;
-  --clinical-page-bg: #f6f9fc;
-  --clinical-lavender: #eef2fd;
+  --clinical-mint: #D9F3E4;
+  --clinical-mint-text: #1F5C3F;
+  --clinical-page-bg: #F6F9FC;
+  --clinical-lavender: #EEF2FD;
   --clinical-lavender-hover: #e2e8f8;
-  --clinical-card-bg: #ffffff;
+  --clinical-card-bg: #FFFFFF;
 
-  --clinical-text-main: #1a1c1e;
-  --clinical-text-sub: #5b6470;
-  --clinical-text-muted: #6b7280;
+  --clinical-text-main: #1A1C1E;
+  --clinical-text-sub: #5B6470;
+  --clinical-text-muted: #6B7280;
 
-  --clinical-badge-peach: #fde3df;
-  --clinical-badge-peach-text: #b3402f;
-  --clinical-dot-red: #a8372c;
+  --clinical-badge-peach: #FDE3DF;
+  --clinical-badge-peach-text: #B3402F;
+  --clinical-dot-red: #A8372C;
 
   --clinical-radius-xl: 32px;
   --clinical-radius-lg: 28px;
@@ -31,11 +31,8 @@
   --clinical-shadow-soft: 0 4px 24px rgba(20, 40, 60, 0.05);
   --clinical-shadow-btn: 0 4px 14px rgba(31, 92, 63, 0.25);
 
-  --clinical-font-serif:
-    var(--font-lora-variable), 'Newsreader', 'Source Serif 4', Georgia, serif;
-  --clinical-font-sans:
-    var(--font-plus-jakarta), var(--font-be-vietnam-variable), -apple-system,
-    BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --clinical-font-serif: var(--font-lora-variable), "Newsreader", "Source Serif 4", Georgia, serif;
+  --clinical-font-sans: var(--font-plus-jakarta), var(--font-be-vietnam-variable), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Page Background & Layout Container */
@@ -73,14 +70,8 @@
 }
 
 @keyframes clinicalFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ==========================================================================
@@ -145,7 +136,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #10b981;
+  background: #10B981;
   box-shadow: 0 0 0 2.5px rgba(16, 185, 129, 0.25);
 }
 
@@ -218,7 +209,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #ef4444;
+  background: #EF4444;
 }
 
 .clinical-topbar-avatar {
@@ -241,7 +232,7 @@
    2) HERO BANNER (Gradient #E6EFFA -> #DDF5EA)
    ========================================================================== */
 .clinical-hero-banner {
-  background: linear-gradient(90deg, #e6effa 0%, #ddf5ea 100%);
+  background: linear-gradient(90deg, #E6EFFA 0%, #DDF5EA 100%);
   border-radius: var(--clinical-radius-xl);
   padding: 32px;
   display: flex;
@@ -379,7 +370,7 @@
 }
 
 .clinical-star-red-orange {
-  color: #ea580c;
+  color: #EA580C;
   font-size: 14px;
 }
 
@@ -431,7 +422,7 @@
 
 /* Thanh nhấn dọc xanh đậm bo tròn ở mép phải card */
 .clinical-session-hero-card::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 18px;
   bottom: 18px;
@@ -522,7 +513,7 @@
 }
 
 .clinical-session-dash {
-  color: #cbd5e1;
+  color: #CBD5E1;
   font-weight: 300;
   margin: 0 4px;
 }
@@ -563,7 +554,7 @@
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: #e2e8f0;
+  background: #E2E8F0;
   color: var(--clinical-primary);
   font-weight: 700;
   font-size: 22px;
@@ -1341,24 +1332,6 @@
   .clinical-client-panel-lavender {
     flex-direction: column;
     align-items: flex-start;
-  }
-}
-
-@media (max-width: 640px) {
-  .role-specialist .role-topbar-specialist > .clinical-topbar-left {
-    display: flex;
-    flex: 1;
-  }
-
-  .clinical-breadcrumb-parent,
-  .clinical-breadcrumb-sep,
-  .clinical-topbar-status-pill {
-    display: none;
-  }
-
-  .clinical-breadcrumb {
-    min-width: 0;
-    white-space: normal;
   }
 }
 
