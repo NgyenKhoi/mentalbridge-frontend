@@ -113,6 +113,23 @@ function problem(status: number, code: string) {
 }
 
 describe('GuidedInitialCheck', () => {
+  it('returns to reassessment after accepting the required privacy notice', async () => {
+    mockServer.use(
+      http.get('http://localhost/api/care/initial-check', () =>
+        HttpResponse.json({ phase: 'CONSENT_REQUIRED' }),
+      ),
+    )
+    render(<GuidedInitialCheck purpose="REASSESSMENT" />)
+    expect(
+      await screen.findByRole('link', {
+        name: 'Xem quyền riêng tư và tiếp tục',
+      }),
+    ).toHaveAttribute(
+      'href',
+      '/profile?returnTo=%2Finitial-check%3Fpurpose%3Dreassessment',
+    )
+  })
+
   it('routes a first-time user to profile readiness and back to the journey', async () => {
     mockServer.use(
       http.get('http://localhost/api/care/initial-check', () =>

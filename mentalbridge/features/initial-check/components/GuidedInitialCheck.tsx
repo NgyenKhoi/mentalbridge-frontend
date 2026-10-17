@@ -184,10 +184,16 @@ function JourneyProgress({ phase }: { phase: InitialCheckState['phase'] }) {
 
 function ReadinessStep({
   phase,
+  purpose,
 }: {
   phase: 'PROFILE_REQUIRED' | 'CONSENT_REQUIRED'
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT'
 }) {
   const needsProfile = phase === 'PROFILE_REQUIRED'
+  const returnTo =
+    purpose === 'REASSESSMENT'
+      ? '/initial-check?purpose=reassessment'
+      : '/initial-check'
   return (
     <section
       className="initial-check-readiness"
@@ -210,7 +216,7 @@ function ReadinessStep({
       </p>
       <Link
         className="btn btn-primary"
-        href="/profile?returnTo=%2Finitial-check"
+        href={`/profile?returnTo=${encodeURIComponent(returnTo)}`}
       >
         {needsProfile
           ? 'Tạo hồ sơ và tiếp tục'
@@ -326,8 +332,8 @@ function DonutScore({
 function getPhq9CardData(score: number, level: ScreeningLevel) {
   if (level === 'MINIMAL' || score <= 4) {
     return {
-      title: '✓ Khí sắc tích cực & Ổn định',
-      desc: 'Tâm trạng thư thái, năng lượng tích cực và giấc ngủ duy trì đều đặn. Tiếp tục giữ nếp sinh hoạt lành mạnh.',
+      title: 'Dấu hiệu trầm buồn ở mức tối thiểu',
+      desc: 'Kết quả phản ánh câu trả lời của bạn trong 14 ngày qua, không khẳng định tình trạng giấc ngủ hay sức khỏe thể chất.',
       levelLabel: 'Mức độ tối thiểu',
       badgeClass: 'green',
       statusText: 'Đã ghi nhận',
@@ -338,8 +344,8 @@ function getPhq9CardData(score: number, level: ScreeningLevel) {
   }
   if (level === 'MILD' || score <= 9) {
     return {
-      title: '✓ Thể chất ổn định',
-      desc: 'Nhịp năng lượng và giấc ngủ duy trì tốt. Tiếp tục giữ nếp sinh hoạt điều độ hàng ngày.',
+      title: 'Dấu hiệu trầm buồn ở mức nhẹ',
+      desc: 'Bạn ghi nhận một số dấu hiệu trong 14 ngày qua. Kết quả này không khẳng định giấc ngủ hay thể chất ổn định.',
       levelLabel: 'Mức độ nhẹ',
       badgeClass: 'green',
       statusText: 'Đã ghi nhận',
@@ -963,7 +969,7 @@ export default function GuidedInitialCheck({
       <JourneyProgress phase={state.phase} />
       {(state.phase === 'PROFILE_REQUIRED' ||
         state.phase === 'CONSENT_REQUIRED') && (
-        <ReadinessStep phase={state.phase} />
+        <ReadinessStep phase={state.phase} purpose={purpose} />
       )}
       {state.phase === 'PHQ9' && (
         <AssessmentFlow
