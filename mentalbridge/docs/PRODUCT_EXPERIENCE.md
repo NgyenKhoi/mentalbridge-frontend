@@ -158,6 +158,10 @@ Assessment → Support guide → Support plan → Resources → Analytics
 
 ## 5. Journey 2 — Lịch hẹn và phiên tư vấn
 
+Tin nhắn lịch hẹn dùng `/messages`. Hội thoại AI có route riêng
+`/ai-companion`, cùng mục **AI Companion** trên điều hướng USER.
+SupportPlan Companion tiếp tục nằm trong ngữ cảnh kế hoạch hỗ trợ.
+
 ```text
 Appointments ─► Summary (chuẩn bị trước phiên) ─► Messages ─► Ended · Chỉ đọc
       ▲                                                        │

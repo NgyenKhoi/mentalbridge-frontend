@@ -83,9 +83,11 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
     page,
   }) => {
     // No session cookie — layout calls requireCurrentAccount → 401 → redirect
-    await page.goto('/dashboard')
-    await expect(page).toHaveURL(/\/login/)
-    await expect(page.locator('form input[type="email"]')).toBeVisible()
+    for (const route of ['/dashboard', '/ai-companion']) {
+      await page.goto(route)
+      await expect(page).toHaveURL(/\/login/)
+      await expect(page.locator('form input[type="email"]')).toBeVisible()
+    }
   })
 
   test('invalid token on protected routes redirects to login without leaking data', async ({
@@ -129,6 +131,11 @@ test.describe('AC1: Cross-user authorization boundaries', () => {
     // Must not render USER dashboard content
     await expect(
       page.getByRole('heading', { name: /gợi ý cho hôm nay/i }),
+    ).toHaveCount(0)
+    await page.goto('/ai-companion')
+    await expect(page).toHaveURL(/\/specialist\/dashboard/)
+    await expect(
+      page.getByRole('region', { name: 'AI Companion' }),
     ).toHaveCount(0)
   })
 

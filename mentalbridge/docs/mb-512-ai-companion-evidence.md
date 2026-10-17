@@ -1,8 +1,12 @@
 # MB-512 AI Companion frontend evidence
 
-The `/messages` experience now consumes the Journal/AI-owned AI Companion
+The `/ai-companion` experience consumes the Journal/AI-owned AI Companion
 contract through authenticated same-origin Route Handlers. Browser code never
 receives or stores a provider credential or the server-held Identity bearer.
+
+The USER sidebar exposes **AI Companion** separately from **Tin nhắn**.
+`/messages` remains appointment messaging; SupportPlan Companion remains in its
+plan context. The owner confirmed this route separation on 2026-10-17.
 
 Delivered behavior:
 
