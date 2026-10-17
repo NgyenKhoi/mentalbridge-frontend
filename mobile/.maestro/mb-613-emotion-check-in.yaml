@@ -4,11 +4,16 @@ name: MB-613 persisted emotion check-in to history and progress
 - launchApp:
     clearState: true
 - tapOn: 'Tiếp tục'
-- tapOn: 'Email'
+- tapOn:
+    id: 'sign-in-email-input'
 - inputText: '${MAESTRO_MB_USER_EMAIL}'
-- tapOn: 'Mật khẩu'
+- tapOn:
+    id: 'sign-in-password-input'
 - inputText: '${MAESTRO_MB_USER_PASSWORD}'
-- tapOn: 'Đăng nhập'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
 - assertVisible: 'Chào mừng bạn quay lại'
 - tapOn: 'Ghi nhận cảm xúc'
 - assertVisible: 'Ghi nhận cảm xúc'
