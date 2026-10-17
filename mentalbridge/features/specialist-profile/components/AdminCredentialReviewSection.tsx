@@ -60,16 +60,31 @@ export default function AdminCredentialReviewSection() {
     }
   }, [])
 
-  async function inspect(document: CredentialDocument) {
+  const selectedId = selected?.id
+
+  useEffect(() => {
+    if (!selectedId) return
+    let active = true
+    browserConsultation
+      .adminCredentialFile(selectedId)
+      .then((result) => {
+        if (active) setFileUrl(result.data.url)
+      })
+      .catch((cause) => {
+        if (active)
+          setError(
+            cause instanceof Error ? cause.message : 'Không thể mở tệp gốc.',
+          )
+      })
+    return () => {
+      active = false
+    }
+  }, [selectedId])
+
+  function inspect(document: CredentialDocument) {
     setSelected(document)
     setFileUrl(null)
     setError('')
-    try {
-      const result = await browserConsultation.adminCredentialFile(document.id)
-      setFileUrl(result.data.url)
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Không thể mở tệp gốc.')
-    }
   }
 
   async function decide(decision: 'verify' | 'reject') {
@@ -196,6 +211,7 @@ export default function AdminCredentialReviewSection() {
               <button
                 type="button"
                 aria-label="Đóng"
+                disabled={busy}
                 onClick={() => {
                   setSelected(null)
                   setFileUrl(null)
