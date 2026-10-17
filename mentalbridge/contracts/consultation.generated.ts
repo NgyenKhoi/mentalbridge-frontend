@@ -681,7 +681,7 @@ export interface paths {
         /** @description Lists the authenticated specialist's slots in a bounded UTC interval, including tombstones when requested. */
         get: operations["listOwnAvailabilitySlots"];
         put?: never;
-        /** @description Publishes one exact future 60-minute online slot. Replaying the same Idempotency-Key with the same command returns the same slot identity and current state. */
+        /** @description Publishes one exact 60-minute online slot whose end is still future, including the current active window. There is no advance booking delay. Replaying the same Idempotency-Key with the same command returns the same slot identity and current state. */
         post: operations["publishOwnAvailabilitySlot"];
         delete?: never;
         options?: never;
@@ -715,7 +715,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Lists approved specialists' currently selectable exact 60-minute online slots. Disabled video slots and slots already held by an active appointment are excluded. */
+        /** @description Lists approved specialists' unexpired selectable exact 60-minute online slots, including currently active windows without advance booking delay. Disabled video slots and slots already held by an active appointment are excluded. */
         get: operations["listBookableSlots"];
         put?: never;
         post?: never;
@@ -732,7 +732,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns only current APPROVED profiles and their current selectable exact 60-minute online slots. FREE, PLUS, and PREMIUM may browse. Optional personalization reads one exact owned Care SupportEvaluation server-to-server; its health content is never returned or persisted, and unavailable context degrades to a neutral explained rank. */
+        /** @description Returns only current APPROVED profiles and their unexpired selectable exact 60-minute online slots, including currently active windows without advance booking delay. FREE, PLUS, and PREMIUM may browse. Optional personalization reads one exact owned Care SupportEvaluation server-to-server; its health content is never returned or persisted, and unavailable context degrades to a neutral explained rank. */
         get: operations["discoverApprovedSpecialists"];
         put?: never;
         post?: never;
@@ -786,7 +786,7 @@ export interface paths {
         /** @description Lists at most 100 newest authoritative appointment snapshots owned by the authenticated user. When originatingPlanActionId is supplied, the exact owner-and-action filter is applied before the bound so a caller can recover correlated SupportPlan progress without scanning general history. */
         get: operations["listOwnAppointments"];
         put?: never;
-        /** @description Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. A replacement inherits an omitted originatingPlanActionId from the owned appointment and rejects a conflicting explicit value. Exact command replays return the original appointment. */
+        /** @description Atomically creates a REQUESTED appointment for one exact unexpired slot, including an already-started active window, after enforcing available-credit and concurrent-reservation limits. No minimum advance booking interval applies. The assigned specialist must confirm before interactive access. When the ordinary decision buffer has elapsed, the decision cutoff is slot end. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. A replacement inherits an omitted originatingPlanActionId from the owned appointment and rejects a conflicting explicit value. Exact command replays return the original appointment. */
         post: operations["requestAppointment"];
         delete?: never;
         options?: never;

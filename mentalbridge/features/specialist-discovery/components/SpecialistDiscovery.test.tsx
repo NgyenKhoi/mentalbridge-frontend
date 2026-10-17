@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
@@ -73,6 +73,39 @@ function renderDiscovery() {
 }
 
 describe('SpecialistDiscovery', () => {
+  it('refreshes authoritative slots when the user returns from the specialist tab', async () => {
+    discoveryClient.list
+      .mockResolvedValueOnce({ ...page('PLUS'), items: [], count: 0 })
+      .mockResolvedValue(page('PLUS'))
+
+    renderDiscovery()
+    await screen.findByText('Chưa có chuyên gia phù hợp')
+    fireEvent(window, new Event('focus'))
+
+    expect(await screen.findByText('Chuyên gia An')).toBeInTheDocument()
+  })
+
+  it('uses the enabled backend video capability for discovery filtering', async () => {
+    const user = userEvent.setup()
+    discoveryClient.list.mockResolvedValue({
+      ...page('PLUS'),
+      videoEnabled: true,
+    })
+
+    renderDiscovery()
+    const video = await screen.findByRole('button', {
+      name: /^Video$/,
+    })
+    expect(video).toBeEnabled()
+    await user.click(video)
+
+    await waitFor(() =>
+      expect(discoveryClient.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ modality: 'IN_APP_VIDEO' }),
+      ),
+    )
+  })
+
   beforeEach(() => {
     window.history.replaceState({}, '', '/specialists')
     discoveryClient.list.mockReset()
