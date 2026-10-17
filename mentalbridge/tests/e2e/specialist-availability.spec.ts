@@ -8,6 +8,34 @@ test.beforeEach(async ({ request }) => {
   expect(response.status()).toBe(204)
 })
 
+test('specialist publishes a current-minute slot without an advance wait', async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date('2099-01-03T02:30:30Z') })
+  await page.goto('/login')
+  await page.getByLabel('Email').fill('specialist@example.com')
+  await page.getByLabel('Mật khẩu').fill('synthetic-e2e-password')
+  await page.getByRole('button', { name: 'Đăng nhập' }).click()
+  await expect(page).toHaveURL(/\/specialist\/dashboard$/)
+  await page.goto('/specialist/availability')
+  await page.getByLabel('Ngày', { exact: true }).fill('2099-01-03')
+  await page.getByLabel('Giờ bắt đầu', { exact: true }).fill('09:30')
+  await page.getByLabel('Múi giờ hiển thị').fill('Asia/Ho_Chi_Minh')
+  const publication = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/consultation/availability-slots') &&
+      response.request().method() === 'POST',
+  )
+  await page.getByRole('button', { name: 'Xuất bản khung giờ' }).click()
+  const response = await publication
+  expect(response.status()).toBe(201)
+  expect(response.request().postDataJSON()).toMatchObject({
+    startAt: '2099-01-03T02:30:00.000Z',
+    endAt: '2099-01-03T03:30:00.000Z',
+  })
+  await expect(page.getByText(/Đã xuất bản khung giờ/).first()).toBeVisible()
+})
+
 test('specialist publishes and withdraws a mobile 60-minute chat slot', async ({
   page,
 }) => {

@@ -276,10 +276,10 @@ export default function SpecialistAvailabilityManager() {
       }
     try {
       const range = localSlotToUtc(form.date, form.startTime, form.timezone)
-      if (Date.parse(range.startAt) <= now)
+      if (Date.parse(range.endAt) <= now)
         return {
           range,
-          issue: 'Giờ này đã qua. Hãy chọn thời điểm bắt đầu trong tương lai.',
+          issue: 'Giờ này đã qua. Hãy chọn khung giờ chưa kết thúc.',
           overlap: false,
         }
       const overlap = slots.some(
@@ -342,7 +342,7 @@ export default function SpecialistAvailabilityManager() {
   }
   const publish = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (selection.range && Date.parse(selection.range.startAt) <= Date.now()) {
+    if (selection.range && Date.parse(selection.range.endAt) <= Date.now()) {
       setNow(Date.now())
       return
     }
@@ -465,7 +465,7 @@ export default function SpecialistAvailabilityManager() {
     if (!validTimezone(form.timezone)) return 'Múi giờ chưa hợp lệ'
     try {
       const range = localSlotToUtc(form.date, time, safeTimezone)
-      if (Date.parse(range.startAt) <= now) return 'Thời điểm đã qua'
+      if (Date.parse(range.endAt) <= now) return 'Khung giờ đã kết thúc'
       if (
         slots.some(
           (slot) =>
