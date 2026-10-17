@@ -90,6 +90,8 @@ function plan(): SupportPlanV3 {
 }
 
 describe('SupportPlanScheduleEditor', () => {
+  const defaultActionId = '20000000-0000-4000-8000-000000000640'
+
   it('reviews a persisted default and sends an explicit bounded schedule change', async () => {
     const onDirtyChange = vi.fn()
     const onSave = vi.fn().mockResolvedValue(undefined)
@@ -100,6 +102,7 @@ describe('SupportPlanScheduleEditor', () => {
         onDirtyChange={onDirtyChange}
         onSave={onSave}
         onReload={vi.fn()}
+        defaultOpenActionId={defaultActionId}
       />,
     )
 
@@ -141,6 +144,7 @@ describe('SupportPlanScheduleEditor', () => {
         plan={plan()}
         onSave={onSave}
         onReload={onReload}
+        defaultOpenActionId={defaultActionId}
       />,
     )
 
@@ -164,6 +168,7 @@ describe('SupportPlanScheduleEditor', () => {
         plan={plan()}
         onSave={onSave}
         onReload={vi.fn()}
+        defaultOpenActionId={defaultActionId}
       />,
     )
 
@@ -190,6 +195,7 @@ describe('SupportPlanScheduleEditor', () => {
         onDirtyChange={onDirtyChange}
         onSave={vi.fn().mockResolvedValue(undefined)}
         onReload={vi.fn()}
+        defaultOpenActionId={defaultActionId}
       />,
     )
     const time = screen.getByLabelText('Giờ địa phương')
@@ -212,6 +218,7 @@ describe('SupportPlanScheduleEditor', () => {
         plan={plan()}
         onSave={onSave}
         onReload={vi.fn()}
+        defaultOpenActionId={defaultActionId}
       />,
     )
     const duration = screen.getByLabelText('Thời lượng dự kiến (phút)')
@@ -235,6 +242,7 @@ describe('SupportPlanScheduleEditor', () => {
           plan={value}
           onSave={vi.fn()}
           onReload={vi.fn()}
+          defaultOpenActionId={defaultActionId}
         />,
       )
       const toggle = screen.getByRole('checkbox', { name: 'Lên lịch' })
@@ -252,6 +260,7 @@ describe('SupportPlanScheduleEditor', () => {
         plan={{ ...plan(), status: 'PAUSED' }}
         onSave={vi.fn()}
         onReload={vi.fn()}
+        defaultOpenActionId={defaultActionId}
       />,
     )
     expect(
@@ -261,7 +270,7 @@ describe('SupportPlanScheduleEditor', () => {
       screen.getByRole('combobox', { name: 'Thời điểm trong ngày' }),
     ).toBeDisabled()
     expect(
-      screen.getByRole('checkbox', { name: 'Nhắc tôi về hoạt động này' }),
+      screen.getByRole('checkbox', { name: 'Lưu tùy chọn nhắc nhở' }),
     ).toBeDisabled()
     expect(screen.getByRole('checkbox', { name: 'Thứ Hai' })).toBeChecked()
   })

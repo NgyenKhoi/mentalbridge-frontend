@@ -1,14 +1,14 @@
 'use client'
 
-import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Clock3, RefreshCw, ShieldCheck } from 'lucide-react'
+import Link from 'next/link'
+import { MessageCircle, RefreshCw, Search, X } from 'lucide-react'
 
+import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
-import { getMessagesPreview, type MessagesPreviewConversation } from '../mocks/messages-preview'
 import AppointmentChatPanel from './AppointmentChatPanel'
 import chatStyles from './AppointmentChatPanel.module.css'
 import styles from './AppointmentMessagesWorkspace.module.css'
@@ -16,17 +16,6 @@ import styles from './AppointmentMessagesWorkspace.module.css'
 type ViewerRole = 'USER' | 'SPECIALIST'
 
 type ConversationState = 'active' | 'waiting' | 'ended'
-type InboxFilter = 'today' | 'upcoming' | 'completed'
-
-function localDay(value: string) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value))
-}
-
-function matchesInboxFilter(appointment: Appointment, filter: InboxFilter, today: string, now: number) {
-  if (filter === 'today') return localDay(appointment.scheduledStartAt) === today
-  if (filter === 'upcoming') return localDay(appointment.scheduledStartAt) !== today && conversationState(appointment, now) !== 'ended'
-  return conversationState(appointment, now) === 'ended'
-}
 
 function hasConversation(appointment: Appointment) {
   return (
@@ -38,19 +27,9 @@ function hasConversation(appointment: Appointment) {
   )
 }
 
-function conversationState(
-  appointment: Appointment,
-  now: number,
-): ConversationState {
-  const start = Date.parse(appointment.scheduledStartAt)
-  const end = Date.parse(appointment.scheduledEndAt)
-  if (
-    appointment.status === 'IN_PROGRESS' ||
-    (appointment.status === 'CONFIRMED' && now >= start && now < end)
-  ) {
-    return 'active'
-  }
-  if (appointment.status === 'CONFIRMED' && now < end) return 'waiting'
+function conversationState(appointment: Appointment): ConversationState {
+  if (appointment.status === 'IN_PROGRESS') return 'active'
+  if (appointment.status === 'CONFIRMED') return 'waiting'
   return 'ended'
 }
 
@@ -60,13 +39,13 @@ function formatAppointment(appointment: Appointment) {
   const date = new Intl.DateTimeFormat('vi-VN', {
     day: '2-digit',
     month: '2-digit',
-    timeZone: 'Asia/Ho_Chi_Minh',
+    timeZone: appointment.timezone,
   }).format(start)
   const time = new Intl.DateTimeFormat('vi-VN', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-    timeZone: 'Asia/Ho_Chi_Minh',
+    timeZone: appointment.timezone,
   })
   return `${date} · ${time.format(start)}–${time.format(end)}`
 }
@@ -88,8 +67,8 @@ function friendlyError(error: unknown) {
 
 const stateCopy: Record<ConversationState, string> = {
   active: 'Đang diễn ra',
-  waiting: 'Chưa bắt đầu',
-  ended: 'Chỉ đọc',
+  waiting: 'Đã xác nhận',
+  ended: 'Đã kết thúc',
 }
 
 export default function AppointmentMessagesWorkspace({
@@ -103,95 +82,55 @@ export default function AppointmentMessagesWorkspace({
   const pathname = usePathname()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [selectedId, setSelectedId] = useState(initialAppointmentId ?? '')
-  const [generatedAt, setGeneratedAt] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [filter, setFilter] = useState<InboxFilter>('today')
-  const [previewEnabled, setPreviewEnabled] = useState(false)
-  const [previewData, setPreviewData] = useState<ReturnType<typeof getMessagesPreview> | null>(null)
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<ConversationState | 'all'>('all')
+  const [detailOpen, setDetailOpen] = useState(Boolean(initialAppointmentId))
+  const requestSequence = useRef(0)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const inboxRef = useRef<HTMLElement>(null)
+  const isSpecialist = viewerRole === 'SPECIALIST'
 
   const load = useCallback(async () => {
+    const sequence = ++requestSequence.current
     setLoading(true)
     setError('')
     try {
-      if (previewEnabled && viewerRole === 'SPECIALIST') {
-        const sample = getMessagesPreview()
-        setPreviewData(sample)
-        setAppointments(sample.conversations.map((item) => item.appointment))
-        setGeneratedAt(sample.generatedAt)
-        return
-      }
       const result =
         viewerRole === 'SPECIALIST'
           ? await appointmentBrowserClient.assigned()
           : await appointmentBrowserClient.list()
+      if (sequence !== requestSequence.current) return
       setAppointments(result.items.filter(hasConversation))
-      setGeneratedAt(result.generatedAt)
     } catch (caught) {
+      if (sequence !== requestSequence.current) return
+      if (
+        caught instanceof ApiError &&
+        [401, 403].includes(caught.status ?? 0)
+      ) {
+        setAppointments([])
+      }
       setError(friendlyError(caught))
     } finally {
-      setLoading(false)
+      if (sequence === requestSequence.current) setLoading(false)
     }
-  }, [previewEnabled, viewerRole])
+  }, [viewerRole])
 
   useEffect(() => {
-    let active = true
-    if (previewEnabled && viewerRole === 'SPECIALIST') {
-      const sample = getMessagesPreview()
-      setPreviewData(sample)
-      setAppointments(sample.conversations.map((item) => item.appointment))
-      setGeneratedAt(sample.generatedAt)
-      const initialConversation = sample.conversations.find((item) => item.appointment.id === initialAppointmentId)
-      setSelectedId(initialConversation?.appointment.id ?? sample.conversations[0]?.appointment.id ?? '')
-      setFilter(initialConversation
-        ? matchesInboxFilter(initialConversation.appointment, 'today', localDay(sample.generatedAt), Date.parse(sample.generatedAt)) ? 'today'
-          : matchesInboxFilter(initialConversation.appointment, 'upcoming', localDay(sample.generatedAt), Date.parse(sample.generatedAt)) ? 'upcoming' : 'completed'
-        : 'today')
-      setError('')
-      setLoading(false)
-      return () => { active = false }
-    }
-    setPreviewData(null)
-    setLoading(true)
-    setError('')
-    setSelectedId(initialAppointmentId ?? '')
-    const request =
-      viewerRole === 'SPECIALIST'
-        ? appointmentBrowserClient.assigned()
-        : appointmentBrowserClient.list()
-    request
-      .then((result) => {
-        if (!active) return
-        const available = result.items.filter(hasConversation)
-        setAppointments(available)
-        setGeneratedAt(result.generatedAt)
-        if (viewerRole === 'SPECIALIST') {
-          const currentDay = localDay(result.generatedAt)
-          const serverNow = Date.parse(result.generatedAt)
-          const selected = available.find((item) => item.id === initialAppointmentId)
-          setFilter(selected
-            ? localDay(selected.scheduledStartAt) === currentDay ? 'today' : conversationState(selected, serverNow) === 'ended' ? 'completed' : 'upcoming'
-            : available.some((item) => matchesInboxFilter(item, 'today', currentDay, serverNow)) ? 'today' : available.some((item) => matchesInboxFilter(item, 'upcoming', currentDay, serverNow)) ? 'upcoming' : 'completed')
-        }
-      })
-      .catch((caught: unknown) => {
-        if (active) setError(friendlyError(caught))
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
+    const timer = window.setTimeout(() => void load(), 0)
     return () => {
-      active = false
+      window.clearTimeout(timer)
+      requestSequence.current += 1
     }
-  }, [initialAppointmentId, previewEnabled, viewerRole])
+  }, [load])
 
-  const now = generatedAt ? Date.parse(generatedAt) : 0
   const conversations = useMemo(
     () =>
       [...appointments].sort((left, right) => {
         const stateOrder = { active: 0, waiting: 1, ended: 2 }
-        const leftState = conversationState(left, now)
-        const rightState = conversationState(right, now)
+        const leftState = conversationState(left)
+        const rightState = conversationState(right)
         const stateDifference = stateOrder[leftState] - stateOrder[rightState]
         if (stateDifference !== 0) return stateDifference
         const direction = leftState === 'ended' ? -1 : 1
@@ -201,74 +140,128 @@ export default function AppointmentMessagesWorkspace({
             Date.parse(right.scheduledStartAt))
         )
       }),
-    [appointments, now],
+    [appointments],
   )
-  const today = localDay(generatedAt || new Date().toISOString())
-  const inboxCounts = {
-    today: conversations.filter((item) => matchesInboxFilter(item, 'today', today, now)).length,
-    upcoming: conversations.filter((item) => matchesInboxFilter(item, 'upcoming', today, now)).length,
-    completed: conversations.filter((item) => matchesInboxFilter(item, 'completed', today, now)).length,
-  }
-  const visibleConversations = viewerRole === 'SPECIALIST' ? conversations.filter((item) => matchesInboxFilter(item, filter, today, now)) : conversations
 
-  const effectiveSelectedId = visibleConversations.some(
-    (item) => item.id === selectedId,
-  )
-    ? selectedId
-    : (visibleConversations[0]?.id ?? '')
-  const appointmentsHref = viewerRole === 'SPECIALIST' ? '/specialist/appointments' : '/appointments'
-  const selectedPreview: MessagesPreviewConversation | undefined = previewEnabled
-    ? previewData?.conversations.find((item) => item.appointment.id === effectiveSelectedId)
-    : undefined
+  const selectedAppointment = selectedId
+    ? conversations.find((item) => item.id === selectedId)
+    : conversations[0]
+  const effectiveSelectedId = selectedAppointment?.id ?? ''
+  const matchingConversations = conversations.filter((appointment) => {
+    const state = conversationState(appointment)
+    const searchText = `${formatAppointment(appointment)} ${appointment.timezone} ${stateCopy[state]} ${viewerRole === 'USER' ? appointment.specialistDisplayName : 'Khách hàng'}`
+    return (
+      (filter === 'all' || state === filter) &&
+      searchText
+        .toLocaleLowerCase('vi')
+        .includes(query.trim().toLocaleLowerCase('vi'))
+    )
+  })
+  const appointmentsHref =
+    viewerRole === 'SPECIALIST' ? '/specialist/appointments' : '/appointments'
 
   const selectConversation = (appointmentId: string) => {
     setSelectedId(appointmentId)
-    if (previewEnabled) return
+    setDetailOpen(true)
+    requestAnimationFrame(() =>
+      document.getElementById('appointment-chat-title')?.focus(),
+    )
     const params = new URLSearchParams({ appointmentId })
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
-
-  const togglePreview = () => {
-    setAppointments([])
-    setPreviewData(null)
-    setSelectedId('')
-    setLoading(true)
-    setPreviewEnabled((value) => !value)
+  const backToInbox = () => {
+    setDetailOpen(false)
+    requestAnimationFrame(() => {
+      inboxRef.current
+        ?.querySelector<HTMLButtonElement>('button[aria-current="true"]')
+        ?.focus()
+    })
+  }
+  const clearSearch = () => {
+    setQuery('')
+    setFilter('all')
+    searchRef.current?.focus()
   }
 
   return (
-    <main className={styles.page} data-messages-workspace>
-      <section className={styles.workspace} aria-label="Tin nhắn lịch hẹn">
-        <aside className={styles.inbox} aria-label="Danh sách cuộc trò chuyện">
+    <main
+      className={`${styles.page} ${isSpecialist ? styles.specialist : ''}`}
+      data-specialist-journey={isSpecialist ? 'messages' : undefined}
+    >
+      <section
+        className={styles.workspace}
+        data-detail-open={detailOpen}
+        aria-label="Tin nhắn lịch hẹn"
+      >
+        <aside
+          ref={inboxRef}
+          className={styles.inbox}
+          aria-label="Danh sách cuộc trò chuyện"
+          aria-busy={loading}
+        >
           <header>
             <div>
-              <h2>Lịch hẹn chat</h2>
+              {!isSpecialist && <span>HỘP THƯ</span>}
+              <h1>{isSpecialist ? 'Hộp thư' : 'Lịch hẹn chat'}</h1>
             </div>
             <div className={styles.inboxActions}>
               <strong>{conversations.length}</strong>
               <button
-                data-messages-ui
                 type="button"
                 onClick={() => void load()}
                 disabled={loading}
                 aria-label="Tải lại danh sách cuộc trò chuyện"
                 title="Tải lại"
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={18} aria-hidden="true" />
               </button>
             </div>
           </header>
-
-          {viewerRole === 'SPECIALIST' && <div className={styles.filters} aria-label="Lọc lịch hẹn chat">
-            {([['today', 'Hôm nay'], ['upcoming', 'Sắp tới'], ['completed', 'Đã hoàn thành']] as const).map(([key, label]) => (
-              <button data-messages-ui type="button" key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}<span>{inboxCounts[key]}</span></button>
-            ))}
-          </div>}
-
-          {viewerRole === 'SPECIALIST' && process.env.NODE_ENV === 'development' && (
-            <div className={styles.previewBar} data-active={previewEnabled}>
-              <span><i /> {previewEnabled ? 'Đang xem dữ liệu mẫu để duyệt giao diện' : 'Đang xem dữ liệu thật'}</span>
-              <button data-messages-ui type="button" onClick={togglePreview}>{previewEnabled ? 'Xem dữ liệu thật' : 'Xem dữ liệu mẫu'}</button>
+          {isSpecialist && (
+            <div className={styles.inboxTools}>
+              <label className={styles.search}>
+                <Search size={18} aria-hidden="true" />
+                <input
+                  ref={searchRef}
+                  type="search"
+                  aria-label="Tìm cuộc trò chuyện"
+                  placeholder="Tìm theo ngày, giờ hoặc trạng thái…"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+                {query && (
+                  <button
+                    type="button"
+                    aria-label="Xóa tìm kiếm"
+                    onClick={clearSearch}
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                )}
+              </label>
+              <div
+                className={styles.filters}
+                role="group"
+                aria-label="Lọc cuộc trò chuyện"
+              >
+                {(
+                  [
+                    ['all', 'Tất cả'],
+                    ['active', 'Đang diễn ra'],
+                    ['waiting', 'Chờ & sắp tới'],
+                    ['ended', 'Đã kết thúc'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={filter === key}
+                    onClick={() => setFilter(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -279,27 +272,49 @@ export default function AppointmentMessagesWorkspace({
           )}
 
           {loading && conversations.length === 0 ? (
-            <p className={styles.state}>Đang tải cuộc trò chuyện…</p>
-          ) : error && conversations.length === 0 ? null : conversations.length === 0 ? (
+            <div className={styles.state} role="status">
+              <p>Đang tải cuộc trò chuyện…</p>
+              <Skeleton height={84} />
+              <Skeleton height={84} />
+              <Skeleton height={84} />
+            </div>
+          ) : error && conversations.length === 0 ? (
+            <div className={styles.emptyList}>
+              <button type="button" onClick={() => void load()}>
+                Thử lại
+              </button>
+            </div>
+          ) : conversations.length === 0 ? (
             <div className={styles.emptyList}>
               <strong>Chưa có cuộc trò chuyện</strong>
               <p>
-                Cuộc trò chuyện sẽ xuất hiện sau khi một lịch hẹn chat được xác nhận.
+                Cuộc trò chuyện sẽ xuất hiện sau khi một lịch hẹn chat được xác
+                nhận.
               </p>
+              {isSpecialist && (
+                <Link href="/specialist/appointments">Xem lịch hẹn</Link>
+              )}
+            </div>
+          ) : matchingConversations.length === 0 ? (
+            <div className={styles.emptyList}>
+              <Search aria-hidden="true" size={28} />
+              <strong>Không tìm thấy cuộc trò chuyện phù hợp</strong>
+              <p>Thử ngày khác hoặc xem lại tất cả lịch hẹn.</p>
+              <button type="button" onClick={clearSearch}>
+                Xóa bộ lọc
+              </button>
             </div>
           ) : (
             <ul>
-              {visibleConversations.length === 0 && <li className={styles.emptyFilter}>Chưa có lịch hẹn trong mục này.</li>}
-              {visibleConversations.map((appointment) => {
-                const state = conversationState(appointment, now)
-                const sample = previewData?.conversations.find((item) => item.appointment.id === appointment.id)
-                const counterpart = viewerRole === 'SPECIALIST'
-                  ? sample?.clientName ?? 'Khách hàng'
-                  : appointment.specialistDisplayName
+              {matchingConversations.map((appointment) => {
+                const state = conversationState(appointment)
+                const counterpart =
+                  viewerRole === 'SPECIALIST'
+                    ? 'Khách hàng'
+                    : appointment.specialistDisplayName
                 return (
                   <li key={appointment.id}>
                     <button
-                      data-messages-ui
                       type="button"
                       className={
                         effectiveSelectedId === appointment.id
@@ -314,12 +329,14 @@ export default function AppointmentMessagesWorkspace({
                       onClick={() => selectConversation(appointment.id)}
                     >
                       <span className={styles.avatar} aria-hidden="true">
-                        {counterpart.trim().split(/\s+/).slice(-2).map((part) => part[0]).join('').toLocaleUpperCase('vi')}
+                        {counterpart.trim().slice(0, 1).toLocaleUpperCase('vi')}
                       </span>
                       <span className={styles.conversationCopy}>
-                        <span className={styles.listTop}><strong>{counterpart}</strong><em data-state={state}><i /> {stateCopy[state]}</em></span>
-                        <small>Phiên #{sample?.reference ?? appointment.id.slice(-6).toUpperCase()}</small>
-                        <span className={styles.listTime}><Clock3 size={14} /> {formatAppointment(appointment)}</span>
+                        <strong>{counterpart}</strong>
+                        <small>{formatAppointment(appointment)}</small>
+                        <em data-state={state}>
+                          <i /> {stateCopy[state]}
+                        </em>
                       </span>
                     </button>
                   </li>
@@ -327,29 +344,72 @@ export default function AppointmentMessagesWorkspace({
               })}
             </ul>
           )}
-          {viewerRole === 'SPECIALIST' && <footer className={styles.inboxFooter}><ShieldCheck size={15} /> Tin nhắn chỉ mở theo lịch hẹn được cấp quyền.</footer>}
+          {isSpecialist && (
+            <footer className={styles.inboxFooter}>
+              Nhắn tin trong phạm vi lịch hẹn đã xác nhận.
+            </footer>
+          )}
         </aside>
 
-        <section className={styles.conversation} aria-live="polite">
+        <section
+          className={styles.conversation}
+          aria-label="Lịch hẹn đang chọn"
+        >
           {effectiveSelectedId ? (
             <AppointmentChatPanel
-              key={`${previewEnabled ? 'preview' : 'live'}-${effectiveSelectedId}`}
+              key={effectiveSelectedId}
               appointmentId={effectiveSelectedId}
               viewerRole={viewerRole}
+              timezone={selectedAppointment?.timezone}
+              onBackToInbox={isSpecialist ? backToInbox : undefined}
               embedded
-              preview={selectedPreview}
             />
+          ) : isSpecialist ? (
+            <div className={styles.emptyConversation}>
+              <MessageCircle size={40} aria-hidden="true" />
+              <h2>
+                {selectedId && !loading
+                  ? 'Lịch hẹn này không có trong hộp thư'
+                  : 'Chọn một lịch hẹn để xem tin nhắn'}
+              </h2>
+              <p>
+                {selectedId && !loading
+                  ? 'Chọn một cuộc trò chuyện được cấp quyền trong danh sách.'
+                  : 'Lịch sử được hiển thị theo quyền truy cập của từng phiên.'}
+              </p>
+              {isSpecialist && (
+                <button
+                  className={styles.backToInbox}
+                  type="button"
+                  onClick={backToInbox}
+                >
+                  Quay lại hộp thư
+                </button>
+              )}
+            </div>
           ) : (
             <div className={`${chatStyles.page} ${chatStyles.embedded}`}>
               <div className={chatStyles.layout}>
-                <section className={chatStyles.chat} aria-label="Khung nhắn tin">
+                <section
+                  className={chatStyles.chat}
+                  aria-label="Khung nhắn tin"
+                >
                   <header className={chatStyles.chatHeader}>
-                    <span className={chatStyles.avatar} aria-hidden="true">◇</span>
+                    <span className={chatStyles.avatar} aria-hidden="true">
+                      ◇
+                    </span>
                     <div className={chatStyles.chatIdentity}>
                       <div className={chatStyles.chatTitleRow}>
                         <strong>Tin nhắn tư vấn</strong>
-                        <span className={`${chatStyles.phaseBadge} ${styles.emptyPhase}`}>
-                          <i /> {loading ? 'Đang tải' : error ? 'Chưa kết nối' : 'Chưa có lịch hẹn'}
+                        <span
+                          className={`${chatStyles.phaseBadge} ${styles.emptyPhase}`}
+                        >
+                          <i />{' '}
+                          {loading
+                            ? 'Đang tải'
+                            : error
+                              ? 'Chưa kết nối'
+                              : 'Chưa có lịch hẹn'}
                         </span>
                       </div>
                       <div className={chatStyles.chatMeta}>
@@ -360,7 +420,11 @@ export default function AppointmentMessagesWorkspace({
                     </div>
                   </header>
 
-                  <section className={chatStyles.messages} aria-label="Tin nhắn tư vấn" role="log">
+                  <section
+                    className={chatStyles.messages}
+                    aria-label="Tin nhắn tư vấn"
+                    role="log"
+                  >
                     <div className={chatStyles.empty}>
                       <svg viewBox="0 0 120 84" aria-hidden="true">
                         <path d="M4 84V50a56 56 0 0 1 112 0v34" />
@@ -381,18 +445,30 @@ export default function AppointmentMessagesWorkspace({
                             ? error
                             : 'Tin nhắn sẽ hiển thị khi lịch hẹn chat được xác nhận. Bạn có thể xem lại lịch sử sau khi phiên chat kết thúc.'}
                       </p>
-                      {!loading && (error ? (
-                        <button data-messages-ui type="button" className={styles.emptyAction} onClick={() => void load()}>
-                          Thử tải lại
-                        </button>
-                      ) : (
-                        <Link className={styles.emptyAction} href={appointmentsHref}>Xem lịch hẹn</Link>
-                      ))}
+                      {!loading &&
+                        (error ? (
+                          <button
+                            type="button"
+                            className={styles.emptyAction}
+                            onClick={() => void load()}
+                          >
+                            Thử tải lại
+                          </button>
+                        ) : (
+                          <Link
+                            className={styles.emptyAction}
+                            href={appointmentsHref}
+                          >
+                            Xem lịch hẹn
+                          </Link>
+                        ))}
                     </div>
                   </section>
 
                   <div className={chatStyles.composer}>
-                    <label htmlFor="empty-appointment-chat-message">Tin nhắn</label>
+                    <label htmlFor="empty-appointment-chat-message">
+                      Tin nhắn
+                    </label>
                     <div className={chatStyles.composerBox}>
                       <textarea
                         id="empty-appointment-chat-message"

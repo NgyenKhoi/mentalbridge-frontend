@@ -2,17 +2,26 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, Check, ChevronRight, Clock3, FileText, Info, MessageCircle, RefreshCw, ShieldCheck, Video, X } from 'lucide-react'
+import {
+  CalendarDays,
+  Check,
+  ChevronRight,
+  Clock3,
+  FileText,
+  Info,
+  MessageCircle,
+  RefreshCw,
+  ShieldCheck,
+  X,
+} from 'lucide-react'
 
 import { useFeedback } from '@/components/ui/FeedbackProvider'
-import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { appointmentBrowserClient } from '../api/browser-client'
 import {
   matchesAppointmentFilter,
   nextAppointment,
-  orderSpecialistAppointments,
   type AppointmentFilter,
 } from '../model/appointment-view'
 import styles from './SpecialistAppointmentDecisionPanel.module.css'
@@ -70,22 +79,17 @@ function displayDate(appointment: Appointment) {
 }
 
 function isoWeek(date: Date) {
-  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const target = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  )
   target.setUTCDate(target.getUTCDate() + 4 - (target.getUTCDay() || 7))
   const firstDay = new Date(Date.UTC(target.getUTCFullYear(), 0, 1))
   return {
-    week: Math.ceil(((target.getTime() - firstDay.getTime()) / 86400000 + 1) / 7),
+    week: Math.ceil(
+      ((target.getTime() - firstDay.getTime()) / 86400000 + 1) / 7,
+    ),
     year: target.getUTCFullYear(),
   }
-}
-
-function durationCopy(appointment: Appointment) {
-  const minutes = Math.round(
-    (Date.parse(appointment.scheduledEndAt) -
-      Date.parse(appointment.scheduledStartAt)) /
-      60000,
-  )
-  return `${minutes} phút · ${appointment.modality === 'IN_APP_CHAT' ? 'Chat trong ứng dụng' : 'Video trong ứng dụng'}`
 }
 
 function displayDeadline(appointment: Appointment) {
@@ -98,6 +102,7 @@ function displayDeadline(appointment: Appointment) {
 }
 
 function displayRemaining(deadlineAt: string, referenceTime: number) {
+  if (!referenceTime) return 'đang cập nhật…'
   const minutes = Math.ceil((Date.parse(deadlineAt) - referenceTime) / 60000)
   if (minutes <= 0) return 'đã hết hạn'
   const hours = String(Math.floor(minutes / 60)).padStart(2, '0')
@@ -134,7 +139,7 @@ export default function SpecialistAppointmentDecisionPanel({
   initialAppointmentId,
 }: {
   initialAppointmentId?: string
-}) {
+} = {}) {
   const { confirm, showActionToast } = useFeedback()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [generatedAt, setGeneratedAt] = useState('')
@@ -143,7 +148,6 @@ export default function SpecialistAppointmentDecisionPanel({
   const [error, setError] = useState('')
   const [pendingCommand, setPendingCommand] = useState<string | null>(null)
   const commandKeys = useRef(new Map<string, string>())
-  const commandBusy = useRef(false)
   const focusedAppointment = useRef('')
 
   const load = useCallback(async () => {
@@ -200,19 +204,53 @@ export default function SpecialistAppointmentDecisionPanel({
   )
   const visibleAppointments = useMemo(
     () =>
-      orderSpecialistAppointments(appointments).filter((appointment) =>
+      appointments.filter((appointment) =>
         matchesAppointmentFilter(appointment, filter, now),
       ),
     [appointments, filter, now],
   )
+
+  useEffect(() => {
+    if (
+      !initialAppointmentId ||
+      focusedAppointment.current === initialAppointmentId ||
+      !visibleAppointments.some((item) => item.id === initialAppointmentId)
+    )
+      return
+    const timer = requestAnimationFrame(() => {
+      const heading = document.getElementById(
+        `appointment-${initialAppointmentId}`,
+      )
+      if (!heading) return
+      focusedAppointment.current = initialAppointmentId
+      heading.focus({ preventScroll: true })
+      heading.closest('li')?.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'instant'
+          : 'smooth',
+      })
+    })
+    return () => cancelAnimationFrame(timer)
+  }, [initialAppointmentId, visibleAppointments])
+
   const requestedAppointments = visibleAppointments
     .filter((item) => item.status === 'REQUESTED')
-    .sort((left, right) => Date.parse(left.decisionDeadlineAt) - Date.parse(right.decisionDeadlineAt))
+    .sort(
+      (left, right) =>
+        Date.parse(left.decisionDeadlineAt) -
+        Date.parse(right.decisionDeadlineAt),
+    )
   const confirmedAppointments = visibleAppointments
     .filter((item) => ['CONFIRMED', 'IN_PROGRESS'].includes(item.status))
-    .sort((left, right) => Date.parse(left.scheduledStartAt) - Date.parse(right.scheduledStartAt))
+    .sort(
+      (left, right) =>
+        Date.parse(left.scheduledStartAt) - Date.parse(right.scheduledStartAt),
+    )
   const pastAppointments = visibleAppointments.filter(
-    (item) => item.status !== 'REQUESTED' && !['CONFIRMED', 'IN_PROGRESS'].includes(item.status),
+    (item) =>
+      item.status !== 'REQUESTED' &&
+      !['CONFIRMED', 'IN_PROGRESS'].includes(item.status),
   )
   const weekAnchor = generatedAt ? new Date(generatedAt) : new Date()
   const weekStart = new Date(weekAnchor)
@@ -226,12 +264,14 @@ export default function SpecialistAppointmentDecisionPanel({
       booked: appointments.some(
         (item) =>
           ['CONFIRMED', 'IN_PROGRESS'].includes(item.status) &&
-          new Date(item.scheduledStartAt).toDateString() === date.toDateString(),
+          new Date(item.scheduledStartAt).toDateString() ===
+            date.toDateString(),
       ),
       urgent: appointments.some(
         (item) =>
           item.status === 'REQUESTED' &&
-          new Date(item.scheduledStartAt).toDateString() === date.toDateString(),
+          new Date(item.scheduledStartAt).toDateString() ===
+            date.toDateString(),
       ),
       current: date.toDateString() === weekAnchor.toDateString(),
     }
@@ -239,8 +279,6 @@ export default function SpecialistAppointmentDecisionPanel({
   const weekLabel = isoWeek(weekAnchor)
 
   const decide = async (appointment: Appointment, decision: Decision) => {
-    if (commandBusy.current || loading) return
-    commandBusy.current = true
     if (decision === 'reject') {
       const confirmed = await confirm({
         title: 'Từ chối yêu cầu lịch hẹn?',
@@ -249,10 +287,7 @@ export default function SpecialistAppointmentDecisionPanel({
         confirmLabel: 'Từ chối yêu cầu',
         tone: 'warning',
       })
-      if (!confirmed) {
-        commandBusy.current = false
-        return
-      }
+      if (!confirmed) return
     }
 
     const commandId = `${appointment.id}:${decision}`
@@ -281,12 +316,6 @@ export default function SpecialistAppointmentDecisionPanel({
             : 'Khung giờ đã được mở lại và lượt tư vấn được hoàn lại.',
         tone: 'success',
       })
-      requestAnimationFrame(() => {
-        const target =
-          document.getElementById(`appointment-${updated.id}`) ??
-          document.getElementById('appointment-list-title')
-        target?.focus({ preventScroll: true })
-      })
     } catch (caught) {
       const shouldReload =
         caught instanceof ApiError && RELOAD_CODES.has(caught.code)
@@ -298,7 +327,6 @@ export default function SpecialistAppointmentDecisionPanel({
       )
         commandKeys.current.delete(commandId)
     } finally {
-      commandBusy.current = false
       setPendingCommand(null)
     }
   }
@@ -311,6 +339,7 @@ export default function SpecialistAppointmentDecisionPanel({
     return (
       <li
         key={appointment.id}
+        id={`appointment-card-${appointment.id}`}
         className={requested ? styles.requestCard : styles.compactCard}
         data-status={appointment.status}
         data-modality={appointment.modality}
@@ -322,6 +351,7 @@ export default function SpecialistAppointmentDecisionPanel({
                 <span className={styles.waitingStatus}>
                   <span aria-hidden="true" />
                   CHỜ BÁC SĨ PHẢN HỒI
+                  <span className={styles.srOnly}>Chờ phản hồi</span>
                 </span>
                 <span className={styles.modality}>
                   {appointment.modality === 'IN_APP_VIDEO'
@@ -331,19 +361,25 @@ export default function SpecialistAppointmentDecisionPanel({
               </div>
               <span className={styles.deadline}>
                 <Clock3 size={15} strokeWidth={1.75} aria-hidden="true" />
-                Hạn chót: {displayRemaining(appointment.decisionDeadlineAt, now || Date.now())} (trước {displayDeadline(appointment)})
+                Hạn chót:{' '}
+                {displayRemaining(appointment.decisionDeadlineAt, now)} (Phản
+                hồi trước {displayDeadline(appointment)})
               </span>
             </div>
             <div className={styles.requestDetails}>
               <div className={styles.requestSchedule}>
                 <div className={styles.timeLine}>
-                  <h3>{displayTimeRange(appointment)}</h3>
+                  <h3 id={`appointment-${appointment.id}`} tabIndex={-1}>
+                    {displayTimeRange(appointment)}
+                  </h3>
                   <span>{displayDate(appointment)}</span>
                 </div>
                 <p>
                   Thân chủ: <strong>Người đặt lịch</strong>
-                  <span className={styles.metaDivider} aria-hidden="true">·</span>
-                  {CREDIT_LABELS[appointment.creditState]}
+                  <span className={styles.metaDivider} aria-hidden="true">
+                    ·
+                  </span>
+                  <span>{CREDIT_LABELS[appointment.creditState]}</span>
                 </p>
               </div>
               <div className={styles.method}>
@@ -359,10 +395,18 @@ export default function SpecialistAppointmentDecisionPanel({
               <div>
                 <FileText size={17} strokeWidth={1.75} aria-hidden="true" />
                 <strong>Tóm tắt tiền sử &amp; Đánh giá sơ bộ</strong>
-                <span>Thông tin có điều kiện <ChevronRight size={15} strokeWidth={1.75} aria-hidden="true" /></span>
+                <span>
+                  Thông tin có điều kiện{' '}
+                  <ChevronRight
+                    size={15}
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
+                </span>
               </div>
               <p>
-                Tóm tắt do thân chủ phê duyệt chỉ hiển thị khi đủ điều kiện truy cập trước buổi tư vấn.
+                Tóm tắt do thân chủ phê duyệt chỉ hiển thị khi đủ điều kiện truy
+                cập trước buổi tư vấn.
               </p>
             </div>
             <div className={styles.actions}>
@@ -381,6 +425,7 @@ export default function SpecialistAppointmentDecisionPanel({
                 className={styles.reject}
                 disabled={Boolean(pendingCommand)}
                 onClick={() => void decide(appointment, 'reject')}
+                aria-label="Từ chối"
               >
                 <X size={17} strokeWidth={1.75} aria-hidden="true" />
                 {rejecting ? 'Đang xử lý…' : 'Từ chối ca'}
@@ -391,6 +436,7 @@ export default function SpecialistAppointmentDecisionPanel({
                 className={styles.accept}
                 disabled={Boolean(pendingCommand)}
                 onClick={() => void decide(appointment, 'accept')}
+                aria-label="Xác nhận"
               >
                 <Check size={17} strokeWidth={1.75} aria-hidden="true" />
                 {accepting ? 'Đang xử lý…' : 'Chấp nhận lịch hẹn'}
@@ -401,7 +447,10 @@ export default function SpecialistAppointmentDecisionPanel({
           <>
             <div className={styles.compactTop}>
               <div>
-                <span className={styles.status} data-status={appointment.status}>
+                <span
+                  className={styles.status}
+                  data-status={appointment.status}
+                >
                   {STATUS_LABELS[appointment.status]}
                 </span>
                 <span className={styles.compactModality}>
@@ -413,7 +462,9 @@ export default function SpecialistAppointmentDecisionPanel({
               {appointment.modality === 'IN_APP_CHAT' &&
                 (appointment.status === 'CONFIRMED' ||
                   appointment.status === 'IN_PROGRESS' ||
-                  appointment.history.some((event) => event.toStatus === 'CONFIRMED')) && (
+                  appointment.history.some(
+                    (event) => event.toStatus === 'CONFIRMED',
+                  )) && (
                   <Link
                     className={styles.compactAction}
                     href={`/specialist/messages?appointmentId=${encodeURIComponent(appointment.id)}`}
@@ -422,10 +473,19 @@ export default function SpecialistAppointmentDecisionPanel({
                   </Link>
                 )}
             </div>
-            <h3>{displayTimeRange(appointment)} <span>{displayDate(appointment)}</span></h3>
-            <p>Thân chủ: Người đặt lịch <span aria-hidden="true">·</span> {CREDIT_LABELS[appointment.creditState]}</p>
+            <h3 id={`appointment-${appointment.id}`} tabIndex={-1}>
+              {displayTimeRange(appointment)}{' '}
+              <span>{displayDate(appointment)}</span>
+            </h3>
+            <p>
+              Thân chủ: Người đặt lịch <span aria-hidden="true">·</span>{' '}
+              <span>{CREDIT_LABELS[appointment.creditState]}</span>
+            </p>
             {['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status) && (
-              <SpecialistConsultationBrief appointmentId={appointment.id} compact />
+              <SpecialistConsultationBrief
+                appointmentId={appointment.id}
+                compact
+              />
             )}
             {appointment.modality === 'IN_APP_VIDEO' && (
               <VideoConsultationPanel
@@ -435,7 +495,10 @@ export default function SpecialistAppointmentDecisionPanel({
               />
             )}
             {appointment.status === 'COMPLETED' && (
-              <SessionSummaryPanel appointmentId={appointment.id} viewer="SPECIALIST" />
+              <SessionSummaryPanel
+                appointmentId={appointment.id}
+                viewer="SPECIALIST"
+              />
             )}
             {appointment.sessionSettledAt &&
               ['SESSION_ENDED', 'COMPLETED'].includes(appointment.status) && (
@@ -476,6 +539,7 @@ export default function SpecialistAppointmentDecisionPanel({
             type="button"
             onClick={() => void load()}
             disabled={loading}
+            aria-label="Tải lại"
           >
             <RefreshCw size={17} strokeWidth={1.75} aria-hidden="true" />
             {loading ? 'Đang tải…' : 'Làm mới danh sách'}
@@ -531,25 +595,46 @@ export default function SpecialistAppointmentDecisionPanel({
           <div className={styles.toolbar}>
             <div>
               <h2>Yêu cầu giao cho bạn</h2>
-              <span className={styles.waitingCount}>{counts.waiting} Cần duyệt</span>
+              <span className={styles.waitingCount}>
+                {counts.waiting} Cần duyệt
+              </span>
             </div>
-            <span className={styles.refreshNote}>Cập nhật khi làm mới danh sách</span>
+            <span className={styles.refreshNote}>
+              Cập nhật khi làm mới danh sách
+            </span>
           </div>
 
           <div aria-live="polite" aria-atomic="true">
             {error && (
-              <p className={styles.error} role="alert">
-                {error}
-              </p>
+              <div className={styles.error} role="alert">
+                <div>
+                  <strong>
+                    {generatedAt
+                      ? 'Chưa thể cập nhật lịch hẹn'
+                      : 'Chưa thể tải lịch hẹn'}
+                  </strong>
+                  <p>{error}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void load()}
+                  disabled={loading || Boolean(pendingCommand)}
+                >
+                  Thử lại
+                </button>
+              </div>
             )}
           </div>
 
           {loading ? (
             <p className={styles.state}>Đang tải lịch hẹn…</p>
-          ) : appointments.length === 0 ? (
+          ) : !generatedAt && error ? null : appointments.length === 0 ? (
             <div className={styles.empty}>
               <h2>Chưa có yêu cầu lịch hẹn</h2>
-              <p>Khi có yêu cầu mới, bạn sẽ thấy thời hạn và lựa chọn phản hồi tại đây.</p>
+              <p>
+                Khi có yêu cầu mới, bạn sẽ thấy thời hạn và lựa chọn phản hồi
+                tại đây.
+              </p>
             </div>
           ) : visibleAppointments.length === 0 ? (
             <div className={styles.empty}>
@@ -559,18 +644,30 @@ export default function SpecialistAppointmentDecisionPanel({
           ) : (
             <>
               {requestedAppointments.length > 0 && (
-                <ul className={styles.list}>{requestedAppointments.map(renderAppointment)}</ul>
+                <ul className={styles.list}>
+                  {requestedAppointments.map(renderAppointment)}
+                </ul>
               )}
               {confirmedAppointments.length > 0 && (
-                <section className={styles.group} aria-labelledby="confirmed-title">
+                <section
+                  className={styles.group}
+                  aria-labelledby="confirmed-title"
+                >
                   <h3 id="confirmed-title">LỊCH HẸN ĐÃ XÁC NHẬN KHÁC</h3>
-                  <ul className={styles.list}>{confirmedAppointments.map(renderAppointment)}</ul>
+                  <ul className={styles.list}>
+                    {confirmedAppointments.map(renderAppointment)}
+                  </ul>
                 </section>
               )}
               {pastAppointments.length > 0 && (
-                <section className={styles.group} aria-labelledby="history-title">
+                <section
+                  className={styles.group}
+                  aria-labelledby="history-title"
+                >
                   <h3 id="history-title">LỊCH SỬ &amp; ĐÃ HỦY</h3>
-                  <ul className={styles.list}>{pastAppointments.map(renderAppointment)}</ul>
+                  <ul className={styles.list}>
+                    {pastAppointments.map(renderAppointment)}
+                  </ul>
                 </section>
               )}
             </>
@@ -580,57 +677,92 @@ export default function SpecialistAppointmentDecisionPanel({
         <aside className={styles.sideColumn} aria-label="Lịch trình lâm sàng">
           <div className={styles.sideHeading}>
             <h2>Lịch Trình Lâm Sàng</h2>
-            <span>Tuần {weekLabel.week} / {weekLabel.year}</span>
+            <span>
+              Tuần {weekLabel.week} / {weekLabel.year}
+            </span>
           </div>
           {next ? (
-            <section className={styles.nextAppointment} aria-label="Phiên tư vấn tiếp theo">
+            <section
+              className={styles.nextAppointment}
+              aria-label="Phiên tư vấn tiếp theo"
+            >
               <div className={styles.nextTop}>
-                <span><i aria-hidden="true" /> PHIÊN TƯ VẤN TIẾP THEO</span>
+                <span>
+                  <i aria-hidden="true" /> PHIÊN TƯ VẤN TIẾP THEO
+                </span>
                 <strong>
-                  {new Date(next.scheduledStartAt).toDateString() === weekAnchor.toDateString()
+                  {new Date(next.scheduledStartAt).toDateString() ===
+                  weekAnchor.toDateString()
                     ? 'Hôm nay'
                     : 'Sắp tới'}
                 </strong>
               </div>
               <div className={styles.nextTime}>
                 <h3>{displayTimeRange(next)}</h3>
-                <p>{displayDate(next)} · {next.modality === 'IN_APP_CHAT' ? 'Chat trực tiếp chuyên sâu' : 'Video trong ứng dụng'}</p>
+                <p>
+                  {displayDate(next)} ·{' '}
+                  {next.modality === 'IN_APP_CHAT'
+                    ? 'Chat trực tiếp chuyên sâu'
+                    : 'Video trong ứng dụng'}
+                </p>
               </div>
               <div className={styles.nextClient}>
-                <div><span>Thân chủ:</span><strong>Người đặt lịch</strong></div>
-                <div><span>Trạng thái</span><strong>{STATUS_LABELS[next.status]}</strong></div>
+                <div>
+                  <span>Thân chủ:</span>
+                  <strong>Người đặt lịch</strong>
+                </div>
+                <div>
+                  <span>Trạng thái</span>
+                  <strong>{STATUS_LABELS[next.status]}</strong>
+                </div>
               </div>
               {next.modality === 'IN_APP_CHAT' ? (
                 <Link
                   className={styles.nextAction}
                   href={`/specialist/messages?appointmentId=${encodeURIComponent(next.id)}`}
                 >
-                  <MessageCircle size={17} strokeWidth={1.75} aria-hidden="true" />
+                  <MessageCircle
+                    size={17}
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
                   Mở cửa sổ tin nhắn tư vấn
                 </Link>
               ) : (
-                <Link
-                  className={styles.nextAction}
-                  href={`/specialist/appointments?appointmentId=${encodeURIComponent(next.id)}`}
-                >
-                  <Video size={17} strokeWidth={1.75} aria-hidden="true" />
-                  Mở phiên video trong ứng dụng
-                </Link>
+                <div className={styles.nextActionUnavailable}>
+                  Phiên video trong ứng dụng
+                </div>
               )}
             </section>
           ) : (
-            <section className={styles.nextAppointment} aria-label="Phiên tư vấn tiếp theo">
-              <div className={styles.nextTop}><span><i aria-hidden="true" /> PHIÊN TƯ VẤN TIẾP THEO</span></div>
+            <section
+              className={styles.nextAppointment}
+              aria-label="Phiên tư vấn tiếp theo"
+            >
+              <div className={styles.nextTop}>
+                <span>
+                  <i aria-hidden="true" /> PHIÊN TƯ VẤN TIẾP THEO
+                </span>
+              </div>
               <p className={styles.noNext}>Chưa có phiên tư vấn sắp tới.</p>
             </section>
           )}
 
-          <section className={styles.weekCard} aria-label="Mật độ lịch tuần này">
+          <section
+            className={styles.weekCard}
+            aria-label="Mật độ lịch tuần này"
+          >
             <div className={styles.weekTop}>
               <h3>Mật độ lịch tuần này</h3>
               <div className={styles.legend}>
-                <span><i className={styles.bookedLegend} aria-hidden="true" /> Có hẹn</span>
-                <span><i className={styles.emptyLegend} aria-hidden="true" /> Chưa có hẹn</span>
+                <span>
+                  <i className={styles.bookedLegend} aria-hidden="true" /> Có
+                  hẹn
+                </span>
+                <span>
+                  <i className={styles.emptyLegend} aria-hidden="true" /> Chưa
+                  có hẹn
+                </span>
               </div>
             </div>
             <div className={styles.weekGrid}>
@@ -649,17 +781,31 @@ export default function SpecialistAppointmentDecisionPanel({
               ))}
             </div>
             <div className={styles.weekFooter}>
-              <span>{weekDays.filter((day) => day.booked).length} ngày có lịch hẹn</span>
+              <span>
+                {weekDays.filter((day) => day.booked).length} ngày có lịch hẹn
+              </span>
               <Link href="/specialist/availability">Chỉnh sửa lịch rảnh</Link>
             </div>
           </section>
 
           <section className={styles.rulesCard} aria-label="Quy tắc phản hồi">
-            <h3><Info size={17} strokeWidth={1.75} aria-hidden="true" /> QUY TẮC CHUẨN MỰC PHẢN HỒI</h3>
+            <h3>
+              <Info size={17} strokeWidth={1.75} aria-hidden="true" /> QUY TẮC
+              CHUẨN MỰC PHẢN HỒI
+            </h3>
             <ul>
-              <li><strong>Phản hồi đúng hạn:</strong> Xử lý mỗi yêu cầu trước thời điểm ghi trên thẻ lịch hẹn.</li>
-              <li><strong>Bảo mật thông tin:</strong> Chỉ xem tóm tắt do thân chủ phê duyệt khi đủ điều kiện truy cập.</li>
-              <li><strong>Từ chối ca:</strong> Khung giờ được mở lại và lượt tư vấn được hoàn theo quy tắc hiện hành.</li>
+              <li>
+                <strong>Phản hồi đúng hạn:</strong> Xử lý mỗi yêu cầu trước thời
+                điểm ghi trên thẻ lịch hẹn.
+              </li>
+              <li>
+                <strong>Bảo mật thông tin:</strong> Chỉ xem tóm tắt do thân chủ
+                phê duyệt khi đủ điều kiện truy cập.
+              </li>
+              <li>
+                <strong>Từ chối ca:</strong> Khung giờ được mở lại và lượt tư
+                vấn được hoàn theo quy tắc hiện hành.
+              </li>
             </ul>
           </section>
         </aside>

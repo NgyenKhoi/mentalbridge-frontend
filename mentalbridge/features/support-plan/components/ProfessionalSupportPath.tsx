@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { Button } from '@/components/ui/Button'
 import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
 import type { Appointment } from '@/lib/consultation/consultation-validation'
 import { getSupportPlanActions } from '../api/browser-support-plan'
@@ -135,14 +136,13 @@ export default function ProfessionalSupportPath({
           nhận cho kế hoạch này.
         </p>
         <div className="support-plan-professional-path-actions">
-          <button
-            className="btn btn-outline"
+          <Button
+            variant="outline"
             disabled={loading}
-            type="button"
             onClick={() => void load()}
           >
             {loading ? 'Đang tải lại…' : 'Thử tải lại hướng hỗ trợ'}
-          </button>
+          </Button>
         </div>
       </section>
     )
@@ -205,14 +205,13 @@ export default function ProfessionalSupportPath({
           lịch hoặc chia sẻ dữ liệu.
         </small>
         {(projectionUnavailable || appointmentUnavailable) && (
-          <button
-            className="btn btn-outline"
+          <Button
+            variant="outline"
             disabled={loading}
-            type="button"
             onClick={() => void load()}
           >
             {loading ? 'Đang cập nhật…' : 'Thử cập nhật lại'}
-          </button>
+          </Button>
         )}
       </div>
     </section>

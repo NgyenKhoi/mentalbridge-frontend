@@ -124,7 +124,7 @@ export default function SupportPlanUpcomingCard({
         {isEditing ? renderForm() : null}
       </div>
       {!isEditing ? (
-        <div className="support-plan-upcoming-actions">
+        <div className="mb-sp-card-right support-plan-upcoming-actions">
           {companion}
           <button
             type="button"

@@ -718,15 +718,32 @@ describe('SupportPlanJourney', () => {
       scheduleProjection(2),
     )
     const view = render(<SupportPlanJourney onDirtyChange={onDirtyChange} />)
-    const durations = await screen.findAllByLabelText(
-      'Thời lượng dự kiến (phút)',
+    const editBtns = await screen.findAllByRole('button', {
+      name: 'Chỉnh sửa lịch',
+    })
+    fireEvent.click(editBtns[0])
+    fireEvent.change(
+      screen.getAllByLabelText('Thời lượng dự kiến (phút)')[0],
+      { target: { value: '25' } },
     )
+    fireEvent.click(screen.getAllByRole('button', { name: 'Đóng' })[0])
+
     fireEvent.click(screen.getByRole('tab', { name: 'Điều chỉnh' }))
+    const customizeBtn = await screen.findByRole('button', {
+      name: 'Tùy chỉnh sở thích',
+    })
+    fireEvent.click(customizeBtn)
     await screen.findByRole('radio', { name: '10 phút' })
-    fireEvent.change(durations[0], { target: { value: '25' } })
     fireEvent.click(screen.getByRole('radio', { name: '10 phút' }))
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
-    fireEvent.change(durations[0], { target: { value: '15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[0])
+    fireEvent.change(
+      screen.getByLabelText('Thời lượng dự kiến (phút)'),
+      { target: { value: '15' } },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
     expect(onDirtyChange).toHaveBeenLastCalledWith(true)
     expect(api.replaceSupportPlanPersonalization).not.toHaveBeenCalled()
     view.unmount()
@@ -745,18 +762,34 @@ describe('SupportPlanJourney', () => {
 
     render(<SupportPlanJourney />)
 
-    const durations = await screen.findAllByLabelText(
-      'Thời lượng dự kiến (phút)',
+    const editBtns = await screen.findAllByRole('button', {
+      name: 'Chỉnh sửa lịch',
+    })
+    fireEvent.click(editBtns[0])
+    fireEvent.change(
+      screen.getByLabelText('Thời lượng dự kiến (phút)'),
+      { target: { value: '25' } },
     )
-    fireEvent.change(durations[0], { target: { value: '25' } })
-    fireEvent.change(durations[1], { target: { value: '35' } })
-    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu lịch' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1])
+    fireEvent.change(
+      screen.getByLabelText('Thời lượng dự kiến (phút)'),
+      { target: { value: '35' } },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }))
 
     await waitFor(() =>
       expect(api.replaceSupportPlanActionSchedule).toHaveBeenCalledOnce(),
     )
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1])
     expect(
-      screen.getAllByLabelText('Thời lượng dự kiến (phút)')[1],
+      screen.getByLabelText('Thời lượng dự kiến (phút)'),
     ).toHaveValue(35)
   })
 
@@ -772,12 +805,25 @@ describe('SupportPlanJourney', () => {
 
     render(<SupportPlanJourney />)
 
-    const durations = await screen.findAllByLabelText(
-      'Thời lượng dự kiến (phút)',
+    const editBtns = await screen.findAllByRole('button', {
+      name: 'Chỉnh sửa lịch',
+    })
+    fireEvent.click(editBtns[0])
+    fireEvent.change(
+      screen.getByLabelText('Thời lượng dự kiến (phút)'),
+      { target: { value: '25' } },
     )
-    fireEvent.change(durations[0], { target: { value: '25' } })
-    fireEvent.change(durations[1], { target: { value: '35' } })
-    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu lịch' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1])
+    fireEvent.change(
+      screen.getByLabelText('Thời lượng dự kiến (phút)'),
+      { target: { value: '35' } },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }))
 
     const reload = await screen.findByRole('button', {
       name: 'Tải lịch mới',
@@ -789,12 +835,16 @@ describe('SupportPlanJourney', () => {
     fireEvent.click(reload)
 
     await waitFor(() => {
-      const reloadedDurations = screen.getAllByLabelText(
-        'Thời lượng dự kiến (phút)',
-      )
-      expect(reloadedDurations[0]).toHaveValue(30)
-      expect(reloadedDurations[1]).toHaveValue(35)
+      expect(
+        screen.getByLabelText('Thời lượng dự kiến (phút)'),
+      ).toHaveValue(30)
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa lịch' })[1])
+    expect(
+      screen.getByLabelText('Thời lượng dự kiến (phút)'),
+    ).toHaveValue(35)
   })
 
   it('opens progress when only immutable plan history remains', async () => {
@@ -894,6 +944,10 @@ describe('SupportPlanJourney', () => {
           { timeout: 5_000 },
         ),
       ).toBeVisible()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Tùy chỉnh sở thích' }),
+      )
 
       if (action === 'save') {
         fireEvent.click(screen.getByRole('radio', { name: 'Ngủ và nghỉ ngơi' }))

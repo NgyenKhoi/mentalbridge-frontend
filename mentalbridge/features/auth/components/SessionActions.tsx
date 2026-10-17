@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
 
 import { terminateSession, type LogoutMode } from '../api/browser-auth'
-import { ApiError } from '@/lib/api/api-error'
 import styles from './SessionActions.module.css'
 
 function Icon({ children }: { children: React.ReactNode }) {
@@ -45,11 +44,6 @@ export default function SessionActions({
   profileLabel?: string
   showSubscription?: boolean
 }) {
-  const specialist = accountKind === 'specialist'
-  const resolvedAccountLabel = description ?? accountLabel ?? (specialist ? 'Tài khoản chuyên gia' : 'Tài khoản cá nhân')
-  const resolvedProfileHref = profileHref ?? (specialist ? '/specialist/profile' : '/profile')
-  const resolvedProfileLabel = profileLabel ?? (specialist ? 'Hồ sơ chuyên gia' : 'Hồ sơ cá nhân')
-  const subscriptionEnabled = showSubscription ?? !specialist
   const router = useRouter()
   const menuId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -57,7 +51,16 @@ export default function SessionActions({
   const actionPending = useRef(false)
   const [open, setOpen] = useState(false)
   const [pendingMode, setPendingMode] = useState<LogoutMode | null>(null)
-  const [actionError, setActionError] = useState('')
+  const specialist = accountKind === 'specialist'
+  const resolvedAccountLabel =
+    description ??
+    accountLabel ??
+    (specialist ? 'Tài khoản chuyên gia' : 'Tài khoản cá nhân')
+  const resolvedProfileHref =
+    profileHref ?? (specialist ? '/specialist/profile' : '/profile')
+  const resolvedProfileLabel =
+    profileLabel ?? (specialist ? 'Hồ sơ chuyên gia' : 'Hồ sơ cá nhân')
+  const subscriptionEnabled = showSubscription ?? !specialist
 
   useEffect(() => {
     if (!open) return
@@ -89,21 +92,14 @@ export default function SessionActions({
 
     actionPending.current = true
     setPendingMode(mode)
-    setActionError('')
 
     try {
       await terminateSession(mode)
+    } catch {
+      // The BFF clears its cookies even when Identity is unavailable.
+    } finally {
       router.replace('/login')
       router.refresh()
-    } catch (error) {
-      if (error instanceof ApiError && error.status !== undefined) {
-        router.replace(mode === 'all' ? '/login?logout=unconfirmed' : '/login')
-        router.refresh()
-        return
-      }
-      setActionError('Không thể kết nối để đăng xuất. Vui lòng thử lại.')
-      actionPending.current = false
-      setPendingMode(null)
     }
   }
 
@@ -112,7 +108,7 @@ export default function SessionActions({
       ref={rootRef}
       className={styles.root}
       data-compact={compact || undefined}
-      data-error={actionError ? true : undefined}
+      data-account-kind={accountKind}
     >
       {open ? (
         <div
@@ -163,7 +159,6 @@ export default function SessionActions({
             </Link>
           )}
           <div className={styles.separator} role="separator" />
-          {actionError && <p className={styles.actionError} role="alert">{actionError}</p>}
           <button
             type="button"
             className={`${styles.menuItem} ${styles.logoutItem}`}

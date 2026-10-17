@@ -2081,6 +2081,10 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
     (item.modality === 'IN_APP_VIDEO'
       ? 'livekit-video-completion-v1'
       : 'chat-session-completion-v1')
+  const completedSessionPolicyMatches =
+    sessionPolicyMatches ||
+    (item.modality === 'IN_APP_VIDEO' &&
+      item.sessionPolicyVersion === 'chat-session-completion-v1')
   const cancellationFields = [
     item.cancelledAt,
     item.cancellationReason,
@@ -2123,7 +2127,7 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
       item.decidedAt !== null &&
       item.decisionReason === 'SPECIALIST_ACCEPTED' &&
       item.sessionOutcome === 'COMPLETED' &&
-      sessionPolicyMatches &&
+      completedSessionPolicyMatches &&
       item.sessionEndedAt !== null &&
       item.sessionSettledAt !== null &&
       item.completionFactId !== null &&

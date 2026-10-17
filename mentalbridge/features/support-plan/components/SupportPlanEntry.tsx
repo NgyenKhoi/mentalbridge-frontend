@@ -33,9 +33,13 @@ async function readOwnedPlans() {
     optionalRead(getCurrentSupportPlanActions()),
     optionalRead(getCurrentNativeSupportPlanDraft()),
   ])
-  const history =
-    !current && !draft ? await getSupportPlanActionHistory() : undefined
-  return { current, draft, history }
+  if (current || draft) return { current, draft }
+  try {
+    const history = await getSupportPlanActionHistory()
+    return { current, draft, history }
+  } catch {
+    return { current, draft, historyUnavailable: true }
+  }
 }
 const loadError =
   'Chưa thể tải kế hoạch. Hãy thử lại; kế hoạch của bạn không bị thay đổi.'
@@ -54,6 +58,7 @@ export default function SupportPlanEntry({
     current?: SupportPlanV3
     draft?: SupportPlanV3
     history?: SupportPlanActionHistory
+    historyUnavailable?: boolean
   }>()
   const [error, setError] = useState('')
   const [nativeEntry, setNativeEntry] = useState(false)
@@ -131,6 +136,18 @@ export default function SupportPlanEntry({
   if (native)
     return (
       <>
+        {state.historyUnavailable && (
+          <p className="support-plan-state" role="alert">
+            Chưa thể tải lịch sử kế hoạch. Bạn vẫn có thể xem hoặc tạo kế hoạch hỗ trợ.{' '}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void load()}
+            >
+              Thử tải lại lịch sử
+            </button>
+          </p>
+        )}
         {error && (
           <p className="support-plan-state" role="alert">
             {error}

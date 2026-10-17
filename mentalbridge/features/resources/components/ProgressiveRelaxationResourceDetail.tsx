@@ -112,7 +112,10 @@ export function ProgressiveRelaxationResourceDetail({
               items
                 .filter(
                   (item) =>
-                    item.resourceId === resource.id && item.status === 'COMPLETED',
+                    (item.resourceId === resource.id ||
+                      item.resourceId === '00000000-0000-4000-8000-000000000215' ||
+                      item.resourceId === '00000000-0000-4000-8000-000000000216') &&
+                    item.status === 'COMPLETED',
                 )
                 .map((item) => item.localDate),
             ),
@@ -242,14 +245,14 @@ export function ProgressiveRelaxationResourceDetail({
         <header className={styles.header}>
           <div className={styles.headerCopy}>
             <nav className={styles.breadcrumb} aria-label="Đường dẫn">
-              <Link href={backHref}><ArrowLeft size={17} aria-hidden="true" /> Tài nguyên</Link>
+              <Link href={backHref}><ArrowLeft size={17} aria-hidden="true" /> Quay lại Tài nguyên</Link>
               <span aria-hidden="true">/</span>
-              <span aria-current="page">Thư giãn cơ tiến triển</span>
+              <span aria-current="page">{resource.title || 'Thư giãn cơ tiến triển'}</span>
             </nav>
-            <h1>Thư giãn cơ tiến triển</h1>
+            <h1>{resource.title || 'Thư giãn cơ tiến triển'}</h1>
             <div className={styles.tags}>
-              <span>Thư giãn thể chất</span>
-              <span>8 phút</span>
+              <span>{resource.category === 'MEDITATION' ? 'Thiền & Thư giãn' : 'Thư giãn thể chất'}</span>
+              <span>{resource.expectedDurationMinutes ? `${resource.expectedDurationMinutes} phút` : '10 phút'}</span>
               <span>Khoa học thần kinh</span>
             </div>
           </div>

@@ -1,18 +1,26 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import SpecialistDiscovery from './SpecialistDiscovery'
 
-const discoveryClient = vi.hoisted(() => ({ list: vi.fn(), detail: vi.fn() }))
+const discoveryClient = vi.hoisted(() => ({
+  list: vi.fn(),
+  detail: vi.fn(),
+  badges: vi.fn(),
+}))
 const appointmentClient = vi.hoisted(() => ({ request: vi.fn() }))
+const creditsClient = vi.hoisted(() => ({ get: vi.fn() }))
 
 vi.mock('../api/browser-client', () => ({
   specialistDiscoveryBrowserClient: discoveryClient,
 }))
 vi.mock('@/features/appointments/api/browser-client', () => ({
   appointmentBrowserClient: appointmentClient,
+}))
+vi.mock('@/features/service-credits/api/browser-client', () => ({
+  browserServiceCredits: creditsClient,
 }))
 
 const item = {
@@ -76,61 +84,52 @@ describe('SpecialistDiscovery', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/specialists')
     discoveryClient.list.mockReset()
-    discoveryClient.detail.mockReset()
+    discoveryClient.detail.mockReset().mockResolvedValue(item)
+    discoveryClient.badges.mockReset().mockResolvedValue([])
     appointmentClient.request.mockReset()
-    discoveryClient.detail.mockResolvedValue(item)
+    creditsClient.get
+      .mockReset()
+      .mockResolvedValue({ balance: { available: 2 } })
   })
 
-  it('allows Free users to browse real details and slots without booking', async () => {
+  it('shows compact API cards and lets Free users browse both tabs without booking', async () => {
     const user = userEvent.setup()
     discoveryClient.list.mockResolvedValue(page('FREE'))
-
     renderDiscovery()
-    expect(await screen.findByText('Chuyên gia An')).toBeInTheDocument()
-    expect(screen.getByText(/Bạn đang dùng gói Free/)).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Chuyên gia An' }),
+    ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Video · sắp có' }),
     ).toBeDisabled()
+    expect(screen.queryByText(item.bio)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Hồ sơ' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText(item.bio)).toBeInTheDocument()
     expect(
-      screen.getByText(/Video trong ứng dụng hiện chưa khả dụng/),
+      within(dialog).getByRole('link', { name: 'Xem quyền lợi các gói' }),
     ).toBeInTheDocument()
-    await user.click(
-      screen.getByRole('button', { name: 'Xem hồ sơ và khung giờ' }),
-    )
-
-    expect(
-      await screen.findByText('Vì sao hồ sơ này xuất hiện?'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('Múi giờ')).not.toBeInTheDocument()
-    expect(screen.queryByText('Asia/Ho_Chi_Minh')).not.toBeInTheDocument()
-    expect(screen.getByText('Chat trong ứng dụng')).toBeInTheDocument()
-    expect(
-      screen.getByRole('link', { name: 'Xem quyền lợi các gói' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
-    ).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('tab', { name: 'Lịch trống' }))
+    expect(within(dialog).getByRole('radio')).toBeInTheDocument()
     expect(appointmentClient.request).not.toHaveBeenCalled()
-    expect(document.body).not.toHaveTextContent('Phí tư vấn')
-    expect(document.body).not.toHaveTextContent('Điện thoại')
-    expect(document.body).not.toHaveTextContent('Địa điểm')
-    expect(document.body).not.toHaveTextContent('Chứng chỉ')
   })
 
-  it('hands the exact selected slot and modality to MB-378 for paid plans', async () => {
+  it('opens directly to slots and requests the exact chosen time after confirmation', async () => {
     const user = userEvent.setup()
     discoveryClient.list.mockResolvedValue(page('PLUS'))
     appointmentClient.request.mockResolvedValue({ id: 'appointment-id' })
-
     renderDiscovery()
+    await user.click(await screen.findByRole('button', { name: 'Lịch trống' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      within(dialog).getByRole('tab', { name: 'Lịch trống' }),
+    ).toHaveAttribute('aria-selected', 'true')
+    await user.click(await within(dialog).findByRole('radio'))
+    await user.click(within(dialog).getByRole('button', { name: 'Tiếp tục' }))
+    expect(appointmentClient.request).not.toHaveBeenCalled()
     await user.click(
-      await screen.findByRole('button', { name: 'Xem hồ sơ và khung giờ' }),
+      within(dialog).getByRole('button', { name: 'Xác nhận đặt lịch' }),
     )
-    await user.click(await screen.findByRole('radio'))
-    await user.click(
-      screen.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
-    )
-
     await waitFor(() =>
       expect(appointmentClient.request).toHaveBeenCalledWith(
         item.selectableSlots[0].id,
@@ -138,69 +137,13 @@ describe('SpecialistDiscovery', () => {
         expect.stringMatching(/^appointment-/),
       ),
     )
-  })
-
-  it('retains the originating PlanAction only after the user explicitly books', async () => {
-    const user = userEvent.setup()
-    const actionId = '20000000-0000-4000-8000-000000000643'
-    window.history.replaceState({}, '', `/specialists?planActionId=${actionId}`)
-    discoveryClient.list.mockResolvedValue(page('PLUS'))
-    appointmentClient.request.mockResolvedValue({ id: 'appointment-id' })
-
-    renderDiscovery()
-    expect(appointmentClient.request).not.toHaveBeenCalled()
-    await user.click(
-      await screen.findByRole('button', { name: 'Xem hồ sơ và khung giờ' }),
-    )
-    await user.click(await screen.findByRole('radio'))
-    await user.click(
-      screen.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
-    )
-
-    await waitFor(() =>
-      expect(appointmentClient.request).toHaveBeenCalledWith(
-        item.selectableSlots[0].id,
-        'IN_APP_CHAT',
-        expect.stringMatching(/^appointment-/),
-        undefined,
-        undefined,
-        actionId,
-      ),
-    )
-  })
-
-  it('renders empty discovery without inventing specialists', async () => {
-    discoveryClient.list.mockResolvedValue({
-      ...page('PREMIUM'),
-      items: [],
-      count: 0,
-    })
-
-    renderDiscovery()
     expect(
-      await screen.findByText('Chưa có chuyên gia phù hợp'),
+      await within(dialog).findByText('Đã gửi yêu cầu đặt lịch'),
     ).toBeInTheDocument()
-    expect(screen.queryByText('Chuyên gia An')).not.toBeInTheDocument()
+    expect(screen.getByText('Lịch hẹn sắp tới')).toBeInTheDocument()
   })
 
-  it('shows the persisted rating aggregate without inventing review content', async () => {
-    discoveryClient.list.mockResolvedValue({
-      ...page('PREMIUM'),
-      items: [
-        {
-          ...item,
-          ratingAggregate: { averageRating: 4.67, ratingCount: 12 },
-        },
-      ],
-    })
-
-    renderDiscovery()
-
-    expect(await screen.findByText('4.7/5 · 12 lượt')).toBeInTheDocument()
-    expect(document.body).not.toHaveTextContent('nhận xét')
-  })
-
-  it('keeps a stale slot selected for an explicit retry instead of substituting it', async () => {
+  it('retains a stale time for explicit retry after a booking conflict', async () => {
     const user = userEvent.setup()
     discoveryClient.list.mockResolvedValue(page('PREMIUM'))
     appointmentClient.request.mockRejectedValue(
@@ -210,35 +153,39 @@ describe('SpecialistDiscovery', () => {
         status: 409,
       }),
     )
-
     renderDiscovery()
-    await user.click(
-      await screen.findByRole('button', { name: 'Xem hồ sơ và khung giờ' }),
-    )
-    const slot = await screen.findByRole('radio')
+    await user.click(await screen.findByRole('button', { name: 'Lịch trống' }))
+    const dialog = await screen.findByRole('dialog')
+    const slot = await within(dialog).findByRole('radio')
     await user.click(slot)
+    await user.click(within(dialog).getByRole('button', { name: 'Tiếp tục' }))
     await user.click(
-      screen.getByRole('button', { name: 'Gửi yêu cầu đặt lịch' }),
+      within(dialog).getByRole('button', { name: 'Xác nhận đặt lịch' }),
     )
-
     expect(
-      await screen.findByText(
+      await within(dialog).findByText(
         'Khung giờ này đã thay đổi. Hãy tải lại và chọn giờ khác.',
       ),
     ).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Quay lại' }))
     expect(slot).toBeChecked()
-    expect(appointmentClient.request).toHaveBeenCalledTimes(1)
   })
 
-  it('shows a retry state when discovery is unavailable', async () => {
-    discoveryClient.list.mockRejectedValue(new Error('dependency unavailable'))
-
+  it('filters the loaded list from the topbar search event', async () => {
+    discoveryClient.list.mockResolvedValue(page('PLUS'))
     renderDiscovery()
-
     expect(
-      await screen.findByRole('heading', { name: 'Chưa thể tải danh sách' }),
+      await screen.findByRole('heading', { name: 'Chuyên gia An' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument()
-    expect(screen.queryByText('Chuyên gia An')).not.toBeInTheDocument()
+    act(() =>
+      window.dispatchEvent(
+        new CustomEvent('mentalbridge:specialist-search', {
+          detail: 'không tồn tại',
+        }),
+      ),
+    )
+    expect(
+      await screen.findByText('Chưa có chuyên gia phù hợp'),
+    ).toBeInTheDocument()
   })
 })

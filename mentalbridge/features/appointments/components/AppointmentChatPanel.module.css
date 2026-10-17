@@ -739,352 +739,507 @@
   }
 }
 
-:global(.role-content-messages) .page {
-  color: var(--color-text);
-  font-family: var(--font-be-vietnam), sans-serif;
+/* Specialist prototype: calm three-column desktop, usable drawer on narrow screens. */
+.specialist {
+  font-size: 14px;
+  line-height: 1.55;
 }
-:global(.role-content-messages) .layout {
-  position: relative;
+.specialist .layout {
   gap: 0;
-  background: var(--color-surface);
+  background: var(--surface-soft);
 }
-:global(.role-content-messages) .layout.withSessionDetails {
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 345px);
+.specialist .layout.withSessionDetails {
+  grid-template-columns: minmax(0, 1fr) 280px;
 }
-:global(.role-content-messages) .chat {
+.specialist .chat {
+  position: relative;
   border: 0;
   border-radius: 0;
+  background: var(--surface-soft);
   box-shadow: none;
-  background: var(--color-surface);
 }
-:global(.role-content-messages) .chatHeader {
-  min-height: 92px;
+.specialist .chatHeader {
   max-height: none;
-  flex-basis: auto;
-  align-items: center;
+  min-height: 80px;
+  flex: 0 0 auto;
   gap: 12px;
-  padding: 15px 20px;
-  border-color: var(--color-border);
+  padding: 14px 20px;
+  background: var(--surface);
 }
-:global(.role-content-messages) .avatar {
-  width: 46px;
-  height: 46px;
-  flex-basis: 46px;
+.specialist .avatar {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font: 700 17px var(--font-fraunces), Georgia, serif;
+  font-family: inherit;
 }
-:global(.role-content-messages) .chatTitleRow {
+.specialist .chatTitleRow {
   flex-wrap: wrap;
-  row-gap: 4px;
+  gap: 6px;
 }
-:global(.role-content-messages) .chatTitleRow > strong {
-  color: var(--color-text);
-  font-size: 16px;
+.specialist .chatTitleRow > strong {
+  font-size: 18px;
+  font-family: var(--font-body), sans-serif;
 }
-:global(.role-content-messages) .phaseBadge {
-  min-height: 24px;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-size: 10px;
+.specialist .chatMeta {
+  font-size: 12px;
+  margin-top: 5px;
 }
-.mockBadge { display: inline-flex; align-items: center; min-height: 22px; border-radius: 999px; padding: 3px 8px; background: var(--color-surface-soft); color: var(--color-primary); font-size: 9px; font-weight: 800; }
-:global(.role-content-messages) .chatMeta {
+.specialist .chatMeta > span[aria-hidden='true'] {
+  display: none;
+}
+.specialist .phaseBadge {
+  display: inline-flex;
+  font-size: 11px;
+}
+.specialist .timeRemaining {
+  display: none;
+}
+.specialist .refreshButton {
+  min-width: 44px;
+  min-height: 44px;
+  flex-basis: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+}
+.specialist .refreshButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.phaseNotice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  flex: 0 0 auto;
+  padding: 12px 20px;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-size: 12px;
+}
+.phaseNotice p {
+  margin: 0;
+}
+.phaseNotice .phaseBadge {
+  flex-shrink: 0;
+  background: var(--surface);
+}
+.phaseNotice[data-phase='WAITING'],
+.phaseNotice[data-phase='TOO_EARLY'] {
+  background: var(--amber-soft);
+  color: var(--ink);
+}
+.specialist .attendance {
   flex-wrap: wrap;
-  gap: 4px 7px;
-  max-width: 100%;
-  white-space: normal;
-  color: var(--color-text-muted);
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--surface);
+  font-size: 12px;
+}
+.specialist .attendance p {
+  font-size: 12px;
+}
+.specialist .attendance button {
+  min-height: 44px;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 650;
+}
+.specialist .messages {
+  gap: 16px;
+  padding: 24px;
+}
+.specialist .empty h2 {
+  font-size: 18px;
   line-height: 1.4;
 }
-:global(.role-content-messages) .chatMeta h1 {
-  color: var(--color-text-muted);
-  font-family: var(--font-be-vietnam), sans-serif;
-  font-size: 11px;
-}
-:global(.role-content-messages) .chatMeta p {
-  flex-basis: 100%;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  font-size: 11px;
-}
-:global(.role-content-messages) .chatActions {
-  gap: 5px;
-}
-:global(.role-content-messages) .refreshButton {
-  width: 32px;
-  min-height: 32px;
-  flex-basis: 32px;
-  border-color: var(--color-border);
-  background: var(--color-surface) !important;
-  color: var(--color-text-muted);
-}
-:global(.role-content-messages) .timeRemaining {
-  max-width: 90px;
-}
-:global(.role-content-messages) .timeRemaining strong {
-  color: var(--color-text);
-  font-size: 11px;
-}
-:global(.role-content-messages) .timeRemaining span {
-  color: var(--color-text-muted);
-  font-size: 9px;
-}
-:global(.role-content-messages) .notice,
-:global(.role-content-messages) .attendance {
-  min-height: 50px;
-  padding: 9px 19px;
-  border-color: var(--color-border);
-  background: color-mix(in srgb, var(--color-primary-soft) 48%, var(--color-surface));
-}
-:global(.role-content-messages) .attendance strong { color: var(--color-text); }
-:global(.role-content-messages) .attendance p { color: var(--color-text-muted); }
-:global(.role-content-messages) .attendance button {
-  min-height: 35px;
-  border-color: var(--color-primary-action, var(--color-primary));
-  background: var(--color-primary-action, var(--color-primary)) !important;
-  color: #fff !important;
-}
-:global(.role-content-messages) .attendance button:disabled {
-  background: var(--color-primary-soft) !important;
-  color: var(--color-primary) !important;
-}
-:global(.role-content-messages) .messages {
-  gap: 12px;
-  padding: 24px;
-  background: color-mix(in srgb, var(--color-app-bg) 50%, var(--color-surface));
-}
-.threadIntro { width: min(100%, 470px); align-self: center; margin: 8px 0 18px; padding: 20px 22px; border: 1px solid var(--color-border); border-radius: 19px; background: var(--color-surface); text-align: center; box-shadow: 0 9px 25px rgba(24,47,37,.035); }
-.threadIntro > span { width: 38px; height: 38px; display: grid; place-items: center; margin: 0 auto 10px; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary); }
-.threadIntro h2 { margin: 0 0 6px; color: var(--color-text); font: 600 18px/1.3 var(--font-fraunces), Georgia, serif; }
-.threadIntro p { margin: 0; color: var(--color-text-muted); font-size: 11px; line-height: 1.6; }
-.threadIntro small { display: block; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--color-border); color: var(--color-primary); font-size: 10px; font-weight: 700; }
-:global(.role-content-messages) .empty {
-  width: min(100%, 470px);
-  max-width: 470px;
-  margin: auto;
-  padding: 27px 25px;
-  border: 1px solid var(--color-border);
-  border-radius: 22px;
-  background: var(--color-surface);
-  box-shadow: 0 10px 28px rgba(24, 47, 37, .04);
-}
-:global(.role-content-messages) .empty > svg { margin-bottom: 15px; }
-:global(.role-content-messages) .empty h2 {
-  margin-bottom: 9px;
-  color: var(--color-text);
-  font: 600 21px/1.25 var(--font-fraunces), Georgia, serif;
-}
-:global(.role-content-messages) .empty p {
-  color: var(--color-text-muted);
-  font-size: 12px;
-  line-height: 1.65;
-}
-.safetyBadges {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  padding-top: 14px;
-  border-top: 1px solid var(--color-border);
-}
-.safetyBadges span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--color-primary);
-  font-size: 10px;
-  font-weight: 700;
-}
-:global(.role-content-messages) .messageRow { max-width: min(80%, 520px); }
-:global(.role-content-messages) .messageRow p {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  font-size: 13px;
+.specialist .empty p {
+  font-size: 14px;
   line-height: 1.6;
-  box-shadow: 0 3px 12px rgba(24, 47, 37, .035);
 }
-:global(.role-content-messages) .messageRow.own p {
-  border-color: var(--color-primary-action, var(--color-primary));
-  background: var(--color-primary-action, var(--color-primary));
+.specialist .messageRow {
+  max-width: min(82%, 580px);
+}
+.specialist .messageRow p {
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: 16px 16px 16px 4px;
+  box-shadow: var(--elevation-1);
+}
+.specialist .messageRow.own p {
+  background: var(--teal-deep);
   color: #fff;
-}
-:global(.role-content-messages) .messageRow time { color: var(--color-text-muted); }
-:global(.role-content-messages) .composer {
-  padding: 13px 19px 14px;
-  border-color: var(--color-border);
-  background: var(--color-surface);
-}
-.composerSuggestions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-bottom: 10px;
-}
-.composerSuggestions > span {
-  color: var(--color-text-muted);
-  font-size: 10px;
-  font-weight: 750;
-}
-.composerSuggestions button {
-  min-height: 29px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 4px 10px;
-  background: var(--color-surface-soft) !important;
-  color: var(--color-primary);
-  font: 650 10px var(--font-be-vietnam), sans-serif;
-  cursor: pointer;
-}
-:global(.role-content-messages) .composerBox {
-  border-color: var(--color-border);
-  background: var(--color-surface);
-}
-:global(.role-content-messages) .composer textarea { color: var(--color-text); }
-:global(.role-content-messages) .composer button[type='submit'] {
-  background: var(--color-primary-action, var(--color-primary)) !important;
-  color: #fff !important;
-}
-:global(.role-content-messages) .composer button[type='submit']:disabled {
-  background: var(--color-primary-soft) !important;
-  color: var(--color-primary) !important;
-}
-:global(.role-content-messages) .composer > p { color: var(--color-text-muted); }
-
-:global(.role-content-messages) .sessionCard {
-  min-width: 0;
-  border: 0;
-  border-left: 1px solid var(--color-border);
-  border-radius: 0;
-  padding: 24px 22px;
-  background: var(--color-surface);
+  border-radius: 16px 16px 4px 16px;
   box-shadow: none;
 }
-:global(.role-content-messages) .sessionCard h2 {
-  margin-bottom: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text);
-  font: 600 19px var(--font-fraunces), Georgia, serif;
-}
-.sessionHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.sessionHeading h2 { flex: 1; }
-.sessionClose { display: none; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface) !important; color: var(--color-text-muted); cursor: pointer; }
-.patientCard {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 21px;
-  padding: 15px;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  background: var(--color-surface);
-}
-.patientAvatar {
-  width: 47px;
-  height: 47px;
-  flex: 0 0 47px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--color-primary-action, var(--color-primary));
-  color: #fff;
-  font: 600 15px var(--font-fraunces), Georgia, serif;
-}
-.patientCard > div { display: grid; gap: 2px; min-width: 0; }
-.patientCard strong { color: var(--color-text); font-size: 13px; }
-.patientCard small,
-.patientCard div span { color: var(--color-text-muted); font-size: 10px; }
-.previewClinical { display: grid; gap: 11px; margin-bottom: 20px; }
-.previewClinical .sideLabel { margin: 4px 0 0; }
-.previewReason,.previewNote { margin: 0; padding: 13px; border: 1px solid var(--color-border); border-radius: 13px; background: var(--color-surface); color: var(--color-text); font-size: 11px; line-height: 1.6; }
-.previewNote { background: var(--color-surface-soft); color: var(--color-text-muted); }
-.previewScores { display: grid; gap: 9px; }
-.previewScores > div { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 9px; padding: 12px 13px; border: 1px solid var(--color-border); border-radius: 13px; background: var(--color-surface); }
-.previewScores span { color: var(--color-text); font-size: 11px; font-weight: 750; }
-.previewScores strong { color: var(--color-primary); font-size: 12px; }
-.previewScores i { grid-column: 1 / -1; display: block; height: 5px; max-width: 100%; border-radius: 999px; background: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary-soft); }
-.sideLabel {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0 0 10px;
-  color: var(--color-text-muted);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .08em;
-}
-.sideLabel svg { color: var(--color-primary); }
-:global(.role-content-messages) .sessionTime {
-  color: var(--color-text);
-  font: 600 25px/1.2 var(--font-fraunces), Georgia, serif;
-}
-:global(.role-content-messages) .sessionDate { color: var(--color-text-muted); font-size: 11px; }
-:global(.role-content-messages) .progress { background: var(--color-primary-soft); }
-:global(.role-content-messages) .progress i { background: var(--color-primary); }
-:global(.role-content-messages) .progressLabels,
-:global(.role-content-messages) .sessionFacts dt,
-:global(.role-content-messages) .creditState p { color: var(--color-text-muted); }
-:global(.role-content-messages) .sessionFacts { border-color: var(--color-border); }
-:global(.role-content-messages) .sessionFacts > div { border-color: var(--color-border); }
-:global(.role-content-messages) .sessionFacts dd,
-:global(.role-content-messages) .creditState strong { color: var(--color-text); }
-.clinicalAccess {
-  margin-top: 19px;
-  padding: 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  background: var(--color-surface-soft);
-}
-.clinicalAccess p {
-  margin: 0 0 13px;
-  color: var(--color-text-muted);
+.specialist .messageRow time {
+  margin-top: 6px;
   font-size: 11px;
-  line-height: 1.6;
 }
-.clinicalAccess a {
+.specialist .composer {
+  padding: 16px 20px 12px;
+}
+.specialist .composerBox {
+  padding: 6px 6px 6px 14px;
+  gap: 8px;
+  border-radius: 12px;
+}
+.specialist .composer textarea {
+  min-width: 0;
+  max-height: 160px;
+  font-size: 14px;
+}
+.specialist .composer button {
+  width: 44px;
+  min-height: 44px;
+  flex-basis: 44px;
+  border-radius: 10px;
+}
+.specialist .composer > p {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.readOnly {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 16px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.readOnly > svg {
+  flex-shrink: 0;
+}
+.readOnly p {
+  flex: 1;
+  margin: 0;
+  min-width: 160px;
+}
+.readOnly a,
+.detailsLinks a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: none;
+}
+.specialist .sessionCard {
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  padding: 20px;
+  background: var(--surface);
+  box-shadow: none;
+}
+.detailsHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--color-primary);
-  font-size: 11px;
-  font-weight: 750;
-  text-decoration: none;
+  margin-bottom: 20px;
 }
-.sessionPrivacy {
+.detailsHeader h2 {
   display: flex;
-  align-items: flex-start;
   gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-family: var(--font-body), sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.detailsHeader svg {
+  flex-shrink: 0;
+}
+.specialist .sessionSchedule {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+.detailsEyebrow {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.specialist .sessionTime {
+  font-family: var(--font-body), sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.specialist .sessionDate {
+  margin: 8px 0;
+  font-size: 12px;
+}
+.timezone {
+  margin: 0 0 14px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.specialist .sessionFacts {
   margin-top: 20px;
-  padding-top: 13px;
-  border-top: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  font-size: 10px;
-  line-height: 1.5;
 }
-.sessionPrivacy svg { flex: 0 0 auto; color: var(--color-primary); }
-@media (max-width: 1450px) {
-  :global(.role-content-messages) .layout.withSessionDetails { grid-template-columns: minmax(0,1fr); }
-  :global(.role-content-messages) .sessionCard {
-    position: absolute;
-    z-index: 3;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    display: block;
-    width: min(345px, 88%);
-    box-shadow: -14px 0 32px rgba(22, 45, 34, .12);
+.specialist .sessionFacts > div {
+  font-size: 13px;
+}
+.specialist .sessionFacts dd {
+  font-weight: 650;
+}
+.specialist .creditState {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+.specialist .creditState p {
+  font-size: 12px;
+}
+.detailsLinks {
+  display: grid;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 24px;
+  font-size: 13px;
+}
+.detailsLinks a:last-child:not(:first-child) {
+  background: var(--teal-deep);
+  color: #fff;
+  border-color: var(--teal-deep);
+}
+.historySkeleton {
+  display: grid;
+  align-content: center;
+  width: 100%;
+  gap: 20px;
+  color: var(--ink-soft);
+}
+.historySkeleton > :nth-child(2n) {
+  width: 75%;
+}
+.historySkeleton > :nth-child(3) {
+  width: 70%;
+  justify-self: end;
+}
+.jumpToLatest {
+  position: absolute;
+  bottom: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-height: 44px;
+  max-width: calc(100% - 32px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: var(--surface);
+  color: var(--teal-deep);
+  font: inherit;
+  font-size: 12px;
+  box-shadow: var(--elevation-2);
+  cursor: pointer;
+}
+.specialist .error {
+  gap: 8px;
+  min-height: 52px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.specialist .error > span {
+  white-space: normal;
+  text-overflow: clip;
+  overflow: visible;
+  flex: 1;
+}
+.specialist .error button {
+  min-width: 44px;
+  min-height: 44px;
+  font: inherit;
+  font-weight: 650;
+}
+.specialist .error button:last-child {
+  width: 44px;
+}
+.specialist :is(button, a, textarea):focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+.specialist :is(button, a) {
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+  cursor: pointer;
+}
+.backToInbox {
+  display: none;
+}
+.infoDialog {
+  width: min(400px, calc(100% - 16px));
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 0 0 auto;
+  border-radius: 16px 0 0 16px;
+}
+.infoDialog > div {
+  height: 100%;
+  max-height: 100dvh;
+  border-radius: inherit;
+  animation: info-slide-in var(--motion-base) var(--ease-standard);
+}
+.specialist .infoDialog .sessionCard {
+  min-height: 100%;
+  border: 0;
+}
+@keyframes info-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
   }
-  .sessionClose { display: grid; }
 }
-@media (max-width: 819px) {
-  :global(.role-content-messages) .chatHeader { min-height: 70px; padding: 9px 12px; }
-  :global(.role-content-messages) .messages { padding: 14px 12px; }
-  :global(.role-content-messages) .composer { padding: 10px 12px; }
-  :global(.role-content-messages) .empty { padding: 20px; }
+@media (max-width: 1439px) {
+  .specialist .layout.withSessionDetails {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 980px) {
+  .specialist .backToInbox {
+    display: grid;
+    margin-left: -8px;
+  }
+  .specialist .chatHeader {
+    min-height: 76px;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  .specialist .avatar {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+  .specialist .attendance > div {
+    min-width: 0;
+  }
+  .specialist .attendance button {
+    width: auto;
+  }
+  .specialist .chatMeta {
+    display: flex;
+  }
+}
+@media (max-width: 520px) {
+  .specialist .chatTitleRow > strong {
+    font-size: 16px;
+  }
+  .specialist .chatTitleRow .phaseBadge {
+    display: none;
+  }
+  .specialist .phaseNotice .phaseBadge {
+    display: inline-flex;
+  }
+  .phaseNotice {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 16px;
+  }
+  .specialist .attendance {
+    padding: 12px 16px;
+  }
+  .specialist .attendance > div {
+    min-width: calc(100% - 40px);
+  }
+  .specialist .attendance button {
+    width: 100%;
+  }
+  .specialist .messages {
+    padding: 20px 16px;
+  }
+  .specialist .composer {
+    padding: 12px 16px;
+  }
+  .specialist .composer textarea {
+    font-size: 16px;
+  }
+  .readOnly {
+    padding: 12px 16px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .specialist .refreshButton:hover:not(:disabled) {
+    background: var(--teal-pale);
+  }
+  .detailsLinks a:hover,
+  .readOnly a:hover {
+    border-color: var(--teal);
+  }
+  .specialist .composer button:hover:not(:disabled) {
+    background: var(--teal);
+    transform: translateY(-1px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .specialist *,
+  .infoDialog > div {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto;
+  }
+}
+
+.composerSuggestions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.composerSuggestions > span {
+  color: var(--color-text-muted, #5b6470);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.composerSuggestions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
+  min-height: 32px !important;
+  border: 1px solid var(--color-border, #cfe3d8) !important;
+  border-radius: 999px !important;
+  padding: 6px 14px !important;
+  background: #f2f8f4 !important;
+  color: var(--color-primary, #1f5c3f) !important;
+  -webkit-text-fill-color: var(--color-primary, #1f5c3f) !important;
+  font-family: var(--font-be-vietnam), sans-serif !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease;
+}
+
+.composerSuggestions button:hover {
+  border-color: var(--color-primary, #1f5c3f) !important;
+  background: #e3f0e8 !important;
+  color: var(--color-primary, #1f5c3f) !important;
+  -webkit-text-fill-color: var(--color-primary, #1f5c3f) !important;
+  transform: translateY(-1px);
 }

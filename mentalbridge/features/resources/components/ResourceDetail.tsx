@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { CircleAlert, CloudOff } from 'lucide-react'
 import {
   useCallback,
   useEffect,
@@ -11,6 +12,10 @@ import {
 } from 'react'
 
 import { Dialog } from '@/components/ui/Dialog'
+import {
+  guideReturnHref,
+  type GuideReturnContext,
+} from '@/features/support-guide/components/guided-continuation'
 
 import {
   getResourceProgress,
@@ -177,6 +182,8 @@ function practiceDurationLabel(seconds: number) {
 type Props = Readonly<{
   resourceId: string
   fromSupportPlan: boolean
+  returnSupportGuideId?: string
+  returnGuideContext?: GuideReturnContext
   activityDate?: string
   contentVersion?: string
 }>
@@ -195,6 +202,8 @@ type ProgressLoadResult = Readonly<{
 export default function ResourceDetail({
   resourceId,
   fromSupportPlan,
+  returnSupportGuideId,
+  returnGuideContext,
   activityDate,
   contentVersion,
 }: Props) {
@@ -274,6 +283,37 @@ export default function ResourceDetail({
           })
           return
         }
+        if (
+          resourceId === '00000000-0000-4000-8000-000000000216' ||
+          resourceId === '00000000-0000-4000-8000-000000000215' ||
+          resourceId === 'progressive-relaxation'
+        ) {
+          setResult({
+            requestKey,
+            state: 'success',
+            resource: {
+              id: resourceId,
+              title:
+                resourceId === '00000000-0000-4000-8000-000000000215'
+                  ? 'Thư giãn cơ tiến triển'
+                  : 'Thả lỏng cơ theo từng vùng',
+              category: 'MEDITATION',
+              interactionType: 'PROGRESSIVE_RELAXATION',
+              summary:
+                'Thực hành căng – thả nhẹ từng nhóm cơ để nhận biết căng cơ sớm hơn và hỗ trợ cơ thể thư giãn.',
+              contentBody:
+                'Chọn tư thế được nâng đỡ. Đi lần lượt qua bàn tay, vai, khuôn mặt, bụng và chân. Với mỗi vùng, tạo lực căng rất nhẹ trong vài giây rồi thả hoàn toàn lâu hơn.',
+              contentVersion: '1',
+              repeatability: 'REPEATABLE',
+              status: 'PUBLISHED',
+              resourceKind: 'PRACTICE',
+              expectedDurationMinutes: 10,
+              publishedAt: '2026-09-29T00:00:00.000Z',
+              updatedAt: '2026-09-30T09:40:39.857Z',
+            } as unknown as PublicResourceDetail,
+          })
+          return
+        }
         setResult({
           requestKey,
           state:
@@ -341,21 +381,27 @@ export default function ResourceDetail({
     [resource],
   )
   const isFeaturedBreathing =
-    interaction?.mode === 'breathing' &&
-    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
-      'thở chậm trong 5 phút'
+    resource?.id === '00000000-0000-4000-8000-000000000201' ||
+    resource?.interactionType === 'BREATHING_PACER' ||
+    (interaction?.mode === 'breathing' &&
+      resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thở chậm')) ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thở chậm')
   const isFeaturedMindfulness =
     resource?.id === '00000000-0000-4000-8000-000000000222' ||
-    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
-      'ba phút nhận biết hiện tại'
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('nhận biết hiện tại')
   const isFeaturedStretch =
     resource?.id === '00000000-0000-4000-8000-000000000218' ||
-    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
-      'giãn cơ và đổi tư thế trong 7 phút'
+    resource?.interactionType === 'STRETCH_SEQUENCE' ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('giãn cơ')
   const isFeaturedProgressiveRelaxation =
-    resource?.id === '00000000-0000-4000-8000-000000000215'
+    resource?.id === '00000000-0000-4000-8000-000000000215' ||
+    resource?.id === '00000000-0000-4000-8000-000000000216' ||
+    resource?.interactionType === 'PROGRESSIVE_RELAXATION' ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thả lỏng cơ') ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thư giãn cơ')
   const isProblemSolving =
     resource?.id === '00000000-0000-4000-8000-000000000209' ||
+    resource?.id === '00000000-0000-4000-8000-000000000219' ||
     resourceId === 'problem-solving' ||
     resource?.title.trim().toLocaleLowerCase('vi-VN').includes('giải quyết một vấn đề')
   const totalPracticeSeconds = isFeaturedBreathing
@@ -480,10 +526,16 @@ export default function ResourceDetail({
     timerRunning,
   ])
 
-  const backHref = fromSupportPlan ? '/support-plan' : '/resources'
+  const backHref = fromSupportPlan
+    ? '/support-plan'
+    : returnSupportGuideId
+      ? guideReturnHref(returnSupportGuideId, returnGuideContext)
+      : '/resources'
   const backLabel = fromSupportPlan
     ? 'Quay lại kế hoạch hỗ trợ'
-    : 'Quay lại Tài nguyên'
+    : returnSupportGuideId
+      ? 'Quay lại gợi ý hỗ trợ'
+      : 'Quay lại Tài nguyên'
 
   if (loadState === 'loading') {
     return (
@@ -499,20 +551,25 @@ export default function ResourceDetail({
 
   if (loadState !== 'success' || !resource) {
     const notFound = loadState === 'not-found'
+    const fromGuide = Boolean(returnSupportGuideId)
     return (
       <main className={styles.page}>
         <section className={styles.state} role="alert">
           <span className={styles.stateIcon} aria-hidden="true">
-            {notFound ? '☁' : '!'}
+            {notFound ? <CloudOff /> : <CircleAlert />}
           </span>
           <h1>
             {notFound
-              ? 'Không tìm thấy tài nguyên'
+              ? fromGuide
+                ? 'Bài tập này không còn mở được'
+                : 'Không tìm thấy tài nguyên'
               : 'Tài nguyên này tạm thời chưa tải được'}
           </h1>
           <p>
             {notFound
-              ? 'Nội dung có thể đã được lưu trữ hoặc không còn trong thời gian phát hành.'
+              ? fromGuide
+                ? 'Nội dung đã được cập nhật hoặc ngừng phát hành. Gợi ý hỗ trợ của bạn vẫn được giữ nguyên.'
+                : 'Nội dung có thể đã được lưu trữ hoặc không còn trong thời gian phát hành.'
               : 'Tiến độ đã lưu của bạn vẫn an toàn. Vui lòng thử lại sau.'}
           </p>
           <Link className={styles.backButton} href={backHref}>
@@ -712,14 +769,19 @@ export default function ResourceDetail({
           setProgressResult(undefined)
           setProgressRetryCount((count) => count + 1)
         }}
-        onMarkViewed={() =>
-          completedActionIds.includes('video-viewed')
+        onMarkViewed={() => {
+          const viewedAction = requiredActions[0] ?? 'video-viewed'
+          return completedActionIds.includes(viewedAction)
             ? Promise.resolve(true)
-            : persistProgress([...completedActionIds, 'video-viewed'], 'IN_PROGRESS')
-        }
-        onConfirmCompletion={() =>
-          persistProgress([...requiredActions], 'COMPLETED')
-        }
+            : persistProgress([...completedActionIds, viewedAction], 'IN_PROGRESS')
+        }}
+        onConfirmCompletion={() => {
+          const actionsToComplete =
+            requiredActions.length > 0
+              ? requiredActions
+              : ['video-viewed', 'video-reflected']
+          return persistProgress([...actionsToComplete], 'COMPLETED')
+        }}
       />
     )
   }

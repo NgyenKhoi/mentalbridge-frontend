@@ -64,6 +64,7 @@ import type {
 } from './support-plan-contextual-companion'
 import SupportPlanDescription from './SupportPlanDescription'
 import SupportPlanFooter from './SupportPlanFooter'
+import SupportPlanFortnight from './SupportPlanFortnight'
 import SupportPlanPersonalization from './SupportPlanPersonalization'
 import SupportPlanScheduleEditor from './SupportPlanScheduleEditor'
 import SupportPlanSidebarCards from './SupportPlanSidebarCards'
@@ -1805,6 +1806,18 @@ export default function NativeSupportPlanJourney({
               tin riêng biệt.
             </p>
           </div>
+          {nativeCurrent && (
+            <SupportPlanFortnight
+              key={nativeCurrent.supportPlanId}
+              startDate={localToday(timezone)}
+              supportPlanId={nativeCurrent.supportPlanId}
+              onSelectDay={(date) => {
+                setOccurrences([])
+                setDay(date)
+                setTab('today')
+              }}
+            />
+          )}
           <EmotionProgress />
           <Disclosure summary="Lịch sử kế hoạch">
             <div className={styles.history}>

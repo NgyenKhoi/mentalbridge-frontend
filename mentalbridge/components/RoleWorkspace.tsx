@@ -10,15 +10,12 @@ import { getCareProfile } from '@/features/assessment/api/browser-care'
 import { browserConsultation } from '@/features/specialist-profile/api/browser-client'
 import SpecialistProfileWorkspace from '@/features/specialist-profile/components/SpecialistProfileWorkspace'
 import SpecialistAvailabilityManager from '@/features/specialist-availability/components/SpecialistAvailabilityManager'
-import availabilityStyles from '@/features/specialist-availability/components/SpecialistAvailabilityManager.module.css'
 import SpecialistAppointmentDecisionPanel from '@/features/appointments/components/SpecialistAppointmentDecisionPanel'
-import appointmentStyles from '@/features/appointments/components/SpecialistAppointmentDecisionPanel.module.css'
 import AppointmentMessagesWorkspace from '@/features/appointments/components/AppointmentMessagesWorkspace'
-import SpecialistFollowUpWorkspace from '@/features/appointments/components/SpecialistFollowUpWorkspace'
+import SpecialistContinuityManager from '@/features/appointments/components/SpecialistContinuityManager'
 import SpecialistDashboardManager from './SpecialistDashboardManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
-import SpecialistWorkspaceIdentity from './SpecialistWorkspaceIdentity'
 import SpecialistOperationalAnalytics from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics'
 import SpecialistDeferredSection, {
   type SpecialistDeferredSectionKey,
@@ -36,10 +33,6 @@ import AdminAppointmentsManager from './AdminAppointmentsManager'
 import { Bell, Headphones, User, Search } from 'lucide-react'
 import './SpecialistClinicalDashboard.css'
 import './role-workspace.css'
-import profileStyles from '@/features/specialist-profile/components/ProfilePage.module.css'
-import analyticsStyles from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics.module.css'
-import { Dialog } from './ui/Dialog'
-import navigationStyles from './SpecialistWorkspaceNavigation.module.css'
 
 type Role = 'specialist' | 'admin'
 type Row = { id: string; title: string; meta: string; status: string; detail: string }
@@ -172,16 +165,15 @@ export default function RoleWorkspace({
     let active = true
     const loadAccountName = async () => {
       let name = ''
-      if (hasPersonalWorkspace) {
+      if (role === 'specialist') {
         try {
-          name = (await getCareProfile()).displayName.trim()
+          name = (await browserConsultation.own()).data.displayName.trim()
         } catch {
           name = ''
         }
-      }
-      if (!hasPersonalWorkspace && role === 'specialist') {
+      } else if (hasPersonalWorkspace) {
         try {
-          name = (await browserConsultation.own()).data.displayName.trim()
+          name = (await getCareProfile()).displayName.trim()
         } catch {
           name = ''
         }
@@ -221,8 +213,8 @@ export default function RoleWorkspace({
     setToast('Thao tác đã được cập nhật thành công.')
     window.setTimeout(() => setToast(''), 3200)
   }
-  return <div className={`role-shell role-${role} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${role === 'specialist' ? navigationStyles.shell : ''} ${role === 'specialist' && sectionKey === 'profile' ? profileStyles.shell : ''} ${role === 'specialist' && sectionKey === 'analytics' ? analyticsStyles.shell : ''} ${role === 'specialist' && sectionKey === 'availability' ? availabilityStyles.shell : ''} ${role === 'specialist' && ['dashboard', 'appointments', 'clients', 'messages', 'follow-up', 'earnings'].includes(sectionKey) ? appointmentStyles.shell : ''}`}>
-    <motion.aside className={`role-sidebar ${role === 'admin' && mobileOpen ? 'open' : ''}`} layout initial={false} transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
+  return <div className={`role-shell role-${role} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+    <motion.aside className={`role-sidebar ${mobileOpen ? 'open' : ''}`} layout initial={false} transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       <Link href="/" className="role-brand"><motion.span className="role-brand-mark" whileHover={{ rotate: -6, scale: 1.06 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>M</motion.span><span className="role-brand-copy"><strong>MentalBridge</strong><small>{role === 'admin' ? 'Admin Console' : 'Specialist Workspace'}</small></span></Link>
       <button className="role-collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'} title={sidebarCollapsed ? 'Mở rộng' : 'Thu gọn'}><motion.span animate={{ rotate: sidebarCollapsed ? 180 : 0 }}>‹</motion.span></button>
       <nav aria-label={`Điều hướng ${role}`}>
@@ -244,7 +236,8 @@ export default function RoleWorkspace({
           compact={sidebarCollapsed}
           displayName={accountName ?? 'Tài khoản của bạn'}
           avatar={accountAvatar}
-          accountKind={hasPersonalWorkspace ? 'personal' : 'specialist'}
+          accountKind={role === 'specialist' ? 'specialist' : hasPersonalWorkspace ? 'personal' : 'specialist'}
+          description={role === 'specialist' ? 'Tài khoản chuyên gia' : hasPersonalWorkspace ? 'Tài khoản cá nhân' : 'Tài khoản chuyên gia'}
           accountLabel={hasPersonalWorkspace ? 'Tài khoản cá nhân' : 'Tài khoản chuyên gia'}
           profileHref={hasPersonalWorkspace ? '/profile' : '/specialist/profile'}
           profileLabel={hasPersonalWorkspace ? 'Hồ sơ cá nhân' : 'Hồ sơ chuyên gia'}
@@ -252,13 +245,6 @@ export default function RoleWorkspace({
         />
       </div>
     </motion.aside>
-    {role === 'specialist' && <Dialog open={mobileOpen} onOpenChange={setMobileOpen} labelledBy="specialist-navigation-title" className={navigationStyles.drawer}>
-      <header className={navigationStyles.heading}><div><strong>MentalBridge</strong><h2 id="specialist-navigation-title">Điều hướng chuyên gia</h2></div><button type="button" onClick={() => setMobileOpen(false)} aria-label="Đóng menu">×</button></header>
-      <nav className={navigationStyles.links} aria-label="Menu chuyên gia">
-        {navByRole.specialist.map(([key, label]) => <Link key={key} href={`/specialist/${key}`} aria-current={key === sectionKey ? 'page' : undefined} onClick={() => setMobileOpen(false)}><span aria-hidden="true">{navIcons[key] || '·'}</span>{label}</Link>)}
-      </nav>
-      <div className={navigationStyles.account}><WorkspaceSwitcher workspaces={workspaces} currentRole="SPECIALIST" /><SpecialistWorkspaceIdentity /></div>
-    </Dialog>}
     <motion.main className="role-main" layout="position" transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}>
       {role === 'specialist' ? (
         <header className="role-topbar role-topbar-specialist">
@@ -287,10 +273,10 @@ export default function RoleWorkspace({
               <kbd className="clinical-search-kbd">⌘K</kbd>
             </div>
 
-            <button className="clinical-topbar-btn" aria-label="Thông báo" title="Thông báo">
+            <Link href="/specialist/notifications" className="clinical-topbar-btn" aria-label="Thông báo" title="Thông báo">
               <span className="clinical-btn-dot-red" />
               <Bell size={17} strokeWidth={1.75} />
-            </button>
+            </Link>
             <button className="clinical-topbar-btn" aria-label="Cài đặt & Trợ giúp" title="Trợ giúp">
               <Headphones size={17} strokeWidth={1.75} />
             </button>
@@ -310,7 +296,7 @@ export default function RoleWorkspace({
         {role === 'specialist' && sectionKey === 'appointments' && <SpecialistAppointmentDecisionPanel initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'clients' && <SpecialistClientsManager initialAppointmentId={selectedAppointmentId} />}
         {role === 'specialist' && sectionKey === 'messages' && <AppointmentMessagesWorkspace viewerRole="SPECIALIST" initialAppointmentId={selectedAppointmentId} />}
-        {role === 'specialist' && sectionKey === 'follow-up' && <SpecialistFollowUpWorkspace />}
+        {role === 'specialist' && sectionKey === 'follow-up' && <SpecialistContinuityManager initialAppointmentId={selectedAppointmentId} />}
 		{role === 'specialist' && sectionKey === 'earnings' && <SpecialistEarningsManager />}
 		{role === 'specialist' && sectionKey === 'notifications' && <SpecialistDeferredSection section={sectionKey as SpecialistDeferredSectionKey} />}
         {role === 'admin' && sectionKey === 'users' && <AdminUsersManager onSelect={setSelected} onNotice={message => { setToast(message); window.setTimeout(() => setToast(''), 3200) }} />}
@@ -339,7 +325,7 @@ export default function RoleWorkspace({
         </div>}
       </div>
     </motion.main>
-    {role === 'admin' && mobileOpen && <button className="role-overlay" aria-label="Đóng menu" onClick={() => setMobileOpen(false)} />}
+    {mobileOpen && <button className="role-overlay" aria-label="Đóng menu" onClick={() => setMobileOpen(false)} />}
     {selected && <><button className="role-drawer-backdrop" aria-label="Đóng chi tiết" onClick={() => setSelected(null)} /><aside className="role-drawer" aria-label="Chi tiết"><div className="role-drawer-head"><div><small>CHI TIẾT · {selected.id.toUpperCase()}</small><h2>{selected.title}</h2></div><button onClick={() => setSelected(null)} aria-label="Đóng">×</button></div><span className={`role-status ${statusClass(selected.status)}`}>{selected.status}</span><p className="role-detail-meta">{selected.meta}</p><div className="role-detail-block"><h3>Thông tin</h3><p>{selected.detail}</p></div>{sectionKey === 'clients' && <div className="role-consent">✓ Access granted by user</div>}<div className="role-detail-block"><h3>Dòng thời gian</h3><ul><li><i />Cập nhật gần nhất · Hôm nay, 14:30</li><li><i />Được tạo trên MentalBridge · 12/08/2026</li></ul></div><div className="role-drawer-actions"><button className="btn-primary" onClick={() => setToast('Đã lưu cập nhật thành công.')}>Cập nhật</button>{showAction(selected, role === 'admin' ? 'Xử lý' : 'Hủy lịch') && <button className="btn-outline danger" onClick={() => setConfirmAction(role === 'admin' ? 'Xác nhận thao tác quản trị' : 'Xác nhận hủy lịch')}>{role === 'admin' ? 'Thao tác khác' : 'Hủy lịch'}</button>}</div></aside></>}
     {confirmAction && <div className="role-modal-wrap"><button className="role-drawer-backdrop" aria-label="Đóng xác nhận" onClick={() => setConfirmAction(null)} /><div className="role-modal"><span className="role-modal-icon">!</span><h2>{confirmAction}</h2><p>Thao tác này có thể ảnh hưởng đến dữ liệu hoặc quyền truy cập. Vui lòng kiểm tra kỹ trước khi tiếp tục.</p><div><button className="btn-ghost" onClick={() => setConfirmAction(null)}>Quay lại</button><button className="btn-primary" onClick={finishAction}>Xác nhận</button></div></div></div>}
     {toast && <div className="role-toast"><span>✓</span>{toast}</div>}

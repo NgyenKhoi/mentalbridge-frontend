@@ -42,7 +42,7 @@ describe('SupportPlanPersonalization', () => {
   })
 
   it('renders every optional group from the absent fallback', async () => {
-    render(<SupportPlanPersonalization onReviewPlan={vi.fn()} />)
+    render(<SupportPlanPersonalization onReviewPlan={vi.fn()} defaultOpen />)
 
     expect(
       await screen.findByRole('heading', {
@@ -79,7 +79,12 @@ describe('SupportPlanPersonalization', () => {
       etag: '"4"',
     })
 
-    render(<SupportPlanPersonalization onReviewPlan={onReviewPlan} />)
+    render(
+      <SupportPlanPersonalization
+        onReviewPlan={onReviewPlan}
+        defaultOpen
+      />,
+    )
 
     expect(await screen.findByLabelText('Ngủ và nghỉ ngơi')).toBeChecked()
     expect(screen.getByLabelText('Bài tập có hướng dẫn')).toBeChecked()
@@ -138,7 +143,7 @@ describe('SupportPlanPersonalization', () => {
         etag: '"1"',
       }),
     )
-    render(<SupportPlanPersonalization onReviewPlan={vi.fn()} />)
+    render(<SupportPlanPersonalization onReviewPlan={vi.fn()} defaultOpen />)
 
     fireEvent.click(await screen.findByLabelText('Tìm lại động lực'))
     fireEvent.click(screen.getByLabelText('Thói quen nhỏ'))
@@ -167,7 +172,7 @@ describe('SupportPlanPersonalization', () => {
         status: 412,
       }),
     )
-    render(<SupportPlanPersonalization onReviewPlan={vi.fn()} />)
+    render(<SupportPlanPersonalization onReviewPlan={vi.fn()} defaultOpen />)
 
     fireEvent.click(await screen.findByLabelText('Ít năng lượng'))
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lựa chọn' }))
@@ -189,7 +194,7 @@ describe('SupportPlanPersonalization', () => {
       value: { ...notProvided.value, revision: 1, status: 'SKIPPED' },
       etag: '"1"',
     })
-    render(<SupportPlanPersonalization onReviewPlan={vi.fn()} />)
+    render(<SupportPlanPersonalization onReviewPlan={vi.fn()} defaultOpen />)
 
     fireEvent.click(
       await screen.findByRole('button', { name: 'Bỏ qua tất cả' }),

@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { X } from 'lucide-react'
 
+import { Dialog } from '@/components/ui/Dialog'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ApiError } from '@/lib/api/api-error'
 import {
@@ -177,9 +179,11 @@ function MultiChoiceGroup({
 export default function SupportPlanPersonalization({
   onReviewPlan,
   onDirtyChange,
+  defaultOpen = false,
 }: Readonly<{
   onReviewPlan: (reasonCode: SupportPlanReviewReasonCode) => void
   onDirtyChange?: (dirty: boolean) => void
+  defaultOpen?: boolean
 }>) {
   const [authority, setAuthority] =
     useState<SupportPlanPersonalizationAuthority>()
@@ -189,6 +193,8 @@ export default function SupportPlanPersonalization({
   const [message, setMessage] = useState<string>()
   const [error, setError] = useState<string>()
   const [conflict, setConflict] = useState(false)
+
+  const [modalOpen, setModalOpen] = useState(defaultOpen)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -230,6 +236,37 @@ export default function SupportPlanPersonalization({
       JSON.stringify(form) !== JSON.stringify(formFrom(authority.value)),
     [authority, form],
   )
+  const summaryTags = useMemo(() => {
+    const tags: string[] = []
+    if (form.preferredFocus) {
+      const opt = focusOptions.find(([v]) => v === form.preferredFocus)
+      if (opt) tags.push(`Ưu tiên: ${opt[1]}`)
+    }
+    if (form.desiredPace) {
+      const opt = paceOptions.find(([v]) => v === form.desiredPace)
+      if (opt) tags.push(`Nhịp độ: ${opt[1]}`)
+    }
+    if (form.dailyTimeBudgetMinutes) {
+      tags.push(`Thời gian: ${form.dailyTimeBudgetMinutes} phút/ngày`)
+    }
+    if (form.preferredDaypart) {
+      const opt = daypartOptions.find(([v]) => v === form.preferredDaypart)
+      if (opt) tags.push(`Thời điểm: ${opt[1]}`)
+    }
+    if (form.preferredActivityModes?.length) {
+      const modes = form.preferredActivityModes
+        .map((m) => modeOptions.find(([v]) => v === m)?.[1])
+        .filter(Boolean)
+      if (modes.length) tags.push(`Hình thức: ${modes.join(', ')}`)
+    }
+    if (form.commonBarriers?.length) {
+      const barriers = form.commonBarriers
+        .map((b) => barrierOptions.find(([v]) => v === b)?.[1])
+        .filter(Boolean)
+      if (barriers.length) tags.push(`Rào cản: ${barriers.join(', ')}`)
+    }
+    return tags
+  }, [form])
   useEffect(() => {
     onDirtyChange?.(dirty)
   }, [dirty, onDirtyChange])
@@ -273,6 +310,7 @@ export default function SupportPlanPersonalization({
           ? 'Đã bỏ qua. MentalBridge sẽ dùng lựa chọn mặc định an toàn.'
           : 'Đã lưu cách bạn muốn kế hoạch đồng hành.',
       )
+      setModalOpen(false)
     } catch (saveError) {
       const isConflict =
         saveError instanceof ApiError &&
@@ -313,13 +351,38 @@ export default function SupportPlanPersonalization({
       <div className="mb-personalization-heading">
         <div>
           <p className="mb-personalization-kicker">Tùy chọn của bạn</p>
-          <h2>Điều gì giúp kế hoạch dễ thực hiện hơn?</h2>
+          <h2 id="support-plan-personalization-heading">
+            Điều gì giúp kế hoạch dễ thực hiện hơn?
+          </h2>
           <p>
             Mọi câu đều không bắt buộc. Đây là sở thích thực tế để sắp xếp hỗ
             trợ phù hợp hơn, không phải chẩn đoán hay đánh giá bạn.
           </p>
         </div>
-        <SupportPlanIcon name="settings_suggest" size={24} />
+        <button
+          type="button"
+          className="btn btn-outline mb-personalization-open-btn"
+          onClick={() => setModalOpen(true)}
+        >
+          <SupportPlanIcon name="settings_suggest" size={18} />
+          Tùy chỉnh sở thích
+        </button>
+      </div>
+
+      <div className="mb-personalization-summary-row">
+        <div className="mb-personalization-summary-chips">
+          {summaryTags.length > 0 ? (
+            summaryTags.map((tag) => (
+              <span key={tag} className="mb-personalization-tag">
+                {tag}
+              </span>
+            ))
+          ) : (
+            <span className="mb-personalization-tag is-empty">
+              Chưa thiết lập sở thích cụ thể (sử dụng mặc định an toàn)
+            </span>
+          )}
+        </div>
       </div>
 
       {authority.value.planReview.required && (
@@ -359,98 +422,153 @@ export default function SupportPlanPersonalization({
         </div>
       )}
 
-      <form
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault()
-          void save()
-        }}
-      >
-        <ChoiceGroup
-          legend="Bạn muốn ưu tiên điều gì lúc này?"
-          name="preferredFocus"
-          value={form.preferredFocus}
-          options={focusOptions}
-          onChange={(value) => setScalar('preferredFocus', value)}
-        />
-        <ChoiceGroup
-          legend="Nhịp độ nào phù hợp với bạn?"
-          name="desiredPace"
-          value={form.desiredPace}
-          options={paceOptions}
-          onChange={(value) => setScalar('desiredPace', value)}
-        />
-        <ChoiceGroup
-          legend="Bạn thường có bao nhiêu phút mỗi ngày?"
-          name="dailyTimeBudgetMinutes"
-          value={form.dailyTimeBudgetMinutes}
-          options={([5, 10, 15, 20, 30] as const).map(
-            (minutes) => [minutes, `${minutes} phút`] as const,
+      {message && (
+        <p className="mb-personalization-message is-success" role="status">
+          {message}
+        </p>
+      )}
+      {error && !modalOpen && (
+        <div className="mb-personalization-message is-error" role="alert">
+          <p>{error}</p>
+          {conflict && (
+            <button className="btn btn-outline" type="button" onClick={load}>
+              Tải lựa chọn mới nhất
+            </button>
           )}
-          onChange={(value) => setScalar('dailyTimeBudgetMinutes', value)}
-        />
-        <ChoiceGroup
-          legend="Thời điểm nào thường thuận tiện?"
-          name="preferredDaypart"
-          value={form.preferredDaypart}
-          options={daypartOptions}
-          onChange={(value) => setScalar('preferredDaypart', value)}
-        />
-        <MultiChoiceGroup
-          legend="Bạn thích cách thực hành nào?"
-          hint="Có thể chọn nhiều lựa chọn."
-          field="preferredActivityModes"
-          values={form.preferredActivityModes}
-          options={modeOptions}
-          onToggle={(value) => toggleArray('preferredActivityModes', value)}
-        />
-        <MultiChoiceGroup
-          legend="Điều gì thường khiến bạn khó bắt đầu?"
-          hint="MentalBridge dùng thông tin này để ưu tiên bước dễ tiếp cận hơn."
-          field="commonBarriers"
-          values={form.commonBarriers}
-          options={barrierOptions}
-          onToggle={(value) => toggleArray('commonBarriers', value)}
-        />
-
-        {message && (
-          <p className="mb-personalization-message is-success" role="status">
-            {message}
-          </p>
-        )}
-        {error && (
-          <div className="mb-personalization-message is-error" role="alert">
-            <p>{error}</p>
-            {conflict && (
-              <button className="btn btn-outline" type="button" onClick={load}>
-                Tải lựa chọn mới nhất
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className="mb-personalization-actions">
-          <button
-            className="btn btn-primary"
-            type="submit"
-            disabled={saving || !dirty}
-          >
-            {saving ? 'Đang lưu…' : 'Lưu lựa chọn'}
-          </button>
-          <button
-            className="btn btn-ghost"
-            type="button"
-            disabled={saving}
-            onClick={() => {
-              setForm(EMPTY_FORM)
-              void save(EMPTY_FORM)
-            }}
-          >
-            Bỏ qua tất cả
-          </button>
-          <span>Mọi lựa chọn đều có thể thay đổi sau.</span>
         </div>
-      </form>
+      )}
+
+      <Dialog
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        labelledBy="personalization-dialog-title"
+        className="support-plan-dialog"
+      >
+        {modalOpen && (
+          <>
+            <div className="support-plan-dialog-header">
+          <div>
+            <p className="support-plan-dialog-kicker">Tùy chọn đồng hành</p>
+            <h3 id="personalization-dialog-title">Tùy chỉnh sở thích của bạn</h3>
+            <p className="support-plan-dialog-desc">
+              Mọi câu đều không bắt buộc. MentalBridge dùng thông tin này để sắp
+              xếp bước dễ tiếp cận hơn.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="support-plan-dialog-close"
+            aria-label="Đóng cửa sổ"
+            onClick={() => setModalOpen(false)}
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <form
+          noValidate
+          className="support-plan-dialog-form"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void save()
+          }}
+        >
+          <div className="support-plan-dialog-body">
+          <ChoiceGroup
+            legend="Bạn muốn ưu tiên điều gì lúc này?"
+            name="preferredFocus"
+            value={form.preferredFocus}
+            options={focusOptions}
+            onChange={(value) => setScalar('preferredFocus', value)}
+          />
+          <ChoiceGroup
+            legend="Nhịp độ nào phù hợp với bạn?"
+            name="desiredPace"
+            value={form.desiredPace}
+            options={paceOptions}
+            onChange={(value) => setScalar('desiredPace', value)}
+          />
+          <ChoiceGroup
+            legend="Bạn thường có bao nhiêu phút mỗi ngày?"
+            name="dailyTimeBudgetMinutes"
+            value={form.dailyTimeBudgetMinutes}
+            options={([5, 10, 15, 20, 30] as const).map(
+              (minutes) => [minutes, `${minutes} phút`] as const,
+            )}
+            onChange={(value) => setScalar('dailyTimeBudgetMinutes', value)}
+          />
+          <ChoiceGroup
+            legend="Thời điểm nào thường thuận tiện?"
+            name="preferredDaypart"
+            value={form.preferredDaypart}
+            options={daypartOptions}
+            onChange={(value) => setScalar('preferredDaypart', value)}
+          />
+          <MultiChoiceGroup
+            legend="Bạn thích cách thực hành nào?"
+            hint="Có thể chọn nhiều lựa chọn."
+            field="preferredActivityModes"
+            values={form.preferredActivityModes}
+            options={modeOptions}
+            onToggle={(value) => toggleArray('preferredActivityModes', value)}
+          />
+          <MultiChoiceGroup
+            legend="Điều gì thường khiến bạn khó bắt đầu?"
+            hint="MentalBridge dùng thông tin này để ưu tiên bước dễ tiếp cận hơn."
+            field="commonBarriers"
+            values={form.commonBarriers}
+            options={barrierOptions}
+            onToggle={(value) => toggleArray('commonBarriers', value)}
+          />
+
+          {error && modalOpen && (
+            <div className="mb-personalization-message is-error" role="alert">
+              <p>{error}</p>
+              {conflict && (
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={load}
+                >
+                  Tải lựa chọn mới nhất
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="support-plan-dialog-footer mb-personalization-actions">
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={saving || !dirty}
+            >
+              {saving ? 'Đang lưu…' : 'Lưu lựa chọn'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              disabled={saving}
+              onClick={() => {
+                setForm(EMPTY_FORM)
+                void save(EMPTY_FORM)
+              }}
+            >
+              Bỏ qua tất cả
+            </button>
+            <button
+              className="btn btn-outline"
+              type="button"
+              onClick={() => setModalOpen(false)}
+            >
+              Đóng
+            </button>
+            <span>Mọi lựa chọn đều có thể thay đổi sau.</span>
+          </div>
+        </form>
+      </>
+    )}
+  </Dialog>
     </section>
   )
 }

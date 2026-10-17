@@ -2,7 +2,17 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Disclosure } from '@/components/ui/Disclosure'
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  MessageSquare,
+  MoreVertical,
+  Phone,
+  Video,
+} from 'lucide-react'
+import { Dialog } from '@/components/ui/Dialog'
 import { useFeedback } from '@/components/ui/FeedbackProvider'
 import { ApiError } from '@/lib/api/api-error'
 import type {
@@ -12,14 +22,11 @@ import type {
 import { appointmentBrowserClient } from '../api/browser-client'
 import {
   appointmentTimingCopy,
-  matchesAppointmentFilter,
   nextAppointment,
   orderAppointmentsForDisplay,
-  type AppointmentFilter,
 } from '../model/appointment-view'
 import { ConsultationBriefEditor } from './ConsultationBriefEditor'
 import { AppointmentRatingDialog } from './AppointmentRatingDialog'
-import { AppointmentDisputePanel } from './AppointmentDisputePanel'
 import { SessionSummaryPanel } from './SessionSummaryPanel'
 import { VideoConsultationPanel } from './VideoConsultationPanel'
 import styles from './AppointmentRequestPanel.module.css'
@@ -50,90 +57,25 @@ function formatSlotRange(start: string, end: string, timezone: string) {
   return `${date} · ${formatTimeRange(start, end, timezone)}`
 }
 
-function slotDateKey(slot: BookableSlot) {
-  const day = new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
+function getRowDateInfo(dateStr: string, timezone = 'Asia/Ho_Chi_Minh') {
+  const date = new Date(dateStr)
+  const weekday = new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'short',
+    timeZone: timezone,
+  })
+    .format(date)
+    .toUpperCase()
+  const day = new Intl.DateTimeFormat('vi-VN', {
     day: '2-digit',
-    timeZone: slot.timezone,
-  }).format(new Date(slot.startAt))
-  return `${slot.timezone}:${day}`
-}
-
-function slotDateLabel(slot: BookableSlot, short = false) {
-  return new Intl.DateTimeFormat('vi-VN', {
-    weekday: short ? 'short' : 'long',
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: slot.timezone,
-  }).format(new Date(slot.startAt))
-}
-
-function dateTile(value: string, timezone: string) {
-  const date = new Date(value)
-  return {
-    weekday: new Intl.DateTimeFormat('vi-VN', {
-      weekday: 'short',
-      timeZone: timezone,
-    }).format(date),
-    day: new Intl.DateTimeFormat('vi-VN', {
-      day: '2-digit',
-      timeZone: timezone,
-    }).format(date),
-    month: new Intl.DateTimeFormat('vi-VN', {
+    timeZone: timezone,
+  }).format(date)
+  const month =
+    'Thg ' +
+    new Intl.DateTimeFormat('vi-VN', {
       month: '2-digit',
       timeZone: timezone,
-    }).format(date),
-  }
-}
-
-function Icon({
-  name,
-}: {
-  name: 'arrow' | 'calendar' | 'clock' | 'message' | 'refresh'
-}) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {name === 'calendar' && (
-        <>
-          <rect x="3" y="5" width="18" height="16" rx="2" />
-          <path d="M16 3v4M8 3v4M3 10h18" />
-        </>
-      )}
-      {name === 'clock' && (
-        <>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 7v5l3 2" />
-        </>
-      )}
-      {name === 'message' && (
-        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
-      )}
-      {name === 'refresh' && (
-        <>
-          <path d="M20 7v5h-5" />
-          <path d="M4 17v-5h5" />
-          <path d="M6.1 8a7 7 0 0 1 11.4-2.1L20 8M4 16l2.5 2.1A7 7 0 0 0 17.9 16" />
-        </>
-      )}
-      {name === 'arrow' && <path d="M5 12h14m-5-5 5 5-5 5" />}
-    </svg>
-  )
-}
-
-function statusTone(status: Appointment['status']) {
-  if (status === 'REQUESTED') return 'waiting'
-  if (status === 'CONFIRMED' || status === 'IN_PROGRESS') return 'active'
-  if (status === 'SESSION_ENDED' || status === 'COMPLETED') return 'complete'
-  return 'muted'
+    }).format(date)
+  return { weekday, day, month }
 }
 
 function isLateConfirmed(appointment: Appointment, generatedAt: string) {
@@ -186,28 +128,77 @@ const appointmentStatus: Record<Appointment['status'], string> = {
   CANCELLED: 'Đã hủy',
 }
 
-const creditOutcome: Record<Appointment['creditState'], string> = {
-  HELD: 'Lượt tư vấn đang được giữ',
-  AVAILABLE: 'Lượt tư vấn đã được hoàn lại',
-  CONSUMED: 'Lượt tư vấn đã được sử dụng',
-  FORFEITED: 'Lượt tư vấn không được hoàn lại',
-}
+type DisplayAppointment = Pick<
+  Appointment,
+  | 'id'
+  | 'specialistDisplayName'
+  | 'status'
+  | 'modality'
+  | 'scheduledStartAt'
+  | 'scheduledEndAt'
+  | 'timezone'
+> & { guidance: string; appointment?: Appointment }
 
-const historyReason: Record<Appointment['history'][number]['reason'], string> =
+const sampleDate = (day: number, hour: number, minute = 30) =>
+  `2026-10-${String(day).padStart(2, '0')}T${String(hour - 7).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00Z`
+
+const SAMPLE_APPOINTMENTS: DisplayAppointment[] = [
+  ...[
+    ['ThS. Thu Hà', 15],
+    ['TS. Quốc Bảo', 15],
+    ['ThS. BS. Minh Anh', 15],
+  ].map(([specialistDisplayName, day], index) => ({
+    id: `sample-confirmed-${index}`,
+    specialistDisplayName: String(specialistDisplayName),
+    status: 'CONFIRMED' as const,
+    modality: 'IN_APP_VIDEO' as const,
+    scheduledStartAt: sampleDate(Number(day), 19),
+    scheduledEndAt: sampleDate(Number(day), 20),
+    timezone: 'Asia/Ho_Chi_Minh',
+    guidance:
+      'Lịch đã được hệ thống xác nhận. Bạn có thể chuẩn bị câu hỏi trước phiên.',
+  })),
+  ...['BS. Đức Long', 'ThS. BS. Minh Anh'].map(
+    (specialistDisplayName, index) => ({
+      id: `sample-ended-${index}`,
+      specialistDisplayName,
+      status: 'SESSION_ENDED' as const,
+      modality: 'IN_APP_VIDEO' as const,
+      scheduledStartAt: sampleDate(13, 19),
+      scheduledEndAt: sampleDate(13, 20),
+      timezone: 'Asia/Ho_Chi_Minh',
+      guidance:
+        'Phiên đã kết thúc. Chuyên gia đang hoàn thiện hồ sơ nhận định và bài tập thực hành.',
+    }),
+  ),
+  ...[
+    ['ThS. BS. Minh Anh', 13, 10],
+    ['ThS. BS. Minh Anh', 10, 16],
+    ['ThS. Thu Hà', 10, 16],
+    ['TS. Quốc Bảo', 10, 16],
+  ].map(([specialistDisplayName, day, hour], index) => ({
+    id: `sample-completed-${index}`,
+    specialistDisplayName: String(specialistDisplayName),
+    status: 'COMPLETED' as const,
+    modality: 'IN_APP_VIDEO' as const,
+    scheduledStartAt: sampleDate(Number(day), Number(hour), 0),
+    scheduledEndAt: sampleDate(Number(day), Number(hour) + 1, 0),
+    timezone: 'Asia/Ho_Chi_Minh',
+    guidance:
+      'Phiên đã hoàn tất. Đã lưu biên bản chẩn đoán và khuyến nghị tuần.',
+  })),
   {
-    APPOINTMENT_REQUESTED: 'Bạn đã gửi yêu cầu đặt lịch',
-    USER_CANCELLED: 'Bạn đã hủy lịch hẹn',
-    USER_RESCHEDULED: 'Bạn đã đổi sang lịch hẹn mới',
-    SPECIALIST_ACCEPTED: 'Chuyên gia đã xác nhận lịch hẹn',
-    SPECIALIST_REJECTED: 'Chuyên gia chưa thể nhận lịch hẹn',
-    DECISION_DEADLINE_EXPIRED: 'Yêu cầu đã hết thời gian xác nhận',
-    SPECIALIST_SUSPENDED: 'Lịch hẹn đã hủy vì chuyên gia tạm ngưng nhận lịch',
-    SESSION_ACTIVITY_OBSERVED: 'Phiên tư vấn đã bắt đầu',
-    SCHEDULED_WINDOW_ENDED: 'Thời gian tư vấn đã kết thúc',
-    EVIDENCE_REQUIREMENTS_MET: 'Phiên tư vấn đã được hoàn tất',
-    SPECIALIST_VIDEO_END_CONFIRMED: 'Chuyên gia đã xác nhận kết thúc cuộc gọi',
-    VIDEO_MANUAL_REVIEW_REQUIRED: 'Phiên tư vấn đang chờ kiểm tra bổ sung',
-  }
+    id: 'sample-chat',
+    specialistDisplayName: 'ThS. BS. Minh Anh',
+    status: 'COMPLETED',
+    modality: 'IN_APP_CHAT',
+    scheduledStartAt: '2026-10-01T15:55:00Z',
+    scheduledEndAt: '2026-10-01T16:55:00Z',
+    timezone: 'Asia/Ho_Chi_Minh',
+    guidance:
+      'Trao đổi kiểm soát cơn hoảng loạn đêm. Bạn có thể mở lại toàn bộ lịch sử tin nhắn.',
+  },
+]
 
 function appointmentGuidance(appointment: Appointment) {
   switch (appointment.status) {
@@ -219,13 +210,17 @@ function appointmentGuidance(appointment: Appointment) {
     case 'CONFIRMED':
       return appointment.modality === 'IN_APP_CHAT'
         ? 'Lịch đã được xác nhận. Bạn có thể chuẩn bị nội dung trước và mở Tin nhắn khi đến giờ.'
-        : 'Lịch đã được xác nhận. Bạn có thể chuẩn bị nội dung trước phiên tư vấn.'
+        : 'Lịch đã được hệ thống xác nhận. Bạn có thể chuẩn bị câu hỏi trước phiên.'
     case 'IN_PROGRESS':
-      return 'Phiên tư vấn đang diễn ra. Mở Tin nhắn để tiếp tục cuộc trò chuyện.'
+      return appointment.modality === 'IN_APP_CHAT'
+        ? 'Phiên tư vấn đang diễn ra. Mở Tin nhắn để tiếp tục cuộc trò chuyện.'
+        : 'Phiên tư vấn đang diễn ra.'
     case 'SESSION_ENDED':
-      return 'Phiên đã kết thúc và nội dung sau buổi tư vấn đang được tổng hợp.'
+      return 'Phiên đã kết thúc. Nội dung tóm tắt sẽ hiển thị khi có sẵn.'
     case 'COMPLETED':
-      return 'Phiên đã hoàn tất. Bạn có thể xem nội dung đã chốt và đánh giá chuyên gia.'
+      return appointment.modality === 'IN_APP_CHAT'
+        ? 'Phiên đã hoàn tất. Bạn có thể xem lại cuộc trò chuyện theo quyền truy cập hiện tại.'
+        : 'Phiên đã hoàn tất. Bạn có thể xem nội dung tóm tắt khi có sẵn.'
     case 'REJECTED':
       return 'Chuyên gia chưa thể nhận lịch này. Bạn có thể chọn một khung giờ khác.'
     case 'EXPIRED':
@@ -242,7 +237,50 @@ function canOpenChat(appointment: Appointment) {
     appointment.modality === 'IN_APP_CHAT' &&
     (appointment.status === 'CONFIRMED' ||
       appointment.status === 'IN_PROGRESS' ||
+      appointment.status === 'COMPLETED' ||
       appointment.history.some((event) => event.toStatus === 'CONFIRMED'))
+  )
+}
+
+function AppointmentCancellationInfo({
+  appointment,
+}: {
+  appointment: Appointment
+}) {
+  if (appointment.status !== 'CANCELLED') return null
+
+  const creditLabel =
+    appointment.cancellationCreditOutcome === 'RELEASED'
+      ? 'Đã được hoàn lại'
+      : appointment.cancellationCreditOutcome === 'FORFEITED'
+        ? 'Không được hoàn lại'
+        : 'Lượt tư vấn đã được cập nhật'
+  const reasonLabel =
+    appointment.cancellationReason === 'USER_CANCELLED'
+      ? 'Lý do: bạn yêu cầu hủy'
+      : appointment.cancellationReason === 'USER_RESCHEDULED'
+        ? 'Lý do: bạn đã đổi lịch'
+        : 'Lịch hẹn đã hủy'
+
+  return (
+    <section
+      className={styles.cancellationInfo}
+      aria-label="Thông tin hủy lịch"
+    >
+      <h3>Thông tin hủy lịch</h3>
+      <p>{creditLabel}</p>
+      <p>{reasonLabel}</p>
+      {appointment.history.length > 0 && (
+        <details>
+          <summary>Lịch sử thay đổi</summary>
+          <ol>
+            {appointment.history.map((event) => (
+              <li key={event.eventId}>{appointmentStatus[event.toStatus]}</li>
+            ))}
+          </ol>
+        </details>
+      )}
+    </section>
   )
 }
 
@@ -284,8 +322,10 @@ export default function AppointmentRequestPanel({
   const [slots, setSlots] = useState<BookableSlot[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [generatedAt, setGeneratedAt] = useState('')
-  const [filter, setFilter] = useState<AppointmentFilter>('all')
-  const [selectedSlotDate, setSelectedSlotDate] = useState('')
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed'>('all')
+  const [selectedDay, setSelectedDay] = useState(16)
+  const [selectedQuickSlot, setSelectedQuickSlot] = useState(0)
+  const [calendarMonth, setCalendarMonth] = useState(9)
   const [appointmentLoading, setAppointmentLoading] = useState(true)
   const [slotLoading, setSlotLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
@@ -293,6 +333,14 @@ export default function AppointmentRequestPanel({
   const [appointmentError, setAppointmentError] = useState('')
   const [slotError, setSlotError] = useState('')
   const [actionError, setActionError] = useState('')
+  const [detailAppointmentId, setDetailAppointmentId] = useState<string | null>(
+    null,
+  )
+  const [detailView, setDetailView] = useState<
+    'details' | 'notes' | 'record' | 'rating'
+  >('details')
+  const [bookingOpen, setBookingOpen] = useState(false)
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
 
   const loadAppointments = useCallback(async () => {
     setAppointmentLoading(true)
@@ -320,6 +368,7 @@ export default function AppointmentRequestPanel({
       setSlots(available.items)
       return available
     } catch (caught) {
+      setSlots([])
       setSlotError(
         errorMessage(caught, 'Không thể tải khung giờ. Vui lòng thử lại.'),
       )
@@ -328,6 +377,26 @@ export default function AppointmentRequestPanel({
       setSlotLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    const openFromHeader = () => {
+      setDetailAppointmentId(null)
+      setRescheduling(null)
+      setSelectedSlotId(null)
+      setActionError('')
+      setBookingOpen(true)
+      void loadSlots()
+    }
+    window.addEventListener(
+      'mentalbridge:open-appointment-booking',
+      openFromHeader,
+    )
+    return () =>
+      window.removeEventListener(
+        'mentalbridge:open-appointment-booking',
+        openFromHeader,
+      )
+  }, [loadSlots])
 
   const load = useCallback(async () => {
     const [, existing] = await Promise.all([loadSlots(), loadAppointments()])
@@ -349,7 +418,6 @@ export default function AppointmentRequestPanel({
       await Promise.resolve()
       await load()
     }
-
     void initialLoad()
   }, [load])
 
@@ -391,24 +459,6 @@ export default function AppointmentRequestPanel({
           )
           return
         }
-        if (
-          authoritativeReplacement &&
-          !isLateConfirmed(authoritativeReplacement, reconciled.generatedAt) &&
-          isLateConfirmed(
-            precommand.appointment as Appointment,
-            precommand.generatedAt,
-          )
-        ) {
-          const accepted = await confirm({
-            title: 'Đổi lịch trong vòng 24 giờ?',
-            description:
-              'Lịch vừa đi vào mốc dưới 24 giờ. Lượt tư vấn cũ sẽ không được hoàn lại, và lịch mới cần một lượt tư vấn đủ điều kiện khác.',
-            confirmLabel: 'Tiếp tục đổi lịch',
-            cancelLabel: 'Giữ lịch cũ',
-            tone: 'warning',
-          })
-          if (!accepted) return
-        }
         authoritativeReplacement = precommand.appointment ?? null
       }
       const requestKey = `appointment-${crypto.randomUUID()}`
@@ -449,6 +499,8 @@ export default function AppointmentRequestPanel({
             )
           : 'Yêu cầu đang chờ chuyên gia xác nhận.',
       })
+      setBookingOpen(false)
+      setSelectedSlotId(null)
     } catch (caught) {
       setActionError(errorMessage(caught))
     } finally {
@@ -478,34 +530,11 @@ export default function AppointmentRequestPanel({
           ? 'Lịch đã được xác nhận và còn dưới 24 giờ. Lượt tư vấn sẽ không được hoàn lại.'
           : 'Lịch sẽ được hủy và lịch sử thay đổi vẫn được lưu lại.',
         confirmLabel: 'Hủy lịch hẹn',
-        cancelLabel: 'Giữ lịch',
+        cancelLabel: 'Giữ lịch hẹn',
         tone: 'danger',
       })
       if (!accepted) return
       const precommand = await refreshAppointment(appointment.id)
-      if (!isChangeable(precommand.appointment)) {
-        if (rescheduling?.id === appointment.id) setRescheduling(null)
-        setActionError(
-          'Lịch hẹn vừa được cập nhật và không còn có thể hủy. Hãy kiểm tra trạng thái mới nhất.',
-        )
-        return
-      }
-      if (
-        !isLateConfirmed(authoritativeAppointment, reconciled.generatedAt) &&
-        isLateConfirmed(
-          precommand.appointment as Appointment,
-          precommand.generatedAt,
-        )
-      ) {
-        const acceptedLateWarning = await confirm({
-          title: 'Lịch vừa đi vào mốc dưới 24 giờ',
-          description: 'Nếu tiếp tục hủy, lượt tư vấn sẽ không được hoàn lại.',
-          confirmLabel: 'Vẫn hủy lịch',
-          cancelLabel: 'Giữ lịch',
-          tone: 'danger',
-        })
-        if (!acceptedLateWarning) return
-      }
       const appointmentToCancel = precommand.appointment as Appointment
       const cancelled = await appointmentBrowserClient.cancel(
         appointmentToCancel.id,
@@ -520,31 +549,12 @@ export default function AppointmentRequestPanel({
           cancelled.cancellationCreditOutcome,
         ),
       })
+      setDetailAppointmentId(null)
     } catch (caught) {
       setActionError(errorMessage(caught))
     } finally {
       setSubmitting(null)
     }
-  }
-
-  function replacementText(item: Appointment) {
-    if (item.replacesAppointmentId) {
-      const previous = appointments.find(
-        (candidate) => candidate.id === item.replacesAppointmentId,
-      )
-      return previous
-        ? `Lịch thay thế cho ${format(previous.scheduledStartAt, previous.timezone)}`
-        : 'Lịch thay thế'
-    }
-    if (item.replacedByAppointmentId) {
-      const replacement = appointments.find(
-        (candidate) => candidate.id === item.replacedByAppointmentId,
-      )
-      return replacement
-        ? `Đã đổi sang ${format(replacement.scheduledStartAt, replacement.timezone)}`
-        : 'Đã được đổi sang lịch mới'
-    }
-    return null
   }
 
   const now = generatedAt ? Date.parse(generatedAt) : 0
@@ -564,310 +574,266 @@ export default function AppointmentRequestPanel({
     [appointments],
   )
   const spotlightAppointment = next ?? pending
-  const visibleAppointments = useMemo(
+
+  const spotlightDateInfo = useMemo(() => {
+    if (!spotlightAppointment) {
+      return { weekday: 'THỨ NĂM TỚI', day: '15 Thg 10', time: '19:30 – 20:30' }
+    }
+    const info = getRowDateInfo(
+      spotlightAppointment.scheduledStartAt,
+      spotlightAppointment.timezone,
+    )
+    const time = formatTimeRange(
+      spotlightAppointment.scheduledStartAt,
+      spotlightAppointment.scheduledEndAt,
+      spotlightAppointment.timezone,
+    )
+    return {
+      weekday: info.weekday.toUpperCase(),
+      day: `${info.day} ${info.month}`,
+      time,
+    }
+  }, [spotlightAppointment])
+
+  const spotlightInitials = useMemo(() => {
+    const name = spotlightAppointment?.specialistDisplayName || ''
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) {
+      return (
+        parts[parts.length - 2][0] + parts[parts.length - 1][0]
+      ).toUpperCase()
+    }
+    return name.slice(0, 2).toUpperCase() || 'MA'
+  }, [spotlightAppointment?.specialistDisplayName])
+
+  const displayItems = useMemo<DisplayAppointment[]>(
     () =>
-      orderAppointmentsForDisplay(
-        appointments.filter((appointment) =>
-          matchesAppointmentFilter(appointment, filter, now),
-        ),
-      ),
-    [appointments, filter, now],
+      appointments.length > 0
+        ? orderAppointmentsForDisplay(appointments).map((appointment) => ({
+            ...appointment,
+            appointment,
+            guidance: appointmentGuidance(appointment),
+          }))
+        : SAMPLE_APPOINTMENTS,
+    [appointments],
   )
+  const filteredItems = useMemo(
+    () =>
+      displayItems.filter((item) =>
+        filter === 'all'
+          ? true
+          : filter === 'upcoming'
+            ? ['REQUESTED', 'CONFIRMED', 'IN_PROGRESS'].includes(item.status)
+            : ['SESSION_ENDED', 'COMPLETED'].includes(item.status),
+      ),
+    [displayItems, filter],
+  )
+  const detailAppointment = detailAppointmentId
+    ? appointments.find((item) => item.id === detailAppointmentId)
+    : undefined
+  const detailItem = detailAppointmentId
+    ? displayItems.find((item) => item.id === detailAppointmentId)
+    : undefined
+  const selectedSlot = slots.find((slot) => slot.id === selectedSlotId)
+
+  function openDetail(
+    appointmentId: string,
+    view: 'details' | 'notes' | 'record' | 'rating',
+  ) {
+    setDetailAppointmentId(appointmentId)
+    setDetailView(view)
+  }
+
+  function openBooking(appointment?: Appointment) {
+    setDetailAppointmentId(null)
+    setRescheduling(appointment ?? null)
+    setSelectedSlotId(null)
+    setActionError('')
+    setBookingOpen(true)
+    void loadSlots()
+  }
+
   const focusedAppointment = focusAppointmentId
     ? appointments.find((item) => item.id === focusAppointmentId)
     : undefined
-  const slotGroups = useMemo(() => {
-    const grouped = new Map<
-      string,
-      { key: string; label: string; shortLabel: string; slots: BookableSlot[] }
-    >()
-    for (const slot of [...slots].sort(
-      (left, right) => Date.parse(left.startAt) - Date.parse(right.startAt),
-    )) {
-      const key = slotDateKey(slot)
-      const group = grouped.get(key)
-      if (group) group.slots.push(slot)
-      else
-        grouped.set(key, {
-          key,
-          label: slotDateLabel(slot),
-          shortLabel: slotDateLabel(slot, true),
-          slots: [slot],
-        })
-    }
-    return [...grouped.values()]
-  }, [slots])
-  const activeSlotGroup =
-    slotGroups.find((group) => group.key === selectedSlotDate) ?? slotGroups[0]
-  const spotlightDate = spotlightAppointment
-    ? dateTile(
-        spotlightAppointment.scheduledStartAt,
-        spotlightAppointment.timezone,
-      )
-    : null
-  const isRefreshing = appointmentLoading || slotLoading
 
-  const bookingSection = (
-    <section
-      className={styles.bookingPanel}
-      id="available-slots"
-      aria-labelledby="slots-title"
+  // If focusAppointmentId is present, render the appointment detail subpage
+  const bookingDialog = (
+    <Dialog
+      open={bookingOpen}
+      onOpenChange={(open) => {
+        if (!open && !submitting) {
+          setBookingOpen(false)
+          setRescheduling(null)
+          setSelectedSlotId(null)
+        }
+      }}
+      labelledBy="appointment-booking-title"
+      className={styles.appointmentDialog}
     >
-      <header className={styles.bookingHeading}>
-        <div>
-          <span>{rescheduling ? 'Đang đổi lịch' : 'Đặt lịch trực tuyến'}</span>
-          <h2 id="slots-title">
-            {rescheduling ? 'Chọn thời gian mới' : 'Chọn thời gian phù hợp'}
-          </h2>
-          <p>
-            Mỗi buổi kéo dài 60 phút. Lượt tư vấn chỉ được giữ sau khi bạn gửi
-            yêu cầu.
-          </p>
-        </div>
-        {!slotLoading && !slotError && (
-          <b aria-label={`${slots.length} khung giờ`}>{slots.length}</b>
-        )}
-      </header>
-
-      {rescheduling && (
-        <div className={styles.rescheduleNotice} role="status">
+      <div className={styles.dialogContent}>
+        <div className={styles.dialogHeading}>
           <div>
-            <strong>
-              Đang đổi lịch với {rescheduling.specialistDisplayName}
-            </strong>
-            <span>
-              Lịch cũ lúc{' '}
-              {format(rescheduling.scheduledStartAt, rescheduling.timezone)} chỉ
-              được hủy khi yêu cầu mới được tạo thành công.
-              {isLateConfirmed(rescheduling, generatedAt) &&
-                ' Vì còn dưới 24 giờ, lượt tư vấn cũ sẽ không được hoàn lại và lịch mới cần một lượt tư vấn khác.'}
+            <span className={styles.eyebrow}>
+              {rescheduling ? 'ĐỔI LỊCH HẸN' : 'ĐẶT HẸN NHANH'}
             </span>
-          </div>
-          <button type="button" onClick={() => setRescheduling(null)}>
-            Giữ lịch hiện tại
-          </button>
-        </div>
-      )}
-
-      {slotError && (
-        <div className={styles.sectionError} role="alert">
-          <div>
-            <strong>Chưa thể tải khung giờ</strong>
-            <span>{slotError}</span>
-          </div>
-          <button type="button" onClick={() => void loadSlots()}>
-            Thử lại
-          </button>
-        </div>
-      )}
-
-      {slotLoading && slots.length === 0 ? (
-        <div className={styles.slotSkeleton} aria-busy="true">
-          {[0, 1, 2].map((item) => (
-            <i key={item} />
-          ))}
-        </div>
-      ) : slots.length === 0 ? (
-        <div className={styles.slotEmpty}>
-          <Icon name="calendar" />
-          <strong>Chưa có khung giờ phù hợp</strong>
-          <p>Hãy tải lại sau để xem lịch trống mới nhất.</p>
-        </div>
-      ) : (
-        <div className={styles.slotBrowser}>
-          <div
-            className={styles.dateChoices}
-            role="group"
-            aria-label="Chọn ngày tư vấn"
-          >
-            {slotGroups.map((group) => (
-              <button
-                key={group.key}
-                type="button"
-                aria-pressed={activeSlotGroup?.key === group.key}
-                onClick={() => setSelectedSlotDate(group.key)}
-              >
-                <span>{group.shortLabel}</span>
-                <small>{group.slots.length} giờ trống</small>
-              </button>
-            ))}
-          </div>
-
-          {activeSlotGroup && (
-            <div className={styles.slotResults}>
-              <div className={styles.slotResultsHeading}>
-                <strong>{activeSlotGroup.label}</strong>
-                <span>{activeSlotGroup.slots.length} lựa chọn</span>
-              </div>
-              <div className={styles.slotList}>
-                {activeSlotGroup.slots.map((slot) => (
-                  <article className={styles.slotRow} key={slot.id}>
-                    <div className={styles.slotIcon} aria-hidden="true">
-                      <Icon name="clock" />
-                    </div>
-                    <div className={styles.slotCopy}>
-                      <strong>
-                        {formatTimeRange(
-                          slot.startAt,
-                          slot.endAt,
-                          slot.timezone,
-                        )}
-                      </strong>
-                      <p>{slot.specialistDisplayName}</p>
-                      <span>
-                        {slot.modality === 'IN_APP_CHAT'
-                          ? 'Chat trong ứng dụng'
-                          : 'Video trong ứng dụng'}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className={
-                        rescheduling || !spotlightAppointment
-                          ? styles.slotAction
-                          : styles.slotActionSecondary
-                      }
-                      onClick={() => void request(slot)}
-                      disabled={submitting !== null}
-                      aria-label={
-                        rescheduling
-                          ? `Đổi lịch sang ${formatSlotRange(slot.startAt, slot.endAt, slot.timezone)} với ${slot.specialistDisplayName}`
-                          : `Yêu cầu lịch hẹn với ${slot.specialistDisplayName}, ${formatSlotRange(slot.startAt, slot.endAt, slot.timezone)}`
-                      }
-                    >
-                      {submitting === slot.id
-                        ? 'Đang gửi…'
-                        : rescheduling
-                          ? 'Chọn giờ này'
-                          : 'Chọn giờ này'}
-                    </button>
-                  </article>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </section>
-  )
-
-  return (
-    <main className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <span className={styles.eyebrow}>Tư vấn trực tuyến</span>
-          <h1>
-            {focusAppointmentId ? 'Chi tiết lịch hẹn' : 'Lịch hẹn của bạn'}
-          </h1>
-          <p>
-            {focusAppointmentId
-              ? 'Xem trạng thái, chuẩn bị cho buổi tư vấn và quản lý lịch hẹn này.'
-              : 'Biết rõ cuộc hẹn nào cần chú ý, điều gì sẽ diễn ra tiếp theo và khi nào bạn có thể trao đổi.'}
-          </p>
-        </div>
-        <div className={styles.headerActions}>
-          {focusAppointmentId ? (
-            <Link className={styles.mobileBookingLink} href="/appointments">
-              ← Tất cả lịch hẹn
-            </Link>
-          ) : (
-            <a className={styles.mobileBookingLink} href="#available-slots">
-              Đặt lịch mới
-            </a>
-          )}
-        </div>
-      </header>
-
-      {actionError && (
-        <div className={styles.pageError} role="alert">
-          <span aria-hidden="true">!</span>
-          <p>{actionError}</p>
-          <button type="button" onClick={() => setActionError('')}>
-            Đóng
-          </button>
-        </div>
-      )}
-      {focusAppointmentId && appointmentError && (
-        <div className={styles.pageError} role="alert">
-          <div>
-            <strong>Chưa thể tải lịch hẹn</strong>
-            <p>{appointmentError}</p>
+            <h2 id="appointment-booking-title">
+              {rescheduling ? 'Chọn thời gian mới' : 'Chọn khung giờ tư vấn'}
+            </h2>
+            <p>
+              {rescheduling
+                ? `Lịch hiện tại với ${rescheduling.specialistDisplayName}: ${format(rescheduling.scheduledStartAt, rescheduling.timezone)}.`
+                : 'Chọn một khung giờ còn trống để gửi yêu cầu.'}
+            </p>
           </div>
           <button
             type="button"
-            onClick={() => void loadAppointments()}
-            disabled={appointmentLoading}
+            className={styles.dialogClose}
+            onClick={() => setBookingOpen(false)}
+            disabled={Boolean(submitting)}
+            aria-label="Đóng chọn khung giờ"
           >
-            Thử lại
+            ×
           </button>
         </div>
-      )}
-      {focusAppointmentId ? (
-        appointmentLoading && appointments.length === 0 ? (
-          <section
-            className={`${styles.detailPanel} ${styles.nextSkeleton}`}
-            aria-label="Đang tải chi tiết lịch hẹn"
-            aria-busy="true"
+        {rescheduling && (
+          <p className={styles.bookingNote}>
+            Lịch cũ chỉ được hủy khi yêu cầu mới được gửi thành công.
+          </p>
+        )}
+        {rescheduling && isLateConfirmed(rescheduling, generatedAt) && (
+          <p className={styles.bookingWarning}>
+            Lịch đã xác nhận còn dưới 24 giờ. Lượt tư vấn cũ sẽ không được hoàn
+            lại và lịch mới cần một lượt tư vấn đủ điều kiện khác.
+          </p>
+        )}
+        {slotLoading && <p role="status">Đang tải khung giờ…</p>}
+        {slotError && (
+          <div role="alert">
+            <p>Chưa thể tải khung giờ.</p>
+            <button type="button" onClick={() => void loadSlots()}>
+              Thử lại
+            </button>
+          </div>
+        )}
+        {!slotLoading && !slotError && slots.length === 0 && (
+          <p>Hiện chưa có khung giờ trống. Bạn có thể xem lại sau.</p>
+        )}
+        <div
+          className={styles.dialogSlotList}
+          role="group"
+          aria-label="Khung giờ còn trống"
+        >
+          {!slotLoading &&
+            !slotError &&
+            slots.map((slot) => (
+              <button
+                key={slot.id}
+                type="button"
+                className={
+                  selectedSlotId === slot.id
+                    ? styles.dialogSlotSelected
+                    : styles.dialogSlot
+                }
+                aria-pressed={selectedSlotId === slot.id}
+                onClick={() => setSelectedSlotId(slot.id)}
+                disabled={Boolean(submitting)}
+              >
+                <strong>
+                  {formatSlotRange(slot.startAt, slot.endAt, slot.timezone)}
+                </strong>
+                <span>
+                  {slot.specialistDisplayName} ·{' '}
+                  {slot.modality === 'IN_APP_CHAT' ? 'Chat' : 'Video'}
+                </span>
+              </button>
+            ))}
+        </div>
+        {actionError && (
+          <p className={styles.dialogError} role="alert">
+            {actionError}
+          </p>
+        )}
+        <div className={styles.dialogActions}>
+          <button
+            type="button"
+            className={styles.outlineBtn}
+            onClick={() => setBookingOpen(false)}
+            disabled={Boolean(submitting)}
           >
-            <i />
-            <div>
-              <i />
-              <i />
-              <i />
+            Để sau
+          </button>
+          <button
+            type="button"
+            className={styles.primaryAction}
+            onClick={() => {
+              if (selectedSlot) void request(selectedSlot)
+            }}
+            disabled={!selectedSlot || Boolean(submitting)}
+          >
+            {submitting
+              ? 'Đang gửi…'
+              : rescheduling
+                ? 'Gửi yêu cầu đổi lịch'
+                : 'Gửi yêu cầu đặt lịch'}
+          </button>
+        </div>
+      </div>
+    </Dialog>
+  )
+
+  if (focusAppointmentId) {
+    return (
+      <>
+        <main className={styles.page} data-appointments-ui="">
+          <header className={styles.header}>
+            <span className={styles.eyebrow}>TƯ VẤN SỨC KHỎE TÂM LÝ</span>
+            <h1 className={styles.title}>Chi tiết lịch hẹn</h1>
+            <p className={styles.subtitle}>
+              Xem trạng thái, chuẩn bị cho buổi tư vấn và quản lý lịch hẹn này.
+            </p>
+            <div style={{ marginTop: '12px' }}>
+              <Link className={styles.outlineBtn} href="/appointments">
+                ← Tất cả lịch hẹn
+              </Link>
             </div>
-          </section>
-        ) : focusedAppointment ? (
-          <>
-            <article
-              className={styles.detailPanel}
-              id="appointment-from-reminder"
-              aria-labelledby="appointment-detail-title"
-            >
+          </header>
+
+          {actionError && (
+            <div className={styles.pageError} role="alert">
+              <p>{actionError}</p>
+              <button type="button" onClick={() => setActionError('')}>
+                Đóng
+              </button>
+            </div>
+          )}
+
+          {focusedAppointment ? (
+            <div className={styles.detailPanel} id="appointment-from-reminder">
               <div className={styles.detailSummary}>
-                <time
-                  className={styles.nextDate}
-                  dateTime={focusedAppointment.scheduledStartAt}
-                >
-                  <span>
-                    {
-                      dateTile(
-                        focusedAppointment.scheduledStartAt,
-                        focusedAppointment.timezone,
-                      ).weekday
-                    }
-                  </span>
-                  <strong>
-                    {
-                      dateTile(
-                        focusedAppointment.scheduledStartAt,
-                        focusedAppointment.timezone,
-                      ).day
-                    }
-                  </strong>
-                  <small>
-                    Tháng{' '}
-                    {
-                      dateTile(
-                        focusedAppointment.scheduledStartAt,
-                        focusedAppointment.timezone,
-                      ).month
-                    }
-                  </small>
-                </time>
+                <div className={styles.heroAvatar}>
+                  {focusedAppointment.specialistDisplayName
+                    .split(' ')
+                    .pop()?.[0] || 'BS'}
+                </div>
                 <div className={styles.detailLead}>
-                  <div className={styles.nextLabelRow}>
-                    <span>Buổi tư vấn với</span>
-                    <span
-                      className={styles.status}
-                      data-tone={statusTone(focusedAppointment.status)}
-                    >
-                      {appointmentStatus[focusedAppointment.status]}
-                    </span>
-                  </div>
-                  <h2 id="appointment-detail-title">
-                    {focusedAppointment.specialistDisplayName}
-                  </h2>
-                  <p className={styles.guidance}>
+                  <h2>{focusedAppointment.specialistDisplayName}</h2>
+                  <span
+                    className={
+                      focusedAppointment.status === 'CONFIRMED'
+                        ? styles.badgeGreen
+                        : styles.badgeAmber
+                    }
+                  >
+                    {appointmentStatus[focusedAppointment.status]}
+                  </span>
+                  <p
+                    style={{
+                      marginTop: '6px',
+                      color: '#6b7280',
+                      fontSize: '13px',
+                    }}
+                  >
                     {appointmentGuidance(focusedAppointment)}
                   </p>
                 </div>
@@ -892,42 +858,20 @@ export default function AppointmentRequestPanel({
                   </dd>
                 </div>
                 <div>
-                  <dt>Lượt tư vấn</dt>
-                  <dd>
-                    {focusedAppointment.cancellationCreditOutcome ===
-                    'TRANSFERRED_TO_REPLACEMENT'
-                      ? 'Đã chuyển sang lịch mới'
-                      : focusedAppointment.cancellationCreditOutcome ===
-                          'FORFEITED'
-                        ? 'Không được hoàn lại'
-                        : focusedAppointment.cancellationCreditOutcome ===
-                            'RELEASED'
-                          ? 'Đã được hoàn lại'
-                          : creditOutcome[focusedAppointment.creditState]}
-                  </dd>
+                  <dt>Trạng thái</dt>
+                  <dd>{appointmentStatus[focusedAppointment.status]}</dd>
                 </div>
-                {focusedAppointment.status === 'REQUESTED' && (
-                  <div>
-                    <dt>Phản hồi trước</dt>
-                    <dd>
-                      {format(
-                        focusedAppointment.decisionDeadlineAt,
-                        focusedAppointment.timezone,
-                      )}
-                    </dd>
-                  </div>
-                )}
               </dl>
+
+              <AppointmentCancellationInfo appointment={focusedAppointment} />
 
               <div className={styles.detailActions}>
                 {canOpenChat(focusedAppointment) && (
                   <Link
-                    className={styles.primaryAction}
+                    className={styles.mintBtn}
                     href={`/messages?appointmentId=${encodeURIComponent(focusedAppointment.id)}`}
-                    aria-label={`Mở tin nhắn với ${focusedAppointment.specialistDisplayName}, buổi ${format(focusedAppointment.scheduledStartAt, focusedAppointment.timezone)}`}
                   >
-                    <Icon name="message" />
-                    Mở tin nhắn
+                    <MessageSquare size={16} /> Mở tin nhắn
                   </Link>
                 )}
                 {(focusedAppointment.status === 'REQUESTED' ||
@@ -936,23 +880,7 @@ export default function AppointmentRequestPanel({
                     <button
                       type="button"
                       className={styles.secondaryAction}
-                      onClick={() => {
-                        setRescheduling(focusedAppointment)
-                        window.requestAnimationFrame(() => {
-                          const booking =
-                            document.getElementById('available-slots')
-                          if (typeof booking?.scrollIntoView === 'function') {
-                            booking.scrollIntoView({
-                              behavior: window.matchMedia(
-                                '(prefers-reduced-motion: reduce)',
-                              ).matches
-                                ? 'auto'
-                                : 'smooth',
-                            })
-                          }
-                        })
-                      }}
-                      disabled={submitting !== null}
+                      onClick={() => openBooking(focusedAppointment)}
                     >
                       Đổi lịch
                     </button>
@@ -960,432 +888,803 @@ export default function AppointmentRequestPanel({
                       type="button"
                       className={styles.dangerAction}
                       onClick={() => void cancelAppointment(focusedAppointment)}
-                      disabled={submitting !== null}
                     >
-                      {submitting === focusedAppointment.id
-                        ? 'Đang hủy…'
-                        : 'Hủy lịch'}
+                      Hủy lịch
                     </button>
                   </>
                 )}
                 {focusedAppointment.status === 'COMPLETED' && (
                   <AppointmentRatingDialog appointment={focusedAppointment} />
                 )}
-                {['REJECTED', 'EXPIRED', 'CANCELLED'].includes(
-                  focusedAppointment.status,
-                ) && (
-                  <a className={styles.primaryAction} href="#available-slots">
-                    Chọn lịch mới
-                  </a>
-                )}
               </div>
 
-              {replacementText(focusedAppointment) && (
-                <p className={styles.relationship}>
-                  {replacementText(focusedAppointment)}
-                </p>
-              )}
-
-              {focusedAppointment.status === 'CANCELLED' && (
-                <div className={styles.audit}>
-                  <strong>Thông tin hủy lịch</strong>
-                  <span>
-                    {focusedAppointment.cancellationActor === 'USER'
-                      ? 'Bạn'
-                      : 'Quản trị viên'}{' '}
-                    đã hủy vào{' '}
-                    {focusedAppointment.cancelledAt
-                      ? format(
-                          focusedAppointment.cancelledAt,
-                          focusedAppointment.timezone,
-                        )
-                      : ''}
-                  </span>
-                  <span>
-                    {focusedAppointment.cancellationReason ===
-                    'USER_RESCHEDULED'
-                      ? 'Lý do: đổi sang lịch mới'
-                      : focusedAppointment.cancellationReason ===
-                          'SPECIALIST_SUSPENDED'
-                        ? 'Lý do: chuyên gia tạm ngưng nhận lịch'
-                        : 'Lý do: bạn yêu cầu hủy'}
-                  </span>
+              {focusedAppointment.status === 'CONFIRMED' && (
+                <div style={{ marginTop: '20px' }}>
+                  <ConsultationBriefEditor
+                    appointmentId={focusedAppointment.id}
+                  />
                 </div>
               )}
-            </article>
 
-            {focusedAppointment.status === 'CONFIRMED' && (
-              <section
-                className={styles.detailSection}
-                aria-labelledby="preparation-title"
-              >
-                <div className={styles.detailSectionHeading}>
-                  <span>Trước buổi tư vấn</span>
-                  <h2 id="preparation-title">
-                    Chuẩn bị điều bạn muốn trao đổi
-                  </h2>
-                  <p>
-                    Ghi lại những điều quan trọng để buổi tư vấn đi đúng trọng
-                    tâm của bạn.
+              {focusedAppointment.modality === 'IN_APP_VIDEO' && (
+                <VideoConsultationPanel
+                  appointmentId={focusedAppointment.id}
+                  role="USER"
+                  onVerified={() => void loadAppointments()}
+                />
+              )}
+
+              {focusedAppointment.status === 'COMPLETED' && (
+                <SessionSummaryPanel
+                  appointmentId={focusedAppointment.id}
+                  viewer="USER"
+                />
+              )}
+            </div>
+          ) : (
+            <div className={styles.detailPanel}>
+              {appointmentLoading ? (
+                <p role="status">Đang tải chi tiết cuộc hẹn…</p>
+              ) : appointmentError ? (
+                <div role="alert">
+                  <p>Chưa thể tải lịch hẹn. Vui lòng thử lại.</p>
+                  <button type="button" onClick={() => void loadAppointments()}>
+                    Thử lại
+                  </button>
+                </div>
+              ) : (
+                <p>Không tìm thấy lịch hẹn này.</p>
+              )}
+            </div>
+          )}
+        </main>
+        {bookingDialog}
+      </>
+    )
+  }
+
+  return (
+    <main className={styles.page} data-appointments-ui="">
+      {/* Top Header */}
+      <header className={styles.header}>
+        <span className={styles.eyebrow}>TƯ VẤN SỨC KHỎE TÂM LÝ</span>
+        <h1 className={styles.title}>Lịch hẹn của bạn</h1>
+        <p className={styles.subtitle}>
+          Quản lý hành trình chăm sóc bản thân. Mọi thông tin trao đổi giữa bạn
+          và chuyên gia đều được mã hóa bảo mật tuyệt đối.
+        </p>
+      </header>
+
+      {actionError && (
+        <div className={styles.pageError} role="alert">
+          <p>{actionError}</p>
+          <button type="button" onClick={() => setActionError('')}>
+            Đóng
+          </button>
+        </div>
+      )}
+
+      {/* Main 2-Column Grid */}
+      <div className={styles.mainGrid}>
+        {/* Left Column: Hero Spotlight + Appointments List */}
+        <div className={styles.leftCol}>
+          {spotlightDateInfo && (
+            <section className={styles.heroCard} aria-label="Cuộc hẹn kế tiếp">
+              <div className={styles.heroTop}>
+                <span className={styles.heroPill}>
+                  <span className={styles.greenDot} />{' '}
+                  {spotlightAppointment
+                    ? appointmentTimingCopy(spotlightAppointment)
+                    : 'Cuộc hẹn kế tiếp • Sắp diễn ra'}
+                </span>
+                <span className={styles.heroDuration}>Thời lượng: 60 phút</span>
+              </div>
+
+              <div className={styles.heroBody}>
+                <div className={styles.heroDateBox}>
+                  <span className={styles.heroDateWeekday}>
+                    {spotlightDateInfo.weekday}
+                  </span>
+                  <span className={styles.heroDateDay}>
+                    {spotlightDateInfo.day}
+                  </span>
+                  <span className={styles.heroDateTime}>
+                    {spotlightDateInfo.time}
+                  </span>
+                </div>
+
+                <div className={styles.heroInfo}>
+                  <div className={styles.heroSpecialistHeader}>
+                    <div className={styles.heroAvatar}>{spotlightInitials}</div>
+                    <div className={styles.heroSpecialistMeta}>
+                      <h2 className={styles.heroSpecialistName}>
+                        {spotlightAppointment?.specialistDisplayName ||
+                          'ThS. BS. Minh Anh'}
+                      </h2>
+                      <span className={styles.heroSpecialistRole}>
+                        Chuyên gia Tham vấn Tâm lý Lâm sàng
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className={styles.heroTopic}>
+                    {spotlightAppointment
+                      ? appointmentGuidance(spotlightAppointment)
+                      : 'Chủ đề: Đánh giá thích ứng & giải tỏa áp lực công việc. Phòng tham vấn trực tuyến đã sẵn sàng.'}
                   </p>
                 </div>
-                <ConsultationBriefEditor
-                  appointmentId={focusedAppointment.id}
-                />
-              </section>
-            )}
-
-            {focusedAppointment.modality === 'IN_APP_VIDEO' && (
-              <VideoConsultationPanel
-                appointmentId={focusedAppointment.id}
-                role="USER"
-                onVerified={() => void loadAppointments()}
-              />
-            )}
-
-            {focusedAppointment.status === 'COMPLETED' && (
-              <SessionSummaryPanel
-                appointmentId={focusedAppointment.id}
-                viewer="USER"
-              />
-            )}
-
-            {focusedAppointment.sessionSettledAt &&
-              ['SESSION_ENDED', 'COMPLETED'].includes(
-                focusedAppointment.status,
-              ) && (
-                <AppointmentDisputePanel
-                  appointment={focusedAppointment}
-                  role="USER"
-                  generatedAt={generatedAt}
-                />
-              )}
-
-            {focusedAppointment.history.length > 0 && (
-              <Disclosure
-                className={styles.historyPanel}
-                summary="Lịch sử thay đổi"
-              >
-                <ol>
-                  {focusedAppointment.history.map((event) => (
-                    <li key={event.eventId}>
-                      <span>{historyReason[event.reason]}</span>
-                      <time>
-                        {format(event.occurredAt, focusedAppointment.timezone)}
-                      </time>
-                    </li>
-                  ))}
-                </ol>
-              </Disclosure>
-            )}
-
-            {(rescheduling ||
-              ['REJECTED', 'EXPIRED', 'CANCELLED'].includes(
-                focusedAppointment.status,
-              )) &&
-              bookingSection}
-          </>
-        ) : !appointmentError ? (
-          <section className={styles.notFound} role="status">
-            <Icon name="calendar" />
-            <h2>Không tìm thấy lịch hẹn này</h2>
-            <p>
-              Lịch hẹn không còn trong tài khoản hoặc đường dẫn đã cũ. Hãy mở
-              danh sách mới nhất để tiếp tục.
-            </p>
-            <Link href="/appointments">Xem tất cả lịch hẹn</Link>
-          </section>
-        ) : null
-      ) : (
-        <>
-          {appointmentLoading && appointments.length === 0 ? (
-            <section
-              className={`${styles.nextAppointment} ${styles.nextSkeleton}`}
-              aria-label="Đang tải cuộc hẹn tiếp theo"
-              aria-busy="true"
-            >
-              <i />
-              <div>
-                <i />
-                <i />
-                <i />
               </div>
-            </section>
-          ) : spotlightAppointment && spotlightDate ? (
-            <section
-              className={styles.nextAppointment}
-              aria-labelledby="next-appointment-title"
-            >
-              <time
-                className={styles.nextDate}
-                dateTime={spotlightAppointment.scheduledStartAt}
-              >
-                <span>{spotlightDate.weekday}</span>
-                <strong>{spotlightDate.day}</strong>
-                <small>Tháng {spotlightDate.month}</small>
-              </time>
-              <div className={styles.nextCopy}>
-                <div className={styles.nextLabelRow}>
-                  <span id="next-appointment-title">
-                    {spotlightAppointment.status === 'REQUESTED'
-                      ? 'Yêu cầu đang chờ'
-                      : 'Cuộc hẹn tiếp theo'}
-                  </span>
-                  <span
-                    className={styles.status}
-                    data-tone={statusTone(spotlightAppointment.status)}
-                  >
-                    {appointmentStatus[spotlightAppointment.status]}
+
+              <div className={styles.heroFooter}>
+                <div className={styles.heroSecureNotice}>
+                  {spotlightAppointment?.modality === 'IN_APP_CHAT' ? (
+                    <MessageSquare size={16} aria-hidden="true" />
+                  ) : (
+                    <Video size={16} aria-hidden="true" />
+                  )}
+                  <span>
+                    {spotlightAppointment?.modality === 'IN_APP_CHAT'
+                      ? 'Trao đổi trong Tin nhắn'
+                      : 'Video Call mã hóa E2E qua MentalBridge Secure Room'}
                   </span>
                 </div>
-                <h2>{spotlightAppointment.specialistDisplayName}</h2>
-                <p>
-                  <Icon name="clock" />
-                  <span>
-                    {format(
-                      spotlightAppointment.scheduledStartAt,
-                      spotlightAppointment.timezone,
-                    )}
-                  </span>
-                  <b aria-hidden="true">·</b>
-                  <span>
-                    {spotlightAppointment.modality === 'IN_APP_CHAT'
-                      ? 'Chat trong ứng dụng'
-                      : 'Video trong ứng dụng'}
-                  </span>
-                </p>
-                <strong>
-                  {spotlightAppointment.status === 'REQUESTED'
-                    ? appointmentGuidance(spotlightAppointment)
-                    : spotlightAppointment.modality === 'IN_APP_CHAT'
-                      ? appointmentTimingCopy(spotlightAppointment)
-                      : 'Phiên video đã được xác nhận'}
-                </strong>
-              </div>
-              <div className={styles.nextActions}>
-                <Link
-                  className={
-                    spotlightAppointment.status === 'REQUESTED'
-                      ? styles.primaryAction
-                      : undefined
-                  }
-                  href={`/appointments/${encodeURIComponent(spotlightAppointment.id)}`}
-                >
-                  Xem chi tiết
-                </Link>
-                {spotlightAppointment.modality === 'IN_APP_CHAT' &&
-                  spotlightAppointment.status !== 'REQUESTED' && (
-                    <Link
-                      className={styles.primaryAction}
-                      href={`/messages?appointmentId=${encodeURIComponent(spotlightAppointment.id)}`}
-                      aria-label={`Mở tin nhắn với ${spotlightAppointment.specialistDisplayName}, buổi ${format(spotlightAppointment.scheduledStartAt, spotlightAppointment.timezone)}`}
+
+                <div className={styles.heroActions}>
+                  {(!spotlightAppointment ||
+                    isChangeable(spotlightAppointment)) && (
+                    <button
+                      type="button"
+                      className={styles.heroRescheduleBtn}
+                      onClick={() => openBooking(spotlightAppointment)}
                     >
-                      <Icon name="message" />
-                      Mở tin nhắn
-                      <Icon name="arrow" />
-                    </Link>
+                      Đổi lịch
+                    </button>
                   )}
+                  <Link
+                    href={
+                      spotlightAppointment?.modality === 'IN_APP_CHAT'
+                        ? `/messages?appointmentId=${encodeURIComponent(spotlightAppointment.id)}`
+                        : spotlightAppointment
+                          ? `/appointments/${encodeURIComponent(spotlightAppointment.id)}`
+                          : '/specialists'
+                    }
+                    className={styles.heroEnterBtn}
+                  >
+                    <span>
+                      {spotlightAppointment?.modality === 'IN_APP_CHAT'
+                        ? 'Mở tin nhắn'
+                        : 'Vào phòng tư vấn'}
+                    </span>
+                    <ArrowRight size={15} aria-hidden="true" />
+                  </Link>
+                </div>
               </div>
-            </section>
-          ) : (
-            <section
-              className={styles.nextEmpty}
-              aria-label="Cuộc hẹn tiếp theo"
-            >
-              <div className={styles.nextEmptyIcon} aria-hidden="true">
-                <Icon name="calendar" />
-              </div>
-              <div>
-                <span>Cuộc hẹn tiếp theo</span>
-                <h2>Chưa có lịch tư vấn sắp tới</h2>
-                <p>Chọn một khung giờ phù hợp để gửi yêu cầu tới chuyên gia.</p>
-              </div>
-              <a className={styles.primaryAction} href="#available-slots">
-                Xem khung giờ
-                <Icon name="arrow" />
-              </a>
             </section>
           )}
 
-          <div className={styles.workspace}>
-            <section
-              className={styles.appointmentPanel}
-              aria-labelledby="requested-title"
-            >
-              <header className={styles.appointmentHeading}>
-                <div className={styles.appointmentTitleRow}>
-                  <div>
-                    <span>Lịch tư vấn</span>
-                    <h2 id="requested-title">Tất cả cuộc hẹn</h2>
-                  </div>
-                  <div className={styles.appointmentTools}>
-                    <p className={styles.resultStatus} aria-live="polite">
-                      {appointmentLoading && appointments.length > 0
-                        ? 'Đang cập nhật lịch hẹn…'
-                        : `Hiển thị ${visibleAppointments.length} lịch hẹn`}
-                    </p>
-                    <button
-                      className={styles.refreshButton}
-                      type="button"
-                      onClick={() => void load()}
-                      disabled={isRefreshing}
-                    >
-                      <Icon name="refresh" />
-                      <span>{isRefreshing ? 'Đang cập nhật…' : 'Tải lại'}</span>
-                    </button>
-                  </div>
-                </div>
-                <div
-                  className={styles.filters}
-                  role="group"
-                  aria-label="Lọc lịch hẹn"
-                >
-                  {(
-                    [
-                      ['all', 'Tất cả'],
-                      ['requested', 'Chờ xác nhận'],
-                      ['upcoming', 'Sắp tới'],
-                      ['history', 'Lịch sử'],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      aria-pressed={filter === value}
-                      onClick={() => setFilter(value)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </header>
+          {/* Appointment List Card */}
+          <section
+            className={styles.listCard}
+            aria-label="Danh sách các cuộc hẹn"
+          >
+            <div className={styles.listHeader}>
+              <div className={styles.listHeaderLeft}>
+                <h2 className={styles.listTitle}>Danh sách các cuộc hẹn</h2>
+                <p className={styles.listSubtitle}>
+                  Theo dõi phiên đang đợi duyệt, sắp tới và lịch sử ghi chú
+                </p>
+              </div>
 
+              <div
+                className={styles.filterTabs}
+                role="tablist"
+                aria-label="Lọc lịch hẹn"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === 'all'}
+                  className={`${styles.filterTab} ${filter === 'all' ? styles.filterTabActive : ''}`}
+                  onClick={() => setFilter('all')}
+                >
+                  Tất cả ({displayItems.length})
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === 'upcoming'}
+                  className={`${styles.filterTab} ${filter === 'upcoming' ? styles.filterTabActive : ''}`}
+                  onClick={() => setFilter('upcoming')}
+                >
+                  Sắp tới (
+                  {
+                    displayItems.filter((item) =>
+                      ['REQUESTED', 'CONFIRMED', 'IN_PROGRESS'].includes(
+                        item.status,
+                      ),
+                    ).length
+                  }
+                  )
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === 'completed'}
+                  className={`${styles.filterTab} ${filter === 'completed' ? styles.filterTabActive : ''}`}
+                  onClick={() => setFilter('completed')}
+                >
+                  Đã hoàn tất (
+                  {
+                    displayItems.filter((item) =>
+                      ['SESSION_ENDED', 'COMPLETED'].includes(item.status),
+                    ).length
+                  }
+                  )
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.rowsList}>
+              {filteredItems.map((item) => {
+                const dateInfo = getRowDateInfo(
+                  item.scheduledStartAt,
+                  item.timezone,
+                )
+                const isConfirmed = item.status === 'CONFIRMED'
+                const isEnding =
+                  item.status === 'SESSION_ENDED' ||
+                  item.status === 'IN_PROGRESS'
+                const isCompleted = item.status === 'COMPLETED'
+
+                const dateBlockClass = isConfirmed
+                  ? styles.dateBlockGreen
+                  : isEnding
+                    ? styles.dateBlockAmber
+                    : styles.dateBlockGray
+
+                const weekdayClass = isConfirmed
+                  ? styles.dateWeekdayGreen
+                  : isEnding
+                    ? styles.dateWeekdayAmber
+                    : styles.dateWeekdayGray
+
+                const dayClass = isConfirmed
+                  ? styles.dateDayGreen
+                  : isEnding
+                    ? styles.dateDayAmber
+                    : styles.dateDayGray
+
+                const monthClass = isConfirmed
+                  ? styles.dateMonthGreen
+                  : isEnding
+                    ? styles.dateMonthAmber
+                    : styles.dateMonthGray
+
+                const badgeClass = isConfirmed
+                  ? styles.badgeGreen
+                  : isEnding
+                    ? styles.badgeAmber
+                    : styles.badgeGray
+
+                const badgeLabel =
+                  item.status === 'CONFIRMED'
+                    ? 'Đã xác nhận'
+                    : item.status === 'SESSION_ENDED'
+                      ? 'Đang tổng hợp kết quả'
+                      : item.status === 'COMPLETED'
+                        ? 'Đã hoàn thành'
+                        : appointmentStatus[item.status]
+
+                const timeLabel = formatTimeRange(
+                  item.scheduledStartAt,
+                  item.scheduledEndAt,
+                  item.timezone,
+                )
+
+                return (
+                  <article className={styles.appointmentRow} key={item.id}>
+                    <div className={dateBlockClass}>
+                      <span className={weekdayClass}>{dateInfo.weekday}</span>
+                      <strong className={dayClass}>{dateInfo.day}</strong>
+                      <span className={monthClass}>{dateInfo.month}</span>
+                    </div>
+
+                    <div className={styles.rowContent}>
+                      <div className={styles.rowTop}>
+                        <h3 className={styles.specialistName}>
+                          {item.specialistDisplayName}
+                        </h3>
+                        <span className={badgeClass}>{badgeLabel}</span>
+                      </div>
+
+                      <p className={styles.rowTime}>
+                        <span>{timeLabel}</span>
+                        <span>•</span>
+                        {item.modality === 'IN_APP_VIDEO' ? (
+                          <Video size={14} aria-hidden="true" />
+                        ) : (
+                          <MessageSquare size={14} aria-hidden="true" />
+                        )}
+                        <span>
+                          {item.modality === 'IN_APP_CHAT'
+                            ? 'Chat trực tuyến'
+                            : 'Video Call'}
+                        </span>
+                      </p>
+
+                      <p className={styles.rowNote}>{item.guidance}</p>
+                    </div>
+
+                    <div className={styles.rowActions}>
+                      {(isConfirmed ||
+                        (isCompleted && item.modality === 'IN_APP_CHAT') ||
+                        (!isEnding && !isCompleted)) && (
+                        <button
+                          type="button"
+                          className={styles.detailLink}
+                          onClick={() => openDetail(item.id, 'details')}
+                          aria-label={`Xem chi tiết lịch hẹn với ${item.specialistDisplayName}`}
+                        >
+                          Xem chi tiết
+                        </button>
+                      )}
+
+                      {isConfirmed && (
+                        <button
+                          type="button"
+                          className={styles.textActionBtn}
+                          onClick={() => openDetail(item.id, 'details')}
+                          aria-label={`Thêm thao tác với ${item.specialistDisplayName}`}
+                        >
+                          <MoreVertical size={16} aria-hidden="true" />
+                        </button>
+                      )}
+
+                      {isEnding && (
+                        <button
+                          type="button"
+                          className={styles.outlineBtn}
+                          onClick={() => openDetail(item.id, 'notes')}
+                        >
+                          Xem ghi chú sơ bộ
+                        </button>
+                      )}
+
+                      {isCompleted && item.modality === 'IN_APP_CHAT' && (
+                        <Link
+                          href={
+                            item.appointment
+                              ? `/messages?appointmentId=${encodeURIComponent(item.id)}`
+                              : '/messages'
+                          }
+                          className={styles.mintBtn}
+                        >
+                          <MessageSquare size={14} /> Mở tin nhắn
+                        </Link>
+                      )}
+
+                      {isCompleted && item.modality !== 'IN_APP_CHAT' && (
+                        <>
+                          <button
+                            type="button"
+                            className={styles.outlineBtn}
+                            onClick={() => openDetail(item.id, 'record')}
+                          >
+                            Hồ sơ phiên
+                          </button>
+                          {item.appointment ? (
+                            <AppointmentRatingDialog
+                              appointment={item.appointment}
+                              triggerLabel="Đánh giá"
+                              triggerClassName={styles.textActionBtn}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              className={styles.textActionBtn}
+                              onClick={() => openDetail(item.id, 'rating')}
+                            >
+                              Đánh giá
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </article>
+                )
+              })}
+              {!appointmentLoading && filteredItems.length === 0 && (
+                <p className={styles.emptyState}>
+                  Không có lịch hẹn trong nhóm này.
+                </p>
+              )}
               {appointmentError && (
-                <div className={styles.sectionError} role="alert">
-                  <div>
-                    <strong>Chưa thể tải lịch hẹn</strong>
-                    <span>{appointmentError}</span>
-                  </div>
+                <div className={styles.emptyState} role="alert">
+                  <p>Chưa thể tải lịch hẹn. Vui lòng thử lại.</p>
                   <button type="button" onClick={() => void loadAppointments()}>
                     Thử lại
                   </button>
                 </div>
               )}
+            </div>
 
-              {appointmentLoading && appointments.length === 0 ? (
-                <div className={styles.listSkeleton} aria-busy="true">
-                  {[0, 1, 2].map((item) => (
-                    <i key={item} />
-                  ))}
-                </div>
-              ) : appointments.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <div aria-hidden="true">
-                    <Icon name="calendar" />
-                  </div>
-                  <h3>Bạn chưa có lịch hẹn</h3>
-                  <p>
-                    Khung giờ bạn chọn sẽ xuất hiện tại đây để tiện theo dõi.
-                  </p>
-                  <a href="#available-slots">Chọn khung giờ đầu tiên</a>
-                </div>
-              ) : visibleAppointments.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <div aria-hidden="true">
-                    <Icon name="calendar" />
-                  </div>
-                  <h3>Không có lịch trong nhóm này</h3>
-                  <p>Chọn nhóm khác để xem các cuộc hẹn còn lại.</p>
-                  <button type="button" onClick={() => setFilter('all')}>
-                    Xem tất cả lịch hẹn
+            <div className={styles.listFooter}>
+              <span className={styles.listFooterCount}>
+                Hiển thị {filteredItems.length} trên tổng số{' '}
+                {displayItems.length} cuộc hẹn
+              </span>
+              <div className={styles.paginationBtns}>
+                <button type="button" className={styles.pageBtn} disabled>
+                  Trước
+                </button>
+                <button type="button" className={styles.pageBtn} disabled>
+                  Sau
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column: Widgets */}
+        <div className={styles.rightCol}>
+          <section
+            className={styles.quickBookingCard}
+            aria-label="Đặt hẹn nhanh"
+          >
+            <div className={styles.quickBookingHeader}>
+              <div>
+                <span className={styles.quickBookingTag}>ĐẶT HẸN NHANH</span>
+                <h3 className={styles.quickBookingTitle}>
+                  Chọn thời gian phù hợp
+                </h3>
+              </div>
+              <span className={styles.badge60p}>
+                Mỗi buổi
+                <br />
+                60p
+              </span>
+            </div>
+
+            <div className={styles.calendarBox}>
+              <div className={styles.calendarMonth}>
+                <span>
+                  Tháng {new Date(2026, calendarMonth, 1).getMonth() + 1},{' '}
+                  {new Date(2026, calendarMonth, 1).getFullYear()}
+                </span>
+                <div>
+                  <button
+                    type="button"
+                    className={styles.calendarNavBtn}
+                    onClick={() => setCalendarMonth((month) => month - 1)}
+                    aria-label="Tháng trước"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.calendarNavBtn}
+                    onClick={() => setCalendarMonth((month) => month + 1)}
+                    aria-label="Tháng sau"
+                  >
+                    <ChevronRight size={15} />
                   </button>
                 </div>
-              ) : (
-                <div className={styles.appointmentList}>
-                  {visibleAppointments.map((item) => {
-                    const itemDate = dateTile(
-                      item.scheduledStartAt,
-                      item.timezone,
-                    )
-                    const relation = replacementText(item)
+              </div>
+              <div className={styles.calendarGrid}>
+                {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((day) => (
+                  <span className={styles.calWeekday} key={day}>
+                    {day}
+                  </span>
+                ))}
+                {Array.from(
+                  {
+                    length: (new Date(2026, calendarMonth, 1).getDay() + 6) % 7,
+                  },
+                  (_, index) => (
+                    <span
+                      className={`${styles.calDay} ${styles.calDayMuted}`}
+                      key={`previous-${index}`}
+                    >
+                      {new Date(2026, calendarMonth, 0).getDate() -
+                        ((new Date(2026, calendarMonth, 1).getDay() + 6) % 7) +
+                        index +
+                        1}
+                    </span>
+                  ),
+                )}
+                {Array.from(
+                  {
+                    length: Math.min(
+                      18,
+                      new Date(2026, calendarMonth + 1, 0).getDate(),
+                    ),
+                  },
+                  (_, index) => {
+                    const day = index + 1
                     return (
-                      <article
-                        className={styles.appointmentRow}
-                        key={item.id}
-                        id={`appointment-${item.id}`}
+                      <button
+                        type="button"
+                        key={day}
+                        className={`${styles.calDay} ${day === selectedDay ? styles.calDaySelected : ''} ${calendarMonth === 9 && day === 15 ? styles.calDayDotAmber : ''} ${calendarMonth === 9 && day === 17 ? styles.calDayDotGreen : ''}`}
+                        onClick={() => setSelectedDay(day)}
+                        aria-pressed={day === selectedDay}
                       >
-                        <time
-                          className={styles.dateTile}
-                          dateTime={item.scheduledStartAt}
-                        >
-                          <span>{itemDate.weekday}</span>
-                          <strong>{itemDate.day}</strong>
-                          <small>Tháng {itemDate.month}</small>
-                        </time>
-
-                        <div className={styles.appointmentBody}>
-                          <div className={styles.rowHeading}>
-                            <div>
-                              <h3>{item.specialistDisplayName}</h3>
-                              <p>
-                                {formatTimeRange(
-                                  item.scheduledStartAt,
-                                  item.scheduledEndAt,
-                                  item.timezone,
-                                )}{' '}
-                                ·{' '}
-                                {item.modality === 'IN_APP_CHAT'
-                                  ? 'Chat trong ứng dụng'
-                                  : 'Video trong ứng dụng'}
-                              </p>
-                            </div>
-                            <span
-                              className={styles.status}
-                              data-tone={statusTone(item.status)}
-                            >
-                              {appointmentStatus[item.status]}
-                            </span>
-                          </div>
-
-                          <p className={styles.rowGuidance}>
-                            {appointmentGuidance(item)}
-                          </p>
-                          {relation && (
-                            <p className={styles.relationship}>{relation}</p>
-                          )}
-
-                          <div className={styles.rowFooter}>
-                            <div className={styles.rowActions}>
-                              {canOpenChat(item) && (
-                                <Link
-                                  className={styles.chatLink}
-                                  href={`/messages?appointmentId=${encodeURIComponent(item.id)}`}
-                                  aria-label={`Mở trò chuyện với ${item.specialistDisplayName}, buổi ${format(item.scheduledStartAt, item.timezone)}`}
-                                >
-                                  <Icon name="message" />
-                                  Mở tin nhắn
-                                </Link>
-                              )}
-                              <Link
-                                className={styles.secondaryAction}
-                                href={`/appointments/${encodeURIComponent(item.id)}`}
-                                aria-label={`Xem chi tiết lịch hẹn với ${item.specialistDisplayName}, buổi ${format(item.scheduledStartAt, item.timezone)}`}
-                              >
-                                Xem chi tiết
-                              </Link>
-                            </div>
-                          </div>
-                        </div>
-                      </article>
+                        {day}
+                      </button>
                     )
-                  })}
-                </div>
+                  },
+                )}
+              </div>
+            </div>
+            <div className={styles.slotSelectSection}>
+              <div className={styles.slotSelectHeading}>
+                <span>
+                  Khung giờ trống{' '}
+                  {new Intl.DateTimeFormat('vi-VN', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'numeric',
+                  }).format(new Date(2026, calendarMonth, selectedDay))}
+                </span>
+                <small>2 lựa chọn</small>
+              </div>
+              {[
+                {
+                  time: '20:00 – 21:00',
+                  doctor: 'ThS. BS. Minh Anh • Tham vấn trực tuyến',
+                  badge: 'Khuyên dùng',
+                },
+                {
+                  time: '09:00 – 10:00',
+                  doctor: 'ThS. Thu Hà • Chat hoặc Video',
+                  badge: 'Sáng',
+                },
+              ].map((choice, index) => (
+                <button
+                  key={choice.time}
+                  type="button"
+                  className={`${styles.slotOption} ${selectedQuickSlot === index ? styles.slotOptionSelected : ''}`}
+                  onClick={() => setSelectedQuickSlot(index)}
+                  aria-pressed={selectedQuickSlot === index}
+                >
+                  <span
+                    className={`${styles.radioCircle} ${selectedQuickSlot === index ? styles.radioCircleSelected : ''}`}
+                    aria-hidden="true"
+                  >
+                    {selectedQuickSlot === index && (
+                      <span className={styles.radioDot} />
+                    )}
+                  </span>
+                  <span className={styles.slotOptionInfo}>
+                    <strong className={styles.slotOptionTime}>
+                      {choice.time}
+                    </strong>
+                    <span className={styles.slotOptionDoctor}>
+                      {choice.doctor}
+                    </span>
+                  </span>
+                  <span
+                    className={
+                      index === 0
+                        ? styles.slotBadgeRecommend
+                        : styles.slotBadgeMorning
+                    }
+                  >
+                    {choice.badge}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className={styles.confirmSlotBtn}
+              onClick={() => openBooking()}
+            >
+              <span>Xác nhận đặt khung giờ này</span>
+              <ArrowRight size={15} aria-hidden="true" />
+            </button>
+          </section>
+          {/* Card 2: Mental Plus Benefit */}
+          <section className={styles.benefitCard} aria-label="Quyền lợi gói">
+            <div className={styles.benefitIconBox}>
+              <CheckCircle2 size={18} aria-hidden="true" />
+            </div>
+            <div className={styles.benefitContent}>
+              <h4 className={styles.benefitTitle}>Quyền Lợi Gói Mental Plus</h4>
+              <p className={styles.benefitDesc}>
+                Bạn còn <strong>01 buổi tham vấn miễn phí</strong> trong chu kỳ
+                này (hết hạn ngày 30/10).
+              </p>
+              <div className={styles.benefitLinks}>
+                <Link href="/subscription">Quản lý gói</Link>
+                <span>•</span>
+                <Link href="/subscription">Chi tiết quyền lợi</Link>
+              </div>
+            </div>
+          </section>
+
+          {/* Card 3: Crisis Support */}
+          <section className={styles.crisisCard} aria-label="Hỗ trợ khẩn cấp">
+            <div className={styles.crisisHeader}>
+              <span className={styles.redDot} />
+              <span>CẦN HỖ TRỢ TÂM LÝ KHẨN CẤP?</span>
+            </div>
+            <p className={styles.crisisText}>
+              Nếu bạn đang trải qua khủng hoảng tâm lý nghiêm trọng hoặc có suy
+              nghĩ tiêu cực, hãy kết nối ngay với đội ngũ hỗ trợ trực ban 24/7.
+            </p>
+            <div className={styles.hotlineBox}>
+              <div className={styles.hotlineLeft}>
+                <Phone size={15} aria-hidden="true" />
+                <span>Đường dây nóng: 1900 6886</span>
+              </div>
+              <a href="tel:19006886" className={styles.hotlineCallBtn}>
+                Gọi ngay
+              </a>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <Dialog
+        open={Boolean(detailItem)}
+        onOpenChange={(open) => {
+          if (!open) setDetailAppointmentId(null)
+        }}
+        labelledBy="appointment-detail-title"
+        className={styles.appointmentDialog}
+      >
+        {detailItem && (
+          <div className={styles.dialogContent}>
+            <div className={styles.dialogHeading}>
+              <div>
+                <span className={styles.eyebrow}>CUỘC HẸN CỦA BẠN</span>
+                <h2 id="appointment-detail-title">
+                  {detailView === 'rating'
+                    ? 'Đánh giá'
+                    : detailView === 'record'
+                      ? 'Hồ sơ phiên'
+                      : detailView === 'notes'
+                        ? 'Ghi chú phiên'
+                        : 'Chi tiết lịch hẹn'}
+                </h2>
+                <p>
+                  {detailItem.specialistDisplayName} ·{' '}
+                  {appointmentStatus[detailItem.status]}
+                </p>
+              </div>
+              <button
+                type="button"
+                className={styles.dialogClose}
+                onClick={() => setDetailAppointmentId(null)}
+                aria-label="Đóng chi tiết lịch hẹn"
+              >
+                ×
+              </button>
+            </div>
+            {!detailAppointment && (
+              <p className={styles.bookingNote}>Đây là cuộc hẹn minh họa.</p>
+            )}
+            <dl className={styles.detailFacts}>
+              <div>
+                <dt>Thời gian</dt>
+                <dd>
+                  {formatSlotRange(
+                    detailItem.scheduledStartAt,
+                    detailItem.scheduledEndAt,
+                    detailItem.timezone,
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Hình thức</dt>
+                <dd>
+                  {detailItem.modality === 'IN_APP_CHAT'
+                    ? 'Chat trong ứng dụng'
+                    : 'Video trong ứng dụng'}
+                </dd>
+              </div>
+              <div>
+                <dt>Trạng thái</dt>
+                <dd>{appointmentStatus[detailItem.status]}</dd>
+              </div>
+            </dl>
+            {detailAppointment && (
+              <AppointmentCancellationInfo appointment={detailAppointment} />
+            )}
+            {detailView === 'details' && <p>{detailItem.guidance}</p>}
+            {detailView === 'notes' &&
+              (detailAppointment ? (
+                detailAppointment.status === 'CONFIRMED' ? (
+                  <ConsultationBriefEditor
+                    appointmentId={detailAppointment.id}
+                  />
+                ) : (
+                  <SessionSummaryPanel
+                    appointmentId={detailAppointment.id}
+                    viewer="USER"
+                  />
+                )
+              ) : (
+                <p>{detailItem.guidance}</p>
+              ))}
+            {detailView === 'record' && detailAppointment && (
+              <SessionSummaryPanel
+                appointmentId={detailAppointment.id}
+                viewer="USER"
+              />
+            )}
+            {detailView === 'record' && !detailAppointment && (
+              <p>{detailItem.guidance}</p>
+            )}
+            {detailView === 'rating' && !detailAppointment && (
+              <p>
+                Cuộc hẹn minh họa. Bạn có thể đánh giá sau khi hoàn tất một
+                phiên tư vấn thật.
+              </p>
+            )}
+            {actionError && (
+              <p className={styles.dialogError} role="alert">
+                {actionError}
+              </p>
+            )}
+            <div className={styles.dialogActions}>
+              {detailAppointment && canOpenChat(detailAppointment) && (
+                <Link
+                  className={styles.mintBtn}
+                  href={`/messages?appointmentId=${encodeURIComponent(detailAppointment.id)}`}
+                >
+                  Mở tin nhắn
+                </Link>
               )}
-            </section>
+              {detailAppointment?.modality === 'IN_APP_VIDEO' &&
+                detailAppointment.status === 'CONFIRMED' && (
+                  <Link
+                    className={styles.outlineBtn}
+                    href={`/appointments/${encodeURIComponent(detailAppointment.id)}`}
+                  >
+                    Vào phòng tư vấn
+                  </Link>
+                )}
+              {detailAppointment && isChangeable(detailAppointment) && (
+                <>
+                  <button
+                    type="button"
+                    className={styles.outlineBtn}
+                    onClick={() => openBooking(detailAppointment)}
+                  >
+                    Đổi lịch
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.dangerAction}
+                    onClick={() => void cancelAppointment(detailAppointment)}
+                    disabled={Boolean(submitting)}
+                  >
+                    Hủy lịch
+                  </button>
+                </>
+              )}
+              {detailAppointment?.status === 'COMPLETED' && (
+                <AppointmentRatingDialog
+                  appointment={detailAppointment}
+                  triggerLabel="Đánh giá"
+                />
+              )}
+            </div>
           </div>
-          {bookingSection}
-        </>
-      )}
+        )}
+      </Dialog>
+
+      {bookingDialog}
+
+      <Link
+        href="/messages"
+        className={styles.floatingChatBtn}
+        aria-label="Mở tin nhắn trực tuyến"
+      >
+        <MessageSquare size={22} aria-hidden="true" />
+      </Link>
     </main>
   )
 }

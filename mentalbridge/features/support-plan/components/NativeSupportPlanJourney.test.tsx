@@ -524,7 +524,9 @@ describe('Native SupportPlan Emotion journey', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Kiểm tra ghi nhận' }),
     )
-    await screen.findByRole('alert')
+    await screen.findByText(
+      'Chưa thể hoàn tất thao tác. Thông tin đã ghi nhận và các chỉnh sửa của bạn vẫn được giữ. Hãy thử lại.',
+    )
     expect(screen.getByText('Đã ghi nhận hoàn thành')).toBeVisible()
     expect(screen.queryByText('private detail')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Kiểm tra ghi nhận' }))

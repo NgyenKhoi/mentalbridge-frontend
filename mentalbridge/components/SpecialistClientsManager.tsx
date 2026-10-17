@@ -2,14 +2,23 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { CalendarDays, Check, ChevronRight, Clock3, FileText, LockKeyhole, MessageCircle, Search, ShieldCheck, Video, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronRight,
+  MessageSquare,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  X,
+} from 'lucide-react'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 import type { SpecialistClientContinuityItem } from '@/features/appointments/api/consultation-brief-contract'
 import { consultationBriefBrowserClient } from '@/features/appointments/api/consultation-brief-browser-client'
 import { SessionSummaryPanel } from '@/features/appointments/components/SessionSummaryPanel'
 import { SpecialistConsultationBrief } from '@/features/appointments/components/SpecialistConsultationBrief'
 import { ApiError } from '@/lib/api/api-error'
-import { Skeleton } from './ui/Skeleton'
 import styles from './SpecialistClientsManager.module.css'
 
 type Props = { rows?: unknown[]; initialAppointmentId?: string }
@@ -132,7 +141,6 @@ export default function SpecialistClientsManager({
     initialAppointmentId ?? '',
   )
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
   const [tab, setTab] = useState<'prepare' | 'summary' | 'history'>('prepare')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -164,14 +172,12 @@ export default function SpecialistClientsManager({
 
   const visibleClients = useMemo(
     () =>
-      clients.filter((client) => {
-        const matchesQuery = client.name.toLocaleLowerCase('vi').includes(query.trim().toLocaleLowerCase('vi'))
-        const matchesFilter = filter === 'all' || client.appointments.some((appointment) =>
-          filter === 'completed' ? appointment.status === 'COMPLETED' : appointment.status === 'CONFIRMED' || appointment.status === 'IN_PROGRESS',
-        )
-        return matchesQuery && matchesFilter
-      }),
-    [clients, filter, query],
+      clients.filter((client) =>
+        client.name
+          .toLocaleLowerCase('vi')
+          .includes(query.trim().toLocaleLowerCase('vi')),
+      ),
+    [clients, query],
   )
 
   const selectedClient =
@@ -184,9 +190,6 @@ export default function SpecialistClientsManager({
     ) ??
     selectedClient?.appointments[0] ??
     null
-  const activeClients = clients.filter((client) => client.appointments.some((item) => item.status === 'CONFIRMED' || item.status === 'IN_PROGRESS')).length
-  const completedClients = clients.filter((client) => client.appointments.some((item) => item.status === 'COMPLETED')).length
-  const upcoming = items.filter((item) => (item.status === 'CONFIRMED' || item.status === 'IN_PROGRESS') && Date.parse(item.scheduledEndAt) >= Date.now()).sort((a, b) => Date.parse(a.scheduledStartAt) - Date.parse(b.scheduledStartAt))[0]
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -262,37 +265,45 @@ export default function SpecialistClientsManager({
     setTab(appointment.status === 'COMPLETED' ? 'summary' : 'prepare')
   }
 
-  if (loading)
-    return (
-      <section className={`clients-page ${styles.page}`} aria-label="Khách hàng của tôi">
-        <div className={styles.loadingState} role="status">
-          <span />
-          <span />
-          <span />
-          <p>Đang tải các quan hệ tư vấn được phép xem…</p>
-        </div>
-      </section>
-    )
-
   return (
-    <section className={`clients-page ${styles.page}`} aria-labelledby="specialist-clients-title">
-      <header className={`clients-heading ${styles.heading}`}>
+    <section
+      className={styles.page}
+      data-specialist-journey="clients"
+      aria-labelledby="specialist-clients-title"
+    >
+      <header className={styles.heading}>
         <div>
-          <span className={styles.eyebrow}>Không gian chuyên gia lâm sàng</span>
+          <span className={styles.eyebrow}>Không gian chuyên gia</span>
           <h1 id="specialist-clients-title">Khách hàng &amp; phiên tư vấn</h1>
           <p>
-            Chuẩn bị, xem lại hồ sơ tóm tắt và đồng hành cùng khách hàng theo lịch hẹn trong phạm vi được cho phép.
+            Chuẩn bị và xem lại nội dung theo đúng lịch hẹn, quyền chia sẻ và
+            cửa sổ truy cập hiện hành.
           </p>
         </div>
-        <div className="clients-heading-actions"><span className="clients-security"><ShieldCheck size={16} /> Dữ liệu được bảo vệ</span><Link className={styles.primaryLink} href="/specialist/appointments">＋ Quản lý lịch hẹn</Link></div>
+        <div className={styles.headingActions}>
+          <button
+            type="button"
+            className={styles.reload}
+            onClick={() => void load()}
+            disabled={loading}
+            aria-label="Tải lại khách hàng"
+          >
+            <RefreshCw size={18} aria-hidden="true" />
+            <span>{loading ? 'Đang tải…' : 'Tải lại'}</span>
+          </button>
+          <Link className={styles.primaryLink} href="/specialist/appointments">
+            <CalendarDays size={18} aria-hidden="true" /> Quản lý lịch hẹn
+          </Link>
+        </div>
       </header>
 
-      <aside className={`clients-banner ${styles.boundaryNote}`}>
-        <span aria-hidden="true"><Check size={17} /></span>
+      <aside className={styles.boundaryNote}>
+        <ShieldCheck size={20} aria-hidden="true" />
         <p>
-          Danh sách giới hạn theo lịch hẹn đã xác nhận, đang diễn ra hoặc mới hoàn tất để bảo đảm quyền riêng tư.
+          <strong>Danh sách được giới hạn theo lịch hẹn</strong>
+          Chỉ khách hàng có phiên đã xác nhận, đang diễn ra hoặc mới hoàn thành
+          với bạn mới xuất hiện tại đây.
         </p>
-        <small>Quyền xem theo phiên</small>
       </aside>
 
       {error && (
@@ -324,26 +335,24 @@ export default function SpecialistClientsManager({
           <Link href="/specialist/appointments">Xem lịch hẹn</Link>
         </div>
       ) : (
-        <>
-        <div className="clients-stats">
-          <div className="clients-stat"><div><small>Khách hàng được phép xem</small><strong>{String(clients.length).padStart(2, '0')} khách hàng</strong></div><span><CalendarDays size={20} /></span></div>
-          <div className="clients-stat"><div><small>Phiên tiếp theo{upcoming ? ` (${formatAppointment(upcoming).time.split('–')[0]})` : ''}</small><strong>{upcoming?.userDisplayName ?? 'Chưa có lịch'}</strong></div><span><Video size={20} /></span></div>
-          <div className="clients-stat"><div><small>Trạng thái lịch hẹn</small><strong>{upcoming ? statusLabel(upcoming.status) : 'Chưa có phiên sắp tới'}</strong></div><span><FileText size={20} /></span></div>
-        </div>
-        <div className={`clients-layout ${styles.workspace}`}>
+        <div
+          className={styles.workspace}
+          data-detail-open={detailOpen}
+          aria-busy={loading}
+        >
           <aside
-            className={`clients-directory ${styles.directory}`}
+            className={styles.directory}
             aria-label="Khách hàng được phép xem"
           >
             <header>
               <div>
+                <span>Theo quan hệ lịch hẹn</span>
                 <h2>Khách hàng của tôi</h2>
-                <span>Theo lịch hẹn</span>
               </div>
               <strong>{clients.length}</strong>
             </header>
-            <label className="clients-search">
-              <Search size={16} aria-hidden="true" />
+            <label className={styles.search}>
+              <Search size={18} aria-hidden="true" />
               <input
                 ref={searchInput}
                 value={query}
@@ -364,18 +373,11 @@ export default function SpecialistClientsManager({
                 </button>
               )}
             </label>
-            <div className="clients-filters" aria-label="Lọc khách hàng">
-              {([['all', 'Tất cả', clients.length], ['active', 'Đã xác nhận', activeClients], ['completed', 'Đã xong', completedClients]] as const).map(([key, label, count]) => (
-                <button data-clients-ui type="button" key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label} <span>({count})</span></button>
-              ))}
-            </div>
-            <div className={`clients-list ${styles.appointmentList}`}>
-              {visibleClients.length === 0 && <p className="clients-no-results">Không tìm thấy khách hàng phù hợp.</p>}
+            <div className={styles.appointmentList}>
               {visibleClients.map((client) => {
                 const latest = client.appointments[0]
                 return (
                   <button
-                    data-clients-ui
                     type="button"
                     key={client.id}
                     ref={
@@ -391,17 +393,17 @@ export default function SpecialistClientsManager({
                     aria-pressed={selectedClient?.id === client.id}
                     onClick={() => chooseClient(client)}
                   >
-                    <span className={`clients-list-avatar ${styles.dateMark}`}>
+                    <span className={styles.dateMark}>
                       {initials(client.name)}
                     </span>
-                    <span className={`clients-list-copy ${styles.appointmentCopy}`}>
+                    <span className={styles.appointmentCopy}>
                       <strong>{client.name}</strong>
                       <small>
                         {client.appointments.length} phiên ·{' '}
                         {statusLabel(latest.status)}
                       </small>
                     </span>
-                    <ChevronRight size={16} aria-hidden="true" />
+                    <ChevronRight size={18} aria-hidden="true" />
                   </button>
                 )
               })}
@@ -420,41 +422,51 @@ export default function SpecialistClientsManager({
                 </div>
               )}
             </div>
-            <div className="clients-directory-note"><ShieldCheck size={18} /><p><strong>Chính sách bảo mật quyền riêng tư</strong>Dữ liệu chỉ hiển thị trong phạm vi khách hàng đã cấp quyền cho phiên.</p></div>
           </aside>
 
           {selectedClient && selectedAppointment && (
-            <section className={`clients-detail ${styles.detail}`} aria-live="polite">
-              <header className={`clients-detail-header ${styles.detailHeader}`}>
-                <span className="clients-detail-avatar">{initials(selectedClient.name)}</span>
-                <div className="clients-detail-copy">
+            <section className={styles.detail} aria-label="Chi tiết khách hàng">
+              <button
+                type="button"
+                className={styles.back}
+                onClick={() => {
+                  setDetailOpen(false)
+                  requestAnimationFrame(() =>
+                    selectedClientButton.current?.focus({
+                      preventScroll: true,
+                    }),
+                  )
+                }}
+              >
+                <ArrowLeft size={18} aria-hidden="true" /> Danh sách khách hàng
+              </button>
+              <header className={styles.detailHeader}>
+                <div>
                   <span className={styles.sectionLabel}>
-                    Hồ sơ theo lịch hẹn <span className="clients-id">#{selectedClient.id.slice(0, 8).toUpperCase()}</span>
+                    Không gian phiên tư vấn
                   </span>
                   <h2 ref={detailHeading} tabIndex={-1}>
                     {selectedClient.name}
                   </h2>
                   <p>
-                    <Video size={15} />{' '}
+                    {selectedClient.appointments.length} lịch hẹn với bạn ·{' '}
                     {selectedAppointment.modality === 'IN_APP_CHAT'
-                      ? 'Chat bảo mật trong ứng dụng'
-                      : 'Video bảo mật trong ứng dụng'}
+                      ? 'Chat trong ứng dụng'
+                      : 'Video trong ứng dụng'}
                   </p>
-                  <small>{Math.round((Date.parse(selectedAppointment.scheduledEndAt) - Date.parse(selectedAppointment.scheduledStartAt)) / 60000)} phút · {selectedClient.appointments.length} phiên với bạn</small>
                 </div>
-                <div className="clients-appointment-summary">
-                  <small>Lịch hẹn đang chọn</small>
-                  <strong><Clock3 size={16} /> {formatAppointment(selectedAppointment).time}</strong>
-                  <span>{formatAppointment(selectedAppointment).date}</span>
+                <div className={styles.detailActions}>
+                  {selectedAppointment.modality === 'IN_APP_CHAT' && (
+                    <Link
+                      href={`/specialist/messages?appointmentId=${encodeURIComponent(selectedAppointment.appointmentId)}`}
+                    >
+                      <MessageSquare size={18} aria-hidden="true" /> Mở tin nhắn
+                    </Link>
+                  )}
                 </div>
               </header>
-              <div className="clients-detail-actions">
-                <Link className="clients-main-action" href="/specialist/appointments"><CalendarDays size={17} /> Xem lịch hẹn</Link>
-                {selectedAppointment.modality === 'IN_APP_CHAT' && <Link className="clients-chat-action" href={`/specialist/messages?appointmentId=${encodeURIComponent(selectedAppointment.appointmentId)}`}><MessageCircle size={17} /> Mở cửa sổ Chat</Link>}
-                <span>{statusLabel(selectedAppointment.status)}</span>
-              </div>
 
-                {selectedClient.appointments.length > 1 && <div className={`clients-version-bar ${styles.versionBar}`}>
+              <div className={styles.versionBar}>
                 <div>
                   <span className={styles.sectionLabel}>
                     Lịch hẹn đang chọn
@@ -467,12 +479,11 @@ export default function SpecialistClientsManager({
                   <small>Múi giờ hiển thị: {VN_ZONE}</small>
                 </div>
                 <div
-                  className={`clients-version-choices ${styles.versionChoices}`}
+                  className={styles.versionChoices}
                   aria-label="Chọn lịch hẹn"
                 >
                   {selectedClient.appointments.map((appointment) => (
                     <button
-                      data-clients-ui
                       type="button"
                       key={appointment.appointmentId}
                       aria-pressed={
@@ -488,16 +499,15 @@ export default function SpecialistClientsManager({
                     </button>
                   ))}
                 </div>
-              </div>}
+              </div>
 
               <div
-                className="clients-tabs"
+                className={styles.tabs}
                 role="tablist"
                 aria-label="Nội dung phiên tư vấn"
               >
                 {TABS.map(([key, label]) => (
                   <button
-                    data-clients-ui
                     type="button"
                     role="tab"
                     key={key}
@@ -530,16 +540,18 @@ export default function SpecialistClientsManager({
                     {label}
                   </button>
                 ))}
-                <small>ConsultationBrief · {selectedAppointment.briefSnapshotVersion ? `bản ${selectedAppointment.briefSnapshotVersion}` : 'theo quyền truy cập'}</small>
               </div>
 
               <div
-                className={`clients-panel ${styles.snapshot}`}
+                className={styles.snapshot}
+                role="tabpanel"
+                id={`${tabId}-panel`}
+                aria-labelledby={`${tabId}-${tab}`}
+                tabIndex={0}
                 key={`${selectedAppointment.appointmentId}-${tab}`}
               >
                 {tab === 'prepare' && (
                   <>
-                    <h3 className="clients-panel-title"><span aria-hidden="true" /> Tóm tắt trước buổi tư vấn</h3>
                     <div className={styles.snapshotMeta}>
                       <span>
                         {accessLabel(selectedAppointment.briefAccessState)}
@@ -549,7 +561,6 @@ export default function SpecialistClientsManager({
                       <SpecialistConsultationBrief
                         key={selectedAppointment.appointmentId}
                         appointmentId={selectedAppointment.appointmentId}
-                        compact
                       />
                     ) : (
                       <div className={styles.detailState}>
@@ -571,7 +582,6 @@ export default function SpecialistClientsManager({
                         </button>
                       </div>
                     )}
-                    <div className="clients-panel-foot"><LockKeyhole size={16} /> Chỉ đọc bản chụp khách hàng đã phê duyệt cho phiên này.</div>
                   </>
                 )}
 
@@ -615,20 +625,9 @@ export default function SpecialistClientsManager({
                   </section>
                 )}
               </div>
-              {tab === 'prepare' && selectedAppointment.briefAccessState === 'AVAILABLE' && (
-                <section className="clients-guides" aria-label="Tài liệu tham khảo cho phiên">
-                  <div className="clients-guides-heading"><h3>Tài liệu tham khảo cho phiên</h3><span>Chọn theo đánh giá chuyên môn</span></div>
-                  <div className="clients-guide-grid">
-                    <article><span className="clients-guide-icon"><Clock3 size={20} /></span><div><h4>Kỹ thuật thở hộp (4–4–4–4)</h4><p>Bài tập hướng dẫn điều hòa nhịp thở trong vài phút.</p><small>5 phút hướng dẫn</small></div></article>
-                    <article><span className="clients-guide-icon"><FileText size={20} /></span><div><h4>Giãn cơ tiến triển (PMR)</h4><p>Tài liệu hướng dẫn nhận biết và thả lỏng căng cơ.</p><small>8 phút hướng dẫn</small></div></article>
-                  </div>
-                </section>
-              )}
-              <div className="clients-privacy-foot"><ShieldCheck size={18} /> Không gian tư vấn bảo vệ dữ liệu theo phạm vi quyền truy cập của từng lịch hẹn.</div>
             </section>
           )}
         </div>
-        </>
       )}
     </section>
   )

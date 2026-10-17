@@ -1,0 +1,89 @@
+.panel {
+  margin-block: var(--space-6);
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-block-end: var(--space-5);
+}
+
+.header span {
+  color: var(--teal-deep);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.header h3 {
+  margin-block: var(--space-1);
+  font-family: var(--font-display), serif;
+  font-size: clamp(1.4rem, 2vw, 1.8rem);
+}
+
+.header p {
+  color: var(--ink-soft);
+}
+
+.header button {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--teal-deep);
+  cursor: pointer;
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.day {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 110px;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+}
+
+.day:hover,
+.day:focus-visible {
+  border-color: var(--teal-deep);
+  outline: none;
+}
+
+.day small,
+.day span {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.day strong {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 900px) {
+  .days {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .days {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

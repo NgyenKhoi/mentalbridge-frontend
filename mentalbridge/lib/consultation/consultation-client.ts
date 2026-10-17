@@ -155,7 +155,7 @@ async function request<T>(options: {
           Accept: 'application/json, application/problem+json',
           Authorization: `Bearer ${options.token}`,
           'X-Correlation-Id': options.correlationId,
-          ...(options.body === undefined
+          ...(options.body === undefined || options.body instanceof FormData
             ? {}
             : { 'Content-Type': 'application/json' }),
           ...(options.ifMatch ? { 'If-Match': options.ifMatch } : {}),
@@ -165,7 +165,7 @@ async function request<T>(options: {
         },
         ...(options.body === undefined
           ? {}
-          : { body: JSON.stringify(options.body) }),
+          : { body: options.body instanceof FormData ? options.body : JSON.stringify(options.body) }),
       },
     )
     const value = await json(response)

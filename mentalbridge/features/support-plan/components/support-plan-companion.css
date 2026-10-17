@@ -284,11 +284,15 @@
   border: 1px solid var(--teal-deep);
   border-radius: var(--radius-control);
   background: var(--teal-deep);
-  color: white;
+  color: white !important;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.support-plan-companion-open-guidance * {
+  color: white !important;
 }
 
 .support-plan-companion-open-guidance:hover {
@@ -518,7 +522,11 @@
 .support-plan-guided-actions button.is-primary {
   border-color: var(--teal-deep);
   background: var(--teal-deep);
-  color: white;
+  color: white !important;
+}
+
+.support-plan-guided-actions button.is-primary * {
+  color: white !important;
 }
 
 .support-plan-guided-privacy {
@@ -647,8 +655,7 @@
   list-style: none;
 }
 
-.support-plan-companion-action-list > li,
-.support-plan-upcoming-actions {
+.support-plan-companion-action-list > li {
   display: flex;
   min-width: 0;
   align-items: center;
@@ -664,8 +671,7 @@
 }
 
 @media (max-width: 520px) {
-  .support-plan-companion-action-list > li,
-  .support-plan-upcoming-actions {
+  .support-plan-companion-action-list > li {
     align-items: stretch;
     flex-direction: column;
   }
@@ -791,11 +797,21 @@
   }
 
   .support-plan-companion.is-expanded {
-    width: 340px;
+    width: 300px;
+  }
+
+  .support-plan-companion.is-expanded:not(.is-panel-open)
+    > .support-plan-companion-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .support-plan-companion.is-expanded .support-plan-companion-controls {
+    justify-content: flex-end;
   }
 
   .support-plan-companion.is-panel-open {
-    width: 390px;
+    width: 360px;
   }
 
   .support-plan-companion.is-collapsed {

@@ -13,6 +13,42 @@ vi.mock('@/lib/config/server', () => ({
 describe('Consultation server-only client', () => {
   afterEach(() => vi.unstubAllGlobals())
 
+  it('forwards a credential upload as multipart data with the authenticated specialist token', async () => {
+    const form = new FormData()
+    form.set('title', 'Bằng chuyên môn')
+    form.set('issuer', 'Trường đại học')
+    form.set('issueYear', '2020')
+    form.set('credentialType', 'DEGREE')
+    form.set('file', new File(['%PDF-'], 'degree.pdf', { type: 'application/pdf' }))
+    const document = {
+      id: 'f5297ec9-bbc9-4d51-8212-62778245335c',
+      specialistAccountId: 'f5297ec9-bbc9-4d51-8212-62778245335c',
+      title: 'Bằng chuyên môn',
+      issuer: 'Trường đại học',
+      issueYear: 2020,
+      credentialType: 'DEGREE',
+      fileName: 'degree.pdf',
+      mediaType: 'application/pdf',
+      fileBytes: 5,
+      verificationStatus: 'PENDING',
+      badgeVisible: false,
+      reviewedAt: null,
+      createdAt: '2026-10-17T00:00:00Z',
+      version: 0,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(document, { status: 201 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(consultationClient.uploadCredential('access-token', 'correlation-id', form))
+      .resolves.toMatchObject({ data: document, status: 201 })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe('http://consultation.test/api/v1/specialist-profile/documents')
+    expect(init.method).toBe('POST')
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer access-token' })
+    expect(init.headers).not.toHaveProperty('Content-Type')
+    expect(init.body).toBe(form)
+  })
+
   it('forwards exact cancellation identity and ETag and validates the terminal provider payload', async () => {
     const cancelled = { ...draftAmendment, status: 'CANCELLED', version: 1 }
     const fetchMock = vi

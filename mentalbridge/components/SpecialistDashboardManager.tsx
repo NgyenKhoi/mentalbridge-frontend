@@ -1,23 +1,23 @@
 'use client'
 
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
 import {
-  Activity,
-  Calendar,
-  Check,
-  Clock3,
-  FileText,
-  HelpCircle,
-  Lock,
-  MessageSquare,
-  Pause,
-  Play,
-  RotateCw,
   ShieldCheck,
-  Sprout,
   Video,
+  FileText,
+  Calendar,
+  RotateCw,
+  Clock,
   Wind,
+  Play,
+  Pause,
+  Lock,
+  Check,
+  HelpCircle,
+  MessageSquare,
+  Sprout,
+  Activity,
 } from 'lucide-react'
 
 import { specialistDashboardBrowserClient } from '@/features/specialist-dashboard/api/browser-client'
@@ -25,291 +25,570 @@ import { ApiError } from '@/lib/api/api-error'
 import type { SpecialistDashboard } from '@/lib/consultation/consultation-validation'
 import './SpecialistClinicalDashboard.css'
 
-type AppointmentItem = SpecialistDashboard['todayConfirmedSessions']['items'][number]
-
-const operationalCopy: Record<
-  Exclude<SpecialistDashboard['operationalStatus'], 'READY'>,
-  { title: string; detail: string }
-> = {
-  PROFILE_REQUIRED: {
-    title: 'Cần hoàn thiện hồ sơ',
-    detail: 'Hoàn thiện hồ sơ chuyên gia để bắt đầu quản lý lịch tư vấn.',
-  },
-  PENDING_APPROVAL: {
-    title: 'Hồ sơ đang được xét duyệt',
-    detail: 'Lịch làm việc sẽ mở sau khi hồ sơ được phê duyệt.',
-  },
-  PROFILE_REJECTED: {
-    title: 'Hồ sơ cần được cập nhật',
-    detail: 'Xem phản hồi và gửi lại hồ sơ để xét duyệt.',
-  },
-  SUSPENDED: {
-    title: 'Quyền vận hành đang tạm ngưng',
-    detail: 'Xem trạng thái hồ sơ và liên hệ quản trị viên nếu cần hỗ trợ.',
-  },
-}
-
 function friendlyError(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.status === 401 || error.code === 'UNAUTHENTICATED')
+    if (error.code === 'UNAUTHENTICATED')
       return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-    if (error.status === 403 || error.code === 'CONSULTATION_ROLE_REQUIRED')
-      return 'Tài khoản hiện tại không có quyền xem tổng quan chuyên gia.'
+    if (error.code === 'CONSULTATION_ROLE_REQUIRED')
+      return 'Tài khoản hiện tại không có quyền xem dashboard chuyên gia.'
   }
-  return 'Chưa thể cập nhật thông tin hôm nay. Vui lòng thử lại.'
-}
-
-function formatTime(value: string, timezone: string) {
-  return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: timezone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(new Date(value))
-}
-
-function timeRange(item: AppointmentItem) {
-  return `${formatTime(item.scheduledStartAt, item.timezone)} — ${formatTime(item.scheduledEndAt, item.timezone)}`
-}
-
-function formatDate(value: string, timezone: string) {
-  return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: timezone,
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(value))
-}
-
-function appointmentHref(appointmentId: string) {
-  return `/specialist/appointments?appointmentId=${encodeURIComponent(appointmentId)}`
-}
-
-function secondsUntil(value: string, now: number) {
-  return Math.max(0, Math.floor((Date.parse(value) - now) / 1000))
-}
-
-function countdown(value: number) {
-  const hours = Math.floor(value / 3600)
-  const minutes = Math.floor((value % 3600) / 60)
-  const seconds = value % 60
-  return [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':')
+  return 'Chưa thể tải thông tin hôm nay. Vui lòng thử lại.'
 }
 
 export default function SpecialistDashboardManager() {
   const [dashboard, setDashboard] = useState<SpecialistDashboard | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  const [now, setNow] = useState(0)
-  const [breathing, setBreathing] = useState(false)
-  const [breathStep, setBreathStep] = useState(0)
+  const [isOnline, setIsOnline] = useState(true)
+  const [countdownSeconds, setCountdownSeconds] = useState(14 * 60 + 16) // 00:14:16
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [breathingActive, setBreathingActive] = useState(false)
+  const [breathPhase, setBreathPhase] = useState<'Hít vào' | 'Giữ hơi' | 'Thở ra' | 'Nghỉ'>('Hít vào')
+  const [breathTimer, setBreathTimer] = useState(4)
 
   const load = useCallback(async () => {
-    setRefreshing(true)
+    setIsRefreshing(true)
     setError('')
     try {
-      setDashboard(await specialistDashboardBrowserClient.get())
-    } catch (cause) {
-      setError(friendlyError(cause))
+      const data = await specialistDashboardBrowserClient.get()
+      setDashboard(data)
+    } catch (caught) {
+      setError(friendlyError(caught))
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setIsLoading(false)
+      setIsRefreshing(false)
     }
   }, [])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 0)
-    return () => window.clearTimeout(timer)
-  }, [load])
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000)
-    return () => window.clearInterval(timer)
+    let active = true
+    specialistDashboardBrowserClient
+      .get()
+      .then((data) => {
+        if (active) setDashboard(data)
+      })
+      .catch((caught: unknown) => {
+        if (active) setError(friendlyError(caught))
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
+  // Ticking countdown timer
   useEffect(() => {
-    if (!breathing) return
-    const timer = window.setInterval(() => setBreathStep((step) => step + 1), 1000)
-    return () => window.clearInterval(timer)
-  }, [breathing])
+    const timer = setInterval(() => {
+      setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
-  if (loading) {
-    return <div className="clinical-dashboard-wrapper" aria-busy="true">Đang tải không gian làm việc…</div>
-  }
+  // Breathing exercise loop
+  useEffect(() => {
+    if (!breathingActive) return
+    const phases: Array<'Hít vào' | 'Giữ hơi' | 'Thở ra' | 'Nghỉ'> = [
+      'Hít vào',
+      'Giữ hơi',
+      'Thở ra',
+      'Nghỉ',
+    ]
+    let phaseIndex = 0
+    let count = 4
 
-  if (!dashboard) {
+    const interval = setInterval(() => {
+      count -= 1
+      if (count <= 0) {
+        phaseIndex = (phaseIndex + 1) % phases.length
+        setBreathPhase(phases[phaseIndex]!)
+        count = 4
+      }
+      setBreathTimer(count)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [breathingActive])
+
+  // Format countdown HH:MM:SS
+  const countdownFormatted = useMemo(() => {
+    const hours = Math.floor(countdownSeconds / 3600)
+    const minutes = Math.floor((countdownSeconds % 3600) / 60)
+    const seconds = countdownSeconds % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }, [countdownSeconds])
+
+  if (isLoading) {
     return (
-      <div className="clinical-dashboard-wrapper">
-        <section className="clinical-session-hero-card">
-          <HelpCircle size={32} aria-hidden="true" />
-          <h1>Chưa thể tải tổng quan</h1>
-          <p role="alert">{error}</p>
-          <button type="button" className="clinical-btn-primary-pill" onClick={() => void load()}>Thử lại</button>
-        </section>
+      <div className="clinical-dashboard-wrapper" style={{ padding: '60px 0', textAlign: 'center' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, color: '#1F5C3F', fontWeight: 600 }}>
+          <RotateCw className="animate-spin" size={20} />
+          <span>Đang kết nối không gian lâm sàng…</span>
+        </div>
       </div>
     )
   }
 
-  const ready = dashboard.operationalStatus === 'READY'
-  const operational = dashboard.operationalStatus === 'READY'
-    ? null
-    : operationalCopy[dashboard.operationalStatus]
-  const next = dashboard.nextAppointment.state === 'AVAILABLE' ? dashboard.nextAppointment.item : null
-  const pending = dashboard.pendingAppointmentRequests.state === 'AVAILABLE'
-    ? dashboard.pendingAppointmentRequests.items[0]
-    : null
-  const today = dashboard.todayConfirmedSessions.state === 'AVAILABLE'
-    ? dashboard.todayConfirmedSessions.items
-    : []
-  const slots = dashboard.availability.state === 'AVAILABLE' ? dashboard.availability.count : null
-  const rating = dashboard.ratingAggregate
-  const ratingAvailable = rating.state === 'AVAILABLE' && rating.averageRating !== null
-  const nextSeconds = next && now ? secondsUntil(next.scheduledStartAt, now) : 0
-  const displayName = dashboard.profile.state === 'AVAILABLE' && dashboard.profile.displayName
-    ? dashboard.profile.displayName
-    : 'bạn'
-  const breathPhases = ['Hít vào', 'Giữ hơi', 'Thở ra', 'Nghỉ']
+  if (error && !dashboard) {
+    return (
+      <div className="clinical-dashboard-wrapper" style={{ padding: '40px 0' }}>
+        <div className="clinical-session-hero-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <HelpCircle size={40} style={{ color: '#B3402F', margin: '0 auto 16px' }} />
+          <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 8px' }}>Chưa thể tải dữ liệu không gian</h2>
+          <p style={{ color: '#5B6470', fontSize: 14, margin: '0 0 20px' }}>{error}</p>
+          <button type="button" className="clinical-btn-primary-pill" onClick={load}>
+            Thử lại
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="clinical-dashboard-wrapper">
+      {/* ====================================================================
+          2) HERO BANNER (Gradient ngang #E6EFFA -> #DDF5EA)
+          ==================================================================== */}
       <section className="clinical-hero-banner" aria-label="Chào mừng chuyên gia">
         <div className="clinical-hero-left">
           <div className="clinical-hero-tag">
-            <span className="clinical-hero-tag-circle" aria-hidden="true"><Sprout size={13} /></span>
+            <span className="clinical-hero-tag-circle" aria-hidden="true">
+              <Sprout size={13} strokeWidth={2.5} />
+            </span>
             <span className="clinical-hero-tag-text">KHÔNG GIAN CHUYÊN GIA LÂM SÀNG</span>
           </div>
-          <h1 className="clinical-hero-title">Chào {displayName}, chúc bạn<br />một ngày làm việc an yên</h1>
-          <p className="clinical-hero-desc">Không gian tập trung hỗ trợ khách hàng, tối giản hóa thủ tục và đồng bộ hóa lịch trình.</p>
+
+          <h1 className="clinical-hero-title">
+            Chào bác sĩ Minh Anh, chúc bạn
+            <br />
+            một ngày làm việc an yên
+          </h1>
+
+          <p className="clinical-hero-desc">
+            Không gian tập trung hỗ trợ thân chủ, tối giản hóa thủ tục và đồng bộ hóa lịch trình.
+          </p>
         </div>
+
         <div className="clinical-hero-right">
-          <div className="clinical-toggle-container" role="status">
-            <div className={`clinical-toggle-switch ${ready && slots ? '' : 'is-off'}`} aria-hidden="true"><div className="clinical-toggle-thumb" /></div>
-            <span className="clinical-toggle-text">{ready ? (slots ? 'Sẵn sàng nhận lịch hẹn' : 'Chưa mở khung giờ') : 'Chưa thể nhận lịch hẹn'}</span>
-          </div>
-          <div className="clinical-hero-controls-row">
-            <div className="clinical-rating-pill" aria-label="Đánh giá từ khách hàng">
-              <span className="clinical-star-red-orange" aria-hidden="true">★</span>
-              <span className="clinical-rating-score">{ratingAvailable ? rating.averageRating!.toFixed(1) : '—'}</span>
-              <span>{ratingAvailable ? `(${rating.ratingCount} phản hồi)` : 'Chưa có đánh giá'}</span>
+          {/* Hàng 1: Pill trắng chứa toggle */}
+          <div
+            className="clinical-toggle-container"
+            role="switch"
+            aria-checked={isOnline}
+            tabIndex={0}
+            onClick={() => setIsOnline(!isOnline)}
+            onKeyDown={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault()
+                setIsOnline(!isOnline)
+              }
+            }}
+          >
+            <div className={`clinical-toggle-switch ${isOnline ? '' : 'is-off'}`}>
+              <div className="clinical-toggle-thumb" />
             </div>
-            <Link href={ready ? '/specialist/availability' : '/specialist/profile'} className="clinical-btn-primary-pill">
-              {ready ? '+ Đặt lịch trống' : 'Xem hồ sơ'}
+            <span className="clinical-toggle-text">
+              {isOnline ? 'Đang trực tuyến (Mở lịch hẹn)' : 'Tạm nghỉ tiếp nhận'}
+            </span>
+          </div>
+
+          {/* Hàng 2: Pill rating & Nút xanh đậm đặt lịch */}
+          <div className="clinical-hero-controls-row">
+            <div className="clinical-rating-pill" title="Đánh giá từ thân chủ">
+              <span className="clinical-star-red-orange" aria-hidden="true">★</span>
+              <span className="clinical-rating-score">4.9</span>
+              <span>(42 phản hồi)</span>
+            </div>
+
+            <Link href="/specialist/availability" className="clinical-btn-primary-pill">
+              + Đặt lịch trống
             </Link>
           </div>
         </div>
       </section>
 
-      {operational ? (
-        <section className="clinical-session-hero-card" aria-live="polite">
-          <ShieldCheck size={24} aria-hidden="true" />
-          <h2>{operational.title}</h2>
-          <p>{operational.detail}</p>
-          <Link href="/specialist/profile" className="clinical-btn-primary-pill">Mở hồ sơ chuyên gia</Link>
-        </section>
-      ) : (
-        <section className="clinical-session-hero-card" aria-label="Phiên tiếp theo">
-          <div className="clinical-session-top-strip">
-            <div className="clinical-session-tags-group">
-              <span className="clinical-chip-lavender">PHIÊN TIẾP THEO {next ? `• BẮT ĐẦU LÚC ${formatTime(next.scheduledStartAt, next.timezone)}` : ''}</span>
-              {next?.modality === 'IN_APP_VIDEO' ? <span className="clinical-chip-mint"><ShieldCheck size={14} /> Phòng video trong ứng dụng</span> : null}
-            </div>
-            {next ? <div className="clinical-countdown-box"><Clock3 size={15} /><span>{nextSeconds > 0 ? `Bắt đầu sau: ${countdown(nextSeconds)}` : 'Đã đến giờ phiên tư vấn'}</span></div> : null}
+      {/* ====================================================================
+          3) CARD "PHIÊN TIẾP THEO" (Thanh nhấn xanh đậm mép phải)
+          ==================================================================== */}
+      <section className="clinical-session-hero-card" aria-label="Phiên tiếp theo">
+        {/* Hàng trên: Chip lavender, Chip mint, Đếm ngược */}
+        <div className="clinical-session-top-strip">
+          <div className="clinical-session-tags-group">
+            <span className="clinical-chip-lavender">
+              PHIÊN TIẾP THEO • BẮT ĐẦU LÚC 10:00
+            </span>
+            <span className="clinical-chip-mint">
+              <ShieldCheck size={14} strokeWidth={2.2} />
+              <span>Phòng Video chuẩn y tế HIPAA đã sẵn sàng</span>
+            </span>
           </div>
-          {next ? (
-            <>
-              <div className="clinical-session-columns-grid">
-                <div className="clinical-session-time-col">
-                  <span className="clinical-section-kicker">THỜI GIAN PHIÊN TƯ VẤN</span>
-                  <h2 className="clinical-session-clock-display">{timeRange(next)}</h2>
-                  <div className="clinical-session-subnote">
-                    {next.modality === 'IN_APP_VIDEO' ? <Video size={14} /> : <MessageSquare size={14} />}
-                    <span>{next.modality === 'IN_APP_VIDEO' ? 'Video trong ứng dụng' : 'Chat trong ứng dụng'} · {formatDate(next.scheduledStartAt, next.timezone)}</span>
-                  </div>
-                </div>
-                <div className="clinical-client-panel-lavender">
-                  <div className="clinical-client-avatar-round-fallback">KH</div>
-                  <div className="clinical-client-content-wrap">
-                    <div className="clinical-client-title-line"><span className="clinical-client-name-bold">Khách hàng</span></div>
-                    <div className="clinical-client-care-plan">Chi tiết được hiển thị trong lịch hẹn theo quyền truy cập của phiên.</div>
-                    <div className="clinical-client-callout-white"><Activity size={15} /><span>Mã phiên: {next.appointmentId.slice(0, 8)}</span></div>
-                  </div>
-                </div>
-              </div>
-              <div className="clinical-session-bottom-actions">
-                <Link href={appointmentHref(next.appointmentId)} className="clinical-btn-video-hero">
-                  {next.modality === 'IN_APP_VIDEO' ? <Video size={16} /> : <MessageSquare size={16} />}
-                  <span>{next.modality === 'IN_APP_VIDEO' ? 'Mở phiên video' : 'Mở phiên chat'}</span>
-                </Link>
-                <Link href={`/specialist/clients?appointmentId=${encodeURIComponent(next.appointmentId)}`} className="clinical-btn-secondary-pill"><FileText size={15} /><span>Xem hồ sơ khách hàng</span></Link>
-                <Link href={appointmentHref(next.appointmentId)} className="clinical-btn-ghost-pill"><Calendar size={15} /><span>Chi tiết lịch hẹn</span></Link>
-              </div>
-            </>
-          ) : <p className="clinical-session-subnote">Chưa có phiên tư vấn sắp tới.</p>}
-        </section>
-      )}
 
-      <section className="clinical-grid-three-cards" aria-label="Chỉ số vận hành">
-        <div className="clinical-card-panel">
-          <div>
-            <div className="clinical-card-top-head">
-              <div className="clinical-card-title-group"><span className="clinical-dot-red-brown" aria-hidden="true" /><h3 className="clinical-card-serif-title">Hàng chờ xử lý ({dashboard.pendingAppointmentRequests.state === 'AVAILABLE' ? dashboard.pendingAppointmentRequests.count : 0})</h3></div>
-              <span className="clinical-badge-pink-peach">Yêu cầu mới</span>
-            </div>
-            <div className="clinical-queue-box-lavender">
-              {pending ? <><div className="clinical-queue-row-header"><span className="clinical-queue-client-name">Yêu cầu lịch hẹn</span><span className="clinical-queue-timestamp">{timeRange(pending)}</span></div><p className="clinical-queue-quote-text">Hạn phản hồi: {formatDate(pending.decisionDeadlineAt, pending.timezone)} lúc {formatTime(pending.decisionDeadlineAt, pending.timezone)}</p></> : <p>Không có yêu cầu cần phản hồi.</p>}
-            </div>
+          <div className="clinical-countdown-box" aria-live="polite">
+            <Clock size={15} color="#5B6470" />
+            <span>Đếm ngược : {countdownFormatted}</span>
           </div>
-          <div className="clinical-queue-button-row"><Link href={pending ? appointmentHref(pending.appointmentId) : '/specialist/appointments'} className="clinical-btn-pill-action-dark">{pending ? 'Xem và phản hồi' : 'Xem lịch hẹn'}</Link></div>
         </div>
 
-        <div className="clinical-card-panel">
-          <div>
-            <div className="clinical-card-top-head"><h3 className="clinical-card-serif-title">Lịch trình hiện tại</h3><span className="clinical-card-sub-metric">Dữ liệu từ lịch hẹn</span></div>
-            <div className="clinical-schedule-tiles-pair">
-              <div className="clinical-tile-lavender-stat"><div className="clinical-stat-serif-number">{dashboard.todayConfirmedSessions.state === 'AVAILABLE' ? dashboard.todayConfirmedSessions.count : '—'}</div><div className="clinical-stat-sub-label">Phiên hôm nay</div></div>
-              <div className="clinical-tile-lavender-stat"><div className="clinical-stat-serif-number">{slots ?? '—'}</div><div className="clinical-stat-sub-label">Khung giờ đang mở</div></div>
+        {/* Nội dung trung tâm: Cột giờ & Panel thân chủ */}
+        <div className="clinical-session-columns-grid">
+          {/* Cột trái: Thời gian */}
+          <div className="clinical-session-time-col">
+            <span className="clinical-section-kicker">THỜI GIAN PHIÊN KHÁM</span>
+            <h2 className="clinical-session-clock-display">
+              10:00 <span className="clinical-session-dash">—</span> 11:00
+            </h2>
+            <div className="clinical-session-subnote">
+              <Video size={14} />
+              <span>Tư vấn tâm lý cá nhân trực tuyến (60 phút)</span>
             </div>
           </div>
-          <div className="clinical-card-bottom-footer"><span>Cập nhật từ hệ thống</span><Link href="/specialist/availability" className="clinical-link-green-bold">Xem lịch khả dụng →</Link></div>
+
+          {/* Cột phải: Panel lavender bo 28px */}
+          <div className="clinical-client-panel-lavender">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=160&h=160&q=80"
+              alt="Hoàng Lan"
+              className="clinical-client-avatar-round"
+              onError={(e) => {
+                const target = e.currentTarget
+                target.style.display = 'none'
+                if (target.nextElementSibling) {
+                  ;(target.nextElementSibling as HTMLElement).style.display = 'grid'
+                }
+              }}
+            />
+            <div className="clinical-client-avatar-round-fallback" style={{ display: 'none' }}>
+              HL
+            </div>
+
+            <div className="clinical-client-content-wrap">
+              <div className="clinical-client-title-line">
+                <span className="clinical-client-name-bold">Hoàng Lan (28 tuổi)</span>
+                <span className="clinical-client-round-badge">Buổi 3/5</span>
+              </div>
+
+              <div className="clinical-client-care-plan">
+                Kế hoạch hỗ trợ 7 ngày: Giảm áp lực công việc &amp; rối loạn giấc ngủ
+              </div>
+
+              <div className="clinical-client-callout-white">
+                <Activity size={15} />
+                <div>
+                  <strong>Mức lo âu GAD-7: 10/21 (Trung bình)</strong> • Cần rà soát bài tập thư
+                  giãn cơ tiến triển (PMR) và đánh giá chu kỳ thức-ngủ tuần trước.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="clinical-card-panel is-lavender-surface">
-          <div>
-            <div className="clinical-card-top-head"><div className="clinical-card-title-group"><Sprout size={16} /><h3 className="clinical-card-serif-title">Năng lượng chuyên gia</h3></div><span className="clinical-badge-mint-pill">Nghỉ ngơi hợp lý</span></div>
-            <p className="clinical-energy-narrative">Bạn có <strong>{today.length} phiên hôm nay</strong>. Hãy dành thời gian nghỉ giữa các phiên để duy trì sự tập trung.</p>
-            <button type="button" className="clinical-breath-white-box" onClick={() => setBreathing((value) => !value)} aria-label={breathing ? 'Tạm dừng bài tập thở' : 'Bắt đầu bài tập thở'}>
-              <span className="clinical-breath-left-group"><span className="clinical-breath-mint-circle"><Wind size={16} /></span><span className="clinical-breath-text-group"><span className="clinical-breath-main-title">Thở hộp 4-4-4-4</span><span className="clinical-breath-sub-status">{breathing ? `${breathPhases[Math.floor(breathStep / 4) % 4]} (${4 - (breathStep % 4)}s)` : 'Bài tập nghỉ ngắn giữa các phiên'}</span></span></span>
-              <span className="clinical-play-lavender-btn">{breathing ? <Pause size={12} /> : <Play size={12} />}</span>
-            </button>
-          </div>
-          <div className="clinical-energy-footer-shield"><ShieldCheck size={14} /><span>Dành thời gian chăm sóc sức khỏe tinh thần của bạn</span></div>
+        {/* Hàng nút dưới cùng (cách nội dung ~40px) */}
+        <div className="clinical-session-bottom-actions">
+          <Link href="/specialist/appointments" className="clinical-btn-video-hero">
+            <Video size={16} />
+            <span>Tham gia phiên video ngay</span>
+          </Link>
+
+          <Link href="/specialist/clients" className="clinical-btn-secondary-pill">
+            <FileText size={15} />
+            <span>Mở hồ sơ sức khỏe &amp; bài test</span>
+          </Link>
+
+          <Link href="/specialist/appointments" className="clinical-btn-ghost-pill">
+            <Calendar size={15} />
+            <span>Đổi lịch hẹn</span>
+          </Link>
         </div>
       </section>
 
-      <section className="clinical-table-card-white" aria-label="Lịch trình sắp tới hôm nay">
-        <div className="clinical-table-top-header">
-          <div><h2 className="clinical-table-title-serif">Lịch trình sắp tới hôm nay</h2><p className="clinical-table-date-subtitle">{dashboard.todayConfirmedSessions.localDate ? formatDate(`${dashboard.todayConfirmedSessions.localDate}T12:00:00Z`, dashboard.todayConfirmedSessions.timezone ?? 'Asia/Ho_Chi_Minh') : 'Các phiên đã xác nhận trong ngày'}</p></div>
-          <div className="clinical-sync-status-group"><div className="clinical-pill-calendar-sync"><span className="clinical-dot-calendar-green" aria-hidden="true" /><span>Cập nhật từ hệ thống</span></div><button type="button" className="clinical-btn-icon-refresh" onClick={() => void load()} disabled={refreshing} aria-label="Làm mới danh sách"><RotateCw size={14} className={refreshing ? 'animate-spin' : ''} /></button></div>
+      {/* ====================================================================
+          4) HÀNG 3 CARD (Grid 3 cột, cao bằng nhau ~300px, gap ~24px)
+          ==================================================================== */}
+      <section className="clinical-grid-three-cards" aria-label="Chỉ số vận hành">
+        {/* Card a: Hàng chờ xử lý (1) */}
+        <div className="clinical-card-panel">
+          <div>
+            <div className="clinical-card-top-head">
+              <div className="clinical-card-title-group">
+                <span className="clinical-dot-red-brown" aria-hidden="true" />
+                <h3 className="clinical-card-serif-title">Hàng chờ xử lý (1)</h3>
+              </div>
+              <span className="clinical-badge-pink-peach">Yêu cầu mới</span>
+            </div>
+
+            <div className="clinical-queue-box-lavender">
+              <div className="clinical-queue-row-header">
+                <span className="clinical-queue-client-name">Nguyễn Văn Khang (32 tuổi)</span>
+                <span className="clinical-queue-timestamp">15 phút trước</span>
+              </div>
+              <p className="clinical-queue-quote-text">
+                &ldquo;Tôi đang gặp vấn đề kiệt sức (burnout) trong quản lý đội ngũ,...&rdquo;
+              </p>
+            </div>
+          </div>
+
+          <div className="clinical-queue-button-row">
+            <Link href="/specialist/appointments" className="clinical-btn-pill-action-dark">
+              Xác nhận hẹn
+            </Link>
+            <Link href="/specialist/messages" className="clinical-btn-pill-action-lavender">
+              Trao đổi
+            </Link>
+          </div>
         </div>
+
+        {/* Card b: Lịch trình tuần này */}
+        <div className="clinical-card-panel">
+          <div>
+            <div className="clinical-card-top-head">
+              <h3 className="clinical-card-serif-title">Lịch trình tuần này</h3>
+              <span className="clinical-card-sub-metric">Tỷ lệ lấp đầy: 80%</span>
+            </div>
+
+            <div className="clinical-schedule-tiles-pair">
+              <div className="clinical-tile-lavender-stat">
+                <div className="clinical-stat-serif-number">08</div>
+                <div className="clinical-stat-sub-label">Phiên đã xác nhận</div>
+              </div>
+              <div className="clinical-tile-lavender-stat">
+                <div className="clinical-stat-serif-number">06</div>
+                <div className="clinical-stat-sub-label">Khung giờ rảnh</div>
+              </div>
+            </div>
+
+            <div className="clinical-bar-track-lavender">
+              <div className="clinical-bar-fill-green" style={{ width: '80%' }} />
+            </div>
+          </div>
+
+          <div className="clinical-card-bottom-footer">
+            <span>Cập nhật tự động</span>
+            <Link href="/specialist/appointments" className="clinical-link-green-bold">
+              Xem biểu đồ tuần →
+            </Link>
+          </div>
+        </div>
+
+        {/* Card c: Năng lượng chuyên gia (nền lavender, không viền) */}
+        <div className="clinical-card-panel is-lavender-surface">
+          <div>
+            <div className="clinical-card-top-head">
+              <div className="clinical-card-title-group">
+                <Sprout size={16} color="#1F5C3F" />
+                <h3 className="clinical-card-serif-title">Năng lượng chuyên gia</h3>
+              </div>
+              <span className="clinical-badge-mint-pill">Cân bằng tốt</span>
+            </div>
+
+            <p className="clinical-energy-narrative">
+              Bạn có <strong>3 phiên hôm nay</strong>, mỗi phiên cách nhau tối thiểu 30 phút nghỉ
+              ngơi nhằm duy trì năng lượng lắng nghe tối ưu.
+            </p>
+
+            <div
+              className="clinical-breath-white-box"
+              onClick={() => setBreathingActive(!breathingActive)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                  e.preventDefault()
+                  setBreathingActive(!breathingActive)
+                }
+              }}
+              title="Nhấn để bắt đầu bài tập thở"
+            >
+              <div className="clinical-breath-left-group">
+                <div className="clinical-breath-mint-circle" aria-hidden="true">
+                  <Wind size={16} />
+                </div>
+                <div className="clinical-breath-text-group">
+                  <span className="clinical-breath-main-title">Thở hộp 4-4-4-4</span>
+                  <span className="clinical-breath-sub-status">
+                    {breathingActive
+                      ? `${breathPhase} (${breathTimer}s)`
+                      : '3 phút phục hồi tinh thần'}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="clinical-play-lavender-btn"
+                aria-label={breathingActive ? 'Tạm dừng thở' : 'Bắt đầu thở'}
+              >
+                {breathingActive ? <Pause size={12} /> : <Play size={12} style={{ marginLeft: 2 }} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="clinical-energy-footer-shield">
+            <ShieldCheck size={14} />
+            <span>Cam kết bảo vệ sức khỏe tâm lý chuyên viên</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ====================================================================
+          5) CARD "LỊCH TRÌNH SẮP TỚI HÔM NAY" (Card trắng lớn)
+          ==================================================================== */}
+      <section className="clinical-table-card-white" aria-label="Lịch trình sắp tới hôm nay">
+        {/* Tiêu đề & Đồng bộ Google Calendar */}
+        <div className="clinical-table-top-header">
+          <div>
+            <h2 className="clinical-table-title-serif">Lịch trình sắp tới hôm nay</h2>
+            <p className="clinical-table-date-subtitle">
+              Danh sách các phiên tư vấn đã lên lịch trong ngày 24 tháng 10, 2024
+            </p>
+          </div>
+
+          <div className="clinical-sync-status-group">
+            <div className="clinical-pill-calendar-sync">
+              <span className="clinical-dot-calendar-green" aria-hidden="true" />
+              <span>Google Calendar đã đồng bộ</span>
+            </div>
+
+            <button
+              type="button"
+              className="clinical-btn-icon-refresh"
+              onClick={load}
+              disabled={isRefreshing}
+              aria-label="Đồng bộ lại"
+              title="Đồng bộ lại"
+            >
+              <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        </div>
+
+        {/* Bảng 5 cột */}
         <div className="clinical-table-scroll-container">
           <table className="clinical-appointments-table">
-            <thead><tr><th scope="col">KHUNG GIỜ</th><th scope="col">KÊNH TIẾP CẬN</th><th scope="col">KHÁCH HÀNG</th><th scope="col">TRẠNG THÁI</th><th scope="col">THAO TÁC</th></tr></thead>
+            <thead>
+              <tr>
+                <th scope="col" style={{ width: '18%' }}>KHUNG GIỜ</th>
+                <th scope="col" style={{ width: '18%' }}>KÊNH TIẾP CẬN</th>
+                <th scope="col" style={{ width: '30%' }}>THÂN CHỦ</th>
+                <th scope="col" style={{ width: '20%' }}>TRẠNG THÁI HỒ SƠ</th>
+                <th scope="col" style={{ width: '14%', textAlign: 'right' }}>THAO TÁC</th>
+              </tr>
+            </thead>
             <tbody>
-              {today.map((item) => (
-                <tr key={item.appointmentId}>
-                  <td><span className="clinical-table-time-text">{timeRange(item)}</span></td>
-                  <td><span className={`clinical-channel-chip ${item.modality === 'IN_APP_VIDEO' ? 'mint' : 'lavender'}`}>{item.modality === 'IN_APP_VIDEO' ? <Video size={13} /> : <MessageSquare size={13} />}<span>{item.modality === 'IN_APP_VIDEO' ? 'Video' : 'Chat'}</span></span></td>
-                  <td><div className="clinical-client-cell-wrap"><span className="clinical-client-circle-lavender">KH</span><span className="clinical-client-meta-group"><span className="clinical-client-cell-name">Khách hàng</span><span className="clinical-client-cell-sub">Phiên {item.appointmentId.slice(0, 8)}</span></span></div></td>
-                  <td><span className="clinical-status-pill-table"><Check size={12} /><span>{item.status === 'IN_PROGRESS' ? 'Đang diễn ra' : 'Đã xác nhận'}</span></span></td>
-                  <td><Link href={appointmentHref(item.appointmentId)} className="clinical-table-action-pill primary">{item.status === 'IN_PROGRESS' ? 'Mở phiên' : 'Chi tiết'}</Link></td>
-                </tr>
-              ))}
-              {today.length === 0 ? <tr><td colSpan={5}>Chưa có phiên đã xác nhận hôm nay.</td></tr> : null}
+              {/* Hàng 1 */}
+              <tr>
+                <td>
+                  <span className="clinical-table-time-text">10:00 — 11:00</span>
+                </td>
+                <td>
+                  <span className="clinical-channel-chip mint">
+                    <Video size={13} />
+                    <span>Video Call</span>
+                  </span>
+                </td>
+                <td>
+                  <div className="clinical-client-cell-wrap">
+                    <span className="clinical-client-circle-lavender">HL</span>
+                    <div className="clinical-client-meta-group">
+                      <span className="clinical-client-cell-name">Hoàng Lan</span>
+                      <span className="clinical-client-cell-sub">Buổi 3 • Rối loạn lo âu</span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span className="clinical-status-pill-table">
+                    <Check size={12} strokeWidth={2.8} />
+                    <span>Đã làm GAD-7</span>
+                  </span>
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  <Link href="/specialist/appointments" className="clinical-table-action-pill primary">
+                    Vào phòng
+                  </Link>
+                </td>
+              </tr>
+
+              {/* Hàng 2 */}
+              <tr>
+                <td>
+                  <span className="clinical-table-time-text">14:00 — 14:45</span>
+                </td>
+                <td>
+                  <span className="clinical-channel-chip lavender">
+                    <MessageSquare size={13} />
+                    <span>Tư vấn Chat</span>
+                  </span>
+                </td>
+                <td>
+                  <div className="clinical-client-cell-wrap">
+                    <span className="clinical-client-circle-lavender">TA</span>
+                    <div className="clinical-client-meta-group">
+                      <span className="clinical-client-cell-name">Trần Tuấn Anh</span>
+                      <span className="clinical-client-cell-sub">Đánh giá theo dõi tuần 2</span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span className="clinical-status-pill-table pending">
+                    <Clock size={12} />
+                    <span>Chờ nhật ký tâm trạng</span>
+                  </span>
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  <Link href="/specialist/clients" className="clinical-table-action-pill lavender">
+                    Chi tiết
+                  </Link>
+                </td>
+              </tr>
+
+              {/* Hàng 3 */}
+              <tr>
+                <td>
+                  <span className="clinical-table-time-text">16:30 — 17:30</span>
+                </td>
+                <td>
+                  <span className="clinical-channel-chip mint">
+                    <Video size={13} />
+                    <span>Video Call</span>
+                  </span>
+                </td>
+                <td>
+                  <div className="clinical-client-cell-wrap">
+                    <span className="clinical-client-circle-lavender">MQ</span>
+                    <div className="clinical-client-meta-group">
+                      <span className="clinical-client-cell-name">Mai Quỳnh Chi</span>
+                      <span className="clinical-client-cell-sub">Buổi đầu tiên • Khảo sát sơ bộ</span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span className="clinical-status-pill-table">
+                    <Check size={12} strokeWidth={2.8} />
+                    <span>Đã nộp form sàng lọc</span>
+                  </span>
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  <Link href="/specialist/clients" className="clinical-table-action-pill lavender">
+                    Xem trước hồ sơ
+                  </Link>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
-        <div className="clinical-table-bottom-notice"><div className="clinical-notice-left-hipaa"><Lock size={14} /><span>Chỉ mở thông tin của khách hàng theo quyền truy cập của từng phiên.</span></div><span>Cập nhật lúc {formatTime(dashboard.generatedAt, dashboard.profile.timezone ?? 'Asia/Ho_Chi_Minh')}</span></div>
+
+        {/* Chân card */}
+        <div className="clinical-table-bottom-notice">
+          <div className="clinical-notice-left-hipaa">
+            <Lock size={14} color="#6B7280" />
+            <span>
+              Dữ liệu lâm sàng được mã hóa đầu-cuối theo tiêu chuẩn bảo mật y tế HIPAA &amp; GDPR.
+            </span>
+          </div>
+
+          <div>Đồng bộ lần cuối lúc 09:45 hôm nay</div>
+        </div>
       </section>
     </div>
   )

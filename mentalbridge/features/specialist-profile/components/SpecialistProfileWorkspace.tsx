@@ -109,7 +109,7 @@ export default function SpecialistProfileWorkspace() {
         setSavedForm(result.data)
         let editable: SpecialistProfileInput = result.data
         if (result.data.approvalStatus === 'APPROVED') {
-          const current = await browserConsultation.ownAmendment()
+          const current = await browserConsultation.ownProfileAmendment()
           if (!active) return
           const pending = current.data.amendment
           if (pending && !['APPROVED', 'CANCELLED'].includes(pending.status)) {
@@ -229,14 +229,14 @@ export default function SpecialistProfileWorkspace() {
         let currentEtag = amendmentEtag
         if (!current) {
           if (!etag) throw new Error('Không có phiên bản hồ sơ để bắt đầu chỉnh sửa.')
-          const started = await browserConsultation.startAmendment(etag)
+          const started = await browserConsultation.startProfileAmendment(etag)
           current = started.data
           currentEtag = started.etag
           setAmendment(current)
           setAmendmentEtag(currentEtag)
         }
         if (!currentEtag) throw new Error('Không có phiên bản bản chỉnh sửa.')
-        const result = await browserConsultation.saveAmendment(current.id, form, currentEtag)
+        const result = await browserConsultation.editProfileAmendment(current.id, form, currentEtag)
         setAmendment(result.data)
         setAmendmentEtag(result.etag)
         setForm(result.data.proposedProfile)
@@ -274,7 +274,7 @@ export default function SpecialistProfileWorkspace() {
     setNotice('')
     try {
       if (status === 'APPROVED' && amendment && amendmentEtag) {
-        const result = await browserConsultation.submitAmendment(amendment.id, amendment.status === 'REJECTED' ? 'resubmit' : 'submit', amendmentEtag)
+        const result = await browserConsultation.submitProfileAmendment(amendment.id, amendmentEtag, amendment.status === 'REJECTED')
         setAmendment(result.data)
         setAmendmentEtag(result.etag)
         setNotice('Bản chỉnh sửa đã được gửi để quản trị viên xét duyệt.')

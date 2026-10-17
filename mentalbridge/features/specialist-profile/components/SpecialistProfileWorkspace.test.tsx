@@ -22,6 +22,7 @@ const profile = {
 }
 const api = vi.hoisted(() => ({
   own: vi.fn(),
+  credentialDocuments: vi.fn(),
   save: vi.fn(),
   submit: vi.fn(),
   resubmit: vi.fn(),
@@ -35,6 +36,7 @@ describe('SpecialistProfileWorkspace', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     api.own.mockResolvedValue({ data: profile, etag: '"0"' })
+    api.credentialDocuments.mockResolvedValue({ data: [], etag: null })
     api.save.mockResolvedValue({
       data: { ...profile, displayName: 'Nguyễn Bình', version: 1 },
       etag: '"1"',
@@ -51,7 +53,7 @@ describe('SpecialistProfileWorkspace', () => {
     const name = await screen.findByLabelText('Tên hiển thị')
     await user.clear(name)
     await user.type(name, 'Nguyễn Bình')
-    await user.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }))
+    await user.click(screen.getAllByRole('button', { name: 'Lưu thay đổi' }).at(-1)!)
     await waitFor(() =>
       expect(api.save).toHaveBeenCalledWith(
         expect.objectContaining({ displayName: 'Nguyễn Bình' }),
@@ -65,16 +67,13 @@ describe('SpecialistProfileWorkspace', () => {
     ).toBeInTheDocument()
   })
 
-  it('discards only unsaved initial-profile changes and restores the saved data', async () => {
+  it('keeps unsaved changes local until the specialist saves them', async () => {
     const user = userEvent.setup()
     render(<SpecialistProfileWorkspace />)
     const name = await screen.findByLabelText('Tên hiển thị')
     await user.type(name, ' Chưa lưu')
-    await user.click(
-      screen.getByRole('button', { name: 'Hủy thay đổi chưa lưu' }),
-    )
-    expect(name).toHaveValue('Nguyễn An')
-    expect(name).toHaveFocus()
+    expect(name).toHaveValue('Nguyễn An Chưa lưu')
+    expect(screen.getByRole('button', { name: 'Gửi xét duyệt' })).toBeDisabled()
     expect(api.save).not.toHaveBeenCalled()
     expect(api.submit).not.toHaveBeenCalled()
   })
@@ -106,7 +105,8 @@ describe('SpecialistProfileWorkspace', () => {
     expect(
       await screen.findByText('Thông tin hồ sơ chưa đầy đủ.'),
     ).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }))
+    await user.type(screen.getByLabelText('Tên hiển thị'), ' đã sửa')
+    await user.click(screen.getAllByRole('button', { name: 'Lưu thay đổi' }).at(-1)!)
     await user.click(
       await screen.findByRole('button', { name: 'Gửi lại để xét duyệt' }),
     )
@@ -131,18 +131,16 @@ describe('SpecialistProfileWorkspace', () => {
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Tên hiển thị')).toBeDisabled()
     expect(
-      screen.queryByRole('button', { name: 'Lưu hồ sơ' }),
+      screen.queryByRole('button', { name: 'Lưu thay đổi' }),
     ).not.toBeInTheDocument()
   })
-  it('does not submit unsaved changes and focuses an invalid field on save', async () => {
+  it('does not save or submit an invalid profile', async () => {
     const user = userEvent.setup()
     render(<SpecialistProfileWorkspace />)
     const name = await screen.findByLabelText('Tên hiển thị')
     await user.clear(name)
     expect(screen.getByRole('button', { name: 'Gửi xét duyệt' })).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }))
-    expect(name).toHaveFocus()
-    expect(name).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getAllByRole('button', { name: 'Lưu thay đổi' }).at(-1)).toBeDisabled()
     expect(api.save).not.toHaveBeenCalled()
   })
   it('recovers a failed initial read without creating a blank replacement', async () => {
@@ -152,10 +150,9 @@ describe('SpecialistProfileWorkspace', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Chưa thể tải hồ sơ',
     )
-    expect(screen.getByRole('button', { name: 'Lưu hồ sơ' })).toBeDisabled()
     expect(screen.queryByLabelText('Tên hiển thị')).not.toBeInTheDocument()
     await user.click(
-      screen.getByRole('button', { name: 'Kiểm tra trạng thái mới nhất' }),
+      screen.getByRole('button', { name: 'Thử lại' }),
     )
     expect(await screen.findByLabelText('Tên hiển thị')).toHaveValue(
       'Nguyễn An',

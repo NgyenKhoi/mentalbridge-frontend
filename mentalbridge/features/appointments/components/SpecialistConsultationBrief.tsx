@@ -58,11 +58,23 @@ export function SpecialistConsultationBrief({
     }
   }
 
-  async function handleOpen() {
-    setOpen(true)
-    if (!brief) {
+  async function handleToggle() {
+    if (open) {
+      setOpen(false)
+      setBrief(null)
+      setError('')
+      setLoading(false)
+    } else {
+      setOpen(true)
       await load()
     }
+  }
+
+  function handleClose() {
+    setOpen(false)
+    setBrief(null)
+    setError('')
+    setLoading(false)
   }
 
   return (
@@ -80,18 +92,29 @@ export function SpecialistConsultationBrief({
         <button
           data-appointment-ui={compact ? '' : undefined}
           type="button"
-          onClick={() => void handleOpen()}
+          onClick={() => void handleToggle()}
           disabled={loading && !open}
           className={styles.triggerButton}
         >
           <FileText size={14} aria-hidden="true" />
-          {loading && !open ? 'Đang tải…' : 'Xem tóm tắt'}
+          {loading && !open
+            ? 'Đang tải…'
+            : open
+              ? 'Thu gọn tóm tắt'
+              : compact
+                ? 'Xem tóm tắt chuẩn bị'
+                : 'Xem tóm tắt'}
         </button>
       </div>
+      {error && !open && (
+        <p className={styles.notice} role="status">
+          {error}
+        </p>
+      )}
 
       <Dialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(val) => !val && handleClose()}
         labelledBy={`brief-title-${appointmentId}`}
         describedBy={`brief-desc-${appointmentId}`}
         className={styles.briefDialog}
@@ -112,7 +135,7 @@ export function SpecialistConsultationBrief({
             <button
               type="button"
               className={styles.modalCloseBtn}
-              onClick={() => setOpen(false)}
+              onClick={handleClose}
               aria-label="Đóng popup"
             >
               <X size={17} aria-hidden="true" />
@@ -233,7 +256,7 @@ export function SpecialistConsultationBrief({
               <button
                 type="button"
                 className={styles.btnClose}
-                onClick={() => setOpen(false)}
+                onClick={handleClose}
               >
                 Đóng
               </button>

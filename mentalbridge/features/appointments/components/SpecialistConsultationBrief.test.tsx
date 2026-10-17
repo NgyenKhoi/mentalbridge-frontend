@@ -33,7 +33,7 @@ describe('SpecialistConsultationBrief disclosure', () => {
     expect(api.specialist).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Xem tóm tắt' }))
     expect(await screen.findByText(brief.currentSituation)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Thu gọn tóm tắt' }))
+    await user.click(screen.getByRole('button', { name: 'Đóng popup' }))
     await waitFor(() =>
       expect(
         screen.queryByText(brief.currentSituation),
