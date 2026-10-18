@@ -203,6 +203,8 @@ export const canonicalSupportPlanSchema = z
     discardedAt: instant.nullable(),
     disclaimerCode: z.literal('WELLBEING_SUPPORT_NOT_TREATMENT'),
     disclaimer: z.string().min(1).max(1000),
+    // Additive MB-669 field; accepted so web-created 14-day plans still load here.
+    cycle: z.unknown().optional(),
   })
   .strict()
   .superRefine((plan, context) => {
@@ -288,6 +290,25 @@ export const actionOccurrenceSchema = z
       .nullable(),
     completionEvidence: completionEvidenceSchema.nullable(),
     outcomeRecordedAt: instant.nullable(),
+    // Additive MB-644 native engagement fields, emitted only when recorded.
+    hidden: z.boolean().optional(),
+    helpfulness: z
+      .enum(['NOT_HELPFUL', 'A_LITTLE_HELPFUL', 'HELPFUL', 'VERY_HELPFUL'])
+      .nullable()
+      .optional(),
+    barrierCode: z
+      .enum([
+        'LOW_ENERGY',
+        'NOT_ENOUGH_TIME',
+        'DIFFICULT_TO_START',
+        'NOT_A_GOOD_FIT',
+        'OTHER',
+      ])
+      .nullable()
+      .optional(),
+    reflection: nullableText(500).optional(),
+    summaryReuseApproved: z.boolean().optional(),
+    engagementUpdatedAt: instant.nullable().optional(),
   })
   .strict()
   .superRefine((value, context) => {

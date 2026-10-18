@@ -7,6 +7,7 @@ import type {
   JournalOccurrenceReconciliation,
   NativeSupportPlanReplacementReview,
   ReplaceCurrentSupportPlanRequest,
+  ReplaceSupportPlanOccurrenceEngagementRequest,
   SupportPlanActionHistory,
   SupportPlanV3,
 } from './support-plan-contract'
@@ -153,6 +154,38 @@ export async function reconcileEmotionCheckInOccurrence(id: string) {
   return (
     await browserApiClient.post<EmotionCheckInOccurrenceReconciliation>(
       `${occurrencePath(id)}/emotion-check-in/reconcile`,
+    )
+  ).data
+}
+
+export async function continueSupportPlanCycle(
+  id: string,
+  version: number,
+  idempotencyKey: string,
+) {
+  return (
+    await browserApiClient.post<SupportPlanV3>(
+      `${planPath(id)}/cycle-continuation`,
+      undefined,
+      {
+        headers: {
+          'If-Match': `"${version}"`,
+          'Idempotency-Key': idempotencyKey,
+        },
+      },
+    )
+  ).data
+}
+export async function replaceNativeOccurrenceEngagement(
+  id: string,
+  version: number,
+  request: ReplaceSupportPlanOccurrenceEngagementRequest,
+) {
+  return (
+    await browserApiClient.put<ActionOccurrence>(
+      `${occurrencePath(id)}/engagement`,
+      request,
+      { headers: { 'If-Match': `"${version}"` } },
     )
   ).data
 }
