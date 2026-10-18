@@ -9,7 +9,10 @@ import {
   loginErrorMessage,
 } from '../api/browser-auth'
 
-export default function LoginForm({ notice }: Readonly<{ notice?: string }>) {
+export default function LoginForm({
+  notice,
+  warning,
+}: Readonly<{ notice?: string; warning?: string }>) {
   const router = useRouter()
   const submitting = useRef(false)
   const [email, setEmail] = useState('')
@@ -42,6 +45,11 @@ export default function LoginForm({ notice }: Readonly<{ notice?: string }>) {
       {notice ? (
         <div className="auth-success" role="status">
           {notice}
+        </div>
+      ) : null}
+      {warning ? (
+        <div className="auth-error" role="alert">
+          {warning}
         </div>
       ) : null}
       <div className="form-group">

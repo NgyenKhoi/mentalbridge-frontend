@@ -13,7 +13,9 @@ export default function AdminCredentialReviewSection() {
   const { confirm, showActionToast } = useFeedback()
   const [documents, setDocuments] = useState<CredentialDocument[]>([])
   const [selected, setSelected] = useState<CredentialDocument | null>(null)
-  const [fileUrl, setFileUrl] = useState<string | null>(null)
+  const [file, setFile] = useState<{ documentId: string; url: string } | null>(
+    null,
+  )
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -40,20 +42,19 @@ export default function AdminCredentialReviewSection() {
     browserConsultation
       .pendingCredentialDocuments()
       .then((result) => {
-        if (active) {
-          setDocuments(result.data)
-          setLoading(false)
-        }
+        if (!active) return
+        setDocuments(result.data)
       })
       .catch((cause) => {
-        if (active) {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : 'Không thể tải giấy tờ đang chờ.',
-          )
-          setLoading(false)
-        }
+        if (!active) return
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : 'Không thể tải giấy tờ đang chờ.',
+        )
+      })
+      .finally(() => {
+        if (active) setLoading(false)
       })
     return () => {
       active = false
@@ -68,7 +69,7 @@ export default function AdminCredentialReviewSection() {
     browserConsultation
       .adminCredentialFile(selectedId)
       .then((result) => {
-        if (active) setFileUrl(result.data.url)
+        if (active) setFile({ documentId: selectedId, url: result.data.url })
       })
       .catch((cause) => {
         if (active)
@@ -83,7 +84,7 @@ export default function AdminCredentialReviewSection() {
 
   function inspect(document: CredentialDocument) {
     setSelected(document)
-    setFileUrl(null)
+    setFile(null)
     setError('')
   }
 
@@ -114,7 +115,7 @@ export default function AdminCredentialReviewSection() {
         current.filter((item) => item.id !== selected.id),
       )
       setSelected(null)
-      setFileUrl(null)
+      setFile(null)
       showActionToast({
         title:
           decision === 'verify' ? 'Đã xác minh giấy tờ' : 'Đã từ chối giấy tờ',
@@ -192,7 +193,7 @@ export default function AdminCredentialReviewSection() {
         onOpenChange={(open) => {
           if (!open && !busy) {
             setSelected(null)
-            setFileUrl(null)
+            setFile(null)
           }
         }}
         labelledBy="credential-review-document-title"
@@ -214,14 +215,14 @@ export default function AdminCredentialReviewSection() {
                 disabled={busy}
                 onClick={() => {
                   setSelected(null)
-                  setFileUrl(null)
+                  setFile(null)
                 }}
               >
                 <X aria-hidden="true" />
               </button>
             </header>
-            {fileUrl ? (
-              <iframe title={`Tệp gốc ${selected.title}`} src={fileUrl} />
+            {file?.documentId === selected.id ? (
+              <iframe title={`Tệp gốc ${selected.title}`} src={file.url} />
             ) : (
               <p className={styles.empty}>{error || 'Đang mở tệp gốc…'}</p>
             )}
@@ -235,7 +236,7 @@ export default function AdminCredentialReviewSection() {
               </button>
               <button
                 type="button"
-                disabled={busy || !fileUrl}
+                disabled={busy || file?.documentId !== selected.id}
                 onClick={() => void decide('verify')}
               >
                 <Check aria-hidden="true" /> Xác minh

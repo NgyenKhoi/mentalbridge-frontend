@@ -137,14 +137,13 @@ test('MB-380 cancels an appointment and renders persisted audit evidence', async
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/appointments')
   await expect(
-    page.getByRole('link', {
+    page.getByRole('button', {
       name: /Xem chi tiết lịch hẹn với Chuyên gia Nguyễn An/,
     }),
   ).toBeVisible()
-  await expect(page.locator('time').first().locator('strong')).toHaveCSS(
-    'color',
-    'rgb(255, 255, 255)',
-  )
+  await expect(
+    page.getByRole('region', { name: 'Cuộc hẹn kế tiếp' }),
+  ).toBeVisible()
   await page.screenshot({
     path: 'docs/evidence/appointments-overview-redesign.png',
     fullPage: true,
@@ -162,22 +161,33 @@ test('MB-380 cancels an appointment and renders persisted audit evidence', async
   }
   await page.setViewportSize({ width: 1280, height: 900 })
   await page
-    .getByRole('link', {
+    .getByRole('button', {
       name: /Xem chi tiết lịch hẹn với Chuyên gia Nguyễn An/,
     })
     .click()
-  await page.getByRole('button', { name: 'Hủy lịch' }).click()
-  const dialog = page.getByRole('dialog')
-  await expect(dialog.getByText('Hủy lịch hẹn này?')).toBeVisible()
+  await expect(
+    page.getByRole('dialog', { name: 'Chi tiết lịch hẹn' }),
+  ).toBeVisible()
+  await page
+    .getByRole('dialog', { name: 'Chi tiết lịch hẹn' })
+    .getByRole('button', { name: 'Hủy lịch' })
+    .click()
+  const dialog = page.getByRole('dialog', { name: 'Hủy lịch hẹn này?' })
   await dialog.getByRole('button', { name: 'Hủy lịch hẹn' }).click()
 
-  await expect(page.getByText('Thông tin hủy lịch')).toBeVisible()
+  await page
+    .getByRole('button', {
+      name: /Xem chi tiết lịch hẹn với Chuyên gia Nguyễn An/,
+    })
+    .click()
+  const detail = page.getByRole('dialog', { name: 'Chi tiết lịch hẹn' })
+  await expect(detail.getByText('Thông tin hủy lịch')).toBeVisible()
   await expect(
-    page.getByText('Đã được hoàn lại', { exact: true }),
+    detail.getByText('Đã được hoàn lại', { exact: true }),
   ).toBeVisible()
-  await expect(page.getByText('Lý do: bạn yêu cầu hủy')).toBeVisible()
-  await page.getByText('Lịch sử thay đổi').click()
-  await expect(page.getByText('Đã hủy').last()).toBeVisible()
+  await expect(detail.getByText('Lý do: bạn yêu cầu hủy')).toBeVisible()
+  await detail.getByText('Lịch sử thay đổi').click()
+  await expect(detail.getByText('Đã hủy').last()).toBeVisible()
   await page.screenshot({
     path: 'docs/evidence/mb-380-appointment-changes.png',
     fullPage: true,
@@ -237,13 +247,23 @@ test('MB-380 reschedule carries the old appointment identity and version', async
   })
 
   await page.goto('/appointments')
+  await page.getByRole('button', { name: '+ Đặt lịch mới' }).click()
+  await expect(
+    page.getByRole('dialog', { name: 'Chọn khung giờ tư vấn' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Đóng chọn khung giờ' }).click()
   await page
-    .getByRole('link', {
+    .getByRole('button', {
       name: /Xem chi tiết lịch hẹn với Chuyên gia Nguyễn An/,
     })
     .click()
-  await page.getByRole('button', { name: 'Đổi lịch' }).click()
+  await page
+    .getByRole('dialog', { name: 'Chi tiết lịch hẹn' })
+    .getByRole('button', { name: 'Đổi lịch' })
+    .click()
   await expect(page.getByText(/chỉ được hủy khi yêu cầu mới/)).toBeVisible()
-  await page.getByRole('button', { name: /Đổi lịch sang/ }).click()
+  const booking = page.getByRole('dialog', { name: 'Chọn thời gian mới' })
+  await booking.getByRole('button', { name: /Chuyên gia Trần Minh/ }).click()
+  await booking.getByRole('button', { name: 'Gửi yêu cầu đổi lịch' }).click()
   await expect.poll(() => listCalls).toBeGreaterThan(1)
 })

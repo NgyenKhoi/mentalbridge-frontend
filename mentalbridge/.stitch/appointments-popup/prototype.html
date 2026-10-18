@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lịch hẹn · Popup prototype</title>
+    <style>
+      :root { font-family: "Be Vietnam Pro", system-ui, sans-serif; color: #17372e; background: #e8eee7; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      .shell { min-height: 100dvh; display: grid; grid-template-columns: 212px minmax(0, 1fr); }
+      aside { padding: 22px 16px; background: #f1f5ef; border-right: 1px solid #dce5da; }
+      aside strong { display: block; margin-bottom: 36px; font-family: Georgia, serif; }
+      nav span { display: block; padding: 12px; border-radius: 10px; }
+      nav .current { background: #1e5445; color: white; }
+      header { height: 70px; background: #f1f5ef; border-bottom: 1px solid #dce5da; padding: 16px 28px; font-weight: 700; }
+      main { padding: 42px clamp(18px, 5vw, 72px); max-width: 1160px; }
+      h1 { font: 700 clamp(30px, 4vw, 42px) Georgia, serif; margin: 10px 0 8px; }
+      main > p { color: #53685f; margin: 0 0 24px; }
+      .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 22px; align-items: start; }
+      .card { background: white; border-radius: 18px; padding: 22px; }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 0; border-top: 1px solid #edf0ec; }
+      .row p { margin: 4px 0 0; color: #60736a; font-size: 14px; }
+      button { border: 1px solid #cad9d0; border-radius: 9px; background: white; color: #1a5142; padding: 10px 15px; font: inherit; font-weight: 700; cursor: pointer; }
+      button:focus-visible { outline: 3px solid #a4d5b7; outline-offset: 2px; }
+      .primary { background: #174b3d; color: white; }
+      dialog { width: min(620px, calc(100% - 24px)); max-height: min(85dvh, 760px); padding: 0; border: 0; border-radius: 20px; background: #fff; color: #17372e; box-shadow: 0 20px 80px #102a2050; }
+      dialog::backdrop { background: #102a2099; backdrop-filter: blur(3px); }
+      dialog > div { padding: clamp(20px, 4vw, 30px); overflow: auto; max-height: min(85dvh, 760px); }
+      .dialog-head { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+      .dialog-head span { color: #28765a; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+      h2 { font: 700 27px Georgia, serif; margin: 6px 0 8px; }
+      .dialog-head button { padding: 4px 10px; font-size: 22px; }
+      dl { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 20px 0; border-block: 1px solid #e7eee8; }
+      dt { color: #71837a; font-size: 12px; } dd { margin: 4px 0 0; font-weight: 700; }
+      .choices { display: grid; gap: 10px; padding: 18px 0; }
+      .choices button { text-align: left; }
+      .choices button[aria-pressed="true"] { border-color: #1c7052; background: #edf6ef; }
+      .actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+      #status { min-height: 22px; color: #20694e; }
+      @media (max-width: 800px) { .shell { display: block; } aside { display: none; } .layout { grid-template-columns: 1fr; } header { height: 62px; } main { padding: 28px 16px; } }
+      @media (max-width: 440px) { dl { grid-template-columns: 1fr; } .actions button { flex: 1; } }
+      @media (prefers-reduced-motion: no-preference) { dialog[open] { animation: arrive 180ms ease-out; } @keyframes arrive { from { opacity: 0; transform: translateY(12px); } } }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside><strong>MentalBridge</strong><nav><span>Tổng quan</span><span>Chuyên gia</span><span class="current">Lịch hẹn</span><span>Tin nhắn</span></nav></aside>
+      <div><header>Không gian cá nhân / Lịch hẹn tư vấn</header><main><small>TƯ VẤN SỨC KHỎE TÂM LÝ</small><h1>Lịch hẹn của bạn</h1><p>Quản lý các cuộc hẹn ngay tại đây.</p><div class="layout"><section class="card"><h3>Danh sách các cuộc hẹn</h3><div class="row"><div><strong>ThS. BS. Minh Anh</strong><p>16/10 · 19:30–20:30 · Đã xác nhận</p></div><button type="button" data-open="detail">Xem chi tiết</button></div><div class="row"><div><strong>ThS. Thu Hà</strong><p>15/10 · 19:30–20:30 · Đã xác nhận</p></div><button type="button" data-open="reschedule">Đổi lịch</button></div></section><section class="card"><h3>Đặt hẹn nhanh</h3><p>Chọn khung giờ còn trống.</p><button type="button" class="primary" data-open="booking">Chọn giờ hẹn</button></section></div></main></div>
+    </div>
+    <dialog id="popup" aria-labelledby="popup-title"><div><div class="dialog-head"><div><span id="popup-kicker">Cuộc hẹn của bạn</span><h2 id="popup-title">Chi tiết lịch hẹn</h2><p id="popup-intro">ThS. BS. Minh Anh · Đã xác nhận</p></div><button type="button" id="close" aria-label="Đóng popup">×</button></div><dl><div><dt>Thời gian</dt><dd>16/10 · 19:30–20:30</dd></div><div><dt>Hình thức</dt><dd>Video trong ứng dụng</dd></div></dl><div class="choices" id="choices"></div><p id="status" role="status"></p><div class="actions"><button type="button" id="cancel">Đóng</button><button type="button" class="primary" id="submit">Tiếp tục</button></div></div></dialog>
+    <script>
+      const popup = document.querySelector('#popup');
+      const choices = document.querySelector('#choices');
+      const title = document.querySelector('#popup-title');
+      const status = document.querySelector('#status');
+      const submit = document.querySelector('#submit');
+      let opener;
+      document.querySelectorAll('[data-open]').forEach(button => button.addEventListener('click', () => {
+        opener = button;
+        const mode = button.dataset.open;
+        title.textContent = mode === 'booking' ? 'Chọn khung giờ tư vấn' : mode === 'reschedule' ? 'Đổi lịch hẹn' : 'Chi tiết lịch hẹn';
+        choices.innerHTML = mode === 'detail' ? '<p>Xem thông tin và các thao tác có thể thực hiện.</p>' : '<button type="button" aria-pressed="false">09:00–10:00 · ThS. Thu Hà</button><button type="button" aria-pressed="false">20:00–21:00 · ThS. BS. Minh Anh</button>';
+        choices.querySelectorAll('button').forEach(choice => choice.addEventListener('click', () => { choices.querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', 'false')); choice.setAttribute('aria-pressed', 'true'); status.textContent = ''; }));
+        submit.textContent = mode === 'detail' ? 'Đổi lịch' : mode === 'reschedule' ? 'Gửi yêu cầu đổi lịch' : 'Gửi yêu cầu đặt lịch';
+        status.textContent = '';
+        popup.showModal();
+        document.querySelector('#close').focus();
+      }));
+      function close() { popup.close(); opener?.focus(); }
+      document.querySelector('#close').addEventListener('click', close);
+      document.querySelector('#cancel').addEventListener('click', close);
+      popup.addEventListener('click', event => { if (event.target === popup) close(); });
+      submit.addEventListener('click', () => { if (choices.querySelector('button') && !choices.querySelector('[aria-pressed="true"]')) { status.textContent = 'Vui lòng chọn một khung giờ.'; return; } status.textContent = 'Đã ghi nhận lựa chọn trong bản xem thử.'; });
+    </script>
+  </body>
+</html>

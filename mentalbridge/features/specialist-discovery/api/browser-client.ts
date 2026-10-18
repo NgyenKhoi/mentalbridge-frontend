@@ -1,4 +1,5 @@
 import { browserApiClient } from '@/lib/api/browser-client'
+import type { VerifiedCredentialBadge } from '@/features/specialist-profile/api/credential-validation'
 import type {
   SpecialistDiscoveryItem,
   SpecialistDiscoveryPage,
@@ -6,7 +7,7 @@ import type {
 
 export type DiscoveryFilters = Readonly<{
   supportArea?: 'DEPRESSIVE_SYMPTOMS' | 'ANXIETY_SYMPTOMS'
-  language?: 'vi' | 'en'
+  language?: 'vi' | 'en' | 'zh' | 'fr'
   timezone?: string
   modality?: 'IN_APP_CHAT' | 'IN_APP_VIDEO'
   cursor?: string
@@ -20,6 +21,13 @@ function query(filters: DiscoveryFilters) {
 }
 
 export const specialistDiscoveryBrowserClient = {
+  async badges(specialistAccountId: string) {
+    return (
+      await browserApiClient.get<VerifiedCredentialBadge[]>(
+        `/consultation/specialists/${encodeURIComponent(specialistAccountId)}/credential-badges`,
+      )
+    ).data
+  },
   async list(filters: DiscoveryFilters = {}) {
     return (
       await browserApiClient.get<SpecialistDiscoveryPage>(

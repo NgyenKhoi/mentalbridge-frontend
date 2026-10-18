@@ -111,7 +111,7 @@ test('MB-595 renders completed-session continuity without fabricated monitoring'
 
   await expect(
     page.getByRole('heading', {
-      name: 'Nội dung đã thống nhất sau phiên',
+      name: 'Theo dõi sau phiên',
     }),
   ).toBeVisible()
   await expect(page.getByText('Ghi lại giờ ngủ trong ba ngày')).toBeVisible()
@@ -135,7 +135,7 @@ test('MB-595 renders completed-session continuity without fabricated monitoring'
   await page.setViewportSize({ width: 1280, height: 800 })
   await expect(
     page.getByRole('heading', {
-      name: 'Nội dung đã thống nhất sau phiên',
+      name: 'Theo dõi sau phiên',
     }),
   ).toBeVisible()
   await page.screenshot({
@@ -154,7 +154,7 @@ test('MB-595 renders completed-session continuity without fabricated monitoring'
   await page.setViewportSize({ width: 375, height: 812 })
   await expect(
     page.getByRole('heading', {
-      name: 'Nội dung đã thống nhất sau phiên',
+      name: 'Theo dõi sau phiên',
     }),
   ).toBeVisible()
   await page

@@ -31,12 +31,10 @@
   min-width: 0;
 }
 .heading h1 {
-  margin-top: 6px;
-  font-family: var(--font-be-vietnam), sans-serif;
-  font-size: clamp(24px, 2.2vw, 32px);
-  font-weight: 750;
-  line-height: 1.35;
-  letter-spacing: -0.035em;
+  margin-top: var(--space-2);
+  font-size: clamp(30px, 2.8vw, 38px);
+  font-weight: 700;
+  line-height: 1.15;
 }
 .heading p {
   max-width: 65ch;

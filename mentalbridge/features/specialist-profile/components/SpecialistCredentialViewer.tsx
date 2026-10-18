@@ -19,16 +19,24 @@ export default function SpecialistCredentialViewer({
   documents: CredentialDocument[]
   selectedId: string | null
 }) {
-  const [userSelectedId, setUserSelectedId] = useState<string | null>(null)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [prevSelectedId, setPrevSelectedId] = useState<string | null>(
+    selectedId,
+  )
+  if (selectedId !== prevSelectedId) {
+    setPrevSelectedId(selectedId)
+    setActiveId(null)
+  }
   const [loadedDoc, setLoadedDoc] = useState<{
     id: string
     url: string | null
   } | null>(null)
   const [error, setError] = useState('')
   const [zoom, setZoom] = useState(100)
-  const activeId = userSelectedId ?? selectedId ?? documents[0]?.id ?? null
+  const effectiveId = activeId ?? selectedId ?? documents[0]?.id ?? null
   const selected =
-    documents.find((item) => item.id === activeId) ?? documents[0] ?? null
+    documents.find((item) => item.id === effectiveId) ?? documents[0] ?? null
+  // Bound to the document id so a late response for another document is never shown.
   const url =
     loadedDoc && selected && loadedDoc.id === selected.id ? loadedDoc.url : null
 
@@ -104,7 +112,7 @@ export default function SpecialistCredentialViewer({
                 className={styles.document}
                 aria-current={selected?.id === document.id ? 'true' : undefined}
                 onClick={() => {
-                  setUserSelectedId(document.id)
+                  setActiveId(document.id)
                   setZoom(100)
                 }}
               >
@@ -209,10 +217,12 @@ export default function SpecialistCredentialViewer({
                       void browserConsultation
                         .credentialFile(selected.id)
                         .then((result) => {
-                          setLoadedDoc({
-                            id: selected.id,
-                            url: result.data.url,
-                          })
+                          // A newer load for another document wins over this late reload.
+                          setLoadedDoc((current) =>
+                            current && current.id !== selected.id
+                              ? current
+                              : { id: selected.id, url: result.data.url },
+                          )
                           setError('')
                         })
                         .catch(() => setError('Không thể mở tệp. Hãy thử lại.'))
