@@ -98,7 +98,7 @@ export default function SupportPlanCompanionPanel({
     const panel = panelRef.current
     const releaseScrollLock = lockBodyScroll(panel.ownerDocument)
     const addedInert: HTMLElement[] = []
-    const page = panel.closest<HTMLElement>('.support-plan-page')
+    const page = panel.closest<HTMLElement>('.support-plan-page, .mbw-page')
     let branch: HTMLElement | null = panel.closest<HTMLElement>(
       '.support-plan-companion',
     )

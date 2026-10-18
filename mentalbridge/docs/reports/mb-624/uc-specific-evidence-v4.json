@@ -569,11 +569,11 @@
       "sourceTitle": "View Personalized Intervention Plan",
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/support-plan/components/SupportPlanJourney.test.tsx",
-        "scenario": "renders the authoritative current active plan before looking for a draft",
+        "source": "mentalbridge/features/support-plan/workspace/SupportPlanWorkspace.test.tsx",
+        "scenario": "renders the current plan with one next action on Today",
         "assertions": [
-          "api.getCurrentSupportPlan.mockResolvedValue(activePlan())",
-          "screen.findByText('Kế hoạch đang thực hiện')"
+          "screen.findByRole('heading', { name: 'Check-in cảm xúc' })",
+          "screen.getByRole('tab', { name: 'Hôm nay' })"
         ]
       },
       "mobile": {
@@ -1621,10 +1621,11 @@
       "sourceTitle": "Create Follow-up Plan",
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/support-plan/components/SupportPlanJourney.test.tsx",
-        "scenario": "creates a bounded draft from the empty state and retains one retry key",
+        "source": "mentalbridge/features/support-plan/workspace/SupportPlanWorkspace.test.tsx",
+        "scenario": "auto-proposes once with the deterministic key and shows the preview",
         "assertions": [
-          "api.getCurrentSupportPlanDraft.mockRejectedValue("
+          "expect(api.proposeNativeSupportPlanDraft).toHaveBeenCalledTimes(1)",
+          "`auto-proposal-${evaluationId}-p0`"
         ]
       },
       "mobile": {
@@ -1641,11 +1642,10 @@
       "sourceTitle": "View Follow-up Plan",
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/support-plan/components/SupportPlanJourney.test.tsx",
-        "scenario": "renders the authoritative current active plan before looking for a draft",
+        "source": "mentalbridge/features/support-plan/workspace/SupportPlanWorkspace.test.tsx",
+        "scenario": "shows the plan grouped by focus with plain cadence",
         "assertions": [
-          "screen.findByText('Kế hoạch đang thực hiện')",
-          "api.getCurrentSupportPlanDraft).toHaveBeenCalledTimes(1)"
+          "screen.getByText('Mỗi ngày · khoảng 5 phút')"
         ]
       },
       "mobile": {
@@ -1683,10 +1683,10 @@
       "sourceTitle": "Submit Follow-up Check-in",
       "web": {
         "state": "CODE_READY",
-        "source": "mentalbridge/features/support-plan/components/SupportPlanSchedule.test.tsx",
-        "scenario": "records helpfulness, private reflection, and explicit summary reuse approval",
+        "source": "mentalbridge/features/support-plan/workspace/SupportPlanWorkspace.test.tsx",
+        "scenario": "records helpfulness for a completed native activity",
         "assertions": [
-          "api.getSupportPlanOccurrences.mockResolvedValue("
+          "expect.objectContaining({ state: 'COMPLETED', helpfulness: 'HELPFUL' })"
         ]
       },
       "mobile": {

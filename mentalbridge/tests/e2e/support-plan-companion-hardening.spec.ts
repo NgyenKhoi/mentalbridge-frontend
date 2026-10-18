@@ -201,19 +201,22 @@ test.describe('MB-653 Companion release hardening', () => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto('/support-plan')
 
-    const sourceAction = page.getByRole('link', { name: 'Ghi nhận cảm xúc' })
+    const sourceAction = page.getByRole('link', { name: 'Ghi lại cảm xúc' })
     await expect(sourceAction).toBeVisible()
     await page
       .getByRole('button', {
         name: 'Nhờ bạn đồng hành giải thích: Check-in cảm xúc',
       })
       .click()
+    // On a phone the explanation shows in the companion tray, after the next action.
     await expect(
       page
+        .getByRole('complementary', {
+          name: 'Bạn đồng hành trong kế hoạch hỗ trợ',
+        })
         .getByText(
           'Chưa thể tải lời giải thích lúc này. Bạn vẫn có thể tiếp tục hoạt động hoặc thử lại khi phù hợp.',
-        )
-        .first(),
+        ),
     ).toBeVisible()
     await expect(sourceAction).toBeEnabled()
     expect(requests.companionRequests()).toBe(1)
@@ -227,11 +230,13 @@ test.describe('MB-653 Companion release hardening', () => {
       companion.boundingBox(),
       tabPanel.boundingBox(),
     ])
-    expect(
-      (companionBox?.y ?? 0) + (companionBox?.height ?? 0),
-    ).toBeLessThanOrEqual((panelBox?.y ?? 0) + 1)
+    // MB-644: on a phone the one next action comes first; the companion follows it.
+    expect(companionBox?.y ?? 0).toBeGreaterThanOrEqual(
+      (panelBox?.y ?? 0) + (panelBox?.height ?? 0) - 1,
+    )
 
     await page.getByRole('tab', { name: 'Điều chỉnh' }).click()
+    await page.getByText('Lịch và thời lượng', { exact: true }).click()
     const duration = page.getByRole('spinbutton', {
       name: 'Thời lượng dự kiến (phút)',
     })

@@ -151,4 +151,32 @@ describe('Care native action transport', () => {
       ),
     ).toEqual(plan)
   })
+  it('passes a replayed proposal that is no longer a draft to the workspace', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    const discarded = {
+      ...nativeSupportPlanFixture(),
+      status: 'DISCARDED',
+      activatedAt: null,
+      discardedAt: '2026-10-17T02:00:00Z',
+    }
+    let reply: Record<string, unknown> = discarded
+    mockServer.use(
+      http.post('http://care.test/api/v2/support-plans', () =>
+        HttpResponse.json(reply, { status: 200 }),
+      ),
+    )
+    const propose = () =>
+      supportPlanActionClient.propose(
+        'owner-token',
+        { sourceSupportEvaluationId: emotionActionId },
+        'auto-proposal-replay',
+        'correlation',
+      )
+    expect(await propose()).toEqual(discarded)
+    reply = { ...discarded, representationMode: 'V2_RESOURCE_ADAPTER' }
+    await expect(propose()).rejects.toMatchObject({
+      status: 502,
+      code: 'CARE_MALFORMED_RESPONSE',
+    })
+  })
 })

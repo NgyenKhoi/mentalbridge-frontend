@@ -19,11 +19,85 @@ function object(value: unknown): value is Record<string, unknown> {
 function exact(
   value: unknown,
   keys: readonly string[],
+  optional: readonly string[] = [],
 ): value is Record<string, unknown> {
   return (
     object(value) &&
-    Object.keys(value).length === keys.length &&
-    keys.every((key) => Object.hasOwn(value, key))
+    keys.every((key) => Object.hasOwn(value, key)) &&
+    Object.keys(value).every(
+      (key) => keys.includes(key) || optional.includes(key),
+    )
+  )
+}
+
+const CYCLE_STATES = [
+  'NOT_STARTED',
+  'IN_PROGRESS',
+  'PAUSED',
+  'REVIEW_DUE',
+  'CLOSED',
+] as const
+
+/** Additive, optional on the wire: absent for v2 and pre-proposal plans. */
+function cycle(value: unknown) {
+  if (value === undefined || value === null) return true
+  return (
+    exact(value, [
+      'policyVersion',
+      'lengthDays',
+      'timezone',
+      'cycleNumber',
+      'startedOn',
+      'reviewDueOn',
+      'currentDay',
+      'pausedDays',
+      'state',
+    ]) &&
+    value.policyVersion === 'support-plan-cycle-v1' &&
+    value.lengthDays === 14 &&
+    text(value.timezone, 64) &&
+    integer(value.cycleNumber, 1) &&
+    (value.startedOn === null || isSupportPlanLocalDate(value.startedOn)) &&
+    (value.reviewDueOn === null || isSupportPlanLocalDate(value.reviewDueOn)) &&
+    (value.currentDay === null || integer(value.currentDay, 1)) &&
+    integer(value.pausedDays) &&
+    CYCLE_STATES.includes(value.state as (typeof CYCLE_STATES)[number])
+  )
+}
+
+const ENGAGEMENT_KEYS = [
+  'hidden',
+  'helpfulness',
+  'barrierCode',
+  'reflection',
+  'summaryReuseApproved',
+  'engagementUpdatedAt',
+] as const
+
+function engagement(value: Record<string, unknown>) {
+  const has = (key: string) => Object.hasOwn(value, key)
+  return (
+    (!has('hidden') || typeof value.hidden === 'boolean') &&
+    (!has('helpfulness') ||
+      value.helpfulness === null ||
+      (typeof value.helpfulness === 'string' &&
+        ['NOT_HELPFUL', 'A_LITTLE_HELPFUL', 'HELPFUL', 'VERY_HELPFUL'].includes(
+          value.helpfulness,
+        ))) &&
+    (!has('barrierCode') ||
+      value.barrierCode === null ||
+      (typeof value.barrierCode === 'string' &&
+        [
+          'LOW_ENERGY',
+          'NOT_ENOUGH_TIME',
+          'DIFFICULT_TO_START',
+          'NOT_A_GOOD_FIT',
+          'OTHER',
+        ].includes(value.barrierCode))) &&
+    (!has('reflection') || nullableText(value.reflection, 500)) &&
+    (!has('summaryReuseApproved') ||
+      typeof value.summaryReuseApproved === 'boolean') &&
+    (!has('engagementUpdatedAt') || nullableInstant(value.engagementUpdatedAt))
   )
 }
 
@@ -199,25 +273,30 @@ export function parseCanonicalSupportPlan(
 ): SupportPlanV3 | null {
   if (
     !parseSupportPlanV3(value) ||
-    !exact(value, [
-      'supportPlanId',
-      'modelVersion',
-      'planPolicyVersion',
-      'representationMode',
-      'status',
-      'version',
-      'safety',
-      'focuses',
-      'createdAt',
-      'updatedAt',
-      'activatedAt',
-      'completedAt',
-      'completionReason',
-      'supersededAt',
-      'discardedAt',
-      'disclaimerCode',
-      'disclaimer',
-    ]) ||
+    !exact(
+      value,
+      [
+        'supportPlanId',
+        'modelVersion',
+        'planPolicyVersion',
+        'representationMode',
+        'status',
+        'version',
+        'safety',
+        'focuses',
+        'createdAt',
+        'updatedAt',
+        'activatedAt',
+        'completedAt',
+        'completionReason',
+        'supersededAt',
+        'discardedAt',
+        'disclaimerCode',
+        'disclaimer',
+      ],
+      ['cycle'],
+    ) ||
+    !cycle(value.cycle) ||
     !integer(value.version) ||
     !instant(value.createdAt) ||
     !instant(value.updatedAt) ||
@@ -405,23 +484,28 @@ export function parseCompletionEvidence(
 
 export function parseActionOccurrence(value: unknown): ActionOccurrence | null {
   if (
-    !exact(value, [
-      'occurrenceId',
-      'actionId',
-      'actionType',
-      'actionVersion',
-      'scheduleId',
-      'scheduleVersion',
-      'representationMode',
-      'version',
-      'localDate',
-      'scheduledAt',
-      'state',
-      'displayState',
-      'stateReason',
-      'completionEvidence',
-      'outcomeRecordedAt',
-    ]) ||
+    !exact(
+      value,
+      [
+        'occurrenceId',
+        'actionId',
+        'actionType',
+        'actionVersion',
+        'scheduleId',
+        'scheduleVersion',
+        'representationMode',
+        'version',
+        'localDate',
+        'scheduledAt',
+        'state',
+        'displayState',
+        'stateReason',
+        'completionEvidence',
+        'outcomeRecordedAt',
+      ],
+      ENGAGEMENT_KEYS,
+    ) ||
+    !engagement(value) ||
     !isUuid(String(value.occurrenceId)) ||
     !text(value.actionId, 128) ||
     !ACTION_TYPES.includes(value.actionType as (typeof ACTION_TYPES)[number]) ||

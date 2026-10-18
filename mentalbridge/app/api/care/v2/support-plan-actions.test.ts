@@ -22,6 +22,8 @@ const client = vi.hoisted(() => ({
   reconcile: vi.fn(),
   companionExplanation: vi.fn(),
   reconcileJournal: vi.fn(),
+  continueCycle: vi.fn(),
+  occurrenceEngagement: vi.fn(),
 }))
 const session = vi.hoisted(() => ({
   resolveSession: vi.fn(),
@@ -502,6 +504,86 @@ describe('Native SupportPlan bounded BFF', () => {
         )
       ).status,
     ).toBe(200)
+  })
+  it('continues a review-due cycle only with strong If-Match, a retry key and no body', async () => {
+    const headers = { 'if-match': '"3"', 'idempotency-key': key }
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('POST', undefined, headers),
+          'continueCycle',
+          id,
+        )
+      ).status,
+    ).toBe(200)
+    expect(client.continueCycle).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      3,
+      key,
+      expect.any(String),
+    )
+    for (const [body, extra] of [
+      [undefined, { 'if-match': '"3"' }],
+      [undefined, { 'idempotency-key': key }],
+      [{ cycleNumber: 9 }, headers],
+    ] as const) {
+      expect(
+        (
+          await supportPlanActionHandler(
+            request('POST', body, extra),
+            'continueCycle',
+            id,
+          )
+        ).status,
+      ).toBe(400)
+    }
+    expect(client.continueCycle).toHaveBeenCalledTimes(1)
+  })
+  it('records native helpfulness only through the bounded engagement shape', async () => {
+    client.occurrenceEngagement.mockResolvedValue(emotionOccurrenceFixture())
+    const body = {
+      state: 'COMPLETED',
+      hidden: false,
+      helpfulness: 'HELPFUL',
+      barrierCode: null,
+      reflection: null,
+      summaryReuseApproved: false,
+    }
+    expect(
+      (
+        await supportPlanActionHandler(
+          request('PUT', body, { 'if-match': '"1"' }),
+          'occurrenceEngagement',
+          id,
+        )
+      ).status,
+    ).toBe(200)
+    expect(client.occurrenceEngagement).toHaveBeenCalledWith(
+      'server-token-only',
+      id,
+      1,
+      body,
+      expect.any(String),
+    )
+    for (const invalid of [
+      { ...body, helpfulness: 'AMAZING' },
+      { ...body, completionEvidence: { factId: id } },
+      { ...body, state: 'SKIPPED' },
+      { ...body, state: ['SCHEDULED'], helpfulness: null },
+      { ...body, helpfulness: ['HELPFUL'] },
+    ]) {
+      expect(
+        (
+          await supportPlanActionHandler(
+            request('PUT', invalid, { 'if-match': '"1"' }),
+            'occurrenceEngagement',
+            id,
+          )
+        ).status,
+      ).toBe(400)
+    }
+    expect(client.occurrenceEngagement).toHaveBeenCalledTimes(1)
   })
   it('validates lifecycle reason and cursor bounds', async () => {
     expect(

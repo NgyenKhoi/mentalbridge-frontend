@@ -181,7 +181,8 @@ function practiceDurationLabel(seconds: number) {
 
 type Props = Readonly<{
   resourceId: string
-  fromSupportPlan: boolean
+  /** Exact plan return, carrying the occurrence the user left from. */
+  supportPlanReturnHref?: string
   returnSupportGuideId?: string
   returnGuideContext?: GuideReturnContext
   activityDate?: string
@@ -201,7 +202,7 @@ type ProgressLoadResult = Readonly<{
 
 export default function ResourceDetail({
   resourceId,
-  fromSupportPlan,
+  supportPlanReturnHref,
   returnSupportGuideId,
   returnGuideContext,
   activityDate,
@@ -495,12 +496,12 @@ export default function ResourceDetail({
     timerRunning,
   ])
 
-  const backHref = fromSupportPlan
-    ? '/support-plan'
+  const backHref = supportPlanReturnHref
+    ? supportPlanReturnHref
     : returnSupportGuideId
       ? guideReturnHref(returnSupportGuideId, returnGuideContext)
       : '/resources'
-  const backLabel = fromSupportPlan
+  const backLabel = supportPlanReturnHref
     ? 'Quay lại kế hoạch hỗ trợ'
     : returnSupportGuideId
       ? 'Quay lại gợi ý hỗ trợ'

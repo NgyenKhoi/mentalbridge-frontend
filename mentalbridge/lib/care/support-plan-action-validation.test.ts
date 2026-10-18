@@ -62,6 +62,54 @@ describe('Canonical native SupportPlan boundaries', () => {
     malformed.focuses[0].actions[0].actionVersion = -1
     expect(parseCanonicalSupportPlan(malformed)).toBeNull()
   })
+  it('accepts the additive 14-day cycle only in its exact shape, and its absence', () => {
+    const cycle = {
+      policyVersion: 'support-plan-cycle-v1',
+      lengthDays: 14,
+      timezone: 'Asia/Ho_Chi_Minh',
+      cycleNumber: 1,
+      startedOn: '2026-10-17',
+      reviewDueOn: '2026-10-30',
+      currentDay: 1,
+      pausedDays: 0,
+      state: 'IN_PROGRESS',
+    } as const
+    const plan = nativeSupportPlanFixture()
+    expect(parseCanonicalSupportPlan(plan)).not.toBeNull()
+    expect(parseCanonicalSupportPlan({ ...plan, cycle: null })).not.toBeNull()
+    expect(parseCanonicalSupportPlan({ ...plan, cycle })).not.toBeNull()
+    for (const wrong of [
+      { ...cycle, lengthDays: 30 },
+      { ...cycle, state: 'FINISHED' },
+      { ...cycle, startedOn: '2026-02-30' },
+      { ...cycle, score: 80 },
+    ])
+      expect(parseCanonicalSupportPlan({ ...plan, cycle: wrong })).toBeNull()
+  })
+  it('tolerates additive native engagement fields but validates their values', () => {
+    const occurrence = emotionOccurrenceFixture()
+    const engaged = {
+      ...occurrence,
+      hidden: false,
+      helpfulness: null,
+      barrierCode: null,
+      reflection: null,
+      summaryReuseApproved: false,
+      engagementUpdatedAt: null,
+    }
+    expect(parseActionOccurrence(occurrence)).toEqual(occurrence)
+    expect(parseActionOccurrence(engaged)).toEqual(engaged)
+    expect(
+      parseActionOccurrence({ ...engaged, helpfulness: 'AMAZING' }),
+    ).toBeNull()
+    expect(
+      parseActionOccurrence({ ...engaged, helpfulness: ['HELPFUL'] }),
+    ).toBeNull()
+    expect(
+      parseActionOccurrence({ ...engaged, barrierCode: ['OTHER'] }),
+    ).toBeNull()
+    expect(parseActionOccurrence({ ...engaged, rawEmotion: 5 })).toBeNull()
+  })
 
   it('validates real local dates and bounded, nonduplicated owner occurrence windows', () => {
     expect(isSupportPlanLocalDate('2026-02-30')).toBe(false)

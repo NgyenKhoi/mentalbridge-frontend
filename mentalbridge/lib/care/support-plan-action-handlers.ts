@@ -16,6 +16,7 @@ import {
 import { isUuid } from './care-validation'
 import { supportPlanActionClient } from './support-plan-action-client'
 import { isSupportPlanLocalDate } from './support-plan-action-validation'
+import { parseEngagementRequest } from './support-plan-engagement-request'
 
 type Operation =
   | 'current'
@@ -32,6 +33,8 @@ type Operation =
   | 'reconcile'
   | 'companionExplanation'
   | 'reconcileJournal'
+  | 'continueCycle'
+  | 'occurrenceEngagement'
 const READS: readonly Operation[] = [
   'current',
   'draft',
@@ -115,6 +118,8 @@ export async function supportPlanActionHandler(
         'reconcile',
         'companionExplanation',
         'reconcileJournal',
+        'continueCycle',
+        'occurrenceEngagement',
       ].includes(operation) &&
       (!id || !isUuid(id))
     )
@@ -127,9 +132,15 @@ export async function supportPlanActionHandler(
     const ownerId = id ?? ''
     let version = 0
     if (
-      ['activate', 'status', 'review', 'replace', 'occurrenceState'].includes(
-        operation,
-      )
+      [
+        'activate',
+        'status',
+        'review',
+        'replace',
+        'occurrenceState',
+        'continueCycle',
+        'occurrenceEngagement',
+      ].includes(operation)
     ) {
       const match = VERSION.exec(request.headers.get('if-match') ?? '')
       if (!match || !Number.isSafeInteger(Number(match[1]))) invalid()
@@ -137,11 +148,11 @@ export async function supportPlanActionHandler(
     }
     const key = request.headers.get('idempotency-key') ?? ''
     if (
-      ['propose', 'activate', 'replace'].includes(operation) &&
+      ['propose', 'activate', 'replace', 'continueCycle'].includes(operation) &&
       !KEY.test(key)
     )
       invalid()
-    if (['activate', 'reconcile'].includes(operation)) {
+    if (['activate', 'reconcile', 'continueCycle'].includes(operation)) {
       await requireEmptyBody(request)
     }
     let result: unknown
@@ -342,6 +353,29 @@ export async function supportPlanActionHandler(
           token,
           ownerId,
           body.journalId,
+          correlationId,
+        )
+        break
+      }
+      case 'continueCycle':
+        result = await supportPlanActionClient.continueCycle(
+          token,
+          ownerId,
+          version,
+          key,
+          correlationId,
+        )
+        break
+      case 'occurrenceEngagement': {
+        const body = parseEngagementRequest(
+          await readBoundedJson(request, 2048),
+        )
+        if (!body) invalid()
+        result = await supportPlanActionClient.occurrenceEngagement(
+          token,
+          ownerId,
+          version,
+          body,
           correlationId,
         )
         break
