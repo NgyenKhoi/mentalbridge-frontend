@@ -27,6 +27,9 @@ export type PasswordResetRequest = Schemas['PasswordResetRequest']
 export type PasswordChangeRequest = Schemas['PasswordChangeRequest']
 
 export type AccountSummary = Schemas['AccountSummary']
+export type AccountsSummary = Schemas['AccountsSummary']
+export type AccountsSummaryRoleBreakdown =
+  Schemas['AccountsSummaryRoleBreakdown']
 export type AccountDetail = Schemas['AccountDetail']
 export type AccountPage = Schemas['AccountPage']
 export type AccountStateChangeRequest = Schemas['AccountStateChangeRequest']

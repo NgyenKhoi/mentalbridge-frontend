@@ -10,6 +10,7 @@ import type {
   AccountStateChangeRequest,
   AccountSummary,
   AdministrationAuditEventPage,
+  AccountsSummary,
   ChallengeRequest,
   EmailRequest,
   LoginRequest,
@@ -32,6 +33,7 @@ import {
   parseAccountPage,
   parseAccountSummary,
   parseAdministrationAuditEventPage,
+  parseAccountsSummary,
   parseRegistrationResponse,
   parseTokenPair,
   parsePlatformReport,
@@ -635,6 +637,17 @@ export const identityClient = {
       ifMatch: formattedIfMatch,
       body: request,
       parseSuccess: parseAccountDetail,
+    })
+  },
+
+  getAccountsSummary(accessToken: string, correlationId: string) {
+    return identityRequest<AccountsSummary>({
+      method: 'GET',
+      path: '/api/v1/admin/accounts/summary',
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAccountsSummary,
     })
   },
 
