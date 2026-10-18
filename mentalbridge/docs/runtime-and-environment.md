@@ -55,6 +55,17 @@ deployment setup.
 `NEXT_PUBLIC_*` values are compiled into browser JavaScript at build time. Use
 that prefix only for reviewed, intentionally public, non-secret configuration.
 
+## Reverse proxy origin checks
+
+SupportPlan v3 mutations compare the browser `Origin` with the public `Host`
+header and the request protocol, rather than the Next.js internal bind address.
+The public ingress must overwrite `Host` and `X-Forwarded-Proto`, and the Next.js
+port must remain private. The staging Nginx configuration uses
+`proxy_set_header Host $host` and `proxy_set_header X-Forwarded-Proto $scheme`,
+with port 3000 bound to loopback. No additional proxy header is required.
+`X-Forwarded-Host` does not override the expected host. Missing, malformed,
+foreign-host, or different-scheme origins remain forbidden.
+
 ## Local commands
 
 Run from this `mentalbridge/` directory:
