@@ -89,6 +89,10 @@ equivalence, explicit source/runtime budgets, dependency-failure coverage, and
 desktop/mobile accessibility evidence. Its compliance matrix and release
 checklist are recorded in
 [`mb-653-support-plan-companion-hardening.md`](mb-653-support-plan-companion-hardening.md).
+MB-659 replaces presentation-only Resource rewards with a Content-authoritative,
+versioned and hideable participation read model. Contract, BFF, component,
+failure-recovery, accessibility and controlled browser evidence is recorded in
+[`../mb-659-resource-reward-evidence.md`](../mb-659-resource-reward-evidence.md).
 
 MB-563 delivers the server-backed notification inbox and lifecycle. Its
 contract/BFF/component/fixture coverage is recorded in
