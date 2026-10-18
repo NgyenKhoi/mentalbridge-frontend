@@ -68,6 +68,75 @@ describe('Native SupportPlan bounded BFF', () => {
     for (const method of Object.values(client))
       method.mockResolvedValue(nativeSupportPlanFixture())
   })
+  it.each([
+    [
+      'https://0.0.0.0:3000',
+      'staging.mentalbridge.online',
+      'https://staging.mentalbridge.online',
+    ],
+    ['http://0.0.0.0:3000', 'localhost:3000', 'http://localhost:3000'],
+  ])(
+    'accepts a mutation addressed to the public Host behind the proxy: %s',
+    async (baseUrl, host, origin) => {
+      const response = await supportPlanActionHandler(
+        new NextRequest(`${baseUrl}/api/care/v2/support-plans`, {
+          method: 'POST',
+          headers: {
+            host,
+            origin,
+            cookie: `${ACCESS_COOKIE_NAME}=server-token-only`,
+            'content-type': 'application/json',
+            'idempotency-key': key,
+          },
+          body: JSON.stringify({ sourceSupportEvaluationId: id }),
+        }),
+        'propose',
+      )
+      expect(response.status).toBe(201)
+      expect(client.propose).toHaveBeenCalledWith(
+        'server-token-only',
+        { sourceSupportEvaluationId: id },
+        key,
+        expect.any(String),
+      )
+    },
+  )
+  it.each([
+    undefined,
+    'null',
+    'not-a-url',
+    'https://other.test',
+    'http://staging.mentalbridge.online',
+    'https://staging.mentalbridge.online:3000',
+    'https://staging.mentalbridge.online/path',
+    'https://attacker@staging.mentalbridge.online',
+    'https://0.0.0.0:3000',
+  ])(
+    'rejects missing, malformed or foreign origin behind the proxy: %s',
+    async (origin) => {
+      const response = await supportPlanActionHandler(
+        new NextRequest('https://0.0.0.0:3000/api/care/v2/support-plans', {
+          method: 'POST',
+          headers: {
+            host: 'staging.mentalbridge.online',
+            ...(origin === undefined ? {} : { origin }),
+            'x-forwarded-host': origin ?? 'other.test',
+            'x-forwarded-proto': 'http',
+            cookie: `${ACCESS_COOKIE_NAME}=server-token-only`,
+            'content-type': 'application/json',
+            'idempotency-key': key,
+          },
+          body: JSON.stringify({ sourceSupportEvaluationId: id }),
+        }),
+        'propose',
+      )
+      expect(response.status).toBe(403)
+      expect(await response.json()).toMatchObject({
+        code: 'CROSS_ORIGIN_REQUEST',
+      })
+      expect(client.propose).not.toHaveBeenCalled()
+    },
+  )
   it('forwards exactly one Journal candidate using the authoritative USER session', async () => {
     client.reconcileJournal.mockResolvedValue({
       version: 1,

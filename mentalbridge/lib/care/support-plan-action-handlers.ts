@@ -66,6 +66,22 @@ function invalid(): never {
   )
 }
 
+function isSameOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get('origin')
+  if (!origin) return false
+  try {
+    const parsed = new URL(origin)
+    const host = request.headers.get('host') ?? request.nextUrl.host
+    return (
+      origin === parsed.origin &&
+      parsed.host === host.toLowerCase() &&
+      parsed.protocol === request.nextUrl.protocol
+    )
+  } catch {
+    return false
+  }
+}
+
 async function requireEmptyBody(request: NextRequest) {
   const length = Number(request.headers.get('content-length'))
   if (Number.isFinite(length) && length > 0) invalid()
@@ -97,10 +113,7 @@ export async function supportPlanActionHandler(
     return careAuthenticationFailure(error, correlationId)
   }
   try {
-    if (
-      !READS.includes(operation) &&
-      request.headers.get('origin') !== request.nextUrl.origin
-    ) {
+    if (!READS.includes(operation) && !isSameOrigin(request)) {
       throw new RequestBodyError(
         403,
         'CROSS_ORIGIN_REQUEST',
