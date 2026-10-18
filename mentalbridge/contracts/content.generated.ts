@@ -640,7 +640,7 @@ export interface components {
         /** @enum {string} */
         NotificationPriority: "LOW" | "NORMAL" | "HIGH";
         /** @enum {string} */
-        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE" | "OPEN_COMMUNITY_POST";
+        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_SPECIALIST_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE" | "OPEN_COMMUNITY_POST";
         NotificationAction: {
             type: components["schemas"]["NotificationActionType"];
             /** Format: uuid */

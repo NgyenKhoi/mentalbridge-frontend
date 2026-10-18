@@ -17,9 +17,7 @@ import SpecialistDashboardManager from './SpecialistDashboardManager'
 import SpecialistClientsManager from './SpecialistClientsManager'
 import SpecialistEarningsManager from './SpecialistEarningsManager'
 import SpecialistOperationalAnalytics from '@/features/specialist-analytics/components/SpecialistOperationalAnalytics'
-import SpecialistDeferredSection, {
-  type SpecialistDeferredSectionKey,
-} from './SpecialistDeferredSection'
+import SpecialistNotificationCenter from '@/features/notifications/components/SpecialistNotificationCenter'
 import AdminUsersManager from './AdminUsersManager'
 import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
 import AdminAssessmentsManager from './AdminAssessmentsManager'
@@ -798,9 +796,7 @@ export default function RoleWorkspace({
             <SpecialistEarningsManager />
           )}
           {role === 'specialist' && sectionKey === 'notifications' && (
-            <SpecialistDeferredSection
-              section={sectionKey as SpecialistDeferredSectionKey}
-            />
+            <SpecialistNotificationCenter />
           )}
           {role === 'admin' && sectionKey === 'users' && (
             <AdminUsersManager
