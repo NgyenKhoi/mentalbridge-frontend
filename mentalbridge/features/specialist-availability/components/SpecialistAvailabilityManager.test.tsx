@@ -48,6 +48,41 @@ vi.mock('../api/browser-client', () => ({
 }))
 
 describe('SpecialistAvailabilityManager', () => {
+  it('publishes the current-minute slot while its sixty-minute window is still active', async () => {
+    const clock = vi
+      .spyOn(Date, 'now')
+      .mockReturnValue(Date.UTC(2099, 0, 3, 2, 30, 30))
+    try {
+      const user = userEvent.setup()
+      render(<SpecialistAvailabilityManager />)
+      await screen.findByText('Chat trong ứng dụng')
+      fireEvent.change(screen.getByLabelText('Ngày'), {
+        target: { value: '2099-01-03' },
+      })
+      fireEvent.change(screen.getByLabelText('Múi giờ hiển thị'), {
+        target: { value: 'Asia/Ho_Chi_Minh' },
+      })
+      fireEvent.change(screen.getByLabelText('Giờ bắt đầu'), {
+        target: { value: '09:30' },
+      })
+
+      const publish = screen.getByRole('button', { name: 'Xuất bản khung giờ' })
+      expect(publish).toBeEnabled()
+      await user.click(publish)
+      await waitFor(() =>
+        expect(api.publish).toHaveBeenCalledWith(
+          expect.objectContaining({
+            startAt: '2099-01-03T02:30:00.000Z',
+            endAt: '2099-01-03T03:30:00.000Z',
+          }),
+          expect.any(String),
+        ),
+      )
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     api.list.mockResolvedValue({

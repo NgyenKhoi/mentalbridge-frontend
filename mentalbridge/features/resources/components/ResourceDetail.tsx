@@ -208,12 +208,12 @@ export default function ResourceDetail({
   activityDate,
   contentVersion,
 }: Props) {
-  const [loadAttempt, setLoadAttempt] = useState(0)
   const date = /^\d{4}-\d{2}-\d{2}$/.test(activityDate ?? '')
     ? (activityDate as string)
     : localDate()
-  const requestKey = `${resourceId}:${contentVersion ?? ''}:${date}:${loadAttempt}`
+  const requestKey = `${resourceId}:${contentVersion ?? ''}:${date}`
   const [result, setResult] = useState<LoadResult>()
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [catalogueResult, setCatalogueResult] = useState<{
     requestKey: string
     items: PublicResourceSummary[]
@@ -261,35 +261,6 @@ export default function ResourceDetail({
         ) {
           return
         }
-        if (
-          contentVersion === undefined &&
-          !returnSupportGuideId &&
-          (resourceId === '00000000-0000-4000-8000-000000000209' ||
-            resourceId === 'problem-solving')
-        ) {
-          setResult({
-            requestKey,
-            state: 'success',
-            resource: {
-              id: '00000000-0000-4000-8000-000000000209',
-              title: 'Giải quyết một vấn đề theo từng bước',
-              category: 'VIDEO',
-              interactionType: 'VIDEO_TRANSCRIPT',
-              summary:
-                'Sắp xếp và phân tách vấn đề thành từng bước nhỏ có thể hành động để giảm cảm giác quá tải và lấy lại quyền kiểm soát.',
-              contentBody: 'Nội dung chi tiết...',
-              contentVersion: '2026.10',
-              repeatability: 'REPEATABLE',
-              status: 'PUBLISHED',
-              resourceKind: 'LEARNING',
-              durationMinutes: 6,
-              difficulty: 'EASY',
-              publishedAt: '2026-10-01T00:00:00Z',
-              updatedAt: '2026-10-01T00:00:00Z',
-            } as unknown as PublicResourceDetail,
-          })
-          return
-        }
         setResult({
           requestKey,
           state:
@@ -319,7 +290,7 @@ export default function ResourceDetail({
       active = false
       controller.abort()
     }
-  }, [contentVersion, date, requestKey, resourceId, returnSupportGuideId])
+  }, [contentVersion, date, loadAttempt, requestKey, resourceId])
 
   useEffect(() => {
     let active = true
@@ -354,21 +325,30 @@ export default function ResourceDetail({
     [resource],
   )
   const isFeaturedBreathing =
-    interaction?.mode === 'breathing' &&
-    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
-      'thở chậm trong 5 phút'
+    resource?.id === '00000000-0000-4000-8000-000000000201' ||
+    resource?.interactionType === 'BREATHING_PACER' ||
+    (interaction?.mode === 'breathing' &&
+      resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thở chậm')) ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thở chậm')
   const isFeaturedMindfulness =
     resource?.id === '00000000-0000-4000-8000-000000000222' ||
-    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
-      'ba phút nhận biết hiện tại'
+    resource?.title
+      .trim()
+      .toLocaleLowerCase('vi-VN')
+      .includes('nhận biết hiện tại')
   const isFeaturedStretch =
     resource?.id === '00000000-0000-4000-8000-000000000218' ||
-    resource?.title.trim().toLocaleLowerCase('vi-VN') ===
-      'giãn cơ và đổi tư thế trong 7 phút'
+    resource?.interactionType === 'STRETCH_SEQUENCE' ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('giãn cơ')
   const isFeaturedProgressiveRelaxation =
-    resource?.id === '00000000-0000-4000-8000-000000000215'
+    resource?.id === '00000000-0000-4000-8000-000000000215' ||
+    resource?.id === '00000000-0000-4000-8000-000000000216' ||
+    resource?.interactionType === 'PROGRESSIVE_RELAXATION' ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thả lỏng cơ') ||
+    resource?.title.trim().toLocaleLowerCase('vi-VN').includes('thư giãn cơ')
   const isProblemSolving =
     resource?.id === '00000000-0000-4000-8000-000000000209' ||
+    resource?.id === '00000000-0000-4000-8000-000000000219' ||
     resourceId === 'problem-solving' ||
     resource?.title
       .trim()
@@ -540,13 +520,16 @@ export default function ResourceDetail({
               ? fromGuide
                 ? 'Nội dung đã được cập nhật hoặc ngừng phát hành. Gợi ý hỗ trợ của bạn vẫn được giữ nguyên.'
                 : 'Nội dung có thể đã được lưu trữ hoặc không còn trong thời gian phát hành.'
-              : 'Tiến độ đã lưu của bạn vẫn an toàn. Bạn có thể thử lại.'}
+              : 'Tiến độ đã lưu của bạn vẫn an toàn. Vui lòng thử lại sau.'}
           </p>
           {!notFound && (
             <button
               type="button"
               className={styles.backButton}
-              onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+              onClick={() => {
+                setResult(undefined)
+                setLoadAttempt((attempt) => attempt + 1)
+              }}
             >
               Thử lại
             </button>
@@ -751,17 +734,22 @@ export default function ResourceDetail({
           setProgressResult(undefined)
           setProgressRetryCount((count) => count + 1)
         }}
-        onMarkViewed={() =>
-          completedActionIds.includes('video-viewed')
+        onMarkViewed={() => {
+          const viewedAction = requiredActions[0] ?? 'video-viewed'
+          return completedActionIds.includes(viewedAction)
             ? Promise.resolve(true)
             : persistProgress(
-                [...completedActionIds, 'video-viewed'],
+                [...completedActionIds, viewedAction],
                 'IN_PROGRESS',
               )
-        }
-        onConfirmCompletion={() =>
-          persistProgress([...requiredActions], 'COMPLETED')
-        }
+        }}
+        onConfirmCompletion={() => {
+          const actionsToComplete =
+            requiredActions.length > 0
+              ? requiredActions
+              : ['video-viewed', 'video-reflected']
+          return persistProgress([...actionsToComplete], 'COMPLETED')
+        }}
       />
     )
   }

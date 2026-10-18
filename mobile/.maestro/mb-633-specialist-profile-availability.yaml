@@ -4,9 +4,11 @@ name: MB-633 specialist profile and availability journey
 - launchApp:
     clearState: true
 - tapOn: 'Tiếp tục'
-- tapOn: 'Email'
+- tapOn:
+    id: 'sign-in-email-input'
 - inputText: '${MAESTRO_MB_SPECIALIST_EMAIL}'
-- tapOn: 'Mật khẩu'
+- tapOn:
+    id: 'sign-in-password-input'
 - inputText: '${MAESTRO_MB_SPECIALIST_PASSWORD}'
 - hideKeyboard
 - tapOn:

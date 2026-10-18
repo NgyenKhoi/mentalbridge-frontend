@@ -4,7 +4,7 @@ export const SUPPORT_AREAS = [
   'DEPRESSIVE_SYMPTOMS',
   'ANXIETY_SYMPTOMS',
 ] as const
-export const LANGUAGES = ['vi', 'en'] as const
+export const LANGUAGES = ['vi', 'en', 'zh', 'fr'] as const
 export type SupportArea = (typeof SUPPORT_AREAS)[number]
 export type SpecialistApprovalStatus =
   'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED'
@@ -1568,7 +1568,7 @@ export function parseSpecialistDiscoveryItem(
     displayName: item.displayName,
     bio: item.bio,
     supportAreas: [...item.supportAreas] as SupportArea[],
-    languages: [...item.languages] as ('vi' | 'en')[],
+    languages: [...item.languages] as (typeof LANGUAGES)[number][],
     yearsOfExperience: Number(item.yearsOfExperience),
     timezone: item.timezone,
     ratingAggregate:
@@ -1728,7 +1728,7 @@ export function parseProfile(value: unknown): SpecialistProfile | null {
     ) ||
     !Array.isArray(item.languages) ||
     !item.languages.every((language) =>
-      LANGUAGES.includes(language as 'vi' | 'en'),
+      LANGUAGES.includes(language as (typeof LANGUAGES)[number]),
     ) ||
     !Number.isInteger(item.yearsOfExperience) ||
     typeof item.timezone !== 'string' ||
@@ -2081,6 +2081,10 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
     (item.modality === 'IN_APP_VIDEO'
       ? 'livekit-video-completion-v1'
       : 'chat-session-completion-v1')
+  const completedSessionPolicyMatches =
+    sessionPolicyMatches ||
+    (item.modality === 'IN_APP_VIDEO' &&
+      item.sessionPolicyVersion === 'chat-session-completion-v1')
   const cancellationFields = [
     item.cancelledAt,
     item.cancellationReason,
@@ -2123,7 +2127,7 @@ function validAppointmentOutcome(item: Record<string, unknown>) {
       item.decidedAt !== null &&
       item.decisionReason === 'SPECIALIST_ACCEPTED' &&
       item.sessionOutcome === 'COMPLETED' &&
-      sessionPolicyMatches &&
+      completedSessionPolicyMatches &&
       item.sessionEndedAt !== null &&
       item.sessionSettledAt !== null &&
       item.completionFactId !== null &&
@@ -2662,7 +2666,7 @@ export function parseProfileInput(value: unknown): SpecialistProfileInput {
     !Array.isArray(input.languages) ||
     input.languages.length < 1 ||
     !input.languages.every((language) =>
-      LANGUAGES.includes(language as 'vi' | 'en'),
+      LANGUAGES.includes(language as (typeof LANGUAGES)[number]),
     )
   ) {
     throw new ConsultationInputError('languages')

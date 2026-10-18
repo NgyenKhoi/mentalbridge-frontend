@@ -104,6 +104,13 @@ const groups = [
           <path d="M4 5h16v11H8l-4 4V5Z" />
         </Svg>,
       ],
+      [
+        '/ai-companion',
+        'AI Companion',
+        <Svg key="ai">
+          <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
+        </Svg>,
+      ],
     ],
   },
   {
@@ -162,6 +169,7 @@ const labels: Record<string, string> = {
   '/specialists': 'Chuyên gia',
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',
+  '/ai-companion': 'AI Companion',
   '/resources': 'Tài nguyên',
   '/achievements': 'Bộ sưu tập hành trình',
   '/analytics': 'Phân tích',

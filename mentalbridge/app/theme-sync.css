@@ -35,7 +35,9 @@
     .ref-shell,
     .role-shell
   )
-  :is(h1, h2, h3, h4, strong):not(:where([data-availability-ui] *)) {
+  :is(h1, h2, h3, h4, strong):not(
+    :where([data-availability-ui] *, [data-appointments-ui] *, [data-discovery-ui] *)
+  ) {
   color: var(--ink);
 }
 
@@ -76,7 +78,7 @@
     [class*='-table-wrap'],
     [class*='-preferences'],
     [class*='-summary']
-  ):not(:where(.ref-content-screening *)),
+  ),
 .role-shell
   :is(
     .role-panel,
@@ -167,7 +169,9 @@
   .role-brand-mark,
   .role-user > span:first-child,
   .role-toast
-):not(:where([data-availability-ui] *)) {
+):not(
+  :where([data-availability-ui] *, [data-appointments-ui] *, [data-discovery-ui] *)
+) {
   background: linear-gradient(
     135deg,
     var(--primary),
@@ -203,14 +207,18 @@
 
 /* Inputs and controls */
 :is(.auth-layout, .anonymous-assessment, .ref-shell, .role-shell)
-  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
+  :is(input, select, textarea):not(
+    :where([data-availability-ui] *, [data-appointments-ui] *, [data-discovery-ui] *)
+  ) {
   background: #120d19 !important;
   border-color: var(--line) !important;
   color: var(--ink) !important;
   color-scheme: dark;
 }
 :is(.auth-layout, .anonymous-assessment, .ref-shell, .role-shell)
-  :is(input, select, textarea):focus:not(:where([data-availability-ui] *)) {
+  :is(input, select, textarea):focus:not(
+    :where([data-availability-ui] *, [data-appointments-ui] *, [data-discovery-ui] *)
+  ) {
   background: #17111f !important;
   border-color: #aa98e8 !important;
   box-shadow: 0 0 0 3px rgba(169, 147, 236, 0.15) !important;
@@ -664,7 +672,9 @@
 }
 
 :is(.auth-layout, .anonymous-assessment, .ref-shell, .role-shell)
-  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
+  :is(input, select, textarea):not(
+    :where([data-availability-ui] *, [data-appointments-ui] *, [data-discovery-ui] *)
+  ) {
   font-size: 14px !important;
   line-height: 1.5 !important;
 }
@@ -1322,7 +1332,7 @@
     [class*='-table-wrap'],
     [class*='-preferences'],
     [class*='-summary']
-  ):not(:where(.ref-content-screening *)),
+  ),
 .role-shell
   :is(
     .role-panel,
@@ -1354,13 +1364,224 @@
   background: var(--surface-soft) !important;
   border-color: var(--line) !important;
 }
-.ref-shell :is(h1, h2, h3, h4, strong):not(:where(.ref-content-screening *)),
-.role-shell :is(h1, h2, h3, h4, strong):not(:where([data-availability-ui] *)) {
+.ref-shell
+  :is(h1, h2, h3, h4, strong):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *,
+      [data-resource-surface='dark'] *,
+      [data-resource-ink='light'] *,
+      [class*='heroCard'] *,
+      [class*='HeroCard'] *,
+      [class*='heroDate'] *,
+      [class*='heroDateBox'] *,
+      [class*='heroPill'] *,
+      [class*='heroDuration'],
+      [class*='heroSecureNotice'] *,
+      [class*='btn'] *,
+      [class*='Btn'] *,
+      [class*='button'] *,
+      [class*='Button'] *,
+      button *,
+      [role='button'] *,
+      [class*='badge'] *,
+      [class*='Badge'] *,
+      [class*='pill'] *,
+      [class*='Pill'] *,
+      [class*='tag'] *,
+      [class*='Tag'] *,
+      [class*='chip'] *,
+      [class*='calDaySelected'],
+      [class*='calDaySelected'] *,
+      [class*='selected'] *,
+      [class*='Selected'] *,
+      [class*='active'] *,
+      [class*='Active'] *,
+      [class*='avatar'] *,
+      [class*='Avatar'] *,
+      .ref-new-booking-btn,
+      .ref-new-booking-btn *,
+      [data-surface='dark'] *,
+      [data-contrast='light'] *
+    )
+  ),
+.role-shell:not(.role-specialist)
+  :is(h1, h2, h3, h4, strong):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *,
+      [data-resource-surface='dark'] *,
+      [data-resource-ink='light'] *,
+      [class*='heroCard'] *,
+      [class*='HeroCard'] *,
+      [class*='heroDate'] *,
+      [class*='heroDateBox'] *,
+      [class*='heroPill'] *,
+      [class*='heroDuration'],
+      [class*='heroSecureNotice'] *,
+      [class*='btn'] *,
+      [class*='Btn'] *,
+      [class*='button'] *,
+      [class*='Button'] *,
+      button *,
+      [role='button'] *,
+      [class*='badge'] *,
+      [class*='Badge'] *,
+      [class*='pill'] *,
+      [class*='Pill'] *,
+      [class*='tag'] *,
+      [class*='Tag'] *,
+      [class*='chip'] *,
+      [class*='calDaySelected'],
+      [class*='calDaySelected'] *,
+      [class*='selected'] *,
+      [class*='Selected'] *,
+      [class*='active'] *,
+      [class*='Active'] *,
+      [class*='avatar'] *,
+      [class*='Avatar'] *,
+      .ref-new-booking-btn,
+      .ref-new-booking-btn *,
+      [data-surface='dark'] *,
+      [data-contrast='light'] *
+    )
+  ) {
   color: var(--ink) !important;
 }
-.ref-shell :is(p, span, small):not(:where(.ref-content-screening *)),
-.role-shell :is(p, span, small):not(:where([data-availability-ui] *)) {
+.ref-shell
+  :is(p, span, small):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *,
+      [data-resource-surface='dark'] *,
+      [data-resource-ink='light'] *,
+      [class*='heroCard'] *,
+      [class*='HeroCard'] *,
+      [class*='heroDate'] *,
+      [class*='heroDateBox'] *,
+      [class*='heroPill'] *,
+      [class*='heroDuration'],
+      [class*='heroSecureNotice'] *,
+      [class*='btn'] *,
+      [class*='Btn'] *,
+      [class*='button'] *,
+      [class*='Button'] *,
+      button *,
+      [role='button'] *,
+      [class*='badge'] *,
+      [class*='Badge'] *,
+      [class*='pill'] *,
+      [class*='Pill'] *,
+      [class*='tag'] *,
+      [class*='Tag'] *,
+      [class*='chip'] *,
+      [class*='calDaySelected'],
+      [class*='calDaySelected'] *,
+      [class*='selected'] *,
+      [class*='Selected'] *,
+      [class*='active'] *,
+      [class*='Active'] *,
+      [class*='avatar'] *,
+      [class*='Avatar'] *,
+      .ref-new-booking-btn,
+      .ref-new-booking-btn *,
+      [data-surface='dark'] *,
+      [data-contrast='light'] *
+    )
+  ),
+.role-shell:not(.role-specialist)
+  :is(p, span, small):not(
+    :where(
+      [data-availability-ui] *,
+      [data-appointments-ui] *,
+      [data-discovery-ui] *,
+      [data-resource-surface='dark'] *,
+      [data-resource-ink='light'] *,
+      [class*='heroCard'] *,
+      [class*='HeroCard'] *,
+      [class*='heroDate'] *,
+      [class*='heroDateBox'] *,
+      [class*='heroPill'] *,
+      [class*='heroDuration'],
+      [class*='heroSecureNotice'] *,
+      [class*='btn'] *,
+      [class*='Btn'] *,
+      [class*='button'] *,
+      [class*='Button'] *,
+      button *,
+      [role='button'] *,
+      [class*='badge'] *,
+      [class*='Badge'] *,
+      [class*='pill'] *,
+      [class*='Pill'] *,
+      [class*='tag'] *,
+      [class*='Tag'] *,
+      [class*='chip'] *,
+      [class*='calDaySelected'],
+      [class*='calDaySelected'] *,
+      [class*='selected'] *,
+      [class*='Selected'] *,
+      [class*='active'] *,
+      [class*='Active'] *,
+      [class*='avatar'] *,
+      [class*='Avatar'] *,
+      .ref-new-booking-btn,
+      .ref-new-booking-btn *,
+      [data-surface='dark'] *,
+      [data-contrast='light'] *
+    )
+  ) {
   color: var(--ink-soft) !important;
+}
+
+/* Universal high-contrast protection for text on dark green surfaces & primary action buttons */
+.ref-shell :is(.ref-new-booking-btn, [class*='confirmSlotBtn']),
+.ref-shell :is(.ref-new-booking-btn, [class*='confirmSlotBtn']) * {
+  color: #ffffff !important;
+}
+
+.ref-shell [class*='calDaySelected'],
+.ref-shell [class*='calDaySelected'] * {
+  color: #ffffff !important;
+}
+
+[data-appointments-ui] [class*='heroCard'] {
+  color: #ffffff !important;
+}
+[data-appointments-ui] [class*='heroDateWeekday'] {
+  color: #a7f3d0 !important;
+}
+[data-appointments-ui] [class*='heroDateDay'] {
+  color: #ffffff !important;
+}
+[data-appointments-ui] [class*='heroDateTime'] {
+  color: #86efac !important;
+}
+[data-appointments-ui] [class*='heroPill'],
+[data-appointments-ui] [class*='heroPill'] * {
+  color: #a7f3d0 !important;
+}
+[data-appointments-ui] [class*='heroDuration'] {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+[data-appointments-ui] [class*='heroSpecialistRole'] {
+  color: #d1fae5 !important;
+}
+[data-appointments-ui] [class*='heroTopic'] {
+  color: #e2f4eb !important;
+}
+[data-appointments-ui] [class*='heroTopic'] strong {
+  color: #ffffff !important;
+}
+[data-appointments-ui] [class*='heroSecureNotice'],
+[data-appointments-ui] [class*='heroSecureNotice'] * {
+  color: #d1fae5 !important;
+}
+[data-appointments-ui] [class*='heroRescheduleBtn'] {
+  color: #ffffff !important;
 }
 .ref-shell
   .resources-page
@@ -1433,8 +1654,7 @@
   border-color: rgba(61, 122, 110, 0.16) !important;
   box-shadow: 0 28px 70px -48px rgba(30, 74, 67, 0.28) !important;
 }
-.ref-hero :is(h1, p, span, strong, small),
-.ref-quick .primary :is(b, span, strong) {
+.ref-hero :is(h1, p, span, strong, small) {
   color: var(--ink) !important;
 }
 .ref-hero p,
@@ -1592,7 +1812,9 @@
   .role-brand-mark,
   .role-user > span:first-child,
   .role-toast
-):not(:where([data-availability-ui] *)) {
+):not(
+  :where([data-availability-ui] *, [data-appointments-ui] *, [data-discovery-ui] *)
+) {
   background: linear-gradient(135deg, var(--teal), var(--teal-deep)) !important;
   border-color: rgba(30, 74, 67, 0.18) !important;
   color: var(--primary-foreground) !important;
@@ -1623,7 +1845,9 @@
 
 /* Final light product-surface pass: legacy dark rules above must not leak into user pages. */
 :is(.ref-shell, .role-shell)
-  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
+  :is(input, select, textarea):not(
+    :where([data-availability-ui] *, [data-appointments-ui] *, [data-discovery-ui] *)
+  ) {
   background: var(--surface) !important;
   color: var(--ink) !important;
   color-scheme: light;
@@ -2680,7 +2904,9 @@ html {
     .ref-shell,
     .role-shell
   )
-  :is(input, select, textarea):not(:where([data-availability-ui] *)) {
+  :is(input, select, textarea):not(
+    :where([data-availability-ui] *, [data-appointments-ui] *, [data-discovery-ui] *)
+  ) {
   background-color: var(--surface) !important;
   color: var(--ink) !important;
   color-scheme: light !important;
@@ -2695,7 +2921,7 @@ html {
     .role-shell
   )
   :is(input, select, textarea):is(:focus, :focus-visible):not(
-    :where([data-availability-ui] *)
+    :where([data-availability-ui] *, [data-appointments-ui] *, [data-discovery-ui] *)
   ) {
   background-color: var(--surface) !important;
   color: var(--ink) !important;

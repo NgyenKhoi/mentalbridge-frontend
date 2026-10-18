@@ -37,7 +37,6 @@ import {
 
 import type { PublicResourceDetail } from '../api/browser-resources'
 import { problemSolvingLessonConfig } from '../data/problem-solving-lesson'
-import { useResourceBookmarks } from '../hooks/useResourceBookmarks'
 import styles from './problem-solving-resource-detail.module.css'
 
 type Props = Readonly<{
@@ -134,28 +133,33 @@ export function ProblemSolvingResourceDetail({
   const [playbackSpeedIndex, setPlaybackSpeedIndex] = useState(0)
   const [captionsEnabled, setCaptionsEnabled] = useState(true)
   const [centerButtonVisible, setCenterButtonVisible] = useState(true)
+  const [saved, setSaved] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return (
+        window.localStorage.getItem(`mb:resource-bookmark:${resource.id}`) ===
+        'true'
+      )
+    } catch {
+      return false
+    }
+  })
   const [shareToast, setShareToast] = useState('')
-  const [practiceNote, setPracticeNote] = useState('')
+  const [practiceNote, setPracticeNote] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    try {
+      return (
+        window.localStorage.getItem(
+          `mb:practice-draft:problem-solving:${resource.id}`,
+        ) ?? ''
+      )
+    } catch {
+      return ''
+    }
+  })
   const [recordState, setRecordState] = useState<
     'idle' | 'sending' | 'success' | 'error'
   >('idle')
-  const bookmarks = useResourceBookmarks()
-  const saved = bookmarks.isBookmarked(resource.id)
-
-  // Keep only the unfinished private practice draft in local storage.
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      try {
-        const draft = window.localStorage.getItem(
-          `mb:practice-draft:problem-solving:${resource.id}`,
-        )
-        if (draft) setPracticeNote(draft)
-      } catch {
-        // Ignored for restricted storage
-      }
-    }, 0)
-    return () => window.clearTimeout(timeout)
-  }, [resource.id])
 
   // Save practice note draft on changes
   useEffect(() => {
@@ -402,16 +406,17 @@ export function ProblemSolvingResourceDetail({
     }
   }
 
-  async function toggleBookmark() {
-    if (bookmarks.state === 'error' || bookmarks.state === 'stale') {
-      await bookmarks.retry()
-      return
-    }
-    const changed = await bookmarks.toggle(resource.id)
-    if (!changed)
-      setShareToast(
-        'Chưa đối soát được mục đã lưu. Hãy tải lại trạng thái trước khi thử lại.',
+  function toggleBookmark() {
+    const next = !saved
+    setSaved(next)
+    try {
+      window.localStorage.setItem(
+        `mb:resource-bookmark:${resource.id}`,
+        String(next),
       )
+    } catch {
+      setShareToast('Trình duyệt chưa cho phép lưu trên thiết bị.')
+    }
   }
 
   async function shareLesson() {
@@ -570,12 +575,8 @@ export function ProblemSolvingResourceDetail({
             <button
               type="button"
               className={styles.bookmarkBtn}
-              onClick={() => void toggleBookmark()}
-              aria-pressed={bookmarks.state === 'ready' && saved}
-              disabled={
-                bookmarks.state === 'loading' ||
-                bookmarks.pendingResourceId !== null
-              }
+              onClick={toggleBookmark}
+              aria-pressed={saved}
               aria-label={
                 saved
                   ? 'Bỏ lưu bài học trên thiết bị'
@@ -587,15 +588,7 @@ export function ProblemSolvingResourceDetail({
                 fill={saved ? 'currentColor' : 'none'}
                 aria-hidden="true"
               />
-              <span>
-                {bookmarks.pendingResourceId === resource.id
-                  ? 'Đang lưu…'
-                  : bookmarks.state === 'error' || bookmarks.state === 'stale'
-                    ? 'Tải lại mục đã lưu'
-                    : saved
-                      ? 'Đã lưu'
-                      : 'Lưu bài học'}
-              </span>
+              <span>{saved ? 'Đã lưu' : 'Lưu bài học'}</span>
             </button>
             <button
               type="button"
@@ -947,6 +940,7 @@ export function ProblemSolvingResourceDetail({
             {steps.map((step, index) => {
               const isComplete = ended || currentTime >= step.end
               const isActive = !ended && index === activeIndex
+
               const stepDuration = step.end - step.start
               const stepElapsed = Math.max(
                 0,
@@ -1058,7 +1052,7 @@ export function ProblemSolvingResourceDetail({
                 </div>
               </div>
               <span className={styles.xpBadge}>
-                Bản nháp chỉ lưu trên thiết bị này
+                Bản nháp lưu trên thiết bị này
               </span>
             </div>
 

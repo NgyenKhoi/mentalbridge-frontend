@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useState } from 'react'
 
 import type { PublicResourceSummary } from '../api/browser-resources'
@@ -52,13 +51,11 @@ export function ResourcePreview({ resource, featured = false }: Props) {
       onMouseLeave={() => setPlaying(false)}
     >
       {videoId ? (
-        <Image
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
           className="resource-preview-image"
           src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`}
           alt=""
-          width={480}
-          height={360}
-          unoptimized
           loading="lazy"
         />
       ) : (

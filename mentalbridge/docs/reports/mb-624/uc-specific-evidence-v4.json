@@ -56,7 +56,7 @@
         "source": "mobile/.maestro/mb-612-assessment.yaml",
         "scenario": "MB-612 real-contract assessment to support guide",
         "assertions": [
-          "tapOn: 'Đăng nhập'",
+          "id: 'sign-in-submit'",
           "assertVisible: 'Chào mừng bạn quay lại'"
         ]
       }
@@ -973,7 +973,7 @@
         "source": "mentalbridge/features/specialist-profile/components/SpecialistProfileWorkspace.test.tsx",
         "scenario": "loads, saves, and explicitly submits the real profile flow",
         "assertions": [
-          "name: 'Lưu hồ sơ'",
+          "name: 'Lưu thay đổi'",
           "api.save).toHaveBeenCalledWith"
         ]
       },

@@ -23,7 +23,12 @@ const supportAreaLabels = {
   DEPRESSIVE_SYMPTOMS: 'Khí sắc và trầm buồn',
   ANXIETY_SYMPTOMS: 'Lo âu',
 } as const
-const languageLabels = { vi: 'Tiếng Việt', en: 'English' } as const
+const languageLabels = {
+  vi: 'Tiếng Việt',
+  en: 'English',
+  zh: 'Tiếng Trung',
+  fr: 'Tiếng Pháp',
+} as const
 const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
 function initials(name: string) {
@@ -517,7 +522,12 @@ export default function SpecialistDiscovery({
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0)
-    return () => window.clearTimeout(timer)
+    const refresh = () => void load()
+    window.addEventListener('focus', refresh)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('focus', refresh)
+    }
   }, [load])
 
   const loadDetail = useCallback(
@@ -643,10 +653,11 @@ export default function SpecialistDiscovery({
             </button>
             <button
               type="button"
-              disabled
-              title="Video trong ứng dụng hiện chưa khả dụng"
+              data-active={modality === 'IN_APP_VIDEO'}
+              disabled={loading || !page?.videoEnabled}
+              onClick={() => setModality('IN_APP_VIDEO')}
             >
-              Video · sắp có
+              {page?.videoEnabled ? 'Video' : 'Video · sắp có'}
             </button>
           </div>
         </div>

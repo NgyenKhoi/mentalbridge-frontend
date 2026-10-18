@@ -72,6 +72,141 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/specialist-profile/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Only the authenticated specialist reads original credential metadata. No file URL is returned by this list. */
+        get: operations["listOwnCredentialDocuments"];
+        put?: never;
+        /** @description Stores a PDF, JPEG or PNG in authenticated private storage, then creates a pending credential. Upload never verifies a credential. */
+        post: operations["uploadOwnCredentialDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/documents/{documentId}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns a five-minute signed link after owner authorization; never cache or log the link. */
+        get: operations["viewOwnCredentialDocumentFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist-profile/documents/{documentId}/badge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description The specialist may display only a previously ADMIN-verified badge. */
+        put: operations["updateOwnCredentialBadge"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/documents/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ADMIN review queue; original files require a separate authorized request. */
+        get: operations["listPendingCredentialDocumentsForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/documents/specialists/{specialistId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listSpecialistCredentialDocumentsForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/documents/{documentId}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["viewCredentialDocumentFileForAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/specialist-profiles/documents/{documentId}/{decision}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Only ADMIN verifies or rejects a pending credential. Review does not automatically publish a badge. */
+        post: operations["reviewCredentialDocumentForAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialists/{specialistId}/credential-badges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns only approved, verified credentials that the specialist opted to show. Original files and identifiers are never returned. */
+        get: operations["getPublicSpecialistCredentialBadges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/specialist-profile/amendments/current": {
         parameters: {
             query?: never;
@@ -546,7 +681,7 @@ export interface paths {
         /** @description Lists the authenticated specialist's slots in a bounded UTC interval, including tombstones when requested. */
         get: operations["listOwnAvailabilitySlots"];
         put?: never;
-        /** @description Publishes one exact future 60-minute online slot. Replaying the same Idempotency-Key with the same command returns the same slot identity and current state. */
+        /** @description Publishes one exact 60-minute online slot whose end is still future, including the current active window. There is no advance booking delay. Replaying the same Idempotency-Key with the same command returns the same slot identity and current state. */
         post: operations["publishOwnAvailabilitySlot"];
         delete?: never;
         options?: never;
@@ -580,7 +715,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Lists approved specialists' currently selectable exact 60-minute online slots. Disabled video slots and slots already held by an active appointment are excluded. */
+        /** @description Lists approved specialists' unexpired selectable exact 60-minute online slots, including currently active windows without advance booking delay. Disabled video slots and slots already held by an active appointment are excluded. */
         get: operations["listBookableSlots"];
         put?: never;
         post?: never;
@@ -597,7 +732,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Returns only current APPROVED profiles and their current selectable exact 60-minute online slots. FREE, PLUS, and PREMIUM may browse. Optional personalization reads one exact owned Care SupportEvaluation server-to-server; its health content is never returned or persisted, and unavailable context degrades to a neutral explained rank. */
+        /** @description Returns only current APPROVED profiles and their unexpired selectable exact 60-minute online slots, including currently active windows without advance booking delay. FREE, PLUS, and PREMIUM may browse. Optional personalization reads one exact owned Care SupportEvaluation server-to-server; its health content is never returned or persisted, and unavailable context degrades to a neutral explained rank. */
         get: operations["discoverApprovedSpecialists"];
         put?: never;
         post?: never;
@@ -651,7 +786,7 @@ export interface paths {
         /** @description Lists at most 100 newest authoritative appointment snapshots owned by the authenticated user. When originatingPlanActionId is supplied, the exact owner-and-action filter is applied before the bound so a caller can recover correlated SupportPlan progress without scanning general history. */
         get: operations["listOwnAppointments"];
         put?: never;
-        /** @description Atomically creates a REQUESTED appointment for one exact slot after enforcing both available-credit and concurrent-reservation limits. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. A replacement inherits an omitted originatingPlanActionId from the owned appointment and rejects a conflicting explicit value. Exact command replays return the original appointment. */
+        /** @description Atomically creates a REQUESTED appointment for one exact unexpired slot, including an already-started active window, after enforcing available-credit and concurrent-reservation limits. No minimum advance booking interval applies. The assigned specialist must confirm before interactive access. When the ordinary decision buffer has elapsed, the decision cutoff is slot end. When replacesAppointmentId is supplied, If-Match must carry that appointment's current version; the eligible future appointment is cancelled with an auditable credit outcome and linked to the replacement without temporarily consuming another reservation. A replacement inherits an omitted originatingPlanActionId from the owned appointment and rejects a conflicting explicit value. Exact command replays return the original appointment. */
         post: operations["requestAppointment"];
         delete?: never;
         options?: never;
@@ -1197,6 +1332,46 @@ export interface components {
             /** Format: date-time */
             endsAt: string;
         };
+        VerifiedCredentialBadge: {
+            title: string;
+            /** @enum {string} */
+            credentialType: "DEGREE" | "LICENSE" | "CERTIFICATE";
+        };
+        SpecialistCredentialDocument: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            specialistAccountId: string;
+            title: string;
+            issuer: string;
+            issueYear: number;
+            /** @enum {string} */
+            credentialType: "DEGREE" | "LICENSE" | "CERTIFICATE";
+            fileName: string;
+            /** @enum {string} */
+            mediaType: "application/pdf" | "image/jpeg" | "image/png";
+            /** Format: int64 */
+            fileBytes: number;
+            /** @enum {string} */
+            verificationStatus: "PENDING" | "VERIFIED" | "REJECTED";
+            badgeVisible: boolean;
+            /** Format: date-time */
+            reviewedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        CredentialDocumentLink: {
+            /**
+             * Format: uri
+             * @description Signed original-file URL valid for five minutes.
+             */
+            url: string;
+        };
+        CredentialBadgeRequest: {
+            visible: boolean;
+        };
         ServicePlanCatalogue: {
             plans: components["schemas"]["ServicePlanVersion"][];
             checkoutEnabled: boolean;
@@ -1408,7 +1583,7 @@ export interface components {
         /** @enum {string} */
         SpecialistSuspensionReasonCode: "POLICY_VIOLATION" | "QUALITY_REVIEW_REQUIRED" | "ACCOUNT_REVIEW_REQUIRED";
         /** @enum {string} */
-        LanguageTag: "vi" | "en";
+        LanguageTag: "vi" | "en" | "zh" | "fr";
         ProfileAmendment: {
             /** Format: uuid */
             id: string;
@@ -2693,6 +2868,7 @@ export interface components {
         };
     };
     parameters: {
+        CredentialDocumentId: string;
         SpecialistAccountId: string;
         /** @description Omit only when creating the first profile; otherwise quote the current non-negative version. */
         OptionalIfMatch: string;
@@ -2875,6 +3051,266 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    listOwnCredentialDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Own credential documents, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    uploadOwnCredentialDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    title: string;
+                    issuer: string;
+                    issueYear: number;
+                    /** @enum {string} */
+                    credentialType: "DEGREE" | "LICENSE" | "CERTIFICATE";
+                    /**
+                     * Format: binary
+                     * @description PDF
+                     */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Pending credential */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    viewOwnCredentialDocumentFile: {
+        parameters: {
+            query?: {
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                documentId: components["parameters"]["CredentialDocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Expiring original-file link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialDocumentLink"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    updateOwnCredentialBadge: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                documentId: components["parameters"]["CredentialDocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialBadgeRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated credential */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    listPendingCredentialDocumentsForAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending credentials */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    listSpecialistCredentialDocumentsForAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                specialistId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Specialist credential review history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    viewCredentialDocumentFileForAdmin: {
+        parameters: {
+            query?: {
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                documentId: components["parameters"]["CredentialDocumentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Five-minute signed original-file link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialDocumentLink"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            503: components["responses"]["UnavailableProblem"];
+        };
+    };
+    reviewCredentialDocumentForAdmin: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current non-negative profile version. */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                documentId: components["parameters"]["CredentialDocumentId"];
+                decision: "verify" | "reject";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reviewed credential */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ProfileETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistCredentialDocument"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    getPublicSpecialistCredentialBadges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                specialistId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Visible credential badges */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifiedCredentialBadge"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
     getOwnProfileAmendment: {

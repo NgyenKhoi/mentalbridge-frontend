@@ -1,38 +1,17 @@
-import { expect, type Locator } from '@playwright/test'
+import { expect } from '@playwright/test'
 import type { ProfileAmendment } from '@/lib/consultation/consultation-validation'
 import { test } from './test-fixtures'
 import { approvedProfile, draftAmendment } from '../fixtures/profile-amendment'
-
-// Observe the real browser animation at creation time: a short animation may
-// finish before the next Playwright round-trip on a busy machine.
-async function observeNativeAnimation(locator: Locator) {
-  await locator.evaluate((element) => {
-    const animate = element.animate.bind(element)
-    let calls = 0
-    element.animate = (...args: Parameters<Element['animate']>) => {
-      const animation = animate(...args)
-      element.setAttribute('data-e2e-motion-calls', String(++calls))
-      element.setAttribute('data-e2e-motion-state', animation.playState)
-      element.setAttribute(
-        'data-e2e-motion-keyframes',
-        JSON.stringify(
-          animation.effect instanceof KeyframeEffect
-            ? animation.effect.getKeyframes()
-            : [],
-        ),
-      )
-      return animation
-    }
-  })
-}
 
 test('approved specialist edits privately, reloads, and explicitly submits an amendment', async ({
   page,
 }) => {
   let amendment: ProfileAmendment | null = null
-  await page.route('**/api/consultation/specialist-profile', (route) =>
-    route.fulfill({ json: approvedProfile, headers: { etag: '"2"' } }),
-  )
+  let publicWrites = 0
+  await page.route('**/api/consultation/specialist-profile', (route) => {
+    if (route.request().method() !== 'GET') publicWrites++
+    return route.fulfill({ json: approvedProfile, headers: { etag: '"2"' } })
+  })
   await page.route(
     '**/api/consultation/specialist-profile/amendments**',
     async (route) => {
@@ -106,82 +85,65 @@ test('approved specialist edits privately, reloads, and explicitly submits an am
   await page.getByRole('button', { name: 'Đăng nhập' }).click()
   await expect(page).toHaveURL(/\/specialist\/dashboard$/)
   await page.goto('/specialist/profile')
-  await page.getByRole('button', { name: 'Chỉnh sửa hồ sơ' }).click()
-  await page.getByLabel('Tên hiển thị', { exact: true }).fill('Chuyên gia Chi')
+  const form = page.locator('#specialist-profile-form')
+  const displayName = page.getByLabel('Tên hiển thị', { exact: true })
+  await displayName.fill('Chuyên gia Chi')
   await expect(
-    page.getByRole('button', { name: 'Gửi xét duyệt' }),
+    form.getByRole('button', { name: 'Gửi xét duyệt' }),
   ).toBeDisabled()
   await expect(
-    page.getByRole('region', { name: 'Xem trước bản chỉnh sửa' }),
-  ).toContainText('Chuyên gia Chi')
-  await page
-    .getByRole('button', { name: 'Đang công khai', exact: true })
-    .click()
-  await page.getByRole('button', { name: 'Lưu bản nháp' }).click()
-  await page.reload()
-  await page
-    .getByRole('button', { name: 'Đang công khai', exact: true })
-    .click()
-  await expect(
-    page.getByRole('region', { name: 'Hồ sơ đang công khai' }),
-  ).toContainText('Chuyên gia An')
-  await expect(
-    page.getByRole('region', { name: 'Bản chỉnh sửa · Chưa công khai' }),
-  ).toContainText('Chuyên gia Chi')
-  await page.getByRole('button', { name: 'Tiếp tục chỉnh sửa' }).click()
-  await page.getByRole('button', { name: 'Gửi xét duyệt' }).click()
-  await expect(page.getByText('Đang chờ duyệt', { exact: true })).toBeVisible()
-  await page
-    .getByRole('button', { name: 'Đang công khai', exact: true })
-    .click()
-  await expect(
-    page.getByRole('region', { name: 'Hồ sơ đang công khai' }),
-  ).toContainText('Chuyên gia An')
-  await page.getByRole('button', { name: 'Hủy bản chỉnh sửa' }).click()
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Giữ bản chỉnh sửa' })
-    .click()
-  await expect(page.getByText('Đang chờ duyệt', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Hủy bản chỉnh sửa' }).click()
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Hủy bản chỉnh sửa' })
-    .click()
-  await expect(
-    page.getByRole('button', { name: 'Chỉnh sửa hồ sơ' }),
-  ).toBeEnabled()
-  await page.reload()
-  await expect(
-    page.getByRole('button', { name: 'Hủy bản chỉnh sửa' }),
-  ).toHaveCount(0)
-  await page.getByRole('button', { name: 'Chỉnh sửa hồ sơ' }).click()
-  await page
-    .getByLabel('Tên hiển thị', { exact: true })
-    .fill('Thay đổi chưa lưu')
-  await page.getByRole('button', { name: 'Hủy thay đổi chưa lưu' }).click()
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Hủy thay đổi', exact: true })
-    .click()
-  await page.getByRole('button', { name: 'Tiếp tục chỉnh sửa' }).click()
-  await expect(page.getByLabel('Tên hiển thị', { exact: true })).toHaveValue(
-    'Chuyên gia An',
+    page.getByRole('heading', { name: 'Chuyên gia Chi' }),
+  ).toHaveCount(2)
+  await form.getByRole('button', { name: 'Lưu thay đổi' }).click()
+  await expect(form.getByRole('status')).toContainText(
+    'Đã lưu bản chỉnh sửa riêng tư',
   )
+  await expect(
+    form.getByRole('button', { name: 'Gửi xét duyệt' }),
+  ).toBeEnabled()
+  await expect(
+    page.getByText('Tên hiển thị công khai hiện tại:'),
+  ).toContainText('Chuyên gia An')
+  await page.reload()
+  await expect(displayName).toHaveValue('Chuyên gia Chi')
+  await expect(
+    page.getByText('Tên hiển thị công khai hiện tại:'),
+  ).toContainText('Chuyên gia An')
+  await form.getByRole('button', { name: 'Gửi xét duyệt' }).click()
+  await expect(page.getByText('Bản chỉnh sửa (Chờ xét duyệt)')).toBeVisible()
+  await expect(
+    form.getByRole('button', { name: 'Gửi xét duyệt' }),
+  ).toBeDisabled()
+  await form.getByRole('button', { name: 'Hủy bản chỉnh sửa' }).click()
+  await expect(form.getByRole('status')).toContainText('Đã hủy bản chỉnh sửa')
+  await expect(displayName).toHaveValue('Chuyên gia An')
+  await page.reload()
+  await expect(displayName).toHaveValue('Chuyên gia An')
+  await expect(
+    form.getByRole('button', { name: 'Hủy bản chỉnh sửa' }),
+  ).toHaveCount(0)
+  expect(publicWrites).toBe(0)
 })
 
-test('prototype interactions mirror real fields and respect reduced motion and responsive layouts', async ({
+test('incoming profile form keeps preview, keyboard controls and responsive layouts usable', async ({
   page,
 }, testInfo) => {
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
   await page.route('**/api/consultation/specialist-profile', (route) =>
-    route.fulfill({ json: approvedProfile }),
+    route.fulfill({ json: approvedProfile, headers: { etag: '"2"' } }),
   )
   await page.route(
     '**/api/consultation/specialist-profile/amendments/current',
     (route) =>
-      route.fulfill({ json: { approvedProfile, amendment: draftAmendment } }),
+      route.fulfill({
+        json: { approvedProfile, amendment: draftAmendment },
+        headers: { etag: '"1"' },
+      }),
+  )
+  await page.route(
+    '**/api/consultation/specialist-profile/documents',
+    (route) => route.fulfill({ json: [] }),
   )
   await page.goto('/login')
   await page.getByLabel('Email').fill('specialist@example.com')
@@ -189,151 +151,49 @@ test('prototype interactions mirror real fields and respect reduced motion and r
   await page.getByRole('button', { name: 'Đăng nhập' }).click()
   await expect(page).toHaveURL(/\/specialist\/dashboard$/)
   await page.goto('/specialist/profile')
-  await page.getByRole('button', { name: 'Tiếp tục chỉnh sửa' }).click()
-  const hero = page.getByRole('region', { name: 'Danh tính chuyên gia' })
-  const sheen = hero.locator(':scope > span[aria-hidden="true"]')
-  const beforeSheen = await sheen.evaluate(
-    (element) => getComputedStyle(element).transform,
-  )
-  await hero.hover()
-  await expect
-    .poll(() =>
-      sheen.evaluate((element) => getComputedStyle(element).transform),
-    )
-    .not.toBe(beforeSheen)
-  await observeNativeAnimation(sheen)
-  await hero.click()
-  await expect(sheen).toHaveAttribute('data-e2e-motion-calls', '1')
-  await expect(sheen).toHaveAttribute('data-e2e-motion-state', 'running')
   await page
     .getByLabel('Tên hiển thị', { exact: true })
     .fill('Tên đang chỉnh sửa')
-  await expect(hero).toContainText('Tên đang chỉnh sửa')
-  const preview = page.getByRole('region', { name: 'Xem trước bản chỉnh sửa' })
-  await expect(preview).toContainText('Tên đang chỉnh sửa')
-  const years = page.getByRole('spinbutton', { name: 'Số năm kinh nghiệm' })
-  await observeNativeAnimation(years)
-  await page.getByRole('button', { name: 'Tăng năm kinh nghiệm' }).click()
-  await expect(years).toHaveValue('6')
-  await expect(years).toHaveAttribute('data-e2e-motion-calls', '1')
-  await expect(years).toHaveAttribute('data-e2e-motion-state', 'running')
-  await expect(years).toHaveAttribute(
-    'data-e2e-motion-keyframes',
-    /scale\(1\.28\) translateY\(-2px\)/,
-  )
-  await expect(hero).toContainText('6 năm kinh nghiệm')
-  await expect(preview).toContainText('6 năm kinh nghiệm')
-  await page.getByRole('button', { name: 'Giảm năm kinh nghiệm' }).click()
-  await expect(years).toHaveValue('5')
-  await expect(years).toHaveAttribute('data-e2e-motion-calls', '2')
-  await expect(years).toHaveAttribute('data-e2e-motion-state', 'running')
-  const english = page.getByRole('checkbox', { name: 'Tiếng Anh' })
+  await expect(
+    page.getByRole('heading', { name: 'Tên đang chỉnh sửa' }),
+  ).toHaveCount(2)
+  const years = page.getByRole('spinbutton')
+  const originalYears = Number(await years.inputValue())
+  await page.getByRole('button', { name: 'Tăng số năm kinh nghiệm' }).click()
+  await expect(years).toHaveValue(String(originalYears + 1))
+  await page.getByRole('button', { name: 'Giảm số năm kinh nghiệm' }).click()
+  await expect(years).toHaveValue(String(originalYears))
+  const english = page.getByRole('checkbox', { name: 'English' })
   await english.focus()
   await page.keyboard.press('Space')
   await expect(english).toBeChecked()
-  const tag = preview.getByText('Tiếng Anh', { exact: true })
-  await expect(tag).toBeVisible()
-  expect(
-    await tag.evaluate((element) => getComputedStyle(element).animationName),
-  ).toContain('profileTagPop')
-  const ring = page.locator('[title^="Độ hoàn thiện"]')
-  await ring.hover()
-  await expect
-    .poll(() => ring.evaluate((element) => getComputedStyle(element).transform))
-    .not.toBe('none')
-  const book = page.getByRole('button', { name: 'Đặt lịch tư vấn · 60 phút' })
-  const beforeBook = await book.evaluate(
-    (element) => getComputedStyle(element).backgroundImage,
-  )
-  expect(beforeBook).toContain('linear-gradient')
-  await book.hover()
-  await expect
-    .poll(() =>
-      book.evaluate((element) => getComputedStyle(element).backgroundImage),
-    )
-    .not.toBe(beforeBook)
-  await book.click()
-  await expect(
-    page.getByRole('region', { name: 'Phản hồi thao tác' }),
-  ).toContainText('Đây là bản xem trước')
-  await page
-    .getByRole('region', { name: 'Phản hồi thao tác' })
-    .getByRole('button')
-    .click()
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   for (const width of [1440, 1280, 768, 375]) {
     await page.setViewportSize({ width, height: 900 })
-    await page.evaluate(() => window.scrollTo(0, 0))
-    if (width <= 980) {
-      await expect
-        .poll(() =>
-          page
-            .locator('.role-sidebar')
-            .evaluate((element) => element.getBoundingClientRect().right),
-        )
-        .toBeLessThanOrEqual(1)
-      await expect
-        .poll(() =>
-          page
-            .locator('.role-main')
-            .evaluate((element) =>
-              Math.abs(element.getBoundingClientRect().left),
-            ),
-        )
-        .toBeLessThanOrEqual(1)
-    }
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true)
-    const headerLayout = await page
-      .getByRole('heading', { name: 'Hồ sơ chuyên gia', exact: true })
-      .locator('xpath=ancestor::header')
-      .getByRole('button')
-      .evaluateAll((buttons) =>
-        buttons.every((element) => {
-          const rect = element.getBoundingClientRect()
-          return (
-            rect.left >= 0 &&
-            rect.right <= innerWidth &&
-            element.scrollWidth <= element.clientWidth
-          )
-        }),
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       )
-    expect(headerLayout).toBe(true)
-    expect(
-      await book.evaluate(
-        (element) => getComputedStyle(element).backgroundImage,
-      ),
-    ).toContain('linear-gradient')
-    await expect(tag).toBeVisible()
-    await testInfo.attach(`profile-prototype-${width}`, {
+      .toBe(true)
+    await expect(
+      page.getByRole('heading', { name: 'Hồ sơ chuyên gia', exact: true }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Xem giấy tờ', exact: true }),
+    ).toBeVisible()
+    await expect(english).toBeChecked()
+    await testInfo.attach('profile-' + width, {
       body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
       contentType: 'image/png',
     })
   }
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await ring.hover()
-  expect(
-    await ring.evaluate((element) => getComputedStyle(element).transform),
-  ).toBe('none')
-  await page.getByRole('button', { name: 'Tăng năm kinh nghiệm' }).click()
-  expect(
-    await years.evaluate((element) => element.getAnimations().length),
-  ).toBe(0)
-  await expect(years).toHaveValue('6')
-  await expect(years).toHaveAttribute('data-e2e-motion-calls', '2')
-  expect(
-    await tag.evaluate((element) => getComputedStyle(element).animationName),
-  ).toBe('none')
-  const previewButton = page.getByRole('button', {
-    name: 'Xem hồ sơ đang công khai',
-  })
-  await previewButton.click()
-  await expect(page.getByRole('dialog')).toContainText('Chuyên gia An')
+  await page.getByRole('button', { name: 'Xem giấy tờ', exact: true }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(previewButton).toBeFocused()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Xem giấy tờ', exact: true }),
+  ).toBeFocused()
   expect(pageErrors).toEqual([])
 })
 

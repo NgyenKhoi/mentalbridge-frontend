@@ -82,6 +82,21 @@ test.describe('Resources journey', () => {
     const overviewResourceId = '00000000-0000-4000-8000-000000000215'
     let overviewSaved = false
     const savedBookmarks = new Set<string>()
+    await context.route('**/api/achievements?**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { ETag: '"0"' },
+        body: JSON.stringify({
+          visibilityState: 'VISIBLE',
+          preferenceVersion: '0',
+          policyVersion: 'achievement-rules-v1',
+          calculatedAt: '2026-10-11T02:00:00Z',
+          sources: [],
+          items: [],
+        }),
+      }),
+    )
     let bingoSelfConfirmed = false
     let bingoVersion = 0
     const catalogue = [
@@ -336,49 +351,49 @@ test.describe('Resources journey', () => {
     await expect(page.getByText(/\bXP\b/i)).toHaveCount(0)
     await expect(page.getByText(/huy hiệu|cấp độ/i)).toHaveCount(0)
     await expect(
-      page.getByText('Nguồn: NHS Every Mind Matters').first(),
+      page.getByText('NHS Every Mind Matters', { exact: true }).first(),
     ).toBeVisible()
 
     await page
-      .getByRole('button', { name: `Lưu: ${catalogue[0].title}` })
+      .getByRole('button', { name: 'Lưu hoạt động nổi bật' })
       .first()
       .click()
     await expect(
-      page
-        .getByRole('button', { name: `Bỏ lưu: ${catalogue[0].title}` })
-        .first(),
+      page.getByRole('button', { name: 'Bỏ lưu hoạt động nổi bật' }).first(),
     ).toBeVisible()
     await page.reload()
     await expect(
-      page
-        .getByRole('button', { name: `Bỏ lưu: ${catalogue[0].title}` })
-        .first(),
+      page.getByRole('button', { name: 'Bỏ lưu hoạt động nổi bật' }).first(),
     ).toBeVisible()
     await page
-      .getByRole('button', { name: `Bỏ lưu: ${catalogue[0].title}` })
+      .getByRole('button', { name: 'Bỏ lưu hoạt động nổi bật' })
       .first()
       .click()
     await expect(
-      page.getByRole('button', { name: `Lưu: ${catalogue[0].title}` }).first(),
+      page.getByRole('button', { name: 'Lưu hoạt động nổi bật' }).first(),
     ).toBeVisible()
 
     await page.getByRole('button', { name: 'Tự đánh dấu' }).click()
     await expect(page.getByText('Bạn tự đánh dấu')).toBeVisible()
     await page.getByRole('button', { name: 'Bỏ tự đánh dấu' }).click()
-    await expect(page.getByText('Chưa đánh dấu')).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Tự đánh dấu' }),
+    ).toHaveAttribute('aria-pressed', 'false')
+
+    await page
+      .getByText('Hoạt động trong kế hoạch hôm nay', { exact: true })
+      .click()
 
     await page
       .getByRole('button', {
-        name: `Ghi nhận hoàn thành và lưu: ${catalogue[2].title}`,
+        name: `Ghi nhận đã làm: ${catalogue[2].title}`,
       })
       .click()
     await expect(
-      page.getByText(`✓ Đã lưu hoàn thành “${catalogue[2].title}”.`),
+      page.getByText(`Đã lưu hoàn thành “${catalogue[2].title}”.`),
     ).toBeVisible()
     await expect(page.getByText('1 ngày đã lưu')).toBeVisible()
-    await expect(
-      page.getByText('Đã xác minh từ hoạt động đã hoàn thành'),
-    ).toBeVisible()
+    await expect(page.getByText('✓ Đã xác minh', { exact: true })).toBeVisible()
     for (const viewport of [
       { width: 1280, height: 800 },
       { width: 768, height: 1024 },
@@ -445,7 +460,7 @@ test.describe('Resources journey', () => {
         )
         .toBeLessThanOrEqual(0)
       await expect(
-        page.getByRole('heading', { name: 'Nhịp thực hành' }),
+        page.getByRole('heading', { name: 'Hoạt động đã ghi nhận' }),
       ).toBeVisible()
       await page.screenshot({
         path: 'docs/evidence/mb-656-resources-mobile.png',
@@ -454,7 +469,7 @@ test.describe('Resources journey', () => {
       await page.setViewportSize({ width: 1440, height: 900 })
     }
     await page
-      .getByRole('link', { name: `Mở hoạt động: ${catalogue[0].title}` })
+      .getByRole('link', { name: `Khám phá ${catalogue[0].title}` })
       .click()
     await page.waitForURL(new RegExp(`/resources/${resourceId}`))
 
@@ -498,7 +513,7 @@ test.describe('Resources journey', () => {
     await page.getByRole('link', { name: 'Quay lại Tài nguyên' }).click()
     await page.waitForURL(/\/resources$/)
     await expect(
-      page.getByRole('heading', { level: 2, name: 'Nhịp thực hành' }),
+      page.getByRole('heading', { level: 2, name: 'Hoạt động đã ghi nhận' }),
     ).toBeVisible()
     expect(consoleErrors).toEqual([])
   })

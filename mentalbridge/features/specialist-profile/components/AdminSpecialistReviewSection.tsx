@@ -9,6 +9,7 @@ import type {
   SpecialistSuspensionReason,
 } from '@/lib/consultation/consultation-validation'
 import { browserConsultation } from '../api/browser-client'
+import AdminCredentialReviewSection from './AdminCredentialReviewSection'
 import styles from './AdminSpecialistReviewSection.module.css'
 import AdminProfileAmendmentReview from './AdminProfileAmendmentReview'
 
@@ -193,7 +194,8 @@ function InitialProfileReview() {
         <h1>Vòng đời hồ sơ</h1>
         <p>
           Xét duyệt, từ chối, tạm ngưng và khôi phục bằng lý do vận hành đã được
-          chuẩn hóa. Luồng này không xử lý giấy phép hay tài liệu xác minh.
+          chuẩn hóa. Giấy tờ chuyên gia được xét duyệt riêng trong hàng chờ bên
+          dưới.
         </p>
       </header>
       <nav className={styles.filters} aria-label="Lọc trạng thái hồ sơ">
@@ -381,6 +383,7 @@ function InitialProfileReview() {
           )}
         </article>
       </div>
+      <AdminCredentialReviewSection />
     </section>
   )
 }
